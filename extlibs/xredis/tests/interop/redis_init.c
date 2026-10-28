@@ -1,4 +1,8 @@
+#if defined(INTEROP_DIAL)
+#define XREDIS_MODULE_XREDIS_DIAL
+#else
 #define XREDIS_MODULE_XREDIS_CLIENT
+#endif
 #include <xredis.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +12,17 @@
  * These are public synthetic fixture credentials, never application secrets. */
 #define INTEROP_PASSWORD "xredis-fixture-password"
 #define INTEROP_USERNAME "xredis-fixture-user"
+#if defined(INTEROP_DIAL)
+static xnetresolver* InteropResolver;
+#endif
+static bool interopConnect(xnetengine* Engine, const xnetaddr* Address, const xredisclientinitconfig* Init, xredisclient** Client)
+{
+#if defined(INTEROP_DIAL)
+	return xredisClientDial(Engine, InteropResolver, XRT_STR_LITERAL("localhost"), Address->Port, 0, NULL, Init, NULL, Client);
+#else
+	return xredisClientConnectInit(Engine, Address, 0, NULL, Init, Client);
+#endif
+}
 static void interopRequire(bool Condition, cstr Message)
 { if (!Condition) { fprintf(stderr, "[FAIL] Redis interoperability: %s\n", Message); exit(1); } }
 
@@ -51,7 +66,7 @@ static void interopOptions(xredisclientinitconfig* Init, int Scenario)
 static xfuture* interopSuccess(xnetengine* Engine, const xnetaddr* Address, int Scenario, xredisinitmode Mode)
 {
 	xredisclientinitconfig Init; interopOptions(&Init, Scenario); Init.Mode = Mode; xredisclient* Client = NULL;
-	interopRequire(xredisClientConnectInit(Engine, Address, 0, NULL, &Init, &Client), "managed connection");
+	interopRequire(interopConnect(Engine, Address, &Init, &Client), "managed connection");
 	xfuture* ReadyFuture = xredisClientReady(Client); const xredisreadyresult* Ready = (const xredisreadyresult*)interopWait(ReadyFuture);
 	interopRequire(Ready->Status == XREDIS_READY_OK && Ready->Protocol == (Mode == XREDIS_INIT_RESP2 ? XREDIS_RESP2 : XREDIS_RESP3) &&
 		!Ready->Downgraded && Ready->Negotiated == (Mode != XREDIS_INIT_RESP2) && (Ready->Hello != NULL) == Ready->Negotiated, "negotiated readiness");
@@ -93,7 +108,7 @@ static void interopFailure(xnetengine* Engine, const xnetaddr* Address, int Scen
 				Init.Flags &= ~(XREDIS_INIT_AUTH | XREDIS_INIT_USERNAME); Init.Password = (xbytesview){NULL, 0}; Init.Username = (xbytesview){NULL, 0};
 			}
 		}
-		xredisclient* Client = NULL; interopRequire(xredisClientConnectInit(Engine, Address, 0, NULL, &Init, &Client), "failure connection admission");
+		xredisclient* Client = NULL; interopRequire(interopConnect(Engine, Address, &Init, &Client), "failure connection admission");
 		xfuture* Future = xredisClientReady(Client); const xredisreadyresult* Ready = (const xredisreadyresult*)interopWait(Future);
 		interopRequire(Ready->Status == Expected && Ready->Step == Step && !Ready->Downgraded && Ready->Hello == NULL, "real initialization failure/downgrade");
 		if (Ready->Cause != NULL) interopRequire(strcmp(xrtErrorMessage(Ready->Cause), "connection initialization failed") == 0, "redacted error");
@@ -119,10 +134,17 @@ int main(int argc, char** argv)
 	int Scenario = atoi(argv[2]); if (Scenario < 0 || Scenario > 2) return 2;
 	xnetengineconfig Config; xrtNetEngineConfigInit(&Config); Config.Workers = 2;
 	xnetengine* Engine = xrtNetEngineCreate(&Config); interopRequire(Engine != NULL && xrtNetEngineStart(Engine), "engine start");
+#if defined(INTEROP_DIAL)
+	InteropResolver = xrtNetResolverCreate(NULL); interopRequire(InteropResolver != NULL, "application Resolver");
+	puts("connection_mode: hostname localhost / shared system Resolver");
+#endif
 	xnetaddr Address; interopRequire(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "endpoint");
 	xfuture* Results[3]; Results[0] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP3);
 	Results[1] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP2); Results[2] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_AUTO);
 	interopFailure(Engine, &Address, Scenario); interopRaw(Engine, &Address, Scenario);
+#if defined(INTEROP_DIAL)
+	interopRequire(xrtNetResolverDestroy(InteropResolver), "shared Resolver join");
+#endif
 	interopRequire(xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine), "engine teardown");
 	for (size_t Index = 0; Index < 3; ++Index) {
 		const xredisreadyresult* Ready = (const xredisreadyresult*)interopWait(Results[Index]);

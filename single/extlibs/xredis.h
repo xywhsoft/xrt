@@ -76,6 +76,22 @@
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#endif
+
+/* xredis_dial 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_DIAL)
+#ifndef XREDIS_FEATURE_XREDIS_DIAL
+#define XREDIS_FEATURE_XREDIS_DIAL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xredis_client 及其直接依赖。 */
@@ -775,6 +791,68 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/dial.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_DIAL_H
+#define XREDIS_DIAL_H
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "XREDIS_FEATURE_XREDIS_DIAL requires client and net_tcp_dial"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+#define XREDIS_DIAL_ADDRESSES_MAX 64u
+#define XREDIS_DIAL_HOST_MAX 65535u
+
+/* Network policy only; the client Config.Stream remains the sole TCP limits.
+ * Timeout=0 disables the additional Dial timer, -1 is infinite. Managed Init's
+ * original deadline still spans host copying, DNS, candidate race and HELLO.
+ * Default dual stack, 30000 ms, 250 ms fallback, eight candidates, 1024 host
+ * bytes. Maximum candidate/address count 64; maximum borrowed host span 65535.
+ * No IDNA conversion, TLS, reconnect or application-command replay is implied. */
+typedef struct xredisclientdialconfig {
+	size_t Size;
+	xnetfamily Family;
+	int64 Timeout;
+	int64 FallbackDelay;
+	uint32 MaxAttempts;
+	size_t MaxHostBytes;
+} xredisclientdialconfig;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientDialConfigInit(xredisclientdialconfig* Config);
+
+/* Async hostname setup on the existing Engine/Resolver. Host is a bounded,
+ * nonempty readable view without embedded NUL; copied before return. Resolver
+ * is application-owned and must outlive Closed (then retire/join it separately).
+ * It is shared; closing a client does not close the service or stop an OS
+ * lookup already running there. All client callback/data ownership retires
+ * through the client Close barrier. NULL Init selects strict RESP3 defaults.
+ * Calls can queue, expire/cancel through DNS and TCP setup. Result unchanged on
+ * failure. Successful submission owns one Client reference: Close then Release.
+ * Core XRT supplies bounded family interleaving, fallback and losing-socket
+ * retirement before transfer. No business operation is retried or replayed. */
+XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+
+/* Already resolved immutable endpoints; no Resolver is consulted. Each port
+ * is preserved. At most 64 entries; Family filters candidates and MaxAttempts
+ * bounds selected attempts. Retains the list only until native Dial admission;
+ * caller may release its reference immediately. Output storage must be disjoint
+ * from descriptors and borrowed host/credential/name/endpoint storage. */
+XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine,
+	xnetaddrlist* Addresses, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -798,6 +876,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLIENT"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_DIAL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_DIAL"
+#endif
+
 
 #endif
 
@@ -805,6 +887,40 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_IMPLEMENTATION) && !defined(XREDIS_IMPLEMENTATION_ONCE)
 #define XREDIS_IMPLEMENTATION_ONCE 1
+
+
+/* ========================================================================== */
+/* internal: extlibs/xredis/src/internal/client_connect.h */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_CLIENT)
+#ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
+#define XREDIS_CLIENT_CONNECT_INTERNAL_H
+
+/* Private cold connection-start handoff. No per-request dispatch, public
+ * transport plugin or shared runtime. The descriptor lives in Data's owner.
+ * Factory failure consumes nothing; success drops it at physical Close. */
+typedef struct xredisconnectplan {
+	ptr Data;
+	bool (*Start)(ptr Data, xredisclient* Client, xnetengine* Engine, uint64 Affinity,
+		const xnetstreamconfig* Config, const xnetstreamevents* Events);
+	void (*Cancel)(ptr Data);
+	void (*Drop)(ptr Data);
+} xredisconnectplan;
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+bool __xredisClientCreatePlanned(xnetengine* Engine, uint64 Affinity,
+	const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	double Entered, const xredisconnectplan* Plan, xredisclient** Result);
+/* Owning Worker only. Done consumes any winning Stream reference, then the
+ * source calls Retired as its final action before returning from its callback.
+ * The queued client work cannot publish Close until that callback returns. */
+void __xredisClientConnectDone(xredisclient* Client, xnetresult Result,
+	xnetstream* Stream, const xerror* Cause);
+void __xredisClientConnectRetired(xredisclient* Client);
+#endif
+#endif
+#endif
 
 
 /* ========================================================================== */
@@ -1998,6 +2114,10 @@ struct xredisclient {
 	/* Only the owning worker accesses these fields. */
 	bool Started, TransportClosed, ReadEnded, Reading, ReadYielded, ReadPaused;
 	bool Managed, TransportOpen;
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+	const xredisconnectplan* Plan;
+	bool PlanOwned, PlanPending, PlanCancelled;
+#endif
 	xredisreply* PushQueue[];
 };
 
@@ -2152,6 +2272,9 @@ XREDIS_API void xredisClientRelease(xredisclient* Client)
 	xrtPromiseDestroy(Client->ClosePromise); xrtFutureDestroy(Client->CloseFuture); xrtErrorFree(Client->CloseCause);
 	xrtPromiseDestroy(Client->ReadyPromise); xrtFutureDestroy(Client->ReadyFuture);
 	xrtFree(Client->ReadyResult); xredisReplyRelease(Client->Hello);
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+	if (Client->PlanOwned) Client->Plan->Drop(Client->Plan->Data);
+#endif
 	if (Client->EnginePinned) xrtNetEngineUnpin(Client->Engine);
 	xrtMutexUnit(&Client->Gate); xrtFree(Client);
 }
@@ -2518,6 +2641,43 @@ static const xnetstreamevents xredisClientEvents = {
 	xredisClientOnLowWater, xredisClientOnWritable, xredisClientOnClose
 };
 
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+static xredisrequeststatus xredisClientConnectFailure(const xerror* Cause)
+{
+	xerrkind Kind = xrtErrorKind(Cause);
+	return Kind == XERR_MEMORY ? XREDIS_REQUEST_MEMORY :
+		(Kind == XERR_AGAIN || Kind == XERR_RANGE) ? XREDIS_REQUEST_LIMIT : XREDIS_REQUEST_DISCONNECTED;
+}
+
+void __xredisClientConnectDone(xredisclient* Client, xnetresult Result,
+	xnetstream* Stream, const xerror* Cause)
+{
+	if (Stream != NULL) {
+		Client->Stream = Stream;
+		/* A close requested during DNS may have observed no transport. A late
+		 * winning reference still has to reach its ACTUAL TCP close barrier. */
+		Client->TransportClosed = xrtNetStreamState(Stream) == XNET_STREAM_CLOSED;
+		if (xredisClientClosing(Client)) xrtNetStreamAbort(Stream);
+	} else {
+		/* A cancelled pending Dial never created a stream. Its terminal callback
+		 * is the physical transport barrier even when public Close won first. */
+		Client->TransportClosed = true;
+		if (!xredisClientClosing(Client)) {
+		xredisrequeststatus Status = Result == XNET_RESULT_TIMEOUT || Result == XNET_RESULT_CANCELLED ?
+			XREDIS_REQUEST_DISCONNECTED : xredisClientConnectFailure(Cause);
+		xredisClientFail(Client, Status, Cause);
+		xredisreadystatus Ready = Result == XNET_RESULT_TIMEOUT ? XREDIS_READY_TIMEOUT :
+			Result == XNET_RESULT_CANCELLED ? XREDIS_READY_CLOSED : xredisClientReadyFailure(Status);
+		xredisClientReadyFinish(Client, Ready, Cause);
+		}
+	}
+	xredisClientWake(Client);
+}
+
+void __xredisClientConnectRetired(xredisclient* Client)
+{ Client->PlanPending = false; xredisClientWake(Client); }
+#endif
+
 static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 {
 	xredisreplyinfo Info = {0}; Info.Size = sizeof(Info); xredisReplyInfo(Reply, &Info);
@@ -2670,10 +2830,22 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 			else if (!xredisClientInitArm(Client)) xredisClientFail(Client, XREDIS_REQUEST_MEMORY, xrtGetError());
 		}
 		if (!xredisClientClosing(Client)) {
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+			if (Client->Plan != NULL) {
+				Client->PlanPending = true;
+				if (!Client->Plan->Start(Client->Plan->Data, Client, Client->Engine,
+					xrtNetWorkerIndex(Client->Worker), &Client->Config.Stream, &xredisClientEvents)) {
+					Client->PlanPending = false;
+					xredisClientFail(Client, xredisClientConnectFailure(xrtGetError()), xrtGetError());
+				}
+			} else
+#endif
+			{
 			Client->Stream = xrtNetStreamConnect(Client->Engine, &Client->Remote, xrtNetWorkerIndex(Client->Worker),
 				&Client->Config.Stream, &xredisClientEvents, Client);
 			if (Client->Stream == NULL) xredisClientFail(Client, xrtErrorKind(xrtGetError()) == XERR_MEMORY ?
 				XREDIS_REQUEST_MEMORY : XREDIS_REQUEST_DISCONNECTED, xrtGetError());
+			}
 		} else Client->TransportClosed = true;
 	}
 	xredisClientIngest(Client);
@@ -2694,6 +2866,11 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 		}
 	}
 	if (xredisClientClosing(Client)) {
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+		if (Client->PlanPending && !Client->PlanCancelled) {
+			Client->PlanCancelled = true; Client->Plan->Cancel(Client->Plan->Data);
+		}
+#endif
 		if (Client->ReadyPromise != NULL)
 			xredisClientReadyFinish(Client, xredisClientReadyFailure(Client->Info.CloseStatus), Client->CloseCause);
 		if (Client->Stream != NULL && !Client->TransportClosed) xrtNetStreamAbort(Client->Stream);
@@ -2705,12 +2882,21 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 	if (Again) (void)xredisClientWakeLocked(Client);
 	bool Done = Client->TransportClosed && Client->Info.Requests == 0 && Client->Info.InitBytes == 0 &&
 		Client->InitTimer == 0 && !Client->WakeQueued && !Client->CloseDone;
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+	Done = Done && !Client->PlanPending;
+#endif
 	if (Done) { Client->CloseDone = true; Client->Info.State = XREDIS_CLIENT_CLOSED; Client->EnginePinned = false; }
 	xrtMutexUnlock(&Client->Gate);
 	if (Done) {
 		xpromise* Promise = Client->ClosePromise; Client->ClosePromise = NULL;
 		xrtNetStreamDestroy(Client->Stream); Client->Stream = NULL;
 		xredisReplyReaderDestroy(Client->Reader); Client->Reader = NULL;
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+		if (Client->PlanOwned) {
+			const xredisconnectplan* Plan = Client->Plan; Client->Plan = NULL; Client->PlanOwned = false;
+			Plan->Drop(Plan->Data);
+		}
+#endif
 		xrtNetEngineUnpin(Client->Engine); xrtPromiseResolve(Promise, NULL); xrtPromiseDestroy(Promise);
 		xredisClientRelease(Client); /* Runtime activation. */
 	}
@@ -2733,11 +2919,12 @@ XREDIS_API bool xredisClientConfigInit(xredisclientconfig* Config)
 
 static bool xredisClientCreate(xnetengine* Engine, const xnetaddr* Remote,
 	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
-	double Entered, xredisclient** Result)
+	double Entered, const xredisconnectplan* Plan, xredisclient** Result)
 {
 	xredisclientconfig Copy;
-	if (Engine == NULL || Remote == NULL || Result == NULL || !xrtMemRangeValid(Remote, sizeof(*Remote)) ||
-		!xrtMemRangeValid(Result, sizeof(*Result)) || xrtMemRangesOverlap(Remote, sizeof(*Remote), Result, sizeof(*Result)) ||
+	if (Engine == NULL || (Remote == NULL && Plan == NULL) || Result == NULL ||
+		(Remote != NULL && (!xrtMemRangeValid(Remote, sizeof(*Remote)) || xrtMemRangesOverlap(Remote, sizeof(*Remote), Result, sizeof(*Result)))) ||
+		!xrtMemRangeValid(Result, sizeof(*Result)) ||
 		(Config != NULL && (!xrtMemRangeValid(Config, sizeof(*Config)) ||
 		 xrtMemRangesOverlap(Config, sizeof(*Config), Result, sizeof(*Result)))))
 		return xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid client creation arguments");
@@ -2759,14 +2946,18 @@ static bool xredisClientCreate(xnetengine* Engine, const xnetaddr* Remote,
 		Copy.MaxCommandBytes > SIZE_MAX - sizeof(xredisrequest) || Copy.WorkRequests == 0 ||
 		Copy.ReadBytes == 0 || Copy.ReadFrames == 0 || Copy.DrainTimeout <= 0 ||
 		Copy.MaxPushes > (SIZE_MAX - sizeof(xredisclient)) / sizeof(xredisreply*) ||
-		(Remote->Family != XNET_FAMILY_IPV4 && Remote->Family != XNET_FAMILY_IPV6) || Remote->Port == 0 ||
+		(Remote != NULL && ((Remote->Family != XNET_FAMILY_IPV4 && Remote->Family != XNET_FAMILY_IPV6) || Remote->Port == 0)) ||
 		!xrtNetStreamConfigValid(&Copy.Stream))
 		return xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid client config or endpoint");
 	if (!xrtNetEnginePin(Engine)) return false;
 	size_t Bytes = sizeof(xredisclient) + Copy.MaxPushes * sizeof(xredisreply*);
 	xredisclient* Client = (xredisclient*)xrtCalloc(1, Bytes);
 	if (Client == NULL) { xrtNetEngineUnpin(Engine); return false; }
-	Client->Engine = Engine; Client->EnginePinned = true; Client->Config = Copy; Client->Remote = *Remote;
+	Client->Engine = Engine; Client->EnginePinned = true; Client->Config = Copy;
+	if (Remote != NULL) Client->Remote = *Remote;
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+	Client->Plan = Plan;
+#endif
 	Client->StorageBytes = Bytes; Client->Info.Size = sizeof(Client->Info); Client->Info.CloseStatus = XREDIS_REQUEST_CLOSED;
 	Client->Managed = Init != NULL; Client->InitAwait = XREDIS_I_END;
 	if (Client->Managed) {
@@ -2782,8 +2973,14 @@ static bool xredisClientCreate(xnetengine* Engine, const xnetaddr* Remote,
 		(Client->ReadyResult = (xredisreadyresult*)xrtMalloc(sizeof(*Client->ReadyResult))) == NULL ||
 		(Client->Managed && !xredisClientInitBuild(Client, &InitCopy))) { xredisClientRelease(Client); return false; }
 	xredisClientRef(Client); /* Active connection, even before Stream is created. */
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+	Client->PlanOwned = Plan != NULL;
+#endif
 	xrtMutexLock(&Client->Gate); bool Posted = xredisClientWakeLocked(Client); xrtMutexUnlock(&Client->Gate);
 	if (!Posted) {
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+		Client->PlanOwned = false;
+#endif
 		xredisinitwire* Wire = Client->InitWire; Client->InitWire = NULL; xredisInitWireRelease(Wire);
 		xredisClientRelease(Client); xredisClientRelease(Client); return false;
 	}
@@ -2792,15 +2989,22 @@ static bool xredisClientCreate(xnetengine* Engine, const xnetaddr* Remote,
 
 XREDIS_API bool xredisClientConnect(xnetengine* Engine, const xnetaddr* Remote,
 	uint64 Affinity, const xredisclientconfig* Config, xredisclient** Result)
-{ return xredisClientCreate(Engine, Remote, Affinity, Config, NULL, xrtTimer(), Result); }
+{ return xredisClientCreate(Engine, Remote, Affinity, Config, NULL, xrtTimer(), NULL, Result); }
 
 XREDIS_API bool xredisClientConnectInit(xnetengine* Engine, const xnetaddr* Remote,
 	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init, xredisclient** Result)
 {
 	double Entered = xrtTimer(); xredisclientinitconfig Defaults;
 	if (Init == NULL) { xredisClientInitConfigInit(&Defaults); Init = &Defaults; }
-	return xredisClientCreate(Engine, Remote, Affinity, Config, Init, Entered, Result);
+	return xredisClientCreate(Engine, Remote, Affinity, Config, Init, Entered, NULL, Result);
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+bool __xredisClientCreatePlanned(xnetengine* Engine, uint64 Affinity,
+	const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	double Entered, const xredisconnectplan* Plan, xredisclient** Result)
+{ return xredisClientCreate(Engine, NULL, Affinity, Config, Init, Entered, Plan, Result); }
+#endif
 
 XREDIS_API xfuture* xredisClientReady(xredisclient* Client)
 {
@@ -2949,6 +3153,125 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 	return xrtFutureRef(Client->CloseFuture);
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/dial/dial.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+#include <string.h>
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+typedef struct xredisconnectdata {
+	xredisconnectplan Plan;
+	xredisclient* Client; /* Borrowed through this source's retirement callback. */
+	xnetresolver* Resolver;
+	xnetaddrlist* Addresses;
+	xnetdial* Dial;
+	xnetdialconfig Config;
+	uint16 Port;
+	char Host[];
+} xredisconnectdata;
+
+static bool xredisDialArgument(cstr Message)
+{ xrtSetErrorInfo(XERR_ARGUMENT, "xrt.redis", XREDIS_CLIENT_ARGUMENT, Message); return false; }
+
+XREDIS_API bool xredisClientDialConfigInit(xredisclientdialconfig* Config)
+{
+	if (Config == NULL || !xrtMemRangeValid(Config, sizeof(*Config))) return xredisDialArgument("invalid Dial config output");
+	*Config = (xredisclientdialconfig){sizeof(*Config), XNET_FAMILY_UNSPEC, 30000, 250, 8, 1024}; return true;
+}
+
+static void xredisDialDone(xnetdial* Dial, xnetresult Result, xnetstream* Stream, const xerror* Error, ptr Data)
+{
+	(void)Dial; xredisconnectdata* Context = (xredisconnectdata*)Data;
+	__xredisClientConnectDone(Context->Client, Result, Stream, Error);
+	/* Last access. This same Worker's queued client turn executes after the
+	 * native callback's return; no fabricated owned/collector policy is used. */
+	__xredisClientConnectRetired(Context->Client);
+}
+
+static bool xredisDialStart(ptr Data, xredisclient* Client, xnetengine* Engine, uint64 Affinity,
+	const xnetstreamconfig* Config, const xnetstreamevents* Events)
+{
+	xredisconnectdata* Context = (xredisconnectdata*)Data; Context->Client = Client;
+	Context->Config.Stream = *Config; Context->Config.Affinity = Affinity;
+	if (Context->Addresses != NULL) Context->Dial = xrtNetDialAddresses(Engine, Context->Addresses, &Context->Config, Events, Client, xredisDialDone, Context);
+	else Context->Dial = xrtNetDial(Engine, Context->Resolver, Context->Host, Context->Port, &Context->Config, Events, Client, xredisDialDone, Context);
+	if (Context->Dial == NULL) return false;
+	xrtNetAddrListDestroy(Context->Addresses); Context->Addresses = NULL; return true;
+}
+
+static void xredisDialCancel(ptr Data)
+{ xredisconnectdata* Context = (xredisconnectdata*)Data; (void)xrtNetDialCancel(Context->Dial); }
+
+static void xredisDialDrop(ptr Data)
+{
+	xredisconnectdata* Context = (xredisconnectdata*)Data;
+	xrtNetDialDestroy(Context->Dial); xrtNetAddrListDestroy(Context->Addresses); xrtFree(Context);
+}
+
+static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	double Entered, xredisclient** Result)
+{
+	if (Engine == NULL || Result == NULL || !xrtMemRangeValid(Result, sizeof(*Result)) ||
+		(Dial != NULL && (!xrtMemRangeValid(Dial, sizeof(*Dial)) || xrtMemRangesOverlap(Dial, sizeof(*Dial), Result, sizeof(*Result)))))
+		return xredisDialArgument("invalid Dial arguments or config/output overlap");
+	xredisclientdialconfig Policy;
+	if (Dial == NULL) xredisClientDialConfigInit(&Policy); else Policy = *Dial;
+	if (Policy.Size != sizeof(Policy) || (Policy.Family != XNET_FAMILY_UNSPEC && Policy.Family != XNET_FAMILY_IPV4 && Policy.Family != XNET_FAMILY_IPV6) ||
+		Policy.Timeout < XRT_WAIT_FOREVER || Policy.FallbackDelay < 0 || Policy.MaxAttempts == 0 || Policy.MaxAttempts > XREDIS_DIAL_ADDRESSES_MAX ||
+		Policy.MaxHostBytes == 0 || Policy.MaxHostBytes > XREDIS_DIAL_HOST_MAX) return xredisDialArgument("invalid Dial family, deadline or bounds");
+	if (Addresses == NULL) {
+		if (Resolver == NULL || Port == 0 || Host.Size == 0 || Host.Size > Policy.MaxHostBytes ||
+			Host.Size > SIZE_MAX - sizeof(xredisconnectdata) - 1u || !xrtMemRangeValid(Host.Data, Host.Size) ||
+			xrtMemRangesOverlap(Host.Data, Host.Size, Result, sizeof(*Result)) || memchr(Host.Data, 0, Host.Size) != NULL)
+			return xredisDialArgument("invalid host, port, Resolver or input/output overlap");
+	} else {
+		size_t Count = xrtNetAddrListCount(Addresses), Eligible = 0;
+		if (Count == 0 || Count > XREDIS_DIAL_ADDRESSES_MAX) return xredisDialArgument("resolved endpoint list exceeds bounds");
+		for (size_t Index = 0; Index < Count; ++Index) {
+			const xnetaddr* Address = xrtNetAddrListGet(Addresses, Index); if (Address == NULL) return false;
+			if (xrtMemRangesOverlap(Address, sizeof(*Address), Result, sizeof(*Result))) return xredisDialArgument("endpoint output overlaps address storage");
+			if (Policy.Family != XNET_FAMILY_UNSPEC && Address->Family != Policy.Family) continue;
+			if (Address->Port == 0) return xredisDialArgument("resolved endpoint port is zero");
+			++Eligible;
+		}
+		if (Eligible == 0) return xredisDialArgument("no endpoint matches the selected family");
+	}
+	xredisclientinitconfig Defaults;
+	if (Init == NULL) { xredisClientInitConfigInit(&Defaults); Init = &Defaults; }
+	xredisconnectdata* Context = (xredisconnectdata*)xrtCalloc(1, sizeof(*Context) + Host.Size + 1u);
+	if (Context == NULL) return false;
+	Context->Plan = (xredisconnectplan){Context, xredisDialStart, xredisDialCancel, xredisDialDrop};
+	xrtNetDialConfigInit(&Context->Config); Context->Config.Family = Policy.Family; Context->Config.Timeout = Policy.Timeout;
+	Context->Config.FallbackDelay = Policy.FallbackDelay; Context->Config.MaxAttempts = Policy.MaxAttempts;
+	Context->Resolver = Resolver; Context->Port = Port;
+	if (Addresses != NULL) {
+		Context->Addresses = xrtNetAddrListRef(Addresses);
+		if (Context->Addresses == NULL) { xredisDialDrop(Context); return false; }
+	} else memcpy(Context->Host, Host.Data, Host.Size);
+	if (__xredisClientCreatePlanned(Engine, Affinity, Config, Init, Entered, &Context->Plan, Result)) return true;
+	xredisDialDrop(Context); return false;
+}
+
+XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial, xredisclient** Result)
+{ return xredisDialCreate(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, Dial, xrtTimer(), Result); }
+
+XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	const xredisclientdialconfig* Dial, xredisclient** Result)
+{
+	if (Addresses == NULL) return xredisDialArgument("resolved endpoint list is NULL");
+	return xredisDialCreate(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, Dial, xrtTimer(), Result);
+}
 #endif
 #endif
 

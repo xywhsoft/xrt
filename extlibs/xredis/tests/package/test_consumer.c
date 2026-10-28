@@ -1,7 +1,7 @@
 #define XREDIS_MODULE_XREDIS
 #include <xredis.h>
 #include <string.h>
-#include "../support/client_init_peer.h"
+#include "../support/dial_peer.h"
 
 static xredisreadaction readReply(const xredisreadevent* Event, ptr User)
 {
@@ -38,10 +38,11 @@ int main(void)
 	double Number;
 	if (!xredisReplyDouble(Frame, Text.Next, &Number) || Number != 1.25 || !xredisReplyRetain(Frame)) return 11;
 	xredisReplyRelease(Frame); xredisReplyRelease(Frame);
-	const redisinitpeerstep Step = {{XRT_BYTES_LITERAL("HELLO"), XRT_BYTES_LITERAL("3")}, 2, XRT_BYTES_LITERAL(REDIS_INIT_HELLO_REPLY), false, false};
-	redisinitpeer Peer; redisInitPeerStart(&Peer, &Step, 1); xredisclient* Client = NULL;
+	redisdialpeer Peer; redisDialPeerStart(&Peer, 0, 0, 0); xredisclient* Client = NULL;
 	xredisclientinitconfig Init; if (!xredisClientInitConfigInit(&Init)) return 12;
-	if (!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, NULL, &Init, &Client)) return 12;
+	xredisclientdialconfig Dial; if (!xredisClientDialConfigInit(&Dial)) return 12;
+	if (!xredisClientDial(Peer.Init.Peer.Engine, Peer.Resolver, XRT_STR_LITERAL("redis.fixture"), Peer.Init.Peer.Address.Port,
+		0, NULL, &Init, &Dial, &Client)) return 12;
 	xfuture* Ready = xredisClientReady(Client); if (Ready == NULL || xrtFutureWaitFor(Ready, 5000) != XWAIT_OK) return 17;
 	const xredisreadyresult* State = (const xredisreadyresult*)xrtFutureValue(Ready);
 	if (State == NULL || State->Status != XREDIS_READY_OK || State->Protocol != XREDIS_RESP3 || State->Hello == NULL) return 18;
@@ -51,7 +52,7 @@ int main(void)
 	if (Result == NULL || Result->Status != XREDIS_REQUEST_OK || Result->Delivery != XREDIS_REPLIED) return 14;
 	xfuture* Closed = xredisClientClosed(Client);
 	if (!xredisClientClose(Client) || xrtFutureWaitFor(Closed, 5000) != XWAIT_OK) return 15;
-	xredisClientRelease(Client); xrtFutureDestroy(Closed); redisPeerStop(&Peer.Peer);
+	xredisClientRelease(Client); xrtFutureDestroy(Closed); redisDialPeerStop(&Peer);
 	if (!xredisReplyGet(Result->Reply, 0, &Text) || Text.Data.Size != 4 || memcmp(Text.Data.Data, "PONG", 4)) return 16;
 	if (State->Status != XREDIS_READY_OK || State->Hello == NULL) return 19;
 	xrtFutureDestroy(Future); xrtFutureDestroy(Ready);

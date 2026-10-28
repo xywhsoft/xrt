@@ -1126,3 +1126,88 @@ parity. Comparator installation is currently absent, and no reference source
 has been embedded. Matched comparator/resource matrices, precise copy/sync/
 syscall costs, native long runs, remaining reconnect/transport/product features
 and every original four-product release gate remain required.
+
+## Optional Redis DNS and multiple-endpoint setup
+
+Implemented the optional `xredis_dial` leaf using the existing public XRT
+Resolver/Dial APIs. The three functions configure network policy, submit a
+bounded copied hostname with an application-owned Resolver, or submit a retained
+immutable endpoint list. NULL initialization keeps strict RESP3 defaults;
+existing AUTH/SELECT, request limits, FIFO ownership and readiness rules remain.
+No core XRT source or public structure layout changed, and no shared runtime or
+per-request transport vtable was introduced. Product root remains developing.
+
+- Overall initialization deadline begins at API entry, including host scan/copy,
+  worker queue, DNS, candidate attempts and Redis handshake. Separate native Dial
+  timeout/fallback/attempt/family limits remain explicit. Pending calls preserve
+  their original deadlines and cancel with NOT_SENT while DNS is blocked.
+- Physical Close waits native callback retirement and any winning Stream. The
+  interrupted-DNS test initially found the adapter omitted transport retirement
+  when public Close won before a Stream existed; the terminal Dial callback now
+  marks that case. The client and Engine can retire before a blocked underlying
+  query returns. Shared Resolver/LookupData are separately joined and kept alive;
+  no bounded OS-query interruption is promised. An earlier fixture failure was
+  caused by returning nonzero ports against the Resolver's port-free contract,
+  and was fixed in the fixture, without modifying core behavior.
+- Tests cover host source recycling, IPv6/IPv4 candidates, explicit refused-port
+  fallback, list immediate release, business FIFO, DNS wait/cancel/deadline,
+  initialization and native timeouts, already-expired/closed queued startup,
+  DNS miss, Resolver host/request caps, family/attempt caps, malformed spans,
+  embedded NUL, aliases, 65 distinct endpoints/zero port, constructor quota
+  thresholds, worker OOM both before setup timer and at native Dial allocation,
+  RESP2, redacted auth failure and readiness Info/Close notification reentry.
+  Retained results survive client/Engine/Resolver; blocked late lookup explicitly
+  returns only after client/Engine destruction.
+- Windows-native GCC 16.2 O2 passes all seven modular and seven single tests on
+  IOCP. Ubuntu/WSL GCC 15.2 O2 ASan+UBSan passes all seven modular tests and the
+  direct Dial single test on epoll. Dial O1 TSan passes with the existing generic
+  XRT atomic_thread_fence warning retained via `-Wno-error=tsan`. These do not
+  constitute native Linux long-run or exhaustive race acceptance.
+- Both platforms pass root examples, dependency trim probes, and independent
+  static/shared package consumers executing hostname resolution, HELLO and PING.
+  Public inventory is 37 functions / 113 constants / 35 types, missing=0. PE and
+  ELF exports exactly match all 37 public functions; private handoff helpers are
+  not exported. Generated headers/reference and normal maturity checks pass.
+- Real Redis 8.0.5 on WSL passes the existing no-auth/password/ACL matrix through
+  `localhost` and one shared system Resolver: RESP3/RESP2/AUTO, actual name/db,
+  binary SET/GET, 32-call pipelines, server/auth failures and retained metadata.
+  Numeric manual HELLO remains a control. Server executable SHA-256 remains
+  `0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293`.
+  Native Windows real Redis and wider version/OS resolver matrices are pending.
+- Numeric `xredis_client` selection compiles out private plan fields/functions
+  and forbids Dial/Resolver/resolve-op/client-Dial symbols; selected Dial forbids
+  TLS/HTTP/WebSocket/task executors. Both independent symbol/size checks pass.
+  Text/data/bss/file bytes: Windows numeric 366668/2384/11136/526705, Dial
+  420236/2384/11136/606678; WSL numeric 380917/4496/10908/680776, Dial
+  437498/5200/10908/786496. These are current closure measurements, not matched
+  historical growth or runtime overhead claims. Size source fingerprint is
+  `1d45c2f3b896fccde28d32140756569950c2a3c8b1a173c5e7db7e918f13010a`.
+- Four unpinned cold smoke profiles pass on both systems: numeric control in the
+  same Dial-enabled binary, deterministic hostname, prepared good endpoint, and
+  separately instrumented hostname. Each records 16 samples, exact mode/backend/
+  query count, factory-to-ready-observation nearest-rank percentiles and complete
+  fixture/Engine/Resolver lifecycle rate. Allocation counters are whole-process
+  window including fixture and cleanup, not isolated client increments. The
+  descriptor allocation, copied/scanned host, XRT's own host copies/normalization,
+  native operations/timers, private fields/flags/posts/references and existing
+  setup wipe remain real costs. No production tail/throughput or zero-overhead
+  claim follows. Production/config fingerprint:
+  `5305612185bf80adfa575060b245104c9b5d63f38e25fd5dcbb1b841187358c6`;
+  four-profile workload fingerprint:
+  `49bae21fb95fb9024a69fcaf9001e1af760f2eccdc131aa05c25a55e41a3ea53`.
+- The 33 targeted asset/API/layout/performance tool regressions pass. An additional
+  40-test broad check has 34 passes and six non-green cases: four strict product
+  completion assertions correctly reject the developing roots; unchanged core
+  maturity reports missing net_file_future single closure; unchanged xhttp ABI
+  test references unavailable xhttp1callresult. These are recorded failures, not
+  a claim that the repository-wide suite passes. The explicit xredis `--release`
+  audit still exits 1 solely for its developing product root. No gate was relaxed.
+
+The [Dial contract](../../extlibs/xredis/docs/dial.md) records limits, callback and
+Resolver lifetime, runnable example/package/system-Resolver interoperability and
+actual measurement scope. Ignored evidence uses `redis-dial-*` in
+`out/service-extensions/evidence/`, with direct sanitizer binaries one directory
+above. CI now checks the selected Dial and unselected numeric boundaries;
+remote CI execution is unclaimed. TLS, reconnect/pools, dedicated modes,
+HA/Tracking, remaining RPC/MQTT/Cron runtimes, matched pinned resource/performance
+matrices and native 72-hour mixed/fault acceptance all remain required.

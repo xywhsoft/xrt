@@ -39,6 +39,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_COMMAND)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER 1
 #endif
@@ -56,6 +59,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_COMMAND)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER 1
@@ -1244,6 +1250,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
+#endif
+#if !defined(XRT_MODULE_NET_TCP_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL 1
 #endif
 #if !defined(XRT_MODULE_NUMBER_FLOAT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_FLOAT 1
@@ -2455,6 +2464,22 @@
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#endif
+
+/* xredis_dial 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_DIAL)
+#ifndef XREDIS_FEATURE_XREDIS_DIAL
+#define XREDIS_FEATURE_XREDIS_DIAL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xredis_client 及其直接依赖。 */
@@ -3154,6 +3179,68 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/dial.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_DIAL_H
+#define XREDIS_DIAL_H
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "XREDIS_FEATURE_XREDIS_DIAL requires client and net_tcp_dial"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+#define XREDIS_DIAL_ADDRESSES_MAX 64u
+#define XREDIS_DIAL_HOST_MAX 65535u
+
+/* Network policy only; the client Config.Stream remains the sole TCP limits.
+ * Timeout=0 disables the additional Dial timer, -1 is infinite. Managed Init's
+ * original deadline still spans host copying, DNS, candidate race and HELLO.
+ * Default dual stack, 30000 ms, 250 ms fallback, eight candidates, 1024 host
+ * bytes. Maximum candidate/address count 64; maximum borrowed host span 65535.
+ * No IDNA conversion, TLS, reconnect or application-command replay is implied. */
+typedef struct xredisclientdialconfig {
+	size_t Size;
+	xnetfamily Family;
+	int64 Timeout;
+	int64 FallbackDelay;
+	uint32 MaxAttempts;
+	size_t MaxHostBytes;
+} xredisclientdialconfig;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientDialConfigInit(xredisclientdialconfig* Config);
+
+/* Async hostname setup on the existing Engine/Resolver. Host is a bounded,
+ * nonempty readable view without embedded NUL; copied before return. Resolver
+ * is application-owned and must outlive Closed (then retire/join it separately).
+ * It is shared; closing a client does not close the service or stop an OS
+ * lookup already running there. All client callback/data ownership retires
+ * through the client Close barrier. NULL Init selects strict RESP3 defaults.
+ * Calls can queue, expire/cancel through DNS and TCP setup. Result unchanged on
+ * failure. Successful submission owns one Client reference: Close then Release.
+ * Core XRT supplies bounded family interleaving, fallback and losing-socket
+ * retirement before transfer. No business operation is retried or replayed. */
+XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+
+/* Already resolved immutable endpoints; no Resolver is consulted. Each port
+ * is preserved. At most 64 entries; Family filters candidates and MaxAttempts
+ * bounds selected attempts. Retains the list only until native Dial admission;
+ * caller may release its reference immediately. Output storage must be disjoint
+ * from descriptors and borrowed host/credential/name/endpoint storage. */
+XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine,
+	xnetaddrlist* Addresses, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -3177,6 +3264,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLIENT"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_DIAL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_DIAL"
+#endif
+
 
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS)
@@ -3190,6 +3281,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND)
 #undef XREDIS_FEATURE_XREDIS_COMMAND
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_COMMAND
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL)
+#undef XREDIS_FEATURE_XREDIS_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER)
 #undef XREDIS_FEATURE_XREDIS_READER
@@ -3214,6 +3309,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND)
 #undef XREDIS_MODULE_XREDIS_COMMAND
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_COMMAND
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL)
+#undef XREDIS_MODULE_XREDIS_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER)
 #undef XREDIS_MODULE_XREDIS_READER
@@ -4799,6 +4898,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL)
+#undef XRT_MODULE_NET_TCP_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_FLOAT)
 #undef XRT_MODULE_NUMBER_FLOAT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_FLOAT
@@ -4838,6 +4941,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#endif
+
+/* xredis_dial 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_DIAL)
+#ifndef XREDIS_FEATURE_XREDIS_DIAL
+#define XREDIS_FEATURE_XREDIS_DIAL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
 #endif
 #endif
 

@@ -94,7 +94,7 @@ jobs:
         if: matrix.product == 'xredis'
         run: >-
           python tools/measure_size.py --compiler gcc
-          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client --kind single
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client,xredis_dial --kind single
           --report out/service-extensions/size-xredis-runtime-linux.json
       - name: Independent static and shared consumers
         run: |
@@ -169,7 +169,7 @@ jobs:
         if: matrix.product == 'xredis'
         run: >-
           python tools/measure_size.py --compiler gcc
-          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client --kind single
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client,xredis_dial --kind single
           --report out/service-extensions/size-xredis-runtime-windows.json
       - name: Independent static and shared consumers
         run: |

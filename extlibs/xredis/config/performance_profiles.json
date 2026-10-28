@@ -215,6 +215,262 @@
           "all_p99_us": {"direction": "lower", "unit": "us"}
         }
       }]
+    },
+    {
+      "name": "xredis_dial_numeric",
+      "system": "dial",
+      "description": "Serial cold setup against deterministic DNS/TCP/HELLO fixture; includes factory-to-ready observation, lifecycle includes Engine/Resolver/peer create and join; no OS DNS or production/parity claim",
+      "benchmarks": [
+        {
+          "name": "xredis_dial_numeric",
+          "source": "extlibs/xredis/bench/bench_dial.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/dial_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_dial",
+          "args": [
+            "256",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "0",
+            "0"
+          ],
+          "facts": [
+            "connection_mode",
+            "arrival_model",
+            "workers",
+            "samples",
+            "lookups",
+            "network_backend",
+            "memory_stats"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "direction": "higher",
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_dial_host",
+      "system": "dial",
+      "description": "Serial cold setup against deterministic DNS/TCP/HELLO fixture; includes factory-to-ready observation, lifecycle includes Engine/Resolver/peer create and join; no OS DNS or production/parity claim",
+      "benchmarks": [
+        {
+          "name": "xredis_dial_host",
+          "source": "extlibs/xredis/bench/bench_dial.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/dial_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_dial",
+          "args": [
+            "256",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "connection_mode",
+            "arrival_model",
+            "workers",
+            "samples",
+            "lookups",
+            "network_backend",
+            "memory_stats"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "direction": "higher",
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_dial_addresses",
+      "system": "dial",
+      "description": "Serial cold setup against deterministic DNS/TCP/HELLO fixture; includes factory-to-ready observation, lifecycle includes Engine/Resolver/peer create and join; no OS DNS or production/parity claim",
+      "benchmarks": [
+        {
+          "name": "xredis_dial_addresses",
+          "source": "extlibs/xredis/bench/bench_dial.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/dial_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_dial",
+          "args": [
+            "256",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "2",
+            "0"
+          ],
+          "facts": [
+            "connection_mode",
+            "arrival_model",
+            "workers",
+            "samples",
+            "lookups",
+            "network_backend",
+            "memory_stats"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "direction": "higher",
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_dial_host_stats",
+      "system": "dial",
+      "description": "Serial cold setup against deterministic DNS/TCP/HELLO fixture; includes factory-to-ready observation, lifecycle includes Engine/Resolver/peer create and join; no OS DNS or production/parity claim; separate process allocation instrumentation",
+      "benchmarks": [
+        {
+          "name": "xredis_dial_host_stats",
+          "source": "extlibs/xredis/bench/bench_dial.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/dial_peer.h",
+            "extlibs/xredis/tests/support/client_init_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_dial,memory_stats",
+          "args": [
+            "256",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "1"
+          ],
+          "facts": [
+            "connection_mode",
+            "arrival_model",
+            "workers",
+            "samples",
+            "lookups",
+            "network_backend",
+            "memory_stats"
+          ],
+          "metrics": {
+            "lifecycle_per_sec": {
+              "direction": "higher",
+              "unit": "lifecycles/s"
+            },
+            "handshake_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "handshake_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "window_malloc_calls": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "window_calloc_calls": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "window_realloc_calls": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "window_block_alloc_calls": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "window_backing_alloc_calls": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "window_backing_alloc_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            }
+          }
+        }
+      ]
     }
   ]
 }

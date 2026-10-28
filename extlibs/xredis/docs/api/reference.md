@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `34` 个函数、`110` 个常量或宏、
-`34` 个公共类型。
+当前登记 `37` 个函数、`113` 个常量或宏、
+`35` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -121,6 +121,26 @@
 ### 类型 (1)
 
 - `xrediscommanderror`
+
+## `extlibs/xredis/include/xredis/dial.h`
+
+[查看带契约注释的公共头](../../include/xredis/dial.h)
+
+### 函数 (3)
+
+- `xredisClientDial`
+- `xredisClientDialAddresses`
+- `xredisClientDialConfigInit`
+
+### 常量与宏 (3)
+
+- `XREDIS_DIAL_ADDRESSES_MAX`
+- `XREDIS_DIAL_HOST_MAX`
+- `XREDIS_FEATURE_XREDIS_DIAL`
+
+### 类型 (1)
+
+- `xredisclientdialconfig`
 
 ## `extlibs/xredis/include/xredis/export.h`
 

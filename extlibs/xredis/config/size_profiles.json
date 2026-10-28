@@ -32,7 +32,14 @@
       "system": "client",
       "suite": "xredis_client",
       "description": "TCP requests and bounded connection initialization with public core closure, excluding TLS, HTTP, Dial and task executors",
-      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtNetDial", "xrtTask"]
+      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtNetDial", "xrtNetResolver", "xrtNetResolveOp", "xredisClientDial", "xrtTask"]
+    },
+    {
+      "name": "xredis_dial",
+      "system": "dial",
+      "suite": "xredis_dial",
+      "description": "Optional hostname/resolved-endpoint setup and XRT Resolver/Dial closure; excludes TLS, HTTP, WebSocket and task executors",
+      "forbid_symbols": ["xrtTls", "xrtHttp", "xrtWebSocket", "xrtTask"]
     }
   ]
 }

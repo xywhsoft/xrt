@@ -43,6 +43,11 @@
         "name": "client",
         "state": "retained",
         "source_roots": ["client"]
+      },
+      {
+        "name": "dial",
+        "state": "retained",
+        "source_roots": ["dial"]
       }
     ]
   },
@@ -70,7 +75,8 @@
         "xredis_command",
         "xredis_reader",
         "xredis_reply",
-        "xredis_client"
+        "xredis_client",
+        "xredis_dial"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -177,13 +183,27 @@
       "feature": "XREDIS_FEATURE_XREDIS_CLIENT",
       "depends": ["xredis_command", "xredis_reply", "net_tcp", "future", "number_integer"],
       "public_headers": ["extlibs/xredis/include/xredis/client.h"],
-      "internal_headers": [],
+      "internal_headers": ["extlibs/xredis/src/internal/client_connect.h"],
       "sources": ["extlibs/xredis/src/client/client.c"],
       "tests": ["extlibs/xredis/tests/test_client.c", "extlibs/xredis/tests/test_client_init.c", "extlibs/xredis/tests/test_openloop.c"],
       "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_client.c", "extlibs/xredis/tests/single/test_single_xredis_client_init.c", "extlibs/xredis/tests/single/test_single_xredis_openloop.c"],
       "examples": ["extlibs/xredis/examples/client/main.c", "extlibs/xredis/examples/client_init/main.c"],
       "benchmarks": ["extlibs/xredis/bench/bench_client.c", "extlibs/xredis/bench/bench_client_init.c", "extlibs/xredis/bench/bench_client_openloop.c"],
       "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/client.md", "extlibs/xredis/docs/client-init.md", "extlibs/xredis/docs/client-performance.md"]
+    },
+    {
+      "name": "xredis_dial",
+      "state": "implemented",
+      "feature": "XREDIS_FEATURE_XREDIS_DIAL",
+      "depends": ["xredis_client", "net_tcp_dial"],
+      "public_headers": ["extlibs/xredis/include/xredis/dial.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xredis/src/dial/dial.c"],
+      "tests": ["extlibs/xredis/tests/test_dial.c"],
+      "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_dial.c"],
+      "examples": ["extlibs/xredis/examples/dial/main.c"],
+      "benchmarks": ["extlibs/xredis/bench/bench_dial.c"],
+      "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/dial.md"]
     },
     {
       "state": "implemented",
@@ -201,7 +221,8 @@
         "extlibs/xredis/tests/test_reply.c",
         "extlibs/xredis/tests/test_client.c",
         "extlibs/xredis/tests/test_client_init.c",
-        "extlibs/xredis/tests/test_openloop.c"
+        "extlibs/xredis/tests/test_openloop.c",
+        "extlibs/xredis/tests/test_dial.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -209,7 +230,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_reply.c",
         "extlibs/xredis/tests/single/test_single_xredis_client.c",
         "extlibs/xredis/tests/single/test_single_xredis_client_init.c",
-        "extlibs/xredis/tests/single/test_single_xredis_openloop.c"
+        "extlibs/xredis/tests/single/test_single_xredis_openloop.c",
+        "extlibs/xredis/tests/single/test_single_xredis_dial.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -224,7 +246,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_reply.c": "xredis_reply",
         "extlibs/xredis/tests/single/test_single_xredis_client.c": "xredis_client",
         "extlibs/xredis/tests/single/test_single_xredis_client_init.c": "xredis_client",
-        "extlibs/xredis/tests/single/test_single_xredis_openloop.c": "xredis_client"
+        "extlibs/xredis/tests/single/test_single_xredis_openloop.c": "xredis_client",
+        "extlibs/xredis/tests/single/test_single_xredis_dial.c": "xredis_dial"
       }
     }
   ]

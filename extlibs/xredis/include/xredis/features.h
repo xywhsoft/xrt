@@ -19,6 +19,22 @@
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_DIAL
+#define XREDIS_MODULE_XREDIS_DIAL
+#endif
+#endif
+
+/* xredis_dial 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_DIAL)
+#ifndef XREDIS_FEATURE_XREDIS_DIAL
+#define XREDIS_FEATURE_XREDIS_DIAL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xredis_client 及其直接依赖。 */

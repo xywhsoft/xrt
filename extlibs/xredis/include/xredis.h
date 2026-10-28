@@ -19,9 +19,14 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLIENT"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_DIAL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_DIAL"
+#endif
+
 #include <xredis/command.h>
 #include <xredis/reader.h>
 #include <xredis/reply.h>
 #include <xredis/client.h>
+#include <xredis/dial.h>
 
 #endif
