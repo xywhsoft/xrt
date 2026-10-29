@@ -61,5 +61,9 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_WATCH"
 #endif
 #include <xredis/pool_watch.h>
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_CONNECT"
+#endif
+#include <xredis/pool_connect.h>
 
 #endif

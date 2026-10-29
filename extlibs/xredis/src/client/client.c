@@ -1498,6 +1498,20 @@ xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* 
     return Admission;
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+xredisadmission __xredisClientClaimStarting(xredisclient* Client, xredisexclusiveowner* Owner, xnetengine* Engine)
+{
+    xrtMutexLock(&Client->Gate);
+    xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING ? XREDIS_ADMISSION_CLOSED :
+        !Client->Managed || Client->Engine != Engine ? XREDIS_ADMISSION_ERROR :
+        Client->Info.Requests || Client->Owner ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        if (!xrtNetEnginePin(Engine)) Admission = XREDIS_ADMISSION_ERROR;
+        else { Client->Owner = Owner; xredisClientRef(Client); }
+    }
+    xrtMutexUnlock(&Client->Gate); return Admission;
+}
+#endif
 static bool xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner, bool Unused)
 {
 #if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)

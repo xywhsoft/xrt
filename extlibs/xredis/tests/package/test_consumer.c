@@ -1,5 +1,29 @@
 /* Compile against exactly the features shipped by this package. */
 #include <xredis.h>
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#include "../support/pool_connect_peer.h"
+static int testPoolConnectPackage(void)
+{
+    redisconnectpeer Peer; redisConnectPeerStart(&Peer); redisconnectfactory Factory; xredispoolconnectconfig Config;
+    redisConnectFactoryConfig(&Factory, &Peer, &Config); Config.RetryMin = Config.RetryMax = 1;
+    xredispool* Pool = NULL;
+    if (xredisPoolConnect(Peer.Engine, 0, 1, NULL, &Config, &Pool) != XREDIS_ADMISSION_ACCEPTED) return 60;
+    for (unsigned Index = 0; Index < 2; ++Index) {
+        xfuture *Acquired = NULL, *Call = NULL; xbytesview Ping = XRT_BYTES_LITERAL("PING");
+        if (xredisPoolAcquire(Pool, 5000, &Acquired) != XREDIS_ADMISSION_ACCEPTED) return 61;
+        const xredisleaseresult* Result = xrtFutureValue(Acquired); if (!Result || !Result->Lease) return 62;
+        if (xredisLeaseCall(Result->Lease, &Ping, 1, 5000, &Call) != XREDIS_ADMISSION_ACCEPTED ||
+            ((const xredisrequestresult*)xrtFutureValue(Call))->Status != XREDIS_REQUEST_OK) return 63;
+        xfuture* Returned = xredisLeaseClosed(Result->Lease); if (!Index) xredisLeaseAbort(Result->Lease); else xredisLeaseReturn(Result->Lease);
+        if (xrtFutureWaitFor(Returned, 5000) != XWAIT_OK) return 64;
+        xrtFutureDestroy(Acquired); xrtFutureDestroy(Call); xrtFutureDestroy(Returned);
+    }
+    xredispoolconnectinfo Info = {0}; Info.Size = sizeof(Info); if (!xredisPoolConnectInfo(Pool, &Info) || Info.Connected != 2) return 65;
+    xfuture* Closed = xredisPoolClosed(Pool); xredisPoolClose(Pool); if (xrtFutureWaitFor(Closed, 5000) != XWAIT_OK ||
+        xrtAtomic32Load(&Factory.Drops, XMEMORY_ACQUIRE) != 1) return 66;
+    xredisPoolRelease(Pool); xrtFutureDestroy(Closed); redisConnectPeerStop(&Peer); return 0;
+}
+#endif
 #include <string.h>
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) || defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
 #include "../support/pool_sessions_peer.h"
@@ -183,6 +207,9 @@ int main(void)
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL)
     int PoolResult = testPoolPackage(); if (PoolResult) return PoolResult;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    int ConnectResult = testPoolConnectPackage(); if (ConnectResult) return ConnectResult;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) || defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
     return testPoolSessionsPackage();
 #else

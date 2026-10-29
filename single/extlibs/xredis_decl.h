@@ -45,6 +45,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION 1
 #endif
@@ -86,6 +89,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_POOL_CONNECT)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION 1
@@ -2566,6 +2572,9 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_WATCH
 #define XREDIS_MODULE_XREDIS_POOL_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_CONNECT
+#define XREDIS_MODULE_XREDIS_POOL_CONNECT
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -2631,6 +2640,19 @@
 #endif
 #endif
 
+/* xredis_pool_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
 /* xredis_pool_watch 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
 #ifndef XREDIS_FEATURE_XREDIS_POOL_WATCH
@@ -2654,19 +2676,6 @@
 #endif
 #endif
 
-/* xredis_pool_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_POOL
-#define XREDIS_MODULE_XREDIS_POOL
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
 /* xredis_transaction 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
 #ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
@@ -2674,6 +2683,16 @@
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#endif
+
+/* xredis_pool_connect 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_CONNECT)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#define XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
 #endif
 #endif
 
@@ -3451,7 +3470,9 @@ XREDIS_API void xredisPoolRelease(xredispool* Pool);
 /* Bounded FIFO admission. Timeout (-1 forever, 0 due) includes allocation,
  * queue wait and grant. A separate finite lease hold starts at grant. Cancel
  * requests stop; every accepted acquisition resolves a typed immutable result.
- * No live member yields DISCONNECTED. Output changes only on ACCEPTED.
+ * No live member yields DISCONNECTED for fixed membership; optional automatic
+ * maintenance instead waits within the original deadline through outages.
+ * Output changes only on ACCEPTED.
  * Sync rejects every worker of the same engine. */
 XREDIS_API xredisadmission xredisPoolAcquireAsync(xredispool* Pool, int64 Timeout, xfuture** Future);
 XREDIS_API xredisadmission xredisPoolAcquire(xredispool* Pool, int64 Timeout, xfuture** Future);
@@ -3479,6 +3500,72 @@ XREDIS_API xredisadmission xredisLeaseCall(xredislease* Lease,
 XREDIS_API bool xredisLeaseReturn(xredislease* Lease);
 XREDIS_API bool xredisLeaseAbort(xredislease* Lease);
 XREDIS_API xfuture* xredisLeaseClosed(xredislease* Lease);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_connect.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_CONNECT_H
+#define XREDIS_POOL_CONNECT_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "XREDIS_FEATURE_XREDIS_POOL_CONNECT requires XREDIS_FEATURE_XREDIS_POOL"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+/* Called serially on the pool worker, without a pool/client gate. Must not
+ * block. Start an existing managed numeric/DNS/TLS/auth factory with Timeout
+ * as its total setup limit. Success transfers ONE private client reference;
+ * failure transfers nothing and leaves Client unchanged. No business commands
+ * or sharing/claims are permitted before transfer. Slot is stable, Attempt is
+ * a saturating per-slot counter. Choose the same service/session/RESP profile
+ * on every attempt. No command from an old connection is ever replayed. */
+typedef bool (*xredispoolconnectproc)(xnetengine* Engine, size_t Slot,
+    uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Client);
+typedef void (*xredispoolconnectdrop)(ptr Data);
+typedef struct xredispoolconnectconfig {
+    size_t Size;
+    xredispoolconnectproc Connect;
+    xredispoolconnectdrop Drop;
+    ptr Data;
+    xredisprotocol Protocol;
+    size_t MaxConnecting;
+    int64 AttemptTimeout;
+    int64 RetryMin, RetryMax;
+} xredispoolconnectconfig;
+typedef struct xredispoolconnectinfo {
+    size_t Size;
+    size_t Connecting, Waiting;
+    uint64 Attempts, Failures, Connected;
+    xredisrequeststatus LastFailure;
+} xredispoolconnectinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: RESP3, 4 simultaneous attempts, 5 s setup, 100 ms..10 s retry.
+ * Connect is mandatory. Bounds: concurrency 1..65536 (capped by Count),
+ * setup 1..60000 ms, retry 1..60000 ms, min <= max. */
+XREDIS_API bool xredisPoolConnectConfigInit(xredispoolconnectconfig* Config);
+/* Start/refill Count slots. No I/O/factory callback runs inline, although a
+ * worker may run before this API returns. ACCEPTED consumes the Data/Drop
+ * obligation; every failure preserves it and Result. Config values are copied.
+ * Attempts, their physical failure tails and retry queues are bounded. Every
+ * failed generation physically closes before its slot can reconnect. Backoff
+ * is exponential with bounded non-cryptographic jitter, reset on readiness.
+ * Acquisition deadlines include outage/retry wait; zero Live does not cause
+ * DISCONNECTED in this mode. Each acquisition still has its own finite/forever
+ * timeout and cancellation; it does not cancel shared maintenance.
+ * PoolClose stops new attempts, closes candidates/members and retires timers/
+ * callbacks before Drop and PoolClosed. Drop runs once on the pool worker,
+ * outside gates, must not block and must outlive the pool. Context, resolver,
+ * verifier/signer code and referenced material remain valid until Drop.
+ * Maintenance timer OOM fails the pool closed; it never busy-retries OOM.
+ * PoolInfo.Retired counts actual retired client generations (can exceed Count).
+ * Retained closed pool metadata holds no context/client/engine reference. */
+XREDIS_API xredisadmission xredisPoolConnect(xnetengine* Engine, uint64 Affinity,
+    size_t Count, const xredispoolconfig* Config,
+    const xredispoolconnectconfig* Connect, xredispool** Result);
+XREDIS_API bool xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3560,36 +3647,6 @@ XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
 XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count,
     const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/pool_transaction.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_POOL_TRANSACTION_H
-#define XREDIS_POOL_TRANSACTION_H
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_TRANSACTION))
-#error "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION requires pool and transaction"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
-XRT_EXTERN_C_BEGIN
-/* Direct staged transaction on this lease. Accepted enqueue seals the lease
- * against further calls/transactions; earlier leased calls drain before MULTI.
- * Config/commands are borrowed only during admission. Output changes only on
- * ACCEPTED. Native xredistransactionresult preserves execution uncertainty and
- * queue/runtime errors. Group request/byte quotas include wire/control/state.
- * Deadline is capped at the original lease hold. Return the lease explicitly;
- * its physical Closed barrier waits for actual DISCARD/EXEC/drain/retirement.
- * Return never authorizes replay. Sync rejects all workers of this engine. */
-XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease,
-    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
-    int64 Timeout, xfuture** Future);
-XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease,
-    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
-    int64 Timeout, xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3705,6 +3762,36 @@ XREDIS_API xredisadmission xredisLeaseWatchAsync(xredislease* Lease,
     const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
 XREDIS_API xredisadmission xredisLeaseWatch(xredislease* Lease,
     const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_transaction.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_TRANSACTION_H
+#define XREDIS_POOL_TRANSACTION_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_TRANSACTION))
+#error "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION requires pool and transaction"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+XRT_EXTERN_C_BEGIN
+/* Direct staged transaction on this lease. Accepted enqueue seals the lease
+ * against further calls/transactions; earlier leased calls drain before MULTI.
+ * Config/commands are borrowed only during admission. Output changes only on
+ * ACCEPTED. Native xredistransactionresult preserves execution uncertainty and
+ * queue/runtime errors. Group request/byte quotas include wire/control/state.
+ * Deadline is capped at the original lease hold. Return the lease explicitly;
+ * its physical Closed barrier waits for actual DISCARD/EXEC/drain/retirement.
+ * Return never authorizes replay. Sync rejects all workers of this engine. */
+XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3929,6 +4016,9 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_WATCH"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_CONNECT"
+#endif
 
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS)
@@ -3950,6 +4040,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL)
 #undef XREDIS_FEATURE_XREDIS_POOL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#undef XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #undef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
@@ -4006,6 +4100,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL)
 #undef XREDIS_MODULE_XREDIS_POOL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT)
+#undef XREDIS_MODULE_XREDIS_POOL_CONNECT
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
 #undef XREDIS_MODULE_XREDIS_POOL_TRANSACTION
@@ -5727,6 +5825,9 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_MODULE_XREDIS_POOL_WATCH
 #define XREDIS_MODULE_XREDIS_POOL_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_CONNECT
+#define XREDIS_MODULE_XREDIS_POOL_CONNECT
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -5792,6 +5893,19 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* xredis_pool_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
 /* xredis_pool_watch 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
 #ifndef XREDIS_FEATURE_XREDIS_POOL_WATCH
@@ -5815,19 +5929,6 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xredis_pool_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_POOL
-#define XREDIS_MODULE_XREDIS_POOL
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
 /* xredis_transaction 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
 #ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
@@ -5835,6 +5936,16 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#endif
+
+/* xredis_pool_connect 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_CONNECT)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#define XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
 #endif
 #endif
 

@@ -8,7 +8,7 @@ TCP request/response connection, explicit HELLO/AUTH initialization and optional
 asynchronous DNS/multiple-endpoint setup and server-authenticated TLS transport
 are implemented. Optional initial client-certificate authentication is also
 locally verified. Atomic transaction execution is locally verified; identity-bound
-tickets, automatic pool repair, remaining
+tickets, remaining
 advanced modes, HA and production/performance acceptance
 remain pending.**
 
@@ -123,15 +123,15 @@ MULTI/queue/EXEC operation on a managed connection. It confirms MULTI before
 sending business commands, suppresses EXEC on queue error/pre-commit abandonment,
 drains DISCARD before reuse and preserves explicit execution uncertainty.
 See [transaction ownership and phases](docs/transaction.md) and the
-[self-contained example](examples/transaction/main.c). Lease integration and
-final transaction acceptance remain in development.
+[self-contained example](examples/transaction/main.c). The optional native lease
+integration is described below; final transaction acceptance remains pending.
 
 Select `XREDIS_MODULE_XREDIS_WATCH` for a finite-lifetime exclusive
 WATCH/read/decision/commit scope. It claims a ready idle managed connection,
 seals one accepted commit, rejects unrelated admissions and awaits validated
 UNWATCH or physical closure before reuse. See [the ownership/cleanup contract](docs/watch.md)
-and [self-contained example](examples/watch/main.c). Pool integration and final
-production/performance acceptance remain pending.
+and [self-contained example](examples/watch/main.c). The optional native lease
+integration is described below; final production/performance acceptance remains pending.
 
 Select `XREDIS_MODULE_XREDIS_POOL` for bounded FIFO acquisition of exclusive
 leases over existing ready managed TCP/TLS clients. Native calls retain hard
@@ -140,8 +140,14 @@ retirement, and old handles cannot address a reused connection. See [pool owners
 and actual costs](docs/pool.md) and [the two-member example](examples/pool/main.c).
 Select `XREDIS_MODULE_XREDIS_POOL_TRANSACTION` or `XREDIS_MODULE_XREDIS_POOL_WATCH`
 for [native leased transactions and nested WATCH sessions](docs/pool-sessions.md).
-Their physical child/parent barriers preserve quotas and safe handoff. Automatic
-repair and final production/performance acceptance remain in development.
+Their physical child/parent barriers preserve quotas and safe handoff.
+Select `XREDIS_MODULE_XREDIS_POOL_CONNECT` for optional automatic connection
+creation and replacement, bounded setup concurrency and jittered retry through
+the existing managed numeric/DNS/TLS/auth factories. See the
+[factory, retry and close contract](docs/pool-connect.md) and
+[self-contained repair example](examples/pool_connect/main.c).
+These modules and the product remain developing pending full scope and final
+production/performance acceptance.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

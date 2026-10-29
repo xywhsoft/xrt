@@ -162,6 +162,20 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_pool_connect",
+      "system": "pool_connect",
+      "suite": "xredis_pool_connect",
+      "description": "Automatic bounded pool setup/repair with optional factory transport; DNS/TLS/HTTP/task/process runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

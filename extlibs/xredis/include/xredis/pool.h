@@ -63,7 +63,9 @@ XREDIS_API void xredisPoolRelease(xredispool* Pool);
 /* Bounded FIFO admission. Timeout (-1 forever, 0 due) includes allocation,
  * queue wait and grant. A separate finite lease hold starts at grant. Cancel
  * requests stop; every accepted acquisition resolves a typed immutable result.
- * No live member yields DISCONNECTED. Output changes only on ACCEPTED.
+ * No live member yields DISCONNECTED for fixed membership; optional automatic
+ * maintenance instead waits within the original deadline through outages.
+ * Output changes only on ACCEPTED.
  * Sync rejects every worker of the same engine. */
 XREDIS_API xredisadmission xredisPoolAcquireAsync(xredispool* Pool, int64 Timeout, xfuture** Future);
 XREDIS_API xredisadmission xredisPoolAcquire(xredispool* Pool, int64 Timeout, xfuture** Future);

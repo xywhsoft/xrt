@@ -1891,3 +1891,89 @@ Ignored `out/service-extensions/pool-sessions/` contains exact receipts, 56 curr
 binary hashes, raw logs, layouts, packages/size/performance and `validation.json`.
 See `extlibs/xredis/docs/pool-sessions.md` and its runnable examples for contracts,
 limits and commands.
+
+## P2 xredis: bounded automatic pool connections and repair (2026-10-29)
+
+`xredis_pool_connect` adds asynchronous target-size construction and automatic
+replacement to the existing lease pool. A serial nonblocking worker factory
+starts existing managed numeric/DNS/TLS/auth clients, transfers one private
+reference only on success and retains context until an exactly-once Drop before
+PoolClosed. A private native claim protects candidates before initialization
+exposes readiness. Expected RESP2/3, same-engine ownership and physical idle are
+validated. New members retain the service/session profile supplied by the factory.
+No command, transaction or WATCH operation is replayed across generations.
+
+Candidate setup plus failure-close tails obey MaxConnecting. An indexed heap,
+intrusive runnable queue, bounded worker turns and one timer cover setup and
+exponential capped jittered retry. Due retries cannot hide candidate deadlines
+when concurrency is full. Every old client/lease/nested scope/request/notification
+physically retires before its slot starts a replacement. Acquisition deadlines
+and cancellation include outage/backoff/setup wait without canceling shared
+maintenance. Close stops new attempts, joins candidates/members/timers, invokes
+context Drop outside gates, and releases engine ownership. Timer OOM fails closed
+instead of retry-spinning. Factory reentrant close drains its transferred client.
+No new shared runtime/thread or general XRT API change was needed.
+
+Windows GCC O2 and WSL GCC O2 ASan/UBSan each pass 15 modular plus 15 single-header
+programs (60 total). New checks cover transient factory failure/rate, hard
+concurrency and delayed readiness, heap deadline fairness, timeout/cancel/close
+during outage and long backoff, raw/RESP mismatch, server setup failure/drop,
+RESP2 success, uncertain sent disconnection without replay, stale lease rejection,
+normal/aborted nested WATCH, context physical/reentrant snapshot barriers,
+13 invalid constructor bounds and 130 constructor/OOM windows with zero remaining
+budget allocations, maintenance timer OOM, sync worker refusal, reentrant factory
+close, and ten four-producer abort/refill/PoolClose races. Existing suites remain
+in the full runs. A separate WSL O1 TSan modular run reports no race; GCC warns
+that atomic_thread_fence is not modeled, retained as a limitation rather than a
+complete race-freedom claim. Its executable is hashed separately.
+
+Each platform also passes six Redis 8.0.5 cases (TLS 1.2/1.3, RSA client identity,
+no-password/password/ACL, RESP2/3 inside each case). Automatic retry, server
+CLIENT KILL/physical lease retirement, newly authenticated member IDs, binary
+native transaction/state, nested WATCH abort and clean successor EXEC pass.
+All previous transaction/WATCH/pool/blocking/session checks run too. Windows
+uses the native client against a WSL peer with independent Windows TLS health;
+WSL is not native Linux deployment acceptance. This does not diagnose the older
+generic startup observation. Exact interop input fingerprints: Windows
+`394b095a94bde4fb0d6a8eb0481b1293753d390a3292cf99a5d81b0d89db0e4c`; WSL
+`82ffc33596dc839d49f4648f7deebb3c9d726328d7111d7a7cc1304ba7269ed9`.
+
+Minimal static/shared consumers actually perform automatic replacement; examples,
+trim, single/static/shared size profiles and declaration-only checks pass on
+both platforms. Normal maturity is 23 modules, 14 implementation/test/single/docs
+nodes, 31 performance workloads and 13 size profiles. Strict release correctly
+rejects eight developing modules. Three public APIs bring the catalogue to
+81 functions; actual counts of constants/types remain in the generated reference.
+The product and optional connector remain developing.
+
+Matched TLS/auth x64 layouts keep native requests 104, clients 856/928 Windows/WSL,
+ordinary slots 184 (208 nested), and leases 200/272 bytes. Auto selection adds
+8 bytes to the pool prefix (448/520), plus a 200-byte separately owned prefix,
+128-byte entry and 8-byte heap cell per member. Config/info are 72/56. Fixed-only
+selection omits auto code/storage. Native setup/Futures, allocator headers,
+refs/pins, gate/atomic checks, clocks, heap/timer operations, user factory work
+and native/TLS round trips remain real costs; no zero-overhead claim is made.
+
+Three matched-source/feature workloads retain warm fixed and auto lease loops
+with identical peer/input/workers/timestamps, plus physical Abort/retry/TCP/
+HELLO/readiness/successor-return recovery. Pool startup is outside timing. Each
+platform keeps five full 1000-cycle repeats plus one warmup for all three,
+without dropping samples or changing 3% relative MAD / 6% central-range gates.
+Windows reports 1, WSL
+8 quality failures. Performance acceptance
+remains false even for individual stable metrics: these are unpinned local peers,
+not matched Hiredis/native multiworker/multiconnection/fixed-arrival/cost sweeps.
+Source fingerprint `47ab5b05c97da821faadbd5af84c730c84b85c78c3715aa74d3ed3bb63078c2b`;
+workload fingerprint `3da6b48276990e690ce4cb964649b9ef397b01b6dc7f8a59756b8434e6021579`.
+With the configured 1 ms retry floor, repair-cycle P50 medians are
+15565.000008792 us Windows and
+1585.999999989 us WSL. The Windows ~15.6 ms behavior
+requires native timer/transport profiling before attributing a cause or accepting
+recovery latency. No general runtime change is inferred from this observation.
+
+Ignored `out/service-extensions/pool-connect/` pins reports, 60 regression and
+one TSan executable hashes, layouts, raw samples, package commands and validation.
+See `extlibs/xredis/docs/pool-connect.md` for runnable examples, costs and limits.
+Dedicated Redis modes, HA/tracking and remaining P3 runtimes for xrpc/xmqtt/xcron,
+native Linux/MSVC where applicable and final >=72-hour mixed/fault and performance
+acceptance remain pending. The original four-library goal remains active.

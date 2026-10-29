@@ -100,6 +100,9 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_WATCH
 #define XREDIS_MODULE_XREDIS_POOL_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_CONNECT
+#define XREDIS_MODULE_XREDIS_POOL_CONNECT
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -165,6 +168,19 @@
 #endif
 #endif
 
+/* xredis_pool_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
 /* xredis_pool_watch 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
 #ifndef XREDIS_FEATURE_XREDIS_POOL_WATCH
@@ -188,19 +204,6 @@
 #endif
 #endif
 
-/* xredis_pool_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_POOL
-#define XREDIS_MODULE_XREDIS_POOL
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
 /* xredis_transaction 及其直接依赖。 */
 #if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
 #ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
@@ -208,6 +211,16 @@
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#endif
+
+/* xredis_pool_connect 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_CONNECT)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#define XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
 #endif
 #endif
 
@@ -985,7 +998,9 @@ XREDIS_API void xredisPoolRelease(xredispool* Pool);
 /* Bounded FIFO admission. Timeout (-1 forever, 0 due) includes allocation,
  * queue wait and grant. A separate finite lease hold starts at grant. Cancel
  * requests stop; every accepted acquisition resolves a typed immutable result.
- * No live member yields DISCONNECTED. Output changes only on ACCEPTED.
+ * No live member yields DISCONNECTED for fixed membership; optional automatic
+ * maintenance instead waits within the original deadline through outages.
+ * Output changes only on ACCEPTED.
  * Sync rejects every worker of the same engine. */
 XREDIS_API xredisadmission xredisPoolAcquireAsync(xredispool* Pool, int64 Timeout, xfuture** Future);
 XREDIS_API xredisadmission xredisPoolAcquire(xredispool* Pool, int64 Timeout, xfuture** Future);
@@ -1013,6 +1028,72 @@ XREDIS_API xredisadmission xredisLeaseCall(xredislease* Lease,
 XREDIS_API bool xredisLeaseReturn(xredislease* Lease);
 XREDIS_API bool xredisLeaseAbort(xredislease* Lease);
 XREDIS_API xfuture* xredisLeaseClosed(xredislease* Lease);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_connect.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_CONNECT_H
+#define XREDIS_POOL_CONNECT_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "XREDIS_FEATURE_XREDIS_POOL_CONNECT requires XREDIS_FEATURE_XREDIS_POOL"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+/* Called serially on the pool worker, without a pool/client gate. Must not
+ * block. Start an existing managed numeric/DNS/TLS/auth factory with Timeout
+ * as its total setup limit. Success transfers ONE private client reference;
+ * failure transfers nothing and leaves Client unchanged. No business commands
+ * or sharing/claims are permitted before transfer. Slot is stable, Attempt is
+ * a saturating per-slot counter. Choose the same service/session/RESP profile
+ * on every attempt. No command from an old connection is ever replayed. */
+typedef bool (*xredispoolconnectproc)(xnetengine* Engine, size_t Slot,
+    uint64 Attempt, int64 Timeout, ptr Data, xredisclient** Client);
+typedef void (*xredispoolconnectdrop)(ptr Data);
+typedef struct xredispoolconnectconfig {
+    size_t Size;
+    xredispoolconnectproc Connect;
+    xredispoolconnectdrop Drop;
+    ptr Data;
+    xredisprotocol Protocol;
+    size_t MaxConnecting;
+    int64 AttemptTimeout;
+    int64 RetryMin, RetryMax;
+} xredispoolconnectconfig;
+typedef struct xredispoolconnectinfo {
+    size_t Size;
+    size_t Connecting, Waiting;
+    uint64 Attempts, Failures, Connected;
+    xredisrequeststatus LastFailure;
+} xredispoolconnectinfo;
+XRT_EXTERN_C_BEGIN
+/* Defaults: RESP3, 4 simultaneous attempts, 5 s setup, 100 ms..10 s retry.
+ * Connect is mandatory. Bounds: concurrency 1..65536 (capped by Count),
+ * setup 1..60000 ms, retry 1..60000 ms, min <= max. */
+XREDIS_API bool xredisPoolConnectConfigInit(xredispoolconnectconfig* Config);
+/* Start/refill Count slots. No I/O/factory callback runs inline, although a
+ * worker may run before this API returns. ACCEPTED consumes the Data/Drop
+ * obligation; every failure preserves it and Result. Config values are copied.
+ * Attempts, their physical failure tails and retry queues are bounded. Every
+ * failed generation physically closes before its slot can reconnect. Backoff
+ * is exponential with bounded non-cryptographic jitter, reset on readiness.
+ * Acquisition deadlines include outage/retry wait; zero Live does not cause
+ * DISCONNECTED in this mode. Each acquisition still has its own finite/forever
+ * timeout and cancellation; it does not cancel shared maintenance.
+ * PoolClose stops new attempts, closes candidates/members and retires timers/
+ * callbacks before Drop and PoolClosed. Drop runs once on the pool worker,
+ * outside gates, must not block and must outlive the pool. Context, resolver,
+ * verifier/signer code and referenced material remain valid until Drop.
+ * Maintenance timer OOM fails the pool closed; it never busy-retries OOM.
+ * PoolInfo.Retired counts actual retired client generations (can exceed Count).
+ * Retained closed pool metadata holds no context/client/engine reference. */
+XREDIS_API xredisadmission xredisPoolConnect(xnetengine* Engine, uint64 Affinity,
+    size_t Count, const xredispoolconfig* Config,
+    const xredispoolconnectconfig* Connect, xredispool** Result);
+XREDIS_API bool xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -1094,36 +1175,6 @@ XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
 XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count,
     const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/pool_transaction.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_POOL_TRANSACTION_H
-#define XREDIS_POOL_TRANSACTION_H
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_TRANSACTION))
-#error "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION requires pool and transaction"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
-XRT_EXTERN_C_BEGIN
-/* Direct staged transaction on this lease. Accepted enqueue seals the lease
- * against further calls/transactions; earlier leased calls drain before MULTI.
- * Config/commands are borrowed only during admission. Output changes only on
- * ACCEPTED. Native xredistransactionresult preserves execution uncertainty and
- * queue/runtime errors. Group request/byte quotas include wire/control/state.
- * Deadline is capped at the original lease hold. Return the lease explicitly;
- * its physical Closed barrier waits for actual DISCARD/EXEC/drain/retirement.
- * Return never authorizes replay. Sync rejects all workers of this engine. */
-XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease,
-    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
-    int64 Timeout, xfuture** Future);
-XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease,
-    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
-    int64 Timeout, xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -1239,6 +1290,36 @@ XREDIS_API xredisadmission xredisLeaseWatchAsync(xredislease* Lease,
     const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
 XREDIS_API xredisadmission xredisLeaseWatch(xredislease* Lease,
     const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_transaction.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_TRANSACTION_H
+#define XREDIS_POOL_TRANSACTION_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_TRANSACTION))
+#error "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION requires pool and transaction"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+XRT_EXTERN_C_BEGIN
+/* Direct staged transaction on this lease. Accepted enqueue seals the lease
+ * against further calls/transactions; earlier leased calls drain before MULTI.
+ * Config/commands are borrowed only during admission. Output changes only on
+ * ACCEPTED. Native xredistransactionresult preserves execution uncertainty and
+ * queue/runtime errors. Group request/byte quotas include wire/control/state.
+ * Deadline is capped at the original lease hold. Return the lease explicitly;
+ * its physical Closed barrier waits for actual DISCARD/EXEC/drain/retirement.
+ * Return never authorizes replay. Sync rejects all workers of this engine. */
+XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -1463,6 +1544,9 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_WATCH"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_CONNECT"
+#endif
 
 #endif
 
@@ -1513,6 +1597,9 @@ struct xredisexclusiveowner {
 };
 xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
     xnetengine** Engine, xnetworker** Worker, ptr Output);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+xredisadmission __xredisClientClaimStarting(xredisclient* Client, xredisexclusiveowner* Owner, xnetengine* Engine);
+#endif
 bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner);
 bool __xredisClientIsWorker(xredisclient* Client);
 xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
@@ -1605,6 +1692,22 @@ xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransac
 #if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
 xredisadmission __xredisLeaseWatch(xredislease* Lease, const xbytesview* Keys, size_t Count,
     const xrediswatchconfig* Config, xfuture** Future, double Entered, bool Sync);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xredis/src/internal/pool_connect_internal.h */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+#ifndef XREDIS_POOL_CONNECT_INTERNAL_H
+#define XREDIS_POOL_CONNECT_INTERNAL_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result);
+bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info);
 #endif
 #endif
 #endif
@@ -4233,6 +4336,20 @@ xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* 
     return Admission;
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+xredisadmission __xredisClientClaimStarting(xredisclient* Client, xredisexclusiveowner* Owner, xnetengine* Engine)
+{
+    xrtMutexLock(&Client->Gate);
+    xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING ? XREDIS_ADMISSION_CLOSED :
+        !Client->Managed || Client->Engine != Engine ? XREDIS_ADMISSION_ERROR :
+        Client->Info.Requests || Client->Owner ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        if (!xrtNetEnginePin(Engine)) Admission = XREDIS_ADMISSION_ERROR;
+        else { Client->Owner = Owner; xredisClientRef(Client); }
+    }
+    xrtMutexUnlock(&Client->Gate); return Admission;
+}
+#endif
 static bool xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner, bool Unused)
 {
 #if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
@@ -4634,6 +4751,9 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 
 #if defined(XREDIS_FEATURE_XREDIS_POOL)
 typedef struct xredispoolslot xredispoolslot;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+typedef struct xredispoolconnectstate xredispoolconnectstate;
+#endif
 enum { XREDIS_L_WAITING, XREDIS_L_GRANTED, XREDIS_L_DONE };
 struct xredislease {
     xatomic32 References, Cancelled, Reason;
@@ -4678,11 +4798,29 @@ struct xredispool {
     xredispoolslot *IdleHead, *IdleTail, *SlotEvents, *SlotEventTail;
     size_t Count, StorageBytes, InitializeNext, CloseNext, Retired;
     bool Initialized, Queued, Finished;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    xredispoolconnectstate* Connector;
+#endif
     xredispoolslot Slots[];
 };
 
 static void xredisPoolWork(xnetworker* Worker, ptr Data);
 static void xredisPoolLeaseNotify(xredislease* Lease);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+static bool xredisPoolConnectProcess(xredispool* Pool, xredispoolslot* Slot);
+static void xredisPoolConnectRetired(xredispool* Pool, xredispoolslot* Slot, xredisrequeststatus Status);
+static void xredisPoolConnectDrive(xredispool* Pool);
+static bool xredisPoolConnectMore(xredispool* Pool);
+static void xredisPoolConnectSchedule(xredispool* Pool);
+static bool xredisPoolConnectDispose(xredispool* Pool);
+#endif
+static bool xredisPoolCanWait(xredispool* Pool)
+{
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector) return true;
+#endif
+    return Pool->Info.Live != 0;
+}
 static void xredisPoolRef(xredispool* Pool)
 { xrtAtomic32FetchAdd(&Pool->References, 1, XMEMORY_RELAXED); }
 static bool xredisPoolReport(xerrkind Kind, cstr Message)
@@ -4698,6 +4836,9 @@ XREDIS_API void xredisPoolRelease(xredispool* Pool)
 {
     if (!Pool || xrtAtomic32FetchSub(&Pool->References, 1, XMEMORY_ACQ_REL) != 1) return;
     xrtPromiseDestroy(Pool->ClosePromise); xrtFutureDestroy(Pool->CloseFuture);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    xrtFree(Pool->Connector);
+#endif
     xrtMutexUnit(&Pool->Gate); xrtFree(Pool);
 }
 XREDIS_API bool xredisLeaseRetain(xredislease* Lease)
@@ -4844,7 +4985,7 @@ static void xredisPoolProcessLease(xredispool* Pool, xredislease* Lease)
     xrtMutexUnlock(&Lease->Gate);
     if (Phase == XREDIS_L_DONE) return;
     xrtMutexLock(&Pool->Gate); bool Closing = Pool->Info.State != XREDIS_POOL_OPEN;
-    bool Live = Pool->Info.Live != 0, Immediate = Pool->WaitHead == Lease && Pool->IdleHead != NULL;
+    bool Live = xredisPoolCanWait(Pool), Immediate = Pool->WaitHead == Lease && Pool->IdleHead != NULL;
     xrtMutexUnlock(&Pool->Gate);
     if (Closing) xredisLeaseReason(Lease, XREDIS_REQUEST_CLOSED);
     uint32 Reason = xrtAtomic32Load(&Lease->Reason, XMEMORY_ACQUIRE);
@@ -4900,9 +5041,24 @@ static void xredisPoolProcessLease(xredispool* Pool, xredislease* Lease)
     if (!Reusable) xredisPoolSlotNotify(Slot);
 }
 
+static bool xredisPoolDropMember(xredispool* Pool, xredispoolslot* Slot)
+{
+    if (Slot->Registered) { xrtFutureWatchRemove(Slot->Closed, &Slot->Watch); Slot->Registered = false; }
+    if (Slot->Claimed) {
+        if (!__xredisClientUnclaim(Slot->Client, &Slot->Owner)) return false;
+        Slot->Claimed = false; xrtNetEngineUnpin(Pool->Engine);
+    }
+    xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_CLOSED, XMEMORY_RELEASE);
+    xredisClientRelease(Slot->Client); Slot->Client = NULL;
+    xrtFutureDestroy(Slot->Closed); Slot->Closed = NULL;
+    xrtMutexLock(&Pool->Gate); ++Pool->Info.Retired; xrtMutexUnlock(&Pool->Gate); return true;
+}
 static void xredisPoolProcessSlot(xredispool* Pool, xredispoolslot* Slot)
 {
     if (Slot->Retired) return;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector && xredisPoolConnectProcess(Pool, Slot)) return;
+#endif
     xredisclientinfo Info = {0}; Info.Size = sizeof(Info); xredisClientInfo(Slot->Client, &Info);
     if (Info.State >= XREDIS_CLIENT_CLOSING) {
         xrtMutexLock(&Pool->Gate);
@@ -4912,12 +5068,12 @@ static void xredisPoolProcessSlot(xredispool* Pool, xredispoolslot* Slot)
     if (Slot->Lease) { xredisPoolQueueLease(Pool, Slot->Lease); return; }
     if (Slot->Dead) {
         if (Info.Requests || xrtFutureState(Slot->Closed) == XFUTURE_PENDING) return;
-        if (Slot->Registered) { xrtFutureWatchRemove(Slot->Closed, &Slot->Watch); Slot->Registered = false; }
-        if (!__xredisClientUnclaim(Slot->Client, &Slot->Owner)) return;
-        Slot->Claimed = false; xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_CLOSED, XMEMORY_RELEASE);
-        xredisClientRelease(Slot->Client); Slot->Client = NULL; xrtNetEngineUnpin(Pool->Engine);
-        xrtFutureDestroy(Slot->Closed); Slot->Closed = NULL; Slot->Retired = true;
-        xrtMutexLock(&Pool->Gate); ++Pool->Retired; ++Pool->Info.Retired; xrtMutexUnlock(&Pool->Gate);
+        if (!xredisPoolDropMember(Pool, Slot)) return;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+        if (Pool->Connector) { xredisPoolConnectRetired(Pool, Slot, Info.CloseStatus); return; }
+#endif
+        Slot->Retired = true;
+        xrtMutexLock(&Pool->Gate); ++Pool->Retired; xrtMutexUnlock(&Pool->Gate);
     } else if (!Info.Requests) {
         xrtMutexLock(&Pool->Gate); xredisPoolIdleAppend(Pool, Slot); xrtMutexUnlock(&Pool->Gate);
     }
@@ -4954,6 +5110,9 @@ static void xredisPoolGrant(xredispool* Pool, xredislease* Lease, xredispoolslot
 
 static void xredisPoolFinish(xredispool* Pool)
 {
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector && !xredisPoolConnectDispose(Pool)) return;
+#endif
     xrtMutexLock(&Pool->Gate);
     if (Pool->Queued || Pool->Info.Pending || Pool->Info.Leased || Pool->Retired != Pool->Count || Pool->LeaseEvents || Pool->SlotEvents) {
         xrtMutexUnlock(&Pool->Gate); return;
@@ -4972,7 +5131,7 @@ static void xredisPoolWork(xnetworker* Worker, ptr Data)
     size_t Budget = Pool->Config.WorkItems;
     if (Closing) for (size_t Index = 0; Index < Budget && Pool->CloseNext < Pool->Count; ++Index) {
         xredispoolslot* Slot = &Pool->Slots[Pool->CloseNext++];
-        if (!Slot->Retired) { xredisClientClose(Slot->Client); xredisPoolProcessSlot(Pool, Slot); }
+        if (!Slot->Retired) { if (Slot->Client) xredisClientClose(Slot->Client); xredisPoolProcessSlot(Pool, Slot); }
     }
     else for (size_t Index = 0; Index < Budget && Pool->InitializeNext < Pool->Count; ++Index)
         xredisPoolProcessSlot(Pool, &Pool->Slots[Pool->InitializeNext++]);
@@ -4986,10 +5145,13 @@ static void xredisPoolWork(xnetworker* Worker, ptr Data)
         if (Lease) { Pool->LeaseEvents = Lease->EventNext; if (!Pool->LeaseEvents) Pool->LeaseEventTail = NULL; Lease->EventQueued = false; }
         xrtMutexUnlock(&Pool->Gate); if (!Lease) break; xredisPoolProcessLease(Pool, Lease); xredisLeaseRelease(Lease);
     }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector) xredisPoolConnectDrive(Pool);
+#endif
     for (size_t Index = 0; Index < Budget; ++Index) {
         xrtMutexLock(&Pool->Gate); xredislease* Lease = Pool->WaitHead;
         xredispoolslot* Slot = Pool->Info.State == XREDIS_POOL_OPEN ? Pool->IdleHead : NULL;
-        bool NoLive = Pool->Info.Live == 0;
+        bool NoLive = !xredisPoolCanWait(Pool);
         if (Slot && Lease) xredisPoolIdleRemove(Pool, Slot);
         xrtMutexUnlock(&Pool->Gate);
         if (!Lease) break;
@@ -5004,10 +5166,16 @@ static void xredisPoolWork(xnetworker* Worker, ptr Data)
     }
     xrtMutexLock(&Pool->Gate);
     Closing = Pool->Info.State != XREDIS_POOL_OPEN;
-    bool More = Pool->SlotEvents || Pool->LeaseEvents || (Pool->WaitHead && (Pool->IdleHead || Closing || !Pool->Info.Live)) ||
+    bool More = Pool->SlotEvents || Pool->LeaseEvents || (Pool->WaitHead && (Pool->IdleHead || Closing || !xredisPoolCanWait(Pool))) ||
         (Closing ? Pool->CloseNext < Pool->Count : Pool->InitializeNext < Pool->Count);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector) More = More || xredisPoolConnectMore(Pool);
+#endif
     if (More) xredisPoolWakeLocked(Pool);
     xrtMutexUnlock(&Pool->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+    if (Pool->Connector) xredisPoolConnectSchedule(Pool);
+#endif
     if (Closing) xredisPoolFinish(Pool);
     xredisPoolRelease(Pool);
 }
@@ -5022,6 +5190,37 @@ static int xredisPoolCompareClient(const void* Left, const void* Right)
     uintptr_t A = (uintptr_t)*(xredisclient* const*)Left, B = (uintptr_t)*(xredisclient* const*)Right;
     return (A > B) - (A < B);
 }
+static bool xredisPoolBounds(const xredispoolconfig* Options)
+{
+    return Options->Size == sizeof(*Options) && Options->MaxPending && Options->MaxPending <= 65536 && Options->MaxRequests && Options->MaxCommandBytes &&
+        Options->LeaseTimeout > 0 && Options->LeaseTimeout <= 86400000 && Options->ReturnTimeout > 0 && Options->ReturnTimeout <= 60000 &&
+        Options->WorkItems && Options->WorkItems <= 65536;
+}
+static xredispool* xredisPoolAllocate(xnetengine* Engine, uint64 Affinity, size_t Count, const xredispoolconfig* Options)
+{
+    if (!xrtNetEnginePin(Engine)) return NULL;
+    size_t Bytes = sizeof(xredispool) + Count * sizeof(xredispoolslot);
+    xredispool* Pool = xrtCalloc(1, Bytes);
+    if (!Pool || !xrtMutexInit(&Pool->Gate)) { xrtFree(Pool); xrtNetEngineUnpin(Engine); return NULL; }
+    xrtAtomic32Init(&Pool->References, 1); Pool->Engine = Engine; Pool->Count = Count; Pool->StorageBytes = Bytes; Pool->Config = *Options;
+    Pool->Worker = xrtNetEngineWorker(Engine, (uint32)(Affinity % xrtNetEngineWorkerCount(Engine)));
+    Pool->Info.Size = sizeof(Pool->Info); Pool->Info.Members = Count;
+    xrtAtomic64Init(&Pool->Quota.Requests, 0); xrtAtomic64Init(&Pool->Quota.Bytes, 0); xrtAtomic32Init(&Pool->Quota.Closing, 0);
+    Pool->Quota.MaxRequests = (uint64)Options->MaxRequests; Pool->Quota.MaxBytes = (uint64)Options->MaxCommandBytes;
+    if (!xrtNetPostInit(&Pool->Work) || !(Pool->ClosePromise = xrtPromiseCreate(&Pool->CloseFuture, NULL))) {
+        xrtNetEngineUnpin(Engine); xredisPoolRelease(Pool); return NULL;
+    }
+    return Pool;
+}
+static void xredisPoolSlotInit(xredispool* Pool, xredispoolslot* Slot)
+{
+    Slot->Pool = Pool; Slot->Owner.Data = Slot;
+    Slot->Owner.Retain = xredisPoolSlotRef; Slot->Owner.Release = xredisPoolSlotDrop; Slot->Owner.Wake = xredisPoolSlotNotify;
+    Slot->Owner.Quota = &Pool->Quota; Slot->Owner.Deadline = INFINITY; xrtAtomic32Init(&Slot->Owner.State, XREDIS_OWNER_CLOSING);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    xrtAtomic32Init(&Slot->Owner.Nested, 0);
+#endif
+}
 XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
     xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
 {
@@ -5032,9 +5231,7 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
         xredisPoolReport(XERR_ARGUMENT, "invalid pool members/config/output"); return XREDIS_ADMISSION_ERROR;
     }
     if (Config) Options = *Config; else xredisPoolConfigInit(&Options);
-    if (Options.Size != sizeof(Options) || !Options.MaxPending || Options.MaxPending > 65536 || !Options.MaxRequests || !Options.MaxCommandBytes ||
-        Options.LeaseTimeout <= 0 || Options.LeaseTimeout > 86400000 || Options.ReturnTimeout <= 0 || Options.ReturnTimeout > 60000 ||
-        !Options.WorkItems || Options.WorkItems > 65536) {
+    if (!xredisPoolBounds(&Options)) {
         xredisPoolReport(XERR_ARGUMENT, "invalid pool bounds/deadlines"); return XREDIS_ADMISSION_ERROR;
     }
     xredisclient** Sorted = xrtMalloc(Count * sizeof(*Sorted)); if (!Sorted) return XREDIS_ADMISSION_ERROR;
@@ -5043,26 +5240,13 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
     for (size_t Index = 1; Valid && Index < Count; ++Index) Valid = Sorted[Index] != Sorted[Index - 1];
     xrtFree(Sorted);
     if (!Valid) { xredisPoolReport(XERR_ARGUMENT, "NULL or duplicate pool member"); return XREDIS_ADMISSION_ERROR; }
-    if (!xrtNetEnginePin(Engine)) return XREDIS_ADMISSION_ERROR;
-    size_t Bytes = sizeof(xredispool) + Count * sizeof(xredispoolslot);
-    xredispool* Pool = xrtCalloc(1, Bytes);
-    if (!Pool || !xrtMutexInit(&Pool->Gate)) { xrtFree(Pool); xrtNetEngineUnpin(Engine); return XREDIS_ADMISSION_ERROR; }
-    xrtAtomic32Init(&Pool->References, 1); Pool->Engine = Engine; Pool->Count = Count; Pool->StorageBytes = Bytes; Pool->Config = Options;
-    Pool->Worker = xrtNetEngineWorker(Engine, (uint32)(Affinity % xrtNetEngineWorkerCount(Engine)));
-    Pool->Info.Size = sizeof(Pool->Info); Pool->Info.Members = Pool->Info.Live = Count;
-    xrtAtomic64Init(&Pool->Quota.Requests, 0); xrtAtomic64Init(&Pool->Quota.Bytes, 0);
-    xrtAtomic32Init(&Pool->Quota.Closing, 0);
-    Pool->Quota.MaxRequests = (uint64)Options.MaxRequests; Pool->Quota.MaxBytes = (uint64)Options.MaxCommandBytes;
-    bool Ready = xrtNetPostInit(&Pool->Work) && (Pool->ClosePromise = xrtPromiseCreate(&Pool->CloseFuture, NULL));
-    xredisadmission Admission = Ready ? XREDIS_ADMISSION_ACCEPTED : XREDIS_ADMISSION_ERROR;
+    xredispool* Pool = xredisPoolAllocate(Engine, Affinity, Count, &Options);
+    if (!Pool) return XREDIS_ADMISSION_ERROR;
+    Pool->Info.Live = Count;
+    xredisadmission Admission = XREDIS_ADMISSION_ACCEPTED;
     xredisprotocol Protocol = XREDIS_PROTOCOL_UNKNOWN;
     for (size_t Index = 0; Admission == XREDIS_ADMISSION_ACCEPTED && Index < Count; ++Index) {
-        xredispoolslot* Slot = &Pool->Slots[Index]; Slot->Pool = Pool; Slot->Owner.Data = Slot;
-        Slot->Owner.Retain = xredisPoolSlotRef; Slot->Owner.Release = xredisPoolSlotDrop; Slot->Owner.Wake = xredisPoolSlotNotify;
-        Slot->Owner.Quota = &Pool->Quota; Slot->Owner.Deadline = INFINITY; xrtAtomic32Init(&Slot->Owner.State, XREDIS_OWNER_CLOSING);
-#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
-        xrtAtomic32Init(&Slot->Owner.Nested, 0);
-#endif
+        xredispoolslot* Slot = &Pool->Slots[Index]; xredisPoolSlotInit(Pool, Slot);
         xnetengine* MemberEngine = NULL; xnetworker* MemberWorker = NULL;
         Admission = __xredisClientClaim(Clients[Index], &Slot->Owner, &MemberEngine, &MemberWorker, Result);
         (void)MemberWorker;
@@ -5247,6 +5431,338 @@ XREDIS_API bool xredisLeaseReturn(xredislease* Lease) { return xredisLeaseSeal(L
 XREDIS_API bool xredisLeaseAbort(xredislease* Lease) { return xredisLeaseSeal(Lease, true); }
 XREDIS_API xfuture* xredisLeaseClosed(xredislease* Lease)
 { if (!Lease) { xredisPoolReport(XERR_ARGUMENT, "lease is NULL"); return NULL; } return xrtFutureRef(Lease->CloseFuture); }
+/* Optional cold maintenance: no transport dispatch, adapter Future or command
+ * replay on hot calls. All mutable maintenance state belongs to this worker. */
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+enum { XREDIS_PC_WAIT, XREDIS_PC_CONNECTING, XREDIS_PC_DRAIN, XREDIS_PC_ONLINE, XREDIS_PC_DONE };
+typedef struct xredispoolconnectentry {
+    xfuture* Ready;
+    xfuturewatch Watch;
+    size_t Heap, Previous, Next;
+    double Due;
+    uint64 Attempt;
+    unsigned Phase, Failures;
+    bool Registered, Queued, InFlight;
+} xredispoolconnectentry;
+struct xredispoolconnectstate {
+    xredispoolconnectconfig Config;
+    xredispoolconnectinfo Info;
+    xredispoolconnectentry* Entries;
+    size_t* Heap;
+    size_t HeapCount, Head, Tail;
+    uint64 Random, Timer;
+    double TimerDeadline;
+    bool Dropped;
+};
+static void xredisPoolConnectIncrement(uint64* Value) { if (*Value != UINT64_MAX) ++*Value; }
+static bool xredisPoolConnectOpen(xredispool* Pool)
+{ return !xrtAtomic32Load(&Pool->Quota.Closing, XMEMORY_ACQUIRE); }
+static void xredisPoolConnectHeapSwap(xredispoolconnectstate* State, size_t A, size_t B)
+{
+    size_t Item = State->Heap[A]; State->Heap[A] = State->Heap[B]; State->Heap[B] = Item;
+    State->Entries[State->Heap[A]].Heap = A; State->Entries[State->Heap[B]].Heap = B;
+}
+static bool xredisPoolConnectBefore(xredispoolconnectstate* State, size_t A, size_t B)
+{
+    double Left = State->Entries[State->Heap[A]].Due, Right = State->Entries[State->Heap[B]].Due;
+    return Left < Right || (Left == Right && State->Heap[A] < State->Heap[B]);
+}
+static void xredisPoolConnectHeapFix(xredispoolconnectstate* State, size_t Index)
+{
+    while (Index && xredisPoolConnectBefore(State, Index, (Index - 1u) / 2u)) {
+        size_t Parent = (Index - 1u) / 2u; xredisPoolConnectHeapSwap(State, Index, Parent); Index = Parent;
+    }
+    for (;;) {
+        size_t Left = Index * 2u + 1u; if (Left >= State->HeapCount) break;
+        size_t Best = Left;
+        if (Left + 1u < State->HeapCount && xredisPoolConnectBefore(State, Left + 1u, Left)) Best = Left + 1u;
+        if (!xredisPoolConnectBefore(State, Best, Index)) break;
+        xredisPoolConnectHeapSwap(State, Index, Best); Index = Best;
+    }
+}
+static void xredisPoolConnectHeapRemove(xredispoolconnectstate* State, size_t Item)
+{
+    size_t Index = State->Entries[Item].Heap; if (Index == SIZE_MAX) return;
+    size_t Last = --State->HeapCount; State->Entries[Item].Heap = SIZE_MAX;
+    if (Index == Last) return;
+    State->Heap[Index] = State->Heap[Last]; State->Entries[State->Heap[Index]].Heap = Index;
+    xredisPoolConnectHeapFix(State, Index);
+}
+static void xredisPoolConnectHeapPut(xredispoolconnectstate* State, size_t Item, double Due)
+{
+    xredisPoolConnectHeapRemove(State, Item); State->Entries[Item].Due = Due;
+    size_t Index = State->HeapCount++; State->Heap[Index] = Item; State->Entries[Item].Heap = Index;
+    xredisPoolConnectHeapFix(State, Index);
+}
+static void xredisPoolConnectQueueRemove(xredispoolconnectstate* State, size_t Item)
+{
+    xredispoolconnectentry* Entry = &State->Entries[Item]; if (!Entry->Queued) return;
+    if (Entry->Previous != SIZE_MAX) State->Entries[Entry->Previous].Next = Entry->Next; else State->Head = Entry->Next;
+    if (Entry->Next != SIZE_MAX) State->Entries[Entry->Next].Previous = Entry->Previous; else State->Tail = Entry->Previous;
+    Entry->Previous = Entry->Next = SIZE_MAX; Entry->Queued = false;
+}
+static void xredisPoolConnectQueue(xredispoolconnectstate* State, size_t Item)
+{
+    xredispoolconnectentry* Entry = &State->Entries[Item]; if (Entry->Queued) return;
+    Entry->Queued = true; Entry->Next = SIZE_MAX; Entry->Previous = State->Tail;
+    if (State->Tail != SIZE_MAX) State->Entries[State->Tail].Next = Item; else State->Head = Item;
+    State->Tail = Item;
+}
+static void xredisPoolConnectReadyDrop(xredispool* Pool, size_t Item)
+{
+    xredispoolconnectentry* Entry = &Pool->Connector->Entries[Item];
+    if (Entry->Registered) { xrtFutureWatchRemove(Entry->Ready, &Entry->Watch); Entry->Registered = false; }
+    xrtFutureDestroy(Entry->Ready); Entry->Ready = NULL;
+}
+static xredisrequeststatus xredisPoolConnectReadyStatus(xredisreadystatus Status)
+{
+    switch (Status) {
+    case XREDIS_READY_TIMEOUT: return XREDIS_REQUEST_TIMEOUT;
+    case XREDIS_READY_CLOSED: return XREDIS_REQUEST_CLOSED;
+    case XREDIS_READY_DISCONNECTED: return XREDIS_REQUEST_DISCONNECTED;
+    case XREDIS_READY_PROTOCOL: return XREDIS_REQUEST_PROTOCOL;
+    case XREDIS_READY_LIMIT: return XREDIS_REQUEST_LIMIT;
+    case XREDIS_READY_MEMORY: return XREDIS_REQUEST_MEMORY;
+    default: return XREDIS_REQUEST_INITIALIZATION;
+    }
+}
+static void xredisPoolConnectFailed(xredispool* Pool, size_t Item, xredisrequeststatus Status)
+{
+    xredispoolconnectstate* State = Pool->Connector; xredispoolconnectentry* Entry = &State->Entries[Item];
+    if (Entry->Failures < 31) ++Entry->Failures;
+    xrtMutexLock(&Pool->Gate); xredisPoolConnectIncrement(&State->Info.Failures); State->Info.LastFailure = Status; xrtMutexUnlock(&Pool->Gate);
+}
+static double xredisPoolConnectRetry(xredispool* Pool, size_t Item)
+{
+    xredispoolconnectstate* State = Pool->Connector; xredispoolconnectentry* Entry = &State->Entries[Item];
+    uint64 Cap = (uint64)State->Config.RetryMin << Entry->Failures;
+    if (Cap > (uint64)State->Config.RetryMax) Cap = (uint64)State->Config.RetryMax;
+    /* Jitter is for retry dephasing, never for cryptographic purposes. */
+    uint64 Value = State->Random; Value ^= Value << 13; Value ^= Value >> 7; Value ^= Value << 17; State->Random = Value;
+    uint64 Delay = (uint64)State->Config.RetryMin + Value % (Cap - (uint64)State->Config.RetryMin + 1u);
+    return xredisPoolDeadline(xrtTimer(), (int64)Delay);
+}
+static void xredisPoolConnectRetired(xredispool* Pool, xredispoolslot* Slot, xredisrequeststatus Status)
+{
+    xredispoolconnectstate* State = Pool->Connector; size_t Item = (size_t)(Slot - Pool->Slots);
+    xredispoolconnectentry* Entry = &State->Entries[Item];
+    xredisPoolConnectHeapRemove(State, Item); xredisPoolConnectQueueRemove(State, Item);
+    xredisPoolConnectReadyDrop(Pool, Item);
+    if (Entry->Phase == XREDIS_PC_ONLINE && xredisPoolConnectOpen(Pool)) xredisPoolConnectFailed(Pool, Item, Status);
+    xrtMutexLock(&Pool->Gate);
+    if (Entry->InFlight) { Entry->InFlight = false; --State->Info.Connecting; }
+    bool Open = Pool->Info.State == XREDIS_POOL_OPEN;
+    if (Open) { Entry->Phase = XREDIS_PC_WAIT; ++State->Info.Waiting; }
+    else { Entry->Phase = XREDIS_PC_DONE; Slot->Retired = true; ++Pool->Retired; }
+    xrtMutexUnlock(&Pool->Gate);
+    if (Open) xredisPoolConnectHeapPut(State, Item, xredisPoolConnectRetry(Pool, Item));
+}
+static void xredisPoolConnectDrain(xredispool* Pool, size_t Item, xredisrequeststatus Status)
+{
+    xredispoolconnectstate* State = Pool->Connector; xredispoolconnectentry* Entry = &State->Entries[Item];
+    if (Entry->Phase != XREDIS_PC_DRAIN) {
+        if (xredisPoolConnectOpen(Pool)) xredisPoolConnectFailed(Pool, Item, Status);
+        Entry->Phase = XREDIS_PC_DRAIN; xredisPoolConnectHeapRemove(State, Item); xredisPoolConnectReadyDrop(Pool, Item);
+    }
+    xredisClientClose(Pool->Slots[Item].Client); xredisPoolSlotNotify(&Pool->Slots[Item]);
+}
+static bool xredisPoolConnectProcess(xredispool* Pool, xredispoolslot* Slot)
+{
+    xredispoolconnectstate* State = Pool->Connector; size_t Item = (size_t)(Slot - Pool->Slots);
+    xredispoolconnectentry* Entry = &State->Entries[Item];
+    if (Entry->Phase == XREDIS_PC_ONLINE) return false;
+    if (Entry->Phase == XREDIS_PC_WAIT) {
+        if (!xredisPoolConnectOpen(Pool)) {
+            xredisPoolConnectHeapRemove(State, Item); xredisPoolConnectQueueRemove(State, Item);
+            Entry->Phase = XREDIS_PC_DONE; Slot->Retired = true;
+            xrtMutexLock(&Pool->Gate); --State->Info.Waiting; ++Pool->Retired; xrtMutexUnlock(&Pool->Gate);
+        }
+        return true;
+    }
+    if (Entry->Phase == XREDIS_PC_DONE) return true;
+    xredisclientinfo Info = {0}; Info.Size = sizeof(Info); xredisClientInfo(Slot->Client, &Info);
+    if (Entry->Phase == XREDIS_PC_CONNECTING) {
+        if (!xredisPoolConnectOpen(Pool)) xredisPoolConnectDrain(Pool, Item, XREDIS_REQUEST_CLOSED);
+        else if (xrtTimer() >= Entry->Due) xredisPoolConnectDrain(Pool, Item, XREDIS_REQUEST_TIMEOUT);
+        else if (xrtFutureState(Entry->Ready) != XFUTURE_PENDING) {
+            const xredisreadyresult* Ready = xrtFutureValue(Entry->Ready);
+            if (Ready && Ready->Status == XREDIS_READY_OK && Ready->Protocol == State->Config.Protocol &&
+                Slot->Claimed && Info.State == XREDIS_CLIENT_OPEN && !Info.Requests) {
+                xredisPoolConnectReadyDrop(Pool, Item); xredisPoolConnectHeapRemove(State, Item);
+                Entry->Phase = XREDIS_PC_ONLINE; Entry->Failures = 0; Entry->InFlight = false; Slot->Dead = false;
+                xrtMutexLock(&Pool->Gate); --State->Info.Connecting; ++Pool->Info.Live; xredisPoolConnectIncrement(&State->Info.Connected); xrtMutexUnlock(&Pool->Gate);
+                return false;
+            }
+            xredisPoolConnectDrain(Pool, Item, Ready ? xredisPoolConnectReadyStatus(Ready->Status) : XREDIS_REQUEST_INITIALIZATION);
+        } else if (Info.State >= XREDIS_CLIENT_CLOSING) xredisPoolConnectDrain(Pool, Item, Info.CloseStatus);
+    }
+    if (Entry->Phase == XREDIS_PC_DRAIN) {
+        if (!Info.Requests && xrtFutureState(Slot->Closed) != XFUTURE_PENDING && xredisPoolDropMember(Pool, Slot))
+            xredisPoolConnectRetired(Pool, Slot, Info.CloseStatus);
+        else if (!Slot->Registered) xredisPoolConnectHeapPut(State, Item, xredisPoolDeadline(xrtTimer(), 10));
+    }
+    return true;
+}
+static bool xredisPoolConnectWatch(xredispool* Pool, xredispoolslot* Slot, xfuture* Future, xfuturewatch* Watch, bool* Registered)
+{
+    if (!xrtFutureWatchInit(Watch, xredisPoolSlotNotify, xredisPoolSlotDrop, Slot)) return false;
+    xredisPoolRef(Pool); xfuturewatchresult Watched = xrtFutureWatchAdd(Future, Watch);
+    *Registered = Watched == XFUTURE_WATCH_PENDING;
+    if (!*Registered) xredisPoolRelease(Pool);
+    return Watched != XFUTURE_WATCH_ERROR;
+}
+static void xredisPoolConnectStart(xredispool* Pool, size_t Item)
+{
+    xredispoolconnectstate* State = Pool->Connector; xredispoolconnectentry* Entry = &State->Entries[Item]; xredispoolslot* Slot = &Pool->Slots[Item];
+    xrtMutexLock(&Pool->Gate);
+    if (Pool->Info.State != XREDIS_POOL_OPEN) { xrtMutexUnlock(&Pool->Gate); return; }
+    --State->Info.Waiting; ++State->Info.Connecting; xredisPoolConnectIncrement(&State->Info.Attempts);
+    Entry->InFlight = true; Entry->Phase = XREDIS_PC_CONNECTING; xredisPoolConnectIncrement(&Entry->Attempt);
+    xrtMutexUnlock(&Pool->Gate);
+    Entry->Due = xredisPoolDeadline(xrtTimer(), State->Config.AttemptTimeout);
+    xredisclient* Client = NULL;
+    bool Started = State->Config.Connect(Pool->Engine, Item, Entry->Attempt, State->Config.AttemptTimeout, State->Config.Data, &Client);
+    if (!Started || !Client) {
+        if (xredisPoolConnectOpen(Pool)) xredisPoolConnectFailed(Pool, Item, XREDIS_REQUEST_INITIALIZATION);
+        xredisPoolConnectRetired(Pool, Slot, XREDIS_REQUEST_INITIALIZATION); return;
+    }
+    Slot->Client = Client; Slot->Dead = true;
+    xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE); Slot->Owner.Deadline = INFINITY;
+    if (__xredisClientClaimStarting(Client, &Slot->Owner, Pool->Engine) == XREDIS_ADMISSION_ACCEPTED) {
+        Slot->Claimed = true; xredisClientRelease(Client); /* Keep the native claim reference. */
+    }
+    Slot->Closed = xredisClientClosed(Client); Entry->Ready = xredisClientReady(Client);
+    bool ClosedWatch = xredisPoolConnectWatch(Pool, Slot, Slot->Closed, &Slot->Watch, &Slot->Registered);
+    bool ReadyWatch = xredisPoolConnectWatch(Pool, Slot, Entry->Ready, &Entry->Watch, &Entry->Registered);
+    if (!Slot->Claimed || !ClosedWatch || !ReadyWatch) xredisPoolConnectDrain(Pool, Item, XREDIS_REQUEST_INITIALIZATION);
+    else xredisPoolConnectHeapPut(State, Item, Entry->Due);
+    xredisPoolSlotNotify(Slot);
+}
+static void xredisPoolConnectDrive(xredispool* Pool)
+{
+    xredispoolconnectstate* State = Pool->Connector;
+    /* Move due retries out of the heap even when concurrency is full. They
+     * must never hide a later connecting attempt's hard timeout at the root. */
+    for (size_t Count = 0; Count < Pool->Config.WorkItems && State->HeapCount; ++Count) {
+        size_t Item = State->Heap[0]; xredispoolconnectentry* Entry = &State->Entries[Item];
+        if (Entry->Due > xrtTimer()) break;
+        xredisPoolConnectHeapRemove(State, Item);
+        if (Entry->Phase == XREDIS_PC_WAIT && xredisPoolConnectOpen(Pool)) xredisPoolConnectQueue(State, Item);
+        else xredisPoolSlotNotify(&Pool->Slots[Item]);
+    }
+    for (size_t Count = 0; Count < Pool->Config.WorkItems && State->Head != SIZE_MAX; ++Count) {
+        if (State->Info.Connecting >= State->Config.MaxConnecting || !xredisPoolConnectOpen(Pool)) break;
+        size_t Item = State->Head; xredisPoolConnectQueueRemove(State, Item); xredisPoolConnectStart(Pool, Item);
+    }
+}
+static bool xredisPoolConnectMore(xredispool* Pool)
+{
+    xredispoolconnectstate* State = Pool->Connector;
+    return (xredisPoolConnectOpen(Pool) && State->Head != SIZE_MAX && State->Info.Connecting < State->Config.MaxConnecting) ||
+        (State->HeapCount && State->Entries[State->Heap[0]].Due <= xrtTimer());
+}
+static void xredisPoolConnectTimer(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
+{
+    (void)Worker; xredispool* Pool = Data; xredispoolconnectstate* State = Pool->Connector;
+    if (State->Timer == Id) State->Timer = 0;
+    if (Result != XNET_RESULT_OK && Result != XNET_RESULT_CANCELLED) xredisPoolClose(Pool);
+    xrtMutexLock(&Pool->Gate); xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate); xredisPoolRelease(Pool);
+}
+static void xredisPoolConnectSchedule(xredispool* Pool)
+{
+    xredispoolconnectstate* State = Pool->Connector;
+    double Deadline = State->HeapCount ? State->Entries[State->Heap[0]].Due : INFINITY;
+    if (Deadline <= xrtTimer()) Deadline = INFINITY; /* Bounded post continuation handles due work. */
+    if (State->Timer && State->TimerDeadline == Deadline) return;
+    if (State->Timer) xrtNetEngineTimerCancelCurrent(Pool->Engine, State->Timer);
+    if (State->Timer || Deadline == INFINITY) return;
+    State->TimerDeadline = Deadline; xredisPoolRef(Pool);
+    State->Timer = __xrtNetEngineSchedule(Pool->Engine, xrtNetWorkerIndex(Pool->Worker), Deadline, xredisPoolConnectTimer, Pool);
+    if (!State->Timer) {
+        xrtMutexLock(&Pool->Gate); State->Info.LastFailure = XREDIS_REQUEST_MEMORY; xrtMutexUnlock(&Pool->Gate);
+        xredisPoolClose(Pool); xredisPoolRelease(Pool);
+    }
+}
+static bool xredisPoolConnectDispose(xredispool* Pool)
+{
+    xredispoolconnectstate* State = Pool->Connector; if (State->Timer) return false;
+    xrtMutexLock(&Pool->Gate);
+    bool Ready = !Pool->Queued && !Pool->Info.Pending && !Pool->Info.Leased && Pool->Retired == Pool->Count && !Pool->LeaseEvents && !Pool->SlotEvents;
+    xrtMutexUnlock(&Pool->Gate);
+    if (!Ready) return false;
+    if (!State->Dropped) {
+        xredispoolconnectdrop Drop = State->Config.Drop; ptr Data = State->Config.Data;
+        State->Dropped = true; State->Config.Connect = NULL; State->Config.Drop = NULL; State->Config.Data = NULL;
+        if (Drop) Drop(Data);
+    }
+    return true;
+}
+xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result)
+{
+    if (!Engine || !Count || Count > 65536 || !Result || !xrtMemRangeValid(Result, sizeof(*Result)) ||
+        !Connect || !xrtMemRangeValid(Connect, sizeof(*Connect)) || xrtMemRangesOverlap(Connect, sizeof(*Connect), Result, sizeof(*Result)) ||
+        (Config && (!xrtMemRangeValid(Config, sizeof(*Config)) || xrtMemRangesOverlap(Config, sizeof(*Config), Result, sizeof(*Result))))) {
+        xredisPoolReport(XERR_ARGUMENT, "invalid automatic pool config/output"); return XREDIS_ADMISSION_ERROR;
+    }
+    xredispoolconfig Options; if (Config) Options = *Config; else xredisPoolConfigInit(&Options);
+    xredispoolconnectconfig Factory = *Connect;
+    if (!xredisPoolBounds(&Options) || Factory.Size != sizeof(Factory) || !Factory.Connect ||
+        (Factory.Protocol != XREDIS_RESP2 && Factory.Protocol != XREDIS_RESP3) || !Factory.MaxConnecting || Factory.MaxConnecting > 65536 ||
+        Factory.AttemptTimeout <= 0 || Factory.AttemptTimeout > 60000 || Factory.RetryMin <= 0 || Factory.RetryMax < Factory.RetryMin || Factory.RetryMax > 60000) {
+        xredisPoolReport(XERR_ARGUMENT, "invalid automatic pool bounds/factory/profile"); return XREDIS_ADMISSION_ERROR;
+    }
+    xredispool* Pool = xredisPoolAllocate(Engine, Affinity, Count, &Options); if (!Pool) return XREDIS_ADMISSION_ERROR;
+    size_t Bytes = sizeof(xredispoolconnectstate) + Count * (sizeof(xredispoolconnectentry) + sizeof(size_t));
+    xredispoolconnectstate* State = Pool->Connector = xrtCalloc(1, Bytes);
+    if (!State) { xrtNetEngineUnpin(Engine); xredisPoolRelease(Pool); return XREDIS_ADMISSION_ERROR; }
+    State->Config = Factory; if (State->Config.MaxConnecting > Count) State->Config.MaxConnecting = Count;
+    State->Entries = (xredispoolconnectentry*)(State + 1); State->Heap = (size_t*)(State->Entries + Count);
+    State->Head = State->Tail = SIZE_MAX; State->HeapCount = Count;
+    State->Random = ((uint64)(xrtTimer() * 1000000.0) ^ (uint64)(uintptr_t)Pool) | 1u;
+    State->Info.Size = sizeof(State->Info); State->Info.Waiting = Count;
+    double Now = xrtTimer();
+    for (size_t Item = 0; Item < Count; ++Item) {
+        xredisPoolSlotInit(Pool, &Pool->Slots[Item]); Pool->Slots[Item].Dead = true;
+        State->Entries[Item].Heap = State->Heap[Item] = Item; State->Entries[Item].Due = Now;
+        State->Entries[Item].Previous = State->Entries[Item].Next = SIZE_MAX;
+    }
+    Pool->InitializeNext = Count; xredisPoolRef(Pool);
+    xrtMutexLock(&Pool->Gate); Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
+    return XREDIS_ADMISSION_ACCEPTED;
+}
+bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info)
+{
+    if (!Pool || !Info || !xrtMemRangeValid(Info, sizeof(*Info)) || Info->Size != sizeof(*Info) ||
+        xrtMemRangesOverlap(Pool, Pool ? Pool->StorageBytes : 0, Info, sizeof(*Info))) return xredisPoolReport(XERR_ARGUMENT, "invalid pool connector snapshot output");
+    xrtMutexLock(&Pool->Gate); bool Valid = Pool->Connector != NULL; if (Valid) *Info = Pool->Connector->Info; xrtMutexUnlock(&Pool->Gate);
+    return Valid ? true : xredisPoolReport(XERR_STATE, "pool has no automatic connector");
+}
+#endif
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/pool_connect/pool_connect.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+#if defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
+XREDIS_API bool xredisPoolConnectConfigInit(xredispoolconnectconfig* Config)
+{
+    if (!Config || !xrtMemRangeValid(Config, sizeof(*Config))) {
+        xrtSetErrorInfo(XERR_ARGUMENT, "xrt.redis", XREDIS_CLIENT_ARGUMENT, "invalid pool connector config output"); return false;
+    }
+    *Config = (xredispoolconnectconfig){sizeof(*Config), NULL, NULL, NULL,
+        XREDIS_RESP3, 4, 5000, 100, 10000}; return true;
+}
+XREDIS_API xredisadmission xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result)
+{ return __xredisPoolConnect(Engine, Affinity, Count, Config, Connect, Result); }
+XREDIS_API bool xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info)
+{ return __xredisPoolConnectInfo(Pool, Info); }
 #endif
 #endif
 
@@ -5279,22 +5795,6 @@ XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
 {
     return __xredisClientTransaction(Client, Commands, Count, Config, Timeout, xrtTimer(), Future);
 }
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xredis/src/pool_transaction/pool_transaction.c */
-/* ========================================================================== */
-
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
-#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
-XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease, const xredistransactioncommand* Commands,
-    size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
-{ return __xredisLeaseTransaction(Lease, Commands, Count, Config, Timeout, Future, xrtTimer(), false); }
-XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
-    size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
-{ return __xredisLeaseTransaction(Lease, Commands, Count, Config, Timeout, Future, xrtTimer(), true); }
 #endif
 #endif
 
@@ -5753,6 +6253,22 @@ XREDIS_API xredisadmission xredisLeaseWatchAsync(xredislease* Lease, const xbyte
 XREDIS_API xredisadmission xredisLeaseWatch(xredislease* Lease, const xbytesview* Keys,
     size_t Count, const xrediswatchconfig* Config, xfuture** Future)
 { return __xredisLeaseWatch(Lease, Keys, Count, Config, Future, xrtTimer(), true); }
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/pool_transaction/pool_transaction.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease, const xredistransactioncommand* Commands,
+    size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
+{ return __xredisLeaseTransaction(Lease, Commands, Count, Config, Timeout, Future, xrtTimer(), false); }
+XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
+    size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
+{ return __xredisLeaseTransaction(Lease, Commands, Count, Config, Timeout, Future, xrtTimer(), true); }
 #endif
 #endif
 
