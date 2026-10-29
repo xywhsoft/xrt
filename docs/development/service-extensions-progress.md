@@ -2067,3 +2067,44 @@ API/fallback failure records, reference/paired sources and binaries, raw samples
 interop/package/size/layout receipts and validation. Remaining Redis dedicated/
 HA/tracking and P3 xrpc/xmqtt/xcron runtimes plus all final native deployment,
 >=72-hour mixed/fault and production/performance gates remain unachieved.
+
+## P2 measurement: sustained pool samples and explicit CPU placement (2026-10-30)
+
+The pool benchmark now accepts an optional validated CPU mask before creating
+workers, reports actual placement, and measures process CPU time per cycle.
+Invalid/unavailable masks fail before fixture construction. Windows uses its
+current processor group; Linux restricts the main thread before workers inherit
+the set. No host priority, power policy or timer-resolution setting changes.
+This is process placement, not per-worker pinning or host isolation. Windows
+CPU counter granularity remains visible, including zero short-sample readings.
+
+The new sustained profile keeps the same loop/peer and increases each fixed and
+automatic warm sample to 100000 cycles; physical repair retains 1000. The old
+short profile and its evidence remain. Native Windows and WSL reject four bad
+masks and accept/report 0x110; all three WSL profile smoke workloads complete.
+Windows comparator builds use O2/Wall/Wextra/Werror. Normal xredis maturity
+passes with 34 workloads; no production source or public API changes here.
+
+Host topology is six physical cores with SMT pairs 0x3/0xc/0x30/0xc0/0x300/0xc00.
+Both native comparators use logical CPUs 4 and 8 (mask 0x110), on separate
+physical cores. Each keeps five full samples plus one warmup, alternating order,
+identical inputs/features/workers/compiler and every source/header except the
+IOCP translation unit. The reference TU is exact d50664b2; current is 40ddf61c.
+Reference executable SHA256 e1b152f79a6735b33795f253003646aec4719b8a7ee3acd39c167e891e1c14ee;
+current accc9ab66e4e4386c7c0d72cec888f6488b3338d7f3ad608fba40d4a1755fc8b.
+
+Reference/current warm throughput medians are 14827.222/14501.229 cycles/s
+(-2.20%); P99 medians are 185.0/184.6 us, CPU 61.250/62.812 us/cycle.
+Repair P50 medians are 15571.2/1933.5 us. All counts complete, but 39 checks fail
+the unchanged 3% relative MAD / 6% central-range limits. No sample is dropped.
+These results do not establish or dismiss the previous apparent -9.41% signal,
+prove throughput parity, or pass performance acceptance. Process placement and
+longer samples do not isolate worker migration, SMT siblings or competing host
+work. Controlled native profiling remains needed before attributing a cost or
+making another runtime optimization.
+
+Ignored out/service-extensions/pinned-throughput/ retains raw samples, topology,
+compiler/source/binary receipts, all failed gates, CLI/smoke results and a
+post-commit identity check. The four-library goal stays active; Redis dedicated
+modes/HA/tracking, xrpc/xmqtt/xcron runtimes, native Linux deployment and final
+>=72-hour mixed/fault and production/performance acceptance remain pending.

@@ -102,3 +102,33 @@ warm-cycle acquire/call/return/observer costs remain inside. These local fixture
 measurements do not establish Hiredis parity, final tail latency or native
 Windows/Linux deployment acceptance. All added heap/state storage, callbacks,
 references/pins, gate/atomic operations, clocks and timer changes are real costs.
+
+## Longer samples and explicit CPU placement
+
+`xredis_pool_connect_sustained` keeps the same timed loop and peer, with 100000
+cycles per fixed/automatic warm sample and 1000 per physical repair sample.
+The original shorter profile remains available. Both retain five repeats plus
+one warmup and the existing 3% relative MAD / 6% central-range limits. Process
+CPU time per cycle is also reported; its Windows counter granularity still
+limits short samples. Startup, affinity setup, sample sorting and teardown are
+outside timing, while acquire/call/return and observer release remain inside.
+
+The benchmark executable accepts `COUNT MODE [CPU_MASK]`, where MODE is 0 for
+automatic warm cycles, 1 for forced repair and 2 for fixed membership. An
+optional nonzero mask (for example `0x110` on a compatible machine) is validated
+against the process's allowed CPUs and applied before any engine worker starts.
+The measured program prints its actual placement. Windows supports a mask in
+the current processor group; Linux supports the low 64 CPU bits and workers
+inherit the main thread's restricted set. Other platforms reject an explicit
+mask. Invalid/unavailable masks fail before construction. An omitted mask
+leaves placement unchanged. This changes only the benchmark process, with no
+priority, power-policy or timer-resolution-setting change.
+
+Select distinct physical cores using the host's actual topology, rather than
+assuming adjacent logical CPUs are separate cores. A process mask does not
+isolate the host, fix individual workers to particular cores or pin frequency.
+Record these limits and preserve failed noise gates. A paired comparison must
+use the same benchmark/peer/input/worker/CPU budgets and identical current
+sources except for the deliberately pinned IOCP translation unit. Keep the
+original short/unpinned results; new placement or longer samples do not turn
+them into accepted performance evidence.

@@ -1799,6 +1799,142 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_pool_connect_sustained",
+      "system": "pool_connect",
+      "description": "Longer matched fixed/automatic warm cycles for controlled CPU placement; 100000 warm cycles and 1000 physical repair cycles; not production acceptance",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_connect_fixed_sustained",
+          "source": "extlibs/xredis/bench/bench_pool_connect.c",
+          "suite": "xredis_pool_connect",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_connect_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "100000",
+            "2"
+          ],
+          "smoke_args": [
+            "25",
+            "2"
+          ],
+          "metadata": [
+            "workload",
+            "affinity"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "cpu_us_per_cycle": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_connect_warm_sustained",
+          "source": "extlibs/xredis/bench/bench_pool_connect.c",
+          "suite": "xredis_pool_connect",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_connect_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "100000",
+            "0"
+          ],
+          "smoke_args": [
+            "25",
+            "0"
+          ],
+          "metadata": [
+            "workload",
+            "affinity"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "cpu_us_per_cycle": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_connect_repair_sustained",
+          "source": "extlibs/xredis/bench/bench_pool_connect.c",
+          "suite": "xredis_pool_connect",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_connect_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "1"
+          ],
+          "smoke_args": [
+            "25",
+            "1"
+          ],
+          "metadata": [
+            "workload",
+            "affinity"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "cpu_us_per_cycle": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }
