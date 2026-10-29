@@ -2,6 +2,9 @@
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 #include <xredis/tls.h>
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#include <xredis/tls_auth.h>
+#endif
 #include "../internal/client_connect.h"
 #include <xrt/memory.h>
 #include <string.h>
@@ -73,7 +76,7 @@ static void xredisDialDrop(ptr Data)
 static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
-	const xredisclienttlsconfig* TLS, double Entered, xredisclient** Result)
+	const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result)
 {
 	if (Engine == NULL || Result == NULL || !xrtMemRangeValid(Result, sizeof(*Result)) ||
 		(Dial != NULL && (!xrtMemRangeValid(Dial, sizeof(*Dial)) || xrtMemRangesOverlap(Dial, sizeof(*Dial), Result, sizeof(*Result)))))
@@ -113,9 +116,9 @@ static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetadd
 		if (Context->Addresses == NULL) { xredisDialDrop(Context); return false; }
 	} else memcpy(Context->Host, Host.Data, Host.Size);
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
-	if (TLS != NULL && !__xredisTlsPlanCreate(TLS, (xstrview){Context->Host, Host.Size}, Result, &Context->TLS)) { xredisDialDrop(Context); return false; }
+	if (TLS != NULL && !__xredisTlsPlanCreate(TLS, Auth, (xstrview){Context->Host, Host.Size}, Result, &Context->TLS)) { xredisDialDrop(Context); return false; }
 #else
-	(void)TLS;
+	(void)TLS; (void)Auth;
 #endif
 	if (__xredisClientCreatePlanned(Engine, Affinity, Config, Init, Entered, &Context->Plan, Result)) return true;
 	xredisDialDrop(Context); return false;
@@ -124,14 +127,14 @@ static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetadd
 XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial, xredisclient** Result)
-{ return xredisDialCreate(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, Dial, NULL, xrtTimer(), Result); }
+{ return xredisDialCreate(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, Dial, NULL, NULL, xrtTimer(), Result); }
 
 XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
 	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
 	const xredisclientdialconfig* Dial, xredisclient** Result)
 {
 	if (Addresses == NULL) return xredisDialArgument("resolved endpoint list is NULL");
-	return xredisDialCreate(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, Dial, NULL, xrtTimer(), Result);
+	return xredisDialCreate(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, Dial, NULL, NULL, xrtTimer(), Result);
 }
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
@@ -141,7 +144,21 @@ bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrl
 	/* Read the public TLS descriptor only after its full span/output validation. */
 	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || Result == NULL ||
 		xrtMemRangesOverlap(TLS, sizeof(*TLS), Result, sizeof(*Result))) return xredisDialArgument("invalid TLS config/output");
-	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, Entered, Result);
+	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, NULL, Entered, Result);
+}
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+bool __xredisClientDialTlsAuthV1(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+	const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result)
+{
+	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || Auth == NULL ||
+		!xrtMemRangeValid(Auth, sizeof(*Auth)) || Auth->Size != sizeof(*Auth) || Result == NULL ||
+		xrtMemRangesOverlap(TLS, sizeof(*TLS), Result, sizeof(*Result)) ||
+		xrtMemRangesOverlap(Auth, sizeof(*Auth), Result, sizeof(*Result)))
+		return xredisDialArgument("invalid TLS authentication config/output");
+	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, Auth, Entered, Result);
 }
 #endif
 #endif

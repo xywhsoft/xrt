@@ -51,6 +51,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS_AUTH 1
+#endif
 #if !defined(XREDIS_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL 1
 #endif
@@ -74,6 +77,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_TLS_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS_AUTH 1
 #endif
 #if !defined(XRT_FEATURE_ARRAY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY 1
@@ -1268,6 +1274,9 @@
 #endif
 #if !defined(XRT_MODULE_NUMBER_INTEGER)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_INTEGER 1
+#endif
+#if !defined(XRT_MODULE_TLS_CLIENT_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH 1
 #endif
 #if !defined(XRT_MODULE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME 1
@@ -2509,6 +2518,22 @@
 #ifndef XREDIS_MODULE_XREDIS_TLS
 #define XREDIS_MODULE_XREDIS_TLS
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TLS_AUTH
+#define XREDIS_MODULE_XREDIS_TLS_AUTH
+#endif
+#endif
+
+/* xredis_tls_auth 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS_AUTH)
+#ifndef XREDIS_FEATURE_XREDIS_TLS_AUTH
+#define XREDIS_FEATURE_XREDIS_TLS_AUTH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_AUTH
+#define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
 #endif
 
 /* xredis_tls 及其直接依赖。 */
@@ -3379,6 +3404,50 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/tls_auth.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TLS_AUTH_H
+#define XREDIS_TLS_AUTH_H
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH) && (!defined(XREDIS_FEATURE_XREDIS_TLS) || !defined(XRT_FEATURE_TLS_CLIENT_AUTH))
+#error "XREDIS_FEATURE_XREDIS_TLS_AUTH requires Redis TLS and native TLS client authentication"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+XRT_EXTERN_C_BEGIN
+/* Configs/views are borrowed only during admission. The native session retains
+ * the immutable identity before DNS or any worker callback; no caller identity
+ * or auth-config borrow escapes. Signers run on the connection worker and must
+ * not block it or reenter/destroy the native session. The identity's final
+ * Release follows its existing last-reference thread contract. Resolver/code/
+ * verifier-context lifetime and total deadlines follow the TLS Dial contract.
+ * Auth is mandatory; defaults come from xrtTlsClientAuthConfigInitV1. With
+ * RequireCertificate=true, no compatible server request fails readiness.
+ * With false the caller explicitly permits a connection without local proof.
+ * Full certificate handshakes only: explicit resumes are rejected and tickets
+ * are not retained until identity-bound resumption is implemented. A signing
+ * backend is selected separately; this module does not add private-key code.
+ * Readiness includes the configured Redis initialization, so TLS 1.3 local
+ * proof queueing alone cannot publish successful managed readiness. */
+XREDIS_API bool xredisClientTlsAuthDialV1(xnetengine* Engine, xnetresolver* Resolver,
+    xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+    const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+    const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XREDIS_API bool xredisClientTlsAuthDialAddressesV1(xnetengine* Engine, xnetaddrlist* Addresses,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XREDIS_API bool xredisClientTlsAuthConnectV1(xnetengine* Engine, const xnetaddr* Remote,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -3408,6 +3477,10 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TLS)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TLS"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TLS_AUTH"
 #endif
 
 
@@ -3440,6 +3513,10 @@ XRT_EXTERN_C_END
 #undef XREDIS_FEATURE_XREDIS_TLS
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#undef XREDIS_FEATURE_XREDIS_TLS_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS_AUTH
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL)
 #undef XREDIS_MODULE_ALL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_ALL
@@ -3471,6 +3548,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS)
 #undef XREDIS_MODULE_XREDIS_TLS
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS_AUTH)
+#undef XREDIS_MODULE_XREDIS_TLS_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS_AUTH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY
@@ -5064,6 +5145,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NUMBER_INTEGER
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NUMBER_INTEGER
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH)
+#undef XRT_MODULE_TLS_CLIENT_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME)
 #undef XRT_MODULE_TLS_CLIENT_RESUME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME
@@ -5137,6 +5222,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_TLS
 #define XREDIS_MODULE_XREDIS_TLS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS_AUTH
+#define XREDIS_MODULE_XREDIS_TLS_AUTH
+#endif
+#endif
+
+/* xredis_tls_auth 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS_AUTH)
+#ifndef XREDIS_FEATURE_XREDIS_TLS_AUTH
+#define XREDIS_FEATURE_XREDIS_TLS_AUTH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_AUTH
+#define XRT_MODULE_TLS_CLIENT_AUTH
 #endif
 #endif
 

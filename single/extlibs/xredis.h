@@ -82,6 +82,22 @@
 #ifndef XREDIS_MODULE_XREDIS_TLS
 #define XREDIS_MODULE_XREDIS_TLS
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TLS_AUTH
+#define XREDIS_MODULE_XREDIS_TLS_AUTH
+#endif
+#endif
+
+/* xredis_tls_auth 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS_AUTH)
+#ifndef XREDIS_FEATURE_XREDIS_TLS_AUTH
+#define XREDIS_FEATURE_XREDIS_TLS_AUTH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_AUTH
+#define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
 #endif
 
 /* xredis_tls 及其直接依赖。 */
@@ -952,6 +968,50 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/tls_auth.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TLS_AUTH_H
+#define XREDIS_TLS_AUTH_H
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH) && (!defined(XREDIS_FEATURE_XREDIS_TLS) || !defined(XRT_FEATURE_TLS_CLIENT_AUTH))
+#error "XREDIS_FEATURE_XREDIS_TLS_AUTH requires Redis TLS and native TLS client authentication"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+XRT_EXTERN_C_BEGIN
+/* Configs/views are borrowed only during admission. The native session retains
+ * the immutable identity before DNS or any worker callback; no caller identity
+ * or auth-config borrow escapes. Signers run on the connection worker and must
+ * not block it or reenter/destroy the native session. The identity's final
+ * Release follows its existing last-reference thread contract. Resolver/code/
+ * verifier-context lifetime and total deadlines follow the TLS Dial contract.
+ * Auth is mandatory; defaults come from xrtTlsClientAuthConfigInitV1. With
+ * RequireCertificate=true, no compatible server request fails readiness.
+ * With false the caller explicitly permits a connection without local proof.
+ * Full certificate handshakes only: explicit resumes are rejected and tickets
+ * are not retained until identity-bound resumption is implemented. A signing
+ * backend is selected separately; this module does not add private-key code.
+ * Readiness includes the configured Redis initialization, so TLS 1.3 local
+ * proof queueing alone cannot publish successful managed readiness. */
+XREDIS_API bool xredisClientTlsAuthDialV1(xnetengine* Engine, xnetresolver* Resolver,
+    xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+    const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+    const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XREDIS_API bool xredisClientTlsAuthDialAddressesV1(xnetengine* Engine, xnetaddrlist* Addresses,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XREDIS_API bool xredisClientTlsAuthConnectV1(xnetengine* Engine, const xnetaddr* Remote,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -983,6 +1043,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TLS"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TLS_AUTH"
+#endif
+
 
 #endif
 
@@ -1000,6 +1064,7 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 typedef struct xredisclienttlsconfig xredisclienttlsconfig;
+typedef struct xtlsclientauthconfigv1 xtlsclientauthconfigv1;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 typedef struct xredistlsplan {
 	xtlssession* Session;
@@ -1009,7 +1074,14 @@ typedef struct xredistlsplan {
 bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, double Entered, xredisclient** Result);
-bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xredisclient** Output, xredistlsplan* Plan);
+bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth,
+	xstrview Host, xredisclient** Output, xredistlsplan* Plan);
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+bool __xredisClientDialTlsAuthV1(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+	const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result);
+#endif
 /* Consumes TCP always, and Session only on true. Owning Worker only. */
 bool __xredisClientConnectTls(xredisclient* Client, xnetstream* Transport, const xredistlsplan* Plan);
 const xnetstreamevents* __xredisClientTlsPendingEvents(void);
@@ -3468,6 +3540,8 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#endif
 #include <string.h>
 
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
@@ -3537,7 +3611,7 @@ static void xredisDialDrop(ptr Data)
 static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
-	const xredisclienttlsconfig* TLS, double Entered, xredisclient** Result)
+	const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result)
 {
 	if (Engine == NULL || Result == NULL || !xrtMemRangeValid(Result, sizeof(*Result)) ||
 		(Dial != NULL && (!xrtMemRangeValid(Dial, sizeof(*Dial)) || xrtMemRangesOverlap(Dial, sizeof(*Dial), Result, sizeof(*Result)))))
@@ -3577,9 +3651,9 @@ static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetadd
 		if (Context->Addresses == NULL) { xredisDialDrop(Context); return false; }
 	} else memcpy(Context->Host, Host.Data, Host.Size);
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
-	if (TLS != NULL && !__xredisTlsPlanCreate(TLS, (xstrview){Context->Host, Host.Size}, Result, &Context->TLS)) { xredisDialDrop(Context); return false; }
+	if (TLS != NULL && !__xredisTlsPlanCreate(TLS, Auth, (xstrview){Context->Host, Host.Size}, Result, &Context->TLS)) { xredisDialDrop(Context); return false; }
 #else
-	(void)TLS;
+	(void)TLS; (void)Auth;
 #endif
 	if (__xredisClientCreatePlanned(Engine, Affinity, Config, Init, Entered, &Context->Plan, Result)) return true;
 	xredisDialDrop(Context); return false;
@@ -3588,14 +3662,14 @@ static bool xredisDialCreate(xnetengine* Engine, xnetresolver* Resolver, xnetadd
 XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial, xredisclient** Result)
-{ return xredisDialCreate(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, Dial, NULL, xrtTimer(), Result); }
+{ return xredisDialCreate(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, Dial, NULL, NULL, xrtTimer(), Result); }
 
 XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
 	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
 	const xredisclientdialconfig* Dial, xredisclient** Result)
 {
 	if (Addresses == NULL) return xredisDialArgument("resolved endpoint list is NULL");
-	return xredisDialCreate(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, Dial, NULL, xrtTimer(), Result);
+	return xredisDialCreate(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, Dial, NULL, NULL, xrtTimer(), Result);
 }
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
@@ -3605,7 +3679,21 @@ bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrl
 	/* Read the public TLS descriptor only after its full span/output validation. */
 	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || Result == NULL ||
 		xrtMemRangesOverlap(TLS, sizeof(*TLS), Result, sizeof(*Result))) return xredisDialArgument("invalid TLS config/output");
-	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, Entered, Result);
+	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, NULL, Entered, Result);
+}
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+bool __xredisClientDialTlsAuthV1(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+	const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result)
+{
+	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || Auth == NULL ||
+		!xrtMemRangeValid(Auth, sizeof(*Auth)) || Auth->Size != sizeof(*Auth) || Result == NULL ||
+		xrtMemRangesOverlap(TLS, sizeof(*TLS), Result, sizeof(*Result)) ||
+		xrtMemRangesOverlap(Auth, sizeof(*Auth), Result, sizeof(*Result)))
+		return xredisDialArgument("invalid TLS authentication config/output");
+	return xredisDialCreate(Engine, Resolver, Addresses, Host, Port, Affinity, Config, Init, &TLS->Dial, TLS, Auth, Entered, Result);
 }
 #endif
 #endif
@@ -3617,6 +3705,8 @@ bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrl
 /* ========================================================================== */
 
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#endif
 #include <string.h>
 
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
@@ -3631,7 +3721,8 @@ XREDIS_API bool xredisClientTlsConfigInit(xredisclienttlsconfig* Config)
 	Config->MaxMetadataBytes = 64u * 1024u; Config->WriteBytes = 64u * 1024u; Config->ServerNameFromHost = true; return true;
 }
 
-bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xredisclient** Output, xredistlsplan* Plan)
+bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth,
+	xstrview Host, xredisclient** Output, xredistlsplan* Plan)
 {
 	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || TLS->Size != sizeof(*TLS) ||
 		xrtMemRangesOverlap(TLS, sizeof(*TLS), Output, sizeof(*Output)) || TLS->MaxMetadataBytes == 0 || TLS->MaxMetadataBytes > 1024u * 1024u ||
@@ -3656,7 +3747,11 @@ bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xred
 			return xredisTlsArgument("invalid or excessive TLS name/ALPN bytes");
 		Bytes += View.Size;
 	}
-	Plan->Session = xrtTlsClientCreate(&Session, NULL);
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+	Plan->Session = Auth != NULL ? xrtTlsClientCreateAuthV1(&Session, Auth, NULL) : xrtTlsClientCreate(&Session, NULL);
+#else
+	(void)Auth; Plan->Session = xrtTlsClientCreate(&Session, NULL);
+#endif
 	if (Plan->Session == NULL) return false;
 	Plan->Config = TLS->Stream; Plan->WriteBytes = TLS->WriteBytes; return true;
 }
@@ -3681,6 +3776,48 @@ XREDIS_API bool xredisClientTlsConnect(xnetengine* Engine, const xnetaddr* Remot
 	xnetaddrlist* Addresses = xrtNetAddrListCreate(Remote, 1); if (Addresses == NULL) return false;
 	bool Success = __xredisClientDialTls(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, TLS, Entered, Result);
 	xrtNetAddrListDestroy(Addresses); return Success;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/tls_auth/tls_auth.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+static bool xredisTlsAuthArgument(cstr Message)
+{ xrtSetErrorInfo(XERR_ARGUMENT, "xrt.redis", XREDIS_CLIENT_ARGUMENT, Message); return false; }
+
+XREDIS_API bool xredisClientTlsAuthDialV1(xnetengine* Engine, xnetresolver* Resolver,
+    xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+    const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+    const xtlsclientauthconfigv1* Auth, xredisclient** Result)
+{
+    return __xredisClientDialTlsAuthV1(Engine, Resolver, NULL, Host, Port, Affinity, Config, Init, TLS, Auth, xrtTimer(), Result);
+}
+
+XREDIS_API bool xredisClientTlsAuthDialAddressesV1(xnetengine* Engine, xnetaddrlist* Addresses,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result)
+{
+    if (Addresses == NULL) return xredisTlsAuthArgument("TLS authentication endpoint list is NULL");
+    return __xredisClientDialTlsAuthV1(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, TLS, Auth, xrtTimer(), Result);
+}
+
+XREDIS_API bool xredisClientTlsAuthConnectV1(xnetengine* Engine, const xnetaddr* Remote,
+    uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+    const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth, xredisclient** Result)
+{
+    double Entered = xrtTimer();
+    if (Remote == NULL || Result == NULL || !xrtMemRangeValid(Remote, sizeof(*Remote)) ||
+        xrtMemRangesOverlap(Remote, sizeof(*Remote), Result, sizeof(*Result)))
+        return xredisTlsAuthArgument("invalid TLS authentication numeric endpoint/output");
+    xnetaddrlist* Addresses = xrtNetAddrListCreate(Remote, 1); if (Addresses == NULL) return false;
+    bool Success = __xredisClientDialTlsAuthV1(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, TLS, Auth, Entered, Result);
+    xrtNetAddrListDestroy(Addresses); return Success;
 }
 #endif
 #endif

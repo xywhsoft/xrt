@@ -1435,3 +1435,80 @@ Ignored evidence uses `tls-auth-*` and `layout-auth/` under
 `out/service-extensions/`. Redis mutual-TLS integration, identity-bound tickets,
 remaining Redis modes, RPC/MQTT/Cron runtimes and all final production/performance
 acceptance remain required. The four-product goal stays active.
+
+## P2 xredis: retained TLS client authentication (2026-10-29)
+
+`xredis_tls_auth` adds three explicit V1 factories for hostname DNS, prepared
+endpoints and a numeric address. Each passes native client-auth configuration
+directly into the existing TLS connection plan and retains the immutable
+identity synchronously before DNS/worker callbacks. Caller configurations,
+views and identity references may be retired after admission. The default
+requires a compatible certificate request; an explicit false permits no proof.
+Managed Redis readiness still requires initialization replies from the peer.
+No cleartext downgrade, private-sign retry, business replay or unbound TLS
+resumption is added. The root product and auth module remain `developing`.
+
+The existing command/TLS stream path and Redis client layout are shared. The
+cold private factory adds a nullable auth argument and selects the native
+factory once; native metadata, cryptography, references, selected-state growth
+and TLS 1.2 raw-transcript costs remain counted by the core contract. This is
+not a claim of zero cold-path overhead or completed performance acceptance.
+
+Verified feature evidence:
+
+- Windows GCC O2 and WSL GCC O2 ASan/UBSan each pass ten modular and ten
+  single-header Redis programs. The new slice covers all three factories,
+  refused-address fallback, caller-config recycling, blocked-DNS close/deadline/
+  early caller release, strict no-request failure, server verifier failure,
+  held TLS deadline, binary 32-command pipelines and per-turn work fragmentation.
+  Forty allocation-budget windows include rejection and admitted survivors;
+  every budget returns to zero live allocations/bytes and signer cleanup is
+  exact. Invalid/overflow/overlapping descriptors leave output unchanged.
+- Each platform passes 24 real Redis 8.0.5 initial-client-auth cases and two
+  runnable RSA examples: TLS 1.2/1.3; RSA, P-256, P-384 and Ed25519; no password,
+  password and ACL credentials; RESP2/RESP3/auto; binary SET/GET and pipelines.
+  Wrong server name/trust invokes no private signer. Missing/untrusted/corrupt
+  local proofs and signer-reported OOM cannot publish managed readiness or
+  send queued business. Successful proofs and Redis initialization rejections
+  sign exactly once. All retained forwarding identities retire after join.
+- Real-peer reports bind the actual compiled platform closure, all public and
+  private core/extension headers, helpers, compiler and client bytes. Inputs
+  are checked before and after execution. Windows reports name the native
+  Windows compiler; IOCP inputs are not compared to a WSL/epoll closure. An
+  old success is invalidated before a new run starts. Exact input fingerprints:
+  Windows `928045bb41285cbfa3ac88fb02ff5bcd678e28b848747ec803f9373bd71e7ebc`;
+  WSL `50cb7cb59841b36dcce62988187d4fabee79f4c5ee659f6facc37292726520c7`.
+- Windows uses a native executable and independently verified native Python TLS
+  startup probe against a disposable WSL peer. A Linux-only PING cannot prove
+  the Windows forwarding endpoint ready. This is local Windows-client/WSL
+  interoperability, not native Linux acceptance.
+- Minimal static/shared packages and all three new API consumers pass on both
+  platforms. Separate Dial/TLS/Auth size profiles enforce forbidden-symbol
+  boundaries; auth adds 1508 Windows / 1468 WSL product text bytes over the
+  current TLS profile. Private-key constructors, process launchers and unrelated
+  HTTP/WebSocket/task APIs stay outside the generic auth package.
+- The C cold benchmark completes 100 new full TLS 1.3 authenticated connection/
+  HELLO/PING/physical-close cycles on each platform. An independent OpenSSL
+  fixture verifies all 100 client proofs. Import/fixture/engine startup is
+  excluded; peer work and first-cycle effects remain inside client cycle time.
+  These are single unpinned diagnostic repeats with no warmup, not matched
+  throughput or tail-latency acceptance. The common implementation fingerprint
+  is `e85aaaefbbcd35df8b51b9607ad62f89b9b0117aba20c99c703174ec8712b24c`;
+  workload fingerprint is
+  `c9234947d911f3552549c4c450a683615e3c19a51e3a4fcb4a8eb8d2b89cd3a7`.
+- The generated headers, trim checks and 44-function/115-constant/36-type API
+  symbol coverage pass. Normal maturity passes with 18 benchmarks and seven
+  size profiles; strict release correctly rejects the two developing modules.
+
+One earlier native-Windows/WSL-peer invocation failed the old generic readiness
+assertion. Its typed status/cause was not recorded. Subsequent full diagnostic
+matrices pass, and the runner now checks the native forwarding endpoint, but
+that does not establish the cause of the earlier failure. It remains an open
+acceptance observation rather than a claimed runtime fix.
+
+The [feature guide](../../extlibs/xredis/docs/tls-auth.md) documents API ownership,
+limits, callback execution, examples, exact receipts and measurement boundaries.
+Ignored evidence uses `redis-mtls-*` and `auth-draft/package-*` under
+`out/service-extensions/`. Identity-bound TLS tickets, other unfinished Redis
+modes, RPC/MQTT/Cron runtimes, pinned matched performance and native 72-hour
+mixed/fault acceptance remain required. The four-product goal stays active.

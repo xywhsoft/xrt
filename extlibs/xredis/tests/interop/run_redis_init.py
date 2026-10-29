@@ -25,7 +25,7 @@ def digest(path: Path) -> str:
 
 
 def run(client: Path, server: Path, scenario: int, arguments: list[str] | None = None,
-        tls: dict[str, str] | None = None) -> dict:
+        tls: dict[str, str] | None = None, health_command: list[str] | None = None) -> dict:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -42,10 +42,15 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
         if tls is not None:
             def quote(value: str) -> str:
                 return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-            listener = (f'port 0\ntls-port {port}\ntls-auth-clients no\n'
+            client_auth = tls.get("client_auth", "no")
+            if client_auth not in ("no", "optional", "yes"):
+                raise ValueError("unsupported fixture client-auth mode")
+            listener = (f'port 0\ntls-port {port}\ntls-auth-clients {client_auth}\n'
                         f'tls-cert-file {quote(tls["certificate"])}\ntls-key-file {quote(tls["key"])}\n'
                         f'tls-ca-cert-file {quote(tls["ca"])}\ntls-protocols {quote(tls["protocol"])}\n')
-            health_tls = ssl.create_default_context(cafile=tls["ca"])
+            health_tls = ssl.create_default_context(cafile=tls.get("health_ca", tls["ca"]))
+            if "health_cert" in tls:
+                health_tls.load_cert_chain(tls["health_cert"], tls["health_key"])
         config.write_text(
             f'bind 127.0.0.1\n{listener}protected-mode yes\nsave ""\nappendonly no\n'
             f"daemonize no\nloglevel notice\n{auth}", encoding="utf-8"
@@ -54,6 +59,7 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
             process = subprocess.Popen([str(server), str(config)], cwd=root, stdout=log, stderr=subprocess.STDOUT)
             try:
                 deadline = time.monotonic() + 10
+                health_diagnostic = ""
                 while True:
                     if process.poll() is not None:
                         raise RuntimeError(f"fixture server exited: {(root / 'server.log').read_text(encoding='utf-8', errors='replace')[-2000:]}")
@@ -68,17 +74,32 @@ def run(client: Path, server: Path, scenario: int, arguments: list[str] | None =
                                 connection.sendall(b"*1\r\n$4\r\nPING\r\n")
                                 response = connection.recv(4096)
                                 if response.startswith((b"+PONG\r\n", b"-NOAUTH")) and process.poll() is None:
-                                    break
+                                    if health_command is None:
+                                        break
+                                    # A WSL listener does not establish that the native Windows
+                                    # loopback forwarding endpoint is ready or belongs to THIS peer.
+                                    probe_command = [arg.replace("{port}", str(port)) for arg in health_command]
+                                    try:
+                                        probe_result = subprocess.run(probe_command, capture_output=True, text=True,
+                                                                      encoding="utf-8", timeout=3)
+                                        health_diagnostic = probe_result.stderr[-2000:]
+                                        if probe_result.returncode == 0 and process.poll() is None:
+                                            break
+                                    except subprocess.TimeoutExpired:
+                                        health_diagnostic = "native loopback health probe timed out"
                         except OSError:
                             pass
                     if time.monotonic() >= deadline:
-                        raise TimeoutError("fixture Redis did not become ready")
+                        raise TimeoutError("fixture Redis did not become ready: " + health_diagnostic)
                     time.sleep(0.025)
                 command = [str(client), str(port), str(scenario)] if arguments is None else [str(client), *[arg.replace("{port}", str(port)) for arg in arguments]]
                 result = subprocess.run(command, check=False, capture_output=True, text=True, encoding="utf-8", timeout=90)
                 print(result.stdout, end="", flush=True)
                 if result.returncode:
-                    raise RuntimeError(f"client exited {result.returncode}: {result.stderr[-4000:]}")
+                    diagnostics = (root / "server.log").read_text(encoding="utf-8", errors="replace")[-4000:]
+                    raise RuntimeError(f"client exited {result.returncode}, scenario={scenario}, "
+                                       f"transport={'tcp' if tls is None else tls['protocol']}: "
+                                       f"{result.stderr[-4000:]}\nfixture server log:\n{diagnostics}")
                 return {"scenario": scenario, "result": "passed", "transport": "tcp" if tls is None else tls["protocol"],
                         "client_arguments": command[1:], "client_stdout": result.stdout}
             finally:

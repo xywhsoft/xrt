@@ -73,6 +73,23 @@
         "xrtTlsDial",
         "xrtTlsIdentityRsa"
       ]
+    },
+    {
+      "name": "xredis_tls_auth",
+      "system": "tls_auth",
+      "suite": "xredis_tls_auth",
+      "description": "Native client certificate authentication; private signing backends and fixture process launcher remain separate",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtTlsDial",
+        "xrtTlsIdentityRsa",
+        "xrtTlsIdentityP256",
+        "xrtTlsIdentityP384",
+        "xrtTlsIdentityEd25519",
+        "xrtProcess"
+      ]
     }
   ]
 }

@@ -2,6 +2,7 @@
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 #include <xredis/client.h>
 typedef struct xredisclienttlsconfig xredisclienttlsconfig;
+typedef struct xtlsclientauthconfigv1 xtlsclientauthconfigv1;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)
 #include <xrt/tls_stream.h>
 typedef struct xredistlsplan {
@@ -12,7 +13,14 @@ typedef struct xredistlsplan {
 bool __xredisClientDialTls(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
 	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
 	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, double Entered, xredisclient** Result);
-bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xredisclient** Output, xredistlsplan* Plan);
+bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth,
+	xstrview Host, xredisclient** Output, xredistlsplan* Plan);
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+bool __xredisClientDialTlsAuthV1(xnetengine* Engine, xnetresolver* Resolver, xnetaddrlist* Addresses,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS,
+	const xtlsclientauthconfigv1* Auth, double Entered, xredisclient** Result);
+#endif
 /* Consumes TCP always, and Session only on true. Owning Worker only. */
 bool __xredisClientConnectTls(xredisclient* Client, xnetstream* Transport, const xredistlsplan* Plan);
 const xnetstreamevents* __xredisClientTlsPendingEvents(void);

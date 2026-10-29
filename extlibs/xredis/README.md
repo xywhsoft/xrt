@@ -105,6 +105,16 @@ and [client-only trust/cleanup example](examples/tls/main.c). The TLS fixed-arri
 profiles retain the same offer/accounting model; default CA/name interoperability
 uses separately generated ephemeral identities and real Redis.
 
+Select `XREDIS_MODULE_XREDIS_TLS_AUTH` for a retained client signing identity,
+using the existing TLS descriptor and native `xtlsclientauthconfigv1` directly.
+The three V1 factories preserve managed setup/deadlines/close behavior and
+snapshot the identity before DNS. Signing backends remain separate selections.
+See [client-certificate authentication](docs/tls-auth.md) and the
+[RSA file/cleanup example](examples/tls_auth/main.c). Initial TLS 1.2/1.3 full
+handshakes are supported; identity-bound resumption remains pending. The cold
+cycle benchmark uses an independent OpenSSL certificate verifier and records
+the complete connection/HELLO/PING/physical-close wall cycle.
+
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only

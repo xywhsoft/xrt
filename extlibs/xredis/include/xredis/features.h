@@ -25,6 +25,22 @@
 #ifndef XREDIS_MODULE_XREDIS_TLS
 #define XREDIS_MODULE_XREDIS_TLS
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TLS_AUTH
+#define XREDIS_MODULE_XREDIS_TLS_AUTH
+#endif
+#endif
+
+/* xredis_tls_auth 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TLS_AUTH)
+#ifndef XREDIS_FEATURE_XREDIS_TLS_AUTH
+#define XREDIS_FEATURE_XREDIS_TLS_AUTH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TLS
+#define XREDIS_MODULE_XREDIS_TLS
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_AUTH
+#define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
 #endif
 
 /* xredis_tls 及其直接依赖。 */

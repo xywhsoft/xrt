@@ -849,6 +849,61 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_tls_auth_cold",
+      "system": "tls_auth",
+      "description": "Sequential actual TLS1.3 RSA client-certificate connect/HELLO3/PING/physical-close cycles; independent OpenSSL verifies each proof. Fixture and key import excluded; not steady-request throughput or production latency acceptance. Python ssl and cryptography are required only for the fixture.",
+      "benchmarks": [
+        {
+          "name": "xredis_tls_auth_cold",
+          "source": "extlibs/xredis/bench/bench_tls_auth.c",
+          "suite": "xredis_tls_auth,tls_identity_rsa,pem,process_run,time",
+          "args": [
+            "100"
+          ],
+          "smoke_args": [
+            "2"
+          ],
+          "inputs": [
+            "extlibs/xredis/bench/support/tls_auth_peer.py",
+            "extlibs/xredis/examples/tls_auth/material.h",
+            "examples/tls/embedded_identity.h"
+          ],
+          "facts": [
+            "workload",
+            "timing_scope",
+            "peer",
+            "measurement"
+          ],
+          "metrics": {
+            "authenticated_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "peer_verified": {
+              "direction": "higher",
+              "unit": "cycles"
+            }
+          }
+        }
+      ]
     }
   ]
 }

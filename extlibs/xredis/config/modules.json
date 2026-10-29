@@ -51,6 +51,9 @@
       },
       {
         "name": "tls", "state": "retained", "source_roots": ["tls"]
+      },
+      {
+        "name": "tls_auth", "state": "retained", "source_roots": ["tls_auth"]
       }
     ]
   },
@@ -80,7 +83,8 @@
         "xredis_reply",
         "xredis_client",
         "xredis_dial",
-        "xredis_tls"
+        "xredis_tls",
+        "xredis_tls_auth"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -107,6 +111,27 @@
       "public_headers": ["extlibs/xredis/include/xredis/tls.h"], "internal_headers": [],
       "sources": ["extlibs/xredis/src/tls/tls.c"], "tests": [], "single_tests": [],
       "examples": ["extlibs/xredis/examples/tls/main.c"], "benchmarks": ["extlibs/xredis/bench/bench_tls_openloop.c"], "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/tls.md"]
+    },
+    {
+      "name": "xredis_tls_auth", "state": "developing", "feature": "XREDIS_FEATURE_XREDIS_TLS_AUTH",
+      "depends": ["xredis_tls", "tls_client_auth"],
+      "public_headers": ["extlibs/xredis/include/xredis/tls_auth.h"], "internal_headers": [],
+      "sources": ["extlibs/xredis/src/tls_auth/tls_auth.c"], "tests": [], "single_tests": [], "examples": [], "benchmarks": ["extlibs/xredis/bench/bench_tls_auth.c"],
+      "docs": ["extlibs/xredis/README.md", "extlibs/xredis/docs/api/reference.md", "extlibs/xredis/docs/tls-auth.md"]
+    },
+    {
+      "name": "xredis_tls_auth_examples", "state": "implemented", "feature": null,
+      "depends": ["xredis_tls_auth", "tls_identity_rsa", "pem"],
+      "public_headers": [], "internal_headers": [], "sources": [], "tests": [], "single_tests": [],
+      "examples": ["extlibs/xredis/examples/tls_auth/main.c"], "benchmarks": [], "docs": []
+    },
+    {
+      "name": "xredis_tls_auth_tests", "state": "implemented", "feature": null,
+      "depends": ["xredis_tls_auth", "xredis_tls_tests"],
+      "public_headers": [], "internal_headers": [], "sources": [],
+      "tests": ["extlibs/xredis/tests/test_tls_auth.c"],
+      "single_tests": ["extlibs/xredis/tests/single/test_single_xredis_tls_auth.c"],
+      "examples": [], "benchmarks": [], "docs": []
     },
     {
       "name": "xredis_tls_tests", "state": "implemented", "feature": null,
@@ -230,6 +255,7 @@
       "depends": [
         "xredis",
         "xredis_tls_tests",
+        "xredis_tls_auth_tests",
         "memory_stats",
         "thread"
       ],
@@ -245,7 +271,8 @@
         "extlibs/xredis/tests/test_openloop.c",
         "extlibs/xredis/tests/test_dial.c",
         "extlibs/xredis/tests/test_tls.c",
-        "extlibs/xredis/tests/test_tls_openloop.c"
+        "extlibs/xredis/tests/test_tls_openloop.c",
+        "extlibs/xredis/tests/test_tls_auth.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -256,7 +283,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_openloop.c",
         "extlibs/xredis/tests/single/test_single_xredis_dial.c",
         "extlibs/xredis/tests/single/test_single_xredis_tls.c",
-        "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c"
+        "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c",
+        "extlibs/xredis/tests/single/test_single_xredis_tls_auth.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -273,7 +301,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_client_init.c": "xredis_client",
         "extlibs/xredis/tests/single/test_single_xredis_openloop.c": "xredis_client",
         "extlibs/xredis/tests/single/test_single_xredis_dial.c": "xredis_dial",
-        "extlibs/xredis/tests/single/test_single_xredis_tls.c": "xredis_tls", "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c": "xredis_tls"
+        "extlibs/xredis/tests/single/test_single_xredis_tls.c": "xredis_tls", "extlibs/xredis/tests/single/test_single_xredis_tls_openloop.c": "xredis_tls",
+        "extlibs/xredis/tests/single/test_single_xredis_tls_auth.c": "xredis_tls_auth_tests"
       }
     }
   ]

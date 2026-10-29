@@ -1,4 +1,7 @@
 #include <xredis/tls.h>
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+#include <xredis/tls_auth.h>
+#endif
 #include "../internal/client_connect.h"
 #include <xrt/memory.h>
 #include <string.h>
@@ -15,7 +18,8 @@ XREDIS_API bool xredisClientTlsConfigInit(xredisclienttlsconfig* Config)
 	Config->MaxMetadataBytes = 64u * 1024u; Config->WriteBytes = 64u * 1024u; Config->ServerNameFromHost = true; return true;
 }
 
-bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xredisclient** Output, xredistlsplan* Plan)
+bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, const xtlsclientauthconfigv1* Auth,
+	xstrview Host, xredisclient** Output, xredistlsplan* Plan)
 {
 	if (TLS == NULL || !xrtMemRangeValid(TLS, sizeof(*TLS)) || TLS->Size != sizeof(*TLS) ||
 		xrtMemRangesOverlap(TLS, sizeof(*TLS), Output, sizeof(*Output)) || TLS->MaxMetadataBytes == 0 || TLS->MaxMetadataBytes > 1024u * 1024u ||
@@ -40,7 +44,11 @@ bool __xredisTlsPlanCreate(const xredisclienttlsconfig* TLS, xstrview Host, xred
 			return xredisTlsArgument("invalid or excessive TLS name/ALPN bytes");
 		Bytes += View.Size;
 	}
-	Plan->Session = xrtTlsClientCreate(&Session, NULL);
+#if defined(XREDIS_FEATURE_XREDIS_TLS_AUTH)
+	Plan->Session = Auth != NULL ? xrtTlsClientCreateAuthV1(&Session, Auth, NULL) : xrtTlsClientCreate(&Session, NULL);
+#else
+	(void)Auth; Plan->Session = xrtTlsClientCreate(&Session, NULL);
+#endif
 	if (Plan->Session == NULL) return false;
 	Plan->Config = TLS->Stream; Plan->WriteBytes = TLS->WriteBytes; return true;
 }
