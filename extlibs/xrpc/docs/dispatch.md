@@ -34,6 +34,15 @@ and never invoke Emit. Duplicate/reentrant attempts, a false Call return after
 attempting a reply, invalid output and sink rejection are sticky local failures.
 The first diagnostic survives callbacks clearing/replacing ambient error.
 
+An application or resolver can call `xrpcReplyAbort` to stop locally without a
+wire error. Pass the explicit borrowed XRT diagnostic, or NULL for a fresh
+`XRPC_DISPATCH_ABORTED` error. NULL never adopts stale ambient error. The current
+diagnostic transfers into the dispatch context; another borrowed error needs a
+checked reference. An already sticky failure wins. Aborting a notification or
+aborting after an accepted response also stops later handlers; prior effects and
+accepted replies remain in Info. This provides the local-failure route for
+resolvers and handlers instead of returning false (unknown method).
+
 The sink receives single-object encoded size and the final batch flag. It owns
 bounded storage and backpressure. For a batch it adds an opening bracket and
 commas as objects arrive, then a closing bracket only after successful dispatch.

@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `9` 个函数、`48` 个常量或宏、
+当前登记 `10` 个函数、`49` 个常量或宏、
 `18` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
@@ -52,15 +52,17 @@
 
 [查看带契约注释的公共头](../../include/xrpc/dispatch.h)
 
-### 函数 (4)
+### 函数 (5)
 
 - `xrpcDispatch`
 - `xrpcDispatchConfigInit`
+- `xrpcReplyAbort`
 - `xrpcReplyError`
 - `xrpcReplyResult`
 
-### 常量与宏 (6)
+### 常量与宏 (7)
 
+- `XRPC_DISPATCH_ABORTED`
 - `XRPC_DISPATCH_ARGUMENT`
 - `XRPC_DISPATCH_LIMIT`
 - `XRPC_DISPATCH_SINK`

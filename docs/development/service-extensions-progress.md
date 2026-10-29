@@ -2200,3 +2200,29 @@ indexing, correlation/client/server async scheduling, transports, deadline/cance
 negotiation and all final native >=72-hour mixed/fault/performance gates remain
 pending, as do the other products' remaining scope. The four-library goal stays
 active. See extlibs/xrpc/docs/dispatch.md and its runnable example.
+
+## P3 xrpc: explicit local abort from a handler/resolver (2026-10-30)
+
+Method-index integration exposed a concrete callback gap: Call=false means an
+unknown method, so a resolver's local resource/validation failure could otherwise
+be mislabeled Method not found. `xrpcReplyAbort` now stops the dispatch locally
+without emitting a wire error. An explicit borrowed XRT diagnostic survives
+callback clearing through an owning edge; the current diagnostic transfers
+without another Ref, while another error uses a checked Ref. NULL creates a
+fresh XRPC_DISPATCH_ABORTED/XERR_STATE diagnostic and never adopts stale ambient
+error. A prior sticky failure wins. Notifications and already accepted replies
+can also abort; accepted output/effects remain in Info and later handlers stop.
+This is a local control path, not negotiated protocol cancellation.
+
+Windows O2/Wall/Wextra/Werror and WSL O2 ASan/UBSan each pass three modular and
+three single-header programs (12), examples and trim. New tests cover abort
+before/after output, notifications, sink reentry, repeated abort, explicit/current
+diagnostic lifetime, stale ambient isolation and diagnostic OOM. Both native
+static/shared consumers exercise real local abort, and declaration/layout checks
+pass. Normal maturity/API coverage and generated checks pass (10 functions,
+49 constants, 18 types); the product remains developing. This adds a cold API
+path, with no new per-call state or hot-loop invocation. No new performance or
+production acceptance is claimed. Ignored out/service-extensions/xrpc-abort/
+pins exact inputs, commands, 12 test binaries, consumers and post-commit identity.
+Method indexing, async runtime/transports and all other unfinished final gates
+remain pending; the full four-library goal stays active.

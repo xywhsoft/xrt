@@ -3,7 +3,9 @@
 typedef struct rpcdispatchfixture {
 	char Output[8192]; size_t Bytes, Emitted, Calls, RejectAt;
 	xrpcreply* Current;
-	bool ReenterReply, SawStack, Nested;
+	bool ReenterReply, SawStack, Nested, AbortSink;
+	const xerror* AbortError;
+	const xerror* ObservedError;
 } rpcdispatchfixture;
 
 static xstrview rpcDispatchView(cstr Text) { return (xstrview){Text, strlen(Text)}; }
@@ -22,6 +24,10 @@ static bool rpcDispatchSink(const xrpcoutgoing* Response, bool Batch, size_t Enc
 	if (Response->Result.Size == 8 && memcmp(Response->Result.Data, "[7,true]", 8) == 0) Fixture->SawStack = true;
 	if (Fixture->ReenterReply) {
 		testRequire(!xrpcReplyResult(Fixture->Current, XRT_STR_LITERAL("0")), "reply reentry accepted");
+		xrtClearError();
+	}
+	if (Fixture->AbortSink) {
+		testRequire(!xrpcReplyAbort(Fixture->Current, Fixture->AbortError), "sink local abort accepted as success");
 		xrtClearError();
 	}
 	return true;
@@ -78,6 +84,19 @@ static bool rpcDispatchCall(const xrpcmessage* Request, xrpcreply* Reply, ptr Us
 		testRequire(rpcDispatchRun(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"stack\",\"id\":1}"), NULL, &Child, &Info) &&
 			Info.Replies == 1 && Child.SawStack, "independent nested dispatch");
 		Fixture->Nested = true; xrpcReplyResult(Reply, XRT_STR_LITERAL("true")); return true;
+	}
+	if (rpcDispatchEqual(Request->Method.Raw, "\"abort\"")) {
+		xrtSetErrorInfo(XERR_VALUE, "xrt.test.stale", 777, "handler stale diagnostic");
+		xrpcReplyAbort(Reply, Fixture->AbortError); xrtClearError();
+		testRequire(!xrpcReplyAbort(Reply, NULL), "repeated abort replaced sticky failure"); xrtClearError(); return false;
+	}
+	if (rpcDispatchEqual(Request->Method.Raw, "\"abort-current\"")) {
+		xrtSetErrorInfo(XERR_AGAIN, "xrt.test.abort", 902, "current callback diagnostic");
+		Fixture->ObservedError = xrtGetError(); xrpcReplyAbort(Reply, Fixture->ObservedError); xrtClearError(); return false;
+	}
+	if (rpcDispatchEqual(Request->Method.Raw, "\"abort-after\"")) {
+		xrpcReplyResult(Reply, XRT_STR_LITERAL("null"));
+		xrpcReplyAbort(Reply, Fixture->AbortError); xrtClearError(); return true;
 	}
 	return rpcDispatchEqual(Request->Method.Raw, "\"silent\"");
 }
@@ -170,6 +189,32 @@ static void testRpcDispatchLimits(void)
 	xrpcDispatchConfigInit(&Config); Config.MaxOutputBytes = 1; Config.MaxReplies = 1; Fixture = (rpcdispatchfixture){0};
 	testRequire(rpcDispatchRun(XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"echo\"},{\"jsonrpc\":\"2.0\",\"method\":\"silent\"}]"), &Config, &Fixture, &Info) &&
 		Info.Notifications == 2 && Info.OutputBytes == 0 && Info.Replies == 0, "notification-only batch consumed response quota");
+}
+
+static void testRpcDispatchAbort(void)
+{
+	xerror* Cause = xrtErrorCreate(XERR_AGAIN, "xrt.test.abort", 901, "explicit local failure");
+	testRequire(Cause != NULL, "abort cause setup");
+	for (unsigned Mode = 0; Mode < 5; ++Mode) {
+		rpcdispatchfixture Fixture = {0}; xrpcdispatchinfo Info = {0};
+		Fixture.AbortError = Mode == 0 ? NULL : Cause; Fixture.AbortSink = Mode == 4;
+		xstrview Input = Mode == 2 ? XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"abort\"},{\"jsonrpc\":\"2.0\",\"method\":\"stack\",\"id\":2}]") :
+			Mode == 3 ? XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"abort-after\",\"id\":1},{\"jsonrpc\":\"2.0\",\"method\":\"stack\",\"id\":2}]") :
+			Mode == 4 ? XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"echo\",\"id\":1},{\"jsonrpc\":\"2.0\",\"method\":\"stack\",\"id\":2}]") :
+			XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"method\":\"abort\",\"id\":1},{\"jsonrpc\":\"2.0\",\"method\":\"stack\",\"id\":2}]");
+		xrtSetErrorInfo(XERR_VALUE, "xrt.test.stale", 777, "stale must not be adopted");
+		testRequire(!rpcDispatchRun(Input, NULL, &Fixture, &Info) && Info.Invoked == 1 && Info.Visited == 0 &&
+			Info.Replies == (Mode >= 3 ? 1u : 0u) && Fixture.Calls == 1, "local abort emitted wire error or ran later business handler");
+		testRequire(Mode == 0 ? xrtErrorCode(xrtGetError()) == XRPC_DISPATCH_ABORTED : xrtGetError() == Cause,
+			"explicit abort cause lost or NULL abort used stale ambient error"); xrtClearError();
+	}
+	/* Current diagnostic transfers rather than requiring an additional owning
+	 * Ref. The callback clears its publication; the dispatch still owns it. */
+	rpcdispatchfixture Fixture = {0};
+	xrpcdispatchinfo Info = {0};
+	testRequire(!rpcDispatchRun(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"abort-current\",\"id\":1}"), NULL, &Fixture, &Info) &&
+		xrtGetError() == Fixture.ObservedError && xrtErrorCode(xrtGetError()) == 902, "current abort cause lifetime"); xrtClearError(); xrtErrorFree(Cause);
+	testRequire(!xrpcReplyAbort(NULL, NULL), "NULL abort handle accepted"); xrtClearError();
 }
 
 static void testRpcDispatchApi(void)
@@ -285,6 +330,9 @@ static void testRpcDispatchAllocation(void)
 	Fixture = (rpcdispatchfixture){0};
 	testRequire(!rpcDispatchRun(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"bad\",\"id\":1}"), NULL, &Fixture, &Info) &&
 		Info.Invoked == 1 && Info.Replies == 0 && xrtErrorKind(xrtGetError()) == XERR_MEMORY, "reply diagnostic OOM lost sticky local failure");
+	Fixture = (rpcdispatchfixture){0};
+	testRequire(!rpcDispatchRun(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"abort\",\"id\":1}"), NULL, &Fixture, &Info) &&
+		Info.Invoked == 1 && Info.Replies == 0 && xrtErrorKind(xrtGetError()) == XERR_MEMORY, "abort diagnostic OOM did not stop locally");
 	testRequire(xrtAllocationBudgetLeave(&Scope), "dispatch quota leave"); xallocationbudgetinfo BudgetInfo = {0}; BudgetInfo.Size = sizeof(BudgetInfo);
 	testRequire(xrtAllocationBudgetInfo(Budget, &BudgetInfo) && BudgetInfo.LiveBytes == 0 && BudgetInfo.Rejections, "dispatch quota leak");
 	xrtClearError(); xrtAllocationBudgetFree(Budget);
@@ -292,6 +340,6 @@ static void testRpcDispatchAllocation(void)
 
 int main(void)
 {
-	testRpcDispatchWire(); testRpcDispatchFailures(); testRpcDispatchLimits(); testRpcDispatchApi(); testRpcDispatchProperties(); testRpcDispatchAllocation();
+	testRpcDispatchWire(); testRpcDispatchFailures(); testRpcDispatchLimits(); testRpcDispatchAbort(); testRpcDispatchApi(); testRpcDispatchProperties(); testRpcDispatchAllocation();
 	puts("[PASS] xrpc dispatch: full-validation/batches/notifications/exact-id/stack-lifetime/reentry/sticky-failure/limits/10000-properties/zero-heap/OOM"); return 0;
 }

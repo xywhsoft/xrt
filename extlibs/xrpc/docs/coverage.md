@@ -49,6 +49,7 @@ and diagnostic reference operations.
 | Notification suppression | Known/unknown/reserved/error handlers and intentionally inaccessible suppressed payloads; all-notification batches emit nothing |
 | Callback lifetime and reentry | Stack response consumed before overwrite, independent nested dispatch, duplicate replies and sink reentry rejected |
 | Sticky local failure and partial progress | Invalid output/integral code, false return after reply, rejected sink with stale ambient error, no later business callback, accepted output counts |
+| Explicit local abort | No wire error before/after reply or for notifications; sink abort/repeated abort, explicit/current diagnostic ownership, NULL ignores stale errors, diagnostic OOM and package consumers |
 | Bounded admission/output | Scratch, input/message/reply caps before callbacks; exact aggregate bytes including brackets/commas; per-object bounds and notification-only zero output |
 | API ownership | Invalid configs/spans, scratch/input/config/info overlap, NULL callbacks/outputs; no retained request/reply context |
 | Independent property oracle | 10000 generated mixed batches with handwritten expected response construction |

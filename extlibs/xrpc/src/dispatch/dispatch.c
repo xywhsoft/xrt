@@ -103,6 +103,25 @@ XRPC_API bool xrpcReplyError(xrpcreply* Reply, xstrview Code, xstrview Message, 
 	return xrpcDispatchReply(Reply, &Response);
 }
 
+XRPC_API bool xrpcReplyAbort(xrpcreply* Reply, const xerror* Error)
+{
+	if (Reply == NULL || !xrtMemRangeValid(Reply, sizeof(*Reply)))
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC abort handle");
+	xrpcdispatchcontext* Context = Reply->Context;
+	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (!Reply->Active)
+		return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_STATE, "RPC abort handle is inactive");
+	if (Error == NULL)
+		return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_ABORTED, "RPC handler aborted dispatch locally");
+	if (Error != xrtGetError()) {
+		xerror* Owned = xrtErrorRef(Error);
+		if (Owned == NULL)
+			return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_ABORTED, "RPC abort diagnostic cannot be retained");
+		xrtSetErrorTake(Owned);
+	}
+	return xrpcDispatchRemember(Context);
+}
+
 static bool xrpcDispatchStandard(xrpcdispatchcontext* Context, xstrview Id, int32 Code)
 {
 	xrpcoutgoing Response = {0}; Response.Kind = XRPC_MESSAGE_ERROR; Response.Id = Id;

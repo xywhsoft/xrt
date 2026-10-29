@@ -2734,7 +2734,7 @@ XRT_EXTERN_C_END
 typedef struct xrpcreply xrpcreply;
 typedef enum xrpcdispatcherror {
 	XRPC_DISPATCH_ARGUMENT = 2001, XRPC_DISPATCH_STATE,
-	XRPC_DISPATCH_LIMIT, XRPC_DISPATCH_SINK
+	XRPC_DISPATCH_LIMIT, XRPC_DISPATCH_SINK, XRPC_DISPATCH_ABORTED
 } xrpcdispatcherror;
 
 /* All callbacks execute synchronously on the xrpcDispatch caller thread.
@@ -2814,6 +2814,17 @@ XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
 XRPC_API bool xrpcReplyResult(xrpcreply* Reply, xstrview RawResult);
 XRPC_API bool xrpcReplyError(xrpcreply* Reply, xstrview Code,
 	xstrview Message, xstrview Data);
+
+/* Stop this dispatch locally from an active Call/Emit callback, including a
+ * notification or after an already accepted reply. No wire error is generated;
+ * accepted output/business effects remain in Info. Returns false to propagate
+ * failure conveniently. Error is a borrowed immutable XRT diagnostic, retained
+ * before return; NULL creates a fresh XERR_STATE/XRPC_DISPATCH_ABORTED diagnostic
+ * rather than using ambient error. A preexisting sticky failure wins. The
+ * currently published Error transfers into the context without another Ref;
+ * another borrowed Error needs a checked Ref. Diagnostic/reference failure
+ * still aborts locally. The reply handle must not outlive its Call callback. */
+XRPC_API bool xrpcReplyAbort(xrpcreply* Reply, const xerror* Error);
 
 XRT_EXTERN_C_END
 #endif

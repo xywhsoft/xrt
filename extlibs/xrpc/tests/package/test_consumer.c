@@ -4,7 +4,8 @@
 
 static bool rpcConsumerCall(const xrpcmessage* Request, xrpcreply* Reply, ptr User)
 {
-	(void)Request; (void)User; char Local[] = "true";
+	(void)User; char Local[] = "true";
+	if (Request->Method.Raw.Size == 7 && !memcmp(Request->Method.Raw.Data, "\"abort\"", 7)) return xrpcReplyAbort(Reply, NULL);
 	bool Done = xrpcReplyResult(Reply, (xstrview){Local, sizeof(Local)-1u});
 	memset(Local, '?', sizeof(Local)); return Done;
 }
@@ -30,6 +31,9 @@ int main(void)
 	xrpcdispatchinfo Info = {0}; Info.Size = sizeof(Info);
 	if (!xrpcDispatch(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"id\":1e9999}"), NULL, &Message, 1,
 		rpcConsumerCall, NULL, rpcConsumerEmit, Output, &Info) || Info.Invoked != 1 || Info.Replies != 1 || Info.Visited != 1) return 4;
+	if (xrpcDispatch(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"abort\",\"id\":1}"), NULL, &Message, 1,
+		rpcConsumerCall, NULL, rpcConsumerEmit, Output, &Info) || Info.Invoked != 1 || Info.Replies || xrtErrorCode(xrtGetError()) != XRPC_DISPATCH_ABORTED) return 5;
+	xrtClearError();
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;
