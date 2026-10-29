@@ -16,6 +16,25 @@
 #ifndef XRPC_MODULE_XRPC_DISPATCH
 #define XRPC_MODULE_XRPC_DISPATCH
 #endif
+#ifndef XRPC_MODULE_XRPC_METHODS
+#define XRPC_MODULE_XRPC_METHODS
+#endif
+#endif
+
+/* xrpc_methods 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_METHODS)
+#ifndef XRPC_FEATURE_XRPC_METHODS
+#define XRPC_FEATURE_XRPC_METHODS
+#endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
 #endif
 
 /* xrpc_dispatch 及其直接依赖。 */

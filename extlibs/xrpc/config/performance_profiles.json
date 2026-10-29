@@ -96,6 +96,177 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_methods",
+      "system": "methods",
+      "description": "Validated immutable method lookup and synchronous indexed dispatch; 4096 registrations, no transport acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_methods_plain",
+          "source": "extlibs/xrpc/bench/bench_methods.c",
+          "suite": "xrpc_methods,time",
+          "args": [
+            "1000000",
+            "0"
+          ],
+          "smoke_args": [
+            "10000",
+            "0"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "index_methods",
+            "requested_owned_bytes"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "operation_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "operation_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        },
+        {
+          "name": "xrpc_methods_escaped",
+          "source": "extlibs/xrpc/bench/bench_methods.c",
+          "suite": "xrpc_methods,time",
+          "args": [
+            "1000000",
+            "1"
+          ],
+          "smoke_args": [
+            "10000",
+            "1"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "index_methods",
+            "requested_owned_bytes"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "operation_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "operation_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        },
+        {
+          "name": "xrpc_methods_miss",
+          "source": "extlibs/xrpc/bench/bench_methods.c",
+          "suite": "xrpc_methods,time",
+          "args": [
+            "1000000",
+            "2"
+          ],
+          "smoke_args": [
+            "10000",
+            "2"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "index_methods",
+            "requested_owned_bytes"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "operation_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "operation_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        },
+        {
+          "name": "xrpc_methods_dispatch",
+          "source": "extlibs/xrpc/bench/bench_methods.c",
+          "suite": "xrpc_methods,time",
+          "args": [
+            "1000000",
+            "3"
+          ],
+          "smoke_args": [
+            "10000",
+            "3"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "index_methods",
+            "requested_owned_bytes"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "operation_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "operation_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        }
+      ]
     }
   ]
 }

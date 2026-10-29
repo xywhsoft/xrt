@@ -34,6 +34,13 @@ int main(void)
 	if (xrpcDispatch(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"abort\",\"id\":1}"), NULL, &Message, 1,
 		rpcConsumerCall, NULL, rpcConsumerEmit, Output, &Info) || Info.Invoked != 1 || Info.Replies || xrtErrorCode(xrtGetError()) != XRPC_DISPATCH_ABORTED) return 5;
 	xrtClearError();
+	xrpcmethod Registration={XRT_STR_LITERAL("m"),rpcConsumerCall,NULL},Found={0};xrpcmethods* Methods=NULL;
+	if(!xrpcMethodsCreate(&Registration,1,NULL,&Methods) || !xrpcMethodsRetain(Methods))return 6;
+	xrpcMethodsRelease(Methods);
+	if(xrpcMethodsFind(Methods,XRT_STR_LITERAL("\"\\u006d\""),&Found)!=XRPC_METHODS_FOUND || Found.Name.Size!=1 || Found.Name.Data[0]!='m')return 7;
+	if(!xrpcDispatch(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"\\u006d\",\"id\":1e9999}"),NULL,&Message,1,
+		xrpcMethodsCall,Methods,rpcConsumerEmit,Output,&Info) || Info.Replies!=1)return 8;
+	xrpcMethodsRelease(Methods);
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `10` 个函数、`49` 个常量或宏、
-`18` 个公共类型。
+当前登记 `17` 个函数、`58` 个常量或宏、
+`24` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -99,6 +99,41 @@
 
 - `XRPC_BUILD_SHARED`
 - `XRPC_USE_SHARED`
+
+## `extlibs/xrpc/include/xrpc/methods.h`
+
+[查看带契约注释的公共头](../../include/xrpc/methods.h)
+
+### 函数 (7)
+
+- `xrpcMethodsCall`
+- `xrpcMethodsConfigInit`
+- `xrpcMethodsCreate`
+- `xrpcMethodsFind`
+- `xrpcMethodsInfo`
+- `xrpcMethodsRelease`
+- `xrpcMethodsRetain`
+
+### 常量与宏 (9)
+
+- `XRPC_FEATURE_XRPC_METHODS`
+- `XRPC_METHODS_ARGUMENT`
+- `XRPC_METHODS_DUPLICATE`
+- `XRPC_METHODS_ERROR`
+- `XRPC_METHODS_FOUND`
+- `XRPC_METHODS_LIMIT`
+- `XRPC_METHODS_MEMORY`
+- `XRPC_METHODS_NOT_FOUND`
+- `XRPC_METHODS_VALUE`
+
+### 类型 (6)
+
+- `xrpcmethod`
+- `xrpcmethods`
+- `xrpcmethodsconfig`
+- `xrpcmethodserror`
+- `xrpcmethodsinfo`
+- `xrpcmethodsstatus`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

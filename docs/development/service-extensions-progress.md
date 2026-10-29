@@ -21,9 +21,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   measured-workload TCP request/deadline/cancel/close slice and bounded pool
   repair; remaining modes and pinned overhead/performance acceptance are pending.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
-  a locally verified raw Scan API. RPC envelope decoding/encoding and synchronous
-  request dispatch are locally verified; method indexing, correlation, async
-  scheduling and transports remain pending.
+  a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
+  request dispatch and immutable method indexing are locally verified;
+  correlation, async scheduling and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -67,7 +67,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | bounded synchronous request dispatch | locally verified | Windows/WSL modular/single/sanitizers/examples/trim/static/shared; full-validation-before-callback, notification suppression, exact IDs, standard errors, stack output, reentry/sticky failures, aggregate caps, 10000 mixed-batch properties, zero-heap ordinary calls and diagnostic OOM |
-| xrpc | method indexing, correlation, async runtime, transports | pending | no claim |
+| xrpc | immutable semantic method index | locally verified | all Unicode scalars, explicit fingerprint collision, copied names, 4096 unsorted registrations, bounded lookup/constructor, local-abort integration, quota/OOM and retained concurrent readers; dedicated P3 entry below records package/performance evidence |
+| xrpc | correlation, async runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
@@ -2226,3 +2227,78 @@ production acceptance is claimed. Ignored out/service-extensions/xrpc-abort/
 pins exact inputs, commands, 12 test binaries, consumers and post-commit identity.
 Method indexing, async runtime/transports and all other unfinished final gates
 remain pending; the full four-library goal stays active.
+
+## P3 xrpc: bounded immutable semantic method index (2026-10-30)
+
+`xrpc_methods` copies decoded UTF-8 registrations into one immutable allocation
+with atomic lifetime references. Names/callback/context values are copied; code
+and context ownership stay with the application. Source vectors/names can be
+freed after construction. Empty/NUL names, every Unicode scalar and equivalent
+JSON escapes match exactly; case and normalization forms remain distinct.
+Duplicate names, invalid UTF-8, NULL callbacks and the reserved rpc. prefix are
+rejected. Lookup validates the complete raw JSON string before any match, even
+for an empty table. Local validation/limit/diagnostic-OOM errors never become a
+miss. The dispatch adapter uses the independently committed local-abort path
+95268a4b, preventing a local failure from becoming Method not found.
+
+The sorted key is a 32-bit noncryptographic FNV-1a fingerprint plus the COMPLETE
+name. In-place heapsort uses no libc qsort/growth scratch. Binary search compares
+complete names within collision groups; collisions do not create linear probe
+chains. Query decoding uses only a four-byte iterator buffer; ordinary hit/miss
+does not allocate a decoded name. Count, decoded name bytes, raw query bytes,
+total copied names and requested owned storage have independent finite bounds.
+Decoder admission remains separate and must be configured for long/heavily
+escaped names. Find/Info need a live reference but add no index ref operation;
+Retain/Release are actual atomic work. Keep one reference through an entire
+dispatch and all borrowed bindings. Unprotected load-then-retain publication and
+callback context thread safety are not supplied by this immutable container.
+
+Windows GCC O2/Wall/Wextra/Werror and WSL GCC O2 ASan/UBSan each pass four modular
+and four single-header programs (16). New tests cover all 1112064 Unicode scalars
+in escaped and applicable raw UTF-8 spelling, all simple escapes/NUL, case/NFC
+differences, an explicit FNV32 collision pair, copied/freed source vectors,
+4096 permuted registrations, complete malformed tails/types/UTF-8/surrogates,
+exact/rejected bounds, duplicate/reserved/API errors, dispatch/local-abort for
+calls and notifications, 10000 allocation/ambient-identity loops, diagnostic OOM
+and 511 constructor quota windows. Four retained readers complete 80000 lookups
+after creator release. Earlier codec/dispatch regressions run too. A separate
+WSL O1 TSan modular run reports no race; GCC's atomic_thread_fence modeling
+warning is retained and no complete race-freedom claim is made.
+
+Both platforms pass examples, trim, native static/shared consumers using actual
+escaped-name lookup/dispatch/Retain/Release, declaration checks and all three
+size kinds. The first manual WSL single-header link lacked the waiting leaf's
+libm dependency; its failure log is preserved. Correcting the test command
+passes without a production-code change. After tests the benchmark alone adds
+an explicit memory.h include; its before bytes are retained and it is compiled
+separately. Runtime/header/manifest inputs are unchanged and checked exactly.
+
+Measured x64 layouts agree: index prefix 80, entry 40, binding 32, iterator 40,
+config 48 and info 32 bytes. The 4096-entry workload requests 225360 owned bytes.
+These exclude allocator headers/rounding, caller contexts and nested parser/
+encoder stacks. Name copies, validation/hash scans, entry moves, query validation,
+possible repeated escape decoding, callback calls, references and diagnostic
+bookkeeping are real costs; there is no zero-overhead claim.
+
+Four profiles separately retain plain/escaped/missing lookup and one-call
+decode/index/handler/encode against 4096 registrations and 64 spread queries.
+Each platform keeps five full 1000000-operation samples plus one warmup and
+10000 separate latency observations per process. Throughput excludes per-op
+clocks; latency includes two xrtTimer calls and shows clock quantization. No
+sample is dropped and 3% relative MAD / 6% central-range gates are unchanged.
+Windows has 10 quality failures, WSL 13. Indexed-dispatch median rates are
+592728.314/589681.850 operations/s and P99 medians 3.199966/3.100000 us respectively;
+these noisy local CPU workloads exclude construction, queues and transport and
+do not establish server throughput/tail or cross-platform superiority.
+Performance acceptance stays false, and WSL is not native Linux deployment
+acceptance. Source fingerprint 18fdf94ce56eb136918fd870bd09d0e5efb23d1220bdb790056937738d9b5e29;
+workload 46047d07f71942bb48b3ec3eafd54bf580ceca7bb2ef7d46abbb7445cac6f03d.
+
+Normal maturity/API/generated checks pass (17 functions, 58 constants, 24 types;
+seven workloads/four size profiles); strict release still rejects developing
+xrpc. Ignored out/service-extensions/xrpc-methods/ pins exact inputs, 16 test
+binary hashes plus TSan, failed/manual link evidence, consumers/layouts/sizes,
+all samples/failures and post-commit identity. Correlation/client/server async
+scheduling, transports, deadline/cancel negotiation, the other products' remaining
+scope and final native >=72-hour mixed/fault/performance acceptance are pending.
+The four-library goal remains active. See extlibs/xrpc/docs/methods.md and example.

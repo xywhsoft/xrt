@@ -16,8 +16,8 @@ object. Nonempty batches retain array shape even for one surviving reply.
 
 The application `Call` callback receives the decoded request and one temporary
 reply handle. It resolves the method and returns false when unknown; the leaf
-supplies Method not found. It passes raw, quoted method tokens to the resolver:
-a future method-index leaf must compare decoded UTF-8, including escapes. Names
+supplies Method not found. It passes raw, quoted method tokens to the resolver;
+the optional [method index](methods.md) compares decoded UTF-8, including escapes. Names
 beginning with semantic `rpc.` are reserved and do not reach business code.
 Extension negotiation remains pending. A handled call without a reply supplies
 Internal error; a notification can finish without calling a reply function.

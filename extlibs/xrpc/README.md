@@ -1,7 +1,8 @@
 # xrpc (developing)
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
-**Bounded envelope decoding/encoding and synchronous dispatch are implemented.**
+**Bounded envelope decoding/encoding, synchronous dispatch and immutable method
+indexing are implemented.**
 Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -97,4 +98,11 @@ request document before any user code, suppresses every valid notification reply
 forwards exact IDs, supplies standard errors and bounds response count/bytes.
 Handler-local output is consumed synchronously. Callback/limit failures can leave
 business effects and partial sink output; no replay or rollback is implied.
-Method indexing, async scheduling and transports remain separate pending work.
+Async scheduling and transports remain separate pending work.
+
+Select `XRPC_MODULE_XRPC_METHODS` for the [immutable method index](docs/methods.md)
+and its [escaped-name example](examples/methods/main.c). It copies bounded UTF-8
+registrations once, validates complete raw JSON query names, matches semantic
+escapes without a decoded query allocation, and resolves collisions using full
+names in binary search. Hold a strong index reference through every dispatch
+using `xrpcMethodsCall`; callback code/context remain application owned.

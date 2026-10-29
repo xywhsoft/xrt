@@ -25,6 +25,12 @@
       "system": "dispatch",
       "suite": "xrpc_dispatch",
       "description": "Synchronous bounded dispatch with decode/encode closure; no engine or transport"
+    },
+    {
+      "name": "xrpc_methods",
+      "system": "methods",
+      "suite": "xrpc_methods",
+      "description": "Immutable name index and synchronous dispatch closure; no engine/transport"
     }
   ]
 }

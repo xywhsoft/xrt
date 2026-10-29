@@ -40,6 +40,13 @@
         "source_roots": [
           "dispatch"
         ]
+      },
+      {
+        "name": "methods",
+        "state": "retained",
+        "source_roots": [
+          "methods"
+        ]
       }
     ]
   },
@@ -69,7 +76,8 @@
       "depends": [
         "xrpc_decode",
         "xrpc_encode",
-        "xrpc_dispatch"
+        "xrpc_dispatch",
+        "xrpc_methods"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -196,12 +204,72 @@
       ]
     },
     {
+      "name": "xrpc_methods",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_METHODS",
+      "depends": [
+        "xrpc_dispatch",
+        "atomic",
+        "unicode"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/methods.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/methods/methods.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_methods.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_methods.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/methods/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_methods.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/api/reference.md",
+        "extlibs/xrpc/docs/coverage.md",
+        "extlibs/xrpc/docs/methods.md"
+      ]
+    },
+    {
+      "name": "xrpc_methods_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_methods",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_methods.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_methods.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/methods.md"
+      ]
+    },
+    {
       "name": "xrpc_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
         "xrpc",
-        "memory_stats"
+        "memory_stats",
+        "xrpc_methods_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -209,12 +277,14 @@
       "tests": [
         "extlibs/xrpc/tests/test_decode.c",
         "extlibs/xrpc/tests/test_encode.c",
-        "extlibs/xrpc/tests/test_dispatch.c"
+        "extlibs/xrpc/tests/test_dispatch.c",
+        "extlibs/xrpc/tests/test_methods.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_encode.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_methods.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -224,7 +294,8 @@
       "single_test_owners": {
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c": "xrpc_decode",
         "extlibs/xrpc/tests/single/test_single_xrpc_encode.c": "xrpc_encode",
-        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c": "xrpc_dispatch"
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c": "xrpc_dispatch",
+        "extlibs/xrpc/tests/single/test_single_xrpc_methods.c": "xrpc_methods_tests"
       }
     }
   ]

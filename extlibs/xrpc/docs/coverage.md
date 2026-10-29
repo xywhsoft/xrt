@@ -56,6 +56,16 @@ and diagnostic reference operations.
 | Allocation and diagnostics | 10000 repeated ordinary calls with unchanged allocation counters/ambient error; handler diagnostic isolation; one-byte quota and parse/reply diagnostic OOM |
 | Distribution | Dedicated modular/single tests, example, package consumer and performance/size profiles |
 
+| Method index contract | Verification |
+| --- | --- |
+| Semantic equality | Every Unicode scalar in raw UTF-8 and escaped BMP/surrogate spelling, embedded NUL, all simple escapes, case and distinct normalization forms |
+| Immutable lookup | Freed/mutated registration names/vector, 4096 unsorted methods, explicit 32-bit fingerprint collision pair and empty table |
+| Complete validation | Invalid UTF-8/surrogates, trailing tokens, scalar/container type errors and empty-index malformed tails preserve binding output |
+| Bounded construction/query | Exact and rejected name/total/count/owned/raw bounds, duplicate/reserved/NULL registration and invalid argument spans |
+| Dispatch integration | Escaped-name call preserves huge ID; local query limit aborts calls/notifications before handler execution and emits no method error |
+| Allocation/lifetime | 10000 hit/miss loops preserve allocation counters/ambient identity, one-byte lookup quota, diagnostic OOM and 511 constructor quota windows |
+| Concurrent ownership | Four retained-reader threads, 80000 lookups after the creator releases its reference, final release after physical reader completion |
+
 The benchmark observes decoded fields and checks a completion checksum. It is
 a workload smoke until a pinned baseline and end-to-end runtime exist. Current
 platform evidence and remaining gates are in the [progress ledger](../../../docs/development/service-extensions-progress.md).
