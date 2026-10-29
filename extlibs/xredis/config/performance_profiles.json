@@ -1330,9 +1330,6 @@
           "smoke_args": [
             "25"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "scopes_per_sec": {
               "direction": "higher",
@@ -1350,7 +1347,10 @@
               "direction": "higher",
               "unit": "scopes"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         }
       ]
     },
@@ -1489,7 +1489,7 @@
               "unit": "us"
             }
           },
-          "metadata": [
+          "facts": [
             "workload"
           ]
         }
@@ -1540,7 +1540,7 @@
               "unit": "us"
             }
           },
-          "metadata": [
+          "facts": [
             "workload"
           ]
         }
@@ -1565,9 +1565,6 @@
           "smoke_args": [
             "25"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "leases_per_sec": {
               "direction": "higher",
@@ -1585,7 +1582,10 @@
               "direction": "higher",
               "unit": "leases"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         }
       ]
     },
@@ -1610,9 +1610,6 @@
           "smoke_args": [
             "25"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1630,7 +1627,10 @@
               "direction": "higher",
               "unit": "cycles"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         }
       ]
     },
@@ -1655,9 +1655,6 @@
           "smoke_args": [
             "25"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1675,7 +1672,10 @@
               "direction": "higher",
               "unit": "cycles"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         }
       ]
     },
@@ -1700,9 +1700,6 @@
             "25",
             "2"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1720,7 +1717,10 @@
               "direction": "higher",
               "unit": "cycles"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         },
         {
           "name": "xredis_pool_connect_warm",
@@ -1738,9 +1738,6 @@
             "25",
             "0"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1758,7 +1755,10 @@
               "direction": "higher",
               "unit": "cycles"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         },
         {
           "name": "xredis_pool_connect_repair",
@@ -1776,9 +1776,6 @@
             "25",
             "1"
           ],
-          "metadata": [
-            "workload"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1796,7 +1793,10 @@
               "direction": "higher",
               "unit": "cycles"
             }
-          }
+          },
+          "facts": [
+            "workload"
+          ]
         }
       ]
     },
@@ -1821,10 +1821,6 @@
             "25",
             "2"
           ],
-          "metadata": [
-            "workload",
-            "affinity"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1846,7 +1842,11 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "facts": [
+            "workload",
+            "affinity"
+          ]
         },
         {
           "name": "xredis_pool_connect_warm_sustained",
@@ -1864,10 +1864,6 @@
             "25",
             "0"
           ],
-          "metadata": [
-            "workload",
-            "affinity"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1889,7 +1885,11 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "facts": [
+            "workload",
+            "affinity"
+          ]
         },
         {
           "name": "xredis_pool_connect_repair_sustained",
@@ -1907,10 +1907,6 @@
             "25",
             "1"
           ],
-          "metadata": [
-            "workload",
-            "affinity"
-          ],
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
@@ -1932,7 +1928,11 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "facts": [
+            "workload",
+            "affinity"
+          ]
         }
       ]
     }

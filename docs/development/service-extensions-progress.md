@@ -2108,3 +2108,20 @@ compiler/source/binary receipts, all failed gates, CLI/smoke results and a
 post-commit identity check. The four-library goal stays active; Redis dedicated
 modes/HA/tracking, xrpc/xmqtt/xcron runtimes, native Linux deployment and final
 >=72-hour mixed/fault and production/performance acceptance remain pending.
+
+## P2 measurement: preserve declared workload facts in reports (2026-10-30)
+
+Report inspection found twelve xredis workloads across eight profiles using
+`metadata`, which the performance tool ignores; its supported key is `facts`.
+Only those keys are corrected. Actual workload strings now reach the JSON
+reports, and all three sustained pool workloads also retain effective affinity.
+The original raw paired samples already recorded placement independently and
+remain untouched. An absent field in an older report is not backfilled.
+
+Native Windows and WSL each rebuild/run all twelve affected smoke workloads,
+one sample and no warmup, and verify the exact declared nonempty fact sets
+and binary hashes (24 real workloads total). These are report-contract checks,
+not new full performance samples or deployment acceptance. No runtime source,
+sample-selection rule or threshold changes. Both earlier noisy comparisons
+remain unaccepted. Ignored out/service-extensions/benchmark-facts/ keeps the
+before-config snapshot, complete new reports, commands and per-binary receipts.
