@@ -115,11 +115,16 @@ through all returned Future/result callbacks and response ownership.
 The module currently handles one TCP connection and ordinary one-reply
 commands, with bounded pipelining. Raw Connect preserves manual setup; managed
 ConnectInit adds [HELLO/AUTH initialization and its readiness barrier](client-init.md).
-DNS, TLS, reconnect policy, pools, dedicated transaction/blocking/PubSub modes, Sentinel,
-Cluster and Tracking are subsequent work; the whole product remains developing.
+Optional [DNS/address dialing](dial.md), [TLS](tls.md),
+[client certificates](tls-auth.md) and [atomic transactions](transaction.md)
+build on this runtime. Reconnect policy, pools, interactive WATCH sessions,
+blocking/PubSub modes, Sentinel, Cluster and Tracking remain subsequent work;
+the whole product remains developing.
 Known subscription/unsubscription, MONITOR, SYNC/PSYNC and CLIENT REPLY switches
 are rejected before admission. Unknown module commands must obey the caller's
-one-reply contract. Managed connections also reserve their setup controls.
+one-reply contract. Managed connections also reserve their setup controls and manual
+MULTI/EXEC/DISCARD/WATCH/UNWATCH/RESET; use the dedicated operation instead of
+letting concurrent ordinary calls enter a server-side transaction.
 
 Admission allocates request+wire and a separate outcome box plus XRT Future/
 cancel/watch state. Timed requests also consume bounded engine timers. Payloads

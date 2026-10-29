@@ -38,5 +38,9 @@
 #include <xredis/dial.h>
 #include <xredis/tls.h>
 #include <xredis/tls_auth.h>
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TRANSACTION"
+#endif
+#include <xredis/transaction.h>
 
 #endif

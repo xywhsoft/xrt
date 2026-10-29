@@ -90,6 +90,20 @@
         "xrtTlsIdentityEd25519",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_transaction",
+      "system": "transaction",
+      "suite": "xredis_transaction",
+      "description": "Managed atomic transaction runtime; optional DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
     }
   ]
 }

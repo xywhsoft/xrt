@@ -27,6 +27,8 @@ def input_hashes(compile_inputs=()) -> dict[str, str]:
     inputs.update((ROOT / "extlibs/xredis/include").rglob("*.h"))
     inputs.update((ROOT / "extlibs/xredis/src").rglob("*.h"))
     inputs.update((ROOT / "extlibs/xredis/tests/interop").glob("*.py"))
+    inputs.update((ROOT / "extlibs/xredis/tests/interop").glob("*.c"))
+    inputs.update((ROOT / "extlibs/xredis/tests/interop").glob("*.h"))
     inputs.update(ROOT / path for path in ("config/modules.json", "extlibs/xredis/config/modules.json", "tools/test_protocol_fuzz.py", "tools/xrt_manifest.py",
         "extlibs/xredis/tests/interop/redis_init.c", "extlibs/xredis/tests/interop/redis_tls_auth.c", "extlibs/xredis/tests/interop/tls_auth_support.h",
         "extlibs/xredis/examples/tls_auth/material.h"))
@@ -37,9 +39,10 @@ def fingerprint(hashes):
     return hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
 
 
-def build(compiler: str, output: Path) -> tuple[list[Path], list[str]]:
+def build(compiler: str, output: Path, transaction: bool = False) -> tuple[list[Path], list[str]]:
+    modules = ("xredis_tls_auth", "tls_identity_builtin", "pem") + (("xredis_transaction",) if transaction else ())
     closures = [_closure(module, "extlibs/xredis/config/modules.json")
-                for module in ("xredis_tls_auth", "tls_identity_builtin", "pem")]
+                for module in modules]
     sources, defines, links, includes = [list(dict.fromkeys(item for c in closures for item in c[i])) for i in range(4)]
     inputs = [ROOT / source for source in sources]
     command = [compiler, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", *["-D" + d for d in defines],
@@ -48,13 +51,13 @@ def build(compiler: str, output: Path) -> tuple[list[Path], list[str]]:
         command += ["-I", str(ROOT / include)]
     if sys.platform != "win32":
         command += ["-pthread"]
-    command += [*map(str, inputs), str(Path(__file__).with_name("redis_tls_auth.c")),
+    command += [*map(str, inputs), str(Path(__file__).with_name("redis_transaction.c" if transaction else "redis_tls_auth.c")),
                 *["-l" + link for link in links], "-o", str(output)]
     before = input_hashes(inputs)
     subprocess.run(command, cwd=ROOT, check=True, timeout=300)
     assert before == input_hashes(inputs), "inputs changed while compiling the interop driver"
     compiler_path = Path(shutil.which(compiler)).resolve(strict=True)
-    receipt = {"schema": 1, "platform": sys.platform, "compiler": str(compiler_path), "compiler_sha256": digest(compiler_path),
+    receipt = {"schema": 1, "platform": sys.platform, "transaction": transaction, "compiler": str(compiler_path), "compiler_sha256": digest(compiler_path),
         "build_python": sys.executable, "build_python_sha256": digest(Path(sys.executable)),
         "compiler_version": subprocess.check_output([compiler, "--version"], text=True, encoding="utf-8").splitlines()[0],
         "command": command, "cwd": str(ROOT), "defines": defines, "client_sha256": digest(output),
@@ -88,6 +91,8 @@ def main() -> None:
     parser.add_argument("--build", action="store_true")
     parser.add_argument("--build-only", action="store_true")
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--transaction", action="store_true", help="also verify atomic transactions over the authenticated connection")
+    parser.add_argument("--key", choices=("rsa", "p256", "p384", "ed25519"), help="select one client key; default covers all four")
     parser.add_argument("--server", type=Path, default=shutil.which("redis-server"))
     parser.add_argument("--openssl", type=Path, default=shutil.which("openssl"))
     parser.add_argument("--example", type=Path)
@@ -95,12 +100,12 @@ def main() -> None:
     args = parser.parse_args()
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps({"schema": 1, "status": "incomplete", "scope": "no successful result recorded yet"}) + "\n", encoding="utf-8")
-    output = ROOT / "out/redis-tls-auth" / sys.platform; output.mkdir(parents=True, exist_ok=True)
+    output = ROOT / ("out/redis-tls-transaction" if args.transaction else "out/redis-tls-auth") / sys.platform; output.mkdir(parents=True, exist_ok=True)
     client = args.client or output / ("client.exe" if sys.platform == "win32" else "client")
     compiler = shutil.which(args.compiler)
     if args.build and compiler is None:
         parser.error("C compiler not found")
-    compile_inputs, defines = build(compiler, client) if args.build else ([], [])
+    compile_inputs, defines = build(compiler, client, args.transaction) if args.build else ([], [])
     if args.build_only:
         if not args.build:
             parser.error("--build-only requires --build")
@@ -115,6 +120,7 @@ def main() -> None:
     if not receipt_path.is_file():
         parser.error("client requires its exact build receipt; use --build or --build-only first")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt.get("transaction", False) == args.transaction, "client receipt does not match requested interop mode"
     # Revalidate the actual compiled closure, including its platform backend.
     # A native Windows binary must not be compared to a WSL/epoll closure.
     receipt_inputs = [ROOT / path for path in receipt["inputs"]]
@@ -132,7 +138,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="certs-", dir=output) as temporary:
         folder = Path(temporary); public = certificates(openssl, folder); public.update(client_certificates(openssl, folder))
         for version in (12, 13):
-            for algorithm in (("rsa",) if args.quick else ("rsa", "p256", "p384", "ed25519")):
+            for algorithm in (("rsa",) if args.quick else (args.key,) if args.key else ("rsa", "p256", "p384", "ed25519")):
                 for scenario in ((0,) if args.quick else range(3)):
                     print(f"[CASE] TLS 1.{version - 10} key={algorithm} scenario={scenario}", flush=True)
                     arguments = ["{port}", str(scenario), client_path(folder / "ca.pem"), client_path(folder / "wrong.pem"), str(version),
@@ -157,7 +163,8 @@ def main() -> None:
     hashes = input_hashes(receipt_inputs)
     assert hashes == hashes_before, "source/header/helper inputs changed while exercising the client"
     assert digest(client) == receipt["client_sha256"], "client changed while exercising it"
-    report = {"schema": 1, "status": "passed", "scope": "local initial certificate handshakes; production/performance and identity-bound resumption pending",
+    report = {"schema": 1, "status": "passed", "transaction": args.transaction,
+        "scope": "local certificate handshakes and optional atomic transactions; production/performance and identity-bound resumption pending",
         "platform": platform.platform(), "client_platform": "native Windows client via WSL peer" if windows_client else sys.platform,
         "server_path": str(server), "server_sha256": digest(server), "server_version": subprocess.check_output([str(server), "--version"], text=True, encoding="utf-8").strip(),
         "openssl_sha256": digest(openssl), "openssl_version": subprocess.check_output([str(openssl), "version"], text=True, encoding="utf-8").strip(),

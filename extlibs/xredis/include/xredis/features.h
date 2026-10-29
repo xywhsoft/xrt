@@ -28,6 +28,19 @@
 #ifndef XREDIS_MODULE_XREDIS_TLS_AUTH
 #define XREDIS_MODULE_XREDIS_TLS_AUTH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */

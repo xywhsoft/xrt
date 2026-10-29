@@ -8,6 +8,9 @@
 #else
 #define XREDIS_MODULE_XREDIS_CLIENT
 #endif
+#if defined(INTEROP_TRANSACTION)
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
 #include <xredis.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,6 +123,10 @@ static xfuture* interopSuccess(xnetengine* Engine, const xnetaddr* Address, int 
 	}
 	interopClose(Client); return ReadyFuture;
 }
+
+#if defined(INTEROP_TRANSACTION)
+#include "transaction_support.h"
+#endif
 
 static void interopFailure(xnetengine* Engine, const xnetaddr* Address, int Scenario)
 {
@@ -271,6 +278,9 @@ int main(int argc, char** argv)
 	xnetaddr Address; interopRequire(xrtNetAddrLoopback(&Address, XNET_FAMILY_IPV4, (uint16)Port), "endpoint");
 	xfuture* Results[3]; Results[0] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP3);
 	Results[1] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_RESP2); Results[2] = interopSuccess(Engine, &Address, Scenario, XREDIS_INIT_AUTO);
+#if defined(INTEROP_TRANSACTION)
+	interopTransactions(Engine, &Address, Scenario);
+#endif
 	interopFailure(Engine, &Address, Scenario);
 #if defined(INTEROP_TLS)
 	interopTlsRejected(Engine, &Address, Wrong);

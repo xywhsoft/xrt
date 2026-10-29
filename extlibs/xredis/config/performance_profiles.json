@@ -904,6 +904,94 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_transaction",
+      "system": "transaction",
+      "description": "Sequential staged MULTI/two-command queue/EXEC on a two-worker local C fixture; initialization excluded, peer work included; no real Redis/parity or fixed-arrival acceptance claim",
+      "benchmarks": [
+        {
+          "name": "xredis_transaction",
+          "source": "extlibs/xredis/bench/bench_transaction.c",
+          "suite": "xredis_transaction,time",
+          "args": [
+            "1000"
+          ],
+          "smoke_args": [
+            "5"
+          ],
+          "inputs": [
+            "extlibs/xredis/tests/support/transaction_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "facts": [
+            "workload"
+          ],
+          "metrics": {
+            "transactions_per_sec": {
+              "direction": "higher",
+              "unit": "transactions/s"
+            },
+            "transaction_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "transaction_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "transactions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_transaction_ordinary",
+      "system": "transaction",
+      "description": "Identical ordinary raw-client pipeline with the optional transaction feature selected; isolates selected request metadata/branches, not managed control validation or transaction execution; unpinned runs are diagnostic only",
+      "benchmarks": [
+        {
+          "name": "xredis_transaction_ordinary",
+          "source": "extlibs/xredis/bench/bench_client.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_client,xredis_transaction",
+          "args": [
+            "100000",
+            "16"
+          ],
+          "smoke_args": [
+            "1024",
+            "16"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "direction": "higher",
+              "unit": "requests/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -9,8 +9,10 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xredis binary commands, bounded RESP2/3 parsing, owned frames, one ordinary
   TCP/TLS async/sync request connection, bounded hostname/address dialing and
   explicit HELLO/AUTH/name/database setup are locally verified, including Redis
-  8.0.5 interoperability. Mutual TLS/signing, ticket management, dedicated modes,
-  reconnect/pools, HA and final performance acceptance remain pending.
+  8.0.5 interoperability. Initial client-certificate signing/authentication is
+  locally verified. Atomic transaction execution is locally verified; identity-
+  bound ticket management, other dedicated modes, reconnect/pools, HA and final
+  performance acceptance remain pending.
 - xcron five-field/seconds-six-field expression compilation and Gregorian
   UTC/civil matching/earliest search are locally verified. Named time zones,
   scheduling and durable recovery remain pending.
@@ -56,7 +58,9 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | one numeric TCP connection, async/sync requests and bounded pipeline | locally verified | IOCP/epoll, split reads, typed outcome/certainty, queue-inclusive deadline, cancellation/tombstones/drain grace, push isolation, bounded close, 384 concurrent calls, 36/71 quota thresholds, worker OOM, reentry, ASan/UBSan/qualified TSan, actual examples/packages and workload smoke |
 | xredis | managed HELLO/AUTH/ACL/name/database setup and readiness barrier | locally verified | exact scripts, explicit RESP3/AUTO/RESP2 modes, error redaction, queue-inclusive deadlines/cancel, OOM/close/reentry, Windows/WSL modular/single/sanitizers and real Redis 8.0.5 |
 | xredis | fixed-arrival runtime workload and process counters | locally verified | absolute schedules, all-offer ledger, separate success/all-outcome tails, bounded observer slots, stalled/held-peer controls, allocation mode, Windows/WSL modular/single/sanitizers and Redis 8.0.5 diagnostics |
-| xredis | advanced transports/modes, reconnect/pools, HA, tracking | pending | no claim |
+| xredis | initial TLS client certificate authentication | locally verified | explicit V1 factories, retained identity before DNS, real TLS 1.2/1.3 peers; identity-bound tickets remain pending |
+| xredis | staged atomic MULTI/queue/EXEC | locally verified | exclusive FIFO, queue rejection/DISCARD, typed uncertainty/cancel/OOM, native static/shared consumers; WATCH sessions and performance acceptance remain pending |
+| xredis | remaining modes, reconnect/pools, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | correlation, dispatch, runtime, transports | pending | no claim |
@@ -1512,3 +1516,83 @@ Ignored evidence uses `redis-mtls-*` and `auth-draft/package-*` under
 `out/service-extensions/`. Identity-bound TLS tickets, other unfinished Redis
 modes, RPC/MQTT/Cron runtimes, pinned matched performance and native 72-hour
 mixed/fault acceptance remain required. The four-product goal stays active.
+
+## P2 xredis: staged atomic transactions (2026-10-29)
+
+`xredis_transaction` supplies bounded async/sync MULTI/queue/EXEC operations on
+managed connections. It first waits for all preceding requests, then validates
+MULTI before sending business commands. Queue errors suppress EXEC and drain
+DISCARD; other calls cannot enter that server transaction. Unknown or malformed
+control state retires the connection. Recognized EXECABORT/null EXEC establish
+abort; ordered EXEC arrays retain runtime error children without inventing a
+rollback. Pre-EXEC abandonment suppresses commit, while accepted EXEC bytes
+produce explicit uncertain execution until a validated terminal response.
+Logical cancellation does not release the physical FIFO/cleanup obligation;
+the existing drain grace, byte caps, parser caps and observable Close still apply.
+
+Three APIs, four types and bounded configuration have complete public symbol
+coverage (47 functions, 122 constants, 40 types across xredis). Managed ordinary
+calls reserve transaction/reset controls. Raw clients keep their manual
+one-reply contract and cannot use the managed transaction API. Interactive
+WATCH/read/decision sessions and lease integration remain pending; the whole
+transaction family, auth family and product remain developing.
+
+Both Windows GCC O2 and WSL GCC O2 ASan/UBSan pass 11 modular and 11 single-header
+programs. The transaction program exercises binary input recycling, preceding/
+following ordinary requests, empty transactions, fragmented TLS, RESP3 pushes,
+queue/runtime/control/protocol errors, peer drops, typed execution certainty,
+before/after-commit cancellation, queue-inclusive timeout, bounded stalled cleanup,
+sync rejection from another engine worker, four concurrent producers/32 commits,
+169 admission allocation-budget windows and worker OOM while queue/EXEC/DISCARD
+replies are held. Physical byte/request quotas return to zero, and retained
+outcomes survive engine destruction. Examples and declaration-only headers pass.
+
+Each platform passes six independent real Redis 8.0.5 cases: TLS 1.2/1.3 with
+RSA client authentication and no-password/password/ACL configurations, each
+testing RESP2/RESP3 binary EXEC arrays, rejected queue/discard, runtime errors
+without rollback, denied MULTI without escaped SET, and denied EXEC. An independent
+socket oracle established Redis 8.0.5's denied EXEC response as EXECABORT. The
+client recognizes that abort and permits reuse; a separate dirty-state fixture
+checks conservative retirement for an unknown EXEC error. Windows uses a native
+client and independently verified native loopback startup against a WSL peer.
+Final input fingerprints: Windows `76a8cc20b2cd211231835efec4ad234dc8223153f3895b14995a1ea871b5aa0c`;
+WSL `74824a5a603b06b7d704bbf4a4647555718ba39ad3f5971f50485c6e702d243d`. Receipts pin actual platform sources,
+all public/private headers, helpers, compiler and binary before/after execution.
+
+The optional request pointer's initial eight-byte growth was measured and
+removed. A tag uses existing tail padding: ordinary request allocation size
+remains 104 bytes with or without selection on both x64 platforms (wire offset
+102/103). Client size remains Windows 848 / WSL 920 in the same TLS/auth closures;
+public client config remains 232 and ordinary result 24. Transactions add one
+72-byte aligned state plus at most seven padding bytes and a 64-byte typed
+result, with no per-command Future/offset array. Wire/control/state storage is
+charged to existing byte quotas. Copies, control round trips, frame allocations,
+tag checks, state-address calculation, references, synchronization and timers
+remain real costs; no complete zero-overhead/performance claim is made.
+
+Minimal static/shared consumers now execute actual binary transactions and
+all three APIs. This exposed a packaging verification gap: consumers did not
+receive selected feature definitions and the old Redis consumer forced the
+product root. `99b5bec1` separately forwards actual selection for GNU/MSVC
+static/shared consumers (17 tool tests plus a native minimal command proof).
+The Redis consumer now tests only shipped interfaces, rejects an empty selection
+and exercises actual transactions. This does not certify a native MSVC build.
+Separate client/transaction size profiles enforce forbidden TLS/DNS/HTTP/
+WebSocket/task/process symbols and separate core/product ownership.
+
+The full-load and smoke measurements retain raw/transaction-selected ordinary
+pipelines and staged two-command transactions. Runs are unpinned; earlier
+smoke/full measurements exceeded the unchanged quality thresholds. Keep all
+quality failures, and do not infer an accepted speedup/regression from them.
+Pinned matched throughput/tail-latency, complete copy/allocation/syscall accounting,
+native Linux and 72-hour mixed/fault acceptance remain required. Normal maturity
+has 20 workloads/eight size profiles; strict release must reject the three
+developing modules. Generated/API/trim checks and minimal package/example
+consumers are separate feature evidence, not full production acceptance.
+
+See the [transaction contract](../../extlibs/xredis/docs/transaction.md).
+Ignored evidence and source/fixture/binary identities are under
+`out/service-extensions/transaction/`. The earlier unclassified Windows/WSL
+readiness observation remains open. Remaining Redis modes/pools/HA/tracking,
+RPC/MQTT/Cron runtimes and the original final acceptance remain required.
+The four-product goal stays active.

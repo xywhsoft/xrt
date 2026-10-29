@@ -6,8 +6,10 @@ TLS, transactions/blocking/PubSub, Sentinel, Cluster and Tracking.
 **The command encoder, incremental RESP2/3 reader, owned reply builder, one
 TCP request/response connection, explicit HELLO/AUTH initialization and optional
 asynchronous DNS/multiple-endpoint setup and server-authenticated TLS transport
-are implemented. Mutual TLS, ticket harvesting and advanced modes,
-HA and production/performance acceptance remain pending.**
+are implemented. Optional initial client-certificate authentication is also
+locally verified. Atomic transaction execution is locally verified; identity-bound
+tickets, remaining advanced modes, HA and production/performance acceptance
+remain pending.**
 
 ## Binary command encoding
 
@@ -114,6 +116,14 @@ See [client-certificate authentication](docs/tls-auth.md) and the
 handshakes are supported; identity-bound resumption remains pending. The cold
 cycle benchmark uses an independent OpenSSL certificate verifier and records
 the complete connection/HELLO/PING/physical-close wall cycle.
+
+Select `XREDIS_MODULE_XREDIS_TRANSACTION` for one exclusive, staged
+MULTI/queue/EXEC operation on a managed connection. It confirms MULTI before
+sending business commands, suppresses EXEC on queue error/pre-commit abandonment,
+drains DISCARD before reuse and preserves explicit execution uncertainty.
+See [transaction ownership and phases](docs/transaction.md) and the
+[self-contained example](examples/transaction/main.c). Interactive WATCH sessions,
+lease integration and final transaction acceptance remain in development.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

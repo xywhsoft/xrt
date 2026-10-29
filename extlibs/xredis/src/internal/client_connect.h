@@ -1,6 +1,15 @@
 #ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 #include <xredis/client.h>
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#include <xredis/transaction.h>
+xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future);
+xredisadmission __xredisClientTransaction(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future);
+#endif
 typedef struct xredisclienttlsconfig xredisclienttlsconfig;
 typedef struct xtlsclientauthconfigv1 xtlsclientauthconfigv1;
 #if defined(XREDIS_FEATURE_XREDIS_TLS)

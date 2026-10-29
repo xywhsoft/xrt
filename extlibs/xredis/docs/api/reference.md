@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `44` 个函数、`115` 个常量或宏、
-`36` 个公共类型。
+当前登记 `47` 个函数、`122` 个常量或宏、
+`40` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -296,3 +296,30 @@
 ### 常量与宏 (1)
 
 - `XREDIS_FEATURE_XREDIS_TLS_AUTH`
+
+## `extlibs/xredis/include/xredis/transaction.h`
+
+[查看带契约注释的公共头](../../include/xredis/transaction.h)
+
+### 函数 (3)
+
+- `xredisClientTransaction`
+- `xredisClientTransactionAsync`
+- `xredisClientTransactionConfigInit`
+
+### 常量与宏 (7)
+
+- `XREDIS_FEATURE_XREDIS_TRANSACTION`
+- `XREDIS_TRANSACTION_ABORTED`
+- `XREDIS_TRANSACTION_COMMANDS_DEFAULT`
+- `XREDIS_TRANSACTION_COMMANDS_MAX`
+- `XREDIS_TRANSACTION_EXECUTED`
+- `XREDIS_TRANSACTION_MAY_HAVE_EXECUTED`
+- `XREDIS_TRANSACTION_NOT_EXECUTED`
+
+### 类型 (4)
+
+- `xredistransactioncommand`
+- `xredistransactionconfig`
+- `xredistransactionexecution`
+- `xredistransactionresult`
