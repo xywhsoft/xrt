@@ -45,6 +45,12 @@
 #if !defined(XREDIS_FEATURE_XREDIS_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION 1
+#endif
+#if !defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_WATCH 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER 1
 #endif
@@ -80,6 +86,12 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_POOL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_WATCH 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER 1
@@ -2548,6 +2560,12 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL
 #define XREDIS_MODULE_XREDIS_POOL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#define XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_WATCH
+#define XREDIS_MODULE_XREDIS_POOL_WATCH
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -2560,26 +2578,6 @@
 #endif
 #ifndef XRT_MODULE_TLS_CLIENT_AUTH
 #define XRT_MODULE_TLS_CLIENT_AUTH
-#endif
-#endif
-
-/* xredis_watch 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
-#ifndef XREDIS_FEATURE_XREDIS_WATCH
-#define XREDIS_FEATURE_XREDIS_WATCH
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLIENT
-#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -2630,6 +2628,52 @@
 #endif
 #ifndef XRT_MODULE_NET_TCP_DIAL
 #define XRT_MODULE_NET_TCP_DIAL
+#endif
+#endif
+
+/* xredis_pool_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_WATCH
+#define XREDIS_FEATURE_XREDIS_POOL_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_WATCH
+#define XREDIS_MODULE_XREDIS_WATCH
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_pool_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -3441,6 +3485,232 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/transaction.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TRANSACTION_H
+#define XREDIS_TRANSACTION_H
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
+#error "XREDIS_FEATURE_XREDIS_TRANSACTION requires XREDIS_FEATURE_XREDIS_CLIENT"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#define XREDIS_TRANSACTION_COMMANDS_DEFAULT 256u
+#define XREDIS_TRANSACTION_COMMANDS_MAX 65536u
+
+typedef struct xredistransactioncommand {
+    const xbytesview* Arguments;
+    size_t Count;
+} xredistransactioncommand;
+
+typedef struct xredistransactionconfig {
+    size_t Size;
+    size_t MaxCommands;
+} xredistransactionconfig;
+
+/* Execution certainty is independent from local timeout/cancellation and from
+ * error elements inside a valid EXEC array. Redis does not roll those back. */
+typedef enum xredistransactionexecution {
+    XREDIS_TRANSACTION_NOT_EXECUTED = 0,
+    XREDIS_TRANSACTION_MAY_HAVE_EXECUTED,
+    XREDIS_TRANSACTION_EXECUTED,
+    XREDIS_TRANSACTION_ABORTED
+} xredistransactionexecution;
+
+/* Owned by the returned Future; Request is the first member. Request.Reply is
+ * the final EXEC array/error or a rejected MULTI reply. QueueError retains the
+ * first queue error; other queue errors are counted and promptly released.
+ * Queue rejection uses SERVER_ERROR, no EXEC reply, and NOT_EXECUTED after a
+ * validated DISCARD. Counts describe knowledge at logical completion and do
+ * not change while an abandoned operation drains. Retain replies explicitly
+ * to use them after destroying the Future. Results do not retain the client. */
+typedef struct xredistransactionresult {
+    xredisrequestresult Request;
+    xredistransactionexecution Execution;
+    size_t Commands;
+    size_t Queued;
+    size_t QueueErrors;
+    xredisreply* QueueError;
+} xredistransactionresult;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config);
+
+/* One exclusive MULTI / queue / EXEC (or DISCARD) operation on a managed
+ * connection. Raw Connect is refused. MULTI is acknowledged before business
+ * commands are sent; preceding requests drain, and later requests cannot enter
+ * the transaction. Input is borrowed only during admission and encoded once
+ * into owned storage. Count=0 is an empty transaction. Config=NULL uses bounded
+ * defaults. Client request/byte limits include transaction wire and metadata.
+ * Timeout includes admission/encoding/worker/setup/transaction/cleanup time.
+ * Before EXEC is accepted, cancellation/timeout suppresses EXEC and drains
+ * DISCARD; afterwards execution may be uncertain. DrainTimeout still bounds
+ * physical cleanup. Cleanup rejection/malformed or unknown EXEC replies retire
+ * the connection; a recognized EXECABORT confirms abort and permits reuse.
+ * No automatic replay, rollback, WATCH/read/decision session or retry is added.
+ * Connection/mode controls are not transaction payload commands. Unknown module
+ * commands must obey Redis transactional queue/reply semantics. Output changes
+ * only on ACCEPTED. Future cancellation returns a typed immutable result. */
+XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
+
+/* Same deadline and outcome, then waits. Rejects every worker of this engine. */
+XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_transaction.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_TRANSACTION_H
+#define XREDIS_POOL_TRANSACTION_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_TRANSACTION))
+#error "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION requires pool and transaction"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+XRT_EXTERN_C_BEGIN
+/* Direct staged transaction on this lease. Accepted enqueue seals the lease
+ * against further calls/transactions; earlier leased calls drain before MULTI.
+ * Config/commands are borrowed only during admission. Output changes only on
+ * ACCEPTED. Native xredistransactionresult preserves execution uncertainty and
+ * queue/runtime errors. Group request/byte quotas include wire/control/state.
+ * Deadline is capped at the original lease hold. Return the lease explicitly;
+ * its physical Closed barrier waits for actual DISCARD/EXEC/drain/retirement.
+ * Return never authorizes replay. Sync rejects all workers of this engine. */
+XREDIS_API xredisadmission xredisLeaseTransactionAsync(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisLeaseTransaction(xredislease* Lease,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/watch.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_WATCH_H
+#define XREDIS_WATCH_H
+
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) && !defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#error "XREDIS_FEATURE_XREDIS_WATCH requires XREDIS_FEATURE_XREDIS_TRANSACTION"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+typedef struct xrediswatch xrediswatch;
+typedef struct xrediswatchconfig {
+    size_t Size;
+    /* Positive total lifetime, including admission, application think time,
+     * reads and commit. No renewal; at most 24 hours. Default 5000 ms. */
+    int64 Timeout;
+    /* Separate bounded UNWATCH request deadline, default 5000 ms (max 60 s).
+     * Physical retirement also includes the client's existing drain grace. */
+    int64 CleanupTimeout;
+    size_t MaxKeys;
+    size_t MaxWireBytes;
+    xredistransactionconfig Transaction;
+} xrediswatchconfig;
+
+/* Owned by the start Future. Watch is borrowed on EVERY accepted outcome;
+ * only OK permits commands. On failure it still exposes the physical Closed
+ * barrier. Retain it before destroying the Future. A retained completed result
+ * does not pin the engine. Request.Reply is the WATCH response, not EXEC. */
+typedef struct xrediswatchresult {
+    xredisrequestresult Request;
+    xrediswatch* Watch;
+} xrediswatchresult;
+/* Owned by Closed's Future. Reason is the scope's first terminal reason;
+ * Reusable certifies physical idle plus a validated clearing boundary. */
+typedef struct xrediswatchclosedresult {
+    xredisrequeststatus Reason;
+    bool Reusable;
+} xrediswatchclosedresult;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisWatchConfigInit(xrediswatchconfig* Config);
+/* Claims an OPEN, ready, idle managed client. A busy/not-ready/already claimed
+ * client returns OVERLOADED. Ordinary ClientCall/Transaction admissions are
+ * refused while claimed. Keys are binary and copied only during admission.
+ * Count must be 1..MaxKeys (default 256, hard limit 65536); default wire 64 KiB.
+ * Config is copied; output changes only on ACCEPTED. No implicit retry.
+ * Cancelling a pending start Future abandons the scope. */
+XREDIS_API xredisadmission xredisClientWatchAsync(xredisclient* Client,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XREDIS_API xredisadmission xredisClientWatch(xredisclient* Client,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XREDIS_API bool xredisWatchRetain(xrediswatch* Watch);
+XREDIS_API void xredisWatchRelease(xrediswatch* Watch);
+/* Ordinary one-reply reads/commands within this connection's WATCH scope.
+ * Connection/mode/transaction controls are reserved. The effective deadline
+ * is min(call entry + Timeout, scope deadline). Release alone does not abort.
+ * Application writes have their ordinary Redis effects and are not rolled back. */
+XREDIS_API xredisadmission xredisWatchCallAsync(xrediswatch* Watch,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisWatchCall(xrediswatch* Watch,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+/* Exactly one accepted commit seals the scope against new calls/commits.
+ * Earlier reads drain before MULTI. Result is xredistransactionresult; a null
+ * EXEC is ABORTED, never an automatic retry. Logical completion precedes
+ * physical Closed. Cancelling an accepted commit may retire the connection. */
+XREDIS_API xredisadmission xredisWatchCommitAsync(xrediswatch* Watch,
+    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisWatchCommit(xrediswatch* Watch,
+    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
+/* Idempotent nonblocking abandonment. Idle scopes send UNWATCH; abandoning
+ * while physical requests remain may retire the connection. No dirty reuse.
+ * Closed is a retained observer, not a request to abort. It resolves only
+ * after scoped request storage, timers, notifications and the claim retire.
+ * Sync facades reject every worker of the client's engine. Stop/join the
+ * engine before unloading code, including the final notification return tail. */
+XREDIS_API bool xredisWatchAbort(xrediswatch* Watch);
+XREDIS_API xfuture* xredisWatchClosed(xrediswatch* Watch);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_watch.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_WATCH_H
+#define XREDIS_POOL_WATCH_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH) && (!defined(XREDIS_FEATURE_XREDIS_POOL) || !defined(XREDIS_FEATURE_XREDIS_WATCH))
+#error "XREDIS_FEATURE_XREDIS_POOL_WATCH requires pool and watch"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+XRT_EXTERN_C_BEGIN
+/* Nested WATCH scope on a physically idle lease. Busy returns OVERLOADED;
+ * admission failure restores the unused lease. Acceptance consumes/seals this
+ * lease for the scope; ordinary/transaction/second-WATCH admissions cannot
+ * enter it. Result is the native xrediswatchresult on every accepted outcome,
+ * including a failed start's physical Closed observer. All scope requests and
+ * transaction/control metadata retain the pool's hard aggregate quota. Both
+ * total scope/call deadlines are capped at the original lease hold.
+ * Return/Abort/hold expiry/PoolClose cannot release a live nested owner. Return
+ * requests bounded scope abandonment (UNWATCH when clean); grace expiry or
+ * uncertain/busy cleanup retires the client. Explicitly Return the lease after
+ * scope Closed. Retained completed scope/lease metadata pins no pool/engine.
+ * Same input/output/ownership and sync-worker rules as standalone WATCH. */
+XREDIS_API xredisadmission xredisLeaseWatchAsync(xredislease* Lease,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XREDIS_API xredisadmission xredisLeaseWatch(xredislease* Lease,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/dial.h */
 /* ========================================================================== */
 
@@ -3562,170 +3832,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/transaction.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_TRANSACTION_H
-#define XREDIS_TRANSACTION_H
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
-#error "XREDIS_FEATURE_XREDIS_TRANSACTION requires XREDIS_FEATURE_XREDIS_CLIENT"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-#define XREDIS_TRANSACTION_COMMANDS_DEFAULT 256u
-#define XREDIS_TRANSACTION_COMMANDS_MAX 65536u
-
-typedef struct xredistransactioncommand {
-    const xbytesview* Arguments;
-    size_t Count;
-} xredistransactioncommand;
-
-typedef struct xredistransactionconfig {
-    size_t Size;
-    size_t MaxCommands;
-} xredistransactionconfig;
-
-/* Execution certainty is independent from local timeout/cancellation and from
- * error elements inside a valid EXEC array. Redis does not roll those back. */
-typedef enum xredistransactionexecution {
-    XREDIS_TRANSACTION_NOT_EXECUTED = 0,
-    XREDIS_TRANSACTION_MAY_HAVE_EXECUTED,
-    XREDIS_TRANSACTION_EXECUTED,
-    XREDIS_TRANSACTION_ABORTED
-} xredistransactionexecution;
-
-/* Owned by the returned Future; Request is the first member. Request.Reply is
- * the final EXEC array/error or a rejected MULTI reply. QueueError retains the
- * first queue error; other queue errors are counted and promptly released.
- * Queue rejection uses SERVER_ERROR, no EXEC reply, and NOT_EXECUTED after a
- * validated DISCARD. Counts describe knowledge at logical completion and do
- * not change while an abandoned operation drains. Retain replies explicitly
- * to use them after destroying the Future. Results do not retain the client. */
-typedef struct xredistransactionresult {
-    xredisrequestresult Request;
-    xredistransactionexecution Execution;
-    size_t Commands;
-    size_t Queued;
-    size_t QueueErrors;
-    xredisreply* QueueError;
-} xredistransactionresult;
-
-XRT_EXTERN_C_BEGIN
-XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config);
-
-/* One exclusive MULTI / queue / EXEC (or DISCARD) operation on a managed
- * connection. Raw Connect is refused. MULTI is acknowledged before business
- * commands are sent; preceding requests drain, and later requests cannot enter
- * the transaction. Input is borrowed only during admission and encoded once
- * into owned storage. Count=0 is an empty transaction. Config=NULL uses bounded
- * defaults. Client request/byte limits include transaction wire and metadata.
- * Timeout includes admission/encoding/worker/setup/transaction/cleanup time.
- * Before EXEC is accepted, cancellation/timeout suppresses EXEC and drains
- * DISCARD; afterwards execution may be uncertain. DrainTimeout still bounds
- * physical cleanup. Cleanup rejection/malformed or unknown EXEC replies retire
- * the connection; a recognized EXECABORT confirms abort and permits reuse.
- * No automatic replay, rollback, WATCH/read/decision session or retry is added.
- * Connection/mode controls are not transaction payload commands. Unknown module
- * commands must obey Redis transactional queue/reply semantics. Output changes
- * only on ACCEPTED. Future cancellation returns a typed immutable result. */
-XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-
-/* Same deadline and outcome, then waits. Rejects every worker of this engine. */
-XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/watch.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_WATCH_H
-#define XREDIS_WATCH_H
-
-#if defined(XREDIS_FEATURE_XREDIS_WATCH) && !defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-#error "XREDIS_FEATURE_XREDIS_WATCH requires XREDIS_FEATURE_XREDIS_TRANSACTION"
-#endif
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
-typedef struct xrediswatch xrediswatch;
-typedef struct xrediswatchconfig {
-    size_t Size;
-    /* Positive total lifetime, including admission, application think time,
-     * reads and commit. No renewal; at most 24 hours. Default 5000 ms. */
-    int64 Timeout;
-    /* Separate bounded UNWATCH request deadline, default 5000 ms (max 60 s).
-     * Physical retirement also includes the client's existing drain grace. */
-    int64 CleanupTimeout;
-    size_t MaxKeys;
-    size_t MaxWireBytes;
-    xredistransactionconfig Transaction;
-} xrediswatchconfig;
-
-/* Owned by the start Future. Watch is borrowed on EVERY accepted outcome;
- * only OK permits commands. On failure it still exposes the physical Closed
- * barrier. Retain it before destroying the Future. A retained completed result
- * does not pin the engine. Request.Reply is the WATCH response, not EXEC. */
-typedef struct xrediswatchresult {
-    xredisrequestresult Request;
-    xrediswatch* Watch;
-} xrediswatchresult;
-/* Owned by Closed's Future. Reason is the scope's first terminal reason;
- * Reusable certifies physical idle plus a validated clearing boundary. */
-typedef struct xrediswatchclosedresult {
-    xredisrequeststatus Reason;
-    bool Reusable;
-} xrediswatchclosedresult;
-
-XRT_EXTERN_C_BEGIN
-XREDIS_API bool xredisWatchConfigInit(xrediswatchconfig* Config);
-/* Claims an OPEN, ready, idle managed client. A busy/not-ready/already claimed
- * client returns OVERLOADED. Ordinary ClientCall/Transaction admissions are
- * refused while claimed. Keys are binary and copied only during admission.
- * Count must be 1..MaxKeys (default 256, hard limit 65536); default wire 64 KiB.
- * Config is copied; output changes only on ACCEPTED. No implicit retry.
- * Cancelling a pending start Future abandons the scope. */
-XREDIS_API xredisadmission xredisClientWatchAsync(xredisclient* Client,
-    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
-XREDIS_API xredisadmission xredisClientWatch(xredisclient* Client,
-    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
-XREDIS_API bool xredisWatchRetain(xrediswatch* Watch);
-XREDIS_API void xredisWatchRelease(xrediswatch* Watch);
-/* Ordinary one-reply reads/commands within this connection's WATCH scope.
- * Connection/mode/transaction controls are reserved. The effective deadline
- * is min(call entry + Timeout, scope deadline). Release alone does not abort.
- * Application writes have their ordinary Redis effects and are not rolled back. */
-XREDIS_API xredisadmission xredisWatchCallAsync(xrediswatch* Watch,
-    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
-XREDIS_API xredisadmission xredisWatchCall(xrediswatch* Watch,
-    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
-/* Exactly one accepted commit seals the scope against new calls/commits.
- * Earlier reads drain before MULTI. Result is xredistransactionresult; a null
- * EXEC is ABORTED, never an automatic retry. Logical completion precedes
- * physical Closed. Cancelling an accepted commit may retire the connection. */
-XREDIS_API xredisadmission xredisWatchCommitAsync(xrediswatch* Watch,
-    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
-XREDIS_API xredisadmission xredisWatchCommit(xrediswatch* Watch,
-    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
-/* Idempotent nonblocking abandonment. Idle scopes send UNWATCH; abandoning
- * while physical requests remain may retire the connection. No dirty reuse.
- * Closed is a retained observer, not a request to abort. It resolves only
- * after scoped request storage, timers, notifications and the claim retire.
- * Sync facades reject every worker of the client's engine. Stop/join the
- * engine before unloading code, including the final notification return tail. */
-XREDIS_API bool xredisWatchAbort(xrediswatch* Watch);
-XREDIS_API xfuture* xredisWatchClosed(xrediswatch* Watch);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/tls_auth.h */
 /* ========================================================================== */
 
@@ -3817,6 +3923,13 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_TRANSACTION"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_WATCH"
+#endif
+
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS)
 #undef XREDIS_FEATURE_XREDIS
@@ -3837,6 +3950,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL)
 #undef XREDIS_FEATURE_XREDIS_POOL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+#undef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_WATCH)
+#undef XREDIS_FEATURE_XREDIS_POOL_WATCH
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_WATCH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER)
 #undef XREDIS_FEATURE_XREDIS_READER
@@ -3885,6 +4006,14 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL)
 #undef XREDIS_MODULE_XREDIS_POOL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#undef XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_WATCH)
+#undef XREDIS_MODULE_XREDIS_POOL_WATCH
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_WATCH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER)
 #undef XREDIS_MODULE_XREDIS_READER
@@ -5592,6 +5721,12 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_MODULE_XREDIS_POOL
 #define XREDIS_MODULE_XREDIS_POOL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#define XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_WATCH
+#define XREDIS_MODULE_XREDIS_POOL_WATCH
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -5604,26 +5739,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_TLS_CLIENT_AUTH
 #define XRT_MODULE_TLS_CLIENT_AUTH
-#endif
-#endif
-
-/* xredis_watch 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
-#ifndef XREDIS_FEATURE_XREDIS_WATCH
-#define XREDIS_FEATURE_XREDIS_WATCH
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLIENT
-#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -5674,6 +5789,52 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_NET_TCP_DIAL
 #define XRT_MODULE_NET_TCP_DIAL
+#endif
+#endif
+
+/* xredis_pool_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_WATCH
+#define XREDIS_FEATURE_XREDIS_POOL_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_WATCH
+#define XREDIS_MODULE_XREDIS_WATCH
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_pool_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 

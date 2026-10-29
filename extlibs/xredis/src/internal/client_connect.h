@@ -28,6 +28,11 @@ struct xredisexclusiveowner {
 #if defined(XREDIS_FEATURE_XREDIS_POOL)
     xredisownerquota* Quota;
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    xredisexclusiveowner* Parent;
+    void (*Abandon)(ptr Data);
+    xatomic32 Nested;
+#endif
 };
 xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
     xnetengine** Engine, xnetworker** Worker, ptr Output);
@@ -36,6 +41,16 @@ bool __xredisClientIsWorker(xredisclient* Client);
 xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
     const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered,
     bool Control, xfuture** Future);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+#include <xredis/watch.h>
+xredisadmission __xredisClientClaimNested(xredisclient* Client, xredisexclusiveowner* Parent,
+    xredisexclusiveowner* Owner, xnetengine** Engine, xnetworker** Worker, ptr Output);
+bool __xredisClientUnclaimUnused(xredisclient* Client, xredisexclusiveowner* Owner);
+bool __xredisClientOwnerReady(xredisclient* Client, xredisexclusiveowner* Parent, bool Abandon);
+void __xredisClientChildDone(xredisexclusiveowner* Owner);
+xredisadmission __xredisWatchBeginOwned(xredisclient* Client, xredisexclusiveowner* Parent,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future, double Entered);
+#endif
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 #include <xredis/transaction.h>

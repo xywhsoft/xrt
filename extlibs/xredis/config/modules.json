@@ -63,7 +63,9 @@
       },
       {
         "name": "pool", "state": "retained", "source_roots": ["pool"]
-      }
+      },
+      {"name": "pool_transaction", "state": "retained", "source_roots": ["pool_transaction"]},
+      {"name": "pool_watch", "state": "retained", "source_roots": ["pool_watch"]}
     ]
   },
   "api_reference": {
@@ -85,6 +87,86 @@
   "umbrella_header": "xredis.h",
   "modules": [
     {
+      "name": "xredis_pool_transaction",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_POOL_TRANSACTION",
+      "depends": [
+        "xredis_pool",
+        "xredis_transaction"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/pool_transaction.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/pool_transaction/pool_transaction.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xredis/examples/pool_transaction/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_pool_transaction.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/pool-sessions.md",
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_watch",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_POOL_WATCH",
+      "depends": [
+        "xredis_pool",
+        "xredis_watch"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/pool_watch.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/pool_watch/pool_watch.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xredis/examples/pool_watch/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_pool_watch.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/pool-sessions.md",
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_sessions_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_pool_transaction",
+        "xredis_pool_watch",
+        "xredis_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_pool_sessions.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pool_sessions.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
       "name": "xredis_pool",
       "state": "developing",
       "feature": "XREDIS_FEATURE_XREDIS_POOL",
@@ -94,7 +176,9 @@
       "public_headers": [
         "extlibs/xredis/include/xredis/pool.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/pool_admit.h"
+      ],
       "sources": [
         "extlibs/xredis/src/pool/pool.c"
       ],
@@ -195,7 +279,9 @@
         "xredis_tls_auth",
         "xredis_transaction",
         "xredis_watch",
-        "xredis_pool"
+        "xredis_pool",
+        "xredis_pool_transaction",
+        "xredis_pool_watch"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -386,7 +472,8 @@
         "memory_stats",
         "thread",
         "xredis_watch_tests",
-        "xredis_pool_tests"
+        "xredis_pool_tests",
+        "xredis_pool_sessions_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -404,7 +491,8 @@
         "extlibs/xredis/tests/test_tls_auth.c",
         "extlibs/xredis/tests/test_transaction.c",
         "extlibs/xredis/tests/test_watch.c",
-        "extlibs/xredis/tests/test_pool.c"
+        "extlibs/xredis/tests/test_pool.c",
+        "extlibs/xredis/tests/test_pool_sessions.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -419,7 +507,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_tls_auth.c",
         "extlibs/xredis/tests/single/test_single_xredis_transaction.c",
         "extlibs/xredis/tests/single/test_single_xredis_watch.c",
-        "extlibs/xredis/tests/single/test_single_xredis_pool.c"
+        "extlibs/xredis/tests/single/test_single_xredis_pool.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_sessions.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -441,7 +530,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_tls_auth.c": "xredis_tls_auth_tests",
         "extlibs/xredis/tests/single/test_single_xredis_transaction.c": "xredis_transaction_tests",
         "extlibs/xredis/tests/single/test_single_xredis_watch.c": "xredis_watch_tests",
-        "extlibs/xredis/tests/single/test_single_xredis_pool.c": "xredis_pool_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_pool.c": "xredis_pool_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_sessions.c": "xredis_pool_sessions_tests"
       }
     }
   ]

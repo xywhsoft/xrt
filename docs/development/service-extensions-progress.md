@@ -1791,3 +1791,103 @@ Ignored `out/service-extensions/pool/` holds exact receipts, 52 current binary
 hashes, raw passing/failing logs, layouts, packages/size/performance reports and
 `validation.json`. `extlibs/xredis/docs/pool.md` describes limits, ownership,
 actual costs, remaining scope and runnable commands.
+
+## P2 xredis: native pooled transactions and nested WATCH (2026-10-29)
+
+`xredis_pool_transaction` supplies direct native staged transaction Futures on
+leases. Accepted native enqueue seals the lease; preceding calls drain before
+MULTI, queue errors suppress EXEC and complete DISCARD, runtime error children
+remain ordered, known/null abort differs from uncertain execution and no replay
+occurs. Native wire/control/aligned-state bytes retain the pool's aggregate
+physical quota. Deadline is capped at the original lease hold. Explicit lease
+Return/Closed preserves physical request obligations rather than treating a
+logical Future as a slot boundary. No per-call adapter Future, wire clone or
+per-request lease pointer is introduced.
+
+`xredis_pool_watch` starts a native scope on a physically idle lease, with bounded
+busy refusal and success-only input/output ownership. Validation/OOM/admission
+failure restores an unused lease without reopening a concurrently returned or
+closed parent. Acceptance consumes/seals the lease. Scope/read/transaction/
+UNWATCH inherit quota and the original hold deadline. A live nested owner,
+including a zero-request application think interval, cannot be returned. Return
+requests bounded abandonment; grace/hold expiry, Abort and PoolClose can retire
+a dirty/busy stream. Parent publication waits for child physical Closed.
+
+The private handoff replaces/restores ownership under the native client gate,
+retains child data before abandonment outside that gate, and uses a parent
+retirement marker. Merely restoring the parent pointer is insufficient: marker
+release/wake occurs only after the child's source notifications, native client
+reference, independent engine Pin and Closed publication retire. Different
+client/pool workers cannot publish lease/pool closure before that point. Retained
+completed scope/lease metadata never dereferences a freed pool. This uses only
+the existing engine/workers, posts, timers/Futures and extension-private helpers;
+no new shared runtime/thread or XRT API implementation was required.
+
+Four APIs are registered (78 functions, 129 constants/macros, 51 public types).
+The integrations and their incomplete product dependencies remain developing;
+automatic repair/reconnect, repeated WATCH key extension, HA/dedicated modes and
+final production/performance acceptance are still pending. No narrower definition
+of the four-library goal is adopted.
+
+Windows GCC O2 and WSL GCC O2 ASan/UBSan each pass 14 modular plus 14 single-header
+programs (56 total). New checks cover plain/TLS binary transactions and nested
+reads/commit/abort, predecessor ordering, seal/rejected duplicate output, staged/
+queue/runtime/malformed/opaque/null/drop failures, busy WATCH refusal, metadata
+byte caps, nested physical quota retained after local cancellation, malformed/
+rejected/held UNWATCH, explicit parent-before-child observation across workers,
+parent grace/hold and scope deadlines, pending start cancellation, forced parent/
+pool close, cancelled EXEC uncertainty, 146 admission/OOM rollback windows,
+retained metadata after complete engine teardown, cross-worker sync refusal and
+20 four-thread WATCH/transaction/call/Return races. Parent Closed must observe
+child Closed already resolved. Existing full codec/client/TLS/pool suites also
+run; positive integration tests do not substitute for them.
+
+Each platform passes six independent Redis 8.0.5 cases: TLS 1.2/1.3, RSA client
+certificates, no-password/password/ACL auth, RESP2/RESP3 within every case. Real
+leased SET/GET EXEC, nested reads/conflicting writes, scope-before-lease closure,
+reacquisition of the same physical member followed by an external modification
+and plain EXEC (no inherited WATCH), and ACL-denied UNWATCH retirement pass.
+Earlier transaction/WATCH/pool/blocking oracles also run. Windows is a native
+client against a WSL peer with native Windows TLS startup health, not native
+Linux acceptance. These passes do not diagnose the prior generic startup
+observation. Exact input fingerprints: Windows
+`0f3cb409a0614c0b13fab6b0a3fef95de47b9b250acb8417b8590ab3c56272d4`; WSL
+`0f8d45719a91897acdc20bc0633f26d3d4505f33422c01eed2128a8c049d9250`. Receipts revalidate actual platform
+sources, all relevant headers/helpers, compiler and binary before/after execution.
+
+Separate minimal static/shared consumers exercise each optional integration,
+not a forced product root; both examples, declaration-only syntax, trim and
+single/static/shared size profiles pass. Transaction-only selection excludes
+WATCH and optional DNS/TLS/HTTP/task/process symbols; nested selection excludes
+those unrelated runtimes. Normal maturity has 28 workloads and 12 size profiles;
+strict release correctly refuses seven developing modules. Native MSVC and
+native Linux deployment acceptance remain unproven by these GCC/WSL checks.
+
+Measured x64 private storage keeps ordinary requests at 104 bytes, client config
+232 and result 24. Client remains 856 bytes Windows / 928 WSL (one shared owner
+pointer). Optional parent/abandonment/atomic retirement/alignment add 24 bytes to
+the owner: slots become 208, combined nested WATCH scopes 640/712. Pool prefix
+440/512, lease 200/272 and quota group 40 remain unchanged. Standalone selections
+omit nested fields. Public layouts are feature-independent. Gates, state/lineage
+checks, native quota CAS/decrements, references, clocks, allocation/copy/encoding,
+network/control round trips and cold parent handoff remain real costs. No
+zero-overhead claim is made.
+
+Performance runs retain native standalone two-command transactions/WATCH cycles
+and full pooled transaction/WATCH cycles including acquire, child/parent physical
+barriers and observer release; TCP/pool construction is outside timing. Both
+platforms run five full repeats plus one warmup, all four workloads completing
+1000 in every measured sample. Unchanged 3% relative MAD / 6% central-range
+gates report Windows 5 and WSL
+1 quality failures. Keep every sample;
+unpinned local C-peer measurements do not establish accepted speedup/overhead,
+tail latency or independent parity. Source fingerprint
+`a1b9a2e94a0df30dd1e0b8d714799a40d1a4bdb685ffbc6ae3c75ab04b61feba`; workload fingerprint
+`9939f9f13ec44123f0db33de404a22e5bc2359c3f12b708eae6d07dc510008f9`. Pinned matched native platform/
+Hiredis/workload/cost sweeps and final >=72-hour mixed/fault acceptance remain
+required; the complete four-product goal remains active and unachieved.
+
+Ignored `out/service-extensions/pool-sessions/` contains exact receipts, 56 current
+binary hashes, raw logs, layouts, packages/size/performance and `validation.json`.
+See `extlibs/xredis/docs/pool-sessions.md` and its runnable examples for contracts,
+limits and commands.

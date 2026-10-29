@@ -141,7 +141,8 @@ Semantics follow the official [WATCH](https://redis.io/docs/latest/commands/watc
 [UNWATCH](https://redis.io/docs/latest/commands/unwatch/) and
 [transaction](https://redis.io/docs/latest/develop/using-commands/transactions/)
 contracts. WATCH/read/decision is a separate optional API; repeated WATCH key
-extension and pooling/lease integration are not supplied by this version.
+extension is still pending. Optional [pool/lease integration](pool-sessions.md)
+uses the same native scope with explicit parent lifetime and quota inheritance.
 Production release still requires the complete project contract, native
 Windows/Linux acceptance, independent fault/recovery and sustained mixed load,
 and stable matched performance baselines with unchanged noise gates.

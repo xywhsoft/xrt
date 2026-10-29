@@ -1,6 +1,40 @@
 /* Compile against exactly the features shipped by this package. */
 #include <xredis.h>
 #include <string.h>
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) || defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+#include "../support/pool_sessions_peer.h"
+static int testPoolSessionsPackage(void)
+{
+    redispoolsessionspeer Fixture; redisPoolSessionsPeerStart(&Fixture, W_NORMAL, TX_NORMAL, false, NULL);
+    xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), XRT_BYTES_LITERAL("package-session\0binary")}; xredistransactioncommand Command = {Echo, 2};
+    xfuture* Acquired = NULL;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+    if (xredisPoolAcquire(Fixture.Pool, 5000, &Acquired) != XREDIS_ADMISSION_ACCEPTED) return 40;
+    const xredisleaseresult* Lease = xrtFutureValue(Acquired); if (!Lease || !Lease->Lease) return 41;
+    xfuture* Transaction = NULL;
+    if (xredisLeaseTransaction(Lease->Lease, &Command, 1, NULL, 5000, &Transaction) != XREDIS_ADMISSION_ACCEPTED ||
+        ((const xredistransactionresult*)xrtFutureValue(Transaction))->Execution != XREDIS_TRANSACTION_EXECUTED) return 42;
+    xfuture* Returned = xredisLeaseClosed(Lease->Lease); xredisLeaseReturn(Lease->Lease);
+    if (xrtFutureWaitFor(Returned, 10000) != XWAIT_OK || !((const xredisleaseclosedresult*)xrtFutureValue(Returned))->Reusable) return 43;
+    xrtFutureDestroy(Acquired); xrtFutureDestroy(Transaction); xrtFutureDestroy(Returned); Acquired = NULL;
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    if (xredisPoolAcquire(Fixture.Pool, 5000, &Acquired) != XREDIS_ADMISSION_ACCEPTED) return 44;
+    const xredisleaseresult* WatchLease = xrtFutureValue(Acquired); if (!WatchLease || !WatchLease->Lease) return 45;
+    xbytesview Key = XRT_BYTES_LITERAL("package-watch"); xfuture* Started = NULL;
+    if (xredisLeaseWatch(WatchLease->Lease, &Key, 1, NULL, &Started) != XREDIS_ADMISSION_ACCEPTED) return 46;
+    const xrediswatchresult* Scope = xrtFutureValue(Started); if (!Scope || Scope->Request.Status != XREDIS_REQUEST_OK) return 47;
+    xfuture* Commit = NULL;
+    if (xredisWatchCommit(Scope->Watch, &Command, 1, 5000, &Commit) != XREDIS_ADMISSION_ACCEPTED ||
+        ((const xredistransactionresult*)xrtFutureValue(Commit))->Execution != XREDIS_TRANSACTION_EXECUTED) return 48;
+    xfuture* ScopeClosed = xredisWatchClosed(Scope->Watch); if (xrtFutureWaitFor(ScopeClosed, 10000) != XWAIT_OK) return 49;
+    xfuture* LeaseClosed = xredisLeaseClosed(WatchLease->Lease); xredisLeaseReturn(WatchLease->Lease);
+    if (xrtFutureWaitFor(LeaseClosed, 10000) != XWAIT_OK || !((const xredisleaseclosedresult*)xrtFutureValue(LeaseClosed))->Reusable) return 50;
+    xrtFutureDestroy(Acquired); xrtFutureDestroy(Started); xrtFutureDestroy(Commit); xrtFutureDestroy(ScopeClosed); xrtFutureDestroy(LeaseClosed);
+#endif
+    redisPoolSessionsPeerStop(&Fixture); return 0;
+}
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_COMMAND) && !defined(XREDIS_FEATURE_XREDIS_READER)
 #error "package consumer requires the actual selected package feature definitions"
 #endif
@@ -148,7 +182,12 @@ int main(void)
     xrtFutureDestroy(Future); xrtFutureDestroy(Ready);
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL)
-    return testPoolPackage();
+    int PoolResult = testPoolPackage(); if (PoolResult) return PoolResult;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION) || defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    return testPoolSessionsPackage();
+#else
+    return 0;
+#endif
 #else
     return 0;
 #endif

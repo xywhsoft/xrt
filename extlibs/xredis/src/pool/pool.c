@@ -1,5 +1,6 @@
 #include <xredis/pool.h>
 #include "../internal/client_connect.h"
+#include "../internal/pool_admit.h"
 #include <xrt/memory.h>
 #include <math.h>
 #include <stdlib.h>
@@ -238,6 +239,16 @@ static void xredisPoolProcessLease(xredispool* Pool, xredislease* Lease)
     xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE);
     if (Abort || Closing || (Reason && Info.Requests)) xredisClientClose(Slot->Client);
     if (APIs) return; /* Leave always queues another event. */
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    if (!__xredisClientOwnerReady(Slot->Client, &Slot->Owner, true)) {
+        if (Reason || Abort || Closing) xredisClientClose(Slot->Client);
+        else {
+            double Deadline = ReturnBy < Lease->HoldDeadline ? ReturnBy : Lease->HoldDeadline;
+            if (!xredisLeaseArm(Pool, Lease, Deadline) && !Lease->Timer) xredisClientClose(Slot->Client);
+        }
+        return;
+    }
+#endif
     xredisClientInfo(Slot->Client, &Info);
     if (Info.Requests) {
         if (!Reason && !Abort && !Closing) {
@@ -423,6 +434,9 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
         xredispoolslot* Slot = &Pool->Slots[Index]; Slot->Pool = Pool; Slot->Owner.Data = Slot;
         Slot->Owner.Retain = xredisPoolSlotRef; Slot->Owner.Release = xredisPoolSlotDrop; Slot->Owner.Wake = xredisPoolSlotNotify;
         Slot->Owner.Quota = &Pool->Quota; Slot->Owner.Deadline = INFINITY; xrtAtomic32Init(&Slot->Owner.State, XREDIS_OWNER_CLOSING);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+        xrtAtomic32Init(&Slot->Owner.Nested, 0);
+#endif
         xnetengine* MemberEngine = NULL; xnetworker* MemberWorker = NULL;
         Admission = __xredisClientClaim(Clients[Index], &Slot->Owner, &MemberEngine, &MemberWorker, Result);
         (void)MemberWorker;
@@ -523,8 +537,8 @@ XREDIS_API bool xredisPoolClose(xredispool* Pool)
 XREDIS_API xfuture* xredisPoolClosed(xredispool* Pool)
 { if (!Pool) { xredisPoolReport(XERR_ARGUMENT, "pool is NULL"); return NULL; } return xrtFutureRef(Pool->CloseFuture); }
 
-static xredisadmission xredisLeaseCallAdmit(xredislease* Lease, const xbytesview* Arguments, size_t Count,
-    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+static xredisadmission xredisLeaseEnter(xredislease* Lease, bool Sync, xfuture** Future,
+    xredispool** ResultPool, xredispoolslot** ResultSlot)
 {
     if (!Lease || !Future || !xrtMemRangeValid(Future, sizeof(*Future)) || xrtMemRangesOverlap(Lease, Lease ? sizeof(*Lease) : 0, Future, sizeof(*Future))) {
         xredisPoolReport(XERR_ARGUMENT, "invalid leased call/output"); return XREDIS_ADMISSION_ERROR;
@@ -535,15 +549,30 @@ static xredisadmission xredisLeaseCallAdmit(xredislease* Lease, const xbytesview
     }
     xredispoolslot* Slot = Lease->Slot; xredispool* Pool = Lease->Pool; ++Lease->APIs;
     xrtMutexUnlock(&Lease->Gate);
-    xredisadmission Admission;
-    if (Sync && __xredisClientIsWorker(Slot->Client)) { xredisPoolReport(XERR_STATE, "sync leased call cannot block an engine worker"); Admission = XREDIS_ADMISSION_ERROR; }
-    else Admission = __xredisClientOwnedCall(Slot->Client, &Slot->Owner, Arguments, Count, Timeout, Entered, false, Future);
+    if (Sync && __xredisClientIsWorker(Slot->Client)) {
+        xrtMutexLock(&Lease->Gate); --Lease->APIs; xredisPoolRef(Pool); xrtMutexUnlock(&Lease->Gate);
+        xredisPoolQueueLease(Pool, Lease); xredisPoolRelease(Pool);
+        xredisPoolReport(XERR_STATE, "sync leased operation cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
+    }
+    *ResultPool = Pool; *ResultSlot = Slot; return XREDIS_ADMISSION_ACCEPTED;
+}
+static void xredisLeaseLeave(xredislease* Lease, xredispool* Pool)
+{
     xrtMutexLock(&Lease->Gate); --Lease->APIs;
     bool Wake = Lease->Returning || xrtAtomic32Load(&Lease->Reason, XMEMORY_ACQUIRE) ||
         xrtAtomic32Load(&Pool->Quota.Closing, XMEMORY_ACQUIRE);
     if (Wake) xredisPoolRef(Pool);
     xrtMutexUnlock(&Lease->Gate);
     if (Wake) { xredisPoolQueueLease(Pool, Lease); xredisPoolRelease(Pool); }
+}
+static xredisadmission xredisLeaseCallAdmit(xredislease* Lease, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{
+    xredispool* Pool = NULL; xredispoolslot* Slot = NULL;
+    xredisadmission Admission = xredisLeaseEnter(Lease, Sync, Future, &Pool, &Slot);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) return Admission;
+    Admission = __xredisClientOwnedCall(Slot->Client, &Slot->Owner, Arguments, Count, Timeout, Entered, false, Future);
+    xredisLeaseLeave(Lease, Pool);
     if (Sync && Admission == XREDIS_ADMISSION_ACCEPTED) xrtFutureWait(*Future);
     return Admission;
 }
@@ -551,6 +580,32 @@ XREDIS_API xredisadmission xredisLeaseCallAsync(xredislease* Lease, const xbytes
 { return xredisLeaseCallAdmit(Lease, Arguments, Count, Timeout, Future, xrtTimer(), false); }
 XREDIS_API xredisadmission xredisLeaseCall(xredislease* Lease, const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
 { return xredisLeaseCallAdmit(Lease, Arguments, Count, Timeout, Future, xrtTimer(), true); }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
+xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
+    size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{
+    xredispool* Pool = NULL; xredispoolslot* Slot = NULL;
+    xredisadmission Admission = xredisLeaseEnter(Lease, Sync, Future, &Pool, &Slot);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) return Admission;
+    Admission = __xredisClientOwnedTransaction(Slot->Client, &Slot->Owner, Commands, Count, Config, Timeout, Entered, Future);
+    xredisLeaseLeave(Lease, Pool);
+    if (Sync && Admission == XREDIS_ADMISSION_ACCEPTED) xrtFutureWait(*Future);
+    return Admission;
+}
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+xredisadmission __xredisLeaseWatch(xredislease* Lease, const xbytesview* Keys, size_t Count,
+    const xrediswatchconfig* Config, xfuture** Future, double Entered, bool Sync)
+{
+    xredispool* Pool = NULL; xredispoolslot* Slot = NULL;
+    xredisadmission Admission = xredisLeaseEnter(Lease, Sync, Future, &Pool, &Slot);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) return Admission;
+    Admission = __xredisWatchBeginOwned(Slot->Client, &Slot->Owner, Keys, Count, Config, Future, Entered);
+    xredisLeaseLeave(Lease, Pool);
+    if (Sync && Admission == XREDIS_ADMISSION_ACCEPTED) xrtFutureWait(*Future);
+    return Admission;
+}
+#endif
 static bool xredisLeaseSeal(xredislease* Lease, bool Abort)
 {
     if (!Lease) return xredisPoolReport(XERR_ARGUMENT, "lease is NULL");

@@ -1498,13 +1498,93 @@ xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* 
     return Admission;
 }
 
-bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner)
+static bool xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner, bool Unused)
 {
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    xredisexclusiveowner* Parent = NULL;
+#else
+    (void)Unused;
+#endif
     xrtMutexLock(&Client->Gate);
     bool Idle = Client->Owner == Owner && Client->Info.Requests == 0;
-    if (Idle) Client->Owner = NULL;
-    xrtMutexUnlock(&Client->Gate); return Idle;
+    if (Idle) {
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+        Parent = Owner->Parent;
+        if (Parent != NULL) {
+            if (Unused) {
+                Parent->Retain(Parent->Data);
+                xrtAtomic32Store(&Parent->Nested, 0, XMEMORY_RELEASE);
+                if (!xrtAtomic32Load(&Parent->Quota->Closing, XMEMORY_ACQUIRE))
+                    (void)xredisClientOwnerSwap(Parent, XREDIS_OWNER_SEALED, XREDIS_OWNER_ACTIVE);
+            }
+        }
+        Client->Owner = Parent;
+#else
+        Client->Owner = NULL;
+#endif
+    }
+    xrtMutexUnlock(&Client->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    if (Parent != NULL && Unused) { Parent->Wake(Parent->Data); Parent->Release(Parent->Data); }
+#endif
+    return Idle;
 }
+bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner)
+{ return xredisClientUnclaim(Client, Owner, false); }
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+bool __xredisClientUnclaimUnused(xredisclient* Client, xredisexclusiveowner* Owner)
+{ return xredisClientUnclaim(Client, Owner, true); }
+
+xredisadmission __xredisClientClaimNested(xredisclient* Client, xredisexclusiveowner* Parent,
+    xredisexclusiveowner* Owner, xnetengine** Engine, xnetworker** Worker, ptr Output)
+{
+    if (xrtMemRangesOverlap(Client, Client->StorageBytes, Output, sizeof(xfuture*))) {
+        xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "nested output overlaps client"); return XREDIS_ADMISSION_ERROR;
+    }
+    xrtMutexLock(&Client->Gate);
+    xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING || Client->Owner != Parent ||
+        xrtAtomic32Load(&Parent->Quota->Closing, XMEMORY_ACQUIRE) ||
+        xrtAtomic32Load(&Parent->State, XMEMORY_ACQUIRE) != XREDIS_OWNER_ACTIVE ? XREDIS_ADMISSION_CLOSED :
+        Client->Info.Requests ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        if (!xredisClientOwnerSwap(Parent, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED)) Admission = XREDIS_ADMISSION_CLOSED;
+        else if (!xrtNetEnginePin(Client->Engine)) {
+            (void)xredisClientOwnerSwap(Parent, XREDIS_OWNER_SEALED, XREDIS_OWNER_ACTIVE); Admission = XREDIS_ADMISSION_ERROR;
+        } else {
+            Owner->Parent = Parent; Owner->Quota = Parent->Quota;
+            xrtAtomic32Store(&Parent->Nested, 1, XMEMORY_RELEASE);
+            if (Owner->Deadline > Parent->Deadline) Owner->Deadline = Parent->Deadline;
+            Client->Owner = Owner; xredisClientRef(Client); *Engine = Client->Engine; *Worker = Client->Worker;
+        }
+    }
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) ++Client->Info.Rejected;
+    xrtMutexUnlock(&Client->Gate); return Admission;
+}
+
+/* Caller owns the parent/client lifetime. Retain the child under the native
+ * Gate, then request abandonment outside it. A temporary zero-request WATCH
+ * interval is not permission to return the parent slot. */
+bool __xredisClientOwnerReady(xredisclient* Client, xredisexclusiveowner* Parent, bool Abandon)
+{
+    xredisexclusiveowner* Child = NULL;
+    xrtMutexLock(&Client->Gate); bool Ready = Client->Owner == Parent && !xrtAtomic32Load(&Parent->Nested, XMEMORY_ACQUIRE);
+    if (!Ready && Abandon && Client->Owner != NULL && Client->Owner->Parent == Parent) {
+        Child = Client->Owner; Child->Retain(Child->Data);
+    }
+    xrtMutexUnlock(&Client->Gate);
+    if (Child != NULL) { Child->Abandon(Child->Data); Child->Release(Child->Data); }
+    return Ready;
+}
+void __xredisClientChildDone(xredisexclusiveowner* Owner)
+{
+    xredisexclusiveowner* Parent = Owner->Parent;
+    if (Parent == NULL) return;
+    Parent->Retain(Parent->Data);
+    xrtAtomic32Store(&Parent->Nested, 0, XMEMORY_RELEASE);
+    Parent->Wake(Parent->Data); Parent->Release(Parent->Data);
+}
+#endif
 
 bool __xredisClientIsWorker(xredisclient* Client)
 {
@@ -1710,7 +1790,7 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	xrtAtomic32Init(&Request->References, 1); xrtAtomic32Init(&Request->Cancelled, 0);
 	Request->Client = Client; Request->WireBytes = Bytes; Request->Deadline = xredisClientDeadline(Entered, Timeout);
 #if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
-    if (Owner != NULL && !Control && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
+    if (Owner != NULL && (!Control || xredisClientWord(Arguments[0], "WATCH")) && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
 #endif
 	Request->Sensitive = xredisClientWord(Arguments[0], "AUTH") || xredisClientWord(Arguments[0], "HELLO");
 	Request->Result = (xredisrequestresult*)xrtMalloc(sizeof(*Request->Result));

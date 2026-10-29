@@ -8,7 +8,7 @@ TCP request/response connection, explicit HELLO/AUTH initialization and optional
 asynchronous DNS/multiple-endpoint setup and server-authenticated TLS transport
 are implemented. Optional initial client-certificate authentication is also
 locally verified. Atomic transaction execution is locally verified; identity-bound
-tickets, automatic pool repair, pooled transaction/WATCH handoff, remaining
+tickets, automatic pool repair, remaining
 advanced modes, HA and production/performance acceptance
 remain pending.**
 
@@ -138,7 +138,10 @@ leases over existing ready managed TCP/TLS clients. Native calls retain hard
 aggregate physical request/byte quotas; graceful Return waits for real storage
 retirement, and old handles cannot address a reused connection. See [pool ownership
 and actual costs](docs/pool.md) and [the two-member example](examples/pool/main.c).
-Automatic repair and pooled transaction/WATCH integration remain in development.
+Select `XREDIS_MODULE_XREDIS_POOL_TRANSACTION` or `XREDIS_MODULE_XREDIS_POOL_WATCH`
+for [native leased transactions and nested WATCH sessions](docs/pool-sessions.md).
+Their physical child/parent barriers preserve quotas and safe handoff. Automatic
+repair and final production/performance acceptance remain in development.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests

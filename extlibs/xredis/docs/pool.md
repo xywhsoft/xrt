@@ -2,9 +2,11 @@
 
 Select `XREDIS_MODULE_XREDIS_POOL`. This is the fixed-membership lease core on
 existing managed clients; the module and product remain **developing**. Automatic
-connection creation/replacement/reconnect, pooled transaction/WATCH handoff,
-HA routing, final performance and production acceptance remain required by the
+connection creation/replacement/reconnect, HA routing, final performance and production acceptance remain required by the
 full project plan. This core does not redefine that final scope.
+
+Optional [pooled transaction/WATCH integrations](pool-sessions.md) reuse this
+core's native quota and physical lease barriers without per-call Future adapters.
 
 ## Construction and session profile
 

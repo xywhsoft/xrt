@@ -164,7 +164,13 @@ static void xredisWatchFinish(xrediswatch* Watch, bool Reusable)
     *Result = (xrediswatchclosedresult){(xredisrequeststatus)(xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE) - 1u), Reusable};
     xpromise* Promise = Watch->ClosePromise; Watch->ClosePromise = NULL;
     if (!xrtPromiseResolveOwned(Promise, Result, xredisWatchCloseResultDrop, NULL)) xrtFree(Result);
-    xrtPromiseDestroy(Promise); xredisWatchRelease(Watch); /* Active lifetime. */
+    xrtPromiseDestroy(Promise);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    /* The parent's pool/lease barrier must include this scope's own Pin,
+     * observers and physical Closed publication, not just native request=0. */
+    __xredisClientChildDone(&Watch->Owner);
+#endif
+    xredisWatchRelease(Watch); /* Active lifetime. */
 }
 
 static void xredisWatchWork(xnetworker* Worker, ptr Data)
@@ -253,7 +259,7 @@ XREDIS_API bool xredisWatchConfigInit(xrediswatchconfig* Config)
 }
 
 static xredisadmission xredisWatchBegin(xredisclient* Client, const xbytesview* Keys, size_t Count,
-    const xrediswatchconfig* Config, xfuture** Future, double Entered)
+    const xrediswatchconfig* Config, xfuture** Future, double Entered, xredisexclusiveowner* Parent)
 {
     xrediswatchconfig Options;
     if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) ||
@@ -288,6 +294,12 @@ static xredisadmission xredisWatchBegin(xredisclient* Client, const xbytesview* 
     xrtAtomic32Init(&Watch->Owner.State, XREDIS_OWNER_STARTING);
     Watch->Owner.Deadline = nextafter(Entered + (double)Options.Timeout * 0.001, INFINITY);
     Watch->Owner.Retain = xredisWatchRef; Watch->Owner.Release = xredisWatchDrop; Watch->Owner.Wake = xredisWatchWake;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+    Watch->Owner.Abandon = xredisWatchCancel;
+    xrtAtomic32Init(&Watch->Owner.Nested, 0);
+#else
+    (void)Parent;
+#endif
     Watch->StartResult = xrtMalloc(sizeof(*Watch->StartResult)); Watch->CloseResult = xrtMalloc(sizeof(*Watch->CloseResult));
     if (Watch->StartResult) memset(Watch->StartResult, 0, sizeof(*Watch->StartResult));
     bool Ready = Watch->StartResult && Watch->CloseResult && xrtNetPostInit(&Watch->Work) &&
@@ -300,12 +312,24 @@ static xredisadmission xredisWatchBegin(xredisclient* Client, const xbytesview* 
         if (Token) Watch->Cancel = xrtCancelWatch(Token, xredisWatchCancel, Watch);
         xrtCancelDestroy(Token); Ready = Watch->Cancel != NULL;
     }
-    xredisadmission Admission = Ready ? __xredisClientClaim(Client, &Watch->Owner, &Watch->Engine, &Watch->Worker, Future) : XREDIS_ADMISSION_ERROR;
+    xredisadmission Admission = XREDIS_ADMISSION_ERROR;
+    if (Ready) {
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+        if (Parent != NULL) Admission = __xredisClientClaimNested(Client, Parent, &Watch->Owner, &Watch->Engine, &Watch->Worker, Future);
+        else
+#endif
+        Admission = __xredisClientClaim(Client, &Watch->Owner, &Watch->Engine, &Watch->Worker, Future);
+    }
     if (Admission == XREDIS_ADMISSION_ACCEPTED) {
         Watch->Client = Client; Watch->Futures[XREDIS_W_CLIENT_CLOSED] = xredisClientClosed(Client);
         Admission = __xredisClientOwnedCall(Client, &Watch->Owner, Arguments, Count + 1u, Options.Timeout, Entered, true, &Watch->Futures[XREDIS_W_WATCH]);
         if (Admission != XREDIS_ADMISSION_ACCEPTED) {
-            (void)__xredisClientUnclaim(Client, &Watch->Owner); xredisClientRelease(Client); xrtNetEngineUnpin(Watch->Engine);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+            (void)__xredisClientUnclaimUnused(Client, &Watch->Owner);
+#else
+            (void)__xredisClientUnclaim(Client, &Watch->Owner);
+#endif
+            xredisClientRelease(Client); xrtNetEngineUnpin(Watch->Engine);
             xrtFutureDestroy(Watch->Futures[XREDIS_W_CLIENT_CLOSED]); Watch->Client = NULL; Watch->Engine = NULL;
         }
     }
@@ -322,16 +346,21 @@ static xredisadmission xredisWatchBegin(xredisclient* Client, const xbytesview* 
 }
 XREDIS_API xredisadmission xredisClientWatchAsync(xredisclient* Client, const xbytesview* Keys,
     size_t Count, const xrediswatchconfig* Config, xfuture** Future)
-{ return xredisWatchBegin(Client, Keys, Count, Config, Future, xrtTimer()); }
+{ return xredisWatchBegin(Client, Keys, Count, Config, Future, xrtTimer(), NULL); }
 XREDIS_API xredisadmission xredisClientWatch(xredisclient* Client, const xbytesview* Keys,
     size_t Count, const xrediswatchconfig* Config, xfuture** Future)
 {
     double Entered = xrtTimer();
     if (Client && __xredisClientIsWorker(Client)) { xredisWatchReport(XERR_STATE, "sync WATCH cannot block an engine worker"); return XREDIS_ADMISSION_ERROR; }
-    xredisadmission Admission = xredisWatchBegin(Client, Keys, Count, Config, Future, Entered);
+    xredisadmission Admission = xredisWatchBegin(Client, Keys, Count, Config, Future, Entered, NULL);
     if (Admission == XREDIS_ADMISSION_ACCEPTED) (void)xrtFutureWait(*Future);
     return Admission;
 }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
+xredisadmission __xredisWatchBeginOwned(xredisclient* Client, xredisexclusiveowner* Parent,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future, double Entered)
+{ return xredisWatchBegin(Client, Keys, Count, Config, Future, Entered, Parent); }
+#endif
 
 /* APIs protect the engine/client borrow through encoding and final admission.
  * Commit seals under the native client Gate, not at the start of encoding. */

@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `74` 个函数、`127` 个常量或宏、
+当前登记 `78` 个函数、`129` 个常量或宏、
 `51` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
@@ -191,6 +191,43 @@
 - `xredispoolinfo`
 - `xredispoolstate`
 
+## `extlibs/xredis/include/xredis/pool_transaction.h`
+
+[查看带契约注释的公共头](../../include/xredis/pool_transaction.h)
+
+### 函数 (2)
+
+- `xredisLeaseTransaction`
+- `xredisLeaseTransactionAsync`
+
+### 常量与宏 (2)
+
+- `XREDIS_FEATURE_XREDIS_POOL_TRANSACTION`
+- `XREDIS_FEATURE_XREDIS_TRANSACTION`
+
+### 类型 (2)
+
+- `xredistransactioncommand`
+- `xredistransactionconfig`
+
+## `extlibs/xredis/include/xredis/pool_watch.h`
+
+[查看带契约注释的公共头](../../include/xredis/pool_watch.h)
+
+### 函数 (2)
+
+- `xredisLeaseWatch`
+- `xredisLeaseWatchAsync`
+
+### 常量与宏 (2)
+
+- `XREDIS_FEATURE_XREDIS_POOL_WATCH`
+- `XREDIS_FEATURE_XREDIS_WATCH`
+
+### 类型 (1)
+
+- `xrediswatchconfig`
+
 ## `extlibs/xredis/include/xredis/reader.h`
 
 [查看带契约注释的公共头](../../include/xredis/reader.h)
@@ -347,9 +384,8 @@
 - `xredisClientTransactionAsync`
 - `xredisClientTransactionConfigInit`
 
-### 常量与宏 (7)
+### 常量与宏 (6)
 
-- `XREDIS_FEATURE_XREDIS_TRANSACTION`
 - `XREDIS_TRANSACTION_ABORTED`
 - `XREDIS_TRANSACTION_COMMANDS_DEFAULT`
 - `XREDIS_TRANSACTION_COMMANDS_MAX`
@@ -357,10 +393,8 @@
 - `XREDIS_TRANSACTION_MAY_HAVE_EXECUTED`
 - `XREDIS_TRANSACTION_NOT_EXECUTED`
 
-### 类型 (4)
+### 类型 (2)
 
-- `xredistransactioncommand`
-- `xredistransactionconfig`
 - `xredistransactionexecution`
 - `xredistransactionresult`
 
@@ -382,13 +416,8 @@
 - `xredisWatchRelease`
 - `xredisWatchRetain`
 
-### 常量与宏 (1)
-
-- `XREDIS_FEATURE_XREDIS_WATCH`
-
-### 类型 (4)
+### 类型 (3)
 
 - `xrediswatch`
 - `xrediswatchclosedresult`
-- `xrediswatchconfig`
 - `xrediswatchresult`

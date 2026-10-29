@@ -1588,6 +1588,96 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_pool_transaction",
+      "system": "pool_transaction",
+      "description": "Full warm pooled session/physical return cycle, different client and pool workers; no production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_transaction",
+          "source": "extlibs/xredis/bench/bench_pool_transaction.c",
+          "suite": "xredis_pool_transaction",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_sessions_peer.h",
+            "extlibs/xredis/tests/support/watch_peer.h",
+            "extlibs/xredis/tests/support/transaction_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "1000"
+          ],
+          "smoke_args": [
+            "25"
+          ],
+          "metadata": [
+            "workload"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_pool_watch",
+      "system": "pool_watch",
+      "description": "Full warm pooled session/physical return cycle, different client and pool workers; no production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_watch",
+          "source": "extlibs/xredis/bench/bench_pool_watch.c",
+          "suite": "xredis_pool_watch",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_sessions_peer.h",
+            "extlibs/xredis/tests/support/watch_peer.h",
+            "extlibs/xredis/tests/support/transaction_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "1000"
+          ],
+          "smoke_args": [
+            "25"
+          ],
+          "metadata": [
+            "workload"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            }
+          }
+        }
+      ]
     }
   ]
 }

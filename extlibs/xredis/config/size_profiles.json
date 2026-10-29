@@ -132,6 +132,36 @@
         "xrtProcess",
         "xrtNetDial"
       ]
+    },
+    {
+      "name": "xredis_pool_transaction",
+      "system": "pool_transaction",
+      "suite": "xredis_pool_transaction",
+      "description": "Native leased staged transactions; nested WATCH, DNS/TLS and other runtimes excluded",
+      "forbid_symbols": [
+        "xredisWatch",
+        "xredisLeaseWatch",
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
+    },
+    {
+      "name": "xredis_pool_watch",
+      "system": "pool_watch",
+      "suite": "xredis_pool_watch",
+      "description": "Native nested WATCH scopes with parent lease barrier/quota; independent DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

@@ -17,6 +17,10 @@
 #if defined(INTEROP_POOL)
 #define XREDIS_MODULE_XREDIS_POOL
 #endif
+#if defined(INTEROP_POOL_SESSIONS)
+#define XREDIS_MODULE_XREDIS_POOL_TRANSACTION
+#define XREDIS_MODULE_XREDIS_POOL_WATCH
+#endif
 #include <xredis.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -138,6 +142,9 @@ static xfuture* interopSuccess(xnetengine* Engine, const xnetaddr* Address, int 
 #endif
 #if defined(INTEROP_POOL)
 #include "pool_support.h"
+#endif
+#if defined(INTEROP_POOL_SESSIONS)
+#include "pool_sessions_support.h"
 #endif
 
 static void interopFailure(xnetengine* Engine, const xnetaddr* Address, int Scenario)
@@ -298,6 +305,9 @@ int main(int argc, char** argv)
 #endif
 #if defined(INTEROP_POOL)
 	interopPools(Engine, &Address, Scenario);
+#endif
+#if defined(INTEROP_POOL_SESSIONS)
+	interopPoolSessions(Engine, &Address, Scenario);
 #endif
 	interopFailure(Engine, &Address, Scenario);
 #if defined(INTEROP_TLS)
