@@ -22,7 +22,7 @@ Target and rules: [development contract](service-extensions-plan.md).
   repair; remaining modes and pinned overhead/performance acceptance are pending.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
   a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
-  request dispatch and immutable method indexing are locally verified;
+  request dispatch, immutable method indexing and exact ID comparison keys are locally verified;
   correlation, async scheduling and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
@@ -68,6 +68,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
 | xrpc | bounded synchronous request dispatch | locally verified | Windows/WSL modular/single/sanitizers/examples/trim/static/shared; full-validation-before-callback, notification suppression, exact IDs, standard errors, stack output, reentry/sticky failures, aggregate caps, 10000 mixed-batch properties, zero-heap ordinary calls and diagnostic OOM |
 | xrpc | immutable semantic method index | locally verified | all Unicode scalars, explicit fingerprint collision, copied names, 4096 unsorted registrations, bounded lookup/constructor, local-abort integration, quota/OOM and retained concurrent readers; dedicated P3 entry below records package/performance evidence |
+| xrpc | exact identifier comparison keys | locally verified | exact decimal/signed-zero/huge-exponent semantics, all Unicode scalars, independent rational and arbitrary-precision exponent oracles, bounded atomic Size/Write, standalone consumers and shared-string regression |
 | xrpc | correlation, async runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
@@ -2302,3 +2303,79 @@ all samples/failures and post-commit identity. Correlation/client/server async
 scheduling, transports, deadline/cancel negotiation, the other products' remaining
 scope and final native >=72-hour mixed/fault/performance acceptance are pending.
 The four-library goal remains active. See extlibs/xrpc/docs/methods.md and example.
+
+## P3 xrpc: exact bounded identifier comparison keys (2026-10-30)
+
+`xrpc_id` supplies caller-storage Size/Write for a complete string/number/null
+identifier. The correlation policy compares strings after escape interpretation
+and numbers as exact decimal values: 1/1.0/1e0 share a key, signed zeros share a
+key, and string/number/null domains remain distinct. Original raw IDs remain
+separate for wire use; binary keys are opaque, not JSON, numerically ordered or
+a persistence format. Missing IDs and malformed/type/resource/diagnostic-OOM
+failures are local. This is a correlation prerequisite, not a pending-call map.
+
+Nonzero numbers normalize significant digits plus an exact signed decimal
+exponent. Fraction/trailing-zero offsets use a bounded native byte count, while
+the exponent remains decimal digits. Linear right-to-left add/subtract handles
+arbitrary exponent carry/borrow without int/double conversion, saturation or
+power-of-ten expansion. Zero needs no exponent materialization. Input/string/key
+bounds are independent and finite. All failures preserve output/size variables;
+each Write validates independently. No ordinary-path heap storage is owned.
+
+The existing validated-string iterator is shared privately between Methods and
+ID, with no public XRT change. Token comparison against db3809d4 proves identical
+iterator logic after private identifier renaming. The full method Unicode and
+concurrent-reader regression runs with the new header; a fresh WSL O1 TSan run
+reports no race with GCC's retained atomic_thread_fence modeling limitation.
+No complete race-freedom claim is made.
+
+Windows GCC O2/Wall/Wextra/Werror and WSL GCC O2 ASan/UBSan each pass five modular
+and five single-header programs (20). ID tests cover signed zeros, 2^53 neighbors,
+fraction/scale changes, overflow/underflow distinctions, native-uint64 exponent
+boundaries, long positive carry/negative borrow, type separation, all 1112064
+Unicode scalars against an independent UTF-8 oracle, 20000 rational comparisons
+plus equivalent coefficient/exponent shifts, exact/rejected limits/capacities,
+canaries/aliases/config errors, 10000 allocation/ambient-identity loops and
+one-byte diagnostic OOM. Earlier codec/dispatch/method tests remain in the runs.
+
+The committed tools/test_xrpc_id_semantics.py additionally builds an ID-only C
+line-pair probe and checks 20000 pairs per platform against Python arbitrary-
+precision exponent/scale arithmetic (5000 unequal controls each). Positive and
+negative exponents up to 200 digits and offsets through 1024 include cancellation
+and nonzero mantissas. Both runs pass (40000 actual pairs); WSL uses ASan/UBSan.
+The oracle expands no arbitrary power of ten and uses no floating-point value.
+Source/compiler/binary/input/output hashes are retained independently.
+
+Both platforms pass examples, trim, full static/shared consumers and separate
+ID-only static/shared consumers. The minimal verifier manifest changes only the
+consumer to the already registered ID example. Declaration/layout and all three
+size kinds pass. Measured x64 plan is 160 bytes INCLUDING its 64-byte exponent
+state; iterator is 40 and config 32. These are not complete stack measurements:
+nested parser frames, compiler padding, caller output/storage and diagnostics
+are additional. JSON validation, string traversals/encoding, numeric analysis,
+exponent measurement/emission, output writes and error/reference bookkeeping are
+real costs, not a zero-overhead claim. Existing parser/error bookkeeping can
+synchronize even though the ID leaf adds no locks or retained state.
+
+Three profiles retain five full samples plus one warmup on each platform:
+1000000 escaped-string/ordinary-decimal IDs or 100000 thousand-digit-exponent
+IDs per process, plus a separate 10000-observation latency phase. Throughput
+excludes per-ID clocks; latency includes two xrtTimer calls and clock granularity.
+All counts complete. Unchanged 3% relative MAD / 6% central-range checks report
+11 Windows and 8 WSL failures; no sample/threshold changes or production acceptance.
+Thousand-digit-exponent median throughput is 160790.058/214418.346 IDs/s and P99
+11.799973/7.600000 us respectively. These noisy local CPU measurements exclude
+queues, map correlation and transport, and establish neither cross-platform
+superiority nor server/tail acceptance. WSL is not native Linux deployment.
+Source fingerprint f70a763b451e342fe08536befceb46bab96922e25a72faac7fe63eb65ba2ddad;
+workload aad093f9856d9e20124934a1c54943afbb48fc515a4d86461bacf05d95e1c2a4.
+
+Normal maturity/API/generated checks pass (20 functions, 63 constants, 26 types;
+ten workloads/five size profiles); strict release rejects developing xrpc.
+Ignored out/service-extensions/xrpc-id/ pins 20 binaries, both oracle datasets,
+consumer/layout/size/Tsan commands, complete samples/failures and post-commit
+identity. Before rebuilding, 34 prior verified artifacts were copied with checked
+hashes to xrpc-methods/before-id/. Pending-call admission/correlation, duplicate/
+late/unknown response policy, deadlines/cancellation, async runtimes/transports,
+the other products' scope and final native >=72-hour mixed/fault/performance
+acceptance remain unfinished. The full goal stays active; see docs/id.md/example.

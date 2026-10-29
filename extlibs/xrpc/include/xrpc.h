@@ -13,8 +13,12 @@
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_METHODS)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_METHODS"
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ID)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ID"
+#endif
 #include <xrpc/decode.h>
 #include <xrpc/encode.h>
 #include <xrpc/dispatch.h>
 #include <xrpc/methods.h>
+#include <xrpc/id.h>
 #endif

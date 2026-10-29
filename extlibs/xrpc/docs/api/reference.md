@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `17` 个函数、`58` 个常量或宏、
-`24` 个公共类型。
+当前登记 `20` 个函数、`63` 个常量或宏、
+`26` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -99,6 +99,29 @@
 
 - `XRPC_BUILD_SHARED`
 - `XRPC_USE_SHARED`
+
+## `extlibs/xrpc/include/xrpc/id.h`
+
+[查看带契约注释的公共头](../../include/xrpc/id.h)
+
+### 函数 (3)
+
+- `xrpcIdConfigInit`
+- `xrpcIdKeySize`
+- `xrpcIdKeyWrite`
+
+### 常量与宏 (5)
+
+- `XRPC_FEATURE_XRPC_ID`
+- `XRPC_ID_ARGUMENT`
+- `XRPC_ID_CAPACITY`
+- `XRPC_ID_LIMIT`
+- `XRPC_ID_VALUE`
+
+### 类型 (2)
+
+- `xrpcidconfig`
+- `xrpciderror`
 
 ## `extlibs/xrpc/include/xrpc/methods.h`
 

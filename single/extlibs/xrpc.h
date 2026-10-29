@@ -76,6 +76,22 @@
 #ifndef XRPC_MODULE_XRPC_METHODS
 #define XRPC_MODULE_XRPC_METHODS
 #endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#endif
+
+/* xrpc_id 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ID)
+#ifndef XRPC_FEATURE_XRPC_ID
+#define XRPC_FEATURE_XRPC_ID
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
 #endif
 
 /* xrpc_methods 及其直接依赖。 */
@@ -571,6 +587,61 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/id.h */
+/* ========================================================================== */
+
+#ifndef XRPC_ID_H
+#define XRPC_ID_H
+
+#if defined(XRPC_FEATURE_XRPC_ID) && \
+	(!defined(XRT_FEATURE_JSON_READ) || !defined(XRT_FEATURE_UNICODE))
+#error "XRPC_FEATURE_XRPC_ID requires json_read and unicode"
+#endif
+#if defined(XRPC_FEATURE_XRPC_ID)
+typedef struct xrpcidconfig {
+	size_t Size, MaxInputBytes, MaxStringBytes, MaxKeyBytes;
+} xrpcidconfig;
+typedef enum xrpciderror {
+	XRPC_ID_ARGUMENT = 4001, XRPC_ID_LIMIT, XRPC_ID_CAPACITY, XRPC_ID_VALUE
+} xrpciderror;
+XRT_EXTERN_C_BEGIN
+/* Defaults: 4096 input/decoded string bytes and 8192 key bytes. All positive. */
+XRPC_API bool xrpcIdConfigInit(xrpcidconfig* Config);
+
+/* Independently validate one complete JSON string/number/null ID, optionally
+ * surrounded by JSON whitespace, then measure its opaque binary comparison key.
+ * Config is copied; NULL selects defaults. Missing ID, bool/array/object, malformed
+ * JSON/UTF-8/surrogates, limits and diagnostic OOM are local failures. Required
+ * changes only on success and cannot overlap Input/config.
+ * Strings compare by decoded UTF-8 bytes, including NUL, without normalization;
+ * numbers compare by EXACT decimal value, not native float/int conversion.
+ * Decimal/exponent spellings 1/1.0/1e0 compare equal, as do all signed zeros.
+ * Exponent arithmetic is decimal and bounded by token bytes, even for huge
+ * positive/negative exponents. Number/string/null domains remain distinct.
+ * Keys are opaque, non-JSON, not ordered numerically and not a persistence/wire
+ * format. Within this implementation, compare complete byte lengths and bytes.
+ * Keep the original raw ID separately for sending/echoing. This leaf owns no
+ * pending calls and does not decide response eligibility/correlation outcomes.
+ * Synchronous caller thread, no retained input/callbacks or ordinary valid-input
+ * allocation, locks or threads. Cold diagnostics can allocate. Success preserves
+ * ambient error; Input/config must remain alive and unchanged throughout. */
+XRPC_API bool xrpcIdKeySize(xstrview Input, const xrpcidconfig* Config, size_t* Required);
+
+/* Preflight independently; no trust in a prior Size. Failure leaves Output and
+ * optional Written unchanged. Success writes exactly the key bytes, without a
+ * NUL terminator. Capacity must describe a nonwrapping buffer; only the measured
+ * written range is modified. Output/Written cannot overlap Input/config or each
+ * other. The emission pass has no new failure point or user callback for valid,
+ * unchanged inputs. Numeric exponent measurement and emission make bounded
+ * linear passes; decoded string measurement/emission each traverse the token. */
+XRPC_API bool xrpcIdKeyWrite(ptr Output, size_t Capacity, xstrview Input,
+	const xrpcidconfig* Config, size_t* Written);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -587,6 +658,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_METHODS)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_METHODS"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ID)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ID"
 #endif
 #endif
 
@@ -636,6 +710,59 @@ static bool xrpcJsonIntegral(xstrview Raw)
 	return Fraction <= Zeros || Exponent >= Fraction - Zeros;
 }
 
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_string.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_METHODS) || \
+	defined(XRPC_FEATURE_XRPC_ID)
+#ifndef XRPC_INTERNAL_STRING_H
+#define XRPC_INTERNAL_STRING_H
+
+#if defined(XRPC_FEATURE_XRPC_METHODS) || defined(XRPC_FEATURE_XRPC_ID)
+/* Interpret ONLY an already fully validated strict JSON string token. The
+ * public raw scanner must reach DONE before any use. No grammar validation,
+ * allocation or retained view is added here; scalar escapes use public Unicode. */
+typedef struct xrpcstringiterator {
+	xstrview Raw;
+	size_t Position;
+	char Pending[4];
+	unsigned Read, Count;
+} xrpcstringiterator;
+static uint32 xrpcStringHex(xrpcstringiterator* It)
+{
+	uint32 Value = 0;
+	for (unsigned Index = 0; Index < 4; ++Index) {
+		unsigned Byte = (unsigned char)It->Raw.Data[It->Position++];
+		Value = Value * 16u + (Byte <= '9' ? Byte-'0' : Byte <= 'F' ? Byte-'A'+10u : Byte-'a'+10u);
+	}
+	return Value;
+}
+static bool xrpcStringNext(xrpcstringiterator* It, unsigned char* Byte)
+{
+	if (It->Read < It->Count) { *Byte = (unsigned char)It->Pending[It->Read++]; return true; }
+	if (It->Position == It->Raw.Size-1u) return false;
+	unsigned char Value = (unsigned char)It->Raw.Data[It->Position++];
+	if (Value != '\\') { *Byte = Value; return true; }
+	Value = (unsigned char)It->Raw.Data[It->Position++];
+	if (Value == 'u') {
+		uint32 Scalar = xrpcStringHex(It);
+		if (Scalar >= 0xd800u && Scalar <= 0xdbffu) {
+			It->Position += 2; uint32 Low = xrpcStringHex(It);
+			Scalar = 0x10000u + ((Scalar-0xd800u) << 10u) + Low-0xdc00u;
+		}
+		It->Count = (unsigned)xrtUtf8Encode(Scalar, It->Pending); It->Read = 1;
+		*Byte = (unsigned char)It->Pending[0]; return true;
+	}
+	if (Value == 'b') Value = '\b'; else if (Value == 'f') Value = '\f';
+	else if (Value == 'n') Value = '\n'; else if (Value == 'r') Value = '\r'; else if (Value == 't') Value = '\t';
+	*Byte = Value; return true;
+}
 #endif
 #endif
 #endif
@@ -1507,38 +1634,6 @@ XRPC_API bool xrpcMethodsInfo(const xrpcmethods* Methods, xrpcmethodsinfo* Info)
 	*Info = (xrpcmethodsinfo){sizeof(*Info),Methods->Count,Methods->NameBytes,Methods->OwnedBytes}; return true;
 }
 
-/* Only validated JSON strings reach this iterator. UTF-8 bytes are copied as
- * bytes; \u scalars/pairs are re-encoded through the public Unicode leaf. */
-typedef struct xrpcmethodsiterator { xstrview Raw; size_t Position; char Pending[4]; unsigned Read, Count; } xrpcmethodsiterator;
-static uint32 xrpcMethodsHex(xrpcmethodsiterator* It)
-{
-	uint32 Value = 0;
-	for (unsigned Index = 0; Index < 4; ++Index) {
-		unsigned Byte = (unsigned char)It->Raw.Data[It->Position++];
-		Value = Value * 16u + (Byte <= '9' ? Byte-'0' : Byte <= 'F' ? Byte-'A'+10u : Byte-'a'+10u);
-	}
-	return Value;
-}
-static bool xrpcMethodsNext(xrpcmethodsiterator* It, unsigned char* Byte)
-{
-	if (It->Read < It->Count) { *Byte = (unsigned char)It->Pending[It->Read++]; return true; }
-	if (It->Position == It->Raw.Size-1u) return false;
-	unsigned char Value = (unsigned char)It->Raw.Data[It->Position++];
-	if (Value != '\\') { *Byte = Value; return true; }
-	Value = (unsigned char)It->Raw.Data[It->Position++];
-	if (Value == 'u') {
-		uint32 Scalar = xrpcMethodsHex(It);
-		if (Scalar >= 0xd800u && Scalar <= 0xdbffu) {
-			It->Position += 2; uint32 Low = xrpcMethodsHex(It);
-			Scalar = 0x10000u + ((Scalar-0xd800u) << 10u) + Low-0xdc00u;
-		}
-		It->Count = (unsigned)xrtUtf8Encode(Scalar, It->Pending); It->Read = 1;
-		*Byte = (unsigned char)It->Pending[0]; return true;
-	}
-	if (Value == 'b') Value = '\b'; else if (Value == 'f') Value = '\f';
-	else if (Value == 'n') Value = '\n'; else if (Value == 'r') Value = '\r'; else if (Value == 't') Value = '\t';
-	*Byte = Value; return true;
-}
 static xjsonvisitaction xrpcMethodsToken(const xjsonscanevent* Event, ptr User)
 {
 	if (Event->Type != XJSON_SCAN_STRING) {
@@ -1548,8 +1643,8 @@ static xjsonvisitaction xrpcMethodsToken(const xjsonscanevent* Event, ptr User)
 }
 static int xrpcMethodsCompareRaw(xstrview Raw, xstrview Name)
 {
-	xrpcmethodsiterator It = {Raw,1,{0},0,0}; unsigned char Byte; size_t Index = 0;
-	while (xrpcMethodsNext(&It, &Byte)) {
+	xrpcstringiterator It = {Raw,1,{0},0,0}; unsigned char Byte; size_t Index = 0;
+	while (xrpcStringNext(&It, &Byte)) {
 		if (Index == Name.Size) return 1;
 		unsigned char Other = (unsigned char)Name.Data[Index++];
 		if (Byte != Other) return Byte > Other ? 1 : -1;
@@ -1576,8 +1671,8 @@ XRPC_API xrpcmethodsstatus xrpcMethodsFind(const xrpcmethods* Methods, xstrview 
 	uint32 Hash;
 	if (!Escaped) Hash = xrpcMethodsHash(Plain);
 	else {
-		xrpcmethodsiterator It = {Raw,1,{0},0,0}; unsigned char Byte; Hash = 2166136261u;
-		while (xrpcMethodsNext(&It, &Byte)) Hash = (Hash ^ Byte) * 16777619u;
+		xrpcstringiterator It = {Raw,1,{0},0,0}; unsigned char Byte; Hash = 2166136261u;
+		while (xrpcStringNext(&It, &Byte)) Hash = (Hash ^ Byte) * 16777619u;
 	}
 	size_t Begin = 0, End = Methods->Count;
 	while (Begin < End) {
@@ -1600,6 +1695,200 @@ XRPC_API bool xrpcMethodsCall(const xrpcmessage* Request, xrpcreply* Reply, ptr 
 	xrpcmethod Binding; xrpcmethodsstatus Status = xrpcMethodsFind((const xrpcmethods*)User, Request->Method.Raw, &Binding);
 	if (Status == XRPC_METHODS_ERROR) return xrpcReplyAbort(Reply, xrtGetError());
 	return Status == XRPC_METHODS_FOUND ? Binding.Call(Request, Reply, Binding.User) : false;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/id/id.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_ID)
+
+#if defined(XRPC_FEATURE_XRPC_ID)
+typedef struct xrpcidexponent {
+	xstrview Digits;
+	/* The bounded native offset is stored as little-endian decimal digits.
+	 * sizeof(size_t)*3 is larger than its decimal representation on all targets. */
+	unsigned char Small[sizeof(size_t)*3u];
+	size_t SmallCount, Length;
+	bool Subtract, Swap, Negative;
+} xrpcidexponent;
+typedef struct xrpcidplan {
+	xrpcidconfig Config;
+	xjsonscantype Type;
+	xstrview Raw;
+	size_t Bytes, First, Last, Digits;
+	bool Negative;
+	xrpcidexponent Exponent;
+} xrpcidplan;
+
+static bool xrpcIdReport(xerrkind Kind, xrpciderror Code, cstr Message)
+{ xrtSetErrorInfo(Kind, "xrt.rpc", (int32)Code, Message); return false; }
+XRPC_API bool xrpcIdConfigInit(xrpcidconfig* Config)
+{
+	if (!Config || !xrtMemRangeValid(Config, sizeof(*Config)))
+		return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "invalid RPC ID config output");
+	*Config = (xrpcidconfig){sizeof(*Config),4096,4096,8192}; return true;
+}
+static xjsonvisitaction xrpcIdToken(const xjsonscanevent* Event, ptr User)
+{
+	xrpcidplan* Plan = User;
+	if (Event->Type != XJSON_SCAN_STRING && Event->Type != XJSON_SCAN_NUMBER && Event->Type != XJSON_SCAN_NULL) {
+		xrpcIdReport(XERR_VALUE, XRPC_ID_VALUE, "RPC ID requires a string, number or null"); return XJSON_VISIT_FAIL;
+	}
+	Plan->Type = Event->Type; Plan->Raw = Event->Raw; return XJSON_VISIT_NEXT;
+}
+
+/* Read one digit from the right. No exponent is converted to a native value. */
+static unsigned xrpcIdBigDigit(const xrpcidexponent* Exponent, size_t Position)
+{ return Position < Exponent->Digits.Size ? (unsigned)(Exponent->Digits.Data[Exponent->Digits.Size-1u-Position]-'0') : 0; }
+static unsigned xrpcIdSmallDigit(const xrpcidexponent* Exponent, size_t Position)
+{ return Position < Exponent->SmallCount ? Exponent->Small[Position] : 0; }
+static size_t xrpcIdExponentRun(const xrpcidexponent* Exponent, unsigned char* Output)
+{
+	size_t Count = Exponent->Digits.Size > Exponent->SmallCount ? Exponent->Digits.Size : Exponent->SmallCount;
+	size_t Length = 1; unsigned Carry = 0;
+	for (size_t Index = 0; Index < Count; ++Index) {
+		unsigned A = xrpcIdBigDigit(Exponent, Index), B = xrpcIdSmallDigit(Exponent, Index), Digit;
+		if (Exponent->Swap) { unsigned Temp = A; A = B; B = Temp; }
+		if (Exponent->Subtract) {
+			int Difference = (int)A - (int)B - (int)Carry;
+			Carry = Difference < 0; Digit = (unsigned)(Difference + (Carry ? 10 : 0));
+		} else { unsigned Sum = A + B + Carry; Digit = Sum % 10u; Carry = Sum / 10u; }
+		if (Digit) Length = Index+1u;
+		if (Output && Index < Exponent->Length) Output[Exponent->Length-1u-Index] = (unsigned char)('0'+Digit);
+	}
+	if (!Exponent->Subtract && Carry) {
+		Length = Count+1u;
+		if (Output) Output[0] = (unsigned char)('0'+Carry);
+	}
+	return Length;
+}
+static void xrpcIdExponentInit(xrpcidexponent* Exponent, xstrview Digits, bool Negative,
+	size_t Offset, bool OffsetNegative)
+{
+	while (Digits.Size > 1 && Digits.Data[0] == '0') { ++Digits.Data; --Digits.Size; }
+	if (Digits.Size == 1 && Digits.Data[0] == '0') Negative = false;
+	Exponent->Digits = Digits;
+	do { Exponent->Small[Exponent->SmallCount++] = (unsigned char)(Offset % 10u); Offset /= 10u; } while (Offset);
+	if (Exponent->SmallCount == 1 && !Exponent->Small[0]) OffsetNegative = false;
+	int Order = Digits.Size > Exponent->SmallCount ? 1 : Digits.Size < Exponent->SmallCount ? -1 : 0;
+	if (!Order) for (size_t Index = 0; Index < Digits.Size; ++Index) {
+		unsigned A = (unsigned)(Digits.Data[Index]-'0'), B = Exponent->Small[Digits.Size-1u-Index];
+		if (A != B) { Order = A > B ? 1 : -1; break; }
+	}
+	Exponent->Subtract = Negative != OffsetNegative;
+	Exponent->Swap = Exponent->Subtract && Order < 0;
+	Exponent->Negative = Exponent->Subtract ? (Order < 0 ? OffsetNegative : Negative) : Negative;
+	if (Exponent->Subtract && !Order) Exponent->Negative = false;
+	Exponent->Length = xrpcIdExponentRun(Exponent, NULL);
+}
+static bool xrpcIdNumber(xrpcidplan* Plan)
+{
+	xstrview Raw = Plan->Raw; size_t Fraction = 0, Zeros = 0, Position = 0;
+	bool Dot = false, Nonzero = false; Plan->Negative = Raw.Data[0] == '-';
+	if (Plan->Negative) ++Position;
+	for (; Position < Raw.Size && Raw.Data[Position] != 'e' && Raw.Data[Position] != 'E'; ++Position) {
+		char Byte = Raw.Data[Position];
+		if (Byte == '.') { Dot = true; continue; }
+		if (Dot) ++Fraction;
+		if (Byte != '0') {
+			if (!Nonzero) Plan->First = Position;
+			Nonzero = true; Plan->Last = Position; Zeros = 0;
+		} else ++Zeros;
+	}
+	if (!Nonzero) { Plan->Bytes = 2; return true; }
+	for (size_t Index = Plan->First; Index <= Plan->Last; ++Index) if (Raw.Data[Index] != '.') ++Plan->Digits;
+	xstrview Digits = XRT_STR_LITERAL("0"); bool Negative = false;
+	if (Position < Raw.Size) {
+		++Position;
+		if (Raw.Data[Position] == '+' || Raw.Data[Position] == '-') Negative = Raw.Data[Position++] == '-';
+		Digits = (xstrview){Raw.Data+Position,Raw.Size-Position};
+	}
+	xrpcIdExponentInit(&Plan->Exponent, Digits, Negative, Zeros > Fraction ? Zeros-Fraction : Fraction-Zeros, Zeros < Fraction);
+	/* Domain/sign, significant digits, delimiter and signed decimal exponent. */
+	size_t Extra = 3u + (Plan->Exponent.Negative ? 1u : 0u);
+	if (Plan->Digits > Plan->Config.MaxKeyBytes || Extra > Plan->Config.MaxKeyBytes-Plan->Digits ||
+		Plan->Exponent.Length > Plan->Config.MaxKeyBytes-Plan->Digits-Extra)
+		return xrpcIdReport(XERR_RANGE, XRPC_ID_LIMIT, "RPC numeric ID key limit exceeded");
+	Plan->Bytes = Plan->Digits + Extra + Plan->Exponent.Length; return true;
+}
+static bool xrpcIdPrepare(xrpcidplan* Plan, xstrview Input, const xrpcidconfig* Config)
+{
+	if ((!Input.Data && Input.Size) || !xrtMemRangeValid(Input.Data, Input.Size) ||
+		(Config && !xrtMemRangeValid(Config, sizeof(*Config))))
+		return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "invalid RPC ID input/config span");
+	if (Config) Plan->Config = *Config; else xrpcIdConfigInit(&Plan->Config);
+	const xrpcidconfig* Limits = &Plan->Config;
+	if (Limits->Size != sizeof(*Limits) || !Limits->MaxInputBytes || !Limits->MaxStringBytes || !Limits->MaxKeyBytes)
+		return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "invalid RPC ID configuration");
+	if (Input.Size > Limits->MaxInputBytes)
+		return xrpcIdReport(XERR_RANGE, XRPC_ID_LIMIT, "RPC ID input byte limit exceeded");
+	xjsonreadconfig Json; xrtJsonReadConfigInit(&Json);
+	Json.MaxInputBytes = Limits->MaxInputBytes; Json.MaxStringBytes = Limits->MaxStringBytes;
+	Json.MaxDepth = 1; Json.MaxValues = Json.MaxContainerItems = 1;
+	if (xrtJsonScan(Input, &Json, xrpcIdToken, Plan) != XJSON_VISIT_DONE) return false;
+	if (Plan->Type == XJSON_SCAN_NUMBER) {
+		if (!xrpcIdNumber(Plan)) return false;
+	} else if (Plan->Type == XJSON_SCAN_NULL) Plan->Bytes = 1;
+	else {
+		Plan->Bytes = 1; xrpcstringiterator It = {Plan->Raw,1,{0},0,0}; unsigned char Byte;
+		while (xrpcStringNext(&It, &Byte)) {
+			if (Plan->Bytes == Limits->MaxKeyBytes)
+				return xrpcIdReport(XERR_RANGE, XRPC_ID_LIMIT, "RPC string ID key limit exceeded");
+			++Plan->Bytes;
+		}
+	}
+	if (Plan->Bytes > Limits->MaxKeyBytes)
+		return xrpcIdReport(XERR_RANGE, XRPC_ID_LIMIT, "RPC ID key limit exceeded");
+	return true;
+}
+static bool xrpcIdOutputSafe(const void* Output, size_t Size, xstrview Input, const xrpcidconfig* Config)
+{
+	if (!xrtMemRangeValid(Output, Size) || xrtMemRangesOverlap(Output, Size, Input.Data, Input.Size) ||
+		(Config && xrtMemRangesOverlap(Output, Size, Config, sizeof(*Config))))
+		return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "RPC ID output overlaps input/config or wraps");
+	return true;
+}
+XRPC_API bool xrpcIdKeySize(xstrview Input, const xrpcidconfig* Config, size_t* Required)
+{
+	xrpcidplan Plan = {0};
+	if (!Required) return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "RPC ID key size requires output");
+	if (!xrpcIdPrepare(&Plan, Input, Config) || !xrpcIdOutputSafe(Required, sizeof(*Required), Input, Config)) return false;
+	*Required = Plan.Bytes; return true;
+}
+static void xrpcIdEmit(const xrpcidplan* Plan, unsigned char* Output)
+{
+	if (Plan->Type == XJSON_SCAN_NULL) { Output[0] = 0x10; return; }
+	if (Plan->Type == XJSON_SCAN_STRING) {
+		*Output++ = 0x11; xrpcstringiterator It = {Plan->Raw,1,{0},0,0}; unsigned char Byte;
+		while (xrpcStringNext(&It, &Byte)) *Output++ = Byte;
+		return;
+	}
+	*Output++ = 0x12;
+	if (!Plan->Digits) { *Output = '0'; return; }
+	*Output++ = Plan->Negative ? '-' : '+';
+	for (size_t Index = Plan->First; Index <= Plan->Last; ++Index)
+		if (Plan->Raw.Data[Index] != '.') *Output++ = (unsigned char)Plan->Raw.Data[Index];
+	*Output++ = 0;
+	if (Plan->Exponent.Negative) *Output++ = '-';
+	(void)xrpcIdExponentRun(&Plan->Exponent, Output);
+}
+XRPC_API bool xrpcIdKeyWrite(ptr Output, size_t Capacity, xstrview Input,
+	const xrpcidconfig* Config, size_t* Written)
+{
+	xrpcidplan Plan = {0};
+	if (!Output || !xrtMemRangeValid(Output, Capacity))
+		return xrpcIdReport(XERR_ARGUMENT, XRPC_ID_ARGUMENT, "invalid RPC ID key buffer");
+	if (!xrpcIdPrepare(&Plan, Input, Config)) return false;
+	if (Capacity < Plan.Bytes) return xrpcIdReport(XERR_RANGE, XRPC_ID_CAPACITY, "RPC ID key capacity is too small");
+	if (!xrpcIdOutputSafe(Output, Plan.Bytes, Input, Config) || (Written &&
+		(!xrpcIdOutputSafe(Written, sizeof(*Written), Input, Config) || xrtMemRangesOverlap(Output, Plan.Bytes, Written, sizeof(*Written))))) return false;
+	xrpcIdEmit(&Plan, Output);
+	if (Written) *Written = Plan.Bytes;
+	return true;
 }
 #endif
 #endif

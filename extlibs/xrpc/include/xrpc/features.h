@@ -19,6 +19,22 @@
 #ifndef XRPC_MODULE_XRPC_METHODS
 #define XRPC_MODULE_XRPC_METHODS
 #endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#endif
+
+/* xrpc_id 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ID)
+#ifndef XRPC_FEATURE_XRPC_ID
+#define XRPC_FEATURE_XRPC_ID
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
 #endif
 
 /* xrpc_methods 及其直接依赖。 */

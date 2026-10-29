@@ -66,6 +66,15 @@ and diagnostic reference operations.
 | Allocation/lifetime | 10000 hit/miss loops preserve allocation counters/ambient identity, one-byte lookup quota, diagnostic OOM and 511 constructor quota windows |
 | Concurrent ownership | Four retained-reader threads, 80000 lookups after the creator releases its reference, final release after physical reader completion |
 
+| Identifier key contract | Verification |
+| --- | --- |
+| Exact decimal equality | Literal equivalent/unequal spellings, signed zeros, fractional positions, 2^53 neighbors, overflow/underflow and native-integer-boundary exponents |
+| Arbitrary exponent arithmetic | Long positive carry/negative borrow and sign/offset cancellation without materializing powers of ten |
+| String/type domains | All Unicode scalars against independent UTF-8 oracle, all escapes/NUL, case/normalization distinctions and null/string/number separation |
+| Independent rational properties | 20000 exact small rational comparisons plus equivalent coefficient/exponent shifts |
+| Bounds/publication | Input/string/key bounds, exact capacity/canaries and every shorter capacity, invalid grammar/types/configs and input/config/output-size aliases |
+| Allocation/errors | 10000 ordinary string/large-number loops preserve allocation counts and ambient identity, one-byte quota and diagnostic OOM |
+
 The benchmark observes decoded fields and checks a completion checksum. It is
 a workload smoke until a pinned baseline and end-to-end runtime exist. Current
 platform evidence and remaining gates are in the [progress ledger](../../../docs/development/service-extensions-progress.md).

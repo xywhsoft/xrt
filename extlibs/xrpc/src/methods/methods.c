@@ -2,6 +2,7 @@
 #include <xrt/atomic.h>
 #include <xrt/charset.h>
 #include <xrt/memory.h>
+#include "../internal/xrpc_string.h"
 #include <string.h>
 
 #if defined(XRPC_FEATURE_XRPC_METHODS)
@@ -129,38 +130,6 @@ XRPC_API bool xrpcMethodsInfo(const xrpcmethods* Methods, xrpcmethodsinfo* Info)
 	*Info = (xrpcmethodsinfo){sizeof(*Info),Methods->Count,Methods->NameBytes,Methods->OwnedBytes}; return true;
 }
 
-/* Only validated JSON strings reach this iterator. UTF-8 bytes are copied as
- * bytes; \u scalars/pairs are re-encoded through the public Unicode leaf. */
-typedef struct xrpcmethodsiterator { xstrview Raw; size_t Position; char Pending[4]; unsigned Read, Count; } xrpcmethodsiterator;
-static uint32 xrpcMethodsHex(xrpcmethodsiterator* It)
-{
-	uint32 Value = 0;
-	for (unsigned Index = 0; Index < 4; ++Index) {
-		unsigned Byte = (unsigned char)It->Raw.Data[It->Position++];
-		Value = Value * 16u + (Byte <= '9' ? Byte-'0' : Byte <= 'F' ? Byte-'A'+10u : Byte-'a'+10u);
-	}
-	return Value;
-}
-static bool xrpcMethodsNext(xrpcmethodsiterator* It, unsigned char* Byte)
-{
-	if (It->Read < It->Count) { *Byte = (unsigned char)It->Pending[It->Read++]; return true; }
-	if (It->Position == It->Raw.Size-1u) return false;
-	unsigned char Value = (unsigned char)It->Raw.Data[It->Position++];
-	if (Value != '\\') { *Byte = Value; return true; }
-	Value = (unsigned char)It->Raw.Data[It->Position++];
-	if (Value == 'u') {
-		uint32 Scalar = xrpcMethodsHex(It);
-		if (Scalar >= 0xd800u && Scalar <= 0xdbffu) {
-			It->Position += 2; uint32 Low = xrpcMethodsHex(It);
-			Scalar = 0x10000u + ((Scalar-0xd800u) << 10u) + Low-0xdc00u;
-		}
-		It->Count = (unsigned)xrtUtf8Encode(Scalar, It->Pending); It->Read = 1;
-		*Byte = (unsigned char)It->Pending[0]; return true;
-	}
-	if (Value == 'b') Value = '\b'; else if (Value == 'f') Value = '\f';
-	else if (Value == 'n') Value = '\n'; else if (Value == 'r') Value = '\r'; else if (Value == 't') Value = '\t';
-	*Byte = Value; return true;
-}
 static xjsonvisitaction xrpcMethodsToken(const xjsonscanevent* Event, ptr User)
 {
 	if (Event->Type != XJSON_SCAN_STRING) {
@@ -170,8 +139,8 @@ static xjsonvisitaction xrpcMethodsToken(const xjsonscanevent* Event, ptr User)
 }
 static int xrpcMethodsCompareRaw(xstrview Raw, xstrview Name)
 {
-	xrpcmethodsiterator It = {Raw,1,{0},0,0}; unsigned char Byte; size_t Index = 0;
-	while (xrpcMethodsNext(&It, &Byte)) {
+	xrpcstringiterator It = {Raw,1,{0},0,0}; unsigned char Byte; size_t Index = 0;
+	while (xrpcStringNext(&It, &Byte)) {
 		if (Index == Name.Size) return 1;
 		unsigned char Other = (unsigned char)Name.Data[Index++];
 		if (Byte != Other) return Byte > Other ? 1 : -1;
@@ -198,8 +167,8 @@ XRPC_API xrpcmethodsstatus xrpcMethodsFind(const xrpcmethods* Methods, xstrview 
 	uint32 Hash;
 	if (!Escaped) Hash = xrpcMethodsHash(Plain);
 	else {
-		xrpcmethodsiterator It = {Raw,1,{0},0,0}; unsigned char Byte; Hash = 2166136261u;
-		while (xrpcMethodsNext(&It, &Byte)) Hash = (Hash ^ Byte) * 16777619u;
+		xrpcstringiterator It = {Raw,1,{0},0,0}; unsigned char Byte; Hash = 2166136261u;
+		while (xrpcStringNext(&It, &Byte)) Hash = (Hash ^ Byte) * 16777619u;
 	}
 	size_t Begin = 0, End = Methods->Count;
 	while (Begin < End) {

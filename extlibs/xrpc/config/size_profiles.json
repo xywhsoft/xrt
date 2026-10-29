@@ -31,6 +31,12 @@
       "system": "methods",
       "suite": "xrpc_methods",
       "description": "Immutable name index and synchronous dispatch closure; no engine/transport"
+    },
+    {
+      "name": "xrpc_id",
+      "system": "id",
+      "suite": "xrpc_id",
+      "description": "Exact identifier key leaf; no dispatch/engine/transport"
     }
   ]
 }

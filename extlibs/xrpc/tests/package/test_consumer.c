@@ -41,6 +41,9 @@ int main(void)
 	if(!xrpcDispatch(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"\\u006d\",\"id\":1e9999}"),NULL,&Message,1,
 		xrpcMethodsCall,Methods,rpcConsumerEmit,Output,&Info) || Info.Replies!=1)return 8;
 	xrpcMethodsRelease(Methods);
+	unsigned char IdA[128],IdB[128];size_t IdLeft=0,IdRight=0;
+	if(!xrpcIdKeyWrite(IdA,sizeof(IdA),XRT_STR_LITERAL("10e18446744073709551615"),NULL,&IdLeft) ||
+		!xrpcIdKeyWrite(IdB,sizeof(IdB),XRT_STR_LITERAL("1e18446744073709551616"),NULL,&IdRight) || IdLeft!=IdRight || memcmp(IdA,IdB,IdLeft))return 9;
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;

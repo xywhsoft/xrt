@@ -267,6 +267,136 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_id",
+      "system": "id",
+      "description": "Exact string/decimal/huge-exponent ID comparison keys, no pending runtime or transport",
+      "benchmarks": [
+        {
+          "name": "xrpc_id_string",
+          "source": "extlibs/xrpc/bench/bench_id.c",
+          "suite": "xrpc_id,time",
+          "args": [
+            "1000000",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "0"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "input_bytes",
+            "key_bytes"
+          ],
+          "metrics": {
+            "ids_per_sec": {
+              "direction": "higher",
+              "unit": "ids/s"
+            },
+            "id_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "id_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "ids"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        },
+        {
+          "name": "xrpc_id_decimal",
+          "source": "extlibs/xrpc/bench/bench_id.c",
+          "suite": "xrpc_id,time",
+          "args": [
+            "1000000",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "1"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "input_bytes",
+            "key_bytes"
+          ],
+          "metrics": {
+            "ids_per_sec": {
+              "direction": "higher",
+              "unit": "ids/s"
+            },
+            "id_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "id_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "ids"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        },
+        {
+          "name": "xrpc_id_huge_exponent",
+          "source": "extlibs/xrpc/bench/bench_id.c",
+          "suite": "xrpc_id,time",
+          "args": [
+            "100000",
+            "2"
+          ],
+          "smoke_args": [
+            "1000",
+            "2"
+          ],
+          "facts": [
+            "workload",
+            "mode",
+            "input_bytes",
+            "key_bytes"
+          ],
+          "metrics": {
+            "ids_per_sec": {
+              "direction": "higher",
+              "unit": "ids/s"
+            },
+            "id_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "id_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "ids"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          }
+        }
+      ]
     }
   ]
 }

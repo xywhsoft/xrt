@@ -1,8 +1,8 @@
 # xrpc (developing)
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
-**Bounded envelope decoding/encoding, synchronous dispatch and immutable method
-indexing are implemented.**
+**Bounded envelope decoding/encoding, synchronous dispatch, immutable method
+indexing and exact ID comparison keys are implemented.**
 Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -25,8 +25,8 @@ escapes; this leaf does not create decoded strings or owned result objects.
 String, number and null identifiers stay exact, including huge/fractional/
 scientific numbers and embedded-NUL string escapes. Missing id identifies a
 valid notification; explicit null remains a call. Error codes accept integral
-numeric values without native rounding. No identifier canonicalization or
-pending-call correlation is claimed yet.
+numeric values without native rounding. The optional ID key leaf supplies exact
+semantic comparison; pending-call correlation remains separate work.
 
 Nonempty batches retain one descriptor per input item, including invalid ones.
 An empty batch yields one invalid descriptor with Batch=false for a single
@@ -106,3 +106,9 @@ registrations once, validates complete raw JSON query names, matches semantic
 escapes without a decoded query allocation, and resolves collisions using full
 names in binary search. Hold a strong index reference through every dispatch
 using `xrpcMethodsCall`; callback code/context remain application owned.
+
+Select `XRPC_MODULE_XRPC_ID` for [exact identifier comparison keys](docs/id.md)
+and the [huge-exponent/NUL example](examples/id/main.c). Keys distinguish JSON
+types, decode string escapes and normalize decimal values without floating-point
+or exponent narrowing. Keep original raw IDs for wire encoding; keys do not
+implement a pending map, runtime correlation or duplicate-response policy.
