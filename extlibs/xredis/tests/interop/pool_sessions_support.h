@@ -1,6 +1,8 @@
 static const xrediswatchresult* interopPoolWatch(xredislease* Lease, xbytesview Key, xfuture** Future)
 {
-    interopRequire(xredisLeaseWatch(Lease, &Key, 1, NULL, Future) == XREDIS_ADMISSION_ACCEPTED, "real nested WATCH admission");
+    xredisadmission Admission = xredisLeaseWatch(Lease, &Key, 1, NULL, Future);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) fprintf(stderr, "nested WATCH rejected admission=%d\n", (int)Admission);
+    interopRequire(Admission == XREDIS_ADMISSION_ACCEPTED, "real nested WATCH admission");
     const xrediswatchresult* Result = interopWait(*Future);
     interopRequire(Result->Request.Status == XREDIS_REQUEST_OK && Result->Watch, "real nested WATCH ready"); return Result;
 }

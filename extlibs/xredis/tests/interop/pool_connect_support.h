@@ -43,6 +43,9 @@ static void interopPoolConnect(xnetengine* Engine, const xnetaddr* Address, int 
         interopRequire(xredisLeaseCall(Lease, Get, 2, 5000, &Operation) == XREDIS_ADMISSION_ACCEPTED, "automatic replaced GET");
         xredisreplyvalue Value = interopValue(Operation); interopRequire(Value.Data.Size == Set[2].Size && !memcmp(Value.Data.Data, Set[2].Data, Value.Data.Size), "automatic setup/profile and binary data");
         xrtFutureDestroy(Operation);
+        /* Logical GET completion does not retire its native request tails.
+         * This one-member fixture must await physical idle before nesting. */
+        interopPoolCounter(Pool, 0, 0);
         xfuture* Started = NULL; const xrediswatchresult* Scope = interopPoolWatch(Lease, Key, &Started);
         xfuture* ChildClosed = xredisWatchClosed(Scope->Watch); Returned = xredisLeaseClosed(Lease); xredisLeaseAbort(Lease);
         interopWait(Returned); interopRequire(xrtFutureState(ChildClosed) == XFUTURE_RESOLVED, "automatic replacement preceded nested physical close");

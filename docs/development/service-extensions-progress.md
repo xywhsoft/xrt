@@ -1977,3 +1977,17 @@ See `extlibs/xredis/docs/pool-connect.md` for runnable examples, costs and limit
 Dedicated Redis modes, HA/tracking and remaining P3 runtimes for xrpc/xmqtt/xcron,
 native Linux/MSVC where applicable and final >=72-hour mixed/fault and performance
 acceptance remain pending. The original four-library goal remains active.
+
+## P2 xredis: physical-idle prerequisite in the real-peer fixture (2026-10-30)
+
+The IOCP timing investigation exposed a missing prerequisite in the automatic
+pool interop fixture: after its synchronous GET Future completed, it immediately
+started nested WATCH, although physical request tails can still be present.
+The one-member fixture now awaits its existing aggregate physical counters at
+zero before nesting, as the public contract requires. No production admission
+rule is relaxed. Rejected WATCH admission also reports its numeric class.
+The initial WSL admission failure remains in ignored
+`out/service-extensions/windows-timer/wsl-interop-initial-failure.log`; both
+native Windows-client/WSL-peer and WSL-client six-case TLS 1.2/1.3, credential
+and RESP2/3 matrices pass after the correction. These runs also exercise the
+pending IOCP candidate; they are not final production/performance acceptance.
