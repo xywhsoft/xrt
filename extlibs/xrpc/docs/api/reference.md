@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `20` 个函数、`63` 个常量或宏、
-`26` 个公共类型。
+当前登记 `29` 个函数、`72` 个常量或宏、
+`33` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -157,6 +157,44 @@
 - `xrpcmethodserror`
 - `xrpcmethodsinfo`
 - `xrpcmethodsstatus`
+
+## `extlibs/xrpc/include/xrpc/pending.h`
+
+[查看带契约注释的公共头](../../include/xrpc/pending.h)
+
+### 函数 (9)
+
+- `xrpcPendingConfigInit`
+- `xrpcPendingCreate`
+- `xrpcPendingDestroy`
+- `xrpcPendingExpire`
+- `xrpcPendingInfo`
+- `xrpcPendingInsert`
+- `xrpcPendingTakeFirst`
+- `xrpcPendingTakeId`
+- `xrpcPendingTakeToken`
+
+### 常量与宏 (9)
+
+- `XRPC_FEATURE_XRPC_PENDING`
+- `XRPC_PENDING_ARGUMENT`
+- `XRPC_PENDING_DUPLICATE`
+- `XRPC_PENDING_ERROR`
+- `XRPC_PENDING_FULL`
+- `XRPC_PENDING_LIMIT`
+- `XRPC_PENDING_MEMORY`
+- `XRPC_PENDING_MISSING`
+- `XRPC_PENDING_OK`
+
+### 类型 (7)
+
+- `xrpcpending`
+- `xrpcpendingcall`
+- `xrpcpendingconfig`
+- `xrpcpendingerror`
+- `xrpcpendinginfo`
+- `xrpcpendingstatus`
+- `xrpcpendingtoken`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

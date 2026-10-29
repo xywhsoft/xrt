@@ -2,7 +2,7 @@
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
 **Bounded envelope decoding/encoding, synchronous dispatch, immutable method
-indexing and exact ID comparison keys are implemented.**
+indexing, exact ID comparison keys and a bounded pending-call table are implemented.**
 Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -26,7 +26,8 @@ String, number and null identifiers stay exact, including huge/fractional/
 scientific numbers and embedded-NUL string escapes. Missing id identifies a
 valid notification; explicit null remains a call. Error codes accept integral
 numeric values without native rounding. The optional ID key leaf supplies exact
-semantic comparison; pending-call correlation remains separate work.
+semantic comparison; the pending-call leaf adds serialized admission/removal.
+The asynchronous response pump and connection runtime remain pending.
 
 Nonempty batches retain one descriptor per input item, including invalid ones.
 An empty batch yields one invalid descriptor with Batch=false for a single
@@ -112,3 +113,19 @@ and the [huge-exponent/NUL example](examples/id/main.c). Keys distinguish JSON
 types, decode string escapes and normalize decimal values without floating-point
 or exponent narrowing. Keep original raw IDs for wire encoding; keys do not
 implement a pending map, runtime correlation or duplicate-response policy.
+
+Select `XRPC_MODULE_XRPC_PENDING` for [bounded pending calls](docs/pending.md):
+exact ID admission, response/token removal, absolute monotonic deadlines and
+shutdown draining. A preallocated AVL index and deadline heap bound memory and
+lookup depth. The owner serializes all operations. Local tokens resist slot reuse;
+wire ID reuse still needs runtime policy. [The example](examples/pending/main.c)
+runs without a server. Private structural/exhaustion checks run separately:
+
+```sh
+python tools/test_xrpc_pending_structure.py
+# GCC/Clang Linux ASan/UBSan; use a separate output directory per platform:
+python tools/test_xrpc_pending_structure.py --sanitize --output out/service-extensions/xrpc-pending/linux-structure
+```
+
+This table does not supply asynchronous completion, whole-response validation,
+transport cancellation, connection epochs or an executor. Those remain product work.

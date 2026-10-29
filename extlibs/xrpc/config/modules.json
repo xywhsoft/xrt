@@ -54,6 +54,13 @@
         "source_roots": [
           "id"
         ]
+      },
+      {
+        "name": "pending",
+        "state": "retained",
+        "source_roots": [
+          "pending"
+        ]
       }
     ]
   },
@@ -85,7 +92,8 @@
         "xrpc_encode",
         "xrpc_dispatch",
         "xrpc_methods",
-        "xrpc_id"
+        "xrpc_id",
+        "xrpc_pending"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -310,6 +318,39 @@
       ]
     },
     {
+      "name": "xrpc_pending",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_PENDING",
+      "depends": [
+        "xrpc_id"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/pending.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/pending/pending.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_pending.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_pending.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/pending/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_pending.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/api/reference.md",
+        "extlibs/xrpc/docs/coverage.md",
+        "extlibs/xrpc/docs/pending.md"
+      ]
+    },
+    {
       "name": "xrpc_tests",
       "state": "implemented",
       "feature": null,
@@ -326,14 +367,16 @@
         "extlibs/xrpc/tests/test_encode.c",
         "extlibs/xrpc/tests/test_dispatch.c",
         "extlibs/xrpc/tests/test_methods.c",
-        "extlibs/xrpc/tests/test_id.c"
+        "extlibs/xrpc/tests/test_id.c",
+        "extlibs/xrpc/tests/test_pending.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_encode.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_methods.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_id.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_id.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_pending.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -345,7 +388,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_encode.c": "xrpc_encode",
         "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c": "xrpc_dispatch",
         "extlibs/xrpc/tests/single/test_single_xrpc_methods.c": "xrpc_methods_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_id.c": "xrpc_id"
+        "extlibs/xrpc/tests/single/test_single_xrpc_id.c": "xrpc_id",
+        "extlibs/xrpc/tests/single/test_single_xrpc_pending.c": "xrpc_pending"
       }
     }
   ]

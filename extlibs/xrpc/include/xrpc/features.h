@@ -22,6 +22,19 @@
 #ifndef XRPC_MODULE_XRPC_ID
 #define XRPC_MODULE_XRPC_ID
 #endif
+#ifndef XRPC_MODULE_XRPC_PENDING
+#define XRPC_MODULE_XRPC_PENDING
+#endif
+#endif
+
+/* xrpc_pending 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_PENDING)
+#ifndef XRPC_FEATURE_XRPC_PENDING
+#define XRPC_FEATURE_XRPC_PENDING
+#endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
 #endif
 
 /* xrpc_id 及其直接依赖。 */

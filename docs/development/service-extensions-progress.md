@@ -22,8 +22,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   repair; remaining modes and pinned overhead/performance acceptance are pending.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
   a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
-  request dispatch, immutable method indexing and exact ID comparison keys are locally verified;
-  correlation, async scheduling and transports remain pending.
+  request dispatch, immutable method indexing, exact ID comparison keys and bounded
+  pending-call admission/removal are locally verified. Whole-response pumping,
+  async scheduling and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -69,7 +70,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | bounded synchronous request dispatch | locally verified | Windows/WSL modular/single/sanitizers/examples/trim/static/shared; full-validation-before-callback, notification suppression, exact IDs, standard errors, stack output, reentry/sticky failures, aggregate caps, 10000 mixed-batch properties, zero-heap ordinary calls and diagnostic OOM |
 | xrpc | immutable semantic method index | locally verified | all Unicode scalars, explicit fingerprint collision, copied names, 4096 unsorted registrations, bounded lookup/constructor, local-abort integration, quota/OOM and retained concurrent readers; dedicated P3 entry below records package/performance evidence |
 | xrpc | exact identifier comparison keys | locally verified | exact decimal/signed-zero/huge-exponent semantics, all Unicode scalars, independent rational and arbitrary-precision exponent oracles, bounded atomic Size/Write, standalone consumers and shared-string regression |
-| xrpc | correlation, async runtime, transports | pending | no claim |
+| xrpc | bounded serialized pending calls | locally verified | exact ID admission/removal, token ABA protection, deadline heap, shutdown drain, 100000-operation linear model, 50000 private invariants/exhaustion per platform, no steady table allocation and OOM/alias/publication coverage |
+| xrpc | whole-response pump, async runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
@@ -2379,3 +2381,129 @@ hashes to xrpc-methods/before-id/. Pending-call admission/correlation, duplicate
 late/unknown response policy, deadlines/cancellation, async runtimes/transports,
 the other products' scope and final native >=72-hour mixed/fault/performance
 acceptance remain unfinished. The full goal stays active; see docs/id.md/example.
+
+
+## P3 xrpc: bounded serialized pending calls (2026-10-30)
+
+`xrpc_pending` supplies admission, response-ID removal, token cancellation,
+finite-deadline expiry and complete shutdown draining. One serialized owner
+controls a table; it adds no callbacks, locks, threads, executor or transport.
+Only successful removal publishes a call record, after it has left both indices.
+An owner can then complete the borrowed application state exactly once across
+response/cancel/expiry events. The User pointer is borrowed; destruction never
+frees it or invokes business code. Drain first when all calls need completion.
+
+A preallocated AVL tree compares copied exact ID keys; a min-heap orders absolute
+caller-supplied monotonic deadlines, with admission serial as the tie breaker.
+UINT64_MAX is never, including for Expire(UINT64_MAX); TakeFirst can drain those
+entries. Input parsing/key canonicalization happens independently on every
+Insert/TakeId. Tokens skip parsing and check a slot before normal tree/heap
+removal. Tree mutation transplants nodes rather than exchanging live payloads,
+so token slots remain stable. A nonzero 64-bit serial is never reused; exhaustion
+fails without wrapping. Duplicate wins over full; both are ordinary outcomes
+with unchanged output and ambient diagnostic. Invalid ID input is still an error
+when full. Failed/missing removals leave their output unchanged.
+
+Local ABA protection is scoped to one table lifetime. It does not resolve old
+remote responses after wire ID reuse: runtime-generated fresh IDs/connection
+epochs and eligible-envelope admission remain necessary. This leaf takes an ID,
+not a response document. A future response pump must fully validate a batch before
+any removal. Null is a distinct allowed comparison key here, not a decision to
+accept unsolicited null-ID protocol errors as eligible responses. No raw ID is
+retained; the owner retains its original wire representation separately.
+
+The public config is 56 bytes; token 16, returned call 32 and info 40 on both
+measured x64 platforms. The private header is 88 bytes and each entry 56. Heap
+indices add four bytes per slot; fixed key slots plus one shared key scratch area
+are reserved in the same allocation. Requested storage is
+`88 + MaxCalls * (56 + 4) + (MaxCalls + 1) * MaxKeyBytes` on these ABIs, excluding
+allocator headers/caches and application state. Defaults (1024 calls, 512 key
+bytes) request 586328 bytes under the 2 MiB ceiling. ID input/string limits are
+4096/256 bytes. Constructor arithmetic and every limit are checked before
+allocation. The private 32-bit slot links are a layout choice, not a measured
+speed advantage over XRT's public pointer-node AVL. No shared runtime is added.
+
+Windows GCC 16.2.0 O2/Wall/Wextra/Werror and WSL GCC 15.2.0 O2 ASan/UBSan each pass
+six modular and six direct single-header programs (24). The pending public unit
+performs 100000 operations against an independent linear reference model,
+checking admission/removal records, counts and earliest deadline after every
+operation. It covers equivalent decimal/huge-exponent/NUL IDs, type domains,
+overwritten original input, response/expiry vs stale cancel, reused slots,
+never/tied/exact deadlines, full/duplicate ordering, 4096 ascending/descending/
+permuted mutations, exact/rejected owned/key/string limits, aliases and NULL APIs.
+10000 steady cycles retain allocation counters and ambient diagnostic identity;
+constructor and diagnostic failures under a one-byte quota preserve state/output.
+
+The committed `tools/test_xrpc_pending_structure.py` separately builds the real
+pending dependency closure with a private probe. On each platform, 50000 mutations
+check independently recomputed AVL ordering/heights/balance, heap tuple order and
+reverse indices, and complete disjoint live/free partitions. Forced serial state
+exercises the final UINT64_MAX admission and subsequent rejection without running
+2^64 operations. Both pass; the WSL probe uses ASan/UBSan. This deliberate private
+state injection is not represented as a natural 2^64-operation endurance run.
+
+Both platforms pass all six runnable examples, trim, complete xrpc static/shared
+consumers and pending-only static/shared consumers. The minimal verifier manifest
+changes only the consumer to the registered pending example. The declaration
+consumer compiles the new pending API from declaration headers. Measured object
+sizes are text/data/bss/file bytes:
+
+| Platform | Complete-closure single object | Product-only static | Product-only shared |
+| --- | --- | --- | --- |
+| Windows x64 | 228348 / 2664 / 11040 / 345891 | 11652 / 0 / 0 / 17112 | 20438 / 144 / 272 / 54359 |
+| WSL x64 | 237531 / 3280 / 10924 / 417472 | 11732 / 0 / 0 / 21468 | 14263 / 640 / 8 / 25256 |
+
+The single object includes its core dependency closure; separate product objects
+exclude host XRT. These columns are not interchangeable measures of total deployed
+size. Raw commands, frozen source/compiler/binary hashes, layouts, consumer and
+size receipts live under `out/service-extensions/xrpc-pending/`. Before overwriting
+shared output locations, 42 prior ID-stage artifacts were copied and SHA-256
+checked under `out/service-extensions/xrpc-id/before-pending/`, with an archive map.
+All prior source/tests remain present. Generator/API checks pass; normal maturity
+reports 9 modules, 7 covered implementation nodes, 15 workloads and 6 size profiles.
+Strict release still fails on the developing product, without a bypass.
+
+
+The dedicated benchmark runs five workloads: response/remove+reinsert at live
+occupancy 1/1024/4096, plus token cancellation and expiry at 1024. Every workload
+uses 1 warmup and 5 measured runs of 1000000 cycles, with a separate 10000-sample
+latency phase. IDs are precomputed and locally reused solely for this leaf
+benchmark, not a safe runtime wire-ID policy. Setup, formatting, queue wait,
+future completion and transport are excluded. Latency includes two clock reads;
+throughput has no per-cycle clocks. The 64-byte key slot configuration requests
+127128 bytes at occupancy 1024. All completion counts match; all samples remain.
+Medians below describe this workload only, not production capacity:
+
+| Platform | Removal / live calls | Cycles/s | P50 us | P99 us |
+| --- | --- | --- | --- | --- |
+| Windows | response / 1 | 2732087 | 0.400 | 0.400 |
+| Windows | response / 1024 | 1373046 | 1.000 | 1.300 |
+| Windows | token cancel / 1024 | 1977111 | 0.500 | 0.600 |
+| Windows | expiry / 1024 | 1389651 | 0.800 | 1.100 |
+| Windows | response / 4096 | 1134335 | 0.700 | 1.300 |
+| WSL | response / 1 | 1346328 | 0.600 | 0.700 |
+| WSL | response / 1024 | 1028931 | 1.000 | 1.200 |
+| WSL | token cancel / 1024 | 1333341 | 0.700 | 0.900 |
+| WSL | expiry / 1024 | 1250714 | 0.700 | 1.000 |
+| WSL | response / 4096 | 1125867 | 1.000 | 1.500 |
+
+Windows has 17 failing metric/noise checks and WSL 14, under unchanged 3% relative
+MAD and 6% central-range limits. Both performance runner exits are 1, retained in
+separate exit receipts. No noise failure, outlier or result is suppressed. There
+is no pinned comparator/absolute objective or native-Linux acceptance, and this
+leaf excludes end-to-end queueing. Performance and production acceptance remain
+**unaccepted**, regardless of individual throughput/latency medians.
+
+Matching Windows/WSL source fingerprint: `86cdd82571fe6b615899f5179c30fc55b1bf6ad95b60d8425935862a50c8471a`.
+Workload fingerprint: `c212859acc5c135d594d8fb4e56b7cfcfb52ee6701bb230b0ab4eed3f6e77c68`.
+`validation.json` verifies 24 actual test binaries, the private probes and their
+source/output hashes, consumers, declaration/layout/size objects, actual measured
+counts, and both fingerprints against current inputs. The complete source-input
+map remains unchanged through compilation/measurement; only documentation is
+updated afterward. Raw command/metric/exit receipts stay in the phase directory.
+
+Remaining P3 work is a whole-document response pump, immutable owned results,
+client/server async scheduling and transports, connection epochs/fresh wire IDs,
+negotiated cancellation/deadline behavior, fault/recovery tests and native pinned
+performance/72-hour mixed-load acceptance. The other three product scopes remain
+active; this table does not complete any final product.

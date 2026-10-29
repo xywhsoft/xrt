@@ -397,6 +397,233 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_pending",
+      "system": "pending",
+      "description": "Serialized remove+reinsert at fixed occupancy; transport/queue/future excluded",
+      "benchmarks": [
+        {
+          "name": "xrpc_pending_0_1",
+          "source": "extlibs/xrpc/bench/bench_pending.c",
+          "suite": "xrpc_pending,time",
+          "args": [
+            "1000000",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "live_calls",
+            "owned_bytes",
+            "max_key_bytes",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_pending_0_1024",
+          "source": "extlibs/xrpc/bench/bench_pending.c",
+          "suite": "xrpc_pending,time",
+          "args": [
+            "1000000",
+            "0",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "0",
+            "1024"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "live_calls",
+            "owned_bytes",
+            "max_key_bytes",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_pending_1_1024",
+          "source": "extlibs/xrpc/bench/bench_pending.c",
+          "suite": "xrpc_pending,time",
+          "args": [
+            "1000000",
+            "1",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "1",
+            "1024"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "live_calls",
+            "owned_bytes",
+            "max_key_bytes",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_pending_2_1024",
+          "source": "extlibs/xrpc/bench/bench_pending.c",
+          "suite": "xrpc_pending,time",
+          "args": [
+            "1000000",
+            "2",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "2",
+            "1024"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "live_calls",
+            "owned_bytes",
+            "max_key_bytes",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_pending_0_4096",
+          "source": "extlibs/xrpc/bench/bench_pending.c",
+          "suite": "xrpc_pending,time",
+          "args": [
+            "1000000",
+            "0",
+            "4096"
+          ],
+          "smoke_args": [
+            "1000",
+            "0",
+            "4096"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "cycle_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "live_calls",
+            "owned_bytes",
+            "max_key_bytes",
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }

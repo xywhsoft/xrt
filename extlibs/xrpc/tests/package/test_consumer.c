@@ -44,6 +44,11 @@ int main(void)
 	unsigned char IdA[128],IdB[128];size_t IdLeft=0,IdRight=0;
 	if(!xrpcIdKeyWrite(IdA,sizeof(IdA),XRT_STR_LITERAL("10e18446744073709551615"),NULL,&IdLeft) ||
 		!xrpcIdKeyWrite(IdB,sizeof(IdB),XRT_STR_LITERAL("1e18446744073709551616"),NULL,&IdRight) || IdLeft!=IdRight || memcmp(IdA,IdB,IdLeft))return 9;
+	xrpcpending* Pending=NULL;xrpcpendingtoken Token;xrpcpendingcall Taken;
+	if(!xrpcPendingCreate(NULL,&Pending) || xrpcPendingInsert(Pending,XRT_STR_LITERAL("1"),100,NULL,&Token)!=XRPC_PENDING_OK ||
+		xrpcPendingTakeId(Pending,XRT_STR_LITERAL("1.00e0"),&Taken)!=XRPC_PENDING_OK || Taken.Token.Serial!=Token.Serial ||
+		xrpcPendingTakeToken(Pending,Token,&Taken)!=XRPC_PENDING_MISSING)return 10;
+	xrpcPendingDestroy(Pending);
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;

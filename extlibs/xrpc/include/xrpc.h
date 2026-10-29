@@ -21,4 +21,8 @@
 #include <xrpc/dispatch.h>
 #include <xrpc/methods.h>
 #include <xrpc/id.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_PENDING)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_PENDING"
+#endif
+#include <xrpc/pending.h>
 #endif

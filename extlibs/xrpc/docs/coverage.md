@@ -1,7 +1,7 @@
 # Envelope and synchronous dispatch contracts
 
 These leaves implement JSON-RPC 2.0 document/envelope decoding, encoding and
-synchronous request dispatch on public XRT APIs. The [full product scope](../../../docs/development/service-extensions-plan.md)
+synchronous request dispatch and serialized pending-call admission/removal on public XRT APIs. The [full product scope](../../../docs/development/service-extensions-plan.md)
 remains in force; no async runtime/transport completion is implied.
 
 | Contract | Verification |
@@ -78,3 +78,18 @@ and diagnostic reference operations.
 The benchmark observes decoded fields and checks a completion checksum. It is
 a workload smoke until a pinned baseline and end-to-end runtime exist. Current
 platform evidence and remaining gates are in the [progress ledger](../../../docs/development/service-extensions-progress.md).
+
+| Pending-call table contract | Verification |
+| --- | --- |
+| Exact IDs and key ownership | Numeric/string/null separation, equivalent decimal/huge exponents, embedded NUL escapes, overwritten raw input |
+| Single removal and local ABA | Response vs stale cancellation/expiry, duplicate responses, reused slots with never-reused serials |
+| Admission and deadline order | Full/duplicate precedence, exact due ticks, equal-deadline serial order, never deadlines and shutdown draining |
+| Independent operation model | 100000 public API operations against a linear reference model, checking outputs, counts and earliest deadline after every operation |
+| Bounded structure | Ascending/descending/permuted 4096-entry mutation; separate 50000 private AVL/heap/free-list invariant checks and forced 64-bit serial exhaustion |
+| Failure publication and bounds | Config/owned-byte/key/string/input limits, malformed IDs even full, aliases, missing/error outputs unchanged |
+| Allocation/OOM | 10000 steady cycles with unchanged allocation counters/ambient diagnostic, constructor OOM and diagnostic OOM under one-byte quota |
+
+The pending table requires one serialized owner. It does not arbitrate concurrent
+access internally or classify response envelopes, and local tokens cannot resolve
+remote late responses after wire ID reuse. Runtime/connection ownership, future
+completion, response-batch preflight and transport recovery remain pending.
