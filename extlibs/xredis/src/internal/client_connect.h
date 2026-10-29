@@ -2,13 +2,22 @@
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 #include <xredis/client.h>
 typedef struct xredisexclusiveowner xredisexclusiveowner;
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 #include <xrt/atomic.h>
 enum { XREDIS_OWNER_STARTING, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED,
     XREDIS_OWNER_CLOSING, XREDIS_OWNER_CLOSED };
-/* Embedded in the session. Retain/Release are atomic-only; Wake is called
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+typedef struct xredisownerquota {
+    xatomic64 Requests, Bytes;
+    xatomic32 Closing;
+    uint64 MaxRequests, MaxBytes;
+} xredisownerquota;
+#endif
+/* Embedded in a session or pool slot. Retain/Release are atomic-only; Wake is called
  * outside the client Gate. The owner holds a client ref and an engine Pin
- * until Unclaim, including the physical retirement of request constructors. */
+ * until Unclaim, including the physical retirement of request constructors.
+ * Deadline is published before ACTIVE, and changed only while sealed, idle
+ * and without API constructors from the previous generation. */
 struct xredisexclusiveowner {
     ptr Data;
     xatomic32 State;
@@ -16,6 +25,9 @@ struct xredisexclusiveowner {
     void (*Retain)(ptr Data);
     void (*Wake)(ptr Data);
     void (*Release)(ptr Data);
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+    xredisownerquota* Quota;
+#endif
 };
 xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
     xnetengine** Engine, xnetworker** Worker, ptr Output);
@@ -33,7 +45,7 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 xredisadmission __xredisClientTransaction(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 xredisadmission __xredisClientOwnedTransaction(xredisclient* Client, xredisexclusiveowner* Owner,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future);

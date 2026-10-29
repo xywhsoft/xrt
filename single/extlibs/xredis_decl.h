@@ -42,6 +42,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_POOL)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER 1
 #endif
@@ -74,6 +77,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_DIAL)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_POOL)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_READER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER 1
@@ -2539,6 +2545,9 @@
 #ifndef XREDIS_MODULE_XREDIS_WATCH
 #define XREDIS_MODULE_XREDIS_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -2551,6 +2560,26 @@
 #endif
 #ifndef XRT_MODULE_TLS_CLIENT_AUTH
 #define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -2604,20 +2633,10 @@
 #endif
 #endif
 
-/* xredis_watch 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
-#ifndef XREDIS_FEATURE_XREDIS_WATCH
-#define XREDIS_FEATURE_XREDIS_WATCH
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
+/* xredis_pool 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL)
+#ifndef XREDIS_FEATURE_XREDIS_POOL
+#define XREDIS_FEATURE_XREDIS_POOL
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
@@ -3321,6 +3340,228 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_H
+#define XREDIS_POOL_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
+#error "XREDIS_FEATURE_XREDIS_POOL requires XREDIS_FEATURE_XREDIS_CLIENT"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+typedef struct xredispool xredispool;
+typedef struct xredislease xredislease;
+typedef enum xredispoolstate { XREDIS_POOL_OPEN, XREDIS_POOL_CLOSING, XREDIS_POOL_CLOSED } xredispoolstate;
+typedef struct xredispoolconfig {
+    size_t Size;
+    /* Includes concurrent acquire constructors and queued acquisitions. */
+    size_t MaxPending;
+    size_t MaxRequests;
+    size_t MaxCommandBytes;
+    /* Finite maximum lease hold, including calls and application think time.
+     * Default 30 s, hard maximum 24 hours. No renewal on calls. */
+    int64 LeaseTimeout;
+    /* Graceful Return seals admission and drains, default 5 s, max 60 s.
+     * Expiry retires a still-busy connection. */
+    int64 ReturnTimeout;
+    size_t WorkItems;
+} xredispoolconfig;
+typedef struct xredispoolinfo {
+    size_t Size;
+    xredispoolstate State;
+    size_t Members, Live, Idle, Leased, Pending;
+    uint64 Requests, CommandBytes, Acquired, Rejected, Returned, Retired;
+} xredispoolinfo;
+/* Borrowed from the acquisition Future. Only OK has a Lease. Retain it before
+ * dropping that Future. Failed acquisition performs no Redis command. */
+typedef struct xredisleaseresult {
+    xredisrequeststatus Status;
+    xredislease* Lease;
+} xredisleaseresult;
+typedef struct xredisleaseclosedresult {
+    xredisrequeststatus Reason;
+    bool Reusable;
+} xredisleaseclosedresult;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisPoolConfigInit(xredispoolconfig* Config);
+/* Fixed membership, 1..65536 distinct OPEN/ready/physically idle managed
+ * clients with the same negotiated RESP version on this running Engine.
+ * The caller supplies a common service/credentials/database/session profile;
+ * the pool cannot infer erased credentials or server-side profile changes.
+ * Existing numeric/DNS/TLS factories
+ * supply members. Success holds refs and exclusively claims them; caller refs
+ * are borrowed, never consumed. Failure rolls back every partial claim and
+ * leaves output unchanged. Busy members return OVERLOADED. No connection is
+ * created/reconnected/replayed by this core. PoolClose closes its members.
+ * Do not use member clients directly while pooled; Close observers and an
+ * external close remain valid. Count/argument storage is borrowed for Create.
+ * Limits are hard across all members, including request constructor/wire/
+ * timer/cancel tails. Result/reply storage retained by callers remains theirs.
+ * Each native parser/push/work limit also remains in force. */
+XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Pool);
+XREDIS_API bool xredisPoolRetain(xredispool* Pool);
+/* Caller must Close then Release; Release alone does not close a live pool. */
+XREDIS_API void xredisPoolRelease(xredispool* Pool);
+/* Bounded FIFO admission. Timeout (-1 forever, 0 due) includes allocation,
+ * queue wait and grant. A separate finite lease hold starts at grant. Cancel
+ * requests stop; every accepted acquisition resolves a typed immutable result.
+ * No live member yields DISCONNECTED. Output changes only on ACCEPTED.
+ * Sync rejects every worker of the same engine. */
+XREDIS_API xredisadmission xredisPoolAcquireAsync(xredispool* Pool, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisPoolAcquire(xredispool* Pool, int64 Timeout, xfuture** Future);
+XREDIS_API bool xredisPoolInfo(xredispool* Pool, xredispoolinfo* Info);
+XREDIS_API bool xredisPoolClose(xredispool* Pool);
+XREDIS_API xfuture* xredisPoolClosed(xredispool* Pool);
+XREDIS_API bool xredisLeaseRetain(xredislease* Lease);
+XREDIS_API void xredisLeaseRelease(xredislease* Lease);
+/* Direct native request/Future, with no second per-call Future or wire clone.
+ * Ordinary one-reply and blocking commands use the same FIFO and physical
+ * obligations as the client. Effective deadline is min(call deadline, lease
+ * hold deadline). Connection/mode/transaction controls require their own APIs.
+ * Local cancel/timeout does not release a sent request's FIFO obligation. */
+XREDIS_API xredisadmission xredisLeaseCallAsync(xredislease* Lease,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisLeaseCall(xredislease* Lease,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+/* Idempotent, nonblocking seal. Return drains within ReturnTimeout and the
+ * original hold deadline; Abort retires the connection. Releasing a handle
+ * alone does not return it; finite hold expiry recovers dropped observers.
+ * Closed resolves only after API constructors and native request storage
+ * retire. Reusable certifies the slot-release boundary; it does not promise
+ * another caller has not acquired it since. Completed retained metadata pins
+ * no client/pool/engine. Join the engine before unloading callback code. */
+XREDIS_API bool xredisLeaseReturn(xredislease* Lease);
+XREDIS_API bool xredisLeaseAbort(xredislease* Lease);
+XREDIS_API xfuture* xredisLeaseClosed(xredislease* Lease);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/dial.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_DIAL_H
+#define XREDIS_DIAL_H
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "XREDIS_FEATURE_XREDIS_DIAL requires client and net_tcp_dial"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_DIAL)
+#define XREDIS_DIAL_ADDRESSES_MAX 64u
+#define XREDIS_DIAL_HOST_MAX 65535u
+
+/* Network policy only; the client Config.Stream remains the sole TCP limits.
+ * Timeout=0 disables the additional Dial timer, -1 is infinite. Managed Init's
+ * original deadline still spans host copying, DNS, candidate race and HELLO.
+ * Default dual stack, 30000 ms, 250 ms fallback, eight candidates, 1024 host
+ * bytes. Maximum candidate/address count 64; maximum borrowed host span 65535.
+ * No IDNA conversion, TLS, reconnect or application-command replay is implied. */
+typedef struct xredisclientdialconfig {
+	size_t Size;
+	xnetfamily Family;
+	int64 Timeout;
+	int64 FallbackDelay;
+	uint32 MaxAttempts;
+	size_t MaxHostBytes;
+} xredisclientdialconfig;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientDialConfigInit(xredisclientdialconfig* Config);
+
+/* Async hostname setup on the existing Engine/Resolver. Host is a bounded,
+ * nonempty readable view without embedded NUL; copied before return. Resolver
+ * is application-owned and must outlive Closed (then retire/join it separately).
+ * It is shared; closing a client does not close the service or stop an OS
+ * lookup already running there. All client callback/data ownership retires
+ * through the client Close barrier. NULL Init selects strict RESP3 defaults.
+ * Calls can queue, expire/cancel through DNS and TCP setup. Result unchanged on
+ * failure. Successful submission owns one Client reference: Close then Release.
+ * Core XRT supplies bounded family interleaving, fallback and losing-socket
+ * retirement before transfer. No business operation is retried or replayed. */
+XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+
+/* Already resolved immutable endpoints; no Resolver is consulted. Each port
+ * is preserved. At most 64 entries; Family filters candidates and MaxAttempts
+ * bounds selected attempts. Retains the list only until native Dial admission;
+ * caller may release its reference immediately. Output storage must be disjoint
+ * from descriptors and borrowed host/credential/name/endpoint storage. */
+XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine,
+	xnetaddrlist* Addresses, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
+	xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/tls.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TLS_H
+#define XREDIS_TLS_H
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XREDIS_FEATURE_XREDIS_DIAL) || !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_TLS_CLIENT_RESUME))
+#error "XREDIS_FEATURE_XREDIS_TLS requires dial, TLS stream and verified/resumable TLS client"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XRT_FEATURE_TLS_RECORD_AES) || !defined(XRT_FEATURE_TLS_RECORD_CHACHA) || \
+	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384))
+#error "XREDIS_FEATURE_XREDIS_TLS requires its declared AES/ChaCha, SHA256/SHA384 and X25519/P256/P384 backends"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+/* All views are borrowed only during the factory. Native TLS owns a snapshot
+ * of names/ALPN and shared Context/Verifier/Resume references before return.
+ * Supply a Verifier (or explicit ResumeOnly with a valid Resume); no implicit
+ * insecure verification mode. Verifier callback code/context follow XRT's
+ * shared-verifier lifetime, including Engine join after client Closed.
+ * Defaults: native TLS policy/stream limits, normal Dial defaults, 64 KiB
+ * metadata, 64 KiB plaintext write work per client turn, infer DNS SNI/name.
+ * Numeric hosts infer VerifyName only; prepared endpoints need an explicit
+ * ServerName or VerifyName. Init's original deadline spans TLS too. */
+typedef struct xredisclienttlsconfig {
+	size_t Size;
+	xtlsclientconfig Session;
+	xtlsstreamconfig Stream;
+	xredisclientdialconfig Dial;
+	size_t MaxMetadataBytes;
+	size_t WriteBytes;
+	bool ServerNameFromHost;
+} xredisclienttlsconfig;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientTlsConfigInit(xredisclienttlsconfig* Config);
+/* TLS is required. Result unchanged on rejection; no cleartext fallback or
+ * operation replay. Typed readiness is published only after TLS + Redis setup.
+ * Resolver is application owned through Closed, and joined separately. */
+XREDIS_API bool xredisClientTlsDial(xnetengine* Engine, xnetresolver* Resolver,
+	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
+	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, xredisclient** Result);
+XREDIS_API bool xredisClientTlsDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	const xredisclienttlsconfig* TLS, xredisclient** Result);
+/* Numeric endpoint convenience; TLS identity must be explicit in TLS. */
+XREDIS_API bool xredisClientTlsConnect(xnetengine* Engine, const xnetaddr* Remote,
+	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
+	const xredisclienttlsconfig* TLS, xredisclient** Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/transaction.h */
 /* ========================================================================== */
 
@@ -3485,127 +3726,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/dial.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_DIAL_H
-#define XREDIS_DIAL_H
-
-#if defined(XREDIS_FEATURE_XREDIS_DIAL) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
-#error "XREDIS_FEATURE_XREDIS_DIAL requires client and net_tcp_dial"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_DIAL)
-#define XREDIS_DIAL_ADDRESSES_MAX 64u
-#define XREDIS_DIAL_HOST_MAX 65535u
-
-/* Network policy only; the client Config.Stream remains the sole TCP limits.
- * Timeout=0 disables the additional Dial timer, -1 is infinite. Managed Init's
- * original deadline still spans host copying, DNS, candidate race and HELLO.
- * Default dual stack, 30000 ms, 250 ms fallback, eight candidates, 1024 host
- * bytes. Maximum candidate/address count 64; maximum borrowed host span 65535.
- * No IDNA conversion, TLS, reconnect or application-command replay is implied. */
-typedef struct xredisclientdialconfig {
-	size_t Size;
-	xnetfamily Family;
-	int64 Timeout;
-	int64 FallbackDelay;
-	uint32 MaxAttempts;
-	size_t MaxHostBytes;
-} xredisclientdialconfig;
-
-XRT_EXTERN_C_BEGIN
-XREDIS_API bool xredisClientDialConfigInit(xredisclientdialconfig* Config);
-
-/* Async hostname setup on the existing Engine/Resolver. Host is a bounded,
- * nonempty readable view without embedded NUL; copied before return. Resolver
- * is application-owned and must outlive Closed (then retire/join it separately).
- * It is shared; closing a client does not close the service or stop an OS
- * lookup already running there. All client callback/data ownership retires
- * through the client Close barrier. NULL Init selects strict RESP3 defaults.
- * Calls can queue, expire/cancel through DNS and TCP setup. Result unchanged on
- * failure. Successful submission owns one Client reference: Close then Release.
- * Core XRT supplies bounded family interleaving, fallback and losing-socket
- * retirement before transfer. No business operation is retried or replayed. */
-XREDIS_API bool xredisClientDial(xnetengine* Engine, xnetresolver* Resolver,
-	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
-	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
-	xredisclient** Result);
-
-/* Already resolved immutable endpoints; no Resolver is consulted. Each port
- * is preserved. At most 64 entries; Family filters candidates and MaxAttempts
- * bounds selected attempts. Retains the list only until native Dial admission;
- * caller may release its reference immediately. Output storage must be disjoint
- * from descriptors and borrowed host/credential/name/endpoint storage. */
-XREDIS_API bool xredisClientDialAddresses(xnetengine* Engine,
-	xnetaddrlist* Addresses, uint64 Affinity, const xredisclientconfig* Config,
-	const xredisclientinitconfig* Init, const xredisclientdialconfig* Dial,
-	xredisclient** Result);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/tls.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_TLS_H
-#define XREDIS_TLS_H
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XREDIS_FEATURE_XREDIS_DIAL) || !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_TLS_CLIENT_RESUME))
-#error "XREDIS_FEATURE_XREDIS_TLS requires dial, TLS stream and verified/resumable TLS client"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_TLS) && (!defined(XRT_FEATURE_TLS_RECORD_AES) || !defined(XRT_FEATURE_TLS_RECORD_CHACHA) || \
-	!defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
-	!defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384))
-#error "XREDIS_FEATURE_XREDIS_TLS requires its declared AES/ChaCha, SHA256/SHA384 and X25519/P256/P384 backends"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_TLS)
-/* All views are borrowed only during the factory. Native TLS owns a snapshot
- * of names/ALPN and shared Context/Verifier/Resume references before return.
- * Supply a Verifier (or explicit ResumeOnly with a valid Resume); no implicit
- * insecure verification mode. Verifier callback code/context follow XRT's
- * shared-verifier lifetime, including Engine join after client Closed.
- * Defaults: native TLS policy/stream limits, normal Dial defaults, 64 KiB
- * metadata, 64 KiB plaintext write work per client turn, infer DNS SNI/name.
- * Numeric hosts infer VerifyName only; prepared endpoints need an explicit
- * ServerName or VerifyName. Init's original deadline spans TLS too. */
-typedef struct xredisclienttlsconfig {
-	size_t Size;
-	xtlsclientconfig Session;
-	xtlsstreamconfig Stream;
-	xredisclientdialconfig Dial;
-	size_t MaxMetadataBytes;
-	size_t WriteBytes;
-	bool ServerNameFromHost;
-} xredisclienttlsconfig;
-
-XRT_EXTERN_C_BEGIN
-XREDIS_API bool xredisClientTlsConfigInit(xredisclienttlsconfig* Config);
-/* TLS is required. Result unchanged on rejection; no cleartext fallback or
- * operation replay. Typed readiness is published only after TLS + Redis setup.
- * Resolver is application owned through Closed, and joined separately. */
-XREDIS_API bool xredisClientTlsDial(xnetengine* Engine, xnetresolver* Resolver,
-	xstrview Host, uint16 Port, uint64 Affinity, const xredisclientconfig* Config,
-	const xredisclientinitconfig* Init, const xredisclienttlsconfig* TLS, xredisclient** Result);
-XREDIS_API bool xredisClientTlsDialAddresses(xnetengine* Engine, xnetaddrlist* Addresses,
-	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
-	const xredisclienttlsconfig* TLS, xredisclient** Result);
-/* Numeric endpoint convenience; TLS identity must be explicit in TLS. */
-XREDIS_API bool xredisClientTlsConnect(xnetengine* Engine, const xnetaddr* Remote,
-	uint64 Affinity, const xredisclientconfig* Config, const xredisclientinitconfig* Init,
-	const xredisclienttlsconfig* TLS, xredisclient** Result);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/tls_auth.h */
 /* ========================================================================== */
 
@@ -3693,6 +3813,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_WATCH"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL"
+#endif
+
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS)
 #undef XREDIS_FEATURE_XREDIS
@@ -3709,6 +3833,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL)
 #undef XREDIS_FEATURE_XREDIS_DIAL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_DIAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL)
+#undef XREDIS_FEATURE_XREDIS_POOL
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_READER)
 #undef XREDIS_FEATURE_XREDIS_READER
@@ -3753,6 +3881,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL)
 #undef XREDIS_MODULE_XREDIS_DIAL
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_DIAL
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL)
+#undef XREDIS_MODULE_XREDIS_POOL
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_READER)
 #undef XREDIS_MODULE_XREDIS_READER
@@ -5457,6 +5589,9 @@ XRT_EXTERN_C_END
 #ifndef XREDIS_MODULE_XREDIS_WATCH
 #define XREDIS_MODULE_XREDIS_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -5469,6 +5604,26 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_TLS_CLIENT_AUTH
 #define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -5522,20 +5677,10 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* xredis_watch 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
-#ifndef XREDIS_FEATURE_XREDIS_WATCH
-#define XREDIS_FEATURE_XREDIS_WATCH
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
+/* xredis_pool 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL)
+#ifndef XREDIS_FEATURE_XREDIS_POOL
+#define XREDIS_FEATURE_XREDIS_POOL
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT

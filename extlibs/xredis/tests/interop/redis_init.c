@@ -14,6 +14,9 @@
 #if defined(INTEROP_WATCH)
 #define XREDIS_MODULE_XREDIS_WATCH
 #endif
+#if defined(INTEROP_POOL)
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #include <xredis.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,6 +135,9 @@ static xfuture* interopSuccess(xnetengine* Engine, const xnetaddr* Address, int 
 #endif
 #if defined(INTEROP_WATCH)
 #include "watch_support.h"
+#endif
+#if defined(INTEROP_POOL)
+#include "pool_support.h"
 #endif
 
 static void interopFailure(xnetengine* Engine, const xnetaddr* Address, int Scenario)
@@ -289,6 +295,9 @@ int main(int argc, char** argv)
 #endif
 #if defined(INTEROP_WATCH)
 	interopWatches(Engine, &Address, Scenario);
+#endif
+#if defined(INTEROP_POOL)
+	interopPools(Engine, &Address, Scenario);
 #endif
 	interopFailure(Engine, &Address, Scenario);
 #if defined(INTEROP_TLS)

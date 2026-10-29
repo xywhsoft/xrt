@@ -48,4 +48,9 @@
 #endif
 #include <xredis/watch.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL"
+#endif
+#include <xredis/pool.h>
+
 #endif

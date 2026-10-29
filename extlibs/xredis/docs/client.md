@@ -117,8 +117,10 @@ commands, with bounded pipelining. Raw Connect preserves manual setup; managed
 ConnectInit adds [HELLO/AUTH initialization and its readiness barrier](client-init.md).
 Optional [DNS/address dialing](dial.md), [TLS](tls.md),
 [client certificates](tls-auth.md) and [atomic transactions](transaction.md)
-build on this runtime. Reconnect policy, pools, interactive WATCH sessions,
-blocking/PubSub modes, Sentinel, Cluster and Tracking remain subsequent work;
+build on this runtime. [WATCH sessions](watch.md) and [exclusive pool leases](pool.md)
+reuse its physical obligations. Reconnect policy, automatic pool repair,
+pooled transaction/WATCH integration, dedicated PubSub, Sentinel, Cluster and
+Tracking remain subsequent work;
 the whole product remains developing.
 Known subscription/unsubscription, MONITOR, SYNC/PSYNC and CLIENT REPLY switches
 are rejected before admission. Unknown module commands must obey the caller's

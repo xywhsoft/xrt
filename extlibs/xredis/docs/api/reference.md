@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `58` 个函数、`123` 个常量或宏、
-`44` 个公共类型。
+当前登记 `74` 个函数、`127` 个常量或宏、
+`51` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -150,6 +150,46 @@
 
 - `XREDIS_BUILD_SHARED`
 - `XREDIS_USE_SHARED`
+
+## `extlibs/xredis/include/xredis/pool.h`
+
+[查看带契约注释的公共头](../../include/xredis/pool.h)
+
+### 函数 (16)
+
+- `xredisLeaseAbort`
+- `xredisLeaseCall`
+- `xredisLeaseCallAsync`
+- `xredisLeaseClosed`
+- `xredisLeaseRelease`
+- `xredisLeaseRetain`
+- `xredisLeaseReturn`
+- `xredisPoolAcquire`
+- `xredisPoolAcquireAsync`
+- `xredisPoolClose`
+- `xredisPoolClosed`
+- `xredisPoolConfigInit`
+- `xredisPoolCreate`
+- `xredisPoolInfo`
+- `xredisPoolRelease`
+- `xredisPoolRetain`
+
+### 常量与宏 (4)
+
+- `XREDIS_FEATURE_XREDIS_POOL`
+- `XREDIS_POOL_CLOSED`
+- `XREDIS_POOL_CLOSING`
+- `XREDIS_POOL_OPEN`
+
+### 类型 (7)
+
+- `xredislease`
+- `xredisleaseclosedresult`
+- `xredisleaseresult`
+- `xredispool`
+- `xredispoolconfig`
+- `xredispoolinfo`
+- `xredispoolstate`
 
 ## `extlibs/xredis/include/xredis/reader.h`
 

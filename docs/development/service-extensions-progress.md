@@ -1688,3 +1688,106 @@ Local receipts, current binary hashes, layouts, raw passing/failing logs,
 performance quality failures and `validation.json` are under ignored
 `out/service-extensions/watch/`. See `extlibs/xredis/docs/watch.md` and its
 self-contained example for the precise contract and reproducible commands.
+
+## P2 xredis: bounded exclusive lease pool core (2026-10-29)
+
+`xredis_pool` adds a fixed-membership lease core over existing ready managed
+TCP/DNS/TLS clients, without a new shared runtime or thread. It accepts 1..65536
+distinct, physically idle clients on one engine with one negotiated RESP version.
+The caller supplies the intended common service/credentials/database/session
+profile; erased credentials/arbitrary server-side state cannot be inferred.
+Construction sorts a temporary pointer copy, claims members, and rolls back all
+partial claims on failure. Sixteen APIs and seven types are registered (74
+functions, 127 constants/macros, 51 types across the public product). Automatic
+creation/repair/reconnect, pooled transaction/WATCH handoff, HA/routing and final
+production/performance acceptance remain pending; the module stays developing.
+This is an actual pool core, not a declaration that the final pool scope is done.
+
+Acquisition is bounded FIFO by accepted enqueue order. Its original monotonic
+deadline includes constructor and queue time. Grants have a separate finite
+maximum hold, not renewed by calls. Queued cancel/expiry produces immutable typed
+outcomes without Redis commands; all-dead membership reports DISCONNECTED.
+Native leased calls reuse the existing Future, immutable wire and FIFO directly,
+with no second per-call Future/encoding buffer/request pointer. Hard aggregate
+request/command-byte quotas reserve before construction and release only after
+physical storage free, including failed construction, sent abandonment and
+wire/timer/cancel tails. Logical completion alone cannot release quota.
+
+Return seals calls and drains within grace and the original hold deadline;
+busy expiry/Abort retires a connection, while clean idle expiry can reuse it.
+API constructors retire before a slot changes generation; old retained handles
+cannot reach new leases. PoolClose atomically closes native quota-group admission
+before bounded worker traversal. Client-close watches, coalesced idle/events,
+waiter/idle FIFO lists and bounded work turns avoid full membership scans on each
+request. Completed retained metadata pins no pool/client/engine. Dropped lease
+observers recover through finite expiry. No sent operation is replayed.
+
+Both Windows GCC O2 and WSL GCC O2 ASan/UBSan pass 13 modular and 13 single-header
+programs (52 total). New tests cover binary native requests, two-/four-member
+ownership, queue order/admission/cancel/expiry/zero deadline, aggregate count/byte
+limits remaining charged after sent cancellation, graceful busy drain and
+subsequent FIFO grant, return/hold expiry, idle reuse versus busy retirement,
+forced/external/pool close, generation/retained/dropped-observer lifetimes,
+invalid/control/output aliases, partial rollback, mixed-protocol/engine rejection,
+cross-worker sync refusal and eight producers (128 leases, 512 pipelined calls).
+Budget windows cover 65 pool constructors, 169 acquisitions and 67 native calls;
+all counts/bytes return to zero after their actual callback tails. Two cold
+worker quota=1 cases cover queue/hold timer allocation failure. An initial OOM
+fixture unexpectedly obtained a recycled timer; the test now uses public
+NodeCacheBytes=0 to force allocation. Production/example/benchmark/independent
+peers retain normal caching. Original failed setup/OOM-fixture logs remain.
+
+Each platform passes six independent Redis 8.0.5 cases (TLS 1.2/1.3, RSA client
+certificates, no-password/password/ACL auth), each with RESP2 and RESP3. Two
+pooled members and a separate admin prove binary calls, queued cancellation,
+server-confirmed blocked BLPOP (CLIENT LIST ID flags), aggregate quota still
+held after local cancellation, LPUSH-unblocked physical drain, busy Return/FIFO
+handoff and rejection of old lease generations. Atomic-transaction and WATCH
+oracles also run in every case. Windows is a native client against a WSL peer
+with native Windows TLS startup health, not native Linux acceptance. These passes
+do not diagnose the previously recorded generic startup observation. Final
+input fingerprints: Windows `10b46ff954a0bf7527927fd407a72e42a040a10cd3a7602aa7cc42fa5a32f8bc`;
+WSL `26f6fffd335082c1e5b05747fa75ceda496b456dfd03c570b664dfc0f8e770ca`. Exact platform sources, all relevant
+headers/helpers, compiler and binary are revalidated before/after execution.
+
+Both platforms pass separate minimal static/shared consumers that execute real
+pool acquisition/native binary call/physical return, self-contained examples,
+declaration-only syntax and trim. Single/static/shared size profiles enforce
+excluded optional DNS/TLS/signer/process/HTTP/WebSocket/task symbols. Normal
+maturity passes with 26 workloads/10 size profiles; strict release rejects the
+five developing modules. Native MSVC and native Linux deployment acceptance
+are not established by these GCC/WSL checks.
+
+Matched x64 layouts keep request allocation 104 bytes, client config 232 and
+request outcome 24. Pool or WATCH or both share the same eight-byte client owner
+pointer: Windows 848 to 856, WSL 920 to 928 in identical TLS/auth closures.
+Pool fixed prefix is 440/512 bytes (Windows/WSL), each member slot 184, lease
+metadata 200/272, embedded quota group 40 (included in prefix). Both-feature
+WATCH scope is 616/688, eight bytes above standalone WATCH due to its optional
+quota pointer. Public layouts are feature-independent. These omit allocator,
+Future/result/timer storage, temporary sorting and native connection resources.
+Per-call lease gates, owner/state/profile checks, shared quota CAS/decrements,
+notifications, allocation/copy/synchronization and cold construction remain real
+costs. Active calls avoid an unnecessary pool post/reference on ordinary API
+return; physical idle/seal/close notifications still do real bookkeeping.
+
+Performance retains original raw, pool-selected raw, identical compiled managed
+versus held-lease pipelines (100000 requests/depth16) and complete warm checkout/
+PING/physical Return/observer-release cycles (1000 each). Pool/TCP construction
+is outside those timed regions and remains a separate cold cost. Five full
+repeats plus one warmup run on each platform, with all five cycle samples 1000.
+Unchanged 3% relative MAD / 6% central-range gates report Windows
+32 quality failures and WSL
+18. Preserve every measurement; no
+unpinned/local C-peer result constitutes an accepted overhead/speedup or
+independent performance parity. Source fingerprint:
+`370306060e4e92837018ce48f7f83795f6cb7fc350d740cf09f2d365f9d4aaf3`; workload fingerprint:
+`d5b048cddbed367b0abce91ec1e747ae6df0a1d54d14eaba85034043a7089b87`. Pinned matched native Windows/Linux,
+Hiredis, multiconnection/worker/fixed-arrival sweeps, complete cold/steady cost
+attribution and the final >=72-hour mixed/fault runs remain required. The complete
+four-library objective is still active and unachieved.
+
+Ignored `out/service-extensions/pool/` holds exact receipts, 52 current binary
+hashes, raw passing/failing logs, layouts, packages/size/performance reports and
+`validation.json`. `extlibs/xredis/docs/pool.md` describes limits, ownership,
+actual costs, remaining scope and runnable commands.

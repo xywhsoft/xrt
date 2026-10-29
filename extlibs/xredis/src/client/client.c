@@ -73,7 +73,7 @@ struct xredisclient {
 	double InitDeadline;
 	uint64 InitTimer;
 	xnetpost Wake;
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 	xredisexclusiveowner* Owner;
 #endif
 	xredisrequest *SubmitHead, *SubmitTail, *CancelHead, *CancelTail;
@@ -324,23 +324,49 @@ static xredisrequeststatus xredisClientFailureStatus(xredisclient* Client)
 static void xredisRequestRef(xredisrequest* Request)
 { (void)xrtAtomic32FetchAdd(&Request->References, 1, XMEMORY_RELAXED); }
 
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+static bool xredisClientQuotaReserve(xredisexclusiveowner* Owner, size_t Bytes)
+{
+    xredisownerquota* Quota = Owner == NULL ? NULL : Owner->Quota;
+    if (Quota == NULL) return true;
+    uint64 Requests = xrtAtomic64Load(&Quota->Requests, XMEMORY_RELAXED);
+    for (;;) {
+        if (Requests >= Quota->MaxRequests) return false;
+        if (xrtAtomic64CompareExchange(&Quota->Requests, &Requests, Requests + 1u, XMEMORY_RELAXED, XMEMORY_RELAXED)) break;
+    }
+    uint64 Current = xrtAtomic64Load(&Quota->Bytes, XMEMORY_RELAXED);
+    for (;;) {
+        if ((uint64)Bytes > Quota->MaxBytes - Current) {
+            xrtAtomic64FetchSub(&Quota->Requests, 1, XMEMORY_RELAXED); return false;
+        }
+        if (xrtAtomic64CompareExchange(&Quota->Bytes, &Current, Current + (uint64)Bytes, XMEMORY_RELAXED, XMEMORY_RELAXED)) return true;
+    }
+}
+#endif
+
 /* Drop the real reservation only after its storage/constructor has retired.
  * An idle transition wakes the exclusive session without calling it under Gate. */
 static void xredisClientReservationDrop(xredisclient* Client, size_t Bytes)
 {
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     xredisexclusiveowner* Owner = NULL;
 #endif
     xrtMutexLock(&Client->Gate);
     --Client->Info.Requests; Client->Info.CommandBytes -= Bytes;
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+    if (Client->Owner != NULL && Client->Owner->Quota != NULL) {
+        xrtAtomic64FetchSub(&Client->Owner->Quota->Requests, 1, XMEMORY_RELAXED);
+        xrtAtomic64FetchSub(&Client->Owner->Quota->Bytes, (uint64)Bytes, XMEMORY_RELAXED);
+    }
+#endif
     if (Client->Info.State >= XREDIS_CLIENT_CLOSING) (void)xredisClientWakeLocked(Client);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Client->Info.Requests == 0 && Client->Owner != NULL) {
         Owner = Client->Owner; Owner->Retain(Owner->Data);
     }
 #endif
     xrtMutexUnlock(&Client->Gate);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Owner != NULL) { Owner->Wake(Owner->Data); Owner->Release(Owner->Data); }
 #endif
     xredisClientRelease(Client);
@@ -1429,9 +1455,12 @@ static bool xredisClientManagedControl(const xbytesview* Arguments, size_t Count
 static xredisadmission xredisClientOwnerAdmission(xredisclient* Client, xredisexclusiveowner* Owner, bool Control)
 {
     if (Client->Info.State >= XREDIS_CLIENT_CLOSING) return XREDIS_ADMISSION_CLOSED;
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Client->Owner != Owner) return Owner == NULL ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_CLOSED;
     if (Owner != NULL) {
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+        if (Owner->Quota != NULL && xrtAtomic32Load(&Owner->Quota->Closing, XMEMORY_ACQUIRE)) return XREDIS_ADMISSION_CLOSED;
+#endif
         uint32 State = xrtAtomic32Load(&Owner->State, XMEMORY_ACQUIRE);
         if ((!Control && State != XREDIS_OWNER_ACTIVE) || State == XREDIS_OWNER_CLOSED) return XREDIS_ADMISSION_CLOSED;
     }
@@ -1441,9 +1470,11 @@ static xredisadmission xredisClientOwnerAdmission(xredisclient* Client, xredisex
     return XREDIS_ADMISSION_ACCEPTED;
 }
 
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 static bool xredisClientOwnerSwap(xredisexclusiveowner* Owner, uint32 From, uint32 To)
 { return xrtAtomic32CompareExchange(&Owner->State, &From, To, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE); }
+#endif
 
 xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
     xnetengine** Engine, xnetworker** Worker, ptr Output)
@@ -1537,6 +1568,9 @@ static xredisadmission xredisClientTransactionAdmit(xredisclient* Client,
 	xredisadmission Admission = xredisClientOwnerAdmission(Client, Owner, false);
 	if (Admission == XREDIS_ADMISSION_ACCEPTED) Admission = Client->Info.Requests >= Client->Config.MaxRequests || Charged > Client->Config.MaxCommandBytes ||
 		Charged > Client->Config.MaxCommandBytesTotal - Client->Info.CommandBytes ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+    if (Admission == XREDIS_ADMISSION_ACCEPTED && !xredisClientQuotaReserve(Owner, Charged)) Admission = XREDIS_ADMISSION_OVERLOADED;
+#endif
 	if (Admission != XREDIS_ADMISSION_ACCEPTED) { ++Client->Info.Rejected; xrtMutexUnlock(&Client->Gate); return Admission; }
 	++Client->Info.Requests; Client->Info.CommandBytes += Charged; xredisClientRef(Client); xrtMutexUnlock(&Client->Gate);
 	xredisrequest* Request = (xredisrequest*)xrtMalloc(sizeof(*Request) + Charged);
@@ -1546,7 +1580,7 @@ static xredisadmission xredisClientTransactionAdmit(xredisclient* Client,
 	memset(Request, 0, offsetof(xredisrequest, Wire));
 	xrtAtomic32Init(&Request->References, 1); xrtAtomic32Init(&Request->Cancelled, 0);
 	Request->Client = Client; Request->WireBytes = Bytes; Request->Deadline = xredisClientDeadline(Entered, Timeout);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Owner != NULL && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
 #endif
 	Request->Transaction = true;
@@ -1574,7 +1608,7 @@ static xredisadmission xredisClientTransactionAdmit(xredisclient* Client,
 		memcpy(Request->Wire + Offset, xredisTransactionDiscard, sizeof(xredisTransactionDiscard) - 1u);
 		xrtMutexLock(&Client->Gate);
         Admission = xredisClientOwnerAdmission(Client, Owner, false);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
         if (Admission == XREDIS_ADMISSION_ACCEPTED && Owner != NULL &&
             !xredisClientOwnerSwap(Owner, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED)) Admission = XREDIS_ADMISSION_CLOSED;
 #endif
@@ -1588,7 +1622,7 @@ static xredisadmission xredisClientTransactionAdmit(xredisclient* Client,
 			for (xredisrequest* Item = Client->SubmitHead; Item != Request; Item = Item->SubmitNext) Previous = Item;
 			if (Previous != NULL) Previous->SubmitNext = NULL; else Client->SubmitHead = NULL;
 			Client->SubmitTail = Previous;
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
             if (Owner != NULL) (void)xredisClientOwnerSwap(Owner, XREDIS_OWNER_SEALED, XREDIS_OWNER_ACTIVE);
 #endif
 		} else ++Client->Info.Rejected;
@@ -1603,7 +1637,7 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future)
 { return xredisClientTransactionAdmit(Client, Commands, Count, Config, Timeout, Entered, Future, NULL); }
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 xredisadmission __xredisClientOwnedTransaction(xredisclient* Client, xredisexclusiveowner* Owner,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future)
@@ -1644,13 +1678,13 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	if (!xredisClientCommandMode(Arguments, Count)) {
 		xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "command changes response cardinality/mode"); return XREDIS_ADMISSION_ERROR;
 	}
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Owner != NULL && !Control && (xredisClientWord(Arguments[0], "QUIT") ||
         xredisClientWord(Arguments[0], "READONLY") || xredisClientWord(Arguments[0], "READWRITE") ||
         xredisClientWord(Arguments[0], "ASKING") ||
         (Count > 1 && xredisClientWord(Arguments[0], "CLIENT") &&
          (xredisClientWord(Arguments[1], "TRACKING") || xredisClientWord(Arguments[1], "CACHING"))))) {
-        xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "WATCH payload changes connection/control mode"); return XREDIS_ADMISSION_ERROR;
+        xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "exclusive payload changes connection/control mode"); return XREDIS_ADMISSION_ERROR;
     }
 #endif
 	if (!Control && Client->Managed && xredisClientManagedControl(Arguments, Count)) {
@@ -1661,6 +1695,9 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	xredisadmission Admission = xredisClientOwnerAdmission(Client, Owner, Control);
 	if (Admission == XREDIS_ADMISSION_ACCEPTED) Admission = Client->Info.Requests >= Client->Config.MaxRequests || Bytes > Client->Config.MaxCommandBytes ||
 		Bytes > Client->Config.MaxCommandBytesTotal - Client->Info.CommandBytes ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+    if (Admission == XREDIS_ADMISSION_ACCEPTED && !xredisClientQuotaReserve(Owner, Bytes)) Admission = XREDIS_ADMISSION_OVERLOADED;
+#endif
 	if (Admission != XREDIS_ADMISSION_ACCEPTED) { ++Client->Info.Rejected; xrtMutexUnlock(&Client->Gate); return Admission; }
 	++Client->Info.Requests; Client->Info.CommandBytes += Bytes; xredisClientRef(Client); xrtMutexUnlock(&Client->Gate);
 	xredisrequest* Request = (xredisrequest*)xrtMalloc(sizeof(*Request) + Bytes);
@@ -1672,7 +1709,7 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	memset(Request, 0, offsetof(xredisrequest, Wire));
 	xrtAtomic32Init(&Request->References, 1); xrtAtomic32Init(&Request->Cancelled, 0);
 	Request->Client = Client; Request->WireBytes = Bytes; Request->Deadline = xredisClientDeadline(Entered, Timeout);
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
     if (Owner != NULL && !Control && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
 #endif
 	Request->Sensitive = xredisClientWord(Arguments[0], "AUTH") || xredisClientWord(Arguments[0], "HELLO");
@@ -1711,7 +1748,7 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
     const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
 { return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, xrtTimer(), NULL, false); }
-#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
     const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered, bool Control, xfuture** Future)
 { return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, Entered, Owner, Control); }

@@ -118,6 +118,20 @@
         "xrtProcess",
         "xrtNetDial"
       ]
+    },
+    {
+      "name": "xredis_pool",
+      "system": "pool",
+      "suite": "xredis_pool",
+      "description": "Fixed-membership exclusive lease pool with hard aggregate physical command quotas; optional DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
     }
   ]
 }

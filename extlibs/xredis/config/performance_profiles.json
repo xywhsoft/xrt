@@ -1398,6 +1398,196 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_pool_ordinary",
+      "system": "pool",
+      "description": "Identical raw pipeline with optional pool selected; measures selected private owner/quota branches only, without a live lease or actual quota contention",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_ordinary",
+          "source": "extlibs/xredis/bench/bench_client.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_client,xredis_pool",
+          "args": [
+            "100000",
+            "16"
+          ],
+          "smoke_args": [
+            "1024",
+            "16"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "direction": "higher",
+              "unit": "requests/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xredis_pool_managed",
+      "system": "pool",
+      "description": "Identical compiled managed pipeline; mode 0 selects direct native managed calls or a held exclusive lease. Acquisition/return separately measured; no performance acceptance.",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_managed",
+          "source": "extlibs/xredis/bench/bench_pool_pipeline.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_pool",
+          "args": [
+            "100000",
+            "16",
+            "0"
+          ],
+          "smoke_args": [
+            "1024",
+            "16",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "direction": "higher",
+              "unit": "requests/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "metadata": [
+            "workload"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xredis_pool_leased",
+      "system": "pool",
+      "description": "Identical compiled managed pipeline; mode 1 selects direct native managed calls or a held exclusive lease. Acquisition/return separately measured; no performance acceptance.",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_leased",
+          "source": "extlibs/xredis/bench/bench_pool_pipeline.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_pool",
+          "args": [
+            "100000",
+            "16",
+            "1"
+          ],
+          "smoke_args": [
+            "1024",
+            "16",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "direction": "higher",
+              "unit": "requests/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "metadata": [
+            "workload"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xredis_pool_cycle",
+      "system": "pool",
+      "description": "Complete warm pool checkout/PING/physical-return/observer-release cycle; connection and pool construction excluded and remain separately counted cold costs",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_cycle",
+          "source": "extlibs/xredis/bench/bench_pool.c",
+          "inputs": [
+            "extlibs/xredis/tests/support/pool_peer.h",
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "suite": "xredis_pool",
+          "args": [
+            "1000"
+          ],
+          "smoke_args": [
+            "25"
+          ],
+          "metadata": [
+            "workload"
+          ],
+          "metrics": {
+            "leases_per_sec": {
+              "direction": "higher",
+              "unit": "leases/s"
+            },
+            "lease_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "lease_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "leases"
+            }
+          }
+        }
+      ]
     }
   ]
 }

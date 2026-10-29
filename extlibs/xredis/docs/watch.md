@@ -77,7 +77,9 @@ enter the scope during this transition.
 
 ## Actual costs
 
-Only selection of WATCH adds an owner pointer to the private client. Ordinary
+WATCH and pool share one optional private owner pointer in the client; selecting
+both does not add a second pointer. Pool selection adds a quota pointer to the
+private owner descriptor, zero for these independent WATCH scopes. Ordinary
 request allocation/tag layout does not grow beyond the transaction selection.
 Admission gains owner/state checks under the existing client Gate and repeats
 that check at publication. Physical idle transitions temporarily retain/wake

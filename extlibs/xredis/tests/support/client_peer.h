@@ -191,6 +191,9 @@ static void redisPeerStart(redispeer* Peer)
 	xredisreplyreaderconfig Reader; xredisReplyReaderConfigInit(&Reader); Reader.Reader.Protocol = XREDIS_RESP2;
 	redisPeerRequire(xredisReplyReaderCreate(&Reader, &Peer->Reader), "peer parser");
 	xnetengineconfig Engine; xrtNetEngineConfigInit(&Engine); Engine.Workers = 2;
+#if defined(REDIS_PEER_NODE_CACHE_BYTES)
+	Engine.NodeCacheBytes = REDIS_PEER_NODE_CACHE_BYTES;
+#endif
 #if defined(REDIS_PEER_BACKEND)
 	Engine.Backend = REDIS_PEER_BACKEND;
 #endif

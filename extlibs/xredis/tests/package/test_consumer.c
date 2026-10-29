@@ -4,6 +4,29 @@
 #if !defined(XREDIS_FEATURE_XREDIS_COMMAND) && !defined(XREDIS_FEATURE_XREDIS_READER)
 #error "package consumer requires the actual selected package feature definitions"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+#include "../support/pool_peer.h"
+static int testPoolPackage(void)
+{
+    redispoolpeer Group; redisPoolPeerStart(&Group, 2); xredispool* Pool = NULL;
+    if (xredisPoolCreate(Group.Peers[0].Engine, 0, Group.Clients, 2, NULL, &Pool) != XREDIS_ADMISSION_ACCEPTED) return 30;
+    xfuture *A = NULL, *B = NULL;
+    if (xredisPoolAcquire(Pool, 5000, &A) != XREDIS_ADMISSION_ACCEPTED || xredisPoolAcquire(Pool, 5000, &B) != XREDIS_ADMISSION_ACCEPTED) return 31;
+    const xredisleaseresult *LA = xrtFutureValue(A), *LB = xrtFutureValue(B);
+    if (!LA || !LB || !LA->Lease || !LB->Lease || LA->Lease == LB->Lease) return 32;
+    xbytesview Echo[] = {XRT_BYTES_LITERAL("ECHO"), XRT_BYTES_LITERAL("package-pool\0binary")}; xfuture* Call = NULL;
+    if (xredisLeaseCall(LA->Lease, Echo, 2, 5000, &Call) != XREDIS_ADMISSION_ACCEPTED ||
+        ((const xredisrequestresult*)xrtFutureValue(Call))->Status != XREDIS_REQUEST_OK) return 33;
+    xfuture *CA = xredisLeaseClosed(LA->Lease), *CB = xredisLeaseClosed(LB->Lease);
+    xredisLeaseReturn(LA->Lease); xredisLeaseReturn(LB->Lease);
+    if (xrtFutureWaitFor(CA, 10000) != XWAIT_OK || xrtFutureWaitFor(CB, 10000) != XWAIT_OK ||
+        !((const xredisleaseclosedresult*)xrtFutureValue(CA))->Reusable || !((const xredisleaseclosedresult*)xrtFutureValue(CB))->Reusable) return 34;
+    xfuture* Closed = xredisPoolClosed(Pool); xredisPoolClose(Pool);
+    if (xrtFutureWaitFor(Closed, 10000) != XWAIT_OK) return 35;
+    xredisPoolRelease(Pool); redisPoolPeerStop(&Group);
+    xrtFutureDestroy(A); xrtFutureDestroy(B); xrtFutureDestroy(CA); xrtFutureDestroy(CB); xrtFutureDestroy(Closed); xrtFutureDestroy(Call); return 0;
+}
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_WATCH)
 #include "../support/watch_peer.h"
 #elif defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
@@ -124,5 +147,9 @@ int main(void)
     if (State->Status != XREDIS_READY_OK) return 19;
     xrtFutureDestroy(Future); xrtFutureDestroy(Ready);
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL)
+    return testPoolPackage();
+#else
     return 0;
+#endif
 }

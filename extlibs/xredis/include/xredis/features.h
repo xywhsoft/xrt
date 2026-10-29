@@ -34,6 +34,9 @@
 #ifndef XREDIS_MODULE_XREDIS_WATCH
 #define XREDIS_MODULE_XREDIS_WATCH
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
@@ -46,6 +49,26 @@
 #endif
 #ifndef XRT_MODULE_TLS_CLIENT_AUTH
 #define XRT_MODULE_TLS_CLIENT_AUTH
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -99,20 +122,10 @@
 #endif
 #endif
 
-/* xredis_watch 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
-#ifndef XREDIS_FEATURE_XREDIS_WATCH
-#define XREDIS_FEATURE_XREDIS_WATCH
-#endif
-#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
-#define XREDIS_MODULE_XREDIS_TRANSACTION
-#endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
+/* xredis_pool 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL)
+#ifndef XREDIS_FEATURE_XREDIS_POOL
+#define XREDIS_FEATURE_XREDIS_POOL
 #endif
 #ifndef XREDIS_MODULE_XREDIS_CLIENT
 #define XREDIS_MODULE_XREDIS_CLIENT
