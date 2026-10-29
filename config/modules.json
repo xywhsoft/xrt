@@ -9245,7 +9245,7 @@
 			"internal_headers": [],
 			"sources": ["src/network/file_future.c"],
 			"tests": ["tests/network/test_net_file_future.c"],
-			"single_tests": [],
+			"single_tests": ["tests/single/test_single_net_file_future.c"],
 			"examples": [],
 			"docs": ["docs/api/net-file.md"]
 		},
