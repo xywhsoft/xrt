@@ -1,4 +1,7 @@
 #include "../internal/xrt_tls_client.h"
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include "../internal/xrt_tls_client_auth.h"
+#endif
 
 
 
@@ -210,6 +213,9 @@ xtlsresult __xrtTlsClient12ServerHello(
 		) ) {
 		goto cleanup;
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthTranscriptStart12(pState, Encoded)) goto cleanup;
+	#endif
 
 	__xrtTlsTranscriptClear(&pState->Transcript);
 	pState->Transcript = Next;
@@ -290,7 +296,11 @@ static xtlsresult __xrtTlsClient12ServerKeyExchange(
 		Exchange.Group,
 		(xbytesview) { pState->PrivateKey, pGroup->PrivateSize },
 		Exchange.PublicKey, pState->Shared, sizeof(pState->Shared)
-	) || !__xrtTlsTranscriptUpdate(&Next, Encoded) ) {
+	) || !__xrtTlsTranscriptUpdate(&Next, Encoded)
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			|| !__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)
+		#endif
+	) {
 		goto failed;
 	}
 
@@ -360,6 +370,9 @@ xtlsresult __xrtTlsClient12FlightWritable(
 	const xtlsclientstate* pState
 )
 {
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth) return __xrtTlsClientAuth12Writable(pSession, pState);
+	#endif
 	const xtlslimits* pLimits = xrtTlsContextLimits(pSession->Context);
 	size_t iFlight;
 	size_t iQueued = xrtTlsSessionSendSize(pSession);
@@ -392,6 +405,9 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	const xtlshandshake* pMessage
 )
 {
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth) return __xrtTlsClientAuth12Flight(pSession, pState, pMessage);
+	#endif
 	xtls12keymaterial Material;
 	xtlsrecordkey WriteKey;
 	xtlsrecordkey ReadKey;

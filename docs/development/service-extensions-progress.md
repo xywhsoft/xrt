@@ -1389,3 +1389,49 @@ limits, costs and runnable independent-peer command. Ignored evidence uses
 historical. Native Linux long runs, full mutual TLS/signing and ticket handling,
 all unfinished protocol runtimes/modes and final acceptance remain required;
 the four-product goal stays active.
+
+## P2 core prerequisite: bounded client certificate signing (2026-10-29)
+
+`tls_client_auth` now supplies an explicit V1 full-handshake factory with a
+retained immutable local identity, bounded chain/raw-transcript metadata and a
+query distinguishing local proof queueing from remote acceptance. It preserves
+the old public client configuration ABI. Initial TLS 1.2 and TLS 1.3 certificate
+selection/signing covers the existing RSA/P-256/P-384/Ed25519 backends, CA and
+signature hints, recognized OID conditions, record fragmentation, transcript/
+EMS ordering and atomic output admission. No private-key operation is retried
+after a signed-flight failure. Explicit resumption is refused and new tickets
+are not retained until local-identity binding is implemented. Native server
+client-authentication and post-handshake authentication are outside this slice.
+
+Both Windows O2 and WSL O2 ASan/UBSan pass 13 modular and eight single-header
+client/server/auth programs. The auth programs sweep 384 allocation prefixes
+across construction and the two flights, checking every hit rollback plus
+success past allocation tails. Real RSA proofs, both Finished transcripts,
+backpressure/sign counts, callback diagnostics, retained identity cleanup,
+CA/OID choices and invalid server Finished are exercised. Independently rebuilt
+Python/OpenSSL libraries on each platform pass 34 authentication cases and 60
+legacy-role/empty-certificate regressions. Their common source/fixture/helper
+input fingerprint is
+`893cf6c40f236b4875ef3c6071b613a396eee60a8a57dc7752699b090d1c9dd3`.
+
+The selected private state grows by eight bytes; unselected closures are
+unchanged (`tls_client_resume` 728, production `xredis_tls` 1240, public client
+config 88). Windows and WSL logical-allocation probes measure one extra factory
+allocation and a net +472 retained bytes for the single-leaf example in the
+already-selected test closure: +504 auth metadata minus 32 disabled ticket-slot
+bytes. Destruction restores those logical allocations. This is a bounded cold
+allocation window, not complete handshake/OS-resource or performance acceptance.
+Raw copies, scans, hashes, calls, crypto/backend temporaries and reference costs
+remain explicit in the [feature contract](tls-client-auth.md).
+
+The factory example and independent peer command are runnable. Three APIs,
+one type and eight constants have complete symbol coverage; the detailed TLS
+checker has the exact same 77 pre-existing failures. Generated extension
+declaration restore guards are synchronized for the new core feature.
+Windows and WSL static/shared packages pass stock and new-API consumers;
+both factory examples and both existing Redis TLS modular programs pass
+(WSL O2 ASan/UBSan). Trim and full generated consistency also pass.
+Ignored evidence uses `tls-auth-*` and `layout-auth/` under
+`out/service-extensions/`. Redis mutual-TLS integration, identity-bound tickets,
+remaining Redis modes, RPC/MQTT/Cron runtimes and all final production/performance
+acceptance remain required. The four-product goal stays active.

@@ -41,3 +41,16 @@ TLS 上下文保存共享配置，例如受信任根、证书、私钥、协议�
 回调本次产生的 checked error 仍优先于返回值，即使回调返回 true 也会拒绝握手；
 拒绝时临时身份引用正常释放，错误保持为原始对象。测试覆盖已有错误、回调
 拒绝、临时身份替换及 OOM，不增加连接锁或应用数据路径上的操作。
+
+## 可选客户端证书签名
+
+`tls_client_auth` 使用独立 V1 配置并保留不可变 Identity；未选择它的闭包
+不增加认证状态指针。TLS 1.2 的有界原文 transcript 在 ClientKeyExchange
+后用于签名，EMS 先于 CertificateVerify，Finished 包含签名。TLS 1.3
+先验证服务器 Finished，按客户端上下文签名本地 Certificate 后的摘要。
+
+签名前按密钥最大签名长度预留整个发送航班；背压不调用签名器。单次发送
+接管成功后才提交 transcript 和 epoch，签名后的错误不可重试。自定义身份
+是保守的不透明拥有节点，不能由密钥类型推断成叶。恢复票据在身份绑定
+完成前禁用。具体上限、成本和可运行检查见
+[客户端证书认证合同](../development/tls-client-auth.md)。

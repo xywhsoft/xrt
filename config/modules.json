@@ -8757,6 +8757,34 @@
 			"docs": []
 		},
 		{
+			"name": "tls_client_auth",
+			"state": "developing",
+			"feature": "XRT_FEATURE_TLS_CLIENT_AUTH",
+			"depends": ["tls_client_verify", "tls_identity", "tls_messages_write", "x509_profile", "x509_name"],
+			"public_headers": ["include/xrt/tls_client_auth.h"],
+			"internal_headers": ["src/internal/xrt_tls_client.h", "src/internal/xrt_tls_client_auth.h"],
+			"sources": ["src/tls/client_auth.c", "src/tls/client_auth_select.c", "src/tls/client_auth12.c"],
+			"tests": [], "single_tests": [], "examples": [],
+			"docs": ["docs/api/tls.md", "docs/design/tls-session.md"]
+		},
+		{
+			"name": "tls_client_auth_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_client_auth", "tls_client_tests", "tls_server_tests", "tls_auth_messages_write", "memory_debug"],
+			"public_headers": [], "internal_headers": [], "sources": [],
+			"tests": ["tests/tls/test_tls_client_auth.c", "tests/tls/test_tls_client_auth12.c"],
+			"single_tests": ["tests/single/test_single_tls_client_auth.c", "tests/single/test_single_tls_client_auth12.c"],
+			"examples": [], "docs": []
+		},
+		{
+			"name": "tls_client_auth_examples",
+			"state": "implemented", "feature": null,
+			"depends": ["tls_client_auth", "tls_identity_builtin", "tls_key_exchange_x25519", "tls_record_aes", "tls_schedule_sha256"],
+			"public_headers": [], "internal_headers": [], "sources": [], "tests": [], "single_tests": [],
+			"examples": ["examples/tls/client_auth/main.c"], "docs": []
+		},
+		{
 			"name": "tls_server",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_TLS_SERVER",

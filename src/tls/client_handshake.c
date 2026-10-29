@@ -1,4 +1,7 @@
 #include "../internal/xrt_tls_client.h"
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include "../internal/xrt_tls_client_auth.h"
+#endif
 
 
 
@@ -46,6 +49,10 @@ typedef struct xtlsclientfinishedstate {
 		#endif
 	];
 	size_t MessageSize;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		bytes AuthMessage;
+		size_t AuthCapacity;
+	#endif
 } xtlsclientfinishedstate;
 
 
@@ -1071,17 +1078,29 @@ xtlsresult __xrtTlsClientCertificateRequestCommit(
 			);
 			return __xrtTlsSessionFailAlert(pSession, XTLS_ALERT_ILLEGAL_PARAMETER);
 		}
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (!__xrtTlsClientAuthSelect13(pState, &Request))
+				return __xrtTlsClientAuthFailure(pSession);
+		#endif
 	} else {
 		xtls12certificaterequest Request;
 
 		if ( !xrtTls12CertificateRequestParse(pMessage->Body, &Request) ) {
 			return __xrtTlsSessionFailAlert(pSession, XTLS_ALERT_DECODE_ERROR);
 		}
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (!__xrtTlsClientAuthSelect12(pState, &Request))
+				return __xrtTlsClientAuthFailure(pSession);
+		#endif
 	}
 	Next = pState->Transcript;
 	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
 	Encoded.Size = pMessage->EncodedSize;
-	if ( !__xrtTlsTranscriptUpdate(&Next, Encoded) ) {
+	if ( !__xrtTlsTranscriptUpdate(&Next, Encoded)
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			|| !__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)
+		#endif
+	) {
 		__xrtTlsTranscriptClear(&Next);
 		return __xrtTlsClientFailed(pSession);
 	}
@@ -1358,6 +1377,13 @@ xtlsresult __xrtTlsClientCertificateCommit(
 		__xrtTlsTranscriptClear(&Next);
 		return __xrtTlsClientFailed(pSession);
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)) {
+			xrtFree(pPeer);
+			__xrtTlsTranscriptClear(&Next);
+			return __xrtTlsClientFailed(pSession);
+		}
+	#endif
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( !xrtSha256(
 			pPeer->Certificates[0].Raw.Data,
@@ -1446,14 +1472,19 @@ static xtlsresult __xrtTlsClientFinishedWritable(
 {
 	const xtlslimits* pLimits = xrtTlsContextLimits(pSession->Context);
 	size_t iMessage = xrtTlsHandshakeSize(pState->HashSize);
-	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
-		if ( pState->CertificateRequested ) {
-			iMessage += XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE;
-		}
+	size_t iRecord = 0;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth && pState->Auth->Selected) {
+			iMessage += __xrtTlsClientAuthCertificateSize(pState) + 8u + pState->Auth->SignatureCapacity;
+			if (!__xrtTlsClientAuthRecordsSize13(&pSession->WriteKey, iMessage, &iRecord)) return XTLS_ERROR;
+		} else
 	#endif
-	size_t iRecord = __xrtTlsRecordSealSize(
-		&pSession->WriteKey, iMessage, 0
-	);
+	{
+		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+			if (pState->CertificateRequested) iMessage += XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE;
+		#endif
+		iRecord = __xrtTlsRecordSealSize(&pSession->WriteKey, iMessage, 0);
+	}
 	size_t iQueued = xrtTlsSessionSendSize(pSession);
 
 	if ( (pLimits == NULL) || (iMessage == 0) || (iRecord == 0) ) {
@@ -1506,6 +1537,8 @@ static bool __xrtTlsClientFinishedPrepare(
 	xbytesview Empty = { NULL, 0 };
 	xcryptohash Hash;
 	size_t iCertificate = 0;
+	bytes message_data = pNext->Message;
+	size_t message_capacity = sizeof(pNext->Message);
 	bool bResult = false;
 
 	memset(pNext, 0, sizeof(*pNext));
@@ -1561,6 +1594,10 @@ static bool __xrtTlsClientFinishedPrepare(
 		goto cleanup;
 	}
 
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthRequire(pState)) goto cleanup;
+	#endif
+
 	/* 应用 traffic secret 绑定包含服务端 Finished 的 transcript。 */
 	pNext->Transcript = pState->Transcript;
 	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
@@ -1595,6 +1632,38 @@ static bool __xrtTlsClientFinishedPrepare(
 		goto cleanup;
 	}
 
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth && pState->Auth->Selected) {
+			uint8 content[160];
+			size_t certificate = __xrtTlsClientAuthCertificateSize(pState);
+			pNext->AuthCapacity = certificate + 8u + pState->Auth->SignatureCapacity + xrtTlsHandshakeSize(pState->HashSize);
+			pNext->AuthMessage = (bytes)xrtMalloc(pNext->AuthCapacity);
+			if (!pNext->AuthMessage) {
+				(void)__xrtTlsClientCause("build-tls13-client-auth", "TLS client authentication plaintext allocation failed");
+				goto cleanup;
+			}
+			message_data = pNext->AuthMessage;
+			message_capacity = pNext->AuthCapacity;
+			if (!__xrtTlsClientAuthCertificateEncode(pState, message_data, message_capacity) ||
+				!__xrtTlsTranscriptUpdate(&pNext->Transcript, (xbytesview) { message_data, certificate }) ||
+				!__xrtTlsTranscriptDigest(&pNext->Transcript, ServerHash, pState->HashSize)) goto cleanup;
+			size_t content_size = xrtTls13CertificateVerifyContentSize(XTLS_CLIENT, pState->HashSize);
+			size_t proof;
+			if (!content_size || content_size > sizeof(content) ||
+				!xrtTls13CertificateVerifyContentEncode(XTLS_CLIENT,
+					(xbytesview) { ServerHash, pState->HashSize }, content, sizeof(content)) ||
+				!__xrtTlsClientAuthVerifyEncode(pState, (xbytesview) { content, content_size },
+					message_data + certificate, message_capacity - certificate, &proof)) {
+				xrtSecureZero(content, sizeof(content));
+				goto cleanup;
+			}
+			xrtSecureZero(content, sizeof(content));
+			if (!__xrtTlsTranscriptUpdate(&pNext->Transcript,
+				(xbytesview) { message_data + certificate, proof }) ||
+				!__xrtTlsTranscriptDigest(&pNext->Transcript, ServerHash, pState->HashSize)) goto cleanup;
+			iCertificate = certificate + proof;
+		} else
+	#endif
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 		if ( pState->CertificateRequested ) {
 			static const uint8 EmptyCertificate[] = { 0, 0, 0, 0 };
@@ -1603,10 +1672,10 @@ static bool __xrtTlsClientFinishedPrepare(
 			if ( !xrtTlsHandshakeEncode(
 				XTLS_HANDSHAKE_CERTIFICATE,
 				(xbytesview) { EmptyCertificate, sizeof(EmptyCertificate) },
-				pNext->Message, sizeof(pNext->Message)
+				message_data, message_capacity
 			) || !__xrtTlsTranscriptUpdate(
 				&pNext->Transcript,
-				(xbytesview) { pNext->Message, iCertificate }
+				(xbytesview) { message_data, iCertificate }
 			) || !__xrtTlsTranscriptDigest(
 				&pNext->Transcript, ServerHash, pState->HashSize
 			) ) {
@@ -1614,7 +1683,7 @@ static bool __xrtTlsClientFinishedPrepare(
 			}
 		}
 	#endif
-	/* Finished covers the optional empty Certificate. Application secrets above
+	/* Finished covers the local Certificate and optional proof. Application secrets above
 	 * remain bound to server Finished; the resumption secret below covers both. */
 	if ( !__xrtTls13ExpandLabel(
 		Hash,
@@ -1629,7 +1698,7 @@ static bool __xrtTlsClientFinishedPrepare(
 	) || !xrtTlsHandshakeEncode(
 		XTLS_HANDSHAKE_FINISHED,
 		(xbytesview) { ClientVerify, pState->HashSize },
-		pNext->Message + iCertificate, sizeof(pNext->Message) - iCertificate
+		message_data + iCertificate, message_capacity - iCertificate
 	) ) {
 		goto cleanup;
 	}
@@ -1647,7 +1716,7 @@ static bool __xrtTlsClientFinishedPrepare(
 	) || !__xrtTlsTranscriptUpdate(
 		&pNext->Transcript,
 		(xbytesview) {
-			pNext->Message + iCertificate, pNext->MessageSize - iCertificate
+			message_data + iCertificate, pNext->MessageSize - iCertificate
 		}
 	) ) {
 		goto cleanup;
@@ -1680,6 +1749,9 @@ cleanup:
 	xrtSecureZero(ServerHash, sizeof(ServerHash));
 	xrtSecureZero(BeforeHash, sizeof(BeforeHash));
 	if ( !bResult ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (pNext->AuthMessage) { xrtSecureZero(pNext->AuthMessage, pNext->AuthCapacity); xrtFree(pNext->AuthMessage); }
+		#endif
 		__xrtTlsRecordKeyClear(&pNext->WriteKey);
 		__xrtTlsRecordKeyClear(&pNext->ReadKey);
 		__xrtTlsTranscriptClear(&pNext->Transcript);
@@ -1703,21 +1775,43 @@ static xtlsresult __xrtTlsClientFinishedCommit(
 
 	memset(&Next, 0, sizeof(Next));
 	if ( !__xrtTlsClientFinishedPrepare(pState, pMessage, &Next) ) {
-		return __xrtTlsClientFailed(pSession);
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			return __xrtTlsClientAuthFailure(pSession);
+		#else
+			return __xrtTlsClientFailed(pSession);
+		#endif
 	}
-	Result = __xrtTlsSessionRecordProtect(
-		pSession, XTLS_RECORD_HANDSHAKE,
-		(xbytesview) { Next.Message, Next.MessageSize }, 0
-	);
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (Next.AuthMessage) Result = __xrtTlsClientAuthQueue13(pSession,
+			(xbytesview) { Next.AuthMessage, Next.MessageSize });
+		else
+	#endif
+	Result = __xrtTlsSessionRecordProtect(pSession, XTLS_RECORD_HANDSHAKE,
+		(xbytesview) { Next.Message, Next.MessageSize }, 0);
 	if ( Result != XTLS_OK ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			bool signed_flight = Next.AuthMessage != NULL;
+			if (Next.AuthMessage) { xrtSecureZero(Next.AuthMessage, Next.AuthCapacity); xrtFree(Next.AuthMessage); }
+		#endif
 		__xrtTlsRecordKeyClear(&Next.WriteKey);
 		__xrtTlsRecordKeyClear(&Next.ReadKey);
 		__xrtTlsTranscriptClear(&Next.Transcript);
 		xrtSecureZero(&Next, sizeof(Next));
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (signed_flight && Result == XTLS_AGAIN) {
+				(void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_STATE, "queue-tls13-client-auth",
+					"TLS client output capacity changed during signing");
+				return __xrtTlsClientAuthFailure(pSession);
+			}
+		#endif
 		return Result == XTLS_AGAIN ?
 			XTLS_AGAIN : __xrtTlsClientFailed(pSession);
 	}
 
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (Next.AuthMessage) { xrtSecureZero(Next.AuthMessage, Next.AuthCapacity); xrtFree(Next.AuthMessage); }
+		if (pState->Auth) pState->Auth->Queued = pState->Auth->Selected;
+	#endif
 	/* 上方成功后不再执行可能失败的密码操作。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	__xrtTlsRecordKeyClear(&pSession->WriteKey);
@@ -2407,7 +2501,11 @@ XRT_API xtlsresult xrtTlsClientDrive(xtlssession* pSession)
 					return bProgress ? XTLS_OK : XTLS_AGAIN;
 				}
 				if ( Result != XTLS_OK ) {
-					return __xrtTlsClientFailed(pSession);
+					#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+						return __xrtTlsClientAuthFailure(pSession);
+					#else
+						return __xrtTlsClientFailed(pSession);
+					#endif
 				}
 			}
 			#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY) && \

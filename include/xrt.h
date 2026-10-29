@@ -80,6 +80,7 @@
 #include <xrt/tls_session.h>
 #include <xrt/tls_client.h>
 #include <xrt/tls_identity.h>
+#include <xrt/tls_client_auth.h>
 #include <xrt/tls_server.h>
 #include <xrt/tcp.h>
 #include <xrt/tcp_server.h>

@@ -1,4 +1,7 @@
 #include "../internal/xrt_tls_client.h"
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include "../internal/xrt_tls_client_auth.h"
+#endif
 
 
 
@@ -1056,6 +1059,11 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 
 	(void)pSession;
 	if ( pState != NULL ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			xtlsclientauthstate* auth = pState->Auth;
+			pState->Auth = NULL;
+			__xrtTlsClientAuthClear(auth);
+		#endif
 		xrtTlsHandshakeReaderUnit(&pState->Reader);
 		__xrtTlsTranscriptClear(&pState->Transcript);
 		__xrtTlsRecordKeyClear(&pState->PendingReadKey);
@@ -1092,7 +1100,21 @@ bool __xrtTlsClientVerifierOwnershipTrace(
 	if (!pSession->Clean) return true;
 	if (pSession->Clean != __xrtTlsClientClean) return false;
 	const xtlsclientstate* pState = (const xtlsclientstate*)(pSession + 1);
-	return !pState->Verifier || pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext);
+	if (pState->Verifier && !pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext)) return false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		return __xrtTlsClientAuthOwnershipLeaf(pState->Auth);
+	#else
+		return true;
+	#endif
+}
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+const xtlsclientauthstate* __xrtTlsClientAuthStateOf(const xtlssession* pSession)
+{
+	if (!pSession || pSession->Role != XTLS_CLIENT || pSession->Clean != __xrtTlsClientClean ||
+		pSession->AllocationSize < sizeof(*pSession) + sizeof(xtlsclientstate)) return NULL;
+	return ((const xtlsclientstate*)(pSession + 1))->Auth;
 }
 #endif
 

@@ -3,6 +3,11 @@
 
 #include "xrt_tls_session.h"
 
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include <xrt/tls_client_auth.h>
+typedef struct xtlsclientauthstate xtlsclientauthstate;
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT)
@@ -118,6 +123,9 @@ typedef struct xtlsclientstate {
 		bool CertificateRequested;
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;
+	#endif
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		xtlsclientauthstate* Auth;
 	#endif
 } xtlsclientstate;
 

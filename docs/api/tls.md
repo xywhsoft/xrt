@@ -13743,3 +13743,129 @@ Listener 都明确拒绝两种查找配置；同时提供两种回调则是参�
 带 `XTLS_VERIFY_RESUME_PEER_V1` 的不可变验证器在恢复时重新验证票据共享的
 实际证书链。缺链凭据按可选／required 分别完整握手／checked 拒绝；允许显式
 复制补链但不将导入当作认证。参见 [恢复凭据与当前策略](../design/tls-resume-peer.md)。
+
+## 客户端证书认证（V1）
+
+### `xtlsclientauthconfigv1`
+
+可裁剪模块 `tls_client_auth` 使用单独的 `xtlsclientauthconfigv1`，旧
+`xtlsclientconfig` 布局不变。配置包含 `Size`、`Identity`、`MaxCertificates`、
+`MaxCertificateBytes`、`MaxTranscriptBytes` 和 `RequireCertificate`；工厂
+保留身份并快照标量。默认要求服务端请求兼容身份；false 允许不发身份或空链。
+TLS 1.2/1.3 遵守签名算法、证书类型、CA 名称和 TLS 1.3 OID 条件。
+
+默认常量为 `XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT`（16）、
+`XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT`（64 KiB）和
+`XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT`（1 MiB）。硬上限是
+`XTLS_CLIENT_AUTH_CERTIFICATES_MAX`（256）、`XTLS_CLIENT_AUTH_BYTES_MAX`
+（16 MiB）、`XTLS_CLIENT_AUTH_AUTHORITIES_MAX`（256）、
+`XTLS_CLIENT_AUTH_OID_FILTERS_MAX`（64）与 `XTLS_CLIENT_AUTH_OID_VALUES_MAX`
+（128）。Context 的握手／发送上限仍生效，整个航班须能原子排队。
+
+本入口拒绝 `Resume`／`ResumeOnly` 并关闭票据保留，等待恢复凭据加入本地
+身份绑定；不支持握手后认证。签名器同步运行在会话所有者线程，不得重入或
+销毁该会话，须遵守既有并发及失败原子合同。详见
+[协议、成本与独立 OpenSSL 运行方式](../development/tls-client-auth.md)。
+
+### `xrtTlsClientAuthConfigInitV1`
+
+```c
+void xrtTlsClientAuthConfigInitV1(xtlsclientauthconfigv1* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pConfig` | 输出 | 非空 | 完整 V1 配置 |
+
+#### 返回值
+
+无。设置 Size 与上述默认上限，Identity 为 NULL，RequireCertificate 为 true。
+
+#### 错误
+
+NULL 输出设置参数错误。
+
+#### 范例
+
+[可运行的工厂与引用示例](../../examples/tls/client_auth/main.c)。
+
+```c
+xtlsclientauthconfigv1 auth;
+xrtTlsClientAuthConfigInitV1(&auth);
+auth.Identity = identity;
+```
+
+### `xrtTlsClientCreateAuthV1`
+
+```c
+xtlssession* xrtTlsClientCreateAuthV1(const xtlsclientconfig* pSession, const xtlsclientauthconfigv1* pAuth, xnetbufpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pSession` | 输入 | 可空 | 原有客户端配置；NULL 使用原有默认值，验证器／路由约束沿用原合同 |
+| `pAuth` | 输入 | 非空 | 正确 Size、Identity 和非零有界上限，仅借用到返回 |
+| `pPool` | 输入 | 可空 | 原有缓冲池，生命周期遵守普通客户端工厂合同 |
+
+#### 返回值
+
+成功返回由调用方销毁的原生会话，失败为 NULL；失败不消费调用方身份。
+成功后可释放调用方的 Identity、Context、Verifier 引用，工厂已保留它们。
+证书 DER 复用身份中的不可变视图；驱动和输入／输出使用已有 Session API。
+
+#### 错误
+
+无效配置为参数错误，超过证书或 Context 上限为范围错误，不兼容证书用途
+为权限错误，显式恢复为不支持；内存／后端错误保留原因。握手时缺少所要求
+的兼容请求会失败；服务器仍可在本地 TLS 1.3 READY 后发来拒绝告警。
+
+#### 范例
+
+[工厂示例](../../examples/tls/client_auth/main.c)；完整认证互操作运行方式见上述合同。
+
+```c
+xtlsclientauthconfigv1 auth;
+xrtTlsClientAuthConfigInitV1(&auth);
+auth.Identity = identity;
+xtlssession* session = xrtTlsClientCreateAuthV1(&client_config, &auth, NULL);
+if (session) {
+    xrtTlsIdentityRelease(identity);
+    identity = NULL;
+    /* 用 Session 循环推进；最终调用 xrtTlsSessionDestroy(session)。 */
+}
+```
+
+### `xrtTlsClientCertificateQueuedV1`
+
+```c
+bool xrtTlsClientCertificateQueuedV1(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pSession` | 输入 | 可空 | 所有者线程访问的有效会话；NULL 返回 false |
+
+#### 返回值
+
+非空本地 Certificate／proof 已交给会话队列时为 true。普通客户端、服务端
+和空链为 false；不代表传输完成或服务器已经接受身份。
+
+#### 错误
+
+纯查询不设置错误。不得传入已经销毁的会话。
+
+#### 范例
+
+[查询与释放示例](../../examples/tls/client_auth/main.c)。
+
+```c
+bool queued = xrtTlsClientCertificateQueuedV1(session);
+/* 无论 queued 状态如何，都继续接收并处理服务器告警和关闭。 */
+(void)queued;
+```
