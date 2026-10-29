@@ -33,6 +33,13 @@
         "source_roots": [
           "encode"
         ]
+      },
+      {
+        "name": "dispatch",
+        "state": "retained",
+        "source_roots": [
+          "dispatch"
+        ]
       }
     ]
   },
@@ -61,7 +68,8 @@
       "feature": "XRPC_FEATURE_XRPC",
       "depends": [
         "xrpc_decode",
-        "xrpc_encode"
+        "xrpc_encode",
+        "xrpc_dispatch"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -154,6 +162,40 @@
       ]
     },
     {
+      "name": "xrpc_dispatch",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_DISPATCH",
+      "depends": [
+        "xrpc_decode",
+        "xrpc_encode"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/dispatch.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/dispatch/dispatch.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_dispatch.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/dispatch/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_dispatch.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/api/reference.md",
+        "extlibs/xrpc/docs/coverage.md",
+        "extlibs/xrpc/docs/dispatch.md"
+      ]
+    },
+    {
       "name": "xrpc_tests",
       "state": "implemented",
       "feature": null,
@@ -166,11 +208,13 @@
       "sources": [],
       "tests": [
         "extlibs/xrpc/tests/test_decode.c",
-        "extlibs/xrpc/tests/test_encode.c"
+        "extlibs/xrpc/tests/test_encode.c",
+        "extlibs/xrpc/tests/test_dispatch.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -179,7 +223,8 @@
       ],
       "single_test_owners": {
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c": "xrpc_decode",
-        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c": "xrpc_encode"
+        "extlibs/xrpc/tests/single/test_single_xrpc_encode.c": "xrpc_encode",
+        "extlibs/xrpc/tests/single/test_single_xrpc_dispatch.c": "xrpc_dispatch"
       }
     }
   ]

@@ -19,6 +19,12 @@
       "system": "encode",
       "suite": "xrpc_encode",
       "description": "Only bounded envelope encoding and its required public JSON closure"
+    },
+    {
+      "name": "xrpc_dispatch",
+      "system": "dispatch",
+      "suite": "xrpc_dispatch",
+      "description": "Synchronous bounded dispatch with decode/encode closure; no engine or transport"
     }
   ]
 }

@@ -13,6 +13,22 @@
 #ifndef XRPC_MODULE_XRPC_ENCODE
 #define XRPC_MODULE_XRPC_ENCODE
 #endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#endif
+
+/* xrpc_dispatch 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_DISPATCH)
+#ifndef XRPC_FEATURE_XRPC_DISPATCH
+#define XRPC_FEATURE_XRPC_DISPATCH
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
 #endif
 
 /* xrpc_encode 及其直接依赖。 */

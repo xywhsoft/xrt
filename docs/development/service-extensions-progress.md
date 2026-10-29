@@ -10,18 +10,20 @@ Target and rules: [development contract](service-extensions-plan.md).
   TCP/TLS async/sync request connection, bounded hostname/address dialing and
   explicit HELLO/AUTH/name/database setup are locally verified, including Redis
   8.0.5 interoperability. Initial client-certificate signing/authentication is
-  locally verified. Atomic transaction execution is locally verified; identity-
-  bound ticket management, other dedicated modes, reconnect/pools, HA and final
-  performance acceptance remain pending.
+  locally verified. Atomic transactions, WATCH scopes and fixed/leased/automatic
+  pools with bounded repair are locally verified. Identity-bound ticket
+  management, remaining dedicated modes, HA/tracking and final performance
+  acceptance remain pending.
 - xcron five-field/seconds-six-field expression compilation and Gregorian
   UTC/civil matching/earliest search are locally verified. Named time zones,
   scheduling and durable recovery remain pending.
 - P1 codec/expression/calendar foundations are locally verified. P2 now has a
-  measured-workload TCP request/deadline/cancel/close slice; connection recovery,
-  remaining modes and pinned overhead/performance acceptance remain pending.
+  measured-workload TCP request/deadline/cancel/close slice and bounded pool
+  repair; remaining modes and pinned overhead/performance acceptance are pending.
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
-  a locally verified raw Scan API. RPC envelope decoding and encoding are locally
-  verified; correlation, dispatch and transports remain pending.
+  a locally verified raw Scan API. RPC envelope decoding/encoding and synchronous
+  request dispatch are locally verified; method indexing, correlation, async
+  scheduling and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -59,11 +61,13 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xredis | managed HELLO/AUTH/ACL/name/database setup and readiness barrier | locally verified | exact scripts, explicit RESP3/AUTO/RESP2 modes, error redaction, queue-inclusive deadlines/cancel, OOM/close/reentry, Windows/WSL modular/single/sanitizers and real Redis 8.0.5 |
 | xredis | fixed-arrival runtime workload and process counters | locally verified | absolute schedules, all-offer ledger, separate success/all-outcome tails, bounded observer slots, stalled/held-peer controls, allocation mode, Windows/WSL modular/single/sanitizers and Redis 8.0.5 diagnostics |
 | xredis | initial TLS client certificate authentication | locally verified | explicit V1 factories, retained identity before DNS, real TLS 1.2/1.3 peers; identity-bound tickets remain pending |
-| xredis | staged atomic MULTI/queue/EXEC | locally verified | exclusive FIFO, queue rejection/DISCARD, typed uncertainty/cancel/OOM, native static/shared consumers; WATCH sessions and performance acceptance remain pending |
-| xredis | remaining modes, reconnect/pools, HA, tracking | pending | no claim |
+| xredis | staged atomic MULTI/queue/EXEC | locally verified | exclusive FIFO, queue rejection/DISCARD, typed uncertainty/cancel/OOM, native static/shared consumers; final performance acceptance remains pending |
+| xredis | WATCH, fixed/leased/automatic pools and repair | locally verified | dedicated P2 entries below record physical retirement, nested scopes, quotas/races/OOM, Windows/WSL tests and Redis 8.0.5 interop; performance remains unaccepted |
+| xredis | remaining dedicated modes, HA, tracking | pending | no claim |
 | xrpc | bounded JSON-RPC 2.0 envelope decode | locally verified | Windows modular/single/example/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, example/trim/static/shared; mixed batch/role/lossless-ID/duplicate/error/limits/OOM and deterministic property/mutation tests |
 | xrpc | bounded atomic JSON-RPC 2.0 envelope encode | locally verified | Windows modular/single/examples/trim/static/DLL; Ubuntu/WSL ASan+UBSan modular/direct-single, examples/trim/static/shared; 10,000 independent wire properties, 500 complete-document resource oracles, 10,000 mutated raw inputs, zero-heap/OOM/aliases/atomicity |
-| xrpc | correlation, dispatch, runtime, transports | pending | no claim |
+| xrpc | bounded synchronous request dispatch | locally verified | Windows/WSL modular/single/sanitizers/examples/trim/static/shared; full-validation-before-callback, notification suppression, exact IDs, standard errors, stack output, reentry/sticky failures, aggregate caps, 10000 mixed-batch properties, zero-heap ordinary calls and diagnostic OOM |
+| xrpc | method indexing, correlation, async runtime, transports | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
@@ -2125,3 +2129,74 @@ not new full performance samples or deployment acceptance. No runtime source,
 sample-selection rule or threshold changes. Both earlier noisy comparisons
 remain unaccepted. Ignored out/service-extensions/benchmark-facts/ keeps the
 before-config snapshot, complete new reports, commands and per-binary receipts.
+
+## P3 xrpc: bounded synchronous request dispatch (2026-10-30)
+
+`xrpc_dispatch` connects the existing decoder/encoder to caller-thread business
+resolution and a synchronous response sink. Every input byte is validated before
+any user callback. Malformed JSON produces one Parse error/null id; invalid
+items produce Invalid Request/null id. Unknown/reserved methods and missing
+handler replies produce standard errors. Calls retain exact original ID tokens.
+Every valid notification stays silent, including unknown/reserved/failed methods;
+an all-notification batch emits nothing. Nonempty batches retain array shape.
+Application parameter validation and decoded-name lookup remain explicit caller
+duties; this leaf does not claim a method index or negotiated rpc. extensions.
+
+The finite response count is admitted before callbacks. Per-object encoder
+limits and complete-document byte/reply limits are distinct; aggregate bytes
+include commas/brackets. Reply functions preflight and invoke Emit before
+returning, so handler-local stack payloads are safe. Duplicate/reentrant reply
+attempts, invalid output, a false handler return after a reply and sink rejection
+are sticky local failures. The first diagnostic has an owning edge and survives
+callback error clearing/replacement. Ordinary success restores ambient identity.
+Later handlers do not run after failure; Info records accepted partial output
+and entered/completed work. Earlier business/sink effects cannot be rolled back
+or blindly replayed. The sink must discard a partial response document.
+
+Final implementation tests pass three modular and three single-header programs
+on each of Windows GCC O2/Wall/Wextra/Werror and WSL GCC O2 ASan/UBSan (12 verified
+executables). Checks cover exact wire/error/id/batch fixtures, malformed tails
+before execution, notification suppression, stack overwrite, independent nested
+dispatch, duplicate/sink reply reentry, sticky errors, stopped later handlers,
+actual/exact aggregate caps, API/alias/config rejection, 10000 independent mixed
+batch properties plus 1000 malformed tails, 10000 ordinary allocation-counter
+repetitions and diagnostic OOM under a one-byte quota. Earlier decode/encode
+adversarial/property cases run too. Each platform passes three examples, trim,
+real static/shared consumers, declaration-only compilation and all three size
+kinds. Source/header receipts preserve the tested inputs; post-test changes are
+exactly one facts-key correction and a diagnostic-allocation comment refinement
+propagated into generated headers, with declarations/implementation unchanged.
+The evidence validator checks those exact byte replacements rather than claiming
+the older binaries compiled a later comment/config snapshot.
+
+Measured Windows/WSL x64 sizeof values agree: private context 272, reply handle
+32, outgoing descriptor 120, caller message scratch 224 each, config 176 and
+info 64 bytes. These are not total stack measurements: compiler padding, nested
+JSON/encoder stacks, input/sink storage, diagnostics and callback work are extra.
+Complete input scanning, per-reply preflight followed by independent sink Write
+validation/copying/quoting, config/counter checks, callback calls and error
+ownership bookkeeping remain real costs. No new thread, queue, connection or
+ordinary valid-input heap allocation is added; protocol/error diagnostics and
+user code can allocate. No zero-overhead claim is made.
+
+The new throughput workload keeps one three-item batch (one call, one valid
+notification and one invalid item), including full decode/dispatch/reply
+preflight/single-object encoding. It excludes name lookup, transport, queueing
+and final batch-buffer assembly. Each platform retains five full 1000000-document
+samples plus one warmup. Windows median is 324063.150 documents/s, WSL
+156684.745; quality failures are respectively 0 and 4 at unchanged 3% MAD / 6%
+central-range limits. Samples are not dropped. These unpinned local measurements
+do not establish server throughput, cross-platform superiority, tail latency or
+production/performance acceptance. WSL is not native Linux deployment evidence.
+Source fingerprint a23a7808298067a7b2a94626b4ba34cabd08e21ec6d427b1a77dc1695296fe3b;
+workload 34171eb815a2d41b773dd6937c7964c85ae511e6672e846ccaf9342f31e99159.
+
+Normal xrpc maturity and API coverage pass (9 functions, 48 constants, 18 types;
+three workloads/size profiles); strict release rejects the developing xrpc root.
+Ignored out/service-extensions/xrpc-dispatch/ keeps exact tested inputs, twelve
+binary hashes, distribution/layout/size commands and artifacts, all samples and
+noise failures, refinement proofs and the post-commit identity check. Method
+indexing, correlation/client/server async scheduling, transports, deadline/cancel
+negotiation and all final native >=72-hour mixed/fault/performance gates remain
+pending, as do the other products' remaining scope. The four-library goal stays
+active. See extlibs/xrpc/docs/dispatch.md and its runnable example.

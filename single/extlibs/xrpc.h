@@ -70,6 +70,22 @@
 #ifndef XRPC_MODULE_XRPC_ENCODE
 #define XRPC_MODULE_XRPC_ENCODE
 #endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#endif
+
+/* xrpc_dispatch 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_DISPATCH)
+#ifndef XRPC_FEATURE_XRPC_DISPATCH
+#define XRPC_FEATURE_XRPC_DISPATCH
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
 #endif
 
 /* xrpc_encode 及其直接依赖。 */
@@ -332,6 +348,109 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/dispatch.h */
+/* ========================================================================== */
+
+#ifndef XRPC_DISPATCH_H
+#define XRPC_DISPATCH_H
+
+#if defined(XRPC_FEATURE_XRPC_DISPATCH) && \
+	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRPC_FEATURE_XRPC_ENCODE))
+#error "XRPC_FEATURE_XRPC_DISPATCH requires decode and encode features"
+#endif
+
+#if defined(XRPC_FEATURE_XRPC_DISPATCH)
+
+typedef struct xrpcreply xrpcreply;
+typedef enum xrpcdispatcherror {
+	XRPC_DISPATCH_ARGUMENT = 2001, XRPC_DISPATCH_STATE,
+	XRPC_DISPATCH_LIMIT, XRPC_DISPATCH_SINK
+} xrpcdispatcherror;
+
+/* All callbacks execute synchronously on the xrpcDispatch caller thread.
+ * Call returns false for an unknown method, true when handled. A handled call
+ * without a reply produces Internal error. Notifications may omit a reply.
+ * Request and Reply are borrowed only until Call returns. Reply functions
+ * consume local/stack payloads before returning and must not be deferred.
+ * Call can implement any method index; Method.Raw is a quoted JSON token.
+ * Reserved rpc. methods never reach Call; negotiation is a later runtime API. */
+typedef bool (*xrpcdispatchcall)(const xrpcmessage* Request, xrpcreply* Reply, ptr User);
+
+/* Emit borrows a validated response and every view only until it returns.
+ * EncodedBytes is the single-object xrpcEncodeWrite length. Batch describes
+ * the final response document, even when only one reply survives. The sink
+ * must copy/encode synchronously and enforce its own storage/backpressure.
+ * Return false to stop dispatch; this is a local sink error, never a wire
+ * Invalid Request. No further business handler runs after a sticky failure.
+ * For batches, accumulate objects with commas; append the closing bracket only
+ * after successful dispatch. Zero replies means send nothing, including no []. */
+typedef bool (*xrpcdispatchemit)(const xrpcoutgoing* Response, bool Batch,
+	size_t EncodedBytes, ptr User);
+
+typedef struct xrpcdispatchconfig {
+	size_t Size;
+	xrpcdecodeconfig Decode; /* Mode must be REQUESTS. Whole-document limits. */
+	xrpcencodeconfig Reply; /* Per response OBJECT limits; no enclosing batch. */
+	size_t MaxReplies;
+	/* Whole response document, including brackets and commas. Unknown handler
+	 * output sizes cannot be admitted in advance; see partial-effects contract. */
+	size_t MaxOutputBytes;
+} xrpcdispatchconfig;
+
+typedef struct xrpcdispatchinfo {
+	size_t Size;
+	bool Batch, ParseError;
+	size_t Messages, Visited, Invoked, Notifications, Replies, OutputBytes;
+} xrpcdispatchinfo;
+
+XRT_EXTERN_C_BEGIN
+
+/* Default request decoder and per-object encoder limits, 256 replies and
+ * 1 MiB complete output. NULL config selects defaults. */
+XRPC_API bool xrpcDispatchConfigInit(xrpcdispatchconfig* Config);
+
+/* Full JSON validation precedes ALL user callbacks. Scratch is caller-owned
+ * decode storage; Capacity>0. Local input/capacity/resource/diagnostic-OOM
+ * failure invokes no callback and leaves Info unchanged (scratch unspecified).
+ * Malformed JSON instead emits one Parse error/null id. Invalid items emit
+ * Invalid Request/null id. Valid calls preserve Id.Raw exactly; valid
+ * notifications never emit, including unknown methods/handler errors.
+ * The actual reply count is admitted before callbacks. Input/config/scratch
+ * and Info cannot overlap; keep input/scratch unchanged throughout callbacks.
+ * Config is copied. No input/callback/user data is retained after return.
+ * No thread, queue or connection is added. Ordinary valid-input dispatch does
+ * not allocate. Protocol/error diagnostics and user callbacks can allocate.
+ * Call may be NULL (all methods unknown); Emit must be non-NULL.
+ * Info.Size must match. Once decoded/admitted, Info is published even on a
+ * callback/reply/output-limit failure and counts only accepted Emit results.
+ * A failed sink may already have side effects. Discard partial response bytes;
+ * previously invoked business effects cannot be undone or blindly replayed.
+ * Independent dispatches can reenter/run concurrently with independent scratch
+ * and contexts. Callbacks must not block an I/O worker; this leaf does no
+ * executor/async/deadline/transport work. Ordinary success restores the caller's
+ * ambient error even if a handler changed it. Local failure retains its first
+ * diagnostic despite callbacks clearing/replacing ambient error. */
+XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
+	xrpcmessage* Scratch, size_t Capacity, xrpcdispatchcall Call, ptr CallUser,
+	xrpcdispatchemit Emit, ptr EmitUser, xrpcdispatchinfo* Info);
+
+/* Exactly one reply attempt per handler. Duplicate/reentrant attempts and a
+ * false Call return after a reply are sticky local state errors. A failed
+ * attempt cannot be replaced/retried. On a notification these functions record
+ * the attempt and succeed without inspecting payloads or invoking Emit.
+ * RawResult is one JSON value. Code is an integral raw JSON number; Message is
+ * decoded UTF-8, Data is an optional raw value. Non-notification output is
+ * independently preflighted by the public encoder before Emit is invoked. */
+XRPC_API bool xrpcReplyResult(xrpcreply* Reply, xstrview RawResult);
+XRPC_API bool xrpcReplyError(xrpcreply* Reply, xstrview Code,
+	xstrview Message, xstrview Data);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -342,6 +461,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_ENCODE)
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_ENCODE"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DISPATCH)
+#error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_DISPATCH"
 #endif
 #endif
 
@@ -899,6 +1021,214 @@ XRPC_API bool xrpcEncodeWrite(ptr Output, size_t Capacity, const xrpcoutgoing* M
 	return true;
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/dispatch/dispatch.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_DISPATCH)
+
+#if defined(XRPC_FEATURE_XRPC_DISPATCH)
+
+typedef struct xrpcdispatchcontext {
+	xrpcdispatchconfig Config;
+	xrpcdispatchinfo Info;
+	xrpcdispatchemit Emit;
+	ptr EmitUser;
+	xerror* Failure;
+	bool Failed;
+} xrpcdispatchcontext;
+
+struct xrpcreply {
+	xrpcdispatchcontext* Context;
+	xstrview Id;
+	bool Notification, Attempted, Active;
+};
+
+static bool xrpcDispatchReport(xerrkind Kind, xrpcdispatcherror Code, cstr Message)
+{
+	xrtSetErrorInfo(Kind, "xrt.rpc", (int32)Code, Message); return false;
+}
+
+static bool xrpcDispatchRemember(xrpcdispatchcontext* Context)
+{
+	if (!Context->Failed) {
+		Context->Failed = true; Context->Failure = xrtTakeError();
+		if (Context->Failure == NULL) {
+			xrpcDispatchReport(XERR_INTERNAL, XRPC_DISPATCH_STATE, "RPC operation failed without a diagnostic");
+			Context->Failure = xrtTakeError();
+		}
+	}
+	/* Transfer the first owning edge into the stack context rather than making
+	 * a successful error Ref the failure sentinel. Diagnostic publication can
+	 * need another reference; failure state and final transfer do not depend on it. */
+	xrtSetError(Context->Failure);
+	return false;
+}
+
+static bool xrpcDispatchFail(xrpcdispatchcontext* Context, xerrkind Kind,
+	xrpcdispatcherror Code, cstr Message)
+{
+	if (!Context->Failed) {
+		xrpcDispatchReport(Kind, Code, Message); xrpcDispatchRemember(Context);
+	} else xrtSetError(Context->Failure);
+	return false;
+}
+
+XRPC_API bool xrpcDispatchConfigInit(xrpcdispatchconfig* Config)
+{
+	if (Config == NULL || !xrtMemRangeValid(Config, sizeof(*Config)))
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC dispatch config output");
+	xrpcdispatchconfig Value = {0}; Value.Size = sizeof(Value);
+	xrpcDecodeConfigInit(&Value.Decode); Value.Decode.Mode = XRPC_DECODE_REQUESTS;
+	xrpcEncodeConfigInit(&Value.Reply); Value.MaxReplies = 256; Value.MaxOutputBytes = 1024u*1024u;
+	*Config = Value; return true;
+}
+
+static bool xrpcDispatchEmit(xrpcdispatchcontext* Context, const xrpcoutgoing* Response)
+{
+	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	size_t Bytes = 0;
+	if (!xrpcEncodeSize(Response, 1, false, &Context->Config.Reply, &Bytes)) return xrpcDispatchRemember(Context);
+	size_t Overhead = Context->Info.Batch ? (Context->Info.Replies ? 1u : 2u) : 0u;
+	size_t Remaining = Context->Config.MaxOutputBytes - Context->Info.OutputBytes;
+	if (Context->Info.Replies == Context->Config.MaxReplies || Overhead > Remaining || Bytes > Remaining - Overhead)
+		return xrpcDispatchFail(Context, XERR_RANGE, XRPC_DISPATCH_LIMIT, "RPC aggregate response limit exceeded");
+	if (!Context->Emit(Response, Context->Info.Batch, Bytes, Context->EmitUser))
+		return xrpcDispatchFail(Context, XERR_IO, XRPC_DISPATCH_SINK, "RPC response sink rejected output");
+	/* A sink can reenter the current Reply and trigger a sticky failure. Its
+	 * outer successful emission still counts as accepted physical output. */
+	++Context->Info.Replies; Context->Info.OutputBytes += Bytes + Overhead;
+	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	return true;
+}
+
+static bool xrpcDispatchReply(xrpcreply* Reply, xrpcoutgoing* Response)
+{
+	if (Reply == NULL || !xrtMemRangeValid(Reply, sizeof(*Reply)))
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC reply handle");
+	xrpcdispatchcontext* Context = Reply->Context;
+	if (Context->Failed) { xrtSetError(Context->Failure); return false; }
+	if (!Reply->Active || Reply->Attempted)
+		return xrpcDispatchFail(Context, XERR_STATE, XRPC_DISPATCH_STATE, "RPC reply is inactive or already attempted");
+	Reply->Attempted = true;
+	if (Reply->Notification) return true;
+	Response->Id = Reply->Id;
+	return xrpcDispatchEmit(Context, Response);
+}
+
+XRPC_API bool xrpcReplyResult(xrpcreply* Reply, xstrview RawResult)
+{
+	xrpcoutgoing Response = {0}; Response.Kind = XRPC_MESSAGE_RESULT; Response.Result = RawResult;
+	return xrpcDispatchReply(Reply, &Response);
+}
+
+XRPC_API bool xrpcReplyError(xrpcreply* Reply, xstrview Code, xstrview Message, xstrview Data)
+{
+	xrpcoutgoing Response = {0}; Response.Kind = XRPC_MESSAGE_ERROR;
+	Response.ErrorCode = Code; Response.ErrorMessage = Message; Response.ErrorData = Data;
+	return xrpcDispatchReply(Reply, &Response);
+}
+
+static bool xrpcDispatchStandard(xrpcdispatchcontext* Context, xstrview Id, int32 Code)
+{
+	xrpcoutgoing Response = {0}; Response.Kind = XRPC_MESSAGE_ERROR; Response.Id = Id;
+	if (Code == XRPC_ERROR_PARSE) {
+		Response.ErrorCode = XRT_STR_LITERAL("-32700"); Response.ErrorMessage = XRT_STR_LITERAL("Parse error");
+	} else if (Code == XRPC_ERROR_INVALID_REQUEST) {
+		Response.ErrorCode = XRT_STR_LITERAL("-32600"); Response.ErrorMessage = XRT_STR_LITERAL("Invalid Request");
+	} else if (Code == XRPC_ERROR_METHOD_NOT_FOUND) {
+		Response.ErrorCode = XRT_STR_LITERAL("-32601"); Response.ErrorMessage = XRT_STR_LITERAL("Method not found");
+	} else {
+		Response.ErrorCode = XRT_STR_LITERAL("-32603"); Response.ErrorMessage = XRT_STR_LITERAL("Internal error");
+	}
+	return xrpcDispatchEmit(Context, &Response);
+}
+
+static bool xrpcDispatchInputs(xrpcdispatchcontext* Context, xstrview Input,
+	const xrpcdispatchconfig* Config, xrpcmessage* Scratch, size_t Capacity,
+	xrpcdispatchemit Emit, xrpcdispatchinfo* Info)
+{
+	if (Emit == NULL || Info == NULL || !xrtMemRangeValid(Info, sizeof(*Info)) || Info->Size != sizeof(*Info) ||
+		Scratch == NULL || !Capacity || Capacity > SIZE_MAX / sizeof(*Scratch) ||
+		!xrtMemRangeValid(Scratch, Capacity * sizeof(*Scratch)) ||
+		(Input.Data == NULL && Input.Size) || !xrtMemRangeValid(Input.Data, Input.Size) ||
+		(Config != NULL && !xrtMemRangeValid(Config, sizeof(*Config))))
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC dispatch input/output span");
+	size_t Storage = Capacity * sizeof(*Scratch);
+	if (xrtMemRangesOverlap(Info, sizeof(*Info), Input.Data, Input.Size) ||
+		xrtMemRangesOverlap(Info, sizeof(*Info), Scratch, Storage) ||
+		xrtMemRangesOverlap(Scratch, Storage, Input.Data, Input.Size) ||
+		(Config != NULL && (xrtMemRangesOverlap(Config, sizeof(*Config), Info, sizeof(*Info)) ||
+		 xrtMemRangesOverlap(Config, sizeof(*Config), Scratch, Storage) ||
+		 xrtMemRangesOverlap(Config, sizeof(*Config), Input.Data, Input.Size))))
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "RPC dispatch inputs/outputs overlap");
+	if (Config == NULL) xrpcDispatchConfigInit(&Context->Config); else Context->Config = *Config;
+	const xrpcdispatchconfig* Limits = &Context->Config;
+	const xrpcencodeconfig* Reply = &Limits->Reply;
+	if (Limits->Size != sizeof(*Limits) || !Limits->MaxReplies || !Limits->MaxOutputBytes ||
+		Limits->Decode.Mode != XRPC_DECODE_REQUESTS || Reply->Size != sizeof(*Reply) ||
+		!Reply->MaxOutputBytes || !Reply->MaxDepth || Reply->MaxDepth > XJSON_DEPTH_DEFAULT ||
+		!Reply->MaxStringBytes || !Reply->MaxValues || !Reply->MaxContainerItems ||
+		!Reply->MaxMessages || !Reply->MaxIdBytes || !Reply->MaxMethodBytes)
+		return xrpcDispatchReport(XERR_ARGUMENT, XRPC_DISPATCH_ARGUMENT, "invalid RPC dispatch configuration");
+	Context->Info.Size = sizeof(Context->Info); return true;
+}
+
+XRPC_API bool xrpcDispatch(xstrview Input, const xrpcdispatchconfig* Config,
+	xrpcmessage* Scratch, size_t Capacity, xrpcdispatchcall Call, ptr CallUser,
+	xrpcdispatchemit Emit, ptr EmitUser, xrpcdispatchinfo* Info)
+{
+	xrpcdispatchcontext Context = {0};
+	if (!xrpcDispatchInputs(&Context, Input, Config, Scratch, Capacity, Emit, Info)) return false;
+	Context.Emit = Emit; Context.EmitUser = EmitUser;
+	xerror* Ambient = xrtTakeError(); xrpcdocument Document = {0};
+	xrpcdecodestatus Decoded = xrpcDecode(Input, &Context.Config.Decode, Scratch, Capacity, &Document);
+	if (Decoded == XRPC_DECODE_LOCAL_ERROR) { xrtErrorFree(Ambient); return false; }
+	if (Decoded == XRPC_DECODE_PARSE_ERROR) {
+		Context.Info.ParseError = true;
+		xrpcDispatchStandard(&Context, XRT_STR_LITERAL("null"), XRPC_ERROR_PARSE);
+	} else {
+		size_t Responses = 0;
+		for (size_t Index = 0; Index < Document.Count; ++Index)
+			if (Scratch[Index].Kind != XRPC_MESSAGE_NOTIFICATION) ++Responses;
+		if (Responses > Context.Config.MaxReplies) {
+			xrtErrorFree(Ambient);
+			return xrpcDispatchReport(XERR_RANGE, XRPC_DISPATCH_LIMIT, "RPC reply count exceeds admission limit");
+		}
+		Context.Info.Batch = Document.Batch; Context.Info.Messages = Document.Count;
+		for (size_t Index = 0; Index < Document.Count && !Context.Failed; ++Index) {
+			const xrpcmessage* Request = &Scratch[Index];
+			if (Request->Kind == XRPC_MESSAGE_INVALID) {
+				xrpcDispatchStandard(&Context, XRT_STR_LITERAL("null"), XRPC_ERROR_INVALID_REQUEST);
+			} else {
+				bool Notification = Request->Kind == XRPC_MESSAGE_NOTIFICATION;
+				if (Notification) ++Context.Info.Notifications;
+				xrpcreply Reply = {&Context, Request->Id.Raw, Notification, false, true};
+				bool Handled = false;
+				if (Call != NULL && !(Request->Flags & XRPC_METHOD_RESERVED)) {
+					++Context.Info.Invoked; Handled = Call(Request, &Reply, CallUser);
+				}
+				Reply.Active = false;
+				if (!Context.Failed) {
+					if (!Handled && Reply.Attempted)
+						xrpcDispatchFail(&Context, XERR_STATE, XRPC_DISPATCH_STATE, "RPC method rejected after attempting a reply");
+					else if (!Notification && !Reply.Attempted)
+						xrpcDispatchStandard(&Context, Request->Id.Raw, Handled ? XRPC_ERROR_INTERNAL : XRPC_ERROR_METHOD_NOT_FOUND);
+				}
+			}
+			if (!Context.Failed) ++Context.Info.Visited;
+		}
+	}
+	*Info = Context.Info;
+	if (Context.Failed) {
+		xrtSetErrorTake(Context.Failure); xrtErrorFree(Ambient); return false;
+	}
+	xrtSetErrorTake(Ambient); return true;
+}
 #endif
 #endif
 

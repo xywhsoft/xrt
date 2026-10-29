@@ -1,8 +1,8 @@
 # xrpc (developing)
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
-**Bounded envelope decoding and encoding are currently implemented.** Dispatch,
-client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
+**Bounded envelope decoding/encoding and synchronous dispatch are implemented.**
+Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
@@ -90,3 +90,11 @@ See the [decode example](examples/decode/main.c), [encode example](examples/enco
 [coverage matrix](docs/coverage.md) and [live progress](../../docs/development/service-extensions-progress.md).
 The product remains developing. A codec smoke is not transport throughput,
 dispatch latency, interoperability or production acceptance.
+
+Select `XRPC_MODULE_XRPC_DISPATCH` for the [synchronous dispatch leaf](docs/dispatch.md)
+and its [batch assembly example](examples/dispatch/main.c). It validates a whole
+request document before any user code, suppresses every valid notification reply,
+forwards exact IDs, supplies standard errors and bounds response count/bytes.
+Handler-local output is consumed synchronously. Callback/limit failures can leave
+business effects and partial sink output; no replay or rollback is implied.
+Method indexing, async scheduling and transports remain separate pending work.

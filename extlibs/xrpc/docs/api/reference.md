@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `5` 个函数、`43` 个常量或宏、
-`12` 个公共类型。
+当前登记 `9` 个函数、`48` 个常量或宏、
+`18` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -48,6 +48,37 @@
 - `xrpcmessagekind`
 - `xrpcvalue`
 
+## `extlibs/xrpc/include/xrpc/dispatch.h`
+
+[查看带契约注释的公共头](../../include/xrpc/dispatch.h)
+
+### 函数 (4)
+
+- `xrpcDispatch`
+- `xrpcDispatchConfigInit`
+- `xrpcReplyError`
+- `xrpcReplyResult`
+
+### 常量与宏 (6)
+
+- `XRPC_DISPATCH_ARGUMENT`
+- `XRPC_DISPATCH_LIMIT`
+- `XRPC_DISPATCH_SINK`
+- `XRPC_DISPATCH_STATE`
+- `XRPC_FEATURE_XRPC_DISPATCH`
+- `XRPC_FEATURE_XRPC_ENCODE`
+
+### 类型 (8)
+
+- `xrpcdispatchcall`
+- `xrpcdispatchconfig`
+- `xrpcdispatchemit`
+- `xrpcdispatcherror`
+- `xrpcdispatchinfo`
+- `xrpcencodeconfig`
+- `xrpcoutgoing`
+- `xrpcreply`
+
 ## `extlibs/xrpc/include/xrpc/encode.h`
 
 [查看带契约注释的公共头](../../include/xrpc/encode.h)
@@ -57,15 +88,6 @@
 - `xrpcEncodeConfigInit`
 - `xrpcEncodeSize`
 - `xrpcEncodeWrite`
-
-### 常量与宏 (1)
-
-- `XRPC_FEATURE_XRPC_ENCODE`
-
-### 类型 (2)
-
-- `xrpcencodeconfig`
-- `xrpcoutgoing`
 
 ## `extlibs/xrpc/include/xrpc/export.h`
 

@@ -1,8 +1,8 @@
-# Envelope codec contracts
+# Envelope and synchronous dispatch contracts
 
-These leaves implement JSON-RPC 2.0 document/envelope decoding and encoding on
-the public `xrtJsonScan`/`xrtJsonQuoteWrite` APIs. The [full product scope](../../../docs/development/service-extensions-plan.md)
-remains in force; no runtime/transport completion is implied.
+These leaves implement JSON-RPC 2.0 document/envelope decoding, encoding and
+synchronous request dispatch on public XRT APIs. The [full product scope](../../../docs/development/service-extensions-plan.md)
+remains in force; no async runtime/transport completion is implied.
 
 | Contract | Verification |
 | --- | --- |
@@ -41,6 +41,19 @@ synchronous call; there are no user callbacks between validation and writing.
 The first pass is the failure boundary. Validated emission needs no allocation,
 raw parse or external callbacks. See the README for the actual extra text scans
 and diagnostic reference operations.
+
+| Synchronous dispatch contract | Verification |
+| --- | --- |
+| Full validation before execution | Malformed tails after valid calls and 1000 generated batch tails invoke no business callback |
+| Standard errors and exact IDs | Handwritten error/result/batch fixtures, huge/fractional/negative-zero/NUL-escaped ids, semantic reserved prefix, explicit null |
+| Notification suppression | Known/unknown/reserved/error handlers and intentionally inaccessible suppressed payloads; all-notification batches emit nothing |
+| Callback lifetime and reentry | Stack response consumed before overwrite, independent nested dispatch, duplicate replies and sink reentry rejected |
+| Sticky local failure and partial progress | Invalid output/integral code, false return after reply, rejected sink with stale ambient error, no later business callback, accepted output counts |
+| Bounded admission/output | Scratch, input/message/reply caps before callbacks; exact aggregate bytes including brackets/commas; per-object bounds and notification-only zero output |
+| API ownership | Invalid configs/spans, scratch/input/config/info overlap, NULL callbacks/outputs; no retained request/reply context |
+| Independent property oracle | 10000 generated mixed batches with handwritten expected response construction |
+| Allocation and diagnostics | 10000 repeated ordinary calls with unchanged allocation counters/ambient error; handler diagnostic isolation; one-byte quota and parse/reply diagnostic OOM |
+| Distribution | Dedicated modular/single tests, example, package consumer and performance/size profiles |
 
 The benchmark observes decoded fields and checks a completion checksum. It is
 a workload smoke until a pinned baseline and end-to-end runtime exist. Current

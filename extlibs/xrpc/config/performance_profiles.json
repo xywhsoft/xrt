@@ -65,6 +65,37 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_dispatch",
+      "system": "dispatch",
+      "description": "Synchronous mixed batch decode/dispatch/reply preflight/single-object encoding; no transport or name index",
+      "benchmarks": [
+        {
+          "name": "xrpc_dispatch",
+          "source": "extlibs/xrpc/bench/bench_dispatch.c",
+          "suite": "xrpc_dispatch,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "documents_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "messages_per_sec": {
+              "direction": "higher",
+              "unit": "messages/s"
+            }
+          },
+          "facts": [
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }
