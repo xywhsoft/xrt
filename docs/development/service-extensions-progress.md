@@ -1991,3 +1991,79 @@ The initial WSL admission failure remains in ignored
 native Windows-client/WSL-peer and WSL-client six-case TLS 1.2/1.3, credential
 and RESP2/3 matrices pass after the correction. These runs also exercise the
 pending IOCP candidate; they are not final production/performance acceptance.
+
+## P2 base gap: precise IOCP wakeups and original deadlines (2026-10-30)
+
+The previous ~15.6 ms Windows pool-repair result is reproduced outside Redis:
+native GQCS, public port timeouts and AUTO engine timer chains show that scale,
+while WSL public/engine waits are ~1.08 ms. A separately rebuilt reference uses
+exact `d50664b2` IOCP source; reference/current pool executables share every
+other source/header, workload, compiler option and worker budget. Source receipts
+and binaries are pinned; a prototype label was overwritten during the first
+diagnostic, so the separately rebuilt `reference-*` artifacts are authoritative.
+
+The native IOCP backend now dynamically resolves the documented wait-completion
+packet API and high-resolution waitable timer. It owns one fixed timer/packet
+per port; no thread, APC, thread-pool callback, public API/config change or
+timer-resolution-setting call is added. An already earlier scheduled wake is
+retained across real I/O returns, avoiding per-event arm/cancel system calls.
+Private timer packets only wake the original monotonic deadline loop. Missing
+APIs/native optional failures preserve coarse IOCP behavior. STATUS_PENDING
+forbids immediate packet reuse; unexpected cancellation failure disables the
+optional precision path. Stop cancels associations, separates private packets
+from tracked physical I/O, closes native handles and retires storage.
+
+A native timeout fault injection first reproduced immediate premature public
+TIMEOUT with the old fallback decision. Both the precision path and coarse
+fallback now let the outer wait check its original deadline. The same injected
+test passes after the fix; no logical timeout renews that deadline. New tests
+also cover optional API absence, native timer/packet creation, set/association/
+cancel failures, already-signaled targets, pending cancellation, 1000 earlier
+wake reuses with one association/no cancels, 2000 native lifetimes, noninherited
+handles, stale wakes, real posted I/O and observed zero handle delta.
+
+Final exact candidates pass 19 Windows core/IOCP and 11 WSL core programs,
+plus 30 Windows and 30 WSL xredis programs (90 total). WSL uses O2 ASan/UBSan.
+Both six-case Redis 8.0.5 TLS/auth/RESP2/3 matrices pass, including old session/
+blocking oracles and automatic CLIENT KILL/refill. Minimal static/shared native
+consumers, examples, trim, three size kinds and generated-header checks pass.
+The independent fixture correction is `c8f2df15`; its initial failure is retained.
+Windows interop fingerprint `ad0a803a84933c01909ed54fe68a949d7530b0c7615b9add2154049ac823c9a9`;
+WSL `dffe1000a8851c6492aff46a0487300ce97f992b82db443b0ddaa2bae2b3c870`. WSL is not native Linux deployment
+acceptance; native MSVC and final sustained/fault acceptance remain pending.
+
+Measured x64 IOCP context grows 184 -> 264 bytes: the helper is 80 bytes and two
+native handles. Ordinary operation storage stays 112 bytes; public port config
+40 and event 216 stay unchanged. Runtime checks, clock reads, native handle/
+packet resources and necessary arm/association/cancel calls remain real costs.
+No zero-overhead claim is made. `docs/api/net.md` links the official API contracts.
+
+The new public port/AUTO/SELECT timer profile retains five full 1000-timer
+repeats plus one warmup, with per-metric 3% MAD / 6% central-range gates.
+Windows reports 0, WSL
+0 quality failures. Windows AUTO P50 is
+1989.900018089 us; SELECT control
+15511.000005063 us. Zero readings
+from the coarse Windows process-CPU counter are not proof of zero CPU cost.
+Core source fingerprint `90c5a597251cb964519f4b601a4074fff29aeae4fa06367e3ab09858fb1e6f2f`;
+timer workload fingerprint `3d894e4620116f88e37d18d874364de210ee75b7a4f01d4ef8e93df400c77eec`.
+
+The alternating Windows paired pool comparison also keeps five 1000-cycle
+repeats plus warmup. Repair P50 median changes
+15537.199971732 ->
+1937.800028827 us. All six workloads complete;
+26 quality checks fail. Warm throughput medians
+17034.70140062 ->
+15432.479818926 cycles/s (-9.41%). This
+apparent loss is not dismissed and is not an accepted regression result: noise
+gates fail, the machine is unpinned, and pinned matched sampling/profiling must
+resolve throughput and tail costs before performance acceptance. No samples are
+removed and no threshold is relaxed. The full four-library goal stays active.
+
+Core maturity still reports the previously known `net_file_future` missing
+single-test closure; no unrelated release gate is bypassed. Ignored
+`out/service-extensions/windows-timer/` contains exact 90 binary hashes, native
+API/fallback failure records, reference/paired sources and binaries, raw samples,
+interop/package/size/layout receipts and validation. Remaining Redis dedicated/
+HA/tracking and P3 xrpc/xmqtt/xcron runtimes plus all final native deployment,
+>=72-hour mixed/fault and production/performance gates remain unachieved.

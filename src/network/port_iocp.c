@@ -1,4 +1,5 @@
 #include "../internal/xrt_net_port.h"
+#include "../internal/xrt_net_iocp_timer.h"
 
 
 
@@ -109,6 +110,7 @@ typedef struct __xrt_net_iocp_context {
 	HANDLE Port;
 	uint64 Owner;
 	OVERLAPPED Wake;
+	__xrt_net_iocp_timer Timer;
 	__xrt_net_iocp_operation* OperationHead;
 	__xrt_net_iocp_operation** OperationBuckets;
 	size_t OperationCount;
@@ -1121,6 +1123,7 @@ static bool __xrtNetIOCPInit(xnetport* pPort)
 		xrtFree(pContext);
 		return false;
 	}
+	__xrtNetIOCPTimerInit(&pContext->Timer);
 	pPort->Context = pContext;
 	return true;
 }
@@ -1462,6 +1465,10 @@ static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 		OVERLAPPED* pOverlapped = NULL;
 		DWORD iWait = (iCount == 0) ?
 			__xrtNetIOCPTimeout(iTimeout) : 0;
+		if ( (iCount == 0) && (iTimeout > 0) &&
+			__xrtNetIOCPTimerEnsure(&pContext->Timer, pContext->Port, iTimeout) ) {
+			iWait = INFINITE;
+		}
 		BOOL bSuccess = GetQueuedCompletionStatus(pContext->Port,
 			&iBytes, &iKey, &pOverlapped, iWait);
 		int iSystemCode = bSuccess ? 0 : (int)GetLastError();
@@ -1470,13 +1477,20 @@ static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 		if ( pOverlapped == NULL ) {
 			if ( iSystemCode == WAIT_TIMEOUT ) {
 				*pCount = iCount;
-				return (iCount == 0) ?
-					(iTimeout == 0 ? XNET_RESULT_OK :
-					 XNET_RESULT_TIMEOUT) : XNET_RESULT_OK;
+				/* Coarse native timeouts can precede the QPC deadline. Only
+				 * the outer wait may decide that its original deadline expired. */
+				return XNET_RESULT_OK;
 			}
 			__xrtNetSetError(XERR_IO, XNET_ERROR_PORT_WAIT,
 				"wait", "waiting on IOCP failed", iSystemCode);
 			return XNET_RESULT_ERROR;
+		}
+		if ( pOverlapped == &pContext->Timer.Wake ) {
+			__xrtNetIOCPTimerConsumed(&pContext->Timer);
+			*pCount = iCount;
+			/* An earlier caller's timer can still be queued. The outer wait
+			 * checks its original monotonic deadline; never expose this packet. */
+			return XNET_RESULT_OK;
 		}
 		if ( pOverlapped == &pContext->Wake ) {
 			*pCount = iCount;
@@ -1550,6 +1564,7 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 	}
 
 	/* CancelIoEx 只发起取消；必须消费每个终态包后才能释放描述符。 */
+	(void)__xrtNetIOCPTimerCancel(&pContext->Timer);
 	while ( pContext->OperationCount != 0 ) {
 		DWORD iBytes = 0;
 		ULONG_PTR iKey = 0;
@@ -1560,6 +1575,10 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 
 		(void)iBytes;
 		(void)iKey;
+		if ( pOverlapped == &pContext->Timer.Wake ) {
+			__xrtNetIOCPTimerConsumed(&pContext->Timer);
+			continue;
+		}
 		if ( pOverlapped == &pContext->Wake ) {
 			continue;
 		}
@@ -1593,6 +1612,7 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 		}
 	}
 
+	__xrtNetIOCPTimerUnit(&pContext->Timer);
 	if ( CloseHandle(pContext->Port) == 0 ) {
 		bResult = false;
 		if ( iSystemCode == 0 ) {

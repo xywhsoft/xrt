@@ -9141,7 +9141,8 @@
 				"include/xrt/net.h"
 			],
 			"internal_headers": [
-				"src/internal/xrt_net_port.h"
+				"src/internal/xrt_net_port.h",
+				"src/internal/xrt_net_iocp_timer.h"
 			],
 			"sources": [
 				"src/network/port_iocp.c"
@@ -9150,10 +9151,13 @@
 				"tests/network/test_net_port_iocp.c",
 				"tests/network/test_net_port_threads.c",
 				"tests/network/test_net_port_iocp_oom.c",
+				"tests/network/test_net_port_iocp_timer.c",
 				"tests/network/test_net_port_iocp_stress.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_net_port_iocp.c"
+				"tests/single/test_single_net_port_iocp.c",
+				"tests/single/test_single_net_port_iocp_timer.c",
+				"tests/single/test_single_net_port_iocp_deadline.c"
 			],
 			"examples": [
 				"examples/network/port_iocp/main.c"
@@ -9221,6 +9225,7 @@
 			"single_tests": [
 				"tests/single/test_single_net_engine.c"
 			],
+			"benchmarks": ["dev/bench/network/bench_net_timer.c"],
 			"examples": [
 				"examples/network/engine/main.c",
 				"examples/network/engine_tour/main.c"
