@@ -2,7 +2,7 @@
 
 `XREDIS_MODULE_XREDIS_TRANSACTION` adds a bounded MULTI/queue/EXEC operation
 to the existing managed client. The whole transaction family remains
-`developing`: interactive WATCH/read/decision sessions, lease integration and
+`developing`: lease integration, independent final acceptance and
 production/performance acceptance remain required by the overall plan.
 
 Redis queues transaction commands and returns an ordered array from EXEC;
@@ -131,5 +131,6 @@ This keeps build receipts/outputs separate from the auth-only driver and covers
 both TLS versions, no-password/password/ACL configurations, RESP2/RESP3, binary
 values, queue rejection/discard, runtime error elements without rollback and
 control ACL denial. Native Windows clients use the documented build-only/WSL
-peer workflow. WATCH sessions, additional independent fault/recovery runs and
+peer workflow. The optional [WATCH scope](watch.md) adds interactive reads and
+sealed commits. Additional independent fault/recovery runs and
 native long-run/performance acceptance still remain required.

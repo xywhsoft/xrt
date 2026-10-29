@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `47` 个函数、`122` 个常量或宏、
-`40` 个公共类型。
+当前登记 `58` 个函数、`123` 个常量或宏、
+`44` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -323,3 +323,32 @@
 - `xredistransactionconfig`
 - `xredistransactionexecution`
 - `xredistransactionresult`
+
+## `extlibs/xredis/include/xredis/watch.h`
+
+[查看带契约注释的公共头](../../include/xredis/watch.h)
+
+### 函数 (11)
+
+- `xredisClientWatch`
+- `xredisClientWatchAsync`
+- `xredisWatchAbort`
+- `xredisWatchCall`
+- `xredisWatchCallAsync`
+- `xredisWatchClosed`
+- `xredisWatchCommit`
+- `xredisWatchCommitAsync`
+- `xredisWatchConfigInit`
+- `xredisWatchRelease`
+- `xredisWatchRetain`
+
+### 常量与宏 (1)
+
+- `XREDIS_FEATURE_XREDIS_WATCH`
+
+### 类型 (4)
+
+- `xrediswatch`
+- `xrediswatchclosedresult`
+- `xrediswatchconfig`
+- `xrediswatchresult`

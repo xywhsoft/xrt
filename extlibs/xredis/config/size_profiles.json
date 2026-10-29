@@ -104,6 +104,20 @@
         "xrtProcess",
         "xrtNetDial"
       ]
+    },
+    {
+      "name": "xredis_watch",
+      "system": "watch",
+      "suite": "xredis_watch",
+      "description": "Exclusive WATCH/read/decision/commit scopes on the existing client; DNS/TLS/signers/process/HTTP remain optional",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
     }
   ]
 }

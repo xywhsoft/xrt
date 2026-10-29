@@ -39,8 +39,8 @@ def fingerprint(hashes):
     return hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()
 
 
-def build(compiler: str, output: Path, transaction: bool = False) -> tuple[list[Path], list[str]]:
-    modules = ("xredis_tls_auth", "tls_identity_builtin", "pem") + (("xredis_transaction",) if transaction else ())
+def build(compiler: str, output: Path, transaction: bool = False, watch: bool = False) -> tuple[list[Path], list[str]]:
+    modules = ("xredis_tls_auth", "tls_identity_builtin", "pem") + (("xredis_watch",) if watch else ("xredis_transaction",) if transaction else ())
     closures = [_closure(module, "extlibs/xredis/config/modules.json")
                 for module in modules]
     sources, defines, links, includes = [list(dict.fromkeys(item for c in closures for item in c[i])) for i in range(4)]
@@ -51,13 +51,13 @@ def build(compiler: str, output: Path, transaction: bool = False) -> tuple[list[
         command += ["-I", str(ROOT / include)]
     if sys.platform != "win32":
         command += ["-pthread"]
-    command += [*map(str, inputs), str(Path(__file__).with_name("redis_transaction.c" if transaction else "redis_tls_auth.c")),
+    command += [*map(str, inputs), str(Path(__file__).with_name("redis_watch.c" if watch else "redis_transaction.c" if transaction else "redis_tls_auth.c")),
                 *["-l" + link for link in links], "-o", str(output)]
     before = input_hashes(inputs)
     subprocess.run(command, cwd=ROOT, check=True, timeout=300)
     assert before == input_hashes(inputs), "inputs changed while compiling the interop driver"
     compiler_path = Path(shutil.which(compiler)).resolve(strict=True)
-    receipt = {"schema": 1, "platform": sys.platform, "transaction": transaction, "compiler": str(compiler_path), "compiler_sha256": digest(compiler_path),
+    receipt = {"schema": 1, "platform": sys.platform, "transaction": transaction, "watch": watch, "compiler": str(compiler_path), "compiler_sha256": digest(compiler_path),
         "build_python": sys.executable, "build_python_sha256": digest(Path(sys.executable)),
         "compiler_version": subprocess.check_output([compiler, "--version"], text=True, encoding="utf-8").splitlines()[0],
         "command": command, "cwd": str(ROOT), "defines": defines, "client_sha256": digest(output),
@@ -92,20 +92,23 @@ def main() -> None:
     parser.add_argument("--build-only", action="store_true")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--transaction", action="store_true", help="also verify atomic transactions over the authenticated connection")
+    parser.add_argument("--watch", action="store_true", help="also verify exclusive WATCH scopes (implies --transaction)")
     parser.add_argument("--key", choices=("rsa", "p256", "p384", "ed25519"), help="select one client key; default covers all four")
     parser.add_argument("--server", type=Path, default=shutil.which("redis-server"))
     parser.add_argument("--openssl", type=Path, default=shutil.which("openssl"))
     parser.add_argument("--example", type=Path)
     parser.add_argument("--report", type=Path, required=True)
     args = parser.parse_args()
+    if args.watch:
+        args.transaction = True
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps({"schema": 1, "status": "incomplete", "scope": "no successful result recorded yet"}) + "\n", encoding="utf-8")
-    output = ROOT / ("out/redis-tls-transaction" if args.transaction else "out/redis-tls-auth") / sys.platform; output.mkdir(parents=True, exist_ok=True)
+    output = ROOT / ("out/redis-tls-watch" if args.watch else "out/redis-tls-transaction" if args.transaction else "out/redis-tls-auth") / sys.platform; output.mkdir(parents=True, exist_ok=True)
     client = args.client or output / ("client.exe" if sys.platform == "win32" else "client")
     compiler = shutil.which(args.compiler)
     if args.build and compiler is None:
         parser.error("C compiler not found")
-    compile_inputs, defines = build(compiler, client, args.transaction) if args.build else ([], [])
+    compile_inputs, defines = build(compiler, client, args.transaction, args.watch) if args.build else ([], [])
     if args.build_only:
         if not args.build:
             parser.error("--build-only requires --build")
@@ -120,6 +123,7 @@ def main() -> None:
     if not receipt_path.is_file():
         parser.error("client requires its exact build receipt; use --build or --build-only first")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt.get("watch", False) == args.watch, "client receipt does not match requested WATCH mode"
     assert receipt.get("transaction", False) == args.transaction, "client receipt does not match requested interop mode"
     # Revalidate the actual compiled closure, including its platform backend.
     # A native Windows binary must not be compared to a WSL/epoll closure.
@@ -163,8 +167,8 @@ def main() -> None:
     hashes = input_hashes(receipt_inputs)
     assert hashes == hashes_before, "source/header/helper inputs changed while exercising the client"
     assert digest(client) == receipt["client_sha256"], "client changed while exercising it"
-    report = {"schema": 1, "status": "passed", "transaction": args.transaction,
-        "scope": "local certificate handshakes and optional atomic transactions; production/performance and identity-bound resumption pending",
+    report = {"schema": 1, "status": "passed", "transaction": args.transaction, "watch": args.watch,
+        "scope": "local certificate handshakes and optional atomic transactions and WATCH scopes; production/performance and identity-bound resumption pending",
         "platform": platform.platform(), "client_platform": "native Windows client via WSL peer" if windows_client else sys.platform,
         "server_path": str(server), "server_sha256": digest(server), "server_version": subprocess.check_output([str(server), "--version"], text=True, encoding="utf-8").strip(),
         "openssl_sha256": digest(openssl), "openssl_version": subprocess.check_output([str(openssl), "version"], text=True, encoding="utf-8").strip(),

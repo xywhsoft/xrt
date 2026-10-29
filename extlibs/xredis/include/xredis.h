@@ -43,4 +43,9 @@
 #endif
 #include <xredis/transaction.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_WATCH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_WATCH"
+#endif
+#include <xredis/watch.h>
+
 #endif

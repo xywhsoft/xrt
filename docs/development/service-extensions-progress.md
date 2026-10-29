@@ -1596,3 +1596,95 @@ Ignored evidence and source/fixture/binary identities are under
 readiness observation remains open. Remaining Redis modes/pools/HA/tracking,
 RPC/MQTT/Cron runtimes and the original final acceptance remain required.
 The four-product goal stays active.
+
+## P2 xredis: exclusive WATCH/read/decision scopes (2026-10-29)
+
+`xredis_watch` adds an exclusive, finite-lifetime session on an OPEN, ready,
+physically idle managed client. It validates WATCH before exposing commands,
+allows binary scoped reads/commands, then seals exactly one admitted staged
+commit. Native admission checks ownership both before construction and at
+publication, so an encoder racing a commit/abort cannot insert a late request.
+Unowned calls/transactions and a second session cannot enter the server state.
+All eleven APIs and four types are registered; the full public index now has
+58 functions, 123 constants/macros and 44 types. The module, transaction family,
+auth family and product remain developing; pooling/lease integration and
+repeated WATCH key extension are still pending.
+
+Every accepted start outcome, including failure/cancel/OOM, exposes a borrowed
+session handle for its physical Closed barrier. Only OK permits commands.
+One monotonic deadline covers start encoding, WATCH, application think time,
+reads and commit; calls cannot renew it. Idle abandonment requires validated
+UNWATCH, while a busy abandoned stream may close. EXEC/null/known EXECABORT and
+completed queue-error DISCARD are clearing boundaries; rejected MULTI still
+requires UNWATCH. Unknown execution/failed or malformed cleanup retires the
+connection. Scoped request constructors, wire/timer/cancel tails and notification
+registrations retire before claim release. An independent engine Pin protects
+session work after external ClientClose. Completed retained metadata does not
+pin the client/engine. No new shared runtime, executor or thread was introduced.
+
+Both Windows GCC O2 and WSL GCC O2 ASan/UBSan pass 12 modular plus 12 single-header
+programs (48 total). New checks include binary input reuse and scoped read/commit
+ordering; conflict/null EXEC and MULTI/queue/runtime/opaque errors; malformed,
+rejected and held UNWATCH; pending start cancel; idle/busy total expiry; cancelled
+EXEC uncertainty; external close; reserved controls; raw/busy admission and
+output/storage aliases; cross-worker sync refusal; dropped pending/completed
+observers; 169 constructor budget windows (1..16384 step 97); worker quota=1 at
+WATCH/UNWATCH/EXEC responses; and 16 rounds of eight-thread call/commit races.
+The initial repeated-Abort implementation incorrectly treated the cleanup
+request as abandoned business; its regression now validates idempotent cleanup.
+The first strict zero-budget assertion ran before the final completion/post
+return tail, reproducing on both Windows and WSL. The assertion now waits a
+bounded ten seconds for real allocation counts/bytes to reach zero after
+observers are dropped; it does not alter production ownership or counters.
+The original failed logs remain, separate from final passing logs.
+
+Each platform also passes six independent Redis 8.0.5 cases: TLS 1.2/1.3,
+RSA client certificates and no-password/password/ACL authentication, with
+RESP2 and RESP3 within every case. Two authenticated clients prove a real
+conflicting write yields null EXEC/ABORTED without replay, successful binary
+GET/EXEC, idle abort/expiry reuse, and ACL-denied UNWATCH followed by physical
+retirement. The preceding atomic-transaction oracle also runs in each case.
+Windows is a native client against a WSL peer, with independent native Windows
+TLS startup health, not native Linux acceptance. These new passing matrices
+do not diagnose the earlier generic peer-startup observation. Exact final
+input fingerprints: Windows `57bb6d45aa9ef84f19c1c1ded59f4f0658883052d13507f43c98f5cf38e92952`;
+WSL `4c4ea44369c31d3af7f59f1d8c3a923c0369d1398f44db094e833ae68468e9da`. Receipts pin and revalidate actual
+platform source/header/helper/compiler/binary inputs before and after execution.
+
+Matched layout probes keep ordinary requests at 104 bytes, wire offset 103
+with transaction/WATCH selected, public client config 232 and ordinary result
+24. WATCH selection adds one private client owner pointer: Windows 848 to 856,
+WSL 920 to 928 in otherwise identical TLS/auth closures. A live scope occupies
+Windows 608 / WSL 680 bytes, plus a 32-byte start result, 8-byte Closed result,
+Future/cancellation/timer resources and native requests. Admission adds owner/
+state checks; idle transitions retain/wake an owner when present. Scope calls
+also use a short session gate and completion notifications. Descriptor sizing,
+wire encoding/copies, reference operations, synchronization, allocation and
+round trips remain real costs. There is no zero-overhead claim.
+
+On each platform, minimal separate static/shared consumers execute ordinary
+requests, binary atomic transactions and WATCH/read/commit/physical retirement.
+Examples, declaration-only syntax, feature/API generation and trim checks pass.
+The WATCH size profile covers single/static/shared artifacts and excludes
+optional DNS/TLS/signer/process/HTTP/WebSocket/task symbols. Normal maturity
+passes with 22 workloads and nine size profiles; strict release correctly
+rejects the four developing modules. This does not establish native MSVC
+build/ABI acceptance or native Linux deployment acceptance.
+
+Performance runs use the original raw pipeline, the same raw pipeline with
+transaction selected, the same pipeline with WATCH selected, and the complete
+WATCH/read/two-command EXEC/physical-Closed/observer-release cycle. Both platforms
+use five full repeats plus one warmup; all five scope runs finish 1000 cycles.
+The unchanged 3% relative MAD / 6% central-range gates reject the unpinned runs:
+Windows 16 quality failures, WSL eight. Preserve all measurements, do not select
+single repetitions or claim an accepted overhead/speedup/tail-latency result.
+Both source fingerprints are `a3c725798c595a3e6d0bdad11ddf949df3a05bb64fa46ed8dfcff5291e9b416c`;
+workload fingerprint `4eb3b84cc850826953d05344e8c0edb740d2c4a80b85dcc832382e6eed3be096`.
+Pinned matched native Windows/Linux performance, independent recovery/fault
+coverage, the final >=72-hour mixed/fault run and all remaining product scope
+are still required. The long-running four-library goal is not complete.
+
+Local receipts, current binary hashes, layouts, raw passing/failing logs,
+performance quality failures and `validation.json` are under ignored
+`out/service-extensions/watch/`. See `extlibs/xredis/docs/watch.md` and its
+self-contained example for the precise contract and reproducible commands.

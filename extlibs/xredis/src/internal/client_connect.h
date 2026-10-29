@@ -1,6 +1,30 @@
 #ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
 #include <xredis/client.h>
+typedef struct xredisexclusiveowner xredisexclusiveowner;
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#include <xrt/atomic.h>
+enum { XREDIS_OWNER_STARTING, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED,
+    XREDIS_OWNER_CLOSING, XREDIS_OWNER_CLOSED };
+/* Embedded in the session. Retain/Release are atomic-only; Wake is called
+ * outside the client Gate. The owner holds a client ref and an engine Pin
+ * until Unclaim, including the physical retirement of request constructors. */
+struct xredisexclusiveowner {
+    ptr Data;
+    xatomic32 State;
+    double Deadline;
+    void (*Retain)(ptr Data);
+    void (*Wake)(ptr Data);
+    void (*Release)(ptr Data);
+};
+xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
+    xnetengine** Engine, xnetworker** Worker, ptr Output);
+bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner);
+bool __xredisClientIsWorker(xredisclient* Client);
+xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered,
+    bool Control, xfuture** Future);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 #include <xredis/transaction.h>
 xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
@@ -9,6 +33,11 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 xredisadmission __xredisClientTransaction(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+xredisadmission __xredisClientOwnedTransaction(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future);
+#endif
 #endif
 typedef struct xredisclienttlsconfig xredisclienttlsconfig;
 typedef struct xtlsclientauthconfigv1 xtlsclientauthconfigv1;

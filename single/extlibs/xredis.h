@@ -88,15 +88,8 @@
 #ifndef XREDIS_MODULE_XREDIS_TRANSACTION
 #define XREDIS_MODULE_XREDIS_TRANSACTION
 #endif
-#endif
-
-/* xredis_transaction 及其直接依赖。 */
-#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
-#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
-#define XREDIS_FEATURE_XREDIS_TRANSACTION
-#endif
-#ifndef XREDIS_MODULE_XREDIS_CLIENT
-#define XREDIS_MODULE_XREDIS_CLIENT
+#ifndef XREDIS_MODULE_XREDIS_WATCH
+#define XREDIS_MODULE_XREDIS_WATCH
 #endif
 #endif
 
@@ -160,6 +153,26 @@
 #endif
 #ifndef XRT_MODULE_NET_TCP_DIAL
 #define XRT_MODULE_NET_TCP_DIAL
+#endif
+#endif
+
+/* xredis_watch 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_WATCH)
+#ifndef XREDIS_FEATURE_XREDIS_WATCH
+#define XREDIS_FEATURE_XREDIS_WATCH
+#endif
+#ifndef XREDIS_MODULE_XREDIS_TRANSACTION
+#define XREDIS_MODULE_XREDIS_TRANSACTION
+#endif
+#endif
+
+/* xredis_transaction 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRANSACTION)
+#ifndef XREDIS_FEATURE_XREDIS_TRANSACTION
+#define XREDIS_FEATURE_XREDIS_TRANSACTION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #endif
 
@@ -860,6 +873,170 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/transaction.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_TRANSACTION_H
+#define XREDIS_TRANSACTION_H
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
+#error "XREDIS_FEATURE_XREDIS_TRANSACTION requires XREDIS_FEATURE_XREDIS_CLIENT"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#define XREDIS_TRANSACTION_COMMANDS_DEFAULT 256u
+#define XREDIS_TRANSACTION_COMMANDS_MAX 65536u
+
+typedef struct xredistransactioncommand {
+    const xbytesview* Arguments;
+    size_t Count;
+} xredistransactioncommand;
+
+typedef struct xredistransactionconfig {
+    size_t Size;
+    size_t MaxCommands;
+} xredistransactionconfig;
+
+/* Execution certainty is independent from local timeout/cancellation and from
+ * error elements inside a valid EXEC array. Redis does not roll those back. */
+typedef enum xredistransactionexecution {
+    XREDIS_TRANSACTION_NOT_EXECUTED = 0,
+    XREDIS_TRANSACTION_MAY_HAVE_EXECUTED,
+    XREDIS_TRANSACTION_EXECUTED,
+    XREDIS_TRANSACTION_ABORTED
+} xredistransactionexecution;
+
+/* Owned by the returned Future; Request is the first member. Request.Reply is
+ * the final EXEC array/error or a rejected MULTI reply. QueueError retains the
+ * first queue error; other queue errors are counted and promptly released.
+ * Queue rejection uses SERVER_ERROR, no EXEC reply, and NOT_EXECUTED after a
+ * validated DISCARD. Counts describe knowledge at logical completion and do
+ * not change while an abandoned operation drains. Retain replies explicitly
+ * to use them after destroying the Future. Results do not retain the client. */
+typedef struct xredistransactionresult {
+    xredisrequestresult Request;
+    xredistransactionexecution Execution;
+    size_t Commands;
+    size_t Queued;
+    size_t QueueErrors;
+    xredisreply* QueueError;
+} xredistransactionresult;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config);
+
+/* One exclusive MULTI / queue / EXEC (or DISCARD) operation on a managed
+ * connection. Raw Connect is refused. MULTI is acknowledged before business
+ * commands are sent; preceding requests drain, and later requests cannot enter
+ * the transaction. Input is borrowed only during admission and encoded once
+ * into owned storage. Count=0 is an empty transaction. Config=NULL uses bounded
+ * defaults. Client request/byte limits include transaction wire and metadata.
+ * Timeout includes admission/encoding/worker/setup/transaction/cleanup time.
+ * Before EXEC is accepted, cancellation/timeout suppresses EXEC and drains
+ * DISCARD; afterwards execution may be uncertain. DrainTimeout still bounds
+ * physical cleanup. Cleanup rejection/malformed or unknown EXEC replies retire
+ * the connection; a recognized EXECABORT confirms abort and permits reuse.
+ * No automatic replay, rollback, WATCH/read/decision session or retry is added.
+ * Connection/mode controls are not transaction payload commands. Unknown module
+ * commands must obey Redis transactional queue/reply semantics. Output changes
+ * only on ACCEPTED. Future cancellation returns a typed immutable result. */
+XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
+
+/* Same deadline and outcome, then waits. Rejects every worker of this engine. */
+XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/watch.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_WATCH_H
+#define XREDIS_WATCH_H
+
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) && !defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#error "XREDIS_FEATURE_XREDIS_WATCH requires XREDIS_FEATURE_XREDIS_TRANSACTION"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+typedef struct xrediswatch xrediswatch;
+typedef struct xrediswatchconfig {
+    size_t Size;
+    /* Positive total lifetime, including admission, application think time,
+     * reads and commit. No renewal; at most 24 hours. Default 5000 ms. */
+    int64 Timeout;
+    /* Separate bounded UNWATCH request deadline, default 5000 ms (max 60 s).
+     * Physical retirement also includes the client's existing drain grace. */
+    int64 CleanupTimeout;
+    size_t MaxKeys;
+    size_t MaxWireBytes;
+    xredistransactionconfig Transaction;
+} xrediswatchconfig;
+
+/* Owned by the start Future. Watch is borrowed on EVERY accepted outcome;
+ * only OK permits commands. On failure it still exposes the physical Closed
+ * barrier. Retain it before destroying the Future. A retained completed result
+ * does not pin the engine. Request.Reply is the WATCH response, not EXEC. */
+typedef struct xrediswatchresult {
+    xredisrequestresult Request;
+    xrediswatch* Watch;
+} xrediswatchresult;
+/* Owned by Closed's Future. Reason is the scope's first terminal reason;
+ * Reusable certifies physical idle plus a validated clearing boundary. */
+typedef struct xrediswatchclosedresult {
+    xredisrequeststatus Reason;
+    bool Reusable;
+} xrediswatchclosedresult;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisWatchConfigInit(xrediswatchconfig* Config);
+/* Claims an OPEN, ready, idle managed client. A busy/not-ready/already claimed
+ * client returns OVERLOADED. Ordinary ClientCall/Transaction admissions are
+ * refused while claimed. Keys are binary and copied only during admission.
+ * Count must be 1..MaxKeys (default 256, hard limit 65536); default wire 64 KiB.
+ * Config is copied; output changes only on ACCEPTED. No implicit retry.
+ * Cancelling a pending start Future abandons the scope. */
+XREDIS_API xredisadmission xredisClientWatchAsync(xredisclient* Client,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XREDIS_API xredisadmission xredisClientWatch(xredisclient* Client,
+    const xbytesview* Keys, size_t Count, const xrediswatchconfig* Config, xfuture** Future);
+XREDIS_API bool xredisWatchRetain(xrediswatch* Watch);
+XREDIS_API void xredisWatchRelease(xrediswatch* Watch);
+/* Ordinary one-reply reads/commands within this connection's WATCH scope.
+ * Connection/mode/transaction controls are reserved. The effective deadline
+ * is min(call entry + Timeout, scope deadline). Release alone does not abort.
+ * Application writes have their ordinary Redis effects and are not rolled back. */
+XREDIS_API xredisadmission xredisWatchCallAsync(xrediswatch* Watch,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisWatchCall(xrediswatch* Watch,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+/* Exactly one accepted commit seals the scope against new calls/commits.
+ * Earlier reads drain before MULTI. Result is xredistransactionresult; a null
+ * EXEC is ABORTED, never an automatic retry. Logical completion precedes
+ * physical Closed. Cancelling an accepted commit may retire the connection. */
+XREDIS_API xredisadmission xredisWatchCommitAsync(xrediswatch* Watch,
+    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisWatchCommit(xrediswatch* Watch,
+    const xredistransactioncommand* Commands, size_t Count, int64 Timeout, xfuture** Future);
+/* Idempotent nonblocking abandonment. Idle scopes send UNWATCH; abandoning
+ * while physical requests remain may retire the connection. No dirty reuse.
+ * Closed is a retained observer, not a request to abort. It resolves only
+ * after scoped request storage, timers, notifications and the claim retire.
+ * Sync facades reject every worker of the client's engine. Stop/join the
+ * engine before unloading code, including the final notification return tail. */
+XREDIS_API bool xredisWatchAbort(xrediswatch* Watch);
+XREDIS_API xfuture* xredisWatchClosed(xrediswatch* Watch);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis/dial.h */
 /* ========================================================================== */
 
@@ -1025,87 +1202,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xredis/include/xredis/transaction.h */
-/* ========================================================================== */
-
-#ifndef XREDIS_TRANSACTION_H
-#define XREDIS_TRANSACTION_H
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION) && !defined(XREDIS_FEATURE_XREDIS_CLIENT)
-#error "XREDIS_FEATURE_XREDIS_TRANSACTION requires XREDIS_FEATURE_XREDIS_CLIENT"
-#endif
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-#define XREDIS_TRANSACTION_COMMANDS_DEFAULT 256u
-#define XREDIS_TRANSACTION_COMMANDS_MAX 65536u
-
-typedef struct xredistransactioncommand {
-    const xbytesview* Arguments;
-    size_t Count;
-} xredistransactioncommand;
-
-typedef struct xredistransactionconfig {
-    size_t Size;
-    size_t MaxCommands;
-} xredistransactionconfig;
-
-/* Execution certainty is independent from local timeout/cancellation and from
- * error elements inside a valid EXEC array. Redis does not roll those back. */
-typedef enum xredistransactionexecution {
-    XREDIS_TRANSACTION_NOT_EXECUTED = 0,
-    XREDIS_TRANSACTION_MAY_HAVE_EXECUTED,
-    XREDIS_TRANSACTION_EXECUTED,
-    XREDIS_TRANSACTION_ABORTED
-} xredistransactionexecution;
-
-/* Owned by the returned Future; Request is the first member. Request.Reply is
- * the final EXEC array/error or a rejected MULTI reply. QueueError retains the
- * first queue error; other queue errors are counted and promptly released.
- * Queue rejection uses SERVER_ERROR, no EXEC reply, and NOT_EXECUTED after a
- * validated DISCARD. Counts describe knowledge at logical completion and do
- * not change while an abandoned operation drains. Retain replies explicitly
- * to use them after destroying the Future. Results do not retain the client. */
-typedef struct xredistransactionresult {
-    xredisrequestresult Request;
-    xredistransactionexecution Execution;
-    size_t Commands;
-    size_t Queued;
-    size_t QueueErrors;
-    xredisreply* QueueError;
-} xredistransactionresult;
-
-XRT_EXTERN_C_BEGIN
-XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config);
-
-/* One exclusive MULTI / queue / EXEC (or DISCARD) operation on a managed
- * connection. Raw Connect is refused. MULTI is acknowledged before business
- * commands are sent; preceding requests drain, and later requests cannot enter
- * the transaction. Input is borrowed only during admission and encoded once
- * into owned storage. Count=0 is an empty transaction. Config=NULL uses bounded
- * defaults. Client request/byte limits include transaction wire and metadata.
- * Timeout includes admission/encoding/worker/setup/transaction/cleanup time.
- * Before EXEC is accepted, cancellation/timeout suppresses EXEC and drains
- * DISCARD; afterwards execution may be uncertain. DrainTimeout still bounds
- * physical cleanup. Cleanup rejection/malformed or unknown EXEC replies retire
- * the connection; a recognized EXECABORT confirms abort and permits reuse.
- * No automatic replay, rollback, WATCH/read/decision session or retry is added.
- * Connection/mode controls are not transaction payload commands. Unknown module
- * commands must obey Redis transactional queue/reply semantics. Output changes
- * only on ACCEPTED. Future cancellation returns a typed immutable result. */
-XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-
-/* Same deadline and outcome, then waits. Rejects every worker of this engine. */
-XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -1145,6 +1241,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TRANSACTION"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_WATCH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_WATCH"
+#endif
+
 #endif
 
 #endif
@@ -1160,6 +1260,29 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS_CLIENT)
 #ifndef XREDIS_CLIENT_CONNECT_INTERNAL_H
 #define XREDIS_CLIENT_CONNECT_INTERNAL_H
+typedef struct xredisexclusiveowner xredisexclusiveowner;
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+enum { XREDIS_OWNER_STARTING, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED,
+    XREDIS_OWNER_CLOSING, XREDIS_OWNER_CLOSED };
+/* Embedded in the session. Retain/Release are atomic-only; Wake is called
+ * outside the client Gate. The owner holds a client ref and an engine Pin
+ * until Unclaim, including the physical retirement of request constructors. */
+struct xredisexclusiveowner {
+    ptr Data;
+    xatomic32 State;
+    double Deadline;
+    void (*Retain)(ptr Data);
+    void (*Wake)(ptr Data);
+    void (*Release)(ptr Data);
+};
+xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
+    xnetengine** Engine, xnetworker** Worker, ptr Output);
+bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner);
+bool __xredisClientIsWorker(xredisclient* Client);
+xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered,
+    bool Control, xfuture** Future);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
@@ -1167,6 +1290,11 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 xredisadmission __xredisClientTransaction(xredisclient* Client,
     const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
     int64 Timeout, double Entered, xfuture** Future);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+xredisadmission __xredisClientOwnedTransaction(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future);
+#endif
 #endif
 typedef struct xredisclienttlsconfig xredisclienttlsconfig;
 typedef struct xtlsclientauthconfigv1 xtlsclientauthconfigv1;
@@ -2416,6 +2544,9 @@ struct xredisclient {
 	double InitDeadline;
 	uint64 InitTimer;
 	xnetpost Wake;
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+	xredisexclusiveowner* Owner;
+#endif
 	xredisrequest *SubmitHead, *SubmitTail, *CancelHead, *CancelTail;
 	xredisrequest *PendingHead, *PendingTail, *SentHead, *SentTail;
 	xredisclientinfo Info;
@@ -2664,6 +2795,28 @@ static xredisrequeststatus xredisClientFailureStatus(xredisclient* Client)
 static void xredisRequestRef(xredisrequest* Request)
 { (void)xrtAtomic32FetchAdd(&Request->References, 1, XMEMORY_RELAXED); }
 
+/* Drop the real reservation only after its storage/constructor has retired.
+ * An idle transition wakes the exclusive session without calling it under Gate. */
+static void xredisClientReservationDrop(xredisclient* Client, size_t Bytes)
+{
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    xredisexclusiveowner* Owner = NULL;
+#endif
+    xrtMutexLock(&Client->Gate);
+    --Client->Info.Requests; Client->Info.CommandBytes -= Bytes;
+    if (Client->Info.State >= XREDIS_CLIENT_CLOSING) (void)xredisClientWakeLocked(Client);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Client->Info.Requests == 0 && Client->Owner != NULL) {
+        Owner = Client->Owner; Owner->Retain(Owner->Data);
+    }
+#endif
+    xrtMutexUnlock(&Client->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Owner != NULL) { Owner->Wake(Owner->Data); Owner->Release(Owner->Data); }
+#endif
+    xredisClientRelease(Client);
+}
+
 static void xredisRequestRelease(xredisrequest* Request)
 {
 	if (xrtAtomic32FetchSub(&Request->References, 1, XMEMORY_ACQ_REL) != 1) return;
@@ -2679,11 +2832,7 @@ static void xredisRequestRelease(xredisrequest* Request)
 	 * the independent Client reference while dropping it AFTER the buffer. */
 	if (Request->Sensitive) xrtSecureZero(Request->Wire, Request->WireBytes);
 	xrtFree(Request);
-	xrtMutexLock(&Client->Gate);
-	--Client->Info.Requests; Client->Info.CommandBytes -= WireBytes;
-	if (Client->Info.State >= XREDIS_CLIENT_CLOSING) (void)xredisClientWakeLocked(Client);
-	xrtMutexUnlock(&Client->Gate);
-	xredisClientRelease(Client);
+	xredisClientReservationDrop(Client, WireBytes);
 }
 
 static void xredisClientWireDrop(ptr Data, cbytes Bytes, size_t Size)
@@ -3745,10 +3894,70 @@ static bool xredisClientManagedControl(const xbytesview* Arguments, size_t Count
 		(Count > 1 && xredisClientWord(Arguments[0], "CLIENT") && xredisClientWord(Arguments[1], "SETNAME"));
 }
 
+/* Gate held. Ordinary calls cannot enter a claimed connection. Owned calls
+ * must recheck at publication, since a concurrent commit/abort may seal it
+ * while the caller is allocating/encoding outside Gate. */
+static xredisadmission xredisClientOwnerAdmission(xredisclient* Client, xredisexclusiveowner* Owner, bool Control)
+{
+    if (Client->Info.State >= XREDIS_CLIENT_CLOSING) return XREDIS_ADMISSION_CLOSED;
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Client->Owner != Owner) return Owner == NULL ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_CLOSED;
+    if (Owner != NULL) {
+        uint32 State = xrtAtomic32Load(&Owner->State, XMEMORY_ACQUIRE);
+        if ((!Control && State != XREDIS_OWNER_ACTIVE) || State == XREDIS_OWNER_CLOSED) return XREDIS_ADMISSION_CLOSED;
+    }
+#else
+    (void)Owner; (void)Control;
+#endif
+    return XREDIS_ADMISSION_ACCEPTED;
+}
+
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+static bool xredisClientOwnerSwap(xredisexclusiveowner* Owner, uint32 From, uint32 To)
+{ return xrtAtomic32CompareExchange(&Owner->State, &From, To, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE); }
+
+xredisadmission __xredisClientClaim(xredisclient* Client, xredisexclusiveowner* Owner,
+    xnetengine** Engine, xnetworker** Worker, ptr Output)
+{
+    if (Client == NULL || Owner == NULL || Engine == NULL || Worker == NULL ||
+        xrtMemRangesOverlap(Client, Client ? Client->StorageBytes : 0, Output, sizeof(xfuture*))) {
+        xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid exclusive owner"); return XREDIS_ADMISSION_ERROR;
+    }
+    xrtMutexLock(&Client->Gate);
+    xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING ? XREDIS_ADMISSION_CLOSED :
+        !Client->Managed ? XREDIS_ADMISSION_ERROR :
+        Client->Info.State != XREDIS_CLIENT_OPEN || !Client->Info.Ready || Client->Info.Requests || Client->Owner ?
+        XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        if (!xrtNetEnginePin(Client->Engine)) Admission = XREDIS_ADMISSION_ERROR;
+        else { Client->Owner = Owner; xredisClientRef(Client); *Engine = Client->Engine; *Worker = Client->Worker; }
+    }
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) ++Client->Info.Rejected;
+    xrtMutexUnlock(&Client->Gate);
+    if (Admission == XREDIS_ADMISSION_ERROR) xredisClientReport(XERR_STATE, XREDIS_CLIENT_STATE, "exclusive sessions require a live managed connection");
+    return Admission;
+}
+
+bool __xredisClientUnclaim(xredisclient* Client, xredisexclusiveowner* Owner)
+{
+    xrtMutexLock(&Client->Gate);
+    bool Idle = Client->Owner == Owner && Client->Info.Requests == 0;
+    if (Idle) Client->Owner = NULL;
+    xrtMutexUnlock(&Client->Gate); return Idle;
+}
+
+bool __xredisClientIsWorker(xredisclient* Client)
+{
+    xrtMutexLock(&Client->Gate);
+    bool Worker = !Client->CloseDone && xrtNetEngineCurrent(Client->Engine) != NULL;
+    xrtMutexUnlock(&Client->Gate); return Worker;
+}
+#endif
+
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
+static xredisadmission xredisClientTransactionAdmit(xredisclient* Client,
 	const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
-	int64 Timeout, double Entered, xfuture** Future)
+	int64 Timeout, double Entered, xfuture** Future, xredisexclusiveowner* Owner)
 {
 	xredistransactionconfig Options;
 	if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
@@ -3796,20 +4005,21 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 	size_t Padding = (_Alignof(xredistransactionstate) - (offsetof(xredisrequest, Wire) + Bytes) % _Alignof(xredistransactionstate)) % _Alignof(xredistransactionstate);
 	size_t MetadataBytes = Padding + sizeof(xredistransactionstate), Charged = Bytes + MetadataBytes;
 	xrtMutexLock(&Client->Gate);
-	xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING ? XREDIS_ADMISSION_CLOSED :
-		Client->Info.Requests >= Client->Config.MaxRequests || Charged > Client->Config.MaxCommandBytes ||
+	xredisadmission Admission = xredisClientOwnerAdmission(Client, Owner, false);
+	if (Admission == XREDIS_ADMISSION_ACCEPTED) Admission = Client->Info.Requests >= Client->Config.MaxRequests || Charged > Client->Config.MaxCommandBytes ||
 		Charged > Client->Config.MaxCommandBytesTotal - Client->Info.CommandBytes ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
 	if (Admission != XREDIS_ADMISSION_ACCEPTED) { ++Client->Info.Rejected; xrtMutexUnlock(&Client->Gate); return Admission; }
 	++Client->Info.Requests; Client->Info.CommandBytes += Charged; xredisClientRef(Client); xrtMutexUnlock(&Client->Gate);
 	xredisrequest* Request = (xredisrequest*)xrtMalloc(sizeof(*Request) + Charged);
 	if (Request == NULL) {
-		xrtMutexLock(&Client->Gate); --Client->Info.Requests; Client->Info.CommandBytes -= Charged;
-		if (Client->Info.State >= XREDIS_CLIENT_CLOSING) (void)xredisClientWakeLocked(Client);
-		xrtMutexUnlock(&Client->Gate); xredisClientRelease(Client); return XREDIS_ADMISSION_ERROR;
+		xredisClientReservationDrop(Client, Charged); return XREDIS_ADMISSION_ERROR;
 	}
 	memset(Request, 0, offsetof(xredisrequest, Wire));
 	xrtAtomic32Init(&Request->References, 1); xrtAtomic32Init(&Request->Cancelled, 0);
 	Request->Client = Client; Request->WireBytes = Bytes; Request->Deadline = xredisClientDeadline(Entered, Timeout);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Owner != NULL && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
+#endif
 	Request->Transaction = true;
 	xredistransactionstate* State = xredisTransactionState(Request);
 	*State = (xredistransactionstate){0}; State->Count = Count;
@@ -3834,7 +4044,12 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 		memcpy(Request->Wire + Offset, xredisTransactionExec, sizeof(xredisTransactionExec) - 1u); Offset += sizeof(xredisTransactionExec) - 1u;
 		memcpy(Request->Wire + Offset, xredisTransactionDiscard, sizeof(xredisTransactionDiscard) - 1u);
 		xrtMutexLock(&Client->Gate);
-		if (Client->Info.State < XREDIS_CLIENT_CLOSING) {
+        Admission = xredisClientOwnerAdmission(Client, Owner, false);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+        if (Admission == XREDIS_ADMISSION_ACCEPTED && Owner != NULL &&
+            !xredisClientOwnerSwap(Owner, XREDIS_OWNER_ACTIVE, XREDIS_OWNER_SEALED)) Admission = XREDIS_ADMISSION_CLOSED;
+#endif
+		if (Admission == XREDIS_ADMISSION_ACCEPTED) {
 			if (Client->SubmitTail != NULL) Client->SubmitTail->SubmitNext = Request; else Client->SubmitHead = Request;
 			Client->SubmitTail = Request;
 			if (xredisClientWakeLocked(Client)) {
@@ -3844,13 +4059,27 @@ xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
 			for (xredisrequest* Item = Client->SubmitHead; Item != Request; Item = Item->SubmitNext) Previous = Item;
 			if (Previous != NULL) Previous->SubmitNext = NULL; else Client->SubmitHead = NULL;
 			Client->SubmitTail = Previous;
-		} else { Admission = XREDIS_ADMISSION_CLOSED; ++Client->Info.Rejected; }
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+            if (Owner != NULL) (void)xredisClientOwnerSwap(Owner, XREDIS_OWNER_SEALED, XREDIS_OWNER_ACTIVE);
+#endif
+		} else ++Client->Info.Rejected;
 		xrtMutexUnlock(&Client->Gate);
 	}
 	xrtCancelUnwatch(Request->Watch); xrtPromiseDestroy(Request->Promise); xrtFutureDestroy(Observer);
 	xrtFree(Request->Result); xredisRequestRelease(Request);
-	return Admission == XREDIS_ADMISSION_CLOSED ? XREDIS_ADMISSION_CLOSED : XREDIS_ADMISSION_ERROR;
+	return Admission == XREDIS_ADMISSION_ACCEPTED ? XREDIS_ADMISSION_ERROR : Admission;
 }
+
+xredisadmission __xredisClientTransactionAsync(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future)
+{ return xredisClientTransactionAdmit(Client, Commands, Count, Config, Timeout, Entered, Future, NULL); }
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+xredisadmission __xredisClientOwnedTransaction(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
+    int64 Timeout, double Entered, xfuture** Future)
+{ return xredisClientTransactionAdmit(Client, Commands, Count, Config, Timeout, Entered, Future, Owner); }
+#endif
 
 xredisadmission __xredisClientTransaction(xredisclient* Client,
 	const xredistransactioncommand* Commands, size_t Count, const xredistransactionconfig* Config,
@@ -3867,10 +4096,11 @@ xredisadmission __xredisClientTransaction(xredisclient* Client,
 }
 #endif
 
-XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
-	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+static xredisadmission xredisClientCallAdmit(xredisclient* Client,
+	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future,
+    double Entered, xredisexclusiveowner* Owner, bool Control)
 {
-	double Entered = xrtTimer(); size_t Bytes = 0;
+	size_t Bytes = 0;
 	if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
 		xrtMemRangesOverlap(Client, Client == NULL ? 0 : Client->StorageBytes, Future, sizeof(*Future))) {
 		xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid client call arguments"); return XREDIS_ADMISSION_ERROR;
@@ -3885,27 +4115,37 @@ XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
 	if (!xredisClientCommandMode(Arguments, Count)) {
 		xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "command changes response cardinality/mode"); return XREDIS_ADMISSION_ERROR;
 	}
-	if (Client->Managed && xredisClientManagedControl(Arguments, Count)) {
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Owner != NULL && !Control && (xredisClientWord(Arguments[0], "QUIT") ||
+        xredisClientWord(Arguments[0], "READONLY") || xredisClientWord(Arguments[0], "READWRITE") ||
+        xredisClientWord(Arguments[0], "ASKING") ||
+        (Count > 1 && xredisClientWord(Arguments[0], "CLIENT") &&
+         (xredisClientWord(Arguments[1], "TRACKING") || xredisClientWord(Arguments[1], "CACHING"))))) {
+        xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "WATCH payload changes connection/control mode"); return XREDIS_ADMISSION_ERROR;
+    }
+#endif
+	if (!Control && Client->Managed && xredisClientManagedControl(Arguments, Count)) {
 		xredisClientReport(XERR_UNSUPPORTED, XREDIS_CLIENT_COMMAND_MODE, "managed initialization/transaction controls require their dedicated API");
 		return XREDIS_ADMISSION_ERROR;
 	}
 	xrtMutexLock(&Client->Gate);
-	xredisadmission Admission = Client->Info.State >= XREDIS_CLIENT_CLOSING ? XREDIS_ADMISSION_CLOSED :
-		Client->Info.Requests >= Client->Config.MaxRequests || Bytes > Client->Config.MaxCommandBytes ||
+	xredisadmission Admission = xredisClientOwnerAdmission(Client, Owner, Control);
+	if (Admission == XREDIS_ADMISSION_ACCEPTED) Admission = Client->Info.Requests >= Client->Config.MaxRequests || Bytes > Client->Config.MaxCommandBytes ||
 		Bytes > Client->Config.MaxCommandBytesTotal - Client->Info.CommandBytes ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
 	if (Admission != XREDIS_ADMISSION_ACCEPTED) { ++Client->Info.Rejected; xrtMutexUnlock(&Client->Gate); return Admission; }
 	++Client->Info.Requests; Client->Info.CommandBytes += Bytes; xredisClientRef(Client); xrtMutexUnlock(&Client->Gate);
 	xredisrequest* Request = (xredisrequest*)xrtMalloc(sizeof(*Request) + Bytes);
 	if (Request == NULL) {
-		xrtMutexLock(&Client->Gate); --Client->Info.Requests; Client->Info.CommandBytes -= Bytes;
-		if (Client->Info.State >= XREDIS_CLIENT_CLOSING) (void)xredisClientWakeLocked(Client);
-		xrtMutexUnlock(&Client->Gate); xredisClientRelease(Client); return XREDIS_ADMISSION_ERROR;
+		xredisClientReservationDrop(Client, Bytes); return XREDIS_ADMISSION_ERROR;
 	}
 	/* Initialize metadata only: opaque wire bytes are written by the encoder,
 	 * without a redundant full-payload zero pass. */
 	memset(Request, 0, offsetof(xredisrequest, Wire));
 	xrtAtomic32Init(&Request->References, 1); xrtAtomic32Init(&Request->Cancelled, 0);
 	Request->Client = Client; Request->WireBytes = Bytes; Request->Deadline = xredisClientDeadline(Entered, Timeout);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    if (Owner != NULL && !Control && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
+#endif
 	Request->Sensitive = xredisClientWord(Arguments[0], "AUTH") || xredisClientWord(Arguments[0], "HELLO");
 	Request->Result = (xredisrequestresult*)xrtMalloc(sizeof(*Request->Result));
 	xfuture* Observer = NULL;
@@ -3917,7 +4157,8 @@ XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
 	}
 	if (Request->Watch != NULL && xredisCommandWrite(Request->Wire, Bytes, Arguments, Count, NULL)) {
 		xrtMutexLock(&Client->Gate);
-		if (Client->Info.State < XREDIS_CLIENT_CLOSING) {
+        Admission = xredisClientOwnerAdmission(Client, Owner, Control);
+		if (Admission == XREDIS_ADMISSION_ACCEPTED) {
 			Request->SubmitNext = NULL;
 			if (Client->SubmitTail != NULL) Client->SubmitTail->SubmitNext = Request; else Client->SubmitHead = Request;
 			Client->SubmitTail = Request;
@@ -3930,13 +4171,22 @@ XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
 			for (xredisrequest* Item = Client->SubmitHead; Item != Request; Item = Item->SubmitNext) Previous = Item;
 			if (Previous != NULL) Previous->SubmitNext = NULL; else Client->SubmitHead = NULL;
 			Client->SubmitTail = Previous;
-		} else { Admission = XREDIS_ADMISSION_CLOSED; ++Client->Info.Rejected; }
+		} else ++Client->Info.Rejected;
 		xrtMutexUnlock(&Client->Gate);
 	}
 	xrtCancelUnwatch(Request->Watch); xrtPromiseDestroy(Request->Promise); xrtFutureDestroy(Observer);
 	xrtFree(Request->Result); xredisRequestRelease(Request);
-	return Admission == XREDIS_ADMISSION_CLOSED ? XREDIS_ADMISSION_CLOSED : XREDIS_ADMISSION_ERROR;
+	return Admission == XREDIS_ADMISSION_ACCEPTED ? XREDIS_ADMISSION_ERROR : Admission;
 }
+
+XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, xrtTimer(), NULL, false); }
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered, bool Control, xfuture** Future)
+{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, Entered, Owner, Control); }
+#endif
 
 XREDIS_API xredisadmission xredisClientCall(xredisclient* Client,
 	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
@@ -3988,6 +4238,451 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 	return xrtFutureRef(Client->CloseFuture);
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/transaction/transaction.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+
+#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config)
+{
+    if (Config == NULL || !xrtMemRangeValid(Config, sizeof(*Config))) {
+        xrtSetErrorInfo(XERR_ARGUMENT, "xrt.redis", XREDIS_CLIENT_ARGUMENT, "invalid transaction config output"); return false;
+    }
+    *Config = (xredistransactionconfig){sizeof(*Config), XREDIS_TRANSACTION_COMMANDS_DEFAULT}; return true;
+}
+
+XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
+{
+    return __xredisClientTransactionAsync(Client, Commands, Count, Config, Timeout, xrtTimer(), Future);
+}
+
+XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
+    const xredistransactioncommand* Commands, size_t Count,
+    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
+{
+    return __xredisClientTransaction(Client, Commands, Count, Config, Timeout, xrtTimer(), Future);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/watch/watch.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#include <math.h>
+#include <string.h>
+
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+enum { XREDIS_W_WATCH, XREDIS_W_COMMIT, XREDIS_W_UNWATCH, XREDIS_W_CLIENT_CLOSED, XREDIS_W_SLOTS };
+struct xrediswatch {
+    xatomic32 References, Reason, Abandoned;
+    xmutex Gate;
+    xredisexclusiveowner Owner;
+    xrediswatchconfig Config;
+    xredisclient* Client;
+    xnetengine* Engine;
+    xnetworker* Worker;
+    xnetpost Work;
+    xfuturewatch Watches[XREDIS_W_SLOTS];
+    xfuture* Futures[XREDIS_W_SLOTS];
+    bool Registered[XREDIS_W_SLOTS];
+    xpromise *StartPromise, *ClosePromise;
+    xfuture *StartFuture, *CloseFuture;
+    xrediswatchresult* StartResult;
+    xrediswatchclosedresult* CloseResult;
+    xcancelwatch* Cancel;
+    uint64 Timer;
+    size_t APIs;
+    bool Initialized, Queued, Finished, Armed, WatchSeen, CommitSeen, Cleared, UnwatchSeen;
+};
+
+static void xredisWatchWork(xnetworker* Worker, ptr Data);
+static void xredisWatchWake(ptr Data);
+static bool xredisWatchReport(xerrkind Kind, cstr Text)
+{ xrtSetErrorInfo(Kind, "xrt.redis", Kind == XERR_STATE ? XREDIS_CLIENT_STATE : XREDIS_CLIENT_ARGUMENT, Text); return false; }
+static void xredisWatchRef(ptr Data)
+{ (void)xrtAtomic32FetchAdd(&((xrediswatch*)Data)->References, 1, XMEMORY_RELAXED); }
+
+XREDIS_API bool xredisWatchRetain(xrediswatch* Watch)
+{
+    if (Watch == NULL) return xredisWatchReport(XERR_ARGUMENT, "watch is NULL");
+    xredisWatchRef(Watch); return true;
+}
+XREDIS_API void xredisWatchRelease(xrediswatch* Watch)
+{
+    if (Watch == NULL || xrtAtomic32FetchSub(&Watch->References, 1, XMEMORY_ACQ_REL) != 1) return;
+    xrtCancelUnwatch(Watch->Cancel);
+    xrtPromiseDestroy(Watch->StartPromise); xrtFutureDestroy(Watch->StartFuture);
+    xrtPromiseDestroy(Watch->ClosePromise); xrtFutureDestroy(Watch->CloseFuture);
+    xrtFree(Watch->StartResult); xrtFree(Watch->CloseResult);
+    xrtMutexUnit(&Watch->Gate); xrtFree(Watch);
+}
+static void xredisWatchDrop(ptr Data) { xredisWatchRelease(Data); }
+
+/* Notifications never call the session while holding the client Gate. The
+ * separate engine Pin protects posts even after an external ClientClose. */
+static void xredisWatchWake(ptr Data)
+{
+    xrediswatch* Watch = Data; xrtMutexLock(&Watch->Gate);
+    if (Watch->Initialized && !Watch->Finished && !Watch->Queued) {
+        Watch->Queued = true; xredisWatchRef(Watch);
+        if (!xrtNetPost(Watch->Worker, &Watch->Work, xredisWatchWork, Watch)) {
+            Watch->Queued = false; xredisWatchRelease(Watch);
+        }
+    }
+    xrtMutexUnlock(&Watch->Gate);
+}
+static void xredisWatchReason(xrediswatch* Watch, xredisrequeststatus Status)
+{
+    uint32 Expected = 0;
+    (void)xrtAtomic32CompareExchange(&Watch->Reason, &Expected, (uint32)Status + 1u, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE);
+}
+static void xredisWatchStop(xrediswatch* Watch, xredisrequeststatus Status)
+{
+    xrtMutexLock(&Watch->Gate);
+    if (!Watch->Finished) {
+        xredisWatchReason(Watch, Status);
+        xrtAtomic32Store(&Watch->Abandoned, 1, XMEMORY_RELEASE);
+        xrtAtomic32Store(&Watch->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE);
+    }
+    xrtMutexUnlock(&Watch->Gate); xredisWatchWake(Watch);
+}
+static void xredisWatchCancel(ptr Data) { xredisWatchStop(Data, XREDIS_REQUEST_CANCELLED); }
+static void xredisWatchTimer(xnetworker* Worker, uint64 Id, xnetresult Result, ptr Data)
+{
+    (void)Worker; xrediswatch* Watch = Data;
+    if (Watch->Timer == Id) Watch->Timer = 0;
+    if (Result == XNET_RESULT_OK) xredisWatchStop(Watch, XREDIS_REQUEST_TIMEOUT);
+    xredisWatchWake(Watch);
+    xredisWatchRelease(Watch);
+}
+static bool xredisWatchObserve(xrediswatch* Watch, unsigned Slot)
+{
+    xredisWatchRef(Watch);
+    xfuturewatchresult Result = xrtFutureWatchAdd(Watch->Futures[Slot], &Watch->Watches[Slot]);
+    Watch->Registered[Slot] = Result == XFUTURE_WATCH_PENDING;
+    if (Result != XFUTURE_WATCH_PENDING) xredisWatchRelease(Watch);
+    return Result != XFUTURE_WATCH_ERROR;
+}
+static bool xredisWatchOK(const xredisrequestresult* Result)
+{
+    xredisreplyvalue Root;
+    return Result && Result->Status == XREDIS_REQUEST_OK && Result->Reply &&
+        xredisReplyGet(Result->Reply, 0, &Root) && Root.Type == XREDIS_REPLY_SIMPLE_STRING &&
+        Root.Data.Size == 2 && memcmp(Root.Data.Data, "OK", 2) == 0;
+}
+static const xredisrequestresult* xredisWatchOutcome(xfuture* Future)
+{
+    return Future && xrtFutureState(Future) != XFUTURE_PENDING ? xrtFutureValue(Future) : NULL;
+}
+static void xredisWatchResultDrop(ptr Value, ptr Data)
+{
+    (void)Data; xrediswatchresult* Result = Value;
+    xredisReplyRelease(Result->Request.Reply); xrtErrorFree((xerror*)Result->Request.Cause);
+    xredisWatchRelease(Result->Watch); xrtFree(Result);
+}
+static void xredisWatchCloseResultDrop(ptr Value, ptr Data) { (void)Data; xrtFree(Value); }
+
+static void xredisWatchPublish(xrediswatch* Watch, xredisrequeststatus Status, const xredisrequestresult* Source)
+{
+    if (Watch->StartPromise == NULL) return;
+    xrtCancelUnwatch(Watch->Cancel); Watch->Cancel = NULL;
+    xpromise* Promise = Watch->StartPromise; Watch->StartPromise = NULL;
+    xrediswatchresult* Result = Watch->StartResult; Watch->StartResult = NULL;
+    Result->Request = (xredisrequestresult){Status, Source ? Source->Delivery : XREDIS_MAY_HAVE_EXECUTED,
+        Source ? Source->Reply : NULL, Source ? xrtErrorRef(Source->Cause) : NULL};
+    if (Result->Request.Reply) xredisReplyRetain(Result->Request.Reply);
+    /* Even a failed/cancelled start must expose its physical cleanup barrier.
+     * The inert handle retains metadata, not the client/engine after Closed. */
+    xredisWatchRef(Watch); Result->Watch = Watch;
+    xfuture* Future = Watch->StartFuture; Watch->StartFuture = NULL;
+    if (!xrtPromiseResolveOwned(Promise, Result, xredisWatchResultDrop, NULL)) xredisWatchResultDrop(Result, NULL);
+    xrtPromiseDestroy(Promise); xrtFutureDestroy(Future);
+}
+
+/* Called only by the owning worker, with all native reservations physically
+ * idle. Remove notifications before releasing the independent engine Pin.
+ * A post queued by any racing notification/API must run first. */
+static void xredisWatchFinish(xrediswatch* Watch, bool Reusable)
+{
+    /* Sealing prevents new APIs; an already admitted commit may still be
+     * attaching its observer. Do not inspect/detach that storage until its
+     * API tail has published and left. No wait occurs under either Gate. */
+    xrtMutexLock(&Watch->Gate);
+    bool Busy = Watch->APIs != 0;
+    xrtMutexUnlock(&Watch->Gate);
+    if (Busy) return;
+    if (Watch->Timer != 0) (void)xrtNetEngineTimerCancelCurrent(Watch->Engine, Watch->Timer);
+    xrtCancelUnwatch(Watch->Cancel); Watch->Cancel = NULL;
+    for (unsigned Slot = 0; Slot < XREDIS_W_SLOTS; ++Slot) if (Watch->Registered[Slot]) {
+        xrtFutureWatchRemove(Watch->Futures[Slot], &Watch->Watches[Slot]); Watch->Registered[Slot] = false;
+    }
+    xrtMutexLock(&Watch->Gate);
+    if (Watch->APIs || Watch->Queued || Watch->Timer != 0) { xrtMutexUnlock(&Watch->Gate); return; }
+    if (!__xredisClientUnclaim(Watch->Client, &Watch->Owner)) { xrtMutexUnlock(&Watch->Gate); return; }
+    Watch->Finished = true; xrtAtomic32Store(&Watch->Owner.State, XREDIS_OWNER_CLOSED, XMEMORY_RELEASE);
+    xredisclient* Client = Watch->Client; Watch->Client = NULL;
+    xnetengine* Engine = Watch->Engine; Watch->Engine = NULL; Watch->Worker = NULL;
+    xrtMutexUnlock(&Watch->Gate);
+    for (unsigned Slot = 0; Slot < XREDIS_W_SLOTS; ++Slot) {
+        xrtFutureDestroy(Watch->Futures[Slot]); Watch->Futures[Slot] = NULL;
+    }
+    xredisClientRelease(Client); xrtNetEngineUnpin(Engine);
+    xrediswatchclosedresult* Result = Watch->CloseResult; Watch->CloseResult = NULL;
+    *Result = (xrediswatchclosedresult){(xredisrequeststatus)(xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE) - 1u), Reusable};
+    xpromise* Promise = Watch->ClosePromise; Watch->ClosePromise = NULL;
+    if (!xrtPromiseResolveOwned(Promise, Result, xredisWatchCloseResultDrop, NULL)) xrtFree(Result);
+    xrtPromiseDestroy(Promise); xredisWatchRelease(Watch); /* Active lifetime. */
+}
+
+static void xredisWatchWork(xnetworker* Worker, ptr Data)
+{
+    (void)Worker; xrediswatch* Watch = Data;
+    xrtMutexLock(&Watch->Gate); Watch->Queued = false;
+    bool Busy = Watch->APIs != 0; xfuture* Commit = Watch->Futures[XREDIS_W_COMMIT];
+    xrtMutexUnlock(&Watch->Gate);
+    if (Busy) { xredisWatchRelease(Watch); return; }
+    if (!Watch->Armed) {
+        Watch->Armed = true; xredisWatchRef(Watch);
+        Watch->Timer = __xrtNetEngineSchedule(Watch->Engine, xrtNetWorkerIndex(Watch->Worker), Watch->Owner.Deadline, xredisWatchTimer, Watch);
+        if (!Watch->Timer) { xredisWatchRelease(Watch); xredisWatchStop(Watch, XREDIS_REQUEST_MEMORY); }
+    }
+    if (!xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE) && xrtTimer() >= Watch->Owner.Deadline)
+        xredisWatchStop(Watch, XREDIS_REQUEST_TIMEOUT);
+    const xredisrequestresult* Start = xredisWatchOutcome(Watch->Futures[XREDIS_W_WATCH]);
+    if (Start && !Watch->WatchSeen) {
+        Watch->WatchSeen = true;
+        uint32 Expected = XREDIS_OWNER_STARTING;
+        if (xredisWatchOK(Start) && !xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE) &&
+            xrtAtomic32CompareExchange(&Watch->Owner.State, &Expected, XREDIS_OWNER_ACTIVE, XMEMORY_ACQ_REL, XMEMORY_ACQUIRE)) {
+            xredisWatchPublish(Watch, XREDIS_REQUEST_OK, Start);
+        } else {
+            uint32 Stopped = xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE);
+            xredisrequeststatus Status = Stopped ? (xredisrequeststatus)(Stopped - 1u) :
+                Start->Status == XREDIS_REQUEST_OK ? XREDIS_REQUEST_PROTOCOL : Start->Status;
+            xredisWatchReason(Watch, Status);
+            xrtAtomic32Store(&Watch->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE);
+            if (!Stopped && Status == XREDIS_REQUEST_PROTOCOL) xredisClientClose(Watch->Client);
+        }
+    }
+    const xredistransactionresult* Transaction = (const xredistransactionresult*)xredisWatchOutcome(Commit);
+    if (Transaction && !Watch->CommitSeen) {
+        Watch->CommitSeen = true; xredisWatchReason(Watch, Transaction->Request.Status);
+        xrtAtomic32Store(&Watch->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE);
+        Watch->Cleared = Transaction->Execution == XREDIS_TRANSACTION_EXECUTED || Transaction->Execution == XREDIS_TRANSACTION_ABORTED ||
+            (Transaction->Request.Status == XREDIS_REQUEST_SERVER_ERROR && Transaction->QueueErrors != 0 &&
+             Transaction->Execution == XREDIS_TRANSACTION_NOT_EXECUTED);
+        if (Transaction->Request.Status == XREDIS_REQUEST_TIMEOUT || Transaction->Request.Status == XREDIS_REQUEST_CANCELLED)
+            xredisWatchStop(Watch, Transaction->Request.Status);
+    }
+    uint32 Reason = xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE);
+    xredisclientinfo Info = {0}; Info.Size = sizeof(Info); xredisClientInfo(Watch->Client, &Info);
+    if (Info.State >= XREDIS_CLIENT_CLOSING && !Reason) {
+        xredisWatchReason(Watch, Info.CloseStatus); Reason = xrtAtomic32Load(&Watch->Reason, XMEMORY_ACQUIRE);
+        xrtAtomic32Store(&Watch->Owner.State, XREDIS_OWNER_CLOSING, XMEMORY_RELEASE);
+    }
+    if (!Reason) { xredisWatchRelease(Watch); return; }
+    if (Watch->Timer != 0) (void)xrtNetEngineTimerCancelCurrent(Watch->Engine, Watch->Timer);
+    xredisWatchPublish(Watch, (xredisrequeststatus)(Reason - 1u), Start);
+    if (xrtAtomic32Load(&Watch->Abandoned, XMEMORY_ACQUIRE)) {
+        if (Watch->Futures[XREDIS_W_WATCH]) xrtFutureCancel(Watch->Futures[XREDIS_W_WATCH]);
+        if (Commit) xrtFutureCancel(Commit);
+        /* Once cleanup itself owns the last native reservation, allow its
+         * bounded deadline/drain to finish. Repeated Abort is idempotent. */
+        if (Info.Requests && Watch->Futures[XREDIS_W_UNWATCH] == NULL) xredisClientClose(Watch->Client);
+        xredisClientInfo(Watch->Client, &Info);
+    }
+    if (Info.State >= XREDIS_CLIENT_CLOSING) {
+        if (!Info.Requests && xrtFutureState(Watch->Futures[XREDIS_W_CLIENT_CLOSED]) != XFUTURE_PENDING) xredisWatchFinish(Watch, false);
+    } else if (!Info.Requests) {
+        if (Watch->Cleared) xredisWatchFinish(Watch, true);
+        else if (Watch->Futures[XREDIS_W_UNWATCH] == NULL) {
+            xbytesview Word = XRT_BYTES_LITERAL("UNWATCH");
+            xredisadmission Admission = __xredisClientOwnedCall(Watch->Client, &Watch->Owner, &Word, 1,
+                Watch->Config.CleanupTimeout, xrtTimer(), true, &Watch->Futures[XREDIS_W_UNWATCH]);
+            if (Admission != XREDIS_ADMISSION_ACCEPTED || !xredisWatchObserve(Watch, XREDIS_W_UNWATCH)) xredisClientClose(Watch->Client);
+        } else if (!Watch->UnwatchSeen) {
+            const xredisrequestresult* Result = xredisWatchOutcome(Watch->Futures[XREDIS_W_UNWATCH]);
+            if (Result) {
+                Watch->UnwatchSeen = true;
+                if (xredisWatchOK(Result)) { Watch->Cleared = true; xredisWatchFinish(Watch, true); }
+                else xredisClientClose(Watch->Client);
+            }
+        }
+    }
+    xredisWatchRelease(Watch);
+}
+
+XREDIS_API bool xredisWatchConfigInit(xrediswatchconfig* Config)
+{
+    if (Config == NULL || !xrtMemRangeValid(Config, sizeof(*Config))) return xredisWatchReport(XERR_ARGUMENT, "invalid watch config");
+    *Config = (xrediswatchconfig){sizeof(*Config), 5000, 5000, 256, 65536, {sizeof(xredistransactionconfig), XREDIS_TRANSACTION_COMMANDS_DEFAULT}};
+    return true;
+}
+
+static xredisadmission xredisWatchBegin(xredisclient* Client, const xbytesview* Keys, size_t Count,
+    const xrediswatchconfig* Config, xfuture** Future, double Entered)
+{
+    xrediswatchconfig Options;
+    if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) ||
+        (Config && (!xrtMemRangeValid(Config, sizeof(*Config)) || xrtMemRangesOverlap(Config, sizeof(*Config), Future, sizeof(*Future))))) {
+        xredisWatchReport(XERR_ARGUMENT, "invalid watch arguments/output"); return XREDIS_ADMISSION_ERROR;
+    }
+    if (Config == NULL) xredisWatchConfigInit(&Options); else Options = *Config;
+    if (Options.Size != sizeof(Options) || Options.Timeout <= 0 || Options.Timeout > 86400000 ||
+        Options.CleanupTimeout <= 0 || Options.CleanupTimeout > 60000 || !Options.MaxKeys || Options.MaxKeys > 65536 ||
+        !Options.MaxWireBytes || !Count || Count > Options.MaxKeys || !Keys || !xrtMemRangeValid(Keys, Count * sizeof(*Keys)) ||
+        xrtMemRangesOverlap(Keys, Count * sizeof(*Keys), Future, sizeof(*Future)) ||
+        Options.Transaction.Size != sizeof(Options.Transaction) || !Options.Transaction.MaxCommands || Options.Transaction.MaxCommands > XREDIS_TRANSACTION_COMMANDS_MAX) {
+        xredisWatchReport(XERR_ARGUMENT, "invalid watch config/keys"); return XREDIS_ADMISSION_ERROR;
+    }
+    for (size_t Index = 0; Index < Count; ++Index) if (!xrtMemRangeValid(Keys[Index].Data, Keys[Index].Size) ||
+        xrtMemRangesOverlap(Keys[Index].Data, Keys[Index].Size, Future, sizeof(*Future))) {
+        xredisWatchReport(XERR_ARGUMENT, "invalid watch key/output alias"); return XREDIS_ADMISSION_ERROR;
+    }
+    xbytesview* Arguments = xrtMalloc((Count + 1u) * sizeof(*Arguments));
+    if (!Arguments) return XREDIS_ADMISSION_ERROR;
+    Arguments[0] = (xbytesview)XRT_BYTES_LITERAL("WATCH"); memcpy(Arguments + 1, Keys, Count * sizeof(*Keys));
+    size_t Bytes = 0;
+    if (!xredisCommandSize(Arguments, Count + 1u, &Bytes) || Bytes > Options.MaxWireBytes) {
+        xrtFree(Arguments); xredisWatchReport(XERR_RANGE, "WATCH exceeds wire limit"); return XREDIS_ADMISSION_ERROR;
+    }
+    xrediswatch* Watch = xrtMalloc(sizeof(*Watch));
+    if (!Watch) { xrtFree(Arguments); return XREDIS_ADMISSION_ERROR; }
+    memset(Watch, 0, sizeof(*Watch));
+    if (!xrtMutexInit(&Watch->Gate)) { xrtFree(Watch); xrtFree(Arguments); return XREDIS_ADMISSION_ERROR; }
+    xrtAtomic32Init(&Watch->References, 1); xrtAtomic32Init(&Watch->Reason, 0); xrtAtomic32Init(&Watch->Abandoned, 0);
+    Watch->Config = Options; Watch->Owner.Data = Watch;
+    xrtAtomic32Init(&Watch->Owner.State, XREDIS_OWNER_STARTING);
+    Watch->Owner.Deadline = nextafter(Entered + (double)Options.Timeout * 0.001, INFINITY);
+    Watch->Owner.Retain = xredisWatchRef; Watch->Owner.Release = xredisWatchDrop; Watch->Owner.Wake = xredisWatchWake;
+    Watch->StartResult = xrtMalloc(sizeof(*Watch->StartResult)); Watch->CloseResult = xrtMalloc(sizeof(*Watch->CloseResult));
+    if (Watch->StartResult) memset(Watch->StartResult, 0, sizeof(*Watch->StartResult));
+    bool Ready = Watch->StartResult && Watch->CloseResult && xrtNetPostInit(&Watch->Work) &&
+        (Watch->StartPromise = xrtPromiseCreate(&Watch->StartFuture, NULL)) &&
+        (Watch->ClosePromise = xrtPromiseCreate(&Watch->CloseFuture, NULL));
+    for (unsigned Slot = 0; Ready && Slot < XREDIS_W_SLOTS; ++Slot)
+        Ready = xrtFutureWatchInit(&Watch->Watches[Slot], xredisWatchWake, xredisWatchDrop, Watch);
+    if (Ready) {
+        xcancel* Token = xrtFutureCancelToken(Watch->StartFuture);
+        if (Token) Watch->Cancel = xrtCancelWatch(Token, xredisWatchCancel, Watch);
+        xrtCancelDestroy(Token); Ready = Watch->Cancel != NULL;
+    }
+    xredisadmission Admission = Ready ? __xredisClientClaim(Client, &Watch->Owner, &Watch->Engine, &Watch->Worker, Future) : XREDIS_ADMISSION_ERROR;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        Watch->Client = Client; Watch->Futures[XREDIS_W_CLIENT_CLOSED] = xredisClientClosed(Client);
+        Admission = __xredisClientOwnedCall(Client, &Watch->Owner, Arguments, Count + 1u, Options.Timeout, Entered, true, &Watch->Futures[XREDIS_W_WATCH]);
+        if (Admission != XREDIS_ADMISSION_ACCEPTED) {
+            (void)__xredisClientUnclaim(Client, &Watch->Owner); xredisClientRelease(Client); xrtNetEngineUnpin(Watch->Engine);
+            xrtFutureDestroy(Watch->Futures[XREDIS_W_CLIENT_CLOSED]); Watch->Client = NULL; Watch->Engine = NULL;
+        }
+    }
+    xrtFree(Arguments);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) { xredisWatchRelease(Watch); return Admission; }
+    /* Native acceptance is the effects boundary. Every subsequent failure is
+     * a typed asynchronous outcome with physical cleanup, never ERROR. */
+    bool Observed = xredisWatchObserve(Watch, XREDIS_W_WATCH) && xredisWatchObserve(Watch, XREDIS_W_CLIENT_CLOSED);
+    xfuture* Observer = xrtFutureRef(Watch->StartFuture);
+    xredisWatchRef(Watch); /* Constructor tail may race an immediate failure. */
+    xrtMutexLock(&Watch->Gate); Watch->Initialized = true; xrtMutexUnlock(&Watch->Gate);
+    if (!Observed) xredisWatchStop(Watch, XREDIS_REQUEST_MEMORY);
+    *Future = Observer; xredisWatchWake(Watch); xredisWatchRelease(Watch); return XREDIS_ADMISSION_ACCEPTED;
+}
+XREDIS_API xredisadmission xredisClientWatchAsync(xredisclient* Client, const xbytesview* Keys,
+    size_t Count, const xrediswatchconfig* Config, xfuture** Future)
+{ return xredisWatchBegin(Client, Keys, Count, Config, Future, xrtTimer()); }
+XREDIS_API xredisadmission xredisClientWatch(xredisclient* Client, const xbytesview* Keys,
+    size_t Count, const xrediswatchconfig* Config, xfuture** Future)
+{
+    double Entered = xrtTimer();
+    if (Client && __xredisClientIsWorker(Client)) { xredisWatchReport(XERR_STATE, "sync WATCH cannot block an engine worker"); return XREDIS_ADMISSION_ERROR; }
+    xredisadmission Admission = xredisWatchBegin(Client, Keys, Count, Config, Future, Entered);
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) (void)xrtFutureWait(*Future);
+    return Admission;
+}
+
+/* APIs protect the engine/client borrow through encoding and final admission.
+ * Commit seals under the native client Gate, not at the start of encoding. */
+static xredisadmission xredisWatchEnter(xrediswatch* Watch, bool Sync, xredisclient** Client)
+{
+    if (!Watch) { xredisWatchReport(XERR_ARGUMENT, "watch is NULL"); return XREDIS_ADMISSION_ERROR; }
+    xrtMutexLock(&Watch->Gate);
+    xredisadmission Admission = Watch->Finished || xrtAtomic32Load(&Watch->Owner.State, XMEMORY_ACQUIRE) != XREDIS_OWNER_ACTIVE ?
+        XREDIS_ADMISSION_CLOSED : XREDIS_ADMISSION_ACCEPTED;
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) { ++Watch->APIs; *Client = Watch->Client; }
+    xrtMutexUnlock(&Watch->Gate);
+    if (Admission == XREDIS_ADMISSION_ACCEPTED && Sync && __xredisClientIsWorker(*Client)) {
+        xrtMutexLock(&Watch->Gate); --Watch->APIs; xrtMutexUnlock(&Watch->Gate); xredisWatchWake(Watch);
+        xredisWatchReport(XERR_STATE, "sync WATCH operation cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
+    }
+    return Admission;
+}
+static void xredisWatchLeave(xrediswatch* Watch)
+{ xrtMutexLock(&Watch->Gate); --Watch->APIs; xrtMutexUnlock(&Watch->Gate); xredisWatchWake(Watch); }
+
+static xredisadmission xredisWatchCallAdmit(xrediswatch* Watch, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, bool Sync, double Entered)
+{
+    if (!Future || !xrtMemRangeValid(Future, sizeof(*Future)) ||
+        xrtMemRangesOverlap(Watch, Watch ? sizeof(*Watch) : 0, Future, sizeof(*Future))) {
+        xredisWatchReport(XERR_ARGUMENT, "invalid watch operation output"); return XREDIS_ADMISSION_ERROR;
+    }
+    xredisclient* Client = NULL; xredisadmission Admission = xredisWatchEnter(Watch, Sync, &Client);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) return Admission;
+    Admission = __xredisClientOwnedCall(Client, &Watch->Owner, Arguments, Count, Timeout, Entered, false, Future);
+    xredisWatchLeave(Watch);
+    if (Sync && Admission == XREDIS_ADMISSION_ACCEPTED) (void)xrtFutureWait(*Future);
+    return Admission;
+}
+XREDIS_API xredisadmission xredisWatchCallAsync(xrediswatch* Watch, const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+{ return xredisWatchCallAdmit(Watch, Arguments, Count, Timeout, Future, false, xrtTimer()); }
+XREDIS_API xredisadmission xredisWatchCall(xrediswatch* Watch, const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+{ return xredisWatchCallAdmit(Watch, Arguments, Count, Timeout, Future, true, xrtTimer()); }
+
+static xredisadmission xredisWatchCommitAdmit(xrediswatch* Watch, const xredistransactioncommand* Commands,
+    size_t Count, int64 Timeout, xfuture** Future, bool Sync, double Entered)
+{
+    if (!Future || !xrtMemRangeValid(Future, sizeof(*Future)) ||
+        xrtMemRangesOverlap(Watch, Watch ? sizeof(*Watch) : 0, Future, sizeof(*Future))) {
+        xredisWatchReport(XERR_ARGUMENT, "invalid watch operation output"); return XREDIS_ADMISSION_ERROR;
+    }
+    xredisclient* Client = NULL; xredisadmission Admission = xredisWatchEnter(Watch, Sync, &Client);
+    if (Admission != XREDIS_ADMISSION_ACCEPTED) return Admission;
+    Admission = __xredisClientOwnedTransaction(Client, &Watch->Owner, Commands, Count, &Watch->Config.Transaction, Timeout, Entered, Future);
+    if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+        xrtMutexLock(&Watch->Gate); Watch->Futures[XREDIS_W_COMMIT] = xrtFutureRef(*Future); xrtMutexUnlock(&Watch->Gate);
+        if (!xredisWatchObserve(Watch, XREDIS_W_COMMIT)) xredisWatchStop(Watch, XREDIS_REQUEST_MEMORY);
+    }
+    xredisWatchLeave(Watch);
+    if (Sync && Admission == XREDIS_ADMISSION_ACCEPTED) (void)xrtFutureWait(*Future);
+    return Admission;
+}
+XREDIS_API xredisadmission xredisWatchCommitAsync(xrediswatch* Watch, const xredistransactioncommand* Commands,
+    size_t Count, int64 Timeout, xfuture** Future)
+{ return xredisWatchCommitAdmit(Watch, Commands, Count, Timeout, Future, false, xrtTimer()); }
+XREDIS_API xredisadmission xredisWatchCommit(xrediswatch* Watch, const xredistransactioncommand* Commands,
+    size_t Count, int64 Timeout, xfuture** Future)
+{ return xredisWatchCommitAdmit(Watch, Commands, Count, Timeout, Future, true, xrtTimer()); }
+XREDIS_API bool xredisWatchAbort(xrediswatch* Watch)
+{
+    if (!Watch) return xredisWatchReport(XERR_ARGUMENT, "watch is NULL");
+    xredisWatchStop(Watch, XREDIS_REQUEST_CANCELLED); return true;
+}
+XREDIS_API xfuture* xredisWatchClosed(xrediswatch* Watch)
+{
+    if (!Watch) { xredisWatchReport(XERR_ARGUMENT, "watch is NULL"); return NULL; }
+    return xrtFutureRef(Watch->CloseFuture);
+}
 #endif
 #endif
 
@@ -4277,38 +4972,6 @@ XREDIS_API bool xredisClientTlsAuthConnectV1(xnetengine* Engine, const xnetaddr*
     xnetaddrlist* Addresses = xrtNetAddrListCreate(Remote, 1); if (Addresses == NULL) return false;
     bool Success = __xredisClientDialTlsAuthV1(Engine, NULL, Addresses, (xstrview){NULL, 0}, 0, Affinity, Config, Init, TLS, Auth, Entered, Result);
     xrtNetAddrListDestroy(Addresses); return Success;
-}
-#endif
-#endif
-
-
-/* ========================================================================== */
-/* source: extlibs/xredis/src/transaction/transaction.c */
-/* ========================================================================== */
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
-XREDIS_API bool xredisClientTransactionConfigInit(xredistransactionconfig* Config)
-{
-    if (Config == NULL || !xrtMemRangeValid(Config, sizeof(*Config))) {
-        xrtSetErrorInfo(XERR_ARGUMENT, "xrt.redis", XREDIS_CLIENT_ARGUMENT, "invalid transaction config output"); return false;
-    }
-    *Config = (xredistransactionconfig){sizeof(*Config), XREDIS_TRANSACTION_COMMANDS_DEFAULT}; return true;
-}
-
-XREDIS_API xredisadmission xredisClientTransactionAsync(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
-{
-    return __xredisClientTransactionAsync(Client, Commands, Count, Config, Timeout, xrtTimer(), Future);
-}
-
-XREDIS_API xredisadmission xredisClientTransaction(xredisclient* Client,
-    const xredistransactioncommand* Commands, size_t Count,
-    const xredistransactionconfig* Config, int64 Timeout, xfuture** Future)
-{
-    return __xredisClientTransaction(Client, Commands, Count, Config, Timeout, xrtTimer(), Future);
 }
 #endif
 #endif

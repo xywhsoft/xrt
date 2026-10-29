@@ -4,7 +4,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_COMMAND) && !defined(XREDIS_FEATURE_XREDIS_READER)
 #error "package consumer requires the actual selected package feature definitions"
 #endif
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+#include "../support/watch_peer.h"
+#elif defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 #include "../support/transaction_peer.h"
 #elif defined(XREDIS_FEATURE_XREDIS_DIAL)
 #include "../support/dial_peer.h"
@@ -55,7 +57,10 @@ int main(void)
 #endif
 #if defined(XREDIS_FEATURE_XREDIS_CLIENT)
     xredisclient* Client = NULL;
-#if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    rediswatchpeer Peer; redisWatchPeerStart(&Peer, W_NORMAL, TX_NORMAL, false);
+    Client = redisTransactionPeerConnect(&Peer.Tx, NULL);
+#elif defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
     redistransactionpeer Peer; redisTransactionPeerStart(&Peer, TX_NORMAL, false);
     Client = redisTransactionPeerConnect(&Peer, NULL);
 #elif defined(XREDIS_FEATURE_XREDIS_DIAL)
@@ -87,7 +92,23 @@ int main(void)
     xrtFutureDestroy(Transaction); Transaction = NULL;
     if (xredisClientTransaction(Client, NULL, 0, NULL, 5000, &Transaction) != XREDIS_ADMISSION_ACCEPTED ||
         ((const xredistransactionresult*)xrtFutureValue(Transaction))->Execution != XREDIS_TRANSACTION_EXECUTED) return 23;
-    redisTransactionPeerStop(&Peer); xrtFutureDestroy(Transaction);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH)
+    redisWatchPeerReady(Client); xbytesview Key = XRT_BYTES_LITERAL("package-watch\0key"); xfuture* Started = NULL;
+    if (xredisClientWatch(Client, &Key, 1, NULL, &Started) != XREDIS_ADMISSION_ACCEPTED) return 24;
+    const xrediswatchresult* Scope = xrtFutureValue(Started); if (!Scope || !Scope->Watch) return 25;
+    xfuture* ScopedRead = NULL;
+    if (xredisWatchCall(Scope->Watch, Echo, 2, 5000, &ScopedRead) != XREDIS_ADMISSION_ACCEPTED ||
+        ((const xredisrequestresult*)xrtFutureValue(ScopedRead))->Status != XREDIS_REQUEST_OK) return 26;
+    xfuture* ScopedCommit = NULL;
+    if (xredisWatchCommit(Scope->Watch, Commands, 2, 5000, &ScopedCommit) != XREDIS_ADMISSION_ACCEPTED ||
+        ((const xredistransactionresult*)xrtFutureValue(ScopedCommit))->Execution != XREDIS_TRANSACTION_EXECUTED) return 27;
+    xfuture* ScopedClosed = xredisWatchClosed(Scope->Watch);
+    if (xrtFutureWaitFor(ScopedClosed, 10000) != XWAIT_OK || !((const xrediswatchclosedresult*)xrtFutureValue(ScopedClosed))->Reusable) return 28;
+    redisTransactionPeerStop(&Peer.Tx); xrtFutureDestroy(Started); xrtFutureDestroy(ScopedRead); xrtFutureDestroy(ScopedCommit); xrtFutureDestroy(ScopedClosed);
+#else
+    redisTransactionPeerStop(&Peer);
+#endif
+    xrtFutureDestroy(Transaction);
 #else
     xfuture* Closed = xredisClientClosed(Client);
     if (!xredisClientClose(Client) || xrtFutureWaitFor(Closed, 5000) != XWAIT_OK) return 15;

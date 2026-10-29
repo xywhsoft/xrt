@@ -122,8 +122,15 @@ MULTI/queue/EXEC operation on a managed connection. It confirms MULTI before
 sending business commands, suppresses EXEC on queue error/pre-commit abandonment,
 drains DISCARD before reuse and preserves explicit execution uncertainty.
 See [transaction ownership and phases](docs/transaction.md) and the
-[self-contained example](examples/transaction/main.c). Interactive WATCH sessions,
-lease integration and final transaction acceptance remain in development.
+[self-contained example](examples/transaction/main.c). Lease integration and
+final transaction acceptance remain in development.
+
+Select `XREDIS_MODULE_XREDIS_WATCH` for a finite-lifetime exclusive
+WATCH/read/decision/commit scope. It claims a ready idle managed connection,
+seals one accepted commit, rejects unrelated admissions and awaits validated
+UNWATCH or physical closure before reuse. See [the ownership/cleanup contract](docs/watch.md)
+and [self-contained example](examples/watch/main.c). Pool integration and final
+production/performance acceptance remain pending.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests
