@@ -47,6 +47,9 @@ typedef struct xlogasyncflush {
 /* Async Sink 状态集中管理队列、工作线程、目标引用和观测数据。 */
 typedef struct xlogasyncstate {
 	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	bool OwnershipFinished;
 	xmutex Lock;
 	xcond NotEmpty;
 	xcond NotFull;
@@ -75,6 +78,8 @@ typedef struct xlogasyncstate {
 	uint64 Failed;
 	uint64 Flushes;
 } xlogasyncstate;
+
+static const xrtownershipops __xrtLogAsyncStateOps;
 
 
 
@@ -714,7 +719,7 @@ static void __xrtLogAsyncStateRelease(xlogasyncstate* pState)
 {
 	xlogasyncitem* pItems;
 
-	if ( xrtRefRelease(&pState->RefCount) != 0 ) {
+	if ( xrtOwnershipRefRelease(&pState->RefCount) != 0 ) {
 		return;
 	}
 	pItems = pState->Head;
@@ -1024,7 +1029,7 @@ XRT_API xlogsink* xrtLogAsync(
 		return NULL;
 	}
 
-	(void)xrtRefRetain(&pState->RefCount);
+	(void)xrtOwnershipRefRetain(&pState->RefCount);
 	pState->Thread = xrtThreadCreate(
 		__xrtLogAsyncWorker,
 		pState,
@@ -1032,7 +1037,7 @@ XRT_API xlogsink* xrtLogAsync(
 	);
 	if ( pState->Thread == NULL ) {
 		pCause = xrtTakeError();
-		(void)xrtRefRelease(&pState->RefCount);
+		(void)xrtOwnershipRefRelease(&pState->RefCount);
 		__xrtLogAsyncStateRelease(pState);
 		__xrtErrorSetOwned(__xrtLogAsyncErrorCreate(
 			XERR_IO,
@@ -1055,8 +1060,9 @@ XRT_API xlogsink* xrtLogAsync(
 	SinkConfig.Drop = __xrtLogAsyncDrop;
 	SinkConfig.UserData = pState;
 	pSink = xrtLogSinkCreate(&SinkConfig);
-	if ( pSink != NULL ) {
-		return pSink;
+	if (pSink != NULL) {
+		if (xrtLogSinkBindOwnershipV1(pSink,xrtLogAsyncSinkOwnershipV1Get())) return pSink;
+		xerror* Error=xrtTakeError(); xrtLogSinkFree(pSink); __xrtErrorSetOwned(Error); return NULL;
 	}
 
 	pCause = xrtTakeError();
@@ -1199,5 +1205,66 @@ XRT_API xerror* xrtLogAsyncLastError(const xlogsink* pSink)
 	(void)xrtMutexUnlock(&pState->Lock);
 	return pError;
 }
+
+
+/* The sink and worker each own one actual state reference. A running worker
+ * remains an external root; queued records contain only copied native data.
+ * Target is immutable until checked Finish, after the worker root is gone. */
+static bool __xrtLogAsyncStateCount(const void* Data,size_t* Count)
+{
+ const xlogasyncstate* State=Data;
+ if(!State||!Count||State->OwnershipCleared||State->RefCount<=0)return false;
+ *Count=(size_t)State->RefCount;return true;
+}
+static bool __xrtLogAsyncStateTrace(const void* Data,xrtownershipvisitor Visit,void* Context)
+{
+ const xlogasyncstate* State=Data;
+ if(!State||!Visit)return false;
+ if(!State->Target)return true;
+ xrtownershipref Ref=xrtLogSinkOwnership(State->Target);
+ return Ref.Ops && Visit(Ref,Context);
+}
+static bool __xrtLogAsyncStateHold(const void* Data)
+{ return xrtOwnershipRefRetain(&((xlogasyncstate*)Data)->RefCount)>0; }
+static void __xrtLogAsyncStateDrop(const void* Data) { __xrtLogAsyncStateRelease((xlogasyncstate*)Data); }
+static bool __xrtLogAsyncStateClaim(const void* Data,const void* Token)
+{
+ xlogasyncstate* State=(xlogasyncstate*)Data;
+ if(!Token||State->OwnershipCleared||(State->OwnershipClaim&&State->OwnershipClaim!=Token))return false;
+ State->OwnershipClaim=Token;return true;
+}
+static void __xrtLogAsyncStateRestore(const void* Data,const void* Token)
+{
+ xlogasyncstate* State=(xlogasyncstate*)Data;
+ if(State->OwnershipClaim!=Token||State->OwnershipCleared)abort();
+ State->OwnershipClaim=NULL;
+}
+static void __xrtLogAsyncStateClear(const void* Data,const void* Token)
+{
+ xlogasyncstate* State=(xlogasyncstate*)Data;
+ if(State->OwnershipClaim!=Token||State->OwnershipCleared)abort();
+ State->OwnershipCleared=true;
+}
+static bool __xrtLogAsyncStateFinish(const void* Data,const void* Token)
+{
+ xlogasyncstate* State=(xlogasyncstate*)Data;xlogsink* Target=NULL;
+ xrtownershipscope Scope={0};
+ if(!xrtOwnershipMutationBegin(&Scope))return false;
+ if(State->OwnershipClaim!=Token||!State->OwnershipCleared)abort();
+ if(!State->OwnershipFinished){Target=State->Target;State->Target=NULL;State->OwnershipFinished=true;}
+ (void)xrtOwnershipScopeEnd(&Scope);
+ xrtLogSinkFree(Target);return true;
+}
+static const xrtownershipops __xrtLogAsyncStateOps={__xrtLogAsyncStateCount,__xrtLogAsyncStateTrace};
+static const xrtownershipadapterv1 __xrtLogAsyncStateAdapter={sizeof(xrtownershipadapterv1),
+ __xrtLogAsyncStateHold,__xrtLogAsyncStateDrop,__xrtLogAsyncStateClaim,__xrtLogAsyncStateRestore,NULL,__xrtLogAsyncStateClear,__xrtLogAsyncStateFinish};
+static bool __xrtLogAsyncStatePayload(const void* Data,xrtownershipvisitor Visit,void* Context)
+{ return Data && Visit && Visit((xrtownershipref){Data,&__xrtLogAsyncStateOps},Context); }
+static bool __xrtLogAsyncStateWorkerSafe(const void* Data)
+{ return Data && xrtLogSinkWorkerSafe(((const xlogasyncstate*)Data)->Target); }
+XRT_API const xlogsinkownershipv1* xrtLogAsyncSinkOwnershipV1Get(void)
+{ static const xlogsinkownershipv1 Policy={sizeof(Policy),__xrtLogAsyncStatePayload,__xrtLogAsyncStateWorkerSafe};return &Policy; }
+XRT_API const xrtownershipadapterv1* xrtLogAsyncOwnershipAdapterV1(xrtownershipref Ref)
+{ return Ref.Data && Ref.Ops==&__xrtLogAsyncStateOps ? &__xrtLogAsyncStateAdapter : NULL; }
 
 #endif

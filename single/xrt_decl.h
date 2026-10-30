@@ -569,6 +569,9 @@
 #if !defined(XRT_FEATURE_NET_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE 1
 #endif
+#if !defined(XRT_FEATURE_NET_FILE_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE 1
+#endif
 #if !defined(XRT_FEATURE_NET_FRAME)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME 1
 #endif
@@ -1741,6 +1744,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE 1
+#endif
+#if !defined(XRT_MODULE_NET_FILE_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE 1
 #endif
 #if !defined(XRT_MODULE_NET_FRAME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FRAME 1
@@ -38565,6 +38571,8 @@ XRT_API xfile xrtNetFileOpen(
 /*
 	从绝对偏移读取到调用方缓冲，返回非零操作标识。
 	只能在所属 Worker 执行；文件、缓冲和 Completion 保持到唯一终态。
+	文件结束是 OK、Bytes = 0，不是传输错误。
+	受理后该轮端口拥有图保持不透明，直到端口退休；本入口不认证调用方拥有权。
 */
 XRT_API uint64 xrtNetFileRead(
 	xnetworker* pWorker,
@@ -38580,6 +38588,7 @@ XRT_API uint64 xrtNetFileRead(
 /*
 	把调用方缓冲写入绝对偏移，返回非零操作标识。
 	热路径不复制载荷；文件、缓冲和 Completion 保持到唯一终态。
+	受理后与原生端口借用相同，拒绝 Engine 的闭合拥有图认证；失败不改变此状态。
 */
 XRT_API uint64 xrtNetFileWrite(
 	xnetworker* pWorker,
@@ -38604,6 +38613,76 @@ XRT_API bool xrtNetFileCancel(
 
 XRT_EXTERN_C_END
 
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/net_file_future.h */
+/* ========================================================================== */
+
+#ifndef XRT_NET_FILE_FUTURE_H
+#define XRT_NET_FILE_FUTURE_H
+
+#if defined(XRT_FEATURE_NET_FILE_FUTURE) && (!defined(XRT_FEATURE_NET_FILE) || \
+    !defined(XRT_FEATURE_FUTURE_BRIDGE) || !defined(XRT_FEATURE_BUFFER))
+#error "native owned files require net_file, future_bridge and buffer"
+#endif
+
+#if defined(XRT_FEATURE_NET_FILE_FUTURE)
+typedef struct xnetfile xnetfile;
+/* One immutable input-owner reference. Bytes remain stable through completion;
+ * descriptors/code outlive graph pins. Success consumes one owner, failure none.
+ * This is a closed resident contract, not a public arbitrary callback adapter. */
+typedef struct xnetfiledataownershipv1 {
+    size_t size;
+    void (*Drop)(ptr Data);
+    const xrtownershipops* Ops;
+} xnetfiledataownershipv1;
+
+XRT_EXTERN_C_BEGIN
+/* Query the actual started worker's FILE_IO capability before creating or
+ * truncating. No fallback backend, helper thread or task-pool dispatch.
+ * Explicit Close is required; Destroy drops a reference and never blocks.
+ * The Engine owns a real runtime registration until physical close. */
+XRT_API xnetfile* xrtNetFileCreate(xnetengine* Engine, uint32 Worker,
+    cstr Path, const xfileoptions* Options);
+XRT_API xnetfile* xrtNetFileRef(xnetfile* File);
+XRT_API void xrtNetFileDestroy(xnetfile* File);
+/* Read returns an owned xbuffer payload (borrow with xrtFutureValue), including
+ * empty EOF. Write returns an unowned uintptr_t byte count. No shared cursor.
+ * Zero length still checks state/access/offset; UINT64/size overflow rejects.
+ * Pre-cancelled calls perform no I/O. Accepted cancel requests retain all OS
+ * duties until the unique real terminal event; completed I/O may win the race. */
+XRT_API xfuture* xrtNetFileReadFuture(xnetfile* File, uint64 Offset,
+    size_t Size, xcancel* Cancel);
+XRT_API xfuture* xrtNetFileWriteFuture(xnetfile* File, uint64 Offset,
+    xbytesview Input, xcancel* Cancel);
+XRT_API xfuture* xrtNetFileWriteRefPolicyV1(xnetfile* File, uint64 Offset,
+    xbytesview Input, ptr Owner, const xnetfiledataownershipv1* Policy, xcancel* Cancel);
+/* Reject new submissions, request cancellation of accepted I/O and observe the
+ * same preallocated close Future on every call. Physical close waits for real
+ * terminal events; cleanup failure rejects that Future, never aborts or hides.
+ * On scheduling refusal, NULL reports error and a later Close can retry. */
+XRT_API xfuture* xrtNetFileCloseFuture(xnetfile* File);
+XRT_API xrtownershipref xrtNetFileOwnership(const xnetfile* File);
+XRT_API const xnetruntimeownershipv1* xrtNetFileRuntimeOwnershipV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtNetFileFutureProducerPolicyV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtNetFileCloseProducerPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetFileFutureBytesPayloadPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtNetFileFutureCancelPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetFileOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetFileFutureOwnershipQuiescenceV1Get(void);
+/* Exact native identities are checked before any client input policy or Ops.
+ * Unknown input policies refuse unchanged. A proven-unreachable claimed File
+ * can authorize its existing runtime slot to perform real native close; no
+ * synthetic result cancellation or extra root replaces OS completion. */
+XRT_API const xrtownershipadapterv1* xrtNetFileOwnershipAdapterV1(xrtownershipref Ref,
+    const xrtownershippreparationv1** Preparation);
+XRT_API const xrtownershipadapterv1* xrtNetFileFutureOwnershipAdapterV1(xrtownershipref Ref,
+    const xnetfiledataownershipv1* const* Policies, size_t Count,
+    const xrtownershippreparationv1** Preparation);
+XRT_EXTERN_C_END
+#endif
 #endif
 
 
@@ -43521,6 +43600,28 @@ XRT_API bool xrtLogSetLevel(xlogger* pLogger, xloglevel Level);
 /* 创建可被多个 Logger 和包装 Sink 共享的自定义 Sink。 */
 XRT_API xlogsink* xrtLogSinkCreate(const xlogsinkconfig* pConfig);
 
+/* Bind once before publication, with exactly one caller reference. Trace
+ * declares EACH strong userdata slot; Drop performs only physical release.
+ * The payload and every mutation of its owning slots participate in this
+ * XRT instance's ownership domain. The descriptor/code remains resident.
+ * Inspectors separately admit exact policy identity BEFORE calling Trace.
+ * Binding does not add a reference or change legacy C sink behaviour. */
+typedef struct xlogsinkownershipv1 {
+ size_t size;
+ bool (*Trace)(const void* pUserData,xrtownershipvisitor pVisit,ptr pContext);
+ /* Optional cold-path capability. NULL conservatively refuses worker use. */
+ bool (*WorkerSafe)(const void* pUserData);
+} xlogsinkownershipv1;
+XRT_API bool xrtLogSinkBindOwnershipV1(xlogsink*,const xlogsinkownershipv1*);
+XRT_API const xlogsinkownershipv1* xrtLogSinkOwnershipPolicyV1Get(const xlogsink*);
+XRT_API bool xrtLogSinkWorkerSafe(const xlogsink*);
+XRT_API xrtownershipref xrtLogOwnership(const xlogger*);
+XRT_API xrtownershipref xrtLogSinkOwnership(const xlogsink*);
+XRT_API const xrtownershipadapterv1* xrtLogOwnershipAdapterV1(xrtownershipref);
+XRT_API const xrtownershipadapterv1* xrtLogSinkOwnershipAdapterV1(xrtownershipref,
+ const xlogsinkownershipv1* const*,size_t);
+
+
 
 
 /* 增加或释放 Sink 引用。 */
@@ -44130,6 +44231,9 @@ XRT_API bool xrtLogAsyncConfigInit(xlogasyncconfig* pConfig);
 
 
 /* 创建调用方拥有的异步包装 Sink；目标 Sink 只增加引用，不转移调用方引用。 */
+XRT_API const xlogsinkownershipv1* xrtLogAsyncSinkOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtLogAsyncOwnershipAdapterV1(xrtownershipref);
+
 XRT_API xlogsink* xrtLogAsync(
 	xlogsink* pTarget,
 	const xlogasyncconfig* pConfig
@@ -44226,6 +44330,9 @@ XRT_API bool xrtLogRingConfigInit(xlogringconfig* pConfig);
 
 
 /* 创建高吞吐 Ring 包装 Sink；目标只增加引用，不转移调用方引用。 */
+XRT_API const xlogsinkownershipv1* xrtLogRingSinkOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtLogRingOwnershipAdapterV1(xrtownershipref);
+
 XRT_API xlogsink* xrtLogRing(
 	xlogsink* pTarget,
 	const xlogringconfig* pConfig
@@ -47603,6 +47710,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_NET_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE)
+#undef XRT_FEATURE_NET_FILE_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME)
 #undef XRT_FEATURE_NET_FRAME
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME
@@ -49166,6 +49277,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE)
 #undef XRT_MODULE_NET_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE)
+#undef XRT_MODULE_NET_FILE_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FRAME)
 #undef XRT_MODULE_NET_FRAME

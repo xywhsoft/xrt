@@ -69,12 +69,16 @@ void __xrtLogErrorSet(
 /* Sink 保存不可变回调、名称以及可并发修改的阈值和统计。 */
 struct xlogsink {
 	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	bool OwnershipFinished;
 	xatomic32 Level;
 	xatomic64 Submitted;
 	xatomic64 Written;
 	xatomic64 Skipped;
 	xatomic64 Dropped;
 	xatomic64 Failed;
+	const xlogsinkownershipv1* Ownership;
 	xlogsinkwriteproc Write;
 	xlogsinkflushproc Flush;
 	xlogsinkdropproc Drop;
@@ -88,6 +92,9 @@ struct xlogsink {
 /* 不可变快照持有 Sink 引用，使回调期间允许附加、移除和递归记录。 */
 typedef struct xlogsinksnapshot {
 	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	bool OwnershipFinished;
 	size_t Count;
 	xlogsink* Items[];
 } xlogsinksnapshot;
@@ -97,6 +104,9 @@ typedef struct xlogsinksnapshot {
 /* Logger 只在替换 Sink 快照时加锁，热路径统计和阈值使用原子值。 */
 struct xlogger {
 	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	bool OwnershipFinished;
 	xmutex Lock;
 	xatomic32 Level;
 	xatomic64 Submitted;
@@ -394,13 +404,13 @@ static void __xrtLogCallbackError(cstr sOperation, cstr sMessage)
 /* 增加 Sink 快照引用。 */
 static xlogsinksnapshot* __xrtLogSnapshotRef(xlogsinksnapshot* pSnapshot)
 {
-	if (
-		(pSnapshot != NULL) &&
-		(xrtRefRetain(&pSnapshot->RefCount) < 0)
-	) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
+	if (!pSnapshot) return NULL;
+	xrtownershipscope Scope = {0};
+	if (!xrtOwnershipMutationBegin(&Scope)) return NULL;
+	bool Allowed = !pSnapshot->OwnershipClaim && !pSnapshot->OwnershipCleared;
+	int32 Count = Allowed ? xrtOwnershipRefRetain(&pSnapshot->RefCount) : -1;
+	(void)xrtOwnershipScopeEnd(&Scope);
+	if (Count < 0) { __xrtErrorSetInvalidState(); return NULL; }
 	return pSnapshot;
 }
 
@@ -411,7 +421,7 @@ static void __xrtLogSnapshotFree(xlogsinksnapshot* pSnapshot)
 {
 	if (
 		(pSnapshot == NULL) ||
-		(xrtRefRelease(&pSnapshot->RefCount) != 0)
+		(xrtOwnershipRefRelease(&pSnapshot->RefCount) != 0)
 	) {
 		return;
 	}
@@ -438,6 +448,9 @@ static xlogsinksnapshot* __xrtLogSnapshotCreate(size_t iCount)
 	if ( pSnapshot == NULL ) {
 		return NULL;
 	}
+	pSnapshot->OwnershipClaim = NULL;
+	pSnapshot->OwnershipCleared = false;
+	pSnapshot->OwnershipFinished = false;
 	pSnapshot->RefCount = 1;
 	pSnapshot->Count = iCount;
 	return pSnapshot;
@@ -644,14 +657,13 @@ XRT_API xlogger* xrtLogCreate(xstrview Name, xloglevel Level)
 /* 增加 Logger 引用。 */
 XRT_API xlogger* xrtLogRef(xlogger* pLogger)
 {
-	if ( pLogger == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( xrtRefRetain(&pLogger->RefCount) < 0 ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
+	if (!pLogger) { __xrtErrorSetInvalidArgument(); return NULL; }
+	xrtownershipscope Scope = {0};
+	if (!xrtOwnershipMutationBegin(&Scope)) return NULL;
+	bool Allowed = !pLogger->OwnershipClaim && !pLogger->OwnershipCleared;
+	int32 Count = Allowed ? xrtOwnershipRefRetain(&pLogger->RefCount) : -1;
+	(void)xrtOwnershipScopeEnd(&Scope);
+	if (Count < 0) { __xrtErrorSetInvalidState(); return NULL; }
 	return pLogger;
 }
 
@@ -665,7 +677,7 @@ XRT_API void xrtLogFree(xlogger* pLogger)
 
 	if (
 		(pLogger == NULL) ||
-		(xrtRefRelease(&pLogger->RefCount) != 0)
+		(xrtOwnershipRefRelease(&pLogger->RefCount) != 0)
 	) {
 		return;
 	}
@@ -760,14 +772,13 @@ XRT_API xlogsink* xrtLogSinkCreate(const xlogsinkconfig* pConfig)
 /* 增加 Sink 引用。 */
 XRT_API xlogsink* xrtLogSinkRef(xlogsink* pSink)
 {
-	if ( pSink == NULL ) {
-		__xrtErrorSetInvalidArgument();
-		return NULL;
-	}
-	if ( xrtRefRetain(&pSink->RefCount) < 0 ) {
-		__xrtErrorSetInvalidState();
-		return NULL;
-	}
+	if (!pSink) { __xrtErrorSetInvalidArgument(); return NULL; }
+	xrtownershipscope Scope = {0};
+	if (!xrtOwnershipMutationBegin(&Scope)) return NULL;
+	bool Allowed = !pSink->OwnershipClaim && !pSink->OwnershipCleared;
+	int32 Count = Allowed ? xrtOwnershipRefRetain(&pSink->RefCount) : -1;
+	(void)xrtOwnershipScopeEnd(&Scope);
+	if (Count < 0) { __xrtErrorSetInvalidState(); return NULL; }
 	return pSink;
 }
 
@@ -780,7 +791,7 @@ XRT_API void xrtLogSinkFree(xlogsink* pSink)
 
 	if (
 		(pSink == NULL) ||
-		(xrtRefRelease(&pSink->RefCount) != 0)
+		(xrtOwnershipRefRelease(&pSink->RefCount) != 0)
 	) {
 		return;
 	}
@@ -832,7 +843,7 @@ XRT_API bool xrtLogSinkSetLevel(xlogsink* pSink, xloglevel Level)
 
 
 /* 直接提交一条记录并隔离回调错误上下文。 */
-XRT_API xlogresult xrtLogSinkSubmit(
+static xlogresult __xrtLogSinkSubmit(
 	xlogsink* pSink,
 	const xlogrecord* pRecord
 )
@@ -890,7 +901,7 @@ XRT_API xlogresult xrtLogSinkSubmit(
 
 
 /* 提交一个 Sink 已经接受的内容。 */
-XRT_API bool xrtLogSinkFlush(xlogsink* pSink)
+static bool __xrtLogSinkFlush(xlogsink* pSink)
 {
 	xerror* pPrevious;
 	bool bResult;
@@ -961,6 +972,7 @@ bool __xrtLogSinkData(
 /* 附加一个 Sink，并在锁外释放旧快照。 */
 XRT_API bool xrtLogAttach(xlogger* pLogger, xlogsink* pSink)
 {
+	xrtownershipscope Ownership = {0};
 	xlogsinksnapshot* pOld;
 	xlogsinksnapshot* pNew;
 	size_t iInitialized = 0;
@@ -971,8 +983,13 @@ XRT_API bool xrtLogAttach(xlogger* pLogger, xlogsink* pSink)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!xrtOwnershipMutationBegin(&Ownership)) return false;
+	if (pLogger->OwnershipClaim || pLogger->OwnershipCleared) {
+		(void)xrtOwnershipScopeEnd(&Ownership);
+		__xrtErrorSetInvalidState(); return false;
+	}
 	if ( !xrtMutexLock(&pLogger->Lock) ) {
-		return false;
+		(void)xrtOwnershipScopeEnd(&Ownership); return false;
 	}
 	pOld = pLogger->Sinks;
 	for ( size_t i = 0; (pOld != NULL) && (i < pOld->Count); i++ ) {
@@ -1003,6 +1020,7 @@ XRT_API bool xrtLogAttach(xlogger* pLogger, xlogsink* pSink)
 
 Finish:
 	bUnlocked = xrtMutexUnlock(&pLogger->Lock);
+	(void)xrtOwnershipScopeEnd(&Ownership);
 	if ( bResult ) {
 		__xrtLogSnapshotFree(pOld);
 	}
@@ -1014,6 +1032,7 @@ Finish:
 /* 移除一个 Sink，并让活动回调通过旧快照自然完成。 */
 XRT_API bool xrtLogDetach(xlogger* pLogger, xlogsink* pSink)
 {
+	xrtownershipscope Ownership = {0};
 	xlogsinksnapshot* pOld;
 	xlogsinksnapshot* pNew = NULL;
 	size_t iFound = SIZE_MAX;
@@ -1025,8 +1044,13 @@ XRT_API bool xrtLogDetach(xlogger* pLogger, xlogsink* pSink)
 		__xrtErrorSetInvalidArgument();
 		return false;
 	}
+	if (!xrtOwnershipMutationBegin(&Ownership)) return false;
+	if (pLogger->OwnershipClaim || pLogger->OwnershipCleared) {
+		(void)xrtOwnershipScopeEnd(&Ownership);
+		__xrtErrorSetInvalidState(); return false;
+	}
 	if ( !xrtMutexLock(&pLogger->Lock) ) {
-		return false;
+		(void)xrtOwnershipScopeEnd(&Ownership); return false;
 	}
 	pOld = pLogger->Sinks;
 	for ( size_t i = 0; (pOld != NULL) && (i < pOld->Count); i++ ) {
@@ -1060,6 +1084,7 @@ XRT_API bool xrtLogDetach(xlogger* pLogger, xlogsink* pSink)
 
 Finish:
 	bUnlocked = xrtMutexUnlock(&pLogger->Lock);
+	(void)xrtOwnershipScopeEnd(&Ownership);
 	if ( bResult ) {
 		__xrtLogSnapshotFree(pOld);
 	}
@@ -1071,6 +1096,7 @@ Finish:
 /* 原子移除全部 Sink 快照。 */
 XRT_API size_t xrtLogDetachAll(xlogger* pLogger)
 {
+	xrtownershipscope Ownership = {0};
 	xlogsinksnapshot* pOld;
 	size_t iCount;
 	bool bUnlocked;
@@ -1079,13 +1105,19 @@ XRT_API size_t xrtLogDetachAll(xlogger* pLogger)
 		__xrtErrorSetInvalidArgument();
 		return 0;
 	}
+	if (!xrtOwnershipMutationBegin(&Ownership)) return 0;
+	if (pLogger->OwnershipClaim || pLogger->OwnershipCleared) {
+		(void)xrtOwnershipScopeEnd(&Ownership);
+		__xrtErrorSetInvalidState(); return 0;
+	}
 	if ( !xrtMutexLock(&pLogger->Lock) ) {
-		return 0;
+		(void)xrtOwnershipScopeEnd(&Ownership); return 0;
 	}
 	pOld = pLogger->Sinks;
 	pLogger->Sinks = NULL;
 	iCount = pOld != NULL ? pOld->Count : 0;
 	bUnlocked = xrtMutexUnlock(&pLogger->Lock);
+	(void)xrtOwnershipScopeEnd(&Ownership);
 	__xrtLogSnapshotFree(pOld);
 	return bUnlocked ? iCount : 0;
 }
@@ -1119,14 +1151,22 @@ static bool __xrtLogSinksAcquire(
 	xlogsinksnapshot** pSnapshot
 )
 {
+	xrtownershipscope Ownership = {0};
 	bool bHadSnapshot;
 
+	if (!xrtOwnershipMutationBegin(&Ownership)) return false;
+	if (pLogger->OwnershipClaim || pLogger->OwnershipCleared) {
+		(void)xrtOwnershipScopeEnd(&Ownership);
+		__xrtErrorSetInvalidState(); return false;
+	}
 	if ( !xrtMutexLock(&pLogger->Lock) ) {
-		return false;
+		(void)xrtOwnershipScopeEnd(&Ownership); return false;
 	}
 	bHadSnapshot = pLogger->Sinks != NULL;
 	*pSnapshot = __xrtLogSnapshotRef(pLogger->Sinks);
-	if ( !xrtMutexUnlock(&pLogger->Lock) ) {
+	bool Unlocked = xrtMutexUnlock(&pLogger->Lock);
+	(void)xrtOwnershipScopeEnd(&Ownership);
+	if (!Unlocked) {
 		__xrtLogSnapshotFree(*pSnapshot);
 		*pSnapshot = NULL;
 		return false;
@@ -1160,7 +1200,7 @@ static xlogresult __xrtLogResultMerge(
 
 
 /* 提交完整记录并在回调之间保存第一个真实错误。 */
-XRT_API xlogresult xrtLogSubmit(
+static xlogresult __xrtLogSubmit(
 	xlogger* pLogger,
 	const xlogrecord* pRecord
 )
@@ -1306,7 +1346,7 @@ XRT_API xlogresult xrtLogSource(
 
 
 /* Flush 所有当前 Sink，并保留第一个失败原因。 */
-XRT_API bool xrtLogFlush(xlogger* pLogger)
+static bool __xrtLogFlush(xlogger* pLogger)
 {
 	xlogsinksnapshot* pSnapshot;
 	xerror* pPrevious;
@@ -1368,6 +1408,8 @@ XRT_API bool xrtLogStats(const xlogger* pLogger, xlogstats* pStats)
 /* 返回进程默认 Logger 的新引用。 */
 XRT_API xlogger* xrtLogDefault(void)
 {
+	xrtownershipscope Scope = {0};
+	if (!xrtOwnershipMutationBegin(&Scope)) return NULL;
 	xlogger* pLogger;
 
 	__xrtSpinLock(&__xrtLogDefaultLock);
@@ -1375,6 +1417,7 @@ XRT_API xlogger* xrtLogDefault(void)
 		? xrtLogRef(__xrtLogDefaultLogger)
 		: NULL;
 	__xrtSpinUnlock(&__xrtLogDefaultLock);
+	(void)xrtOwnershipScopeEnd(&Scope);
 	return pLogger;
 }
 
@@ -1410,6 +1453,165 @@ XRT_API xlogger* xrtLogTakeDefaultIf(xlogger* pExpected)
 	}
 	__xrtSpinUnlock(&__xrtLogDefaultLock);
 	return pLogger;
+}
+
+XRT_API xlogresult xrtLogSinkSubmit(xlogsink* pSink, const xlogrecord* pRecord)
+{
+	if (!xrtLogSinkRef(pSink)) return XLOG_RESULT_ERROR;
+	xlogresult Result = __xrtLogSinkSubmit(pSink,pRecord);
+	xrtLogSinkFree(pSink);
+	return Result;
+}
+
+XRT_API bool xrtLogSinkFlush(xlogsink* pSink)
+{
+	if (!xrtLogSinkRef(pSink)) return false;
+	bool Result = __xrtLogSinkFlush(pSink);
+	xrtLogSinkFree(pSink);
+	return Result;
+}
+
+XRT_API xlogresult xrtLogSubmit(xlogger* pLogger, const xlogrecord* pRecord)
+{
+	if (!xrtLogRef(pLogger)) return XLOG_RESULT_ERROR;
+	xlogresult Result = __xrtLogSubmit(pLogger,pRecord);
+	xrtLogFree(pLogger);
+	return Result;
+}
+
+XRT_API bool xrtLogFlush(xlogger* pLogger)
+{
+	if (!xrtLogRef(pLogger)) return false;
+	bool Result = __xrtLogFlush(pLogger);
+	xrtLogFree(pLogger);
+	return Result;
+}
+
+/* Explicit native ownership: Logger -> immutable snapshot -> each Sink.
+ * Unknown callback payloads refuse graph admission. These descriptors do not
+ * certify arbitrary C sinks or allow guessing their private userdata layout. */
+static const xrtownershipops __xrtLogOps, __xrtLogSnapshotOps, __xrtLogSinkOps;
+XRT_API bool xrtLogSinkBindOwnershipV1(xlogsink* Sink, const xlogsinkownershipv1* Policy)
+{
+	xrtownershipscope Scope = {0};
+	if (!Sink || !Policy || Policy->size != sizeof(*Policy) || !Policy->Trace) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!xrtOwnershipMutationBegin(&Scope)) return false;
+	bool Ok = !Sink->Ownership && !Sink->OwnershipClaim && !Sink->OwnershipCleared &&
+		Sink->RefCount==1;
+	if (Ok) Sink->Ownership = Policy;
+	(void)xrtOwnershipScopeEnd(&Scope);
+	if (!Ok) __xrtErrorSetInvalidState();
+	return Ok;
+}
+XRT_API const xlogsinkownershipv1* xrtLogSinkOwnershipPolicyV1Get(const xlogsink* Sink)
+{ return Sink ? Sink->Ownership : NULL; }
+XRT_API bool xrtLogSinkWorkerSafe(const xlogsink* Sink)
+{
+ return Sink && Sink->Ownership && Sink->Ownership->WorkerSafe &&
+  Sink->Ownership->WorkerSafe(Sink->UserData);
+}
+XRT_API xrtownershipref xrtLogOwnership(const xlogger* Logger)
+{ return (xrtownershipref){Logger,Logger ? &__xrtLogOps : NULL}; }
+XRT_API xrtownershipref xrtLogSinkOwnership(const xlogsink* Sink)
+{ return (xrtownershipref){Sink,Sink && Sink->Ownership ? &__xrtLogSinkOps : NULL}; }
+#define XRT_LOG_OWNER(Name, Type, Retain, Release) \
+static bool Name##Count(const void* Data,size_t* Count) { \
+ const Type* Owner=Data; \
+ if(!Owner||!Count||Owner->OwnershipCleared)return false; \
+ int32 N=Owner->RefCount; \
+ if(N<=0){return false;} *Count=(size_t)N; return true; } \
+static bool Name##Hold(const void* Data) { return Retain((Type*)Data)!=NULL; } \
+static void Name##Drop(const void* Data) { Release((Type*)Data); } \
+static bool Name##Claim(const void* Data,const void* Token) { \
+ Type* Owner=(Type*)Data; \
+ if(!Token||Owner->OwnershipCleared||(Owner->OwnershipClaim&&Owner->OwnershipClaim!=Token))return false; \
+ Owner->OwnershipClaim=Token;return true; } \
+static void Name##Restore(const void* Data,const void* Token) { \
+ Type* Owner=(Type*)Data; if(Owner->OwnershipClaim!=Token||Owner->OwnershipCleared)abort(); \
+ Owner->OwnershipClaim=NULL; } \
+static void Name##Clear(const void* Data,const void* Token) { \
+ Type* Owner=(Type*)Data; if(Owner->OwnershipClaim!=Token||Owner->OwnershipCleared)abort(); \
+ Owner->OwnershipCleared=true; }
+XRT_LOG_OWNER(__xrtLog, xlogger, xrtLogRef, xrtLogFree)
+XRT_LOG_OWNER(__xrtLogSnapshot, xlogsinksnapshot, __xrtLogSnapshotRef, __xrtLogSnapshotFree)
+XRT_LOG_OWNER(__xrtLogSink, xlogsink, xrtLogSinkRef, xrtLogSinkFree)
+#undef XRT_LOG_OWNER
+static bool __xrtLogTrace(const void* Data,xrtownershipvisitor Visit,void* Context)
+{
+ const xlogger* Logger=Data;
+ return Logger && Visit && (!Logger->Sinks ||
+  Visit((xrtownershipref){Logger->Sinks,&__xrtLogSnapshotOps},Context));
+}
+static bool __xrtLogSnapshotTrace(const void* Data,xrtownershipvisitor Visit,void* Context)
+{
+ const xlogsinksnapshot* Snapshot=Data;
+ if(!Snapshot||!Visit)return false;
+ for(size_t I=0;I<Snapshot->Count;++I) {
+  xrtownershipref Ref=xrtLogSinkOwnership(Snapshot->Items[I]);
+  if(!Ref.Ops||!Visit(Ref,Context))return false;
+ }
+ return true;
+}
+static bool __xrtLogSinkTrace(const void* Data,xrtownershipvisitor Visit,void* Context)
+{
+ const xlogsink* Sink=Data;
+ return Sink && Visit && Sink->Ownership && Sink->Ownership->Trace(Sink->UserData,Visit,Context);
+}
+static bool __xrtLogFinish(const void* Data,const void* Token)
+{
+ xlogger* Logger=(xlogger*)Data; xlogsinksnapshot* Snapshot=NULL;
+ xrtownershipscope Scope={0};
+ if(!xrtOwnershipMutationBegin(&Scope))return false;
+ if(Logger->OwnershipClaim!=Token||!Logger->OwnershipCleared)abort();
+ if(!Logger->OwnershipFinished){Snapshot=Logger->Sinks;Logger->Sinks=NULL;Logger->OwnershipFinished=true;}
+ (void)xrtOwnershipScopeEnd(&Scope);
+ __xrtLogSnapshotFree(Snapshot);return true;
+}
+static bool __xrtLogSnapshotFinish(const void* Data,const void* Token)
+{
+ xlogsinksnapshot* Snapshot=(xlogsinksnapshot*)Data;size_t Count=0;
+ xrtownershipscope Scope={0};
+ if(!xrtOwnershipMutationBegin(&Scope))return false;
+ if(Snapshot->OwnershipClaim!=Token||!Snapshot->OwnershipCleared)abort();
+ if(!Snapshot->OwnershipFinished){Count=Snapshot->Count;Snapshot->Count=0;Snapshot->OwnershipFinished=true;}
+ (void)xrtOwnershipScopeEnd(&Scope);
+ for(size_t I=0;I<Count;++I)xrtLogSinkFree(Snapshot->Items[I]);
+ return true;
+}
+static bool __xrtLogSinkFinish(const void* Data,const void* Token)
+{
+ xlogsink* Sink=(xlogsink*)Data;xlogsinkdropproc Drop=NULL;void* User=NULL;
+ xrtownershipscope Scope={0};
+ if(!xrtOwnershipMutationBegin(&Scope))return false;
+ if(Sink->OwnershipClaim!=Token||!Sink->OwnershipCleared)abort();
+ if(!Sink->OwnershipFinished){Drop=Sink->Drop;User=Sink->UserData;Sink->Drop=NULL;Sink->UserData=NULL;Sink->OwnershipFinished=true;}
+ (void)xrtOwnershipScopeEnd(&Scope);
+ if(Drop){Drop(User);}return true;
+}
+#define XRT_LOG_ADAPTER(Name) \
+static const xrtownershipops Name##Ops={Name##Count,Name##Trace}; \
+static const xrtownershipadapterv1 Name##Adapter={sizeof(xrtownershipadapterv1), \
+ Name##Hold,Name##Drop,Name##Claim,Name##Restore,NULL,Name##Clear,Name##Finish};
+XRT_LOG_ADAPTER(__xrtLog)
+XRT_LOG_ADAPTER(__xrtLogSnapshot)
+XRT_LOG_ADAPTER(__xrtLogSink)
+#undef XRT_LOG_ADAPTER
+XRT_API const xrtownershipadapterv1* xrtLogOwnershipAdapterV1(xrtownershipref Ref)
+{
+ if(!Ref.Data)return NULL;
+ if(Ref.Ops==&__xrtLogOps)return &__xrtLogAdapter;
+ if(Ref.Ops==&__xrtLogSnapshotOps)return &__xrtLogSnapshotAdapter;
+ return NULL;
+}
+XRT_API const xrtownershipadapterv1* xrtLogSinkOwnershipAdapterV1(xrtownershipref Ref,
+ const xlogsinkownershipv1* const* Policies,size_t Count)
+{
+ if(!Ref.Data||Ref.Ops!=&__xrtLogSinkOps||(!Policies&&Count))return NULL;
+ const xlogsink* Sink=Ref.Data;
+ for(size_t I=0;I<Count;++I)if(Sink->Ownership==Policies[I]&&Policies[I])return &__xrtLogSinkAdapter;
+ return NULL;
 }
 
 #endif

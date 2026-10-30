@@ -14875,7 +14875,8 @@
 				"tests/logging/test_logger_ring_return.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_logger_ring.c"
+				"tests/single/test_single_logger_ring.c",
+				"tests/single/test_single_logger_ownership.c"
 			],
 			"examples": [
 				"examples/logging/ring_async/main.c"
