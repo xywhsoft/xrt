@@ -17,6 +17,13 @@ typedef struct xrpcpendingcall {
 	uint64 Deadline;
 	ptr User;
 } xrpcpendingcall;
+typedef enum xrpcpendingresolutionstatus {
+	XRPC_PENDING_UNKNOWN = 0, XRPC_PENDING_MATCHED, XRPC_PENDING_REPEATED
+} xrpcpendingresolutionstatus;
+typedef struct xrpcpendingresolution {
+	xrpcpendingresolutionstatus Status;
+	xrpcpendingcall Call;
+} xrpcpendingresolution;
 typedef struct xrpcpendinginfo {
 	size_t Size, Capacity, Count, OwnedBytes;
 	uint64 NextDeadline;
@@ -73,6 +80,20 @@ XRPC_API xrpcpendingstatus xrpcPendingExpire(xrpcpending* Pending, uint64 Now,
 	xrpcpendingcall* Call);
 /* Remove earliest deadline, including never, for bounded shutdown/draining. */
 XRPC_API xrpcpendingstatus xrpcPendingTakeFirst(xrpcpending* Pending, xrpcpendingcall* Call);
+/* Preflight every ID/key limit and lookup before ANY removal. Then remove all
+ * matches without another parser, allocation, diagnostic or callback. Count=0
+ * permits NULL arrays. Resolutions is caller scratch for Count entries: contents
+ * unspecified on false, so publish nothing before true. Pending calls remain
+ * unchanged on false (private key scratch can change). IDs/array and output must
+ * not overlap table storage or each other. Inputs remain unchanged throughout.
+ * A live token's first occurrence is MATCHED; further equivalent IDs in this
+ * batch are REPEATED. IDs absent at preflight are UNKNOWN, including previously
+ * completed calls. Only MATCHED has a Call; other records are zeroed. User is
+ * borrowed, never retained/freed. Every match is removed before return, so an
+ * owner may safely complete them afterward. This does not validate response
+ * envelopes, own payloads, read deadlines or make concurrent access safe. */
+XRPC_API bool xrpcPendingTakeBatch(xrpcpending* Pending, const xstrview* Ids,
+	size_t Count, xrpcpendingresolution* Resolutions);
 /* Lookup uses a balanced comparison tree, not an attacker-controlled hash
  * probe chain: O(MaxKeyBytes * log(MaxCalls)); deadline heap O(log(MaxCalls)),
  * token slot check O(1) before removal. Mutations may recurse on AVL tree height.

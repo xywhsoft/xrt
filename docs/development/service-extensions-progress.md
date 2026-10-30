@@ -23,8 +23,9 @@ Target and rules: [development contract](service-extensions-plan.md).
 - The xrpc prototype exposed a JSON lexical-scan gap. The shared parser now has
   a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
   request dispatch, immutable method indexing, exact ID comparison keys and bounded
-  pending-call admission/removal are locally verified. Whole-response pumping,
-  async scheduling and transports remain pending.
+  pending-call admission/removal, immutable owned responses and complete-document
+  response correlation are locally verified. Async scheduling and transports
+  remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -71,7 +72,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | immutable semantic method index | locally verified | all Unicode scalars, explicit fingerprint collision, copied names, 4096 unsorted registrations, bounded lookup/constructor, local-abort integration, quota/OOM and retained concurrent readers; dedicated P3 entry below records package/performance evidence |
 | xrpc | exact identifier comparison keys | locally verified | exact decimal/signed-zero/huge-exponent semantics, all Unicode scalars, independent rational and arbitrary-precision exponent oracles, bounded atomic Size/Write, standalone consumers and shared-string regression |
 | xrpc | bounded serialized pending calls | locally verified | exact ID admission/removal, token ABA protection, deadline heap, shutdown drain, 100000-operation linear model, 50000 private invariants/exhaustion per platform, no steady table allocation and OOM/alias/publication coverage |
-| xrpc | whole-response pump, async runtime, transports | pending | no claim |
+| xrpc | immutable responses and complete-document correlation | locally verified | full validation and ID preflight before any removal, one owned copy/allocation, rebased lossless views, retained concurrent readers, batch matched/repeated/unknown outcomes, OOM/alias/capacity/lifetime coverage and independent packages |
+| xrpc | async client/server, transport response pump | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
@@ -2507,3 +2509,172 @@ client/server async scheduling and transports, connection epochs/fresh wire IDs,
 negotiated cancellation/deadline behavior, fault/recovery tests and native pinned
 performance/72-hour mixed-load acceptance. The other three product scopes remain
 active; this table does not complete any final product.
+
+
+## P3 xrpc: owned responses and complete batch correlation (2026-10-30)
+
+`xrpc_response` reads a complete response document into an immutable owned
+snapshot. `xrpc_receive` combines it with serialized pending-call correlation.
+The [protocol reference](https://www.jsonrpc.org/specification#response_object)
+is JSON-RPC 2.0 sections 5/6: response envelopes and ID-based matching, including
+arbitrary response order. Whole-document publication and all-or-none local
+admission failure are explicit xrpc policies, not new wire protocol requirements.
+No upstream implementation code is used.
+
+The response reader validates the whole JSON document and every envelope before
+allocation/publication. Every item must be a result/error. Request/notification,
+scalar, empty batch and invalid late item publish nothing. Status distinguishes
+malformed JSON, valid-JSON invalid envelopes and local resource/API/OOM failures;
+diagnostic OOM is local. No automatic response is sent to a received response.
+The existing response-mode decoder's ignored-extra-field policy remains; a
+bidirectional runtime still classifies its incoming document role separately.
+
+One allocation owns the actual-count message descriptors, a contiguous raw-ID
+view vector and one complete wire copy. All nine descriptor views are relocated
+into that copy without another parse, unescaping or numeric narrowing. Whitespace,
+unknown wire fields, raw huge/exponent IDs, results and full error/data spans stay
+exact. Caller input/scratch can be reused after success. A retained snapshot and
+item index can back asynchronous results without a per-item payload allocation.
+Holding one item holds the entire batch; aggregate retained-result budgeting
+still belongs in the runtime. User call-state pointers are outside the snapshot.
+
+`xrpcPendingTakeBatch` validates all spans, independently canonicalizes every ID
+under the table's own limits and finds every candidate before removing anything.
+The resolution array is unpublished scratch on failure. The commit pass does no
+parser, allocation, diagnostic or callback work: each first live-token occurrence
+is MATCHED, later equivalent occurrences REPEATED, and preflight-missing IDs
+UNKNOWN. Only MATCHED carries the borrowed Call/User. Previously completed IDs
+are unknown, not distinguished through an unbounded history. All matched calls
+leave both indices before receive publishes final output. The owner completes
+calls afterward; future completion cannot reenter midway through this function.
+
+A late malformed/invalid response, key/string limit, resolution capacity or
+allocation/diagnostic failure leaves all pending calls and final object/info
+outputs unchanged. Scratch/resolution contents must be discarded. Source input,
+config, scratch, resolution storage, output pointers and pending storage are
+mutually disjoint for Receive. Snapshot Info rejects owned-output overlap before
+reading typed output fields. The table still requires one serialized owner;
+wire ID reuse/epochs, response eligibility (especially null-ID errors), deadline
+ordering, executor dispatch and physical I/O/cancellation remain runtime duties.
+
+Measured on Windows/WSL x64: private snapshot header 40 bytes, public message
+224, raw ID view 16, response config 96 and response info 64. Requested snapshot
+storage is `40 + Count * (224 + 16) + InputBytes`; the one-item 38-byte fixture
+requests 318 bytes. The default owned ceiling is 2 MiB, independently of the
+response decoder's default 1 MiB input/256-message limits. Caller scratch,
+resolution arrays, pending tables, allocator headers/caches and application state
+are additional storage, not silently folded into this bound. The ID view vector
+adds 16 bytes/item to avoid strided casts or a second descriptor scan for batch
+correlation. Snapshot reference increments/decrements are atomic, overflow is
+checked, and publication of the initial strong ref is the caller's duty.
+
+Windows GCC 16.2.0 O2/Wall/Wextra/Werror and WSL GCC 15.2.0 O2 ASan/UBSan each pass
+eight modular and eight direct single-header programs (32). The existing codec,
+ID, method and pending coverage remains in those runs. Added tests cover:
+
+- 10000 pending-batch transactions against a separate linear state/outcome oracle,
+  including bad late IDs, canonical duplicates, arbitrary ID order and unchanged
+  pending counts on failure; ordinary batch operations add no table allocation.
+- 10000 generated response snapshots with independently formatted expected raw
+  payloads, every view inside owned wire, contiguous ID alignment, overwritten/
+  freed original input, huge IDs, error/data spans, NUL escapes and retained refs.
+- 10000 mixed ten-response batches, observing eight matched call tokens/users,
+  one repeated signed-zero ID, one unknown ID, all removals before return,
+  result/error classification and source/scratch reuse.
+- Exact/rejected owned limits, decoder bounds/role, malformed/invalid tails,
+  late table-key limits, insufficient resolution storage, NULL/overflow/alias
+  inputs, one-byte snapshot/diagnostic OOM and unchanged final outputs/state.
+- 10000 ordinary snapshot create/retain/release cycles with exactly one requested
+  Malloc call per document, no Calloc/Realloc calls, and unchanged ambient error;
+  mixed successful receive outcomes likewise preserve ambient diagnostic identity.
+- Four retained readers complete 80000 metadata/payload observations after the
+  creator releases its reference. A separate private probe forces reference
+  overflow and verifies owned-output rejection and real ABI/layout values. This
+  is not represented as a natural 2^32-reference endurance run.
+
+The private pending structural probe is rerun against the new batch implementation
+on both platforms: 50000 AVL/heap/free-partition checks and forced serial exhaustion
+pass. The WSL response unit also passes a fresh O1 TSan run; its command, binary,
+full source-input map and logs are retained. GCC's atomic_thread_fence modeling
+warning remains in the build log, so no complete race-freedom claim is made.
+
+Both platforms pass all eight examples/trim, complete xrpc static/shared consumers
+and pending/response/receive-only static/shared consumers. Minimal manifests only
+change package_consumer to an already registered asset: the complete public pending
+unit for the new batch ABI, and the two runnable examples for response/receive.
+This includes actual cross-library allocation-budget/error identity checks.
+Declaration consumers compile the new receive signature separately. Normal maturity
+reports 12 modules, 9 covered implementation nodes, 18 workloads and 8 size profiles;
+strict release still fails on developing xrpc without a bypass.
+
+Size measurements are text/data/bss/file bytes, without stripping:
+
+| Platform | Closure | Complete-closure single object | Product-only static | Product-only shared |
+| --- | --- | --- | --- | --- |
+| Windows x64 | xrpc_pending | 229572 / 2664 / 11040 / 347222 | 12828 / 0 / 0 / 18440 | 21661 / 144 / 272 / 55440 |
+| Windows x64 | xrpc_response | 227716 / 2664 / 11040 / 346865 | 8868 / 0 / 0 / 13260 | 17907 / 144 / 272 / 51580 |
+| Windows x64 | xrpc_receive | 243360 / 2664 / 11040 / 365787 | 22868 / 0 / 0 / 33896 | 32397 / 144 / 272 / 69627 |
+| WSL x64 | xrpc_pending | 238777 / 3280 / 10924 / 418968 | 12897 / 0 / 0 / 22876 | 15494 / 640 / 8 / 25304 |
+| WSL x64 | xrpc_response | 237030 / 3280 / 10924 / 419000 | 8934 / 0 / 0 / 17940 | 11989 / 696 / 8 / 24904 |
+| WSL x64 | xrpc_receive | 252913 / 3280 / 10924 / 441624 | 23061 / 0 / 0 / 44112 | 27244 / 776 / 8 / 38648 |
+
+Single objects include their core dependency closure; separate product artifacts
+exclude host XRT. These are not interchangeable total-deployment sizes. The
+response-only leaf does not depend on pending/receive or an async engine.
+
+Raw commands, source/compiler/binary/input/output hashes, private probes, TSan,
+consumer and size receipts are under `out/service-extensions/xrpc-response/`.
+Before overwriting shared locations, 54 prior pending-stage artifacts were copied
+and SHA-256 checked under `out/service-extensions/xrpc-pending/before-response/`
+with an archive map. Current functional/package inputs stay frozen through their
+checks; development iterations and the earlier smoke remain separately named.
+
+
+Full performance measurement reruns pending's five workloads and adds three
+response workloads, all at 1 warmup + 5 measured runs. Pending cycles use 1000000
+iterations each. Small snapshots and mixed receive batches use 200000 documents;
+64 KiB snapshots use 2000. Latency is a separate phase with min(Count,10000)
+samples, including two clock reads. Throughput has no per-operation clocks.
+Input preparation is outside timing. Snapshot timing includes validation,
+allocation, wire/descriptor copy/rebase, Info and release. Receive includes two
+admissions, a four-response document with two matches/one repeat/one unknown,
+complete correlation/removal and release. Its wire IDs are locally reused for
+this primitive test, not a runtime ID-reuse policy. Queues, Future completion,
+transport, TLS and actual peer processing remain excluded.
+
+All declared completion/sample counts match on both platforms; every measured
+sample remains. New workload medians describe these paths only:
+
+| Platform | Workload | Documents or batches/s | P50 us | P99 us |
+| --- | --- | --- | --- | --- |
+| Windows | xrpc_response_small | 1070956 | 1.200 | 1.400 |
+| Windows | xrpc_response_64k | 9947 | 107.100 | 155.500 |
+| Windows | xrpc_receive_batch | 244392 | 3.700 | 6.300 |
+| WSL | xrpc_response_small | 1027448 | 1.300 | 1.600 |
+| WSL | xrpc_response_64k | 11055 | 75.300 | 172.200 |
+| WSL | xrpc_receive_batch | 280357 | 2.900 | 6.700 |
+
+Windows has 31 failing metric/noise checks and WSL 21, under unchanged 3% relative
+MAD and 6% central-range limits. Both performance runners exited 1, preserved in
+exit receipts. No outliers are removed, no thresholds relaxed, no timing overhead
+subtracted and no performance/production acceptance claimed. There is no pinned
+comparator, frozen absolute target, native-Linux server run or end-to-end fixed-
+arrival-rate/queue-inclusive latency proof. The complete pending rerun stays in
+the raw reports; prior noisy medians are not a valid regression comparator.
+
+Matching Windows/WSL source fingerprint: `cdf4d8a161996f436f9faf0da1ad9cd5a6c8d0095b8f8f6dc2d17c049fc904d5`.
+Workload fingerprint: `292ed6669be328d66f1a8e9f6fe83c1b7fefbe42300c3b653502b9ae2333528b`.
+`validation.json` binds the final frozen inputs, 32 actual test binaries, private
+probe sources/binaries/output, qualified TSan, complete and six minimal consumers
+per platform, declaration/layout/size objects and every actual count/fingerprint.
+Generator/API/normal maturity checks pass; strict release remains intentionally
+unaccepted on the developing product, without overriding its gate.
+
+Remaining P3 work includes async client/server operation/future lifetime and
+bounded cross-thread admission, owned request handling and executor dispatch,
+connection epochs/fresh IDs, transport framing/HTTP/WebSocket/stdio, queue-inclusive
+deadline/cancel/close behavior and negotiated extensions. Aggregate retained-
+result/storage budgets, protocol peers, native pinned performance and 72-hour
+mixed/fault acceptance remain required. Redis dedicated/HA/tracking modes, MQTT
+sessions/persistence/client and Cron time zones/scheduler/recovery remain active.
+This stage completes neither xrpc nor the full four-product goal.

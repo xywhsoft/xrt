@@ -140,7 +140,10 @@ static void testRpcPendingAllocation(void)
 	for(size_t Index=0;Index<10000;++Index){testRequire(xrpcPendingInsert(P,XRT_STR_LITERAL("10e18446744073709551615"),1,NULL,&Token)==XRPC_PENDING_OK &&
 		xrpcPendingInsert(P,XRT_STR_LITERAL("1e18446744073709551616"),1,NULL,&Token)==XRPC_PENDING_DUPLICATE &&
 		xrpcPendingTakeId(P,XRT_STR_LITERAL("1e18446744073709551616"),&Call)==XRPC_PENDING_OK &&
-		xrpcPendingTakeToken(P,Token,&Call)==XRPC_PENDING_MISSING && xrtGetError()==Ambient,"pending steady allocation/error identity");}
+		xrpcPendingTakeToken(P,Token,&Call)==XRPC_PENDING_MISSING && xrtGetError()==Ambient,"pending steady allocation/error identity");
+		xstrview Ids[2]={XRT_STR_LITERAL("1"),XRT_STR_LITERAL("1.0")};xrpcpendingresolution R[2];
+		testRequire(xrpcPendingInsert(P,Ids[0],1,NULL,&Token)==XRPC_PENDING_OK && xrpcPendingTakeBatch(P,Ids,2,R) &&
+			R[0].Status==XRPC_PENDING_MATCHED && R[1].Status==XRPC_PENDING_REPEATED && xrtGetError()==Ambient,"batch steady allocation/error identity");}
 	#if defined(XRT_FEATURE_MEMORY_STATS)
 	xrtMemStatsGet(&After);xrtMemStatsEnable(false);testRequire(Before.MallocCalls==After.MallocCalls && Before.CallocCalls==After.CallocCalls &&
 		Before.ReallocCalls==After.ReallocCalls && Before.BlockAllocCalls==After.BlockAllocCalls,"pending steady operations allocated");
@@ -154,8 +157,31 @@ static void testRpcPendingAllocation(void)
 	testRequire(xrtAllocationBudgetLeave(&Scope),"pending quota leave");xallocationbudgetinfo Info={0};Info.Size=sizeof(Info);
 	testRequire(xrtAllocationBudgetInfo(Budget,&Info) && !Info.LiveBytes && Info.Rejections,"pending quota cleanup");xrtAllocationBudgetFree(Budget);xrpcPendingDestroy(P);
 }
+static void testRpcPendingBatch(void)
+{
+	xrpcpending* P=rpcPendingNew(127);bool Live[128]={0};xrpcpendingtoken Tokens[128];uint32 State=0x381752u;
+	for(size_t Trial=0;Trial<10000;++Trial){
+		for(unsigned I=0;I<5;++I){unsigned K=(rpcPendingRandom(&State)>>8)%128u;char Raw[32];snprintf(Raw,sizeof(Raw),"%u",K);
+			xrpcpendingstatus S=xrpcPendingInsert(P,rpcPendingView(Raw),K,NULL,&Tokens[K]);if(S==XRPC_PENDING_OK)Live[K]=true;}
+		char Raw[16][32];xstrview Ids[16];unsigned Keys[16];size_t Count=1u+((rpcPendingRandom(&State)>>8)%16u);
+		for(size_t I=0;I<Count;++I){Keys[I]=(rpcPendingRandom(&State)>>8)%128u;snprintf(Raw[I],sizeof(Raw[I]),"%ue-1",Keys[I]*10u);Ids[I]=rpcPendingView(Raw[I]);}
+		xrpcpendingresolution R[16];bool Before[128];memcpy(Before,Live,sizeof(Live));
+		if(Trial%7u==0){Ids[Count-1u]=XRT_STR_LITERAL("1e+");testRequire(!xrpcPendingTakeBatch(P,Ids,Count,R),"batch malformed tail accepted");xrtClearError();
+			size_t Expected=0;for(unsigned K=0;K<128;++K)Expected+=Live[K];testRequire(rpcPendingGet(P).Count==Expected,"batch failed after removing earlier call");continue;}
+		testRequire(xrpcPendingTakeBatch(P,Ids,Count,R),"pending batch take");
+		for(size_t I=0;I<Count;++I){unsigned K=Keys[I];xrpcpendingresolutionstatus Expected=Live[K]?XRPC_PENDING_MATCHED:Before[K]?XRPC_PENDING_REPEATED:XRPC_PENDING_UNKNOWN;
+			testRequire(R[I].Status==Expected,"independent batch resolution status");
+			if(Live[K]){testRequire(R[I].Call.Token.Serial==Tokens[K].Serial,"batch wrong token");Live[K]=false;}
+			else testRequire(!R[I].Call.Token.Serial && !R[I].Call.User,"nonmatch published stale call");}
+	}
+	testRequire(xrpcPendingTakeBatch(P,NULL,0,NULL),"zero batch");
+	xstrview Ids[2]={XRT_STR_LITERAL("1"),XRT_STR_LITERAL("2")};xrpcpendingresolution R[2];
+	testRequire(!xrpcPendingTakeBatch(P,Ids,2,(xrpcpendingresolution*)Ids),"batch vector/output alias");xrtClearError();
+	Ids[1]=(xstrview){(cstr)R,sizeof(R)};testRequire(!xrpcPendingTakeBatch(P,Ids,2,R),"late raw/output alias");xrtClearError();
+	testRequire(!xrpcPendingTakeBatch(P,NULL,1,R) && !xrpcPendingTakeBatch(P,Ids,SIZE_MAX,R),"batch invalid spans/count");xrtClearError();xrpcPendingDestroy(P);
+}
 int main(void)
 {
-	testRpcPendingLifecycle();testRpcPendingModel();testRpcPendingOrdered();testRpcPendingBounds();testRpcPendingAllocation();
+	testRpcPendingLifecycle();testRpcPendingModel();testRpcPendingOrdered();testRpcPendingBounds();testRpcPendingAllocation();testRpcPendingBatch();
 	puts("[PASS] xrpc pending: exact-ID/response-cancel-expiry/single-removal/ABA/bounded-AVL/deadline-heap/100k-model/atomicity/zero-heap/OOM");return 0;
 }

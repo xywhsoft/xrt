@@ -25,6 +25,38 @@
 #ifndef XRPC_MODULE_XRPC_PENDING
 #define XRPC_MODULE_XRPC_PENDING
 #endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_RECEIVE
+#define XRPC_MODULE_XRPC_RECEIVE
+#endif
+#endif
+
+/* xrpc_receive 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RECEIVE)
+#ifndef XRPC_FEATURE_XRPC_RECEIVE
+#define XRPC_FEATURE_XRPC_RECEIVE
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_PENDING
+#define XRPC_MODULE_XRPC_PENDING
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
 #endif
 
 /* xrpc_pending 及其直接依赖。 */

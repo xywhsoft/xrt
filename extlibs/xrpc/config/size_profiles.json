@@ -43,6 +43,18 @@
       "system": "pending",
       "suite": "xrpc_pending",
       "description": "Bounded serialized pending calls with exact ID comparison tree and deadline heap; no transport"
+    },
+    {
+      "name": "xrpc_response",
+      "system": "response",
+      "suite": "xrpc_response",
+      "description": "response with its actual dependency closure; no async runtime/transport"
+    },
+    {
+      "name": "xrpc_receive",
+      "system": "receive",
+      "suite": "xrpc_receive",
+      "description": "receive with its actual dependency closure; no async runtime/transport"
     }
   ]
 }

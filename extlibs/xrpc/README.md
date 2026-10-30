@@ -2,7 +2,8 @@
 
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
 **Bounded envelope decoding/encoding, synchronous dispatch, immutable method
-indexing, exact ID comparison keys and a bounded pending-call table are implemented.**
+indexing, exact ID comparison keys, bounded pending calls, immutable response
+snapshots and complete response-batch correlation are implemented.**
 Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -27,7 +28,7 @@ scientific numbers and embedded-NUL string escapes. Missing id identifies a
 valid notification; explicit null remains a call. Error codes accept integral
 numeric values without native rounding. The optional ID key leaf supplies exact
 semantic comparison; the pending-call leaf adds serialized admission/removal.
-The asynchronous response pump and connection runtime remain pending.
+The asynchronous connection runtime and executor remain pending.
 
 Nonempty batches retain one descriptor per input item, including invalid ones.
 An empty batch yields one invalid descriptor with Batch=false for a single
@@ -129,3 +130,22 @@ python tools/test_xrpc_pending_structure.py --sanitize --output out/service-exte
 
 This table does not supply asynchronous completion, whole-response validation,
 transport cancellation, connection epochs or an executor. Those remain product work.
+
+Select `XRPC_MODULE_XRPC_RESPONSE` for [immutable response snapshots](docs/response.md)
+and `XRPC_MODULE_XRPC_RECEIVE` for [complete batch correlation](docs/receive.md).
+The reader owns a complete validated document, exposes lossless rebased views and
+supports retained concurrent readers. Receive preflights every envelope and ID
+before removing any call; matched/repeated/unknown outcomes remain distinct.
+Neither leaf completes futures or supplies an executor/transport. The examples
+in `examples/response` and `examples/receive` require no server and release their
+resources. Private lifetime/overflow checks run separately:
+
+```sh
+python tools/test_xrpc_response_lifetime.py
+python tools/test_xrpc_response_lifetime.py --sanitize --output out/service-extensions/xrpc-response/linux-lifetime
+```
+
+Snapshot storage is bounded per document; aggregate retained-result quotas,
+connection epochs, queue-inclusive deadlines and async completion remain runtime
+work. A snapshot makes one allocation and one wire copy; no end-to-end zero-copy
+or production-performance acceptance is implied.

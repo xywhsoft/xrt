@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `29` 个函数、`72` 个常量或宏、
-`33` 个公共类型。
+当前登记 `36` 个函数、`87` 个常量或宏、
+`42` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -162,7 +162,7 @@
 
 [查看带契约注释的公共头](../../include/xrpc/pending.h)
 
-### 函数 (9)
+### 函数 (10)
 
 - `xrpcPendingConfigInit`
 - `xrpcPendingCreate`
@@ -170,11 +170,12 @@
 - `xrpcPendingExpire`
 - `xrpcPendingInfo`
 - `xrpcPendingInsert`
+- `xrpcPendingTakeBatch`
 - `xrpcPendingTakeFirst`
 - `xrpcPendingTakeId`
 - `xrpcPendingTakeToken`
 
-### 常量与宏 (9)
+### 常量与宏 (12)
 
 - `XRPC_FEATURE_XRPC_PENDING`
 - `XRPC_PENDING_ARGUMENT`
@@ -182,19 +183,75 @@
 - `XRPC_PENDING_ERROR`
 - `XRPC_PENDING_FULL`
 - `XRPC_PENDING_LIMIT`
+- `XRPC_PENDING_MATCHED`
 - `XRPC_PENDING_MEMORY`
 - `XRPC_PENDING_MISSING`
 - `XRPC_PENDING_OK`
+- `XRPC_PENDING_REPEATED`
+- `XRPC_PENDING_UNKNOWN`
 
-### 类型 (7)
+### 类型 (9)
 
 - `xrpcpending`
 - `xrpcpendingcall`
 - `xrpcpendingconfig`
 - `xrpcpendingerror`
 - `xrpcpendinginfo`
+- `xrpcpendingresolution`
+- `xrpcpendingresolutionstatus`
 - `xrpcpendingstatus`
 - `xrpcpendingtoken`
+
+## `extlibs/xrpc/include/xrpc/receive.h`
+
+[查看带契约注释的公共头](../../include/xrpc/receive.h)
+
+### 函数 (1)
+
+- `xrpcReceive`
+
+### 常量与宏 (4)
+
+- `XRPC_FEATURE_XRPC_RECEIVE`
+- `XRPC_FEATURE_XRPC_RESPONSE`
+- `XRPC_RECEIVE_ARGUMENT`
+- `XRPC_RECEIVE_CAPACITY`
+
+### 类型 (5)
+
+- `xrpcreceiveerror`
+- `xrpcreceiveinfo`
+- `xrpcresponseconfig`
+- `xrpcresponses`
+- `xrpcresponsestatus`
+
+## `extlibs/xrpc/include/xrpc/response.h`
+
+[查看带契约注释的公共头](../../include/xrpc/response.h)
+
+### 函数 (5)
+
+- `xrpcResponseConfigInit`
+- `xrpcResponsesInfo`
+- `xrpcResponsesRead`
+- `xrpcResponsesRelease`
+- `xrpcResponsesRetain`
+
+### 常量与宏 (8)
+
+- `XRPC_RESPONSE_ARGUMENT`
+- `XRPC_RESPONSE_DONE`
+- `XRPC_RESPONSE_ENVELOPE`
+- `XRPC_RESPONSE_INVALID`
+- `XRPC_RESPONSE_LIMIT`
+- `XRPC_RESPONSE_LOCAL_ERROR`
+- `XRPC_RESPONSE_MEMORY`
+- `XRPC_RESPONSE_PARSE_ERROR`
+
+### 类型 (2)
+
+- `xrpcresponseerror`
+- `xrpcresponseinfo`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

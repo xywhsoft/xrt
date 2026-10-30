@@ -93,3 +93,17 @@ The pending table requires one serialized owner. It does not arbitrate concurren
 access internally or classify response envelopes, and local tokens cannot resolve
 remote late responses after wire ID reuse. Runtime/connection ownership, future
 completion, response-batch preflight and transport recovery remain pending.
+
+| Response ownership and correlation contract | Verification |
+| --- | --- |
+| Immutable owned document | Complete response-mode validation, all descriptor views rebased, original input freed/overwritten, raw huge IDs and embedded-NUL payloads |
+| No partial document publication | Malformed/invalid late items, request/scalar/empty batch, exact/rejected capacities and byte limits |
+| Strong-reference lifetime | Extra retained refs, creator release before four readers finish 80000 reads, separate forced-overflow private probe |
+| Complete correlation preflight | Late bad ID/key/capacity/diagnostic/allocation failures preserve all pending calls and final metadata |
+| Independent outcomes | 10000 public pending-batch linear-model operations plus 10000 receive batches with matched/repeated/unknown IDs and observed call tokens |
+| Costs and errors | One snapshot allocation per document, zero additional table allocations, ordinary ambient-error identity, one-byte OOM and alias checks |
+
+Response snapshots own payload bytes; resolution User pointers remain borrowed.
+A serialized owner completes calls after receive returns. Aggregate retained-result
+quotas, connection epochs, executors, transport framing and async shutdown remain
+runtime work. No end-to-end performance or final production acceptance follows.

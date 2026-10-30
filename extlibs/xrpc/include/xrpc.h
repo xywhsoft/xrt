@@ -25,4 +25,9 @@
 #error "XRPC_FEATURE_XRPC requires XRPC_FEATURE_XRPC_PENDING"
 #endif
 #include <xrpc/pending.h>
+#if defined(XRPC_FEATURE_XRPC) && (!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRPC_FEATURE_XRPC_RECEIVE))
+#error "XRPC_FEATURE_XRPC requires response and receive"
+#endif
+#include <xrpc/response.h>
+#include <xrpc/receive.h>
 #endif

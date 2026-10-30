@@ -49,6 +49,14 @@ int main(void)
 		xrpcPendingTakeId(Pending,XRT_STR_LITERAL("1.00e0"),&Taken)!=XRPC_PENDING_OK || Taken.Token.Serial!=Token.Serial ||
 		xrpcPendingTakeToken(Pending,Token,&Taken)!=XRPC_PENDING_MISSING)return 10;
 	xrpcPendingDestroy(Pending);
+	if(!xrpcPendingCreate(NULL,&Pending) || xrpcPendingInsert(Pending,XRT_STR_LITERAL("1"),100,NULL,&Token)!=XRPC_PENDING_OK)return 11;
+	xrpcpendingresolution Resolution;xrpcreceiveinfo Received={0};Received.Size=sizeof(Received);xrpcresponses* Responses=NULL;
+	if(xrpcReceive(Pending,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1.0,\"result\":[1,2,3]}"),NULL,&Message,1,&Resolution,1,&Responses,&Received)!=XRPC_RESPONSE_DONE || Received.Matched!=1)return 12;
+	xrpcresponseinfo Snapshot={0};Snapshot.Size=sizeof(Snapshot);
+	if(!xrpcResponsesRetain(Responses))return 13;
+	xrpcResponsesRelease(Responses);
+	if(!xrpcResponsesInfo(Responses,&Snapshot) || Snapshot.Count!=1 || Snapshot.Messages[0].Result.Raw.Size!=7)return 14;
+	xrpcResponsesRelease(Responses);xrpcPendingDestroy(Pending);
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;

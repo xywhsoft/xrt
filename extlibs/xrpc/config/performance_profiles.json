@@ -624,6 +624,136 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_response",
+      "system": "response",
+      "description": "response validation/ownership workload; queues/futures/transport excluded",
+      "benchmarks": [
+        {
+          "name": "xrpc_response_small",
+          "source": "extlibs/xrpc/bench/bench_response.c",
+          "suite": "xrpc_response,time",
+          "args": [
+            "200000",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "0"
+          ],
+          "metrics": {
+            "documents_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "input_bytes"
+          ]
+        },
+        {
+          "name": "xrpc_response_64k",
+          "source": "extlibs/xrpc/bench/bench_response.c",
+          "suite": "xrpc_response,time",
+          "args": [
+            "2000",
+            "1"
+          ],
+          "smoke_args": [
+            "20",
+            "1"
+          ],
+          "metrics": {
+            "documents_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "input_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xrpc_receive",
+      "system": "receive",
+      "description": "receive validation/ownership workload; queues/futures/transport excluded",
+      "benchmarks": [
+        {
+          "name": "xrpc_receive_batch",
+          "source": "extlibs/xrpc/bench/bench_receive.c",
+          "suite": "xrpc_receive,time",
+          "args": [
+            "200000"
+          ],
+          "smoke_args": [
+            "1000"
+          ],
+          "metrics": {
+            "batches_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }
