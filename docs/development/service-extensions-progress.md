@@ -4190,3 +4190,157 @@ and every P4 requirement remain active. Native Windows/Linux representative
 comparators, CPU/allocator/copy costs, failures, cold/slow/contended workloads and
 at least 72-hour native mixed/fault qualification are still unaccepted. This
 slice completes neither xrpc nor the full four-product production goal.
+
+
+## P4 instrumentation: terminal-watch timing and honest harness costs (2026-10-30)
+
+The matched TCP/TLS benchmark now distinguishes planned arrival, actual
+submission, terminal Watch observation and result collection. The old Sleep(1)
+loop included collector wakeup delay in reported RPC latency. No production
+implementation, public header, API, Core source or generated single header is
+changed: the validator checks 434 prior production/header inputs byte-for-byte.
+The new module is test-only, without a feature, production source or internal
+production header. The full four-product contract and original gates remain.
+
+A pending Watch captures a monotonic clock reading, stores one double, then
+publishes a release flag; the collector uses acquire ordering. The caller owns
+the Future and embedded Watch storage through WatchRemove, including an already
+started callback's physical return. READY does not reveal historical completion:
+it records a caller observation upper bound and is counted separately. Native
+Core publication is not instrumented or claimed. The observer adds no private
+heap allocation or extra Future reference; registration/clock/atomic/removal and
+all Core duties still have costs. Collector validation/destruction is timed but
+does not inflate the terminal-watch latency population.
+
+All offers, including admission refusals, enter planned-to-terminal and
+submit-to-terminal populations. Refusals use their admission return timestamp.
+Collector lag has its own accepted-result population. P50/P95/P99/P99.9 use
+nearest-rank values, and optional CSV traces retain every offer's index, four
+timestamps, admission, status, delivery and READY provenance. Trace I/O occurs
+after timing and an I/O failure makes the invocation fail after normal cleanup.
+Elapsed terminal and collector endpoints are both printed. Throughput endpoints
+and the arrival wait differ from the old harness; no reported change is a
+transport speedup. A finite 1000-offer run at 1000 planned offers/s is a fixed-load
+observation, not a saturation or maximum-capacity measurement.
+
+The default yielding generator removes deliberate Sleep(1) waits, and the same
+observer retains a diagnostic sleep mode. Yield consumes CPU and can contend
+with other workers. Native Windows GetProcessTimes / Linux getrusage report
+user+kernel CPU for the entire process, including the generator, watch handling,
+Core/network/server and result validation/destruction. These calls are confined
+to the benchmark; no Core API/runtime is introduced. The native Windows counter reported zero deltas for these short/bursty sleep
+samples, even though work occurred; its cause/resolution is not independently
+profiled. The
+separate busy-work test verifies CPU-counter progress. Zero does not mean free
+protocol work. These are not hardware cycle counts or isolated protocol CPU.
+Arrays, initialization, TLS handshake/readiness, sorting, reporting, trace and
+shutdown are excluded from the timed interval; extra observer storage and four
+sample arrays are explicitly reported, with all other memory still separate.
+
+Four new modular/single observer runtime binaries pass on Windows and WSL.
+A delayed collector sleeps 40 ms while notification timestamps remain inside
+the producer completion interval. Other cases cover READY upper bounds,
+cancellation without fabricated terminal state, detach-before-free, 256 concurrent
+registration/removal races per binary, one-byte allocation quota and native CPU
+progress. WSL ASan/UBSan passes for both observer forms and the actual benchmark;
+qualified O2 TSan passes the observer races. GCC atomic-fence modeling limitations
+and the lack of native Linux acceptance remain explicit.
+
+An independent Python CSV oracle checks 42 traces: TCP/TLS ordinary, notification
+and batch16 with both waits, plus two high-arrival burst cases, on Windows, WSL
+and the actual WSL ASan/UBSan benchmark. It independently recomputes counts,
+provenance, nearest-rank percentiles, elapsed/throughput relationships, process
+CPU normalization and harness storage. All 19,200 offers remain in the traces.
+Each form observes real overloaded admissions, with zero failed accepted calls:
+
+| Form | TCP ordinary accepted/refused | TLS batch16 accepted/refused |
+| --- | --- | --- |
+| windows | 151/1849 | 171/1829 |
+| wsl | 143/1857 | 145/1855 |
+| wsl-asan | 149/1851 | 152/1848 |
+
+Trace-write failure and invalid arrival mode have their required nonzero exits.
+Every diagnostic label has its own CSV/log hashes. Diagnostic loads ran before
+formal serial measurements; those earlier parallel diagnostics are not noise or
+performance-acceptance evidence. Source/tool/artifact hashes and unchanged
+production dependency closure bind the ASan benchmark to the implementation.
+
+### Serial harness calibration
+
+The frozen predecessor binaries and new observer modes run once warm plus five
+measured samples for each ordinary TCP/TLS case, serially on each platform. All
+runs accept/complete 1000 offers with zero failures/refusals. The table contains
+medians of the five aggregate samples; actual raw outputs are retained.
+
+| Platform | Transport | Harness | Reported P99 us | Collector-lag P99 us | Process CPU us/offer |
+| --- | --- | --- | --- | --- | --- |
+| windows | tcp | legacy | 31322.700 | n/a | n/a |
+| windows | tcp | watch_sleep | 15749.100 | 15889.100 | 0.000 |
+| windows | tcp | watch_yield | 141.900 | 0.200 | 1125.000 |
+| windows | tls | legacy | 31174.900 | n/a | n/a |
+| windows | tls | watch_sleep | 15665.900 | 15888.200 | 0.000 |
+| windows | tls | watch_yield | 152.600 | 0.200 | 1078.125 |
+| wsl | tcp | legacy | 2173.622 | n/a | n/a |
+| wsl | tcp | watch_sleep | 1261.349 | 970.200 | 234.576 |
+| wsl | tcp | watch_yield | 285.600 | 8.200 | 1224.142 |
+| wsl | tls | legacy | 2183.305 | n/a | n/a |
+| wsl | tls | watch_sleep | 1293.650 | 946.001 | 265.861 |
+| wsl | tls | watch_yield | 296.803 | 0.700 | 1237.678 |
+
+The large old/new difference is a measurement/arrival-policy effect with the
+same production source, not an RPC optimization. READY remains an observation
+upper bound; diagnostic CPU zeros are native counter observations, not free protocol CPU. Yield's
+roughly one busy generator core is included and cannot be removed from CPU
+comparisons. No independent comparator or stable baseline is established.
+
+### Matched six-workload observations
+
+The final yield profiles use identical client/server closure, worker counts,
+payload, 1000 planned arrivals/s and one warmed persistent connection. Each has
+one warmup and five measured runs, retaining all 1000 accepted/completed offers
+and latency observations, with zero failed/rejected operations. Raw aggregate
+samples and source/workload fingerprints remain available.
+
+| Platform | Workload | Completed/s | P50 us | P99 us | P99.9 us | Arrival-lateness P99 us | Collector-lag P99 us | Process CPU us/offer | Harness bytes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| windows | tcp_ordinary | 1000.907 | 88.500 | 140.200 | 176.800 | 0.200 | 0.200 | 1171.875 | 192000 |
+| windows | tcp_notification | 1000.905 | 76.200 | 126.800 | 185.900 | 0.100 | 0.200 | 1109.375 | 192000 |
+| windows | tcp_batch16 | 1000.875 | 123.200 | 188.600 | 225.500 | 0.200 | 0.200 | 1078.125 | 192000 |
+| windows | tls_ordinary | 1000.889 | 96.500 | 154.700 | 211.700 | 0.100 | 0.200 | 1109.375 | 192000 |
+| windows | tls_notification | 1000.902 | 84.600 | 145.600 | 194.300 | 0.100 | 0.200 | 1125.000 | 192000 |
+| windows | tls_batch16 | 1000.847 | 139.500 | 218.700 | 268.500 | 0.200 | 0.300 | 1203.125 | 192000 |
+| wsl | tcp_ordinary | 1000.829 | 173.100 | 255.513 | 307.714 | 2.754 | 0.700 | 1202.985 | 192000 |
+| wsl | tcp_notification | 1000.831 | 165.827 | 249.514 | 327.232 | 5.710 | 2.400 | 1183.006 | 192000 |
+| wsl | tcp_batch16 | 1000.773 | 218.602 | 317.603 | 359.902 | 2.770 | 0.700 | 1236.442 | 192000 |
+| wsl | tls_ordinary | 1000.800 | 201.998 | 293.075 | 339.968 | 5.889 | 1.500 | 1231.472 | 192000 |
+| wsl | tls_notification | 1000.825 | 180.792 | 254.998 | 313.880 | 2.494 | 0.800 | 1199.714 | 192000 |
+| wsl | tls_batch16 | 1000.728 | 260.881 | 376.579 | 434.094 | 3.359 | 0.900 | 1279.184 | 192000 |
+
+The unchanged 3% relative-MAD / 6% central-range checks fail in this shared-host
+run. They are neither relaxed nor retried to select favorable samples. Failure
+counts include separate MAD/range failures across primary and new diagnostic
+metrics; they are not failed requests. All failing metric names and all five
+samples are retained. Performance remains unaccepted and no baseline is pinned.
+
+windows: 57 failed noise checks. Source fingerprint: `2923a94183f12793bad0fb70d150a293049d1db6f911d8ba9122ef8d0d58f36e`; workload fingerprint: `9dc494f9cde39efa4f2944d0cba92974ba209c57889447439516f85028321b23`.
+
+wsl: 63 failed noise checks. Source fingerprint: `2923a94183f12793bad0fb70d150a293049d1db6f911d8ba9122ef8d0d58f36e`; workload fingerprint: `9dc494f9cde39efa4f2944d0cba92974ba209c57889447439516f85028321b23`.
+
+Evidence: `out/service-extensions/xrpc-http-timing/validation.json` binds 434
+unchanged production inputs, four observer test binaries, TSan, the actual ASan
+benchmark, 42 per-offer traces, serial calibration binaries/raw outputs and six
+5+1 workload reports to exact inputs/artifacts. The predecessor's 4636 copied
+performance artifacts are SHA-checked before any overwrite in a separate cache.
+The committed validator additionally requires clean HEAD/tree. Public API remains
+82 functions / 153 constants or macros / 76 types; normal maturity retains 17
+implementations and only the aggregate xrpc product is developing.
+
+Next work remains protocol capability completion and qualified performance:
+RPC mutual/HTTP authentication, tickets, metadata/recovery/pooling, WebSocket/
+framed stdio, bidirectional calls, negotiated extensions and deferred handlers;
+Redis HA/tracking/dedicated modes; full MQTT 5.0/3.1.1 client/session/store;
+Cron IANA/scheduler/durable recovery. Representative pinned comparators, process
+CPU/cycle/allocation/copy/synchronization/syscall accounting, cold/slow/contended
+and fault/recovery matrices, stable native Windows/Linux objectives and 72-hour
+native mixed/fault runs remain required. No smaller scope or production-complete
+claim is substituted by this instrumentation slice.

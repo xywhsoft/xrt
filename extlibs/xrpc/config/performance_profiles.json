@@ -1756,7 +1756,7 @@
     {
       "name": "xrpc_http_server_tls",
       "system": "http_server_tls",
-      "description": "Matched actual production HTTP TCP/TLS server and client, same compiled closure/configuration, fixed arrivals/all counts; no production baseline acceptance",
+      "description": "Matched production TCP/TLS with terminal-watch, late-arrival, collector-lag, all-thread CPU and harness accounting; no saturation acceptance",
       "benchmarks": [
         {
           "name": "xrpc_http_server_tls_tcp_ordinary",
@@ -1766,13 +1766,15 @@
             "1000",
             "1000",
             "0",
-            "0"
+            "0",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "0",
-            "0"
+            "0",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -1814,19 +1816,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         },
         {
@@ -1837,13 +1906,15 @@
             "1000",
             "1000",
             "1",
-            "0"
+            "0",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "1",
-            "0"
+            "0",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -1885,19 +1956,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         },
         {
@@ -1908,13 +2046,15 @@
             "1000",
             "1000",
             "16",
-            "0"
+            "0",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "16",
-            "0"
+            "0",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -1956,19 +2096,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         },
         {
@@ -1979,13 +2186,15 @@
             "1000",
             "1000",
             "0",
-            "1"
+            "1",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "0",
-            "1"
+            "1",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -2027,19 +2236,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         },
         {
@@ -2050,13 +2326,15 @@
             "1000",
             "1000",
             "1",
-            "1"
+            "1",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "1",
-            "1"
+            "1",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -2098,19 +2376,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         },
         {
@@ -2121,13 +2466,15 @@
             "1000",
             "1000",
             "16",
-            "1"
+            "1",
+            "yield"
           ],
           "smoke_args": [
             "8",
             "1000",
             "16",
-            "1"
+            "1",
+            "yield"
           ],
           "metrics": {
             "offered": {
@@ -2169,19 +2516,86 @@
             "completed_per_sec": {
               "direction": "higher",
               "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
             }
           },
           "facts": [
             "workload",
             "mode",
             "items_per_request",
-            "transport"
+            "transport",
+            "arrival_wait"
           ],
           "inputs": [
             "extlibs/xrpc/tests/support/http_tls_service.h",
             "extlibs/xrpc/examples/common/http_service.h",
             "tests/fixtures/tls_server.h",
-            "tests/fixtures/tls_identity_legacy.h"
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
           ]
         }
       ]

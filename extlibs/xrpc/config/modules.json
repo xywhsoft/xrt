@@ -697,7 +697,8 @@
         "xrpc_server_tests",
         "xrpc_http_server_tests",
         "xrpc_http_tls_tests",
-        "xrpc_http_server_tls_tests"
+        "xrpc_http_server_tls_tests",
+        "xrpc_http_measure_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -1069,6 +1070,31 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/http_server_tls.md"
+      ]
+    },
+    {
+      "name": "xrpc_http_measure_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "future",
+        "thread",
+        "memory_stats",
+        "atomic"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_http_measure.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_measure.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/http_measurement.md"
       ]
     }
   ]
