@@ -169,6 +169,9 @@
 #ifndef XRT_MODULE_HTTP_HOST
 #define XRT_MODULE_HTTP_HOST
 #endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
 #endif
 
 /* xrpc_call 及其直接依赖。 */
@@ -197,19 +200,6 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_PENDING
 #define XRPC_MODULE_XRPC_PENDING
-#endif
-#endif
-
-/* xrpc_response 及其直接依赖。 */
-#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
-#ifndef XRPC_FEATURE_XRPC_RESPONSE
-#define XRPC_FEATURE_XRPC_RESPONSE
-#endif
-#ifndef XRPC_MODULE_XRPC_DECODE
-#define XRPC_MODULE_XRPC_DECODE
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -275,6 +265,35 @@
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
+#endif
+#endif
+
+/* xrpc_result_quota 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#ifndef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#define XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -447,6 +466,77 @@ XRPC_API bool xrpcDecodeConfigInit(xrpcdecodeconfig* Config);
 XRPC_API xrpcdecodestatus xrpcDecode(xstrview Input, const xrpcdecodeconfig* Config,
 	xrpcmessage* Messages, size_t Capacity, xrpcdocument* Document);
 
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/response.h */
+/* ========================================================================== */
+
+#ifndef XRPC_RESPONSE_H
+#define XRPC_RESPONSE_H
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) && \
+	(!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRT_FEATURE_ATOMIC) || !defined(XRT_FEATURE_MUTEX))
+#error "XRPC result quota requires response, atomic and mutex"
+#endif
+#if defined(XRPC_FEATURE_XRPC_RESPONSE) && \
+	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRT_FEATURE_ATOMIC))
+#error "XRPC_FEATURE_XRPC_RESPONSE requires decode and atomic"
+#endif
+#if defined(XRPC_FEATURE_XRPC_RESPONSE)
+typedef struct xrpcresponses xrpcresponses;
+typedef struct xrpcresponseconfig {
+	size_t Size, MaxOwnedBytes;
+	xrpcdecodeconfig Decode;
+} xrpcresponseconfig;
+typedef struct xrpcresponseinfo {
+	size_t Size, Count, OwnedBytes;
+	bool Batch;
+	xstrview Wire;
+	const xrpcmessage* Messages;
+	const xstrview* Ids;
+} xrpcresponseinfo;
+typedef enum xrpcresponsestatus {
+	XRPC_RESPONSE_LOCAL_ERROR = -1, XRPC_RESPONSE_PARSE_ERROR = 0,
+	XRPC_RESPONSE_INVALID, XRPC_RESPONSE_DONE
+} xrpcresponsestatus;
+typedef enum xrpcresponseerror {
+	XRPC_RESPONSE_ARGUMENT = 6001, XRPC_RESPONSE_LIMIT,
+	XRPC_RESPONSE_MEMORY, XRPC_RESPONSE_ENVELOPE
+} xrpcresponseerror;
+XRT_EXTERN_C_BEGIN
+/* Defaults: response-mode decoder limits, 2 MiB requested owned-byte ceiling. */
+XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config);
+/* Validate the COMPLETE document and require every item to be a result/error,
+ * then allocate one immutable snapshot. No partial valid subset is published.
+ * PARSE_ERROR is malformed JSON, INVALID is a valid JSON invalid response
+ * envelope (including requests/notifications/scalars/empty batch). Diagnostic
+ * OOM/resource/API/allocation failure is LOCAL_ERROR. No wire error generated.
+ * Result stays unchanged on all failures; decoder Scratch is unspecified until
+ * DONE. Config is copied; Decode.Mode must be RESPONSES. Scratch capacity >0.
+ * Input/config/scratch/result must have valid nonoverlapping spans as in Decode.
+ * One allocation holds header, actual-count descriptors, contiguous raw-ID views
+ * and one complete input copy; all views rebase to that copy without reparsing.
+ * MaxOwnedBytes counts requested bytes, excluding allocator headers/caches.
+ * Input/scratch/config stay alive throughout; the caller must not change them
+ * concurrently (the decoder itself writes scratch).
+ * No input/user pointer, callbacks, locks, queues or threads are retained/added.
+ * Success preserves ambient error; cold diagnostics may allocate. */
+XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input, const xrpcresponseconfig* Config,
+	xrpcmessage* Scratch, size_t Capacity, xrpcresponses** Result);
+/* Strong refs permit concurrent immutable readers; one owner must safely
+ * publish the initial reference. Retain needs an already-live strong ref and
+ * fails on overflow. Final release follows physical reader completion. NULL
+ * release OK. Metadata/views remain borrowed until the holding ref is released;
+ * never mutate them, including by casting away const. No DOM/string unescaping,
+ * narrowing or per-item allocation. Ids duplicates existing descriptor views
+ * for bounded batch correlation without strided aliasing or another ID scan. */
+XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses);
+XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses);
+/* Info.Size must match; output cannot overlap owned storage. */
+XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses, xrpcresponseinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -894,73 +984,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xrpc/include/xrpc/response.h */
-/* ========================================================================== */
-
-#ifndef XRPC_RESPONSE_H
-#define XRPC_RESPONSE_H
-#if defined(XRPC_FEATURE_XRPC_RESPONSE) && \
-	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRT_FEATURE_ATOMIC))
-#error "XRPC_FEATURE_XRPC_RESPONSE requires decode and atomic"
-#endif
-#if defined(XRPC_FEATURE_XRPC_RESPONSE)
-typedef struct xrpcresponses xrpcresponses;
-typedef struct xrpcresponseconfig {
-	size_t Size, MaxOwnedBytes;
-	xrpcdecodeconfig Decode;
-} xrpcresponseconfig;
-typedef struct xrpcresponseinfo {
-	size_t Size, Count, OwnedBytes;
-	bool Batch;
-	xstrview Wire;
-	const xrpcmessage* Messages;
-	const xstrview* Ids;
-} xrpcresponseinfo;
-typedef enum xrpcresponsestatus {
-	XRPC_RESPONSE_LOCAL_ERROR = -1, XRPC_RESPONSE_PARSE_ERROR = 0,
-	XRPC_RESPONSE_INVALID, XRPC_RESPONSE_DONE
-} xrpcresponsestatus;
-typedef enum xrpcresponseerror {
-	XRPC_RESPONSE_ARGUMENT = 6001, XRPC_RESPONSE_LIMIT,
-	XRPC_RESPONSE_MEMORY, XRPC_RESPONSE_ENVELOPE
-} xrpcresponseerror;
-XRT_EXTERN_C_BEGIN
-/* Defaults: response-mode decoder limits, 2 MiB requested owned-byte ceiling. */
-XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config);
-/* Validate the COMPLETE document and require every item to be a result/error,
- * then allocate one immutable snapshot. No partial valid subset is published.
- * PARSE_ERROR is malformed JSON, INVALID is a valid JSON invalid response
- * envelope (including requests/notifications/scalars/empty batch). Diagnostic
- * OOM/resource/API/allocation failure is LOCAL_ERROR. No wire error generated.
- * Result stays unchanged on all failures; decoder Scratch is unspecified until
- * DONE. Config is copied; Decode.Mode must be RESPONSES. Scratch capacity >0.
- * Input/config/scratch/result must have valid nonoverlapping spans as in Decode.
- * One allocation holds header, actual-count descriptors, contiguous raw-ID views
- * and one complete input copy; all views rebase to that copy without reparsing.
- * MaxOwnedBytes counts requested bytes, excluding allocator headers/caches.
- * Input/scratch/config stay alive throughout; the caller must not change them
- * concurrently (the decoder itself writes scratch).
- * No input/user pointer, callbacks, locks, queues or threads are retained/added.
- * Success preserves ambient error; cold diagnostics may allocate. */
-XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input, const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch, size_t Capacity, xrpcresponses** Result);
-/* Strong refs permit concurrent immutable readers; one owner must safely
- * publish the initial reference. Retain needs an already-live strong ref and
- * fails on overflow. Final release follows physical reader completion. NULL
- * release OK. Metadata/views remain borrowed until the holding ref is released;
- * never mutate them, including by casting away const. No DOM/string unescaping,
- * narrowing or per-item allocation. Ids duplicates existing descriptor views
- * for bounded batch correlation without strided aliasing or another ID scan. */
-XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses);
-XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses);
-/* Info.Size must match; output cannot overlap owned storage. */
-XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses, xrpcresponseinfo* Info);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc/receive.h */
 /* ========================================================================== */
 
@@ -1153,7 +1176,7 @@ XRT_EXTERN_C_END
 #define XRPC_HTTP_CLIENT_H
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT) && \
     (!defined(XRPC_FEATURE_XRPC_CALL) || !defined(XRPC_FEATURE_XRPC_ENCODE) || !defined(XRPC_FEATURE_XRPC_ID) || \
-     !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
+     !defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
 #error "xrpc HTTP client requires call, encode, TCP and HTTP/1 body"
 #endif
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
@@ -1178,13 +1201,16 @@ typedef struct xrpchttpconfig {
     size_t MaxRequests, MaxRequestBytes, MaxRequestBytesTotal;
     size_t WorkRequests, ReadBytes, MaxResponseWireBytes;
     size_t MaxBatchItems, MaxBatchBytesTotal;
+    size_t MaxResultBlocks, MaxResultBytes;
     uint32 MaxInformational;
 } xrpchttpconfig;
 typedef struct xrpchttpinfo {
     size_t Size;
     xrpchttpstate State;
     size_t Requests, RequestBytes, BatchBytes;
+    size_t ResultBlocks, ResultBytes;
     uint64 Accepted, Rejected, Completed;
+    uint64 ResultRejected; /* Refused header/snapshot credit reservations. */
     xrpccallstatus CloseStatus;
 } xrpchttpinfo;
 typedef struct xrpchttpitem {
@@ -1215,7 +1241,12 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* Client);
  * never replayed. A validated matched reply is REPLIED; non-2xx HTTP status is
  * not itself an RPC error when its complete body is a valid matching response.
  * No business callbacks are installed; Future Watches execute on the worker
- * and must not block. Results do not retain this client/engine. */
+ * and must not block. Results do not retain this client/engine.
+ * MaxResultBlocks/Bytes include pending/retained typed result headers/maps and
+ * response snapshots, each allocation charged once including its private prefix.
+ * Header credit is required at admission; later snapshot exhaustion yields
+ * LIMIT and retires the connection without replay. Independent ResponsesRetain
+ * still holds snapshot credit after the Future is destroyed. */
 XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* Client,
     xstrview Method, xstrview Params, int64 Timeout, xfuture** Future);
 /* No RPC id or reply. Empty 2xx HTTP completion yields NOTIFY_DONE with
@@ -1231,10 +1262,14 @@ XRPC_API xrpcadmission xrpcHttpNotifyAsync(xrpchttpclient* Client,
  * Notifications map to SIZE_MAX. All-notification batches use NOTIFY_DONE.
  * Bad/missing/duplicate/notification/unknown IDs publish no partial replies.
  * MaxBatchItems and aggregate in-flight BatchBytes bound metadata, separately
- * from encoded-wire limits. Retained completed result maps/snapshots remain
- * caller-owned and do not keep client/engine refs. Outputs/inputs cannot overlap. */
+ * from encoded-wire limits. Retained maps/snapshots are charged to result quotas
+ * and do not keep client/engine refs. Outputs/inputs cannot overlap. */
 XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
     const xrpchttpitem* Items, size_t Count, int64 Timeout, xfuture** Future);
+/* Request and result-ledger counters are separate instants, not one joint atomic
+ * snapshot. Result counters include reserved blocks during allocation. Native
+ * Future/context/error metadata, allocator overhead and receive staging are
+ * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
 /* Independent observer; resolves after request duties and stream retire. The
@@ -1519,6 +1554,29 @@ static bool xrpcJsonIntegral(xstrview Raw)
 
 
 /* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_result_quota.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_RESPONSE)
+#ifndef XRPC_RESULT_QUOTA_H
+#define XRPC_RESULT_QUOTA_H
+typedef struct xrpcresultquota xrpcresultquota;
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+/* Per-client storage ledger, not a runtime/engine owner. A charged allocation
+ * owns one real ledger reference and refunds only after its physical free. */
+bool xrpcResultQuotaCreate(size_t Blocks,size_t Bytes,xrpcresultquota** Result);
+void xrpcResultQuotaRelease(xrpcresultquota* Quota);
+void xrpcResultQuotaInfo(xrpcresultquota* Quota,size_t* Blocks,size_t* Bytes,uint64* Rejected);
+ptr xrpcResultQuotaAlloc(xrpcresultquota* Quota,size_t Bytes,bool* Limited);
+void xrpcResultQuotaFree(ptr Value);
+xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
+    xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: extlibs/xrpc/src/internal/xrpc_string.h */
 /* ========================================================================== */
 
@@ -1585,6 +1643,10 @@ bool xrpcCallCreateEntered(const xrpccallconfig* Config, xrpccall** Call,
     xfuture** Future, double Entered);
 bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config, size_t Count,
     xrpccall** Call, xfuture** Future, double Entered);
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+bool xrpcCallCreateQuota(const xrpccallconfig* Config,size_t Count,
+    xrpccall** Call,xfuture** Future,double Entered,xrpcresultquota* Quota,bool* Limited);
+#endif
 #endif
 #endif
 #endif
@@ -1855,6 +1917,163 @@ XRPC_API xrpcdecodestatus xrpcDecode(xstrview Input, const xrpcdecodeconfig* Con
 	}
 	*Document = (xrpcdocument){Context.Batch, Context.Count, Context.InvalidCount};
 	return XRPC_DECODE_DONE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/response/response.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_RESPONSE)
+#include <string.h>
+
+#if defined(XRPC_FEATURE_XRPC_RESPONSE)
+struct xrpcresponses {
+	xatomic32 References;
+	bool Batch,QuotaOwned;
+	size_t Count, OwnedBytes;
+	xstrview Wire;
+	xrpcmessage Messages[];
+};
+static bool xrpcResponseReport(xerrkind Kind,xrpcresponseerror Code,cstr Message)
+{ xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false; }
+XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config)
+{
+	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))
+		return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response config output");
+	xrpcresponseconfig C={0};C.Size=sizeof(C);C.MaxOwnedBytes=2u*1024u*1024u;
+	xrpcDecodeConfigInit(&C.Decode);C.Decode.Mode=XRPC_DECODE_RESPONSES;*Config=C;return true;
+}
+static xstrview xrpcResponseRebase(xstrview View,xstrview Input,cstr Copy)
+{ if(View.Data)View.Data=Copy+(size_t)(View.Data-Input.Data);return View; }
+static xrpcresponsestatus xrpcResponsesReadImpl(xstrview Input,const xrpcresponseconfig* Config,
+	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
+{
+	(void)Quota;
+	if(!Result || !xrtMemRangeValid(Result,sizeof(*Result)) || !Capacity || !Scratch || Capacity>SIZE_MAX/sizeof(*Scratch) ||
+		!xrtMemRangeValid(Scratch,Capacity*sizeof(*Scratch)) || !xrtMemRangeValid(Input.Data,Input.Size) ||
+		(Config && !xrtMemRangeValid(Config,sizeof(*Config))))goto Argument;
+	if(xrtMemRangesOverlap(Result,sizeof(*Result),Input.Data,Input.Size) ||
+		xrtMemRangesOverlap(Result,sizeof(*Result),Scratch,Capacity*sizeof(*Scratch)) || (Config &&
+		(xrtMemRangesOverlap(Result,sizeof(*Result),Config,sizeof(*Config)) ||
+		 xrtMemRangesOverlap(Scratch,Capacity*sizeof(*Scratch),Config,sizeof(*Config)))))goto Argument;
+	xrpcresponseconfig C;if(Config)C=*Config;else xrpcResponseConfigInit(&C);
+	if(C.Size!=sizeof(C) || !C.MaxOwnedBytes || C.Decode.Mode!=XRPC_DECODE_RESPONSES)goto Argument;
+	xrpcdocument Document;xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
+	if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
+	if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
+	if(Document.InvalidCount){xrpcResponseReport(XERR_VALUE,XRPC_RESPONSE_ENVELOPE,"invalid RPC response envelope/batch");
+		return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_RESPONSE_LOCAL_ERROR:XRPC_RESPONSE_INVALID;}
+	size_t Bytes=sizeof(xrpcresponses);
+	if(Document.Count>(SIZE_MAX-Bytes)/(sizeof(xrpcmessage)+sizeof(xstrview)))goto Limit;
+	Bytes+=Document.Count*(sizeof(xrpcmessage)+sizeof(xstrview));
+	if(Input.Size>SIZE_MAX-Bytes || Bytes+Input.Size>C.MaxOwnedBytes)goto Limit;
+	Bytes+=Input.Size;xrpcresponses* R=NULL;
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(Quota){bool Limited=false;R=xrpcResultQuotaAlloc(Quota,Bytes,&Limited);if(Limited)goto Limit;}
+	else
+#endif
+	R=xrtMalloc(Bytes);
+	if(!R){xrpcResponseReport(XERR_MEMORY,XRPC_RESPONSE_MEMORY,"RPC response snapshot allocation failed");return XRPC_RESPONSE_LOCAL_ERROR;}
+	xrtAtomic32Init(&R->References,1);R->Batch=Document.Batch;R->QuotaOwned=Quota!=NULL;R->Count=Document.Count;R->OwnedBytes=Bytes;
+	xstrview* Ids=(xstrview*)(R->Messages+Document.Count);char* Wire=(char*)(Ids+Document.Count);
+	memcpy(Wire,Input.Data,Input.Size);R->Wire=(xstrview){Wire,Input.Size};
+	for(size_t Index=0;Index<Document.Count;++Index){xrpcmessage M=Scratch[Index];
+		M.Wire=xrpcResponseRebase(M.Wire,Input,Wire);
+		M.Id.Raw=xrpcResponseRebase(M.Id.Raw,Input,Wire);M.Method.Raw=xrpcResponseRebase(M.Method.Raw,Input,Wire);
+		M.Params.Raw=xrpcResponseRebase(M.Params.Raw,Input,Wire);M.Result.Raw=xrpcResponseRebase(M.Result.Raw,Input,Wire);
+		M.Error.Raw=xrpcResponseRebase(M.Error.Raw,Input,Wire);M.ErrorCode.Raw=xrpcResponseRebase(M.ErrorCode.Raw,Input,Wire);
+		M.ErrorMessage.Raw=xrpcResponseRebase(M.ErrorMessage.Raw,Input,Wire);M.ErrorData.Raw=xrpcResponseRebase(M.ErrorData.Raw,Input,Wire);
+		R->Messages[Index]=M;Ids[Index]=M.Id.Raw;
+	}
+	*Result=R;return XRPC_RESPONSE_DONE;
+Argument:
+	xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response config/output span/overlap");return XRPC_RESPONSE_LOCAL_ERROR;
+Limit:
+	xrpcResponseReport(XERR_RANGE,XRPC_RESPONSE_LIMIT,"RPC response owned-byte limit/size overflow");return XRPC_RESPONSE_LOCAL_ERROR;
+}
+XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input,const xrpcresponseconfig* Config,
+	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result)
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,NULL);}
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
+	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota)
+{return xrpcResponsesReadImpl(Input,Config,Scratch,Capacity,Result,Quota);}
+#endif
+XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses)
+{
+	if(!Responses)return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"RPC responses are NULL");
+	uint32 Count=xrtAtomic32Load(&Responses->References,XMEMORY_RELAXED);
+	for(;;){if(Count==UINT32_MAX)return xrpcResponseReport(XERR_RANGE,XRPC_RESPONSE_LIMIT,"RPC response references overflow");
+		if(xrtAtomic32CompareExchange(&Responses->References,&Count,Count+1u,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
+}
+XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses)
+{
+	if(!Responses || xrtAtomic32FetchSub(&Responses->References,1,XMEMORY_ACQ_REL)!=1)return;
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(Responses->QuotaOwned){xrpcResultQuotaFree(Responses);return;}
+#endif
+	xrtFree(Responses);
+}
+XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses,xrpcresponseinfo* Info)
+{
+	if(!Responses || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) ||
+		xrtMemRangesOverlap(Responses,Responses->OwnedBytes,Info,sizeof(*Info)) || Info->Size!=sizeof(*Info))
+		return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response info output");
+	*Info=(xrpcresponseinfo){sizeof(*Info),Responses->Count,Responses->OwnedBytes,Responses->Batch,Responses->Wire,
+		Responses->Messages,(const xstrview*)(Responses->Messages+Responses->Count)};return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/result_quota/result_quota.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+#include <stddef.h>
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+struct xrpcresultquota {
+    xatomic32 References;
+    xmutex Gate;
+    size_t MaxBlocks,MaxBytes,Blocks,Bytes;
+    uint64 Rejected;
+};
+typedef union xrpcresultallocation {
+    struct {xrpcresultquota* Quota;size_t Bytes;} Meta;
+    max_align_t Alignment;
+} xrpcresultallocation;
+bool xrpcResultQuotaCreate(size_t Blocks,size_t Bytes,xrpcresultquota** Result)
+{
+    xrpcresultquota* Q=xrtCalloc(1,sizeof(*Q));if(!Q)return false;
+    if(!xrtMutexInit(&Q->Gate)){xrtFree(Q);return false;}
+    xrtAtomic32Init(&Q->References,1);Q->MaxBlocks=Blocks;Q->MaxBytes=Bytes;*Result=Q;return true;
+}
+void xrpcResultQuotaRelease(xrpcresultquota* Q)
+{if(Q && xrtAtomic32FetchSub(&Q->References,1,XMEMORY_ACQ_REL)==1){xrtMutexUnit(&Q->Gate);xrtFree(Q);}}
+void xrpcResultQuotaInfo(xrpcresultquota* Q,size_t* Blocks,size_t* Bytes,uint64* Rejected)
+{xrtMutexLock(&Q->Gate);*Blocks=Q->Blocks;*Bytes=Q->Bytes;*Rejected=Q->Rejected;xrtMutexUnlock(&Q->Gate);}
+ptr xrpcResultQuotaAlloc(xrpcresultquota* Q,size_t Bytes,bool* Limited)
+{
+    *Limited=false;
+    if(Bytes>SIZE_MAX-sizeof(xrpcresultallocation)){xrtMutexLock(&Q->Gate);++Q->Rejected;xrtMutexUnlock(&Q->Gate);*Limited=true;return NULL;}
+    Bytes+=sizeof(xrpcresultallocation);xrtMutexLock(&Q->Gate);
+    bool OK=Q->Blocks<Q->MaxBlocks && Bytes<=Q->MaxBytes-Q->Bytes;
+    if(OK){++Q->Blocks;Q->Bytes+=Bytes;xrtAtomic32FetchAdd(&Q->References,1,XMEMORY_RELAXED);}
+    else ++Q->Rejected;
+    xrtMutexUnlock(&Q->Gate);if(!OK){*Limited=true;return NULL;}
+    xrpcresultallocation* A=xrtMalloc(Bytes);
+    if(!A){xrtMutexLock(&Q->Gate);--Q->Blocks;Q->Bytes-=Bytes;xrtMutexUnlock(&Q->Gate);xrpcResultQuotaRelease(Q);return NULL;}
+    A->Meta.Quota=Q;A->Meta.Bytes=Bytes;return A+1;
+}
+void xrpcResultQuotaFree(ptr Value)
+{
+    if(!Value)return;
+    xrpcresultallocation* A=(xrpcresultallocation*)Value-1;xrpcresultquota* Q=A->Meta.Quota;size_t Bytes=A->Meta.Bytes;
+    xrtFree(A);xrtMutexLock(&Q->Gate);--Q->Blocks;Q->Bytes-=Bytes;xrtMutexUnlock(&Q->Gate);xrpcResultQuotaRelease(Q);
 }
 #endif
 #endif
@@ -2989,93 +3208,6 @@ Argument:
 
 
 /* ========================================================================== */
-/* source: extlibs/xrpc/src/response/response.c */
-/* ========================================================================== */
-
-#if defined(XRPC_FEATURE_XRPC_RESPONSE)
-#include <string.h>
-
-#if defined(XRPC_FEATURE_XRPC_RESPONSE)
-struct xrpcresponses {
-	xatomic32 References;
-	bool Batch;
-	size_t Count, OwnedBytes;
-	xstrview Wire;
-	xrpcmessage Messages[];
-};
-static bool xrpcResponseReport(xerrkind Kind,xrpcresponseerror Code,cstr Message)
-{ xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false; }
-XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config)
-{
-	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))
-		return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response config output");
-	xrpcresponseconfig C={0};C.Size=sizeof(C);C.MaxOwnedBytes=2u*1024u*1024u;
-	xrpcDecodeConfigInit(&C.Decode);C.Decode.Mode=XRPC_DECODE_RESPONSES;*Config=C;return true;
-}
-static xstrview xrpcResponseRebase(xstrview View,xstrview Input,cstr Copy)
-{ if(View.Data)View.Data=Copy+(size_t)(View.Data-Input.Data);return View; }
-XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input,const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result)
-{
-	if(!Result || !xrtMemRangeValid(Result,sizeof(*Result)) || !Capacity || !Scratch || Capacity>SIZE_MAX/sizeof(*Scratch) ||
-		!xrtMemRangeValid(Scratch,Capacity*sizeof(*Scratch)) || !xrtMemRangeValid(Input.Data,Input.Size) ||
-		(Config && !xrtMemRangeValid(Config,sizeof(*Config))))goto Argument;
-	if(xrtMemRangesOverlap(Result,sizeof(*Result),Input.Data,Input.Size) ||
-		xrtMemRangesOverlap(Result,sizeof(*Result),Scratch,Capacity*sizeof(*Scratch)) || (Config &&
-		(xrtMemRangesOverlap(Result,sizeof(*Result),Config,sizeof(*Config)) ||
-		 xrtMemRangesOverlap(Scratch,Capacity*sizeof(*Scratch),Config,sizeof(*Config)))))goto Argument;
-	xrpcresponseconfig C;if(Config)C=*Config;else xrpcResponseConfigInit(&C);
-	if(C.Size!=sizeof(C) || !C.MaxOwnedBytes || C.Decode.Mode!=XRPC_DECODE_RESPONSES)goto Argument;
-	xrpcdocument Document;xrpcdecodestatus Status=xrpcDecode(Input,&C.Decode,Scratch,Capacity,&Document);
-	if(Status==XRPC_DECODE_LOCAL_ERROR)return XRPC_RESPONSE_LOCAL_ERROR;
-	if(Status==XRPC_DECODE_PARSE_ERROR)return XRPC_RESPONSE_PARSE_ERROR;
-	if(Document.InvalidCount){xrpcResponseReport(XERR_VALUE,XRPC_RESPONSE_ENVELOPE,"invalid RPC response envelope/batch");
-		return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_RESPONSE_LOCAL_ERROR:XRPC_RESPONSE_INVALID;}
-	size_t Bytes=sizeof(xrpcresponses);
-	if(Document.Count>(SIZE_MAX-Bytes)/(sizeof(xrpcmessage)+sizeof(xstrview)))goto Limit;
-	Bytes+=Document.Count*(sizeof(xrpcmessage)+sizeof(xstrview));
-	if(Input.Size>SIZE_MAX-Bytes || Bytes+Input.Size>C.MaxOwnedBytes)goto Limit;
-	Bytes+=Input.Size;xrpcresponses* R=xrtMalloc(Bytes);
-	if(!R){xrpcResponseReport(XERR_MEMORY,XRPC_RESPONSE_MEMORY,"RPC response snapshot allocation failed");return XRPC_RESPONSE_LOCAL_ERROR;}
-	xrtAtomic32Init(&R->References,1);R->Batch=Document.Batch;R->Count=Document.Count;R->OwnedBytes=Bytes;
-	xstrview* Ids=(xstrview*)(R->Messages+Document.Count);char* Wire=(char*)(Ids+Document.Count);
-	memcpy(Wire,Input.Data,Input.Size);R->Wire=(xstrview){Wire,Input.Size};
-	for(size_t Index=0;Index<Document.Count;++Index){xrpcmessage M=Scratch[Index];
-		M.Wire=xrpcResponseRebase(M.Wire,Input,Wire);
-		M.Id.Raw=xrpcResponseRebase(M.Id.Raw,Input,Wire);M.Method.Raw=xrpcResponseRebase(M.Method.Raw,Input,Wire);
-		M.Params.Raw=xrpcResponseRebase(M.Params.Raw,Input,Wire);M.Result.Raw=xrpcResponseRebase(M.Result.Raw,Input,Wire);
-		M.Error.Raw=xrpcResponseRebase(M.Error.Raw,Input,Wire);M.ErrorCode.Raw=xrpcResponseRebase(M.ErrorCode.Raw,Input,Wire);
-		M.ErrorMessage.Raw=xrpcResponseRebase(M.ErrorMessage.Raw,Input,Wire);M.ErrorData.Raw=xrpcResponseRebase(M.ErrorData.Raw,Input,Wire);
-		R->Messages[Index]=M;Ids[Index]=M.Id.Raw;
-	}
-	*Result=R;return XRPC_RESPONSE_DONE;
-Argument:
-	xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response config/output span/overlap");return XRPC_RESPONSE_LOCAL_ERROR;
-Limit:
-	xrpcResponseReport(XERR_RANGE,XRPC_RESPONSE_LIMIT,"RPC response owned-byte limit/size overflow");return XRPC_RESPONSE_LOCAL_ERROR;
-}
-XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses)
-{
-	if(!Responses)return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"RPC responses are NULL");
-	uint32 Count=xrtAtomic32Load(&Responses->References,XMEMORY_RELAXED);
-	for(;;){if(Count==UINT32_MAX)return xrpcResponseReport(XERR_RANGE,XRPC_RESPONSE_LIMIT,"RPC response references overflow");
-		if(xrtAtomic32CompareExchange(&Responses->References,&Count,Count+1u,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
-}
-XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses)
-{ if(Responses && xrtAtomic32FetchSub(&Responses->References,1,XMEMORY_ACQ_REL)==1)xrtFree(Responses); }
-XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses,xrpcresponseinfo* Info)
-{
-	if(!Responses || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) ||
-		xrtMemRangesOverlap(Responses,Responses->OwnedBytes,Info,sizeof(*Info)) || Info->Size!=sizeof(*Info))
-		return xrpcResponseReport(XERR_ARGUMENT,XRPC_RESPONSE_ARGUMENT,"invalid RPC response info output");
-	*Info=(xrpcresponseinfo){sizeof(*Info),Responses->Count,Responses->OwnedBytes,Responses->Batch,Responses->Wire,
-		Responses->Messages,(const xstrview*)(Responses->Messages+Responses->Count)};return true;
-}
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* source: extlibs/xrpc/src/receive/receive.c */
 /* ========================================================================== */
 
@@ -3141,14 +3273,18 @@ struct xrpccall {
 	xcancel* Cancel;
 	xrpccallresult* Result;
 	xrpcdelivery Delivery;
-	bool ContextOwned, Destroying, Batch;
+	bool ContextOwned, Destroying, Batch, QuotaOwned;
 };
 static bool xrpcCallReport(xerrkind Kind,xrpccallerror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
 static void xrpcCallResultDrop(ptr Value,ptr User)
 {
 	(void)User;xrpccallresult* R=Value;
-	xrpcResponsesRelease(R->Responses);xrtErrorFree((xerror*)R->Cause);xrtFree(R);
+	xrpcResponsesRelease(R->Responses);xrtErrorFree((xerror*)R->Cause);
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(User){xrpcResultQuotaFree(R);return;}
+#endif
+	xrtFree(R);
 }
 static void xrpcCallUnref(xrpccall* C)
 {
@@ -3183,8 +3319,9 @@ XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config)
 	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call config output");
 	*Config=(xrpccallconfig){sizeof(*Config),5000,NULL,NULL,NULL};return true;
 }
-static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began,size_t Count)
+static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began,size_t Count,xrpcresultquota* Quota,bool* Limited)
 {
+	(void)Quota;(void)Limited;
 	if(!Call || !Future || !xrtMemRangeValid(Call,sizeof(*Call)) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
 		xrtMemRangesOverlap(Call,sizeof(*Call),Future,sizeof(*Future)) || (Config &&
 		(!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Call,sizeof(*Call),Config,sizeof(*Config)) ||
@@ -3193,12 +3330,20 @@ static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfutu
 	xrpccallconfig Limits;if(Config)Limits=*Config;else xrpcCallConfigInit(&Limits);
 	if(Limits.Size!=sizeof(Limits) || (Limits.Timeout<0 && Limits.Timeout!=XRT_WAIT_FOREVER))
 		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call configuration");
-	xrpccall* C=xrtMalloc(sizeof(*C));if(!C)return xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call allocation failed");
+	size_t ResultBytes=Count?sizeof(xrpcbatchcallresult)+Count*sizeof(size_t):sizeof(xrpccallresult);ptr Reserved=NULL;
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(Quota){Reserved=xrpcResultQuotaAlloc(Quota,ResultBytes,Limited);if(!Reserved)return false;}
+#endif
+	xrpccall* C=xrtMalloc(sizeof(*C));if(!C){
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+		if(Reserved)xrpcResultQuotaFree(Reserved);
+#endif
+		return xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call allocation failed");}
 	*C=(xrpccall){0};xrtAtomic32Init(&C->References,2);C->Config=Limits;
 	C->Deadline=Limits.Timeout==XRT_WAIT_FOREVER?INFINITY:Limits.Timeout==0?Began:
 		nextafter(Began+(double)(Limits.Timeout/1000)+(double)(Limits.Timeout%1000)*.001,INFINITY);
-	C->Batch=Count!=0;size_t ResultBytes=Count?sizeof(xrpcbatchcallresult)+Count*sizeof(size_t):sizeof(*C->Result);
-	xfuture* Observer=NULL;C->Result=xrtMalloc(ResultBytes);
+	C->Batch=Count!=0;C->QuotaOwned=Quota!=NULL;
+	xfuture* Observer=NULL;C->Result=Reserved?Reserved:xrtMalloc(ResultBytes);
 	if(!C->Result)xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call result allocation failed");
 	if(C->Result){*C->Result=(xrpccallresult){0};
 		if(Count){xrpcbatchcallresult* B=(xrpcbatchcallresult*)C->Result;B->Count=Count;B->Indices=(size_t*)(B+1);
@@ -3207,19 +3352,33 @@ static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfutu
 	if(C->Promise)C->Cancel=xrtPromiseCancelToken(C->Promise);
 	bool Bound=C->Cancel && xrtPromiseProducerBindTakeV2(C->Promise,(xrtownershipref){C,&xrpcCallOps},&xrpcCallProducer,&xrpcCallCancellation);
 	if(!Bound){
-		xerror* Error=xrtTakeError();xrtPromiseDestroy(C->Promise);xrtFutureDestroy(Observer);xrtFree(C->Result);xrtCancelDestroy(C->Cancel);xrtFree(C);
+		xerror* Error=xrtTakeError();xrtPromiseDestroy(C->Promise);xrtFutureDestroy(Observer);
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+		if(C->QuotaOwned)xrpcResultQuotaFree(C->Result);else
+#endif
+		xrtFree(C->Result);
+		xrtCancelDestroy(C->Cancel);xrtFree(C);
 		xrtClearError();xrtSetErrorTake(Error);return false;
 	}
 	C->ContextOwned=true;*Call=C;*Future=Observer;return true;
 }
 bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began)
-{return xrpcCallConstruct(Config,Call,Future,Began,0);}
+{return xrpcCallConstruct(Config,Call,Future,Began,0,NULL,NULL);}
 bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future,double Began)
 {
 	if(!Count || Count>65536u || Count>(SIZE_MAX-sizeof(xrpcbatchcallresult))/sizeof(size_t))
 		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC batch item count");
-	return xrpcCallConstruct(Config,Call,Future,Began,Count);
+	return xrpcCallConstruct(Config,Call,Future,Began,Count,NULL,NULL);
 }
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+bool xrpcCallCreateQuota(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future,double Began,xrpcresultquota* Quota,bool* Limited)
+{
+	*Limited=false;
+	if(!Quota || Count>65536u || Count>(SIZE_MAX-sizeof(xrpcbatchcallresult))/sizeof(size_t))
+		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid quota RPC constructor");
+	return xrpcCallConstruct(Config,Call,Future,Began,Count,Quota,Limited);
+}
+#endif
 XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
 {return xrpcCallCreateEntered(Config,Call,Future,xrtTimer());}
 XRPC_API bool xrpcBatchCallCreate(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future)
@@ -3250,7 +3409,7 @@ static xrpccallfinish xrpcCallPublish(xrpccall* C,xrpccallstatus Status,xrpcresp
 		else for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}
 	*Result=(xrpccallresult){Status,Reply?XRPC_REPLIED:C->Delivery,Responses,Index,Held};
 	C->Promise=NULL;C->Result=NULL;
-	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,NULL);
+	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,C->QuotaOwned?Result:NULL);
 	if(Published)xrtPromiseDestroy(Promise);
 	else {C->Promise=Promise;C->Result=Result;xrpcResponsesRelease(Result->Responses);xrtErrorFree((xerror*)Result->Cause);*Result=(xrpccallresult){0};
 		if(C->Batch){xrpcbatchcallresult* B=(xrpcbatchcallresult*)Result;for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}}
@@ -3358,6 +3517,7 @@ struct xrpchttpclient {
     xnetaddr Remote;
     xrpchttpconfig Config;
     xrpchttpinfo Info;
+    xrpcresultquota* ResultQuota;
     xnetpost Wake;
     xpromise* ClosePromise;
     xfuture* CloseFuture;
@@ -3394,6 +3554,7 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* C)
     if(!C || xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;
     xrtNetStreamDestroy(C->Stream);xrtPromiseDestroy(C->ClosePromise);xrtFutureDestroy(C->CloseFuture);
     xrtErrorFree(C->Cause);xrtFree(C->Input);xrtFree(C->Payload);xrtFree(C->Fields);xrtFree(C->Trailers);
+    xrpcResultQuotaRelease(C->ResultQuota);
     if(C->EnginePinned)xrtNetEngineUnpin(C->Engine);
     xrtMutexUnit(&C->Gate);xrtFree(C);
 }
@@ -3545,8 +3706,8 @@ static bool xrpcHttpReply(xrpchttpclient* C)
         else{R->Completing=true;R->Status=XRPC_CALL_NOTIFY_DONE;if(C->ConnectionClose)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);}
         return xrpcHttpFinish(R,R->Status,C->Cause);
     }
-    xrpcresponsestatus S=xrpcResponsesRead((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,
-        B?(xrpcmessage*)B->Workspace:&Scratch,B?B->Count:1,&R->Response);
+    xrpcresponsestatus S=xrpcResponsesReadQuota((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,
+        B?(xrpcmessage*)B->Workspace:&Scratch,B?B->Count:1,&R->Response,C->ResultQuota);
     if(S!=XRPC_RESPONSE_DONE){
         xrpccallstatus Status=XRPC_CALL_PROTOCOL;
         if(xrtErrorKind(xrtGetError())==XERR_MEMORY)Status=XRPC_CALL_MEMORY;
@@ -3725,7 +3886,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     Config->Body.MaxBody=1024u*1024u;Config->MaxRequests=1024;Config->MaxRequestBytes=256u*1024u;
     if(Config->MaxRequestBytes>Config->Stream.WriteLimit)Config->MaxRequestBytes=Config->Stream.WriteLimit;
     Config->MaxRequestBytesTotal=8u*1024u*1024u;Config->WorkRequests=64;Config->ReadBytes=64u*1024u;Config->MaxResponseWireBytes=2u*1024u*1024u;Config->MaxInformational=8;
-    Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;return true;
+    Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;
+    Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
 }
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
@@ -3740,6 +3902,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     if(K.Size!=sizeof(K) || !K.MaxRequests || K.MaxRequests>1000000u || !K.MaxRequestBytes || K.MaxRequestBytes>K.MaxRequestBytesTotal ||
         K.MaxRequestBytes>K.Stream.WriteLimit || !K.WorkRequests || !K.ReadBytes || !K.MaxResponseWireBytes || !K.Head.MaxHead || !K.Head.MaxFields || !K.Head.MaxStartLine || !K.Head.MaxFieldLine ||
         !K.MaxBatchItems || K.MaxBatchItems>65536u || K.MaxBatchItems>D->MaxMessages || !K.MaxBatchBytesTotal ||
+        !K.MaxResultBlocks || K.MaxResultBlocks>2000000u || !K.MaxResultBytes ||
         !K.Body.MaxBody || K.Body.MaxBody>SIZE_MAX || !K.Body.MaxTrailer || !K.Body.MaxTrailers || !K.Body.MaxChunkLine || !K.Body.MaxTrailerLine || !K.MaxInformational ||
         K.Responses.Size!=sizeof(K.Responses) || !K.Responses.MaxOwnedBytes || D->Size!=sizeof(*D) || D->Mode!=XRPC_DECODE_RESPONSES ||
         !D->MaxInputBytes || !D->MaxDepth || D->MaxDepth>XJSON_DEPTH_DEFAULT || !D->MaxStringBytes || !D->MaxValues || !D->MaxContainerItems || !D->MaxMessages || D->MaxIdBytes<22u || !D->MaxMethodBytes ||
@@ -3761,7 +3924,8 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     memcpy((ptr)C->Host.Data,Host.Data,Host.Size);memcpy((ptr)C->Target.Data,Target.Data,Target.Size);
     if(!xrtMutexInit(&C->Gate)){xrtNetEngineUnpin(Engine);xrtFree(C);return false;}
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
-    if(!C->Input || !C->Fields || !C->Trailers || !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
+    if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
+        !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
     xrpcHttpRef(C);xrtMutexLock(&C->Gate);bool Posted=xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
     if(!Posted){xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
@@ -3793,8 +3957,8 @@ static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,
     R->Client=C;R->Operation=Batch?XRPC_HTTP_BATCH:Calls?XRPC_HTTP_CALL:XRPC_HTTP_NOTIFICATION;xrtAtomic32Init(&R->References,1);xfuture* F=NULL;
     xrpccallconfig CallConfig;xrpcCallConfigInit(&CallConfig);CallConfig.Timeout=Timeout;CallConfig.User=R;CallConfig.Wake=xrpcHttpCancelWake;CallConfig.Drop=xrpcHttpRequestDrop;
     xrpcHttpRequestRef(R);
-    bool Created=Batch?xrpcBatchCallCreateEntered(&CallConfig,Count,&R->Call,&F,Entered):xrpcCallCreateEntered(&CallConfig,&R->Call,&F,Entered);
-    if(!Created){xrpcHttpRequestDrop(R);goto Error;}
+    bool Limited=false;bool Created=xrpcCallCreateQuota(&CallConfig,Batch?Count:0,&R->Call,&F,Entered,C->ResultQuota,&Limited);
+    if(!Created){xrpcHttpRequestDrop(R);if(Limited){Admission=XRPC_ADMISSION_OVERLOADED;goto Refused;}goto Error;}
     if(!xrtNetPostInit(&R->CancelPost))goto Error;
     xrpcoutgoing Single={0};xrpcoutgoing* Messages=&Single;
     if(Batch){
@@ -3862,7 +4026,8 @@ XRPC_API bool xrpcHttpInfo(xrpchttpclient* C,xrpchttpinfo* Info)
 {
     if(!C || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) ||
         xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Info,sizeof(*Info)))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP info output");
-    xrtMutexLock(&C->Gate);*Info=C->Info;xrtMutexUnlock(&C->Gate);return true;
+    xrtMutexLock(&C->Gate);*Info=C->Info;xrtMutexUnlock(&C->Gate);
+    xrpcResultQuotaInfo(C->ResultQuota,&Info->ResultBlocks,&Info->ResultBytes,&Info->ResultRejected);return true;
 }
 XRPC_API bool xrpcHttpClose(xrpchttpclient* C)
 {

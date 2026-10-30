@@ -112,6 +112,9 @@
 #ifndef XRT_MODULE_HTTP_HOST
 #define XRT_MODULE_HTTP_HOST
 #endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
 #endif
 
 /* xrpc_call 及其直接依赖。 */
@@ -140,19 +143,6 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_PENDING
 #define XRPC_MODULE_XRPC_PENDING
-#endif
-#endif
-
-/* xrpc_response 及其直接依赖。 */
-#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
-#ifndef XRPC_FEATURE_XRPC_RESPONSE
-#define XRPC_FEATURE_XRPC_RESPONSE
-#endif
-#ifndef XRPC_MODULE_XRPC_DECODE
-#define XRPC_MODULE_XRPC_DECODE
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -218,6 +208,35 @@
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
+#endif
+#endif
+
+/* xrpc_result_quota 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#ifndef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#define XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 

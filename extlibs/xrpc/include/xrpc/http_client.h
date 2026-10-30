@@ -6,7 +6,7 @@
 #include <xrt/http1.h>
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT) && \
     (!defined(XRPC_FEATURE_XRPC_CALL) || !defined(XRPC_FEATURE_XRPC_ENCODE) || !defined(XRPC_FEATURE_XRPC_ID) || \
-     !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
+     !defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
 #error "xrpc HTTP client requires call, encode, TCP and HTTP/1 body"
 #endif
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
@@ -31,13 +31,16 @@ typedef struct xrpchttpconfig {
     size_t MaxRequests, MaxRequestBytes, MaxRequestBytesTotal;
     size_t WorkRequests, ReadBytes, MaxResponseWireBytes;
     size_t MaxBatchItems, MaxBatchBytesTotal;
+    size_t MaxResultBlocks, MaxResultBytes;
     uint32 MaxInformational;
 } xrpchttpconfig;
 typedef struct xrpchttpinfo {
     size_t Size;
     xrpchttpstate State;
     size_t Requests, RequestBytes, BatchBytes;
+    size_t ResultBlocks, ResultBytes;
     uint64 Accepted, Rejected, Completed;
+    uint64 ResultRejected; /* Refused header/snapshot credit reservations. */
     xrpccallstatus CloseStatus;
 } xrpchttpinfo;
 typedef struct xrpchttpitem {
@@ -68,7 +71,12 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* Client);
  * never replayed. A validated matched reply is REPLIED; non-2xx HTTP status is
  * not itself an RPC error when its complete body is a valid matching response.
  * No business callbacks are installed; Future Watches execute on the worker
- * and must not block. Results do not retain this client/engine. */
+ * and must not block. Results do not retain this client/engine.
+ * MaxResultBlocks/Bytes include pending/retained typed result headers/maps and
+ * response snapshots, each allocation charged once including its private prefix.
+ * Header credit is required at admission; later snapshot exhaustion yields
+ * LIMIT and retires the connection without replay. Independent ResponsesRetain
+ * still holds snapshot credit after the Future is destroyed. */
 XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* Client,
     xstrview Method, xstrview Params, int64 Timeout, xfuture** Future);
 /* No RPC id or reply. Empty 2xx HTTP completion yields NOTIFY_DONE with
@@ -84,10 +92,14 @@ XRPC_API xrpcadmission xrpcHttpNotifyAsync(xrpchttpclient* Client,
  * Notifications map to SIZE_MAX. All-notification batches use NOTIFY_DONE.
  * Bad/missing/duplicate/notification/unknown IDs publish no partial replies.
  * MaxBatchItems and aggregate in-flight BatchBytes bound metadata, separately
- * from encoded-wire limits. Retained completed result maps/snapshots remain
- * caller-owned and do not keep client/engine refs. Outputs/inputs cannot overlap. */
+ * from encoded-wire limits. Retained maps/snapshots are charged to result quotas
+ * and do not keep client/engine refs. Outputs/inputs cannot overlap. */
 XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
     const xrpchttpitem* Items, size_t Count, int64 Timeout, xfuture** Future);
+/* Request and result-ledger counters are separate instants, not one joint atomic
+ * snapshot. Result counters include reserved blocks during allocation. Native
+ * Future/context/error metadata, allocator overhead and receive staging are
+ * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
 /* Independent observer; resolves after request duties and stream retire. The

@@ -103,6 +103,13 @@
         "source_roots": [
           "http_server"
         ]
+      },
+      {
+        "name": "result_quota",
+        "state": "retained",
+        "source_roots": [
+          "result_quota"
+        ]
       }
     ]
   },
@@ -125,6 +132,30 @@
   ],
   "umbrella_header": "xrpc.h",
   "modules": [
+    {
+      "name": "xrpc_result_quota",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_RESULT_QUOTA",
+      "depends": [
+        "mutex",
+        "atomic",
+        "xrpc_response"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/result_quota/result_quota.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_result_quota.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/http_client_results.md"
+      ]
+    },
     {
       "name": "xrpc",
       "state": "developing",
@@ -409,7 +440,9 @@
       "public_headers": [
         "extlibs/xrpc/include/xrpc/response.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_result_quota.h"
+      ],
       "sources": [
         "extlibs/xrpc/src/response/response.c"
       ],
@@ -565,7 +598,8 @@
         "xrpc_id",
         "net_tcp",
         "http1_body",
-        "http_host"
+        "http_host",
+        "xrpc_result_quota"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc/http_client.h"
@@ -582,7 +616,8 @@
       ],
       "examples": [
         "extlibs/xrpc/examples/http_client/main.c",
-        "extlibs/xrpc/examples/http_batch/main.c"
+        "extlibs/xrpc/examples/http_batch/main.c",
+        "extlibs/xrpc/examples/http_result_quota/main.c"
       ],
       "benchmarks": [
         "extlibs/xrpc/bench/bench_http_client.c"
@@ -591,7 +626,8 @@
         "extlibs/xrpc/README.md",
         "extlibs/xrpc/docs/api/reference.md",
         "extlibs/xrpc/docs/coverage.md",
-        "extlibs/xrpc/docs/http_client.md"
+        "extlibs/xrpc/docs/http_client.md",
+        "extlibs/xrpc/docs/http_client_results.md"
       ]
     },
     {

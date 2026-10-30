@@ -208,3 +208,9 @@ The runnable [server example](examples/http_server/main.c) accepts optional
 For example, `examples_http_server_main 8080 60000` serves `/rpc` for one minute.
 Only numeric plain TCP and synchronous executor handlers are delivered here;
 TLS/authentication/deferred handlers and full product acceptance remain pending.
+
+
+HTTP client pending and retained result headers/maps/snapshots share configurable
+block/byte quotas. Independent response refs retain their own credits and do not
+pin the client/engine. See [result ownership/quota](docs/http_client_results.md)
+and the runnable [quota example](examples/http_result_quota/main.c).

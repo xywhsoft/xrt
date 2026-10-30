@@ -1,6 +1,10 @@
 #ifndef XRPC_RESPONSE_H
 #define XRPC_RESPONSE_H
 #include <xrpc/decode.h>
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) && \
+	(!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRT_FEATURE_ATOMIC) || !defined(XRT_FEATURE_MUTEX))
+#error "XRPC result quota requires response, atomic and mutex"
+#endif
 #if defined(XRPC_FEATURE_XRPC_RESPONSE) && \
 	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRT_FEATURE_ATOMIC))
 #error "XRPC_FEATURE_XRPC_RESPONSE requires decode and atomic"

@@ -14,14 +14,18 @@ struct xrpccall {
 	xcancel* Cancel;
 	xrpccallresult* Result;
 	xrpcdelivery Delivery;
-	bool ContextOwned, Destroying, Batch;
+	bool ContextOwned, Destroying, Batch, QuotaOwned;
 };
 static bool xrpcCallReport(xerrkind Kind,xrpccallerror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
 static void xrpcCallResultDrop(ptr Value,ptr User)
 {
 	(void)User;xrpccallresult* R=Value;
-	xrpcResponsesRelease(R->Responses);xrtErrorFree((xerror*)R->Cause);xrtFree(R);
+	xrpcResponsesRelease(R->Responses);xrtErrorFree((xerror*)R->Cause);
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(User){xrpcResultQuotaFree(R);return;}
+#endif
+	xrtFree(R);
 }
 static void xrpcCallUnref(xrpccall* C)
 {
@@ -56,8 +60,9 @@ XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config)
 	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call config output");
 	*Config=(xrpccallconfig){sizeof(*Config),5000,NULL,NULL,NULL};return true;
 }
-static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began,size_t Count)
+static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began,size_t Count,xrpcresultquota* Quota,bool* Limited)
 {
+	(void)Quota;(void)Limited;
 	if(!Call || !Future || !xrtMemRangeValid(Call,sizeof(*Call)) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
 		xrtMemRangesOverlap(Call,sizeof(*Call),Future,sizeof(*Future)) || (Config &&
 		(!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Call,sizeof(*Call),Config,sizeof(*Config)) ||
@@ -66,12 +71,20 @@ static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfutu
 	xrpccallconfig Limits;if(Config)Limits=*Config;else xrpcCallConfigInit(&Limits);
 	if(Limits.Size!=sizeof(Limits) || (Limits.Timeout<0 && Limits.Timeout!=XRT_WAIT_FOREVER))
 		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call configuration");
-	xrpccall* C=xrtMalloc(sizeof(*C));if(!C)return xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call allocation failed");
+	size_t ResultBytes=Count?sizeof(xrpcbatchcallresult)+Count*sizeof(size_t):sizeof(xrpccallresult);ptr Reserved=NULL;
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+	if(Quota){Reserved=xrpcResultQuotaAlloc(Quota,ResultBytes,Limited);if(!Reserved)return false;}
+#endif
+	xrpccall* C=xrtMalloc(sizeof(*C));if(!C){
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+		if(Reserved)xrpcResultQuotaFree(Reserved);
+#endif
+		return xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call allocation failed");}
 	*C=(xrpccall){0};xrtAtomic32Init(&C->References,2);C->Config=Limits;
 	C->Deadline=Limits.Timeout==XRT_WAIT_FOREVER?INFINITY:Limits.Timeout==0?Began:
 		nextafter(Began+(double)(Limits.Timeout/1000)+(double)(Limits.Timeout%1000)*.001,INFINITY);
-	C->Batch=Count!=0;size_t ResultBytes=Count?sizeof(xrpcbatchcallresult)+Count*sizeof(size_t):sizeof(*C->Result);
-	xfuture* Observer=NULL;C->Result=xrtMalloc(ResultBytes);
+	C->Batch=Count!=0;C->QuotaOwned=Quota!=NULL;
+	xfuture* Observer=NULL;C->Result=Reserved?Reserved:xrtMalloc(ResultBytes);
 	if(!C->Result)xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call result allocation failed");
 	if(C->Result){*C->Result=(xrpccallresult){0};
 		if(Count){xrpcbatchcallresult* B=(xrpcbatchcallresult*)C->Result;B->Count=Count;B->Indices=(size_t*)(B+1);
@@ -80,19 +93,33 @@ static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfutu
 	if(C->Promise)C->Cancel=xrtPromiseCancelToken(C->Promise);
 	bool Bound=C->Cancel && xrtPromiseProducerBindTakeV2(C->Promise,(xrtownershipref){C,&xrpcCallOps},&xrpcCallProducer,&xrpcCallCancellation);
 	if(!Bound){
-		xerror* Error=xrtTakeError();xrtPromiseDestroy(C->Promise);xrtFutureDestroy(Observer);xrtFree(C->Result);xrtCancelDestroy(C->Cancel);xrtFree(C);
+		xerror* Error=xrtTakeError();xrtPromiseDestroy(C->Promise);xrtFutureDestroy(Observer);
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+		if(C->QuotaOwned)xrpcResultQuotaFree(C->Result);else
+#endif
+		xrtFree(C->Result);
+		xrtCancelDestroy(C->Cancel);xrtFree(C);
 		xrtClearError();xrtSetErrorTake(Error);return false;
 	}
 	C->ContextOwned=true;*Call=C;*Future=Observer;return true;
 }
 bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began)
-{return xrpcCallConstruct(Config,Call,Future,Began,0);}
+{return xrpcCallConstruct(Config,Call,Future,Began,0,NULL,NULL);}
 bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future,double Began)
 {
 	if(!Count || Count>65536u || Count>(SIZE_MAX-sizeof(xrpcbatchcallresult))/sizeof(size_t))
 		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC batch item count");
-	return xrpcCallConstruct(Config,Call,Future,Began,Count);
+	return xrpcCallConstruct(Config,Call,Future,Began,Count,NULL,NULL);
 }
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+bool xrpcCallCreateQuota(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future,double Began,xrpcresultquota* Quota,bool* Limited)
+{
+	*Limited=false;
+	if(!Quota || Count>65536u || Count>(SIZE_MAX-sizeof(xrpcbatchcallresult))/sizeof(size_t))
+		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid quota RPC constructor");
+	return xrpcCallConstruct(Config,Call,Future,Began,Count,Quota,Limited);
+}
+#endif
 XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
 {return xrpcCallCreateEntered(Config,Call,Future,xrtTimer());}
 XRPC_API bool xrpcBatchCallCreate(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future)
@@ -123,7 +150,7 @@ static xrpccallfinish xrpcCallPublish(xrpccall* C,xrpccallstatus Status,xrpcresp
 		else for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}
 	*Result=(xrpccallresult){Status,Reply?XRPC_REPLIED:C->Delivery,Responses,Index,Held};
 	C->Promise=NULL;C->Result=NULL;
-	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,NULL);
+	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,C->QuotaOwned?Result:NULL);
 	if(Published)xrtPromiseDestroy(Promise);
 	else {C->Promise=Promise;C->Result=Result;xrpcResponsesRelease(Result->Responses);xrtErrorFree((xerror*)Result->Cause);*Result=(xrpccallresult){0};
 		if(C->Batch){xrpcbatchcallresult* B=(xrpcbatchcallresult*)Result;for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}}

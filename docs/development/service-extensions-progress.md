@@ -3509,3 +3509,164 @@ worker faults/OOM and at least 72-hour native Windows/Linux mixed/fault runs rem
 unaccepted. Redis HA/tracking/dedicated modes, MQTT 5.0/3.1.1 client/session/store,
 and Cron IANA/scheduler/durable recovery remain under the original active goal.
 This feature commit completes neither xrpc nor the four-product production goal.
+
+
+## 2026-10-30 — aggregate retained HTTP client result quotas (local feature complete)
+
+Previously, HTTP request count/wire/batch limits ended with request retirement,
+while caller-held typed Futures/maps and independently retained response snapshots
+could continue growing. The client now owns a separate result-storage ledger;
+`MaxResultBlocks` and `MaxResultBytes` cover pending and retained allocations.
+Defaults are 4096 blocks/8 MiB. A typed result header with its entire batch map is
+one block; a response snapshot is another. Ordinary/batch replies normally hold
+two blocks; notifications and local terminal outcomes hold one. Additional strong
+references do not charge the same allocation again. Public config/info structures
+expanded (rebuild consumers with matching headers/libraries); layouts remain
+independent of feature selection, not a promise of mixed-version ABI stability.
+
+Header credit is required during construction/admission. Exhaustion returns
+OVERLOADED without publishing a Future. Snapshot size becomes known after complete
+document validation; later snapshot credit failure becomes LIMIT and retires the
+connection without replay or partial batch publication. ResultRejected counts
+refused header/snapshot reservations; Rejected retains admission-refusal meaning.
+Info request/result snapshots are separate instants. Cancellation, observer drop
+and Close cannot fabricate early credit while actual producers/readers still own
+storage. A separately retained response keeps its own block after its Future/map
+is gone, and remains valid after full client/engine destruction.
+
+The product-private `xrpc_result_quota` module uses public Core memory/mutex/atomic
+APIs. There is no new shared runtime or Core change. Each charged block's aligned
+prefix holds its actual byte charge and one real ledger reference, replacing
+its ordinary allocation rather than adding another allocation per result. A
+mutex protects bounded counters; malloc/free happen outside it. Physical free
+precedes refund. One ledger allocation is added per client; it keeps no client,
+engine, worker or stream reference. Last block release can occur on any thread.
+Future ownership still refuses opaque native graphs. Product code must stay
+loaded until all destructor calls finish.
+
+Raw standalone response/native-call selections do not pull the optional quota
+locking module. Their allocation layouts and payload-copy rules remain intact;
+HTTP charged storage adds prefix/bookkeeping. Quota bytes include headers/maps,
+snapshot descriptors/raw-ID views/wire and private prefixes. Per-snapshot
+ResponsesInfo.OwnedBytes excludes that transport prefix. Allocator metadata/
+rounding/caches, diagnostic/Future/native request metadata, receive staging,
+socket buffers and thread stacks are separate; this is not an RSS ceiling.
+HTTP submission still allocates request bookkeeping before result credit, so
+whole-API overload is not claimed zero-allocation. Exact-ledger refusal itself
+performs no malloc. No bridge/end-to-end zero-overhead claim follows.
+
+Validation passed 12 modular plus 12 direct single-header binaries on each of
+Windows native GCC O2/Werror and WSL O2 ASan/UBSan (48 binaries), 14 runnable
+examples each, and positive/negative trim checks. Existing call/response/server/
+HTTP protocol/lifetime checks remain included. New coverage verifies pending
+headers, retained Futures/maps/snapshots, unchanged output/ambient error on credit
+refusal, count/byte bounds, returned-credit reuse, all-notification maps, later
+snapshot LIMIT/connection retirement, independent snapshot after full engine
+cleanup, constructor-budget lifetime returning to zero after last snapshot,
+four parallel final-release threads, direct snapshot OOM/refund/reuse, and the
+existing 4096 call/batch constructor allocation sweeps.
+
+Trim initially identified missing dependency diagnostics for the optional helper;
+public response-header guards now reject missing response/atomic/mutex support.
+Both runtime/single/example suites and trim were rerun after that header change.
+A required helper size profile was added after runtime tests; the exact metadata
+refresh records that no compiler source/header/manifest/definitions changed.
+Memory-peak metric directions were corrected before any performance execution;
+counts, arguments, compiler flags and noise/regression gates were unchanged.
+All metadata-only refreshes are preserved separately in the phase receipts.
+
+Both platforms passed complete xrpc and minimal HTTP-client static/shared package
+consumers, including actual quota refusal/release/reuse traffic in the minimal
+consumer, declaration compilation, layouts, and all three size kinds for HTTP
+client and quota helper. Actual Core backend probes report IOCP/epoll. Qualified
+WSL O1 TSan passed the complete HTTP-client suite with no runtime race report;
+GCC's atomic_thread_fence modeling warning stays in the log. Twenty-one extension
+layout/single/header-coverage tool tests passed. Independent Python HTTP/JSON
+peers completed 405 exchanges per platform, including eight persistent concurrent
+connections and truncated-body EOF; this is not independent JSON-RPC-library parity.
+
+Normal maturity reports 21 modules, 14 implementation nodes (13 C files), all 14
+covered by tests/single/docs, 31 workloads and 13 size profiles. Public reference
+has 72 functions, 150 constants/macros and 71 types. Strict release still fails
+only because xrpc is developing, as required by the full outstanding scope.
+
+x64 requested structure sizes: HTTP client Windows 888/WSL 960; ledger 72/144;
+both request 176, aligned prefix 32, native call 88, snapshot header 40, public
+config 320 and info 96 bytes. Platform mutex storage explains the ledger/client
+difference. Typed ordinary result storage adds a 32-byte prefix to its existing
+32-byte public header; batch headers additionally include all indices. An
+independent response charges its own prefix until its last strong ref leaves.
+
+| Platform | Profile | Kind | Text | Data | BSS | Logical file bytes |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| windows | xrpc_http_client | single | 598064 | 2672 | 11136 | 866429 |
+| windows | xrpc_http_client | static | 46892 | 0 | 0 | 73924 |
+| windows | xrpc_http_client | shared | 88316 | 224 | 2848 | 146838 |
+| windows | xrpc_result_quota | single | 230052 | 2664 | 11040 | 350943 |
+| windows | xrpc_result_quota | static | 10060 | 0 | 0 | 16534 |
+| windows | xrpc_result_quota | shared | 19451 | 144 | 272 | 55243 |
+| wsl | xrpc_http_client | single | 619653 | 5664 | 10940 | 1097520 |
+| wsl | xrpc_http_client | static | 47765 | 128 | 0 | 96392 |
+| wsl | xrpc_http_client | shared | 58627 | 1472 | 8 | 80768 |
+| wsl | xrpc_result_quota | single | 240426 | 3280 | 10924 | 426264 |
+| wsl | xrpc_result_quota | static | 10428 | 0 | 0 | 22492 |
+| wsl | xrpc_result_quota | shared | 14065 | 744 | 8 | 25536 |
+
+Single includes its Core closure. Static/shared rows are the extension artifact,
+with Core supplied separately. The quota helper includes its actual response/
+mutex/atomic dependency closure, not a fictional bare allocator footprint.
+All rows are unstripped GCC O2, not a pinned equivalent-C performance comparison.
+
+Performance ran one warmup plus five measured runs per workload. Real HTTP
+ordinary/notification/batch16 used unchanged 2000 planned arrivals at 2000 documents/s,
+a persistent production client/server connection in one host engine, and separate
+execution workers. Each platform accepted/completed all 2000 offers per measured
+run with no failed/rejected operations and all latency samples retained.
+
+| Platform | Workload | Completed documents/s | All-offer P99 us | Offer-lateness P99 us |
+| --- | --- | ---: | ---: | ---: |
+| windows | ordinary | 1945.983 | 30896.800 | 15354.700 |
+| windows | notification | 1962.732 | 30809.000 | 15335.100 |
+| windows | batch16 | 1964.268 | 28406.400 | 14871.200 |
+| wsl | ordinary | 1997.936 | 2210.460 | 1065.449 |
+| wsl | notification | 1997.854 | 2204.461 | 1069.869 |
+| wsl | batch16 | 1998.216 | 2263.593 | 1068.394 |
+
+The dedicated private-ledger microbenchmark retains 64 256-byte payload blocks
+and alternates exact-limit refusal with actual free/reallocation. Every measured
+run offered 2000000 attempts, accepted 1000000, refused 1000000, peaked at 64 blocks/
+18432 requested bytes and returned to zero blocks/bytes. Initial fill/last cleanup
+and ledger creation/destruction are outside its timed loop; the loop includes
+successful free/allocation and all refusals. It measures a warmed single-thread
+ledger, not full HTTP admission, a contended workload, cold paths or RPC capacity.
+Windows median successful allocations/s: 14218380.094; WSL: 13269111.365.
+
+Windows passed unchanged 3% relative-MAD/6% central-range noise checks (runner 0).
+WSL's ledger allocation rate failed both checks: 4.0% relative MAD and 6.8% central
+range (runner 1); its three network workload checks passed. The rejected quality
+result is retained without retrying to select favorable samples or relaxing any
+gate. No baseline was pinned. HTTP observations include scheduled-offer lateness,
+queueing and Future polling; Windows timer contributions remain substantial.
+Fixed-arrival results are neither saturation capacity nor isolated server latency.
+Native pinned Linux, representative loads/comparators, allocator/CPU/copy accounting,
+contended/cold retained-pressure runs and final P4 remain pending.
+Source fingerprint: `36a0272ec14cf219168d0be840364078b3b85fdae2005f2f957aa8f94402ae54`.
+Workload fingerprint: `c860d2d4755608058a3021b4656d341ad286df3f9e4e5bf9a621bad4873d9083`.
+
+Seventy SHA-bound shared predecessor artifacts were archived before overwrites at
+`out/service-extensions/xrpc-http-server/before-client-quota/`. To free the nearly
+full C drive, that immutable archive was moved to the task cache
+`D:/CodexArtifacts/xrt-service-extensions/cee15759-before-client-quota` and a junction
+preserves the original path; all seventy hashes were reverified through it. No
+primary-checkout work or predecessor evidence was deleted. Current receipts at
+`out/service-extensions/xrpc-http-client-quota/validation.json` bind 48 test binaries,
+37 additional artifacts, actual backends, layouts/sizes/TSan/interop and raw 5+1
+samples. The committed rerun binds clean HEAD/tree and exact current source inputs.
+
+Next xrpc work remains DNS/TLS/authentication and richer HTTP metadata/recovery/
+pooling, WebSocket/framed stdio, bidirectional calls, negotiated extensions and
+deferred business handlers. Broad worker faults and at least 72-hour native
+Windows/Linux mixed/fault runs remain unaccepted. Redis HA/tracking/dedicated
+modes, MQTT 5.0/3.1.1 client/session/persistence and Cron IANA/scheduler/durable
+recovery remain active under the original four-product goal. This storage feature
+completes neither xrpc nor the whole production objective.

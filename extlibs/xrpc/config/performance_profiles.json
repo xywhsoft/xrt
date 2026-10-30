@@ -1436,6 +1436,61 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_result_quota",
+      "system": "result_quota",
+      "description": "Private charged-storage ledger microbenchmark, exact-limit refusal and physical credit return; no Future/network capacity claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_result_quota",
+          "source": "extlibs/xrpc/bench/bench_result_quota.c",
+          "suite": "xrpc_result_quota,time",
+          "args": [
+            "2000000"
+          ],
+          "smoke_args": [
+            "1000"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "attempts"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "attempts"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "attempts"
+            },
+            "peak_blocks": {
+              "direction": "lower",
+              "unit": "blocks"
+            },
+            "peak_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "final_blocks": {
+              "direction": "lower",
+              "unit": "blocks"
+            },
+            "final_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "allocations_per_sec": {
+              "direction": "higher",
+              "unit": "allocations/s"
+            }
+          },
+          "facts": [
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }

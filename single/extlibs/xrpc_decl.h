@@ -66,6 +66,9 @@
 #if !defined(XRPC_FEATURE_XRPC_RESPONSE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_RESPONSE 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_RESULT_QUOTA)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_RESULT_QUOTA 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_SERVER 1
 #endif
@@ -107,6 +110,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_RESPONSE)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESPONSE 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESULT_QUOTA 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_SERVER 1
@@ -1316,6 +1322,9 @@
 #endif
 #if !defined(XRT_MODULE_JSON_READ)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ 1
+#endif
+#if !defined(XRT_MODULE_MUTEX)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_MUTEX 1
 #endif
 #if !defined(XRT_MODULE_NET_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
@@ -2629,6 +2638,9 @@
 #ifndef XRT_MODULE_HTTP_HOST
 #define XRT_MODULE_HTTP_HOST
 #endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
 #endif
 
 /* xrpc_call 及其直接依赖。 */
@@ -2657,19 +2669,6 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_PENDING
 #define XRPC_MODULE_XRPC_PENDING
-#endif
-#endif
-
-/* xrpc_response 及其直接依赖。 */
-#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
-#ifndef XRPC_FEATURE_XRPC_RESPONSE
-#define XRPC_FEATURE_XRPC_RESPONSE
-#endif
-#ifndef XRPC_MODULE_XRPC_DECODE
-#define XRPC_MODULE_XRPC_DECODE
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -2735,6 +2734,35 @@
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
+#endif
+#endif
+
+/* xrpc_result_quota 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#ifndef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#define XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -2907,6 +2935,77 @@ XRPC_API bool xrpcDecodeConfigInit(xrpcdecodeconfig* Config);
 XRPC_API xrpcdecodestatus xrpcDecode(xstrview Input, const xrpcdecodeconfig* Config,
 	xrpcmessage* Messages, size_t Capacity, xrpcdocument* Document);
 
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/response.h */
+/* ========================================================================== */
+
+#ifndef XRPC_RESPONSE_H
+#define XRPC_RESPONSE_H
+#if defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) && \
+	(!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRT_FEATURE_ATOMIC) || !defined(XRT_FEATURE_MUTEX))
+#error "XRPC result quota requires response, atomic and mutex"
+#endif
+#if defined(XRPC_FEATURE_XRPC_RESPONSE) && \
+	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRT_FEATURE_ATOMIC))
+#error "XRPC_FEATURE_XRPC_RESPONSE requires decode and atomic"
+#endif
+#if defined(XRPC_FEATURE_XRPC_RESPONSE)
+typedef struct xrpcresponses xrpcresponses;
+typedef struct xrpcresponseconfig {
+	size_t Size, MaxOwnedBytes;
+	xrpcdecodeconfig Decode;
+} xrpcresponseconfig;
+typedef struct xrpcresponseinfo {
+	size_t Size, Count, OwnedBytes;
+	bool Batch;
+	xstrview Wire;
+	const xrpcmessage* Messages;
+	const xstrview* Ids;
+} xrpcresponseinfo;
+typedef enum xrpcresponsestatus {
+	XRPC_RESPONSE_LOCAL_ERROR = -1, XRPC_RESPONSE_PARSE_ERROR = 0,
+	XRPC_RESPONSE_INVALID, XRPC_RESPONSE_DONE
+} xrpcresponsestatus;
+typedef enum xrpcresponseerror {
+	XRPC_RESPONSE_ARGUMENT = 6001, XRPC_RESPONSE_LIMIT,
+	XRPC_RESPONSE_MEMORY, XRPC_RESPONSE_ENVELOPE
+} xrpcresponseerror;
+XRT_EXTERN_C_BEGIN
+/* Defaults: response-mode decoder limits, 2 MiB requested owned-byte ceiling. */
+XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config);
+/* Validate the COMPLETE document and require every item to be a result/error,
+ * then allocate one immutable snapshot. No partial valid subset is published.
+ * PARSE_ERROR is malformed JSON, INVALID is a valid JSON invalid response
+ * envelope (including requests/notifications/scalars/empty batch). Diagnostic
+ * OOM/resource/API/allocation failure is LOCAL_ERROR. No wire error generated.
+ * Result stays unchanged on all failures; decoder Scratch is unspecified until
+ * DONE. Config is copied; Decode.Mode must be RESPONSES. Scratch capacity >0.
+ * Input/config/scratch/result must have valid nonoverlapping spans as in Decode.
+ * One allocation holds header, actual-count descriptors, contiguous raw-ID views
+ * and one complete input copy; all views rebase to that copy without reparsing.
+ * MaxOwnedBytes counts requested bytes, excluding allocator headers/caches.
+ * Input/scratch/config stay alive throughout; the caller must not change them
+ * concurrently (the decoder itself writes scratch).
+ * No input/user pointer, callbacks, locks, queues or threads are retained/added.
+ * Success preserves ambient error; cold diagnostics may allocate. */
+XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input, const xrpcresponseconfig* Config,
+	xrpcmessage* Scratch, size_t Capacity, xrpcresponses** Result);
+/* Strong refs permit concurrent immutable readers; one owner must safely
+ * publish the initial reference. Retain needs an already-live strong ref and
+ * fails on overflow. Final release follows physical reader completion. NULL
+ * release OK. Metadata/views remain borrowed until the holding ref is released;
+ * never mutate them, including by casting away const. No DOM/string unescaping,
+ * narrowing or per-item allocation. Ids duplicates existing descriptor views
+ * for bounded batch correlation without strided aliasing or another ID scan. */
+XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses);
+XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses);
+/* Info.Size must match; output cannot overlap owned storage. */
+XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses, xrpcresponseinfo* Info);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3354,73 +3453,6 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
-/* public: extlibs/xrpc/include/xrpc/response.h */
-/* ========================================================================== */
-
-#ifndef XRPC_RESPONSE_H
-#define XRPC_RESPONSE_H
-#if defined(XRPC_FEATURE_XRPC_RESPONSE) && \
-	(!defined(XRPC_FEATURE_XRPC_DECODE) || !defined(XRT_FEATURE_ATOMIC))
-#error "XRPC_FEATURE_XRPC_RESPONSE requires decode and atomic"
-#endif
-#if defined(XRPC_FEATURE_XRPC_RESPONSE)
-typedef struct xrpcresponses xrpcresponses;
-typedef struct xrpcresponseconfig {
-	size_t Size, MaxOwnedBytes;
-	xrpcdecodeconfig Decode;
-} xrpcresponseconfig;
-typedef struct xrpcresponseinfo {
-	size_t Size, Count, OwnedBytes;
-	bool Batch;
-	xstrview Wire;
-	const xrpcmessage* Messages;
-	const xstrview* Ids;
-} xrpcresponseinfo;
-typedef enum xrpcresponsestatus {
-	XRPC_RESPONSE_LOCAL_ERROR = -1, XRPC_RESPONSE_PARSE_ERROR = 0,
-	XRPC_RESPONSE_INVALID, XRPC_RESPONSE_DONE
-} xrpcresponsestatus;
-typedef enum xrpcresponseerror {
-	XRPC_RESPONSE_ARGUMENT = 6001, XRPC_RESPONSE_LIMIT,
-	XRPC_RESPONSE_MEMORY, XRPC_RESPONSE_ENVELOPE
-} xrpcresponseerror;
-XRT_EXTERN_C_BEGIN
-/* Defaults: response-mode decoder limits, 2 MiB requested owned-byte ceiling. */
-XRPC_API bool xrpcResponseConfigInit(xrpcresponseconfig* Config);
-/* Validate the COMPLETE document and require every item to be a result/error,
- * then allocate one immutable snapshot. No partial valid subset is published.
- * PARSE_ERROR is malformed JSON, INVALID is a valid JSON invalid response
- * envelope (including requests/notifications/scalars/empty batch). Diagnostic
- * OOM/resource/API/allocation failure is LOCAL_ERROR. No wire error generated.
- * Result stays unchanged on all failures; decoder Scratch is unspecified until
- * DONE. Config is copied; Decode.Mode must be RESPONSES. Scratch capacity >0.
- * Input/config/scratch/result must have valid nonoverlapping spans as in Decode.
- * One allocation holds header, actual-count descriptors, contiguous raw-ID views
- * and one complete input copy; all views rebase to that copy without reparsing.
- * MaxOwnedBytes counts requested bytes, excluding allocator headers/caches.
- * Input/scratch/config stay alive throughout; the caller must not change them
- * concurrently (the decoder itself writes scratch).
- * No input/user pointer, callbacks, locks, queues or threads are retained/added.
- * Success preserves ambient error; cold diagnostics may allocate. */
-XRPC_API xrpcresponsestatus xrpcResponsesRead(xstrview Input, const xrpcresponseconfig* Config,
-	xrpcmessage* Scratch, size_t Capacity, xrpcresponses** Result);
-/* Strong refs permit concurrent immutable readers; one owner must safely
- * publish the initial reference. Retain needs an already-live strong ref and
- * fails on overflow. Final release follows physical reader completion. NULL
- * release OK. Metadata/views remain borrowed until the holding ref is released;
- * never mutate them, including by casting away const. No DOM/string unescaping,
- * narrowing or per-item allocation. Ids duplicates existing descriptor views
- * for bounded batch correlation without strided aliasing or another ID scan. */
-XRPC_API bool xrpcResponsesRetain(xrpcresponses* Responses);
-XRPC_API void xrpcResponsesRelease(xrpcresponses* Responses);
-/* Info.Size must match; output cannot overlap owned storage. */
-XRPC_API bool xrpcResponsesInfo(const xrpcresponses* Responses, xrpcresponseinfo* Info);
-XRT_EXTERN_C_END
-#endif
-#endif
-
-
-/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc/receive.h */
 /* ========================================================================== */
 
@@ -3613,7 +3645,7 @@ XRT_EXTERN_C_END
 #define XRPC_HTTP_CLIENT_H
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT) && \
     (!defined(XRPC_FEATURE_XRPC_CALL) || !defined(XRPC_FEATURE_XRPC_ENCODE) || !defined(XRPC_FEATURE_XRPC_ID) || \
-     !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
+     !defined(XRPC_FEATURE_XRPC_RESULT_QUOTA) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || !defined(XRT_FEATURE_HTTP_HOST))
 #error "xrpc HTTP client requires call, encode, TCP and HTTP/1 body"
 #endif
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
@@ -3638,13 +3670,16 @@ typedef struct xrpchttpconfig {
     size_t MaxRequests, MaxRequestBytes, MaxRequestBytesTotal;
     size_t WorkRequests, ReadBytes, MaxResponseWireBytes;
     size_t MaxBatchItems, MaxBatchBytesTotal;
+    size_t MaxResultBlocks, MaxResultBytes;
     uint32 MaxInformational;
 } xrpchttpconfig;
 typedef struct xrpchttpinfo {
     size_t Size;
     xrpchttpstate State;
     size_t Requests, RequestBytes, BatchBytes;
+    size_t ResultBlocks, ResultBytes;
     uint64 Accepted, Rejected, Completed;
+    uint64 ResultRejected; /* Refused header/snapshot credit reservations. */
     xrpccallstatus CloseStatus;
 } xrpchttpinfo;
 typedef struct xrpchttpitem {
@@ -3675,7 +3710,12 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* Client);
  * never replayed. A validated matched reply is REPLIED; non-2xx HTTP status is
  * not itself an RPC error when its complete body is a valid matching response.
  * No business callbacks are installed; Future Watches execute on the worker
- * and must not block. Results do not retain this client/engine. */
+ * and must not block. Results do not retain this client/engine.
+ * MaxResultBlocks/Bytes include pending/retained typed result headers/maps and
+ * response snapshots, each allocation charged once including its private prefix.
+ * Header credit is required at admission; later snapshot exhaustion yields
+ * LIMIT and retires the connection without replay. Independent ResponsesRetain
+ * still holds snapshot credit after the Future is destroyed. */
 XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* Client,
     xstrview Method, xstrview Params, int64 Timeout, xfuture** Future);
 /* No RPC id or reply. Empty 2xx HTTP completion yields NOTIFY_DONE with
@@ -3691,10 +3731,14 @@ XRPC_API xrpcadmission xrpcHttpNotifyAsync(xrpchttpclient* Client,
  * Notifications map to SIZE_MAX. All-notification batches use NOTIFY_DONE.
  * Bad/missing/duplicate/notification/unknown IDs publish no partial replies.
  * MaxBatchItems and aggregate in-flight BatchBytes bound metadata, separately
- * from encoded-wire limits. Retained completed result maps/snapshots remain
- * caller-owned and do not keep client/engine refs. Outputs/inputs cannot overlap. */
+ * from encoded-wire limits. Retained maps/snapshots are charged to result quotas
+ * and do not keep client/engine refs. Outputs/inputs cannot overlap. */
 XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
     const xrpchttpitem* Items, size_t Count, int64 Timeout, xfuture** Future);
+/* Request and result-ledger counters are separate instants, not one joint atomic
+ * snapshot. Result counters include reserved blocks during allocation. Native
+ * Future/context/error metadata, allocator overhead and receive staging are
+ * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
 /* Independent observer; resolves after request duties and stream retire. The
@@ -3974,6 +4018,10 @@ XRT_EXTERN_C_END
 #undef XRPC_FEATURE_XRPC_RESPONSE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_RESPONSE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_RESULT_QUOTA)
+#undef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_SERVER)
 #undef XRPC_FEATURE_XRPC_SERVER
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_SERVER
@@ -4029,6 +4077,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESPONSE)
 #undef XRPC_MODULE_XRPC_RESPONSE
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESPONSE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESULT_QUOTA)
+#undef XRPC_MODULE_XRPC_RESULT_QUOTA
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_RESULT_QUOTA
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_SERVER)
 #undef XRPC_MODULE_XRPC_SERVER
@@ -5642,6 +5694,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_JSON_READ
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_MUTEX)
+#undef XRT_MODULE_MUTEX
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_MUTEX
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP)
 #undef XRT_MODULE_NET_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
@@ -5783,6 +5839,9 @@ XRT_EXTERN_C_END
 #ifndef XRT_MODULE_HTTP_HOST
 #define XRT_MODULE_HTTP_HOST
 #endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
 #endif
 
 /* xrpc_call 及其直接依赖。 */
@@ -5811,19 +5870,6 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_PENDING
 #define XRPC_MODULE_XRPC_PENDING
-#endif
-#endif
-
-/* xrpc_response 及其直接依赖。 */
-#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
-#ifndef XRPC_FEATURE_XRPC_RESPONSE
-#define XRPC_FEATURE_XRPC_RESPONSE
-#endif
-#ifndef XRPC_MODULE_XRPC_DECODE
-#define XRPC_MODULE_XRPC_DECODE
-#endif
-#ifndef XRT_MODULE_ATOMIC
-#define XRT_MODULE_ATOMIC
 #endif
 #endif
 
@@ -5889,6 +5935,35 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_JSON_ESCAPE
 #define XRT_MODULE_JSON_ESCAPE
+#endif
+#endif
+
+/* xrpc_result_quota 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#ifndef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#define XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
 #endif
 #endif
 

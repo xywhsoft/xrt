@@ -46,6 +46,7 @@ struct xrpchttpclient {
     xnetaddr Remote;
     xrpchttpconfig Config;
     xrpchttpinfo Info;
+    xrpcresultquota* ResultQuota;
     xnetpost Wake;
     xpromise* ClosePromise;
     xfuture* CloseFuture;
@@ -82,6 +83,7 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* C)
     if(!C || xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;
     xrtNetStreamDestroy(C->Stream);xrtPromiseDestroy(C->ClosePromise);xrtFutureDestroy(C->CloseFuture);
     xrtErrorFree(C->Cause);xrtFree(C->Input);xrtFree(C->Payload);xrtFree(C->Fields);xrtFree(C->Trailers);
+    xrpcResultQuotaRelease(C->ResultQuota);
     if(C->EnginePinned)xrtNetEngineUnpin(C->Engine);
     xrtMutexUnit(&C->Gate);xrtFree(C);
 }
@@ -233,8 +235,8 @@ static bool xrpcHttpReply(xrpchttpclient* C)
         else{R->Completing=true;R->Status=XRPC_CALL_NOTIFY_DONE;if(C->ConnectionClose)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);}
         return xrpcHttpFinish(R,R->Status,C->Cause);
     }
-    xrpcresponsestatus S=xrpcResponsesRead((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,
-        B?(xrpcmessage*)B->Workspace:&Scratch,B?B->Count:1,&R->Response);
+    xrpcresponsestatus S=xrpcResponsesReadQuota((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,
+        B?(xrpcmessage*)B->Workspace:&Scratch,B?B->Count:1,&R->Response,C->ResultQuota);
     if(S!=XRPC_RESPONSE_DONE){
         xrpccallstatus Status=XRPC_CALL_PROTOCOL;
         if(xrtErrorKind(xrtGetError())==XERR_MEMORY)Status=XRPC_CALL_MEMORY;
@@ -413,7 +415,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     Config->Body.MaxBody=1024u*1024u;Config->MaxRequests=1024;Config->MaxRequestBytes=256u*1024u;
     if(Config->MaxRequestBytes>Config->Stream.WriteLimit)Config->MaxRequestBytes=Config->Stream.WriteLimit;
     Config->MaxRequestBytesTotal=8u*1024u*1024u;Config->WorkRequests=64;Config->ReadBytes=64u*1024u;Config->MaxResponseWireBytes=2u*1024u*1024u;Config->MaxInformational=8;
-    Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;return true;
+    Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;
+    Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
 }
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
@@ -428,6 +431,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     if(K.Size!=sizeof(K) || !K.MaxRequests || K.MaxRequests>1000000u || !K.MaxRequestBytes || K.MaxRequestBytes>K.MaxRequestBytesTotal ||
         K.MaxRequestBytes>K.Stream.WriteLimit || !K.WorkRequests || !K.ReadBytes || !K.MaxResponseWireBytes || !K.Head.MaxHead || !K.Head.MaxFields || !K.Head.MaxStartLine || !K.Head.MaxFieldLine ||
         !K.MaxBatchItems || K.MaxBatchItems>65536u || K.MaxBatchItems>D->MaxMessages || !K.MaxBatchBytesTotal ||
+        !K.MaxResultBlocks || K.MaxResultBlocks>2000000u || !K.MaxResultBytes ||
         !K.Body.MaxBody || K.Body.MaxBody>SIZE_MAX || !K.Body.MaxTrailer || !K.Body.MaxTrailers || !K.Body.MaxChunkLine || !K.Body.MaxTrailerLine || !K.MaxInformational ||
         K.Responses.Size!=sizeof(K.Responses) || !K.Responses.MaxOwnedBytes || D->Size!=sizeof(*D) || D->Mode!=XRPC_DECODE_RESPONSES ||
         !D->MaxInputBytes || !D->MaxDepth || D->MaxDepth>XJSON_DEPTH_DEFAULT || !D->MaxStringBytes || !D->MaxValues || !D->MaxContainerItems || !D->MaxMessages || D->MaxIdBytes<22u || !D->MaxMethodBytes ||
@@ -449,7 +453,8 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     memcpy((ptr)C->Host.Data,Host.Data,Host.Size);memcpy((ptr)C->Target.Data,Target.Data,Target.Size);
     if(!xrtMutexInit(&C->Gate)){xrtNetEngineUnpin(Engine);xrtFree(C);return false;}
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
-    if(!C->Input || !C->Fields || !C->Trailers || !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
+    if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
+        !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
     xrpcHttpRef(C);xrtMutexLock(&C->Gate);bool Posted=xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
     if(!Posted){xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
@@ -481,8 +486,8 @@ static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,
     R->Client=C;R->Operation=Batch?XRPC_HTTP_BATCH:Calls?XRPC_HTTP_CALL:XRPC_HTTP_NOTIFICATION;xrtAtomic32Init(&R->References,1);xfuture* F=NULL;
     xrpccallconfig CallConfig;xrpcCallConfigInit(&CallConfig);CallConfig.Timeout=Timeout;CallConfig.User=R;CallConfig.Wake=xrpcHttpCancelWake;CallConfig.Drop=xrpcHttpRequestDrop;
     xrpcHttpRequestRef(R);
-    bool Created=Batch?xrpcBatchCallCreateEntered(&CallConfig,Count,&R->Call,&F,Entered):xrpcCallCreateEntered(&CallConfig,&R->Call,&F,Entered);
-    if(!Created){xrpcHttpRequestDrop(R);goto Error;}
+    bool Limited=false;bool Created=xrpcCallCreateQuota(&CallConfig,Batch?Count:0,&R->Call,&F,Entered,C->ResultQuota,&Limited);
+    if(!Created){xrpcHttpRequestDrop(R);if(Limited){Admission=XRPC_ADMISSION_OVERLOADED;goto Refused;}goto Error;}
     if(!xrtNetPostInit(&R->CancelPost))goto Error;
     xrpcoutgoing Single={0};xrpcoutgoing* Messages=&Single;
     if(Batch){
@@ -550,7 +555,8 @@ XRPC_API bool xrpcHttpInfo(xrpchttpclient* C,xrpchttpinfo* Info)
 {
     if(!C || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) ||
         xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Info,sizeof(*Info)))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP info output");
-    xrtMutexLock(&C->Gate);*Info=C->Info;xrtMutexUnlock(&C->Gate);return true;
+    xrtMutexLock(&C->Gate);*Info=C->Info;xrtMutexUnlock(&C->Gate);
+    xrpcResultQuotaInfo(C->ResultQuota,&Info->ResultBlocks,&Info->ResultBytes,&Info->ResultRejected);return true;
 }
 XRPC_API bool xrpcHttpClose(xrpchttpclient* C)
 {

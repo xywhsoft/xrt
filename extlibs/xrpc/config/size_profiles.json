@@ -79,6 +79,12 @@
       "system": "http_server",
       "suite": "xrpc_http_server",
       "description": "Production HTTP listener/peer/parser/executor/Future closure; numeric plain TCP"
+    },
+    {
+      "name": "xrpc_result_quota",
+      "system": "result_quota",
+      "suite": "xrpc_result_quota",
+      "description": "Private allocation/retention quota ledger and actual response/mutex/atomic dependency closure"
     }
   ]
 }

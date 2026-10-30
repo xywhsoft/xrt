@@ -1,5 +1,6 @@
 #include "test.h"
 #include "../examples/common/http_peer.h"
+#include "../src/internal/xrpc_result_quota.h"
 static void testHttpBasic(void)
 {
     rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);K.ReadBytes=3;K.WorkRequests=2;
@@ -169,5 +170,82 @@ static void testHttpBatchStopsLimitsOOM(void)
     }
     testRequire(Passed && Failed,"batch quota boundaries");rpcHttpClose(&P,C);
 }
+static xrpchttpinfo rpcHttpQuotaInfo(xrpchttpclient* C,size_t Blocks)
+{
+    rpcHttpIdle(C);xrpchttpinfo I={0};I.Size=sizeof(I);testRequire(xrpcHttpInfo(C,&I) && I.ResultBlocks==Blocks,"retained result block accounting");
+    testRequire((Blocks==0)==(I.ResultBytes==0),"retained result byte accounting");return I;
+}
+static void testHttpRetainedResults(void)
+{
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);K.MaxResultBlocks=4;
+    xrpchttpclient* C=rpcHttpConnect(&P,&K);xfuture* F[3];
+    for(unsigned N=0;N<2;++N){F[N]=rpcHttpSubmit(C,"echo","[]",5000);testRequire(rpcHttpResult(F[N])->Status==XRPC_CALL_OK,"retained first calls");}
+    xrpchttpinfo Before=rpcHttpQuotaInfo(C,4);xfuture* Ref=xrtFutureRef(F[0]);testRequire(Ref!=NULL,"retained Future ref");
+    testRequire(rpcHttpQuotaInfo(C,4).ResultBytes==Before.ResultBytes,"extra Future ref double charged");xrtFutureDestroy(Ref);
+    xfuture* Out=(xfuture*)(uintptr_t)1;xrtSetErrorInfo(XERR_VALUE,"xrt.test",333,"ambient");const xerror* E=xrtGetError();
+    testRequire(xrpcHttpCallAsync(C,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&Out)==XRPC_ADMISSION_OVERLOADED && Out==(xfuture*)(uintptr_t)1 && xrtGetError()==E,"retained quota refusal changed output/error");xrtClearError();
+    testRequire(rpcHttpQuotaInfo(C,4).ResultRejected==1,"header credit refusal not counted");xrtFutureDestroy(F[0]);rpcHttpQuotaInfo(C,2);
+    F[2]=rpcHttpSubmit(C,"echo","[]",5000);testRequire(rpcHttpResult(F[2])->Status==XRPC_CALL_OK,"returned result credit not reusable");rpcHttpQuotaInfo(C,4);
+    xrtFutureDestroy(F[1]);xrtFutureDestroy(F[2]);rpcHttpQuotaInfo(C,0);rpcHttpClose(&P,C);
+
+    rpcHttpPeerStart(&P);xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1048576,&B) && xrtAllocationBudgetEnter(B,&Scope),"retained ledger budget enter");
+    C=rpcHttpConnect(&P,NULL);testRequire(xrtAllocationBudgetLeave(&Scope),"retained ledger budget leave");F[0]=rpcHttpSubmit(C,"echo","[7]",5000);
+    const xrpccallresult* R=rpcHttpResult(F[0]);testRequire(R->Status==XRPC_CALL_OK,"independent snapshot reply");xrpcresponses* Held=R->Responses;
+    testRequire(xrpcResponsesRetain(Held) && xrpcResponsesRetain(Held),"independent snapshot references");Before=rpcHttpQuotaInfo(C,2);
+    testRequire(rpcHttpQuotaInfo(C,2).ResultBytes==Before.ResultBytes,"snapshot retain double charged");xrtFutureDestroy(F[0]);rpcHttpQuotaInfo(C,1);
+    xrpcResponsesRelease(Held);rpcHttpQuotaInfo(C,1);rpcHttpClose(&P,C);
+    xrtClearError();xallocationbudgetinfo BI={0};BI.Size=sizeof(BI);testRequire(xrtAllocationBudgetInfo(B,&BI) && BI.LiveBytes>0,"retained snapshot lost independent ledger");
+    xrpcresponseinfo RI={0};RI.Size=sizeof(RI);testRequire(xrpcResponsesInfo(Held,&RI) && RI.Messages[0].Result.Raw.Size==3 && !memcmp(RI.Messages[0].Result.Raw.Data,"[7]",3),"snapshot outlived client/engine incorrectly");
+    xrpcResponsesRelease(Held);xrtClearError();testRequire(xrtAllocationBudgetInfo(B,&BI) && !BI.LiveBytes,"last snapshot retained client/engine/ledger");xrtAllocationBudgetFree(B);
+}
+static void testHttpQuotaAdmissionAndSnapshots(void)
+{
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);K.MaxResultBlocks=1;
+    xrpchttpclient* C=rpcHttpConnect(&P,&K);xfuture* Hold=rpcHttpSubmit(C,"hold",NULL,5000);rpcHttpWait(&P.Commands,1);
+    xrpchttpinfo I={0};I.Size=sizeof(I);testRequire(xrpcHttpInfo(C,&I) && I.ResultBlocks==1,"pending result was not charged");
+    xfuture* F=NULL;testRequire(xrpcHttpNotifyAsync(C,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F)==XRPC_ADMISSION_OVERLOADED && !F,"pending header quota ignored");
+    testRequire(xrtFutureCancel(Hold),"pending quota cancellation");(void)rpcHttpResult(Hold);xrtFutureDestroy(Hold);rpcHttpQuotaInfo(C,0);rpcHttpClose(&P,C);
+    size_t HeaderBytes=0;
+    rpcHttpPeerStart(&P);C=rpcHttpConnect(&P,NULL);testRequire(xrpcHttpNotifyAsync(C,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F)==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(F)->Status==XRPC_CALL_NOTIFY_DONE,"notification quota result");
+    HeaderBytes=rpcHttpQuotaInfo(C,1).ResultBytes;xrtFutureDestroy(F);rpcHttpQuotaInfo(C,0);
+    xrpchttpitem Items[3];for(unsigned N=0;N<3;++N)Items[N]=(xrpchttpitem){XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),{0}};
+    testRequire(xrpcHttpBatchAsync(C,Items,3,5000,&F)==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(F)->Status==XRPC_CALL_NOTIFY_DONE,"all-note result map quota");
+    testRequire(rpcHttpQuotaInfo(C,1).ResultBytes>HeaderBytes,"retained batch map not charged");xrtFutureDestroy(F);rpcHttpQuotaInfo(C,0);rpcHttpClose(&P,C);
+    for(unsigned Mode=0;Mode<3;++Mode){rpcHttpPeerStart(&P);xrpcHttpConfigInit(&K);
+        if(Mode==0)K.MaxResultBlocks=1;else K.MaxResultBytes=Mode==1?HeaderBytes:1;
+        C=rpcHttpConnect(&P,&K);F=NULL;xrpcadmission A=xrpcHttpCallAsync(C,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F);
+        if(Mode==2)testRequire(A==XRPC_ADMISSION_OVERLOADED && !F,"header byte quota ignored");
+        else{testRequire(A==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(F)->Status==XRPC_CALL_LIMIT,"snapshot exhaustion misclassified");
+            I=rpcHttpQuotaInfo(C,1);testRequire(I.ResultRejected==1 && I.State>=XRPC_HTTP_CLOSING,"snapshot quota did not retire connection/count refusal");xrtFutureDestroy(F);}
+        rpcHttpQuotaInfo(C,0);rpcHttpClose(&P,C);
+    }
+}
+typedef struct rpcHttpQuotaDrop {xfuture* F[8];xrpcresponses* R[8];xatomic32* Done;} rpcHttpQuotaDrop;
+static int32 rpcHttpQuotaDropThread(ptr Data)
+{rpcHttpQuotaDrop* D=Data;for(unsigned N=0;N<8;++N){xrtFutureDestroy(D->F[N]);xrpcResponsesRelease(D->R[N]);}xrtAtomic32FetchAdd(D->Done,1,XMEMORY_RELEASE);return 0;}
+static void testHttpConcurrentQuotaRelease(void)
+{
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);K.MaxResultBlocks=64;xrpchttpclient* C=rpcHttpConnect(&P,&K);
+    rpcHttpQuotaDrop D[4]={0};xthread* Threads[4];xatomic32 Done;xrtAtomic32Init(&Done,0);
+    for(unsigned N=0;N<32;++N){unsigned A=N/8,B=N%8;D[A].F[B]=rpcHttpSubmit(C,"echo","[]",5000);const xrpccallresult* R=rpcHttpResult(D[A].F[B]);
+        testRequire(R->Status==XRPC_CALL_OK && xrpcResponsesRetain(R->Responses),"concurrent quota prepare");D[A].R[B]=R->Responses;}
+    xrpchttpinfo Max=rpcHttpQuotaInfo(C,64);
+    for(unsigned N=0;N<4;++N){D[N].Done=&Done;Threads[N]=xrtThreadCreate(rpcHttpQuotaDropThread,&D[N],0);testRequire(Threads[N]!=NULL,"quota release thread");}
+    double End=xrtTimer()+10;while(xrtAtomic32Load(&Done,XMEMORY_ACQUIRE)!=4){xrpchttpinfo I={0};I.Size=sizeof(I);
+        testRequire(xrpcHttpInfo(C,&I) && I.ResultBlocks<=Max.ResultBlocks && I.ResultBytes<=Max.ResultBytes && xrtTimer()<End,"concurrent credit underflow/deadlock");xrtSleep(1);}
+    for(unsigned N=0;N<4;++N){testRequire(xrtThreadWait(Threads[N])==XWAIT_OK,"quota release join");xrtThreadDestroy(Threads[N]);}
+    rpcHttpQuotaInfo(C,0);rpcHttpClose(&P,C);
+}
+static void testHttpQuotaPrivateOOM(void)
+{
+    xrpcresultquota* Q=NULL;testRequire(xrpcResultQuotaCreate(4,4096,&Q),"private quota create");
+    xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&B) && xrtAllocationBudgetEnter(B,&Scope),"snapshot OOM scope enter");
+    xrpcmessage M;xrpcresponses* R=(xrpcresponses*)(uintptr_t)1;
+    testRequire(xrpcResponsesReadQuota(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":[]}"),NULL,&M,1,&R,Q)==XRPC_RESPONSE_LOCAL_ERROR && R==(xrpcresponses*)(uintptr_t)1,"snapshot OOM published output");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"snapshot OOM scope leave");xrtClearError();size_t Blocks,Bytes;uint64 Rejected;xrpcResultQuotaInfo(Q,&Blocks,&Bytes,&Rejected);
+    testRequire(!Blocks && !Bytes && !Rejected,"snapshot allocation failure leaked credits");xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(B,&I) && !I.LiveBytes,"snapshot OOM allocations leaked");xrtAllocationBudgetFree(B);
+    testRequire(xrpcResponsesReadQuota(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":[]}"),NULL,&M,1,&R,Q)==XRPC_RESPONSE_DONE,"snapshot post-OOM reuse");
+    xrpcResultQuotaRelease(Q);xrpcResponsesRelease(R);
+}
 int main(void)
-{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();testHttpNotificationsAndBatches();testHttpBatchStopsLimitsOOM();puts("[PASS] xrpc HTTP client: ordinary/notification/batch/reverse-ID/escaped-ID/atomic-map/error/limits/cancel/deadline/OOM/concurrency/reentry/physical-close");return 0;}
+{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();testHttpNotificationsAndBatches();testHttpBatchStopsLimitsOOM();testHttpRetainedResults();testHttpQuotaAdmissionAndSnapshots();testHttpConcurrentQuotaRelease();testHttpQuotaPrivateOOM();puts("[PASS] xrpc HTTP client: ordinary/notification/batch/reverse-ID/escaped-ID/atomic-map/error/limits/cancel/deadline/OOM/concurrency/reentry/retained-quota/independent-snapshot/physical-close");return 0;}

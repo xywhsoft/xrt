@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `72` 个函数、`149` 个常量或宏、
+当前登记 `72` 个函数、`150` 个常量或宏、
 `71` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
@@ -173,7 +173,7 @@
 - `xrpcHttpRelease`
 - `xrpcHttpRetain`
 
-### 常量与宏 (15)
+### 常量与宏 (16)
 
 - `XRPC_ADMISSION_ACCEPTED`
 - `XRPC_ADMISSION_CLOSED`
@@ -181,6 +181,7 @@
 - `XRPC_ADMISSION_OVERLOADED`
 - `XRPC_FEATURE_XRPC_HTTP_CLIENT`
 - `XRPC_FEATURE_XRPC_ID`
+- `XRPC_FEATURE_XRPC_RESULT_QUOTA`
 - `XRPC_HTTP_ALLOCATION`
 - `XRPC_HTTP_ARGUMENT`
 - `XRPC_HTTP_CLOSED`

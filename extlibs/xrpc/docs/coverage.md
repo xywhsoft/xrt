@@ -177,3 +177,15 @@ authentication, recovery, independent protocol implementations, native Linux
 acceptance and sustained mixed/fault production runs remain required. Timings
 from the fixed-arrival client/server harness include offer lateness and Future
 polling; they do not establish server saturation capacity.
+
+
+| HTTP retained-result quota contract | Local verification |
+| --- | --- |
+| Pending and retained storage | Preallocated result headers, ordinary snapshots, notification/batch maps, extra refs charged once, physical credit return and reuse |
+| Independent snapshot lifetime | Future dropped while ResponsesRetain remains, snapshot holds one block, client/engine fully destroyed, original client-construction budget returns to zero after last snapshot release |
+| Resource refusal | Count/byte admission keeps output/ambient error, later snapshot exhaustion is LIMIT and closes without replay, refusal counters |
+| Allocation and concurrency | Existing 4096 call/batch construction quota sweeps, direct snapshot allocation OOM/refund/reuse, four parallel final-release threads with coherent bounds |
+
+Each charged allocation owns an independent ledger reference; results retain no
+client or engine. Private prefixes enlarge existing blocks; one ledger allocation
+is added per client. This is not a process RSS ceiling or final performance proof.
