@@ -3,7 +3,7 @@
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
 **Bounded envelope decoding/encoding, synchronous dispatch, immutable method
 indexing, exact ID comparison keys, bounded pending calls, immutable response
-snapshots and complete response-batch correlation are implemented.**
+snapshots, complete response-batch correlation and native typed call Futures are implemented.**
 Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -149,3 +149,19 @@ Snapshot storage is bounded per document; aggregate retained-result quotas,
 connection epochs, queue-inclusive deadlines and async completion remain runtime
 work. A snapshot makes one allocation and one wire copy; no end-to-end zero-copy
 or production-performance acceptance is implied.
+
+Select `XRPC_MODULE_XRPC_CALL` for [native call/Future lifetime](docs/call.md).
+A serialized producer owns preallocated terminal storage and a cooperative cancel
+producer binding. Outcomes distinguish remote errors, timeout/cancel/close/failure and
+NOT_SENT/MAY_HAVE_EXECUTED/REPLIED knowledge; retained results outlive the producer.
+The [example](examples/call/main.c) has no network prerequisite and releases both
+endpoints. A separate private payload-reference overflow/lifetime probe runs via:
+
+```sh
+python tools/test_xrpc_call_lifetime.py
+python tools/test_xrpc_call_lifetime.py --sanitize --output out/service-extensions/xrpc-call/linux-lifetime
+```
+
+This operation component creates no timer/thread/queue/connection. HTTP exchange
+and XRT Future primitives are available; the network client/server integration,
+executor, aggregate quotas and transport acceptance remain pending.

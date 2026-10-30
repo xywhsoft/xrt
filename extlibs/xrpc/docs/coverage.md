@@ -91,8 +91,9 @@ platform evidence and remaining gates are in the [progress ledger](../../../docs
 
 The pending table requires one serialized owner. It does not arbitrate concurrent
 access internally or classify response envelopes, and local tokens cannot resolve
-remote late responses after wire ID reuse. Runtime/connection ownership, future
-completion, response-batch preflight and transport recovery remain pending.
+remote late responses after wire ID reuse. Response-batch preflight and native
+Future completion are covered below; runtime/connection ownership, async
+scheduling and transport recovery remain pending.
 
 | Response ownership and correlation contract | Verification |
 | --- | --- |
@@ -107,3 +108,16 @@ Response snapshots own payload bytes; resolution User pointers remain borrowed.
 A serialized owner completes calls after receive returns. Aggregate retained-result
 quotas, connection epochs, executors, transport framing and async shutdown remain
 runtime work. No end-to-end performance or final production acceptance follows.
+
+| Native call/Future contract | Verification |
+| --- | --- |
+| Typed terminal/knowledge | Every status, sent/unsent/replied combinations, remote errors, late response after deadline, explicit retained cause vs stale ambient diagnostic |
+| Cooperation and deadline | Future cancellation wakes once without fabricated terminal state; raw-token requests require owner polling, owner Poll, immediate/forever deadline and deadline priority |
+| Ownership and publication | Independent result/context lifetime, dropped observer preserves work, uncompleted Destroy closes, retained payload after source/producer release |
+| Notification retirement | Reentrant finish/destroy and destroy-in-progress callbacks, ambient identity after notification/context-drop diagnostics, controlled suspended cancel callback and captured-reference retirement |
+| Failure boundaries | 4096 constructor quota prefixes, success-only context transfer, no leaked budget bytes, invalid kind/index/aliases and preallocated finish under one-byte quota |
+| Integrated correlation | Shuffled response IDs through pending batch/Receive into four independent Futures, duplicate/unknown suppression, shared payload surviving all producer contexts |
+
+Async operation lifetime is locally testable without sockets. This does not prove
+HTTP/WebSocket/stdio transport, physical network close, executor behavior, aggregate
+retained-result quotas or end-to-end production/performance acceptance.

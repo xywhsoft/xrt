@@ -4,8 +4,58 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `36` 个函数、`87` 个常量或宏、
-`42` 个公共类型。
+当前登记 `44` 个函数、`107` 个常量或宏、
+`49` 个公共类型。
+
+## `extlibs/xrpc/include/xrpc/call.h`
+
+[查看带契约注释的公共头](../../include/xrpc/call.h)
+
+### 函数 (8)
+
+- `xrpcCallCancellationRequested`
+- `xrpcCallConfigInit`
+- `xrpcCallCreate`
+- `xrpcCallDeadline`
+- `xrpcCallDestroy`
+- `xrpcCallFinish`
+- `xrpcCallMarkSent`
+- `xrpcCallPoll`
+
+### 常量与宏 (21)
+
+- `XRPC_CALL_ALLOCATION`
+- `XRPC_CALL_ALREADY_DONE`
+- `XRPC_CALL_ARGUMENT`
+- `XRPC_CALL_CANCELLED`
+- `XRPC_CALL_CLOSED`
+- `XRPC_CALL_FINISHED`
+- `XRPC_CALL_FINISH_ERROR`
+- `XRPC_CALL_LIMIT`
+- `XRPC_CALL_MEMORY`
+- `XRPC_CALL_OK`
+- `XRPC_CALL_PENDING`
+- `XRPC_CALL_PROTOCOL`
+- `XRPC_CALL_REMOTE_ERROR`
+- `XRPC_CALL_STATE`
+- `XRPC_CALL_TIMEOUT`
+- `XRPC_CALL_TRANSPORT`
+- `XRPC_FEATURE_XRPC_CALL`
+- `XRPC_FEATURE_XRPC_RESPONSE`
+- `XRPC_MAY_HAVE_EXECUTED`
+- `XRPC_NOT_SENT`
+- `XRPC_REPLIED`
+
+### 类型 (8)
+
+- `xrpccall`
+- `xrpccallconfig`
+- `xrpccallerror`
+- `xrpccallfinish`
+- `xrpccallresult`
+- `xrpccallstatus`
+- `xrpcdelivery`
+- `xrpcresponses`
 
 ## `extlibs/xrpc/include/xrpc/decode.h`
 
@@ -210,19 +260,17 @@
 
 - `xrpcReceive`
 
-### 常量与宏 (4)
+### 常量与宏 (3)
 
 - `XRPC_FEATURE_XRPC_RECEIVE`
-- `XRPC_FEATURE_XRPC_RESPONSE`
 - `XRPC_RECEIVE_ARGUMENT`
 - `XRPC_RECEIVE_CAPACITY`
 
-### 类型 (5)
+### 类型 (4)
 
 - `xrpcreceiveerror`
 - `xrpcreceiveinfo`
 - `xrpcresponseconfig`
-- `xrpcresponses`
 - `xrpcresponsestatus`
 
 ## `extlibs/xrpc/include/xrpc/response.h`

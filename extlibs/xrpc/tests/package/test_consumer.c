@@ -57,6 +57,11 @@ int main(void)
 	xrpcResponsesRelease(Responses);
 	if(!xrpcResponsesInfo(Responses,&Snapshot) || Snapshot.Count!=1 || Snapshot.Messages[0].Result.Raw.Size!=7)return 14;
 	xrpcResponsesRelease(Responses);xrpcPendingDestroy(Pending);
+	xrpccall* Call=NULL;xfuture* Future=NULL;xrpccallconfig CallConfig;xrpcCallConfigInit(&CallConfig);CallConfig.Timeout=XRT_WAIT_FOREVER;
+	if(!xrpcCallCreate(&CallConfig,&Call,&Future) || !xrpcCallMarkSent(Call) || !xrtFutureCancel(Future) || xrpcCallPoll(Call)!=XRPC_CALL_FINISHED || !xrpcCallDestroy(Call))return 15;
+	xfutureresult Ready;if(!xrtFutureResult(Future,&Ready) || Ready.State!=XFUTURE_RESOLVED || !Ready.Value ||
+		((const xrpccallresult*)Ready.Value)->Status!=XRPC_CALL_CANCELLED || ((const xrpccallresult*)Ready.Value)->Delivery!=XRPC_MAY_HAVE_EXECUTED)return 16;
+	xrtFutureDestroy(Future);
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
 	xrtClearError(); return 0;

@@ -31,6 +31,25 @@
 #ifndef XRPC_MODULE_XRPC_RECEIVE
 #define XRPC_MODULE_XRPC_RECEIVE
 #endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#endif
+
+/* xrpc_call 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_CALL)
+#ifndef XRPC_FEATURE_XRPC_CALL
+#define XRPC_FEATURE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
 #endif
 
 /* xrpc_receive 及其直接依赖。 */

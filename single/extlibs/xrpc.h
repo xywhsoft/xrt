@@ -88,6 +88,25 @@
 #ifndef XRPC_MODULE_XRPC_RECEIVE
 #define XRPC_MODULE_XRPC_RECEIVE
 #endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#endif
+
+/* xrpc_call 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_CALL)
+#ifndef XRPC_FEATURE_XRPC_CALL
+#define XRPC_FEATURE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
 #endif
 
 /* xrpc_receive 及其直接依赖。 */
@@ -917,6 +936,112 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/call.h */
+/* ========================================================================== */
+
+#ifndef XRPC_CALL_H
+#define XRPC_CALL_H
+#if defined(XRPC_FEATURE_XRPC_CALL) && \
+	(!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRT_FEATURE_FUTURE))
+#error "XRPC_FEATURE_XRPC_CALL requires response and future"
+#endif
+#if defined(XRPC_FEATURE_XRPC_CALL)
+typedef struct xrpccall xrpccall;
+typedef enum xrpccallstatus {
+	XRPC_CALL_OK = 0, XRPC_CALL_REMOTE_ERROR, XRPC_CALL_TIMEOUT,
+	XRPC_CALL_CANCELLED, XRPC_CALL_CLOSED, XRPC_CALL_TRANSPORT,
+	XRPC_CALL_PROTOCOL, XRPC_CALL_LIMIT, XRPC_CALL_MEMORY
+} xrpccallstatus;
+typedef enum xrpcdelivery {XRPC_NOT_SENT=0, XRPC_MAY_HAVE_EXECUTED, XRPC_REPLIED} xrpcdelivery;
+typedef enum xrpccallfinish {
+	XRPC_CALL_FINISH_ERROR=-1, XRPC_CALL_PENDING=0, XRPC_CALL_FINISHED, XRPC_CALL_ALREADY_DONE
+} xrpccallfinish;
+typedef enum xrpccallerror {XRPC_CALL_ARGUMENT=8001, XRPC_CALL_STATE, XRPC_CALL_ALLOCATION} xrpccallerror;
+typedef struct xrpccallresult {
+	xrpccallstatus Status;
+	xrpcdelivery Delivery;
+	xrpcresponses* Responses;
+	size_t Index;
+	const xerror* Cause;
+} xrpccallresult;
+typedef struct xrpccallconfig {
+	size_t Size;
+	int64 Timeout; /* ms from Create entry, including construction/queue wait. */
+	/* Optional nonblocking wake only; invoked on the cancelling thread at most
+	 * once through xrtFutureCancel. It can arrive after logical completion while
+	 * its captured producer reference remains live. Queued posts need their OWN
+	 * captured references beyond Wake return. Raw token requests do not wake; the
+	 * owner must explicitly signal/poll those. It must
+	 * only post/signal owner work, never finish/destroy this call, wait for its
+	 * owner, or execute business/language code inline. */
+	void (*Wake)(ptr User);
+	/* Mechanical context-reference release at FINAL producer-reference retirement,
+	 * after captured cancellation tails. Destroy can return earlier. NULL means
+	 * borrowed context; otherwise successful
+	 * Create takes exactly one User reference, failure takes nothing. No wait or
+	 * new semantic finalizer in Drop. Callback code lives through destruction. */
+	void (*Drop)(ptr User);
+	ptr User;
+} xrpccallconfig;
+XRT_EXTERN_C_BEGIN
+/* Default 5000 ms, no context callbacks. Zero is immediately due; FOREVER OK. */
+XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config);
+/* A unique serialized-owner producer and an independent Future observer.
+ * Result storage is preallocated; native producer binding adds no allocation.
+ * No thread,
+ * timer, queue, transport or additional shared runtime is created. All producer
+ * access (including Destroy) must be serialized; observers use public XRT Future
+ * APIs concurrently. Wake must obey its nonblocking/reentry contract. Config is
+ * copied and outputs remain unchanged on failure; outputs/config cannot overlap.
+ * Accepted ordinary terminal outcomes resolve with an immutable xrpccallresult,
+ * including timeout/cancel/close/failure. XFUTURE_RESOLVED alone is not success.
+ * Dropping an observer does not cancel accepted work. The owner must finish/poll
+ * or destroy the producer; Destroy closes unfinished work and detaches its
+ * Future producer binding without waiting for captured cancellation callbacks.
+ * Future results own response/cause refs, NOT producer/context/engine refs, and
+ * survive producer destruction. Borrow Value/Responses/Cause only while holding
+ * the result Future; retain Responses for a longer-lived payload view.
+ * This native producer and opaque context are not collector admission. */
+XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config, xrpccall** Call, xfuture** Future);
+/* NULL succeeds. Success consumes the unique owner right; a captured cancel
+ * callback may still pin physical producer/context storage. False retains the
+ * owner right for retry after a checked core publication refusal. */
+XRPC_API bool xrpcCallDestroy(xrpccall* Call);
+/* Owner records the FIRST acceptance of any request bytes by transport. This
+ * is uncertainty, not proof of remote execution. False if already terminal. */
+XRPC_API bool xrpcCallMarkSent(xrpccall* Call);
+/* Borrowed producer-only access; deadline uses xrtTimer's monotonic seconds.
+ * No timer is armed: a runtime schedules owner Poll at this absolute deadline. */
+XRPC_API double xrpcCallDeadline(const xrpccall* Call);
+XRPC_API bool xrpcCallCancellationRequested(const xrpccall* Call);
+/* OK/REMOTE_ERROR require an already-correlated live snapshot/index of matching
+ * RESULT/ERROR kind; all other statuses forbid a snapshot/nonzero index. Cause
+ * is an explicit borrowed diagnostic, never inferred from ambient error. All
+ * needed refs are checked BEFORE publication; ERROR leaves the call pending.
+ * CANCEL/TIMEOUT conditions are sampled before publication; elapsed deadline
+ * wins if both visible. A concurrent later request
+ * may lose to completion (cancellation is cooperative). A validated response
+ * records REPLIED knowledge even when timeout/cancel wins; stopped outcomes do
+ * not retain its payload. No operation is replayed. Other outcomes retain prior
+ * NOT_SENT/MAY_HAVE_EXECUTED knowledge from MarkSent.
+ * All results are preallocated; ordinary completion with NULL Cause needs no
+ * new heap allocation. Snapshot/error refs and diagnostics still have checked
+ * failure paths. ALREADY_DONE does not inspect payloads. Future Watches execute
+ * synchronously on publication: they must not block an I/O owner. Reentrant
+ * terminal queries/Destroy from such a Watch are supported; never do so in Wake.
+ * Success/ordinary ALREADY/PENDING preserve ambient error despite completion
+ * Watches changing it. Producer storage remains internally pinned through
+ * notification/release tails. Actual transport duties remain the runtime's. */
+XRPC_API xrpccallfinish xrpcCallFinish(xrpccall* Call, xrpccallstatus Status,
+	xrpcresponses* Responses, size_t Index, const xerror* Cause);
+/* Publish due TIMEOUT or requested CANCELLED; otherwise ordinary PENDING. */
+XRPC_API xrpccallfinish xrpcCallPoll(xrpccall* Call);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -942,6 +1067,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && (!defined(XRPC_FEATURE_XRPC_RESPONSE) || !defined(XRPC_FEATURE_XRPC_RECEIVE))
 #error "XRPC_FEATURE_XRPC requires response and receive"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_CALL)
+#error "XRPC_FEATURE_XRPC requires call"
 #endif
 #endif
 
@@ -2562,6 +2690,150 @@ XRPC_API xrpcresponsestatus xrpcReceive(xrpcpending* Pending,xstrview Input,
 	*Responses=Owned;*Info=Complete;return XRPC_RESPONSE_DONE;
 Argument:
 	return xrpcReceiveReport(XERR_ARGUMENT,XRPC_RECEIVE_ARGUMENT,"invalid RPC receive spans/overlap/info size");
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/call/call.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_CALL)
+#include <math.h>
+
+#if defined(XRPC_FEATURE_XRPC_CALL)
+struct xrpccall {
+	xatomic32 References;
+	xrpccallconfig Config;
+	double Deadline;
+	xpromise* Promise;
+	xcancel* Cancel;
+	xrpccallresult* Result;
+	xrpcdelivery Delivery;
+	bool ContextOwned, Destroying;
+};
+static bool xrpcCallReport(xerrkind Kind,xrpccallerror Code,cstr Message)
+{xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
+static void xrpcCallResultDrop(ptr Value,ptr User)
+{
+	(void)User;xrpccallresult* R=Value;
+	xrpcResponsesRelease(R->Responses);xrtErrorFree((xerror*)R->Cause);xrtFree(R);
+}
+static void xrpcCallUnref(xrpccall* C)
+{
+	if(xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;
+	xrtCancelDestroy(C->Cancel);
+	if(C->ContextOwned && C->Config.Drop)C->Config.Drop(C->Config.User);
+	xrtFree(C);
+}
+static void xrpcCallWake(const void* User)
+{const xrpccall* C=User;if(C->Config.Wake)C->Config.Wake(C->Config.User);}
+static bool xrpcCallRefTry(const void* Value)
+{
+	xrpccall* C=(xrpccall*)Value;uint32 Count=xrtAtomic32Load(&C->References,XMEMORY_RELAXED);
+	while(Count!=UINT32_MAX){if(xrtAtomic32CompareExchange(&C->References,&Count,Count+1u,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
+	return false;
+}
+static void xrpcCallProducerDrop(const void* Value){xrpcCallUnref((xrpccall*)Value);}
+static bool xrpcCallCount(const void* Value,size_t* Count)
+{if(!Value || !Count)return false;*Count=xrtAtomic32Load(&((const xrpccall*)Value)->References,XMEMORY_RELAXED);return true;}
+static bool xrpcCallOpaque(const void* Value,xrtownershipvisitor Visit,ptr Context)
+{
+	/* This is a real native RC node, not a synthetic leaf. Its activation and
+	 * arbitrary native context have no collector admission/closed trace policy.
+	 * Refuse traversal rather than certify an incomplete ownership graph. */
+	(void)Value;(void)Visit;(void)Context;return false;
+}
+static const xrtownershipops xrpcCallOps={xrpcCallCount,xrpcCallOpaque};
+static const xfutureproducerownershipv1 xrpcCallProducer={sizeof(xfutureproducerownershipv1),xrpcCallProducerDrop};
+static const xfutureproducercancellationv1 xrpcCallCancellation={sizeof(xfutureproducercancellationv1),xrpcCallRefTry,xrpcCallWake};
+XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config)
+{
+	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call config output");
+	*Config=(xrpccallconfig){sizeof(*Config),5000,NULL,NULL,NULL};return true;
+}
+XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
+{
+	double Began=xrtTimer();
+	if(!Call || !Future || !xrtMemRangeValid(Call,sizeof(*Call)) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
+		xrtMemRangesOverlap(Call,sizeof(*Call),Future,sizeof(*Future)) || (Config &&
+		(!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Call,sizeof(*Call),Config,sizeof(*Config)) ||
+		 xrtMemRangesOverlap(Future,sizeof(*Future),Config,sizeof(*Config)))))
+		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call constructor spans/overlap");
+	xrpccallconfig Limits;if(Config)Limits=*Config;else xrpcCallConfigInit(&Limits);
+	if(Limits.Size!=sizeof(Limits) || (Limits.Timeout<0 && Limits.Timeout!=XRT_WAIT_FOREVER))
+		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call configuration");
+	xrpccall* C=xrtMalloc(sizeof(*C));if(!C)return xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call allocation failed");
+	*C=(xrpccall){0};xrtAtomic32Init(&C->References,2);C->Config=Limits;
+	C->Deadline=Limits.Timeout==XRT_WAIT_FOREVER?INFINITY:Limits.Timeout==0?Began:
+		nextafter(Began+(double)(Limits.Timeout/1000)+(double)(Limits.Timeout%1000)*.001,INFINITY);
+	xfuture* Observer=NULL;C->Result=xrtMalloc(sizeof(*C->Result));
+	if(!C->Result)xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call result allocation failed");
+	if(C->Result){*C->Result=(xrpccallresult){0};C->Promise=xrtPromiseCreate(&Observer,NULL);}
+	if(C->Promise)C->Cancel=xrtPromiseCancelToken(C->Promise);
+	bool Bound=C->Cancel && xrtPromiseProducerBindTakeV2(C->Promise,(xrtownershipref){C,&xrpcCallOps},&xrpcCallProducer,&xrpcCallCancellation);
+	if(!Bound){
+		xerror* Error=xrtTakeError();xrtPromiseDestroy(C->Promise);xrtFutureDestroy(Observer);xrtFree(C->Result);xrtCancelDestroy(C->Cancel);xrtFree(C);
+		xrtClearError();xrtSetErrorTake(Error);return false;
+	}
+	C->ContextOwned=true;*Call=C;*Future=Observer;return true;
+}
+XRPC_API bool xrpcCallMarkSent(xrpccall* Call)
+{
+	if(!Call)return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");
+	if(!Call->Promise)return false;
+	Call->Delivery=XRPC_MAY_HAVE_EXECUTED;return true;
+}
+XRPC_API double xrpcCallDeadline(const xrpccall* Call)
+{if(!Call){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return NAN;}return Call->Deadline;}
+XRPC_API bool xrpcCallCancellationRequested(const xrpccall* Call)
+{if(!Call)return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return xrtCancelRequested(Call->Cancel);}
+XRPC_API xrpccallfinish xrpcCallFinish(xrpccall* C,xrpccallstatus Status,xrpcresponses* Responses,size_t Index,const xerror* Cause)
+{
+	if(!C){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return XRPC_CALL_FINISH_ERROR;}
+	if(!C->Promise)return XRPC_CALL_ALREADY_DONE;
+	bool Reply=Status==XRPC_CALL_OK || Status==XRPC_CALL_REMOTE_ERROR;
+	if(Status<XRPC_CALL_OK || Status>XRPC_CALL_MEMORY || (Reply?!Responses:(Responses!=NULL || Index!=0)))goto Argument;
+	if(Reply){xrpcresponseinfo Info={0};Info.Size=sizeof(Info);
+		if(!xrpcResponsesInfo(Responses,&Info))return XRPC_CALL_FINISH_ERROR;
+		if(Index>=Info.Count || Info.Messages[Index].Kind!=(Status==XRPC_CALL_OK?XRPC_MESSAGE_RESULT:XRPC_MESSAGE_ERROR))goto Argument;
+		if(!xrpcResponsesRetain(Responses))return XRPC_CALL_FINISH_ERROR;
+	}
+	xerror* Held=Cause?xrtErrorRef(Cause):NULL;
+	if(Cause && !Held){xrpcResponsesRelease(Responses);return XRPC_CALL_FINISH_ERROR;}
+	if(!xrpcCallRefTry(C)){
+		xrpcResponsesRelease(Responses);xrtErrorFree(Held);xrpcCallReport(XERR_RANGE,XRPC_CALL_STATE,"RPC call references overflow");return XRPC_CALL_FINISH_ERROR;}
+	if(xrtTimer()>=C->Deadline)Status=XRPC_CALL_TIMEOUT;
+	else if(xrtCancelRequested(C->Cancel))Status=XRPC_CALL_CANCELLED;
+	if(Status!=XRPC_CALL_OK && Status!=XRPC_CALL_REMOTE_ERROR){xrpcResponsesRelease(Responses);Responses=NULL;Index=0;}
+	xpromise* Promise=C->Promise;xrpccallresult* Result=C->Result;
+	*Result=(xrpccallresult){Status,Reply?XRPC_REPLIED:C->Delivery,Responses,Index,Held};
+	C->Promise=NULL;C->Result=NULL;
+	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,NULL);
+	if(Published)xrtPromiseDestroy(Promise);
+	else {C->Promise=Promise;C->Result=Result;xrpcResponsesRelease(Result->Responses);xrtErrorFree((xerror*)Result->Cause);*Result=(xrpccallresult){0};}
+	if(Published){xrpcCallUnref(C);xrtClearError();xrtSetErrorTake(Previous);return XRPC_CALL_FINISHED;}
+	xerror* Error=xrtTakeError();xrpcCallUnref(C);xrtErrorFree(Previous);xrtClearError();xrtSetErrorTake(Error);return XRPC_CALL_FINISH_ERROR;
+Argument:
+	xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call terminal status/response/index");return XRPC_CALL_FINISH_ERROR;
+}
+XRPC_API xrpccallfinish xrpcCallPoll(xrpccall* C)
+{
+	if(!C){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return XRPC_CALL_FINISH_ERROR;}
+	if(!C->Promise)return XRPC_CALL_ALREADY_DONE;
+	if(xrtTimer()>=C->Deadline)return xrpcCallFinish(C,XRPC_CALL_TIMEOUT,NULL,0,NULL);
+	if(xrtCancelRequested(C->Cancel))return xrpcCallFinish(C,XRPC_CALL_CANCELLED,NULL,0,NULL);
+	return XRPC_CALL_PENDING;
+}
+XRPC_API bool xrpcCallDestroy(xrpccall* C)
+{
+	if(!C || C->Destroying)return true;
+	xerror* Previous=xrtTakeError();
+	C->Destroying=true;
+	if(C->Promise && xrpcCallFinish(C,XRPC_CALL_CLOSED,NULL,0,NULL)==XRPC_CALL_FINISH_ERROR){
+		C->Destroying=false;xerror* Error=xrtTakeError();xrtErrorFree(Previous);xrtClearError();xrtSetErrorTake(Error);return false;}
+	xrpcCallUnref(C);xrtClearError();xrtSetErrorTake(Previous);return true;
 }
 #endif
 #endif

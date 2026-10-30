@@ -24,8 +24,8 @@ Target and rules: [development contract](service-extensions-plan.md).
   a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
   request dispatch, immutable method indexing, exact ID comparison keys and bounded
   pending-call admission/removal, immutable owned responses and complete-document
-  response correlation are locally verified. Async scheduling and transports
-  remain pending.
+  response correlation and native call/Future lifetime are locally verified.
+  Bounded cross-thread admission, async scheduling and transports remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -73,6 +73,7 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | exact identifier comparison keys | locally verified | exact decimal/signed-zero/huge-exponent semantics, all Unicode scalars, independent rational and arbitrary-precision exponent oracles, bounded atomic Size/Write, standalone consumers and shared-string regression |
 | xrpc | bounded serialized pending calls | locally verified | exact ID admission/removal, token ABA protection, deadline heap, shutdown drain, 100000-operation linear model, 50000 private invariants/exhaustion per platform, no steady table allocation and OOM/alias/publication coverage |
 | xrpc | immutable responses and complete-document correlation | locally verified | full validation and ID preflight before any removal, one owned copy/allocation, rebased lossless views, retained concurrent readers, batch matched/repeated/unknown outcomes, OOM/alias/capacity/lifetime coverage and independent packages |
+| xrpc | native typed call/Future lifetime | locally verified | independent result/context lifetime, delivery knowledge, cooperative cancellation/deadlines, nonblocking captured-cancel retirement, completion reentry, 4096 OOM prefixes, checked reference overflow and shuffled-batch Future integration |
 | xrpc | async client/server, transport response pump | pending | no claim |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
@@ -2678,3 +2679,154 @@ result/storage budgets, protocol peers, native pinned performance and 72-hour
 mixed/fault acceptance remain required. Redis dedicated/HA/tracking modes, MQTT
 sessions/persistence/client and Cron time zones/scheduler/recovery remain active.
 This stage completes neither xrpc nor the full four-product goal.
+
+## P3 xrpc native call/Future lifetime
+
+`xrpc_call` adds the operation-lifetime component needed by the async runtime.
+Its production dependencies are response snapshots, public XRT Future and time;
+pending/receive, thread helpers and allocation statistics are test-only dependencies.
+It creates neither a transport nor an engine, timer, executor or submission queue.
+The existing xhttp layer supplies message/exchange machinery, not a complete
+socket-managing HTTP client. No reproduced Core gap required a Core change here.
+
+Create returns one unique serialized-owner producer and one independently owned
+Future observer. A separate preallocated immutable result survives destruction
+of the producer/context without retaining an engine. Config is copied; outputs
+and context ownership transfer only on success. Ordinary typed outcomes resolve
+the Future, including remote error, timeout, cancellation, close and local
+transport/protocol/resource failure. Callers inspect the result Status rather
+than interpreting XFUTURE_RESOLVED as success. Cause is explicitly supplied and
+retained, never inferred from unrelated ambient diagnostics.
+
+The monotonic deadline starts at Create entry, includes construction/queueing,
+supports immediate/forever, and is exposed for a future runtime to schedule.
+Finish checks response kind/index and retains needed references before changing
+state. It samples deadline/cancellation immediately before publication; visible
+deadline takes priority and a later concurrent cancellation can lose. MarkSent
+records MAY_HAVE_EXECUTED after transport accepts any request bytes. A validated
+reply records REPLIED even when a local stop wins and discards its payload.
+No retry/replay policy or automatic remote cancellation is implied.
+
+Public XRT native producer binding V2 captures a real producer reference before
+routing explicit Future cancellation outside its lock. Wake only signals/posts
+owner work. Raw cancellation-token requests require explicit owner polling and
+do not route Wake. Publication/destroy do not wait for an executing Wake; its
+captured reference keeps producer/context storage alive through that callback's
+return. Thus Destroy can return before context Drop. A queued post needs its
+own references beyond Wake return. Context release is mechanical and callback
+code stays live through every tail. The node reports its actual native reference
+count and refuses opaque ownership traversal rather than claiming collector
+admission. This stage introduces no collector integration.
+
+An internal activation reference protects synchronous completion notifications
+and release tails, including terminal reentry and Destroy from a Future Watch,
+also when Destroy itself triggered the completion. Finish/Destroy preserve the
+caller's ambient error despite notification/context-drop diagnostics. Checked
+reference/publication failure retains the producer's owner right for retry.
+Producer access remains serialized; Future observers use XRT's concurrent API.
+No claim is made that arbitrary business callbacks are safe on an I/O worker.
+
+Windows GCC O2/Wall/Wextra/Werror and WSL GCC O2 ASan/UBSan each pass nine modular
+and nine direct single-header programs (36 total), all nine examples and trim.
+New coverage includes all terminal statuses/delivery knowledge, explicit causes,
+observer drop, retained response lifetime, immediate/forever deadlines, repeated
+Future cancellation and raw-token polling, invalid arguments/aliases/kind/index,
+completion reentry and destruction-in-progress. Construction sweeps 4096 quota
+prefixes with both failures and successes, success-only context transfer and
+zero live budget bytes. Preallocated completion succeeds under a one-byte quota.
+
+A controlled thread test suspends the cancellation callback to model descheduling
+(production Wake must never wait). The owner finishes and destroys while that
+callback is still held; Future completion is visible, context Drop is still zero,
+and the captured-reference tail releases it exactly once after the test gate opens.
+An integrated pending/Receive test routes shuffled replies into four Futures,
+suppresses duplicate/unknown IDs and retains correctly indexed results after
+all producer contexts, table and original snapshot reference are released.
+The private probe forces snapshot and producer-activation reference overflow,
+verifies pending state/retry and reports actual x64 layout: producer 88 bytes,
+config 40, result 32. These are requested structure sizes, not total heap cost
+and not a natural billions-of-references endurance claim.
+
+The call unit passes a separate O1 WSL TSan build/run. GCC's existing
+atomic_thread_fence modeling warning remains in the log; this is qualified
+race evidence, not complete race freedom or native Linux acceptance.
+
+Before the final refactor, the locally tested prototype used a cancellation
+Watch and checked Unwatch. The suspended-callback test exposed completion waiting
+for its return. Switching to existing native producer V2 removes that wait and
+one Watch allocation. The actual old source/header/single header and linked
+object files were SHA-256 archived under `xrpc-call/legacy-watch/`; separate
+1000-cycle warmed allocation probes link those old objects and current objects.
+On both Windows and WSL the old prototype reports Malloc=4000/Calloc=1000/Realloc=0,
+and the final implementation Malloc=3000/Calloc=1000/Realloc=0. This is one fewer
+public allocator call per complete create/close/destroy cycle against this
+task's own prototype, not an external-client or throughput comparison. Future,
+cancel source, producer/result allocation and synchronization costs remain.
+Ordinary publication with NULL Cause adds no new heap allocation after Create;
+diagnostic/reference failure paths remain checked.
+
+The exact-input receipts, compiler commands, binary/output hashes, private probes,
+allocation comparison and qualified TSan are under `out/service-extensions/xrpc-call/`.
+Before shared artifacts were overwritten, 90 preceding response-stage artifacts
+were copied and SHA-256 verified under `xrpc-response/before-call/` with an archive
+map. Earlier prototype/smoke logs are historical, not proof of the final source.
+
+Both platforms pass complete xrpc static/shared consumers and call-only
+static/shared consumers using the already-registered runnable call example.
+The minimal manifest differs only in package_consumer; its production closure
+does not import Receive, pending, test statistics or thread helpers. Declaration
+consumers compile the call constructor signature. Generated features/API/single
+headers are current; the API inventory has 44 functions, 107 constants and 49
+types with none missing. Normal maturity reports 14 modules, 10 covered
+implementation nodes, 21 workloads and 9 size profiles. Strict release continues
+to reject the developing product, without an override.
+
+Call-closure size is text/data/bss/file bytes, without stripping:
+
+| Platform | Complete-closure single object | Product-only static | Product-only shared |
+| --- | --- | --- | --- |
+| Windows x64 | 283708 / 2664 / 11104 / 438395 | 12900 / 0 / 0 / 21496 | 22957 / 144 / 272 / 60902 |
+| WSL x64 | 295808 / 4144 / 10932 / 535824 | 13037 / 64 / 0 / 29216 | 18217 / 936 / 8 / 30624 |
+
+The single object includes its public XRT dependency closure. Separate product
+artifacts exclude host XRT; these are not comparable total deployment sizes.
+
+Full performance profiles run reply, explicit Future cancellation and immediate
+timeout with one warmup and five measured runs each. Every run completes 200000
+create/publish/read/destroy cycles and a separate 10000-sample latency phase.
+Reply uses a prebuilt retained snapshot outside timing. The cycle includes core
+Future/cancel creation, native producer binding and both endpoint destructions;
+encoding, admission queues, scheduled timers, executor, transport, TLS and peer
+work remain excluded. Latency includes two clock reads; throughput does not
+read the clock per operation. This is not queue-inclusive end-to-end latency.
+
+| Platform | Workload | Calls/s | P50 us | P99 us |
+| --- | --- | --- | --- | --- |
+| Windows | reply | 1554203 | 0.700 | 0.700 |
+| Windows | cancel | 1074249 | 0.900 | 1.600 |
+| Windows | immediate timeout | 1089229 | 1.100 | 1.300 |
+| WSL | reply | 1324315 | 0.700 | 1.200 |
+| WSL | cancel | 1003817 | 0.900 | 1.600 |
+| WSL | immediate timeout | 1306186 | 0.700 | 1.200 |
+
+All completion/sample counts match. Windows has nine failing metric/noise checks
+and WSL five under unchanged 3% relative MAD and 6% central-range limits. Both
+performance runners exit 1; no samples are removed, thresholds relaxed or timing
+overhead subtracted. These medians are unpinned local observations, not a stable
+regression baseline, external comparator or performance/production acceptance.
+Matching source fingerprint: `f29e8ffd503b4084d7e429f7dea51689a5561b87cab185805fa2c4e93063f2ea`.
+Workload fingerprint: `28a72138031da967ddc3152fead11872fd8a83320e33319be675e8be5eb3d0b9`.
+
+`xrpc-call/validation.json` checks final frozen inputs against all 36 actual test
+binaries, private overflow/layout outputs, qualified TSan, complete/minimal
+consumers, declaration/layout/size artifacts, both old/current allocation-probe
+objects and exact counts/fingerprints. The final receipt binds the clean committed
+HEAD/tree. WSL remains development evidence rather than native Linux acceptance.
+
+Next P3 work is the bounded async client/server runtime: cross-thread admission,
+owned requests/executor dispatch, connection epochs/fresh wire IDs, actual
+HTTP/WebSocket/framed-stdio transport and physical deadline/cancel/close duties.
+Negotiated extensions, aggregate retained-result/storage budgets, independent
+peers, native pinned performance and at least 72-hour mixed/fault runs remain.
+The original Redis dedicated/HA/tracking, MQTT client/session/persistence and
+Cron time-zone/scheduler/recovery scope remains active. No product is complete.

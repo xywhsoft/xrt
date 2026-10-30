@@ -754,6 +754,130 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_call",
+      "system": "call",
+      "description": "Full native operation/Future creation, terminal publication and destruction; no network/queue",
+      "benchmarks": [
+        {
+          "name": "xrpc_call_reply",
+          "source": "extlibs/xrpc/bench/bench_call.c",
+          "suite": "xrpc_call",
+          "args": [
+            "200000",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "0"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_call_cancel",
+          "source": "extlibs/xrpc/bench/bench_call.c",
+          "suite": "xrpc_call",
+          "args": [
+            "200000",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_call_timeout",
+          "source": "extlibs/xrpc/bench/bench_call.c",
+          "suite": "xrpc_call",
+          "args": [
+            "200000",
+            "2"
+          ],
+          "smoke_args": [
+            "1000",
+            "2"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "direction": "higher",
+              "unit": "calls/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            }
+          },
+          "facts": [
+            "mode",
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }

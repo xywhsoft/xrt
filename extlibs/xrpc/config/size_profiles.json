@@ -55,6 +55,12 @@
       "system": "receive",
       "suite": "xrpc_receive",
       "description": "receive with its actual dependency closure; no async runtime/transport"
+    },
+    {
+      "name": "xrpc_call",
+      "system": "call",
+      "suite": "xrpc_call",
+      "description": "Native typed call/Future lifetime and owned response closure; no transport/engine"
     }
   ]
 }

@@ -30,4 +30,8 @@
 #endif
 #include <xrpc/response.h>
 #include <xrpc/receive.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_CALL)
+#error "XRPC_FEATURE_XRPC requires call"
+#endif
+#include <xrpc/call.h>
 #endif
