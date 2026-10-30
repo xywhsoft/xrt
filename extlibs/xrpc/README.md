@@ -6,6 +6,9 @@ indexing, exact ID comparison keys, bounded pending calls, immutable response
 snapshots, complete response-batch correlation, native typed call Futures and a
 bounded HTTP/TCP call/notification/batch client, bounded server execution and
 HTTP/1 server listener/peer transport are implemented.**
+The optional [HTTP TLS client](docs/http_tls.md) adds explicit trusted numeric,
+DNS and prepared-address connections, HTTP/1.1 ALPN and bounded partial writes.
+TLS server transport, mutual authentication and HTTP authentication remain pending.
 Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 

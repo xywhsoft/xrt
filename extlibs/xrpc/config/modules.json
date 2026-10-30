@@ -117,6 +117,13 @@
         "source_roots": [
           "http_dial"
         ]
+      },
+      {
+        "name": "http_tls",
+        "state": "retained",
+        "source_roots": [
+          "http_tls"
+        ]
       }
     ]
   },
@@ -180,7 +187,8 @@
         "xrpc_http_client",
         "xrpc_server",
         "xrpc_http_server",
-        "xrpc_http_dial"
+        "xrpc_http_dial",
+        "xrpc_http_tls"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -613,7 +621,8 @@
         "extlibs/xrpc/include/xrpc/http_client.h"
       ],
       "internal_headers": [
-        "extlibs/xrpc/src/internal/xrpc_http_connect.h"
+        "extlibs/xrpc/src/internal/xrpc_http_connect.h",
+        "extlibs/xrpc/src/internal/xrpc_http_tls.h"
       ],
       "sources": [
         "extlibs/xrpc/src/http_client/http_client.c"
@@ -678,7 +687,8 @@
         "xrpc_call_tests",
         "xrpc_http_client_tests",
         "xrpc_server_tests",
-        "xrpc_http_server_tests"
+        "xrpc_http_server_tests",
+        "xrpc_http_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -696,7 +706,8 @@
         "extlibs/xrpc/tests/test_http_client.c",
         "extlibs/xrpc/tests/test_server.c",
         "extlibs/xrpc/tests/test_http_server.c",
-        "extlibs/xrpc/tests/test_http_dial.c"
+        "extlibs/xrpc/tests/test_http_dial.c",
+        "extlibs/xrpc/tests/test_http_tls.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -711,7 +722,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_client.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_server.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -731,7 +743,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_client.c": "xrpc_http_client_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_server.c": "xrpc_server_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c": "xrpc_http_server_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c": "xrpc_http_dial_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c": "xrpc_http_dial_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c": "xrpc_http_tls_tests"
       }
     },
     {
@@ -918,6 +931,66 @@
       "docs": [
         "extlibs/xrpc/README.md",
         "extlibs/xrpc/docs/http_dial.md"
+      ]
+    },
+    {
+      "name": "xrpc_http_tls",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_HTTP_TLS",
+      "depends": [
+        "xrpc_http_dial",
+        "tls_stream",
+        "tls_client_resume",
+        "tls_record_aes",
+        "tls_record_chacha",
+        "tls_schedule_sha256",
+        "tls_schedule_sha384",
+        "tls_key_exchange_x25519",
+        "tls_key_exchange_p256",
+        "tls_key_exchange_p384"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/http_tls.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/http_tls/http_tls.c"
+      ],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xrpc/examples/http_tls/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_http_tls.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/http_tls.md"
+      ]
+    },
+    {
+      "name": "xrpc_http_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_http_tls",
+        "tls_identity_rsa",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_http_tls.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/http_tls.md"
       ]
     }
   ]

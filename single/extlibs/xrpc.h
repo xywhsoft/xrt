@@ -103,6 +103,46 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_DIAL
 #define XRPC_MODULE_XRPC_HTTP_DIAL
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_TLS
+#define XRPC_MODULE_XRPC_HTTP_TLS
+#endif
+#endif
+
+/* xrpc_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_HTTP_TLS
+#define XRPC_FEATURE_XRPC_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#endif
 #endif
 
 /* xrpc_http_dial 及其直接依赖。 */
@@ -1241,7 +1281,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config);
  * No implicit DNS, TLS, redirects, authentication or replay. Close then Release.
  * The engine remains pinned through physical posts/timers/cancellation tails.
  * Ordinary calls, notifications and array-shaped batches share this transport;
- * DNS, TLS and full transport policy remain product work. */
+ * Optional http_dial/http_tls leaves provide explicit DNS/TLS factories;
+ * richer transport policy remains product work. */
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine, const xnetaddr* Remote,
     uint64 Affinity, xstrview Host, xstrview Target,
     const xrpchttpconfig* Config, xrpchttpclient** Client);
@@ -1528,6 +1569,55 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/http_tls.h */
+/* ========================================================================== */
+
+#ifndef XRPC_HTTP_TLS_H
+#define XRPC_HTTP_TLS_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+#if !defined(XRPC_FEATURE_XRPC_HTTP_DIAL) || !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+#error "xrpc HTTP TLS requires HTTP dial, TLS stream and verified/resumable client"
+#endif
+#if !defined(XRT_FEATURE_TLS_RECORD_AES) || !defined(XRT_FEATURE_TLS_RECORD_CHACHA) || \
+    !defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+    !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384)
+#error "xrpc HTTP TLS requires its declared cipher/schedule/key-exchange backends"
+#endif
+typedef struct xrpchttptlsconfig {
+    size_t Size;
+    xtlsclientconfig Session;
+    xtlsstreamconfig Stream;
+    xrpchttpdialconfig Dial;
+    size_t MaxMetadataBytes,WriteBytes;
+} xrpchttptlsconfig;
+XRT_EXTERN_C_BEGIN
+/* Native TLS defaults, HTTP dial defaults, 64 KiB metadata and plaintext work
+ * per turn, HTTP/1.1 ALPN. Require explicit Session.ServerName or VerifyName,
+ * and a Verifier (or explicit ResumeOnly). IP identities use VerifyName only.
+ * DNS name, HTTP authority and certificate identity are independent inputs.
+ * Views are snapshotted and shared Context/Verifier/Resume retained at factory
+ * entry; callback code/context follows Core verifier lifetime through join.
+ * Only HTTP/1.1 or no ALPN is supported; h2 is rejected, never misparsed. */
+XRPC_API bool xrpcHttpTlsConfigInit(xrpchttptlsconfig* Config);
+/* Required TLS, no cleartext fallback or application replay. The one Dial
+ * deadline begins at API entry and covers construction, DNS, TCP and TLS.
+ * Queued calls/notifications/batches retain their own deadlines/cancellation.
+ * Partial accepted plaintext marks MAY_HAVE_EXECUTED immediately. Closed waits
+ * for actual TCP/TLS retirement; retained results do not pin the connection.
+ * Resolver stays application-owned through Closed and is joined separately.
+ * Success owns one creator ref: Close then Release. Failure preserves Client. */
+XRPC_API bool xrpcHttpTlsDial(xnetengine* Engine,xnetresolver* Resolver,xstrview DNSName,uint16 Port,
+    uint64 Affinity,xstrview Host,xstrview Target,const xrpchttpconfig* HTTP,const xrpchttptlsconfig* TLS,xrpchttpclient** Client);
+XRPC_API bool xrpcHttpTlsDialAddresses(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* HTTP,const xrpchttptlsconfig* TLS,xrpchttpclient** Client);
+XRPC_API bool xrpcHttpTlsConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* HTTP,const xrpchttptlsconfig* TLS,xrpchttpclient** Client);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -1568,6 +1658,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
 #error "XRPC_FEATURE_XRPC requires http_dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+#error "XRPC_FEATURE_XRPC requires http_tls"
 #endif
 #endif
 
@@ -1744,10 +1837,39 @@ typedef struct xrpchttpconnectplan {
     uint64 Timer;
     bool Pending;
 } xrpchttpconnectplan;
+typedef struct xrpchttpsecure xrpchttpsecure;
 bool xrpcHttpCreatePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
     const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client);
+bool xrpcHttpCreateSecurePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
+    const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpsecure* Secure,xrpchttpclient** Client);
 void xrpcHttpConnected(xrpchttpclient* Client,xnetresult Result,xnetstream* Stream,const xerror* Cause);
 void xrpcHttpConnectRetired(xrpchttpclient* Client);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_http_tls.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
+#ifndef XRPC_HTTP_TLS_INTERNAL_H
+#define XRPC_HTTP_TLS_INTERNAL_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+bool xrpcHttpDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,
+    uint64 Affinity,xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,
+    xrpchttpclient** Result,double Began,xrpchttpsecure* Secure);
+#endif
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+struct xrpchttpsecure {
+    xtlssession* Session;
+    xtlsstream* Stream;
+    xtlsstreamconfig Config;
+    size_t WriteBytes,Written;
+    bool Ready;
+};
+void xrpcHttpSecureDrop(xrpchttpsecure* Secure);
 #endif
 #endif
 #endif
@@ -3620,6 +3742,7 @@ struct xrpchttpclient {
     xrpchttpinfo Info;
     xrpcresultquota* ResultQuota;
     xrpchttpconnectplan* Connect;
+    xrpchttpsecure* Secure;
     xnetpost Wake;
     xpromise* ClosePromise;
     xfuture* CloseFuture;
@@ -3657,6 +3780,9 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* C)
     xrtNetStreamDestroy(C->Stream);xrtPromiseDestroy(C->ClosePromise);xrtFutureDestroy(C->CloseFuture);
     xrtErrorFree(C->Cause);xrtFree(C->Input);xrtFree(C->Payload);xrtFree(C->Fields);xrtFree(C->Trailers);
     xrpcResultQuotaRelease(C->ResultQuota);
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    xrpcHttpSecureDrop(C->Secure);
+#endif
     if(C->EnginePinned)xrtNetEngineUnpin(C->Engine);
     xrtMutexUnit(&C->Gate);xrtFree(C);
 }
@@ -3701,10 +3827,53 @@ static bool xrpcHttpConnectArm(xrpchttpclient* C)
     if(C->Connect->Timer)return true;
     xrpcHttpRelease(C);xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());return false;
 }
+static void xrpcHttpConnectRelease(xrpchttpclient* C)
+{xrpcHttpConnectTimerCancel(C);xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;if(P)P->Drop(P->Data);}
 void xrpcHttpConnectRetired(xrpchttpclient* C)
-{xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);xrpcHttpWake(C);}
+{
+    C->Connect->Pending=false;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure && C->Secure->Stream && !C->Secure->Ready && !xrpcHttpClosing(C)){xrpcHttpWake(C);return;}
+#endif
+    xrpcHttpConnectRelease(C);xrpcHttpWake(C);
+}
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+static void xrpcHttpTlsOpen(xtlsstream* Stream,ptr Data)
+{
+    xrpchttpclient* C=Data;xbytesview Protocol={0};
+    /* Native verification/IO can occupy this same worker past its timer. A
+     * queued timer is not permission to publish readiness after the deadline. */
+    if(C->Connect && xrtTimer()>=C->Connect->Deadline){xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);return;}
+    if(xrtTlsSessionProtocol(xrtTlsStreamSession(Stream),&Protocol) && (Protocol.Size!=8 || memcmp(Protocol.Data,"http/1.1",8))){
+        xrpcHttpFail(C,XRPC_CALL_PROTOCOL,NULL);return;}
+    C->Secure->Ready=true;xrpcHttpConnectTimerCancel(C);
+    xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);
+    if(C->Connect && !C->Connect->Pending)xrpcHttpConnectRelease(C);
+    xrpcHttpWake(C);
+}
+static void xrpcHttpTlsRead(xtlsstream* Stream,const xnetbuf* Buffer,ptr Data)
+{(void)Stream;(void)Buffer;xrpcHttpWake(Data);}
+static void xrpcHttpTlsEnd(xtlsstream* Stream,ptr Data)
+{(void)Stream;xrpchttpclient* C=Data;C->ReadEnded=true;xrpcHttpWake(C);}
+static void xrpcHttpTlsWritable(xtlsstream* Stream,ptr Data)
+{(void)Stream;xrpcHttpWake(Data);}
+static void xrpcHttpTlsClose(xtlsstream* Stream,xnetresult Result,const xerror* Error,ptr Data)
+{(void)Stream;xrpchttpclient* C=Data;C->TransportClosed=true;xrpcHttpFail(C,xrpcHttpConnectFailure(Result,Error),Error);}
+static const xtlsstreamevents xrpcHttpTlsEvents={xrpcHttpTlsOpen,xrpcHttpTlsRead,xrpcHttpTlsEnd,xrpcHttpTlsWritable,xrpcHttpTlsWritable,xrpcHttpTlsClose,NULL};
+#endif
 void xrpcHttpConnected(xrpchttpclient* C,xnetresult Result,xnetstream* Stream,const xerror* Cause)
 {
+    if(C->Connect && xrtTimer()>=C->Connect->Deadline)xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(Stream && C->Secure && !xrpcHttpClosing(C) && xrtNetStreamState(Stream)==XNET_STREAM_OPEN){
+        C->TransportClosed=false;
+        if(xrtTlsStreamAttach(Stream,C->Secure->Session,&C->Secure->Config,&xrpcHttpTlsEvents,C,&C->Secure->Stream)){
+            C->Secure->Session=NULL;xrpcHttpWake(C);return;}
+        xerror* Error=xrtErrorRef(xrtGetError());C->Stream=Stream;xrpcHttpConnectTimerCancel(C);
+        xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,Error),Error);xrtErrorFree(Error);
+        (void)xrtNetStreamAbort(Stream);xrpcHttpWake(C);return;
+    }
+#endif
     xrpcHttpConnectTimerCancel(C);
     if(Stream){C->Stream=Stream;C->TransportClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
         if(xrpcHttpClosing(C)){if(!C->TransportClosed)(void)xrtNetStreamAbort(Stream);}
@@ -3744,7 +3913,12 @@ static void xrpcHttpRequestDrop(ptr Value)
     xrpcResponsesRelease(R->Response);xrtFree(R->Wire);xrtFree(R);xrpcHttpReservationDrop(C,Bytes,BatchBytes);
 }
 static void xrpcHttpReset(xrpchttpclient* C)
-{C->Active=NULL;C->InputUsed=0;C->InputScan=0;C->BodyUsed=0;C->ResponseWireBytes=0;C->Informational=0;C->BodyStarted=false;C->ConnectionClose=false;}
+{
+    C->Active=NULL;C->InputUsed=0;C->InputScan=0;C->BodyUsed=0;C->ResponseWireBytes=0;C->Informational=0;C->BodyStarted=false;C->ConnectionClose=false;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure)C->Secure->Written=0;
+#endif
+}
 static bool xrpcHttpFinish(xrpchttprequest* R,xrpccallstatus Status,const xerror* Cause)
 {
     xrpchttpclient* C=R->Client;
@@ -3835,6 +4009,11 @@ static bool xrpcHttpBatchId(xrpcvalue Id,uint64* Value)
 static bool xrpcHttpReply(xrpchttpclient* C)
 {
     xrpchttprequest* R=C->Active;xrpcmessage Scratch;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    /* A peer may answer before a large request is fully accepted. Retire this
+     * connection after the reply so an unsent suffix cannot prefix a new RPC. */
+    if(C->Secure && C->Secure->Written<R->WireBytes)C->ConnectionClose=true;
+#endif
     xrpchttpbatch* B=R->Operation==XRPC_HTTP_BATCH?R->Group.Batch:NULL;
     bool Notification=R->Operation==XRPC_HTTP_NOTIFICATION || (B && !B->Calls);
     if(Notification){
@@ -3936,25 +4115,59 @@ static bool xrpcHttpParse(xrpchttpclient* C,bool End)
     if(Offset){memmove(C->Input,C->Input+Offset,C->InputUsed-Offset);C->InputUsed-=Offset;}
     return !xrpcHttpClosing(C);
 }
+static bool xrpcHttpHasTransport(xrpchttpclient* C)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure)return C->Secure->Stream!=NULL || C->Stream!=NULL;
+#endif
+    return C->Stream!=NULL;
+}
+static bool xrpcHttpTransportReady(xrpchttpclient* C)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure)return C->Secure->Ready;
+#endif
+    return C->Stream && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
+}
+static size_t xrpcHttpAvailable(xrpchttpclient* C)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure)return C->Secure->Stream?xrtTlsStreamAvailable(C->Secure->Stream):0;
+#endif
+    return C->Stream?xrtNetStreamAvailable(C->Stream):0;
+}
+static void xrpcHttpAbort(xrpchttpclient* C)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure && C->Secure->Stream){(void)xrtTlsStreamAbort(C->Secure->Stream);return;}
+#endif
+    if(C->Stream)(void)xrtNetStreamAbort(C->Stream);
+}
 static void xrpcHttpRead(xrpchttpclient* C)
 {
     size_t Budget=C->Config.ReadBytes;
-    while(Budget && C->Stream && !C->TransportClosed && !xrpcHttpClosing(C)){
-        size_t Available=xrtNetStreamAvailable(C->Stream);if(!Available)break;
+    while(Budget && !C->TransportClosed && !xrpcHttpClosing(C)){
+        size_t Available=xrpcHttpAvailable(C);if(!Available)break;
         if(!C->Active || !C->Active->Sent){xrpcHttpFail(C,XRPC_CALL_PROTOCOL,NULL);break;}
         size_t N=C->InputCapacity-C->InputUsed;if(N>Budget)N=Budget;if(N>Available)N=Available;
         size_t Remaining=C->Config.MaxResponseWireBytes-C->ResponseWireBytes;if(N>Remaining)N=Remaining;
         if(!N){xrpcHttpFail(C,XRPC_CALL_LIMIT,NULL);break;}
-        N=xrtNetStreamRead(C->Stream,C->Input+C->InputUsed,N);if(!N)break;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+        if(C->Secure){size_t Read=0;xtlsresult S=xrtTlsStreamRead(C->Secure->Stream,C->Input+C->InputUsed,N,&Read);N=Read;
+            if(S==XTLS_ERROR){xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());break;}}
+        else
+#endif
+        N=xrtNetStreamRead(C->Stream,C->Input+C->InputUsed,N);
+        if(!N)break;
         Budget-=N;C->InputUsed+=N;C->ResponseWireBytes+=N;if(!xrpcHttpParse(C,false))break;
     }
-    if(C->ReadEnded && !xrpcHttpClosing(C) && (!C->Stream || xrtNetStreamAvailable(C->Stream)==0)){
+    if(C->ReadEnded && !xrpcHttpClosing(C) && !xrpcHttpAvailable(C)){
         if(C->Active)(void)xrpcHttpParse(C,true);
         if(!xrpcHttpClosing(C))xrpcHttpFail(C,XRPC_CALL_TRANSPORT,NULL);
     }
-    if(C->Stream && !C->TransportClosed && !xrpcHttpClosing(C)){
-        if(xrtNetStreamAvailable(C->Stream))xrpcHttpWake(C);
-        else (void)xrtNetStreamResume(C->Stream);
+    if(xrpcHttpHasTransport(C) && !C->TransportClosed && !xrpcHttpClosing(C)){
+        if(xrpcHttpAvailable(C))xrpcHttpWake(C);
+        else if(C->Stream)(void)xrtNetStreamResume(C->Stream);
     }
 }
 static void xrpcHttpOnOpen(xnetstream* Stream,ptr Data)
@@ -3973,6 +4186,28 @@ static void xrpcHttpOnClose(xnetstream* Stream,xnetresult Result,const xerror* E
     xrpcHttpFail(C,xrtErrorKind(Error)==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,Error);
 }
 static const xnetstreamevents xrpcHttpEvents={xrpcHttpOnOpen,xrpcHttpOnRead,xrpcHttpOnEnd,NULL,xrpcHttpOnLow,xrpcHttpOnDrain,xrpcHttpOnClose};
+static void xrpcHttpWrite(xrpchttpclient* C)
+{
+    xrpchttprequest* R=C->Active;if(!R)return;xrpcHttpStop(R);if(C->Active!=R)return;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+    if(C->Secure){
+        xrpchttpsecure* S=C->Secure;size_t Budget=S->WriteBytes,Calls=C->Config.WorkRequests;
+        while(S->Written<R->WireBytes && Budget && Calls--){
+            xrpcHttpStop(R);if(C->Active!=R)return;
+            size_t N=R->WireBytes-S->Written,Written=0;if(N>Budget)N=Budget;
+            xtlsresult Result=xrtTlsStreamSend(S->Stream,R->Wire+S->Written,N,&Written);
+            S->Written+=Written;Budget-=Written;if(Written && !R->Sent){R->Sent=true;(void)xrpcCallMarkSent(R->Call);}
+            if(Result==XTLS_ERROR || Result==XTLS_CLOSED){xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,Result==XTLS_ERROR?xrtGetError():NULL),Result==XTLS_ERROR?xrtGetError():NULL);return;}
+            if(Result==XTLS_AGAIN || !Written)return;
+        }
+        if(S->Written<R->WireBytes)xrpcHttpWake(C);
+        return;
+    }
+#endif
+    if(!R->Sent){xnetresult S=xrtNetStreamSend(C->Stream,R->Wire,R->WireBytes);
+        if(S==XNET_RESULT_OK){R->Sent=true;(void)xrpcCallMarkSent(R->Call);}
+        else if(S!=XNET_RESULT_AGAIN)xrpcHttpFail(C,S==XNET_RESULT_ERROR && xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,S==XNET_RESULT_ERROR?xrtGetError():NULL);}
+}
 static void xrpcHttpWork(xnetworker* Worker,ptr Data)
 {
     (void)Worker;xrpchttpclient* C=Data;
@@ -3982,7 +4217,11 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
         if(!xrpcHttpClosing(C)){
             if(C->Connect){
                 if(xrpcHttpConnectArm(C)){C->Connect->Pending=true;
-                    if(!C->Connect->Start(C->Connect->Data,C,C->Engine,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents)){
+                    const xnetstreamevents* Events=&xrpcHttpEvents;
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+                    static const xnetstreamevents Pending={.Close=xrpcHttpOnClose};if(C->Secure)Events=&Pending;
+#endif
+                    if(!C->Connect->Start(C->Connect->Data,C,C->Engine,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,Events)){
                         C->Connect->Pending=false;C->TransportClosed=true;xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());}}
                 else C->TransportClosed=true;
             }else{
@@ -3995,21 +4234,14 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
     if(!xrpcHttpClosing(C)){
         xrpcHttpRead(C);
         if(C->Active && C->Active->Completing)(void)xrpcHttpFinish(C->Active,C->Active->Status,NULL);
-        if(!xrpcHttpClosing(C) && !C->Active && C->Head && C->Stream && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN){
+        if(!xrpcHttpClosing(C) && !C->Active && C->Head && xrpcHttpTransportReady(C)){
             xrpchttprequest* R=C->Head;C->Active=R;
         }
-        if(!xrpcHttpClosing(C) && C->Active && !C->Active->Sent){
-            xrpchttprequest* R=C->Active;xrpcHttpStop(R);
-            if(C->Active==R){
-                xnetresult S=xrtNetStreamSend(C->Stream,R->Wire,R->WireBytes);
-                if(S==XNET_RESULT_OK){R->Sent=true;(void)xrpcCallMarkSent(R->Call);}
-                else if(S!=XNET_RESULT_AGAIN)xrpcHttpFail(C,S==XNET_RESULT_ERROR && xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,S==XNET_RESULT_ERROR?xrtGetError():NULL);
-            }
-        }
+        if(!xrpcHttpClosing(C))xrpcHttpWrite(C);
     }
     if(xrpcHttpClosing(C)){
         xrpcHttpConnectTimerCancel(C);if(C->Connect && C->Connect->Pending)C->Connect->Cancel(C->Connect->Data);
-        if(C->Stream && !C->TransportClosed)(void)xrtNetStreamAbort(C->Stream);
+        if(!C->TransportClosed)xrpcHttpAbort(C);
         for(size_t N=0;C->Head && N<C->Config.WorkRequests;++N)if(!xrpcHttpFinish(C->Head,C->Info.CloseStatus,C->Cause))break;
     }
     xrtMutexLock(&C->Gate);
@@ -4020,7 +4252,10 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
     xrtMutexUnlock(&C->Gate);
     if(Done){
         xrtNetStreamDestroy(C->Stream);C->Stream=NULL;
-        if(C->Connect){xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);}
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+        if(C->Secure){xrpcHttpSecureDrop(C->Secure);C->Secure=NULL;}
+#endif
+        if(C->Connect)xrpcHttpConnectRelease(C);
         xpromise* P=C->ClosePromise;C->ClosePromise=NULL;
         (void)xrtNetEngineUnpin(C->Engine);(void)xrtPromiseResolve(P,NULL);xrtPromiseDestroy(P);
         xrpcHttpRelease(C); /* Runtime activation. */
@@ -4039,7 +4274,7 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
 }
 static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpsecure* Secure,xrpchttpclient** Client)
 {
     if(!Engine || (!Remote && !Plan) || !Client || (Remote && (!xrtMemRangeValid(Remote,sizeof(*Remote)) || xrtMemRangesOverlap(Remote,sizeof(*Remote),Client,sizeof(*Client)))) || !xrtMemRangeValid(Client,sizeof(*Client)) ||
         !xrtMemRangeValid(Host.Data,Host.Size) || !xrtMemRangeValid(Target.Data,Target.Size) ||
@@ -4075,17 +4310,20 @@ static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affi
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
     if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
         !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
-    if(Plan){C->Connect=Plan;Plan->Deadline=Deadline;}
+    if(Plan){C->Connect=Plan;Plan->Deadline=Deadline;}C->Secure=Secure;
     xrpcHttpRef(C);xrtMutexLock(&C->Gate);bool Posted=xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
-    if(!Posted){C->Connect=NULL;xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
+    if(!Posted){C->Connect=NULL;C->Secure=NULL;xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
 }
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
-{return xrpcHttpCreate(Engine,Remote,Affinity,Host,Target,Config,NULL,INFINITY,Client);}
+{return xrpcHttpCreate(Engine,Remote,Affinity,Host,Target,Config,NULL,INFINITY,NULL,Client);}
 bool xrpcHttpCreatePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
     const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
-{return xrpcHttpCreate(Engine,NULL,Affinity,Host,Target,Config,Plan,Deadline,Client);}
+{return xrpcHttpCreate(Engine,NULL,Affinity,Host,Target,Config,Plan,Deadline,NULL,Client);}
+bool xrpcHttpCreateSecurePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
+    const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpsecure* Secure,xrpchttpclient** Client)
+{return xrpcHttpCreate(Engine,NULL,Affinity,Host,Target,Config,Plan,Deadline,Secure,Client);}
 static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,
     bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
@@ -5001,8 +5239,8 @@ XRPC_API bool xrpcHttpDialConfigInit(xrpchttpdialconfig* C)
     if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcDialArgument("invalid HTTP dial config output");
     *C=(xrpchttpdialconfig){sizeof(*C),XNET_FAMILY_UNSPEC,30000,250,8,1024};return true;
 }
-static bool xrpcDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
-    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,xrpchttpclient** Result,double Began)
+bool xrpcHttpDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,xrpchttpclient** Result,double Began,xrpchttpsecure* Secure)
 {
     if(!Engine || !Result || !xrtMemRangeValid(Result,sizeof(*Result)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) ||
         xrtMemRangesOverlap(Dial,sizeof(*Dial),Result,sizeof(*Result)))))return xrpcDialArgument("invalid HTTP dial arguments/output overlap");
@@ -5026,15 +5264,74 @@ static bool xrpcDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlis
     if(Addresses){D->Addresses=xrtNetAddrListRef(Addresses);if(!D->Addresses){xrpcDialDrop(D);return false;}}
     else memcpy(D->Name,Name.Data,Name.Size);
     double Deadline=K.Timeout==XRT_WAIT_FOREVER?INFINITY:K.Timeout==0?Began:nextafter(Began+(double)(K.Timeout/1000)+(double)(K.Timeout%1000)*.001,INFINITY);
-    if(xrpcHttpCreatePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Result))return true;
+    if(Secure?xrpcHttpCreateSecurePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Secure,Result):
+        xrpcHttpCreatePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Result))return true;
     xerror* E=xrtTakeError();xrpcDialDrop(D);xrtClearError();xrtSetErrorTake(E);return false;
 }
 XRPC_API bool xrpcHttpDial(xnetengine* E,xnetresolver* R,xstrview Name,uint16 Port,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
-{return xrpcDialCreate(E,R,NULL,Name,Port,A,H,T,C,D,Result,xrtTimer());}
+{return xrpcHttpDialCreate(E,R,NULL,Name,Port,A,H,T,C,D,Result,xrtTimer(),NULL);}
 XRPC_API bool xrpcHttpDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
 {
     double Began=xrtTimer();if(!Addresses)return xrpcDialArgument("prepared HTTP endpoints are NULL");
-    return xrpcDialCreate(E,NULL,Addresses,(xstrview){0},0,A,H,T,C,D,Result,Began);
+    return xrpcHttpDialCreate(E,NULL,Addresses,(xstrview){0},0,A,H,T,C,D,Result,Began,NULL);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/http_tls/http_tls.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+#include <string.h>
+#if defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+static bool xrpcTlsArgument(cstr Message)
+{xrtSetErrorInfo(XERR_ARGUMENT,"xrt.rpc",XRPC_HTTP_ARGUMENT,Message);return false;}
+static const xstrview xrpcTlsHttp11={"http/1.1",8};
+XRPC_API bool xrpcHttpTlsConfigInit(xrpchttptlsconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xrpcTlsArgument("invalid HTTP TLS config output");
+    *K=(xrpchttptlsconfig){0};K->Size=sizeof(*K);xrtTlsClientConfigInit(&K->Session);xrtTlsStreamConfigInit(&K->Stream);
+    xrpcHttpDialConfigInit(&K->Dial);K->Session.Protocols=&xrpcTlsHttp11;K->Session.ProtocolCount=1;
+    K->MaxMetadataBytes=65536;K->WriteBytes=65536;return true;
+}
+void xrpcHttpSecureDrop(xrpchttpsecure* S)
+{if(S){xrtTlsStreamDestroy(S->Stream);xrtTlsSessionDestroy(S->Session);xrtFree(S);}}
+static bool xrpcTlsCreate(xnetengine* E,xnetresolver* R,xnetaddrlist* A,xstrview N,uint16 P,uint64 F,xstrview H,xstrview T,
+    const xrpchttpconfig* HTTP,const xrpchttptlsconfig* TLS,xrpchttpclient** Out,double Began)
+{
+    if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || !TLS || !xrtMemRangeValid(TLS,sizeof(*TLS)) ||
+        xrtMemRangesOverlap(TLS,sizeof(*TLS),Out,sizeof(*Out)))return xrpcTlsArgument("invalid HTTP TLS descriptor/output");
+    xrpchttptlsconfig K=*TLS;
+    if(K.Size!=sizeof(K) || !K.MaxMetadataBytes || K.MaxMetadataBytes>1048576u || !K.WriteBytes || K.WriteBytes>1048576u ||
+        K.Stream.HandshakeTimeout<0 || K.Stream.CloseTimeout<0 || !K.Stream.AsyncBytesLimit || !K.Stream.AsyncCountLimit || !K.Stream.AsyncBatch ||
+        K.Session.ProtocolCount>1 || (!K.Session.ServerName.Size && !K.Session.VerifyName.Size))return xrpcTlsArgument("invalid HTTP TLS policy/identity/bounds");
+    size_t Bytes=K.Session.ProtocolCount*sizeof(xstrview);
+    if(!xrtMemRangeValid(K.Session.Protocols,Bytes) || xrtMemRangesOverlap(K.Session.Protocols,Bytes,Out,sizeof(*Out)) || Bytes>K.MaxMetadataBytes)
+        return xrpcTlsArgument("invalid HTTP TLS ALPN descriptors");
+    for(size_t I=0;I<K.Session.ProtocolCount+2;++I){xstrview V=I==0?K.Session.ServerName:I==1?K.Session.VerifyName:K.Session.Protocols[I-2];
+        if(V.Size>K.MaxMetadataBytes-Bytes || !xrtMemRangeValid(V.Data,V.Size) || xrtMemRangesOverlap(V.Data,V.Size,Out,sizeof(*Out)) ||
+            (I<2 && V.Size && memchr(V.Data,0,V.Size)))return xrpcTlsArgument("invalid HTTP TLS name/metadata");
+        if(I>=2 && (V.Size!=8 || memcmp(V.Data,"http/1.1",8)))return xrpcTlsArgument("HTTP TLS supports HTTP/1.1 ALPN only");
+        Bytes+=V.Size;
+    }
+    xrpchttpsecure* S=xrtCalloc(1,sizeof(*S));if(!S)return false;S->Config=K.Stream;S->WriteBytes=K.WriteBytes;
+    S->Session=xrtTlsClientCreate(&K.Session,NULL);if(!S->Session){xrpcHttpSecureDrop(S);return false;}
+    if(xrpcHttpDialCreate(E,R,A,N,P,F,H,T,HTTP,&K.Dial,Out,Began,S))return true;
+    xerror* Error=xrtTakeError();xrpcHttpSecureDrop(S);xrtClearError();xrtSetErrorTake(Error);return false;
+}
+XRPC_API bool xrpcHttpTlsDial(xnetengine* E,xnetresolver* R,xstrview N,uint16 P,uint64 F,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttptlsconfig* K,xrpchttpclient** O)
+{return xrpcTlsCreate(E,R,NULL,N,P,F,H,T,C,K,O,xrtTimer());}
+XRPC_API bool xrpcHttpTlsDialAddresses(xnetengine* E,xnetaddrlist* A,uint64 F,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttptlsconfig* K,xrpchttpclient** O)
+{double Began=xrtTimer();if(!A)return xrpcTlsArgument("HTTP TLS endpoint list is NULL");return xrpcTlsCreate(E,NULL,A,(xstrview){0},0,F,H,T,C,K,O,Began);}
+XRPC_API bool xrpcHttpTlsConnect(xnetengine* E,const xnetaddr* A,uint64 F,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttptlsconfig* K,xrpchttpclient** O)
+{
+    double Began=xrtTimer();if(!A || !O || !xrtMemRangeValid(A,sizeof(*A)) || !xrtMemRangeValid(O,sizeof(*O)) ||
+        xrtMemRangesOverlap(A,sizeof(*A),O,sizeof(*O)))return xrpcTlsArgument("invalid HTTP TLS numeric endpoint/output");
+    xnetaddrlist* List=xrtNetAddrListCreate(A,1);if(!List)return false;
+    bool OK=xrpcTlsCreate(E,NULL,List,(xstrview){0},0,F,H,T,C,K,O,Began);xerror* Error=OK?NULL:xrtTakeError();
+    xrtNetAddrListDestroy(List);if(!OK){xrtClearError();xrtSetErrorTake(Error);}return OK;
 }
 #endif
 #endif

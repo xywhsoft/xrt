@@ -26,11 +26,13 @@ Target and rules: [development contract](service-extensions-plan.md).
   pending-call admission/removal, immutable owned responses and complete-document
   response correlation, native call/Future lifetime and the first ordinary
   HTTP/TCP call client are locally verified. Bounded asynchronous server execution,
-  ordinary/notification/batch HTTP client/server traffic, retained-result quotas
-  and asynchronous DNS/prepared-address dialing are also locally verified. The
-  client has bounded concurrent submission, worker ownership and API-entry
-  deadlines. TLS/authentication, richer HTTP metadata/recovery/pooling, other
-  transports, bidirectional calls and deferred business handlers remain pending.
+  ordinary/notification/batch HTTP client/server traffic, retained-result quotas,
+  asynchronous DNS/prepared-address dialing and an explicit TLS client with
+  verified server identity are also locally verified. The client has bounded concurrent submission,
+  worker ownership and API-entry
+  deadlines. TLS server/mutual/application authentication, richer HTTP
+  metadata/recovery/pooling, other transports, bidirectional calls and deferred
+  business handlers remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -3809,3 +3811,208 @@ client/session/persistence, Cron IANA/scheduler/durable recovery and original P4
 remain active. Native Linux qualification, representative pinned comparators and
 at least 72-hour native Windows/Linux mixed/fault runs remain unaccepted. This
 connection feature completes neither xrpc nor the four-product production goal.
+
+## P3: explicit HTTP client TLS and absolute readiness deadlines (2026-10-30)
+
+Base: `e87c3c7d20e3cf6244ab008b86ed3285a20d8126`. Added an optional
+`xrpc_http_tls` leaf with config initialization and numeric, DNS and prepared-list
+TLS factories. Core owns certificate verification, cryptography, candidate racing
+and the TLS stream. The adapter reuses the production HTTP client, response
+correlation, deadlines, cancellation and retained-result quota. No new shared
+runtime, TLS server completion, implicit cleartext fallback or request replay is
+claimed. HTTP application authentication, mutual client authentication and managed
+tickets remain separate work under the original scope.
+
+DNS route, HTTP authority and TLS certificate identity are explicit inputs.
+ServerName/VerifyName is mandatory and native verified-client construction rejects
+missing trust (except explicit Core ResumeOnly policy). IP identities use VerifyName
+without SNI. Names/ALPN are snapshotted and shared context/verifier/resume objects
+are retained before return, allowing caller storage/verifier-reference reuse.
+Verifier callback/context lifetime extends through final engine join. Default ALPN
+is HTTP/1.1; empty ALPN is allowed, other offers are rejected before admission and
+negotiated protocol is checked before readiness. Metadata has 64 KiB default/1 MiB
+hard bounds; native verification/context/record/TCP limits remain additional bounds.
+
+One API-entry connection deadline spans session construction, owner queueing, DNS,
+TCP, candidate retirement and TLS readiness. Zero is immediate asynchronous timeout;
+-1 disables it. The native handshake timer is an additional stage bound. The cold
+connection plan remains until both physical TCP-Dial callback retirement and TLS
+setup completion; timer cancellation owns a real client reference. Close observes
+physical source and stream duties; the application owns/joins its resolver separately.
+Public Close aborts, not a graceful close_notify delivery guarantee.
+
+TLS sends accept short plaintext prefixes. A per-connection offset retains the
+encoded request through complete acceptance or retirement, with no extra per-request
+field. The first accepted byte marks MAY_HAVE_EXECUTED. Native send calls and accepted
+bytes per worker turn are bounded by WorkRequests and WriteBytes (default 64 KiB,
+hard 1 MiB). Backpressure waits for native writable events. Sent timeout/cancel
+retires the connection and closes queued unsent work without replay. A valid early
+response can complete its RPC, but an unsent suffix forces connection retirement.
+TLS failure/truncated authentication is a transport failure, not HTTP EOF.
+
+A targeted verifier gate reproduced a deadline bug before the fix: if verification
+occupied the owner worker until after the absolute timer became due, TLS Open could
+cancel that queued timer and publish a late ready connection. The Windows pre-fix
+binary fails with `TLS readiness bypassed expired factory deadline`; source/object/
+binary/receipt evidence is retained under `before-verification-deadline/`. TCP
+delivery and TLS-ready publication now compare the absolute deadline directly.
+The regression holds verification beyond the deadline and requires TIMEOUT/NOT_SENT
+and zero peer RPCs. This is deliberate worker-fault injection, not a production
+recommendation to block a verifier callback.
+
+Final frozen-input runtime checks pass on both platforms: 14 modular and 14 single
+binaries each (56 total), 16 examples each and trim. WSL uses ASan/UBSan with leak
+detection and halt-on-error. New tests cover copied DNS/identity/ALPN storage,
+shared-verifier release before admission, three endpoint forms and a reserved
+non-listening candidate followed by a winner, small read/write work, ordinary/
+notification/mixed-batch/remote-error traffic, trust rejection, total/handshake/
+immediate deadlines, partial send cancel/timeout/close, unauthenticated truncation,
+early replies, held DNS and owner queueing, API-entry expiry before DNS, creator
+release during close, completion-watch reentry and independent retained results.
+Nine constructor byte thresholds, after fixture/global warmup, cross success/failure
+and return requested budget bytes to zero after full cleanup. They are not exhaustive
+allocation-site or cold-start fault coverage. Invalid policies preserve outputs and
+cannot bypass native certificate verification.
+
+The new example accepts runtime CA data and explicit identity, checks echo `[7]`,
+then closes/releases and joins its client/resolver/engine. It contains no fixture
+trust callback or compiled private key. The separate bounded test/benchmark peer
+uses the repository's historical public TLS identity and an explicit test verifier;
+it is not the production HTTP server or arbitrary-peer trust policy.
+
+Normal maturity: 25 modules, 16 implementation nodes (15 C files), all 16 covered
+by tests/single/docs, 35 workloads and 15 size profiles. Generated reference has
+79 functions, 152 constants/macros and 73 public types. Strict release continues to
+reject the developing xrpc aggregate. The source and generated single/reference
+checks stay tied to the exact same inputs.
+
+The plain TCP client gains one optional secure-state pointer and no TLS allocation
+or TLS IO call. TLS adds a private sidecar and native session/stream/candidate state,
+snapshotted metadata, timer duties and native plaintext-to-record copies. Read bytes
+still copy into the existing bounded HTTP staging buffer. These costs are reported
+as requested structure/artifact sizes and measured workloads, not RSS, zero-copy or
+zero-overhead proof. Cold TLS, CPU/allocator/copy counts, pinned comparators and
+native production acceptance remain pending.
+
+Before shared outputs changed, 244 SHA-bound predecessor artifacts/object files
+were archived at `out/service-extensions/xrpc-http-dial/before-http-tls/`, a junction
+to `D:/CodexArtifacts/xrt-service-extensions/e87c3c7d-before-http-tls`. New phase
+single/TSan/probe binaries use a dedicated D cache via `xrpc-http-tls/bin/`. WSL
+example outputs were relocated with 197 file hashes reverified and a junction at
+the original output directory. After their readers retired, WSL modular-test
+outputs were similarly relocated with 381 file hashes reverified. No
+primary-checkout work or predecessor evidence was deleted.
+
+
+Both platforms passed complete xrpc and minimal TLS static/shared consumers,
+declaration-only compilation and size checks for the plain HTTP client and TLS
+client. Actual backend probes remain IOCP/epoll; the two deterministic concurrent
+Close probes pass against the final modular objects. Qualified WSL O2 TSan passes
+the complete TLS suite without a runtime race report. Its original O1 build
+triggered GCC maybe-uninitialized diagnostics in unchanged Core PSK helpers;
+inspection shows both successful helper paths assign their output counts before
+the comparison. O2 matches production optimization and retains -Werror without
+that warning downgrade. Original O1 diagnostics/driver and the source hash remain
+in the receipts, as does GCC's atomic-thread-fence modeling warning. This is not
+full race freedom or native Linux acceptance.
+
+Independent stdlib HTTP/JSON peers complete 405 server exchanges plus one DNS
+client exchange per platform. Independent OpenSSL/Python TLS peers additionally
+run five cases against the example, minimal static consumer and minimal shared
+consumer on both platforms: TLS 1.3 HTTP/1.1 ALPN, TLS 1.2 HTTP/1.1 ALPN, TLS 1.3
+without ALPN, wrong identity and unrelated CA. Eighteen authenticated TLS RPCs
+complete with exact echoed values; twelve negative connections produce typed
+TRANSPORT/NOT_SENT with a cause and zero peer RPCs. Runtime-generated private keys
+are confined to checked temporary directories and removed after the peer threads
+join; only public certificate hashes/tool identities are recorded. This proves
+these native TLS policies, not every cipher/group/resumption mode or independent
+JSON-RPC-library parity.
+
+The first WSL peer failed while reading the next keepalive request after a complete
+reply: ConnectionResetError 104 from the documented client Abort close. Its full
+trace is retained. The peer now joins request threads and only records resets/EOF
+following a completely flushed reply; handshake, write, count, value and negative
+trust failures remain fatal. All six TLS peer matrices were rerun. The peer-only
+input refresh verifies every other frozen C/header/JSON/definition input unchanged
+and preserves the original checks receipts. No production source or gate changed.
+
+Requested x64 layout: HTTP client Windows 904/WSL 976 (+8 from the predecessor),
+request 176 unchanged, private TLS state 72 and public TLS config 192. HTTP config
+320/info 96, native call 88, snapshot 40, result prefix 32, dial data 200/plan 56
+remain unchanged. Ledger remains Windows 72/WSL 144.
+
+| Platform | Profile | Kind | Text | Data | BSS | Logical file bytes |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| windows | xrpc_http_client | single | 600524 | 2672 | 11136 | 869581 |
+| windows | xrpc_http_client | static | 48808 | 0 | 0 | 76660 |
+| windows | xrpc_http_client | shared | 90168 | 224 | 2848 | 149741 |
+| windows | xrpc_http_tls | single | 1278020 | 2704 | 11200 | 1718214 |
+| windows | xrpc_http_tls | static | 57884 | 0 | 0 | 92846 |
+| windows | xrpc_http_tls | shared | 100762 | 224 | 2848 | 166420 |
+| wsl | xrpc_http_client | single | 622173 | 5664 | 10940 | 1101456 |
+| wsl | xrpc_http_client | static | 50213 | 128 | 0 | 100418 |
+| wsl | xrpc_http_client | shared | 61119 | 1472 | 8 | 81040 |
+| wsl | xrpc_http_tls | single | 1312306 | 7760 | 10940 | 2175672 |
+| wsl | xrpc_http_tls | static | 60366 | 328 | 0 | 123990 |
+| wsl | xrpc_http_tls | shared | 74438 | 1872 | 8 | 91688 |
+
+These are unstripped GCC O2 artifacts. Single includes its actual Core closure;
+static/shared rows are the extension artifact with Core supplied separately.
+
+
+## HTTP/TLS six-workload measurements
+
+Each workload uses one warmup and five measured runs. The unchanged production
+HTTP client/server/executor profiles offer 2000 documents at 2000 planned arrivals/s;
+TLS profiles offer 1000 at 500 planned arrivals/s against a bounded same-engine,
+single-connection TLS 1.3 AES-128-GCM fixture on the other worker. TLS fixture/client
+construction, certificate handshake and a readiness RPC are outside its timed loop.
+Client encode, record creation, send, parsing, result observation/destruction and
+scheduled-arrival lateness remain inside observation. All offered/admitted/failed/
+rejected/completed and latency-sample counts are retained. Different peers/rates
+make these rows unsuitable for an equivalent TLS overhead or capacity comparison.
+
+| Platform | Workload | Completed documents/s | All-offer P99 us | Offer-lateness P99 us |
+| --- | --- | ---: | ---: | ---: |
+| windows | HTTP ordinary | 1944.757 | 30554.300 | 15322.700 |
+| windows | HTTP notification | 1962.750 | 30946.800 | 15448.300 |
+| windows | HTTP batch16 | 1908.881 | 89575.200 | 50641.100 |
+| windows | TLS ordinary | 495.857 | 31206.100 | 15620.200 |
+| windows | TLS notification | 495.194 | 30963.700 | 15448.000 |
+| windows | TLS batch16 | 496.256 | 30153.500 | 15308.500 |
+| wsl | HTTP ordinary | 1997.321 | 2181.301 | 1060.983 |
+| wsl | HTTP notification | 1997.911 | 2170.698 | 1059.990 |
+| wsl | HTTP batch16 | 1997.742 | 2245.908 | 1059.905 |
+| wsl | TLS ordinary | 500.022 | 2186.710 | 1061.803 |
+| wsl | TLS notification | 500.046 | 2168.898 | 1058.303 |
+| wsl | TLS batch16 | 500.123 | 2203.100 | 1054.502 |
+
+
+Every measured run accepts/completes all its offers (2000 plain or 1000 TLS),
+with zero failed/rejected operations and all latency samples. Windows HTTP batch16
+P50 fails unchanged noise gates: 3.272% relative MAD and 28.902% central range,
+versus 3%/6%. Other Windows checks, including all TLS workloads, pass; all WSL noise
+checks pass. Runner exits 1/0 and raw samples remain without favorable-sample
+retries or relaxed limits. No baseline is pinned and performance remains unaccepted.
+Shared-host Windows offer lateness/queueing and timer granularity remain material;
+these are neither saturation capacity nor isolated TLS/server latency.
+
+Source fingerprint: `8dcbcf0749146fe4086a12b267cfd901699afc19e0ec98c167964a9a74129bf0`.
+Workload fingerprint: `75862cdcf06fe81fd17445e1a56a84e65363f3d07d2d3b0dfb07d3ff92adde90`.
+
+Current evidence at `out/service-extensions/xrpc-http-tls/validation.json` binds
+56 runtime binaries and 52 additional artifacts to the frozen inputs, actual
+backends, layouts/sizes, qualified TSan, race probes, interop and raw 5+1 samples.
+The committed rerun requires clean HEAD/tree and exact input/artifact hashes.
+Cross-platform receipt paths are normalized before canonical-path AND hash checks;
+WSL's mounted artifact cache does not bypass artifact identity.
+
+Next work remains TLS server transport, mutual and HTTP application authentication,
+managed tickets, richer HTTP metadata/recovery/pooling, WebSocket/framed stdio,
+bidirectional calls, negotiated extensions and deferred business handlers. Redis
+HA/tracking/dedicated modes, MQTT 5.0/3.1.1 full client/session/persistence, Cron
+IANA/scheduler/durable recovery and the full P4 matrix remain active. Cold TLS,
+slow consumers and contended/fault workloads, CPU/allocator/copy accounting,
+representative pinned comparators and at least 72-hour native Windows/Linux
+mixed/fault runs are still unaccepted. WSL is not native Linux qualification.
+This TLS-client slice completes neither xrpc nor the four-product production goal.

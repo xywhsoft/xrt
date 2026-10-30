@@ -1,5 +1,6 @@
 #include <xrpc/http_dial.h>
 #include "../internal/xrpc_http_connect.h"
+#include "../internal/xrpc_http_tls.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <math.h>
@@ -57,8 +58,8 @@ XRPC_API bool xrpcHttpDialConfigInit(xrpchttpdialconfig* C)
     if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcDialArgument("invalid HTTP dial config output");
     *C=(xrpchttpdialconfig){sizeof(*C),XNET_FAMILY_UNSPEC,30000,250,8,1024};return true;
 }
-static bool xrpcDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
-    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,xrpchttpclient** Result,double Began)
+bool xrpcHttpDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,xrpchttpclient** Result,double Began,xrpchttpsecure* Secure)
 {
     if(!Engine || !Result || !xrtMemRangeValid(Result,sizeof(*Result)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) ||
         xrtMemRangesOverlap(Dial,sizeof(*Dial),Result,sizeof(*Result)))))return xrpcDialArgument("invalid HTTP dial arguments/output overlap");
@@ -82,14 +83,15 @@ static bool xrpcDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlis
     if(Addresses){D->Addresses=xrtNetAddrListRef(Addresses);if(!D->Addresses){xrpcDialDrop(D);return false;}}
     else memcpy(D->Name,Name.Data,Name.Size);
     double Deadline=K.Timeout==XRT_WAIT_FOREVER?INFINITY:K.Timeout==0?Began:nextafter(Began+(double)(K.Timeout/1000)+(double)(K.Timeout%1000)*.001,INFINITY);
-    if(xrpcHttpCreatePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Result))return true;
+    if(Secure?xrpcHttpCreateSecurePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Secure,Result):
+        xrpcHttpCreatePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Result))return true;
     xerror* E=xrtTakeError();xrpcDialDrop(D);xrtClearError();xrtSetErrorTake(E);return false;
 }
 XRPC_API bool xrpcHttpDial(xnetengine* E,xnetresolver* R,xstrview Name,uint16 Port,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
-{return xrpcDialCreate(E,R,NULL,Name,Port,A,H,T,C,D,Result,xrtTimer());}
+{return xrpcHttpDialCreate(E,R,NULL,Name,Port,A,H,T,C,D,Result,xrtTimer(),NULL);}
 XRPC_API bool xrpcHttpDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
 {
     double Began=xrtTimer();if(!Addresses)return xrpcDialArgument("prepared HTTP endpoints are NULL");
-    return xrpcDialCreate(E,NULL,Addresses,(xstrview){0},0,A,H,T,C,D,Result,Began);
+    return xrpcHttpDialCreate(E,NULL,Addresses,(xstrview){0},0,A,H,T,C,D,Result,Began,NULL);
 }
 #endif

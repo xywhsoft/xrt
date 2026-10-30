@@ -16,6 +16,7 @@ remains in force; no async runtime/transport completion is implied.
 | Allocation and lifetime | 10,000 repeated decodes with unchanged allocation counters/error identity; borrowed views; one-byte quota and diagnostic OOM classification |
 | Property/adversarial coverage | 10,000 generated mixed batches, 10,000 exact rational integer-code cases, 20,000 raw/mutated documents with bounded views and publication checks |
 | Distribution | Modular/single tests, example, independent static/shared consumer and dedicated performance/size profiles |
+| Explicit HTTP TLS client | DNS/numeric/prepared endpoints, copied identity/ALPN, verifier retention/rejection, factory-entry and handshake deadlines, accepted-prefix certainty, notification/batch, physical close, early response, truncated TLS and constructor budgets in `test_http_tls.c`; independent runtime-CA peer in `tests/interop/http_tls.py` |
 
 Document is unchanged on LOCAL_ERROR. Scratch is deliberately not an atomic
 output: it may contain partial descriptors on any failure and must be discarded.

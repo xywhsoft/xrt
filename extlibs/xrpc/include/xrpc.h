@@ -50,4 +50,8 @@
 #error "XRPC_FEATURE_XRPC requires http_dial"
 #endif
 #include <xrpc/http_dial.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_TLS)
+#error "XRPC_FEATURE_XRPC requires http_tls"
+#endif
+#include <xrpc/http_tls.h>
 #endif

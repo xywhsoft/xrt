@@ -91,6 +91,12 @@
       "system": "http_dial",
       "suite": "xrpc_http_dial",
       "description": "Asynchronous HTTP DNS/prepared-candidate connection source with actual client/resolver/dial closure"
+    },
+    {
+      "name": "xrpc_http_tls",
+      "system": "http_tls",
+      "suite": "xrpc_http_tls",
+      "description": "Verified HTTP TLS client and actual Core TLS/cipher/dial closure"
     }
   ]
 }

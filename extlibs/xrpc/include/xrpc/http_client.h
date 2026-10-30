@@ -55,7 +55,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config);
  * No implicit DNS, TLS, redirects, authentication or replay. Close then Release.
  * The engine remains pinned through physical posts/timers/cancellation tails.
  * Ordinary calls, notifications and array-shaped batches share this transport;
- * DNS, TLS and full transport policy remain product work. */
+ * Optional http_dial/http_tls leaves provide explicit DNS/TLS factories;
+ * richer transport policy remains product work. */
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine, const xnetaddr* Remote,
     uint64 Affinity, xstrview Host, xstrview Target,
     const xrpchttpconfig* Config, xrpchttpclient** Client);
