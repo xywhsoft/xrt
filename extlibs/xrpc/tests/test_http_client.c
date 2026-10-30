@@ -247,5 +247,58 @@ static void testHttpQuotaPrivateOOM(void)
     testRequire(xrpcResponsesReadQuota(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":[]}"),NULL,&M,1,&R,Q)==XRPC_RESPONSE_DONE,"snapshot post-OOM reuse");
     xrpcResultQuotaRelease(Q);xrpcResponsesRelease(R);
 }
+static void testHttpHeaders(void)
+{
+    rpcHttpPeer P;rpcHttpPeerStart(&P);
+    static const xhttpfield Expected[]={{XRT_STR_LITERAL("Authorization"),XRT_STR_LITERAL("Bearer public-fixture")},{XRT_STR_LITERAL("X-Trace"),XRT_STR_LITERAL("trace-123")},{XRT_STR_LITERAL("X-Empty"),{0}}};
+    P.ExpectedHeaders=Expected;xrtAtomic32Store(&P.ExpectedHeaderCount,3,XMEMORY_RELEASE);
+    char Name[]="Authorization",Value[]="Bearer public-fixture",Trace[]="trace-123";
+    xhttpfield Headers[]={{(xstrview){Name,sizeof(Name)-1},(xstrview){Value,sizeof(Value)-1}},{XRT_STR_LITERAL("X-Trace"),(xstrview){Trace,sizeof(Trace)-1}},{XRT_STR_LITERAL("X-Empty"),{0}}};
+    xrpchttpconfig K;xrpcHttpConfigInit(&K);K.RequestHeaders=Headers;K.RequestHeaderCount=3;
+    xrpchttpclient* C=rpcHttpConnect(&P,&K);memset(Name,'x',sizeof(Name));memset(Value,'x',sizeof(Value));memset(Trace,'x',sizeof(Trace));memset(Headers,0,sizeof(Headers));memset(&K,0,sizeof(K));
+    xfuture* F[16];for(unsigned N=0;N<16;++N)F[N]=rpcHttpSubmit(C,"echo","[]",5000);
+    for(unsigned N=0;N<16;++N){testRequire(rpcHttpResult(F[N])->Status==XRPC_CALL_OK,"custom header snapshot/call");xrtFutureDestroy(F[N]);}
+    xfuture* One=NULL;testRequire(xrpcHttpNotifyAsync(C,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&One)==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(One)->Status==XRPC_CALL_NOTIFY_DONE,"custom header notification");xrtFutureDestroy(One);
+    xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[]")},{XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),{0}}};
+    testRequire(xrpcHttpBatchAsync(C,Items,2,5000,&One)==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(One)->Status==XRPC_CALL_BATCH_DONE,"custom header mixed batch");xrtFutureDestroy(One);testRequire(xrtAtomic32Load(&P.HeadersChecked,XMEMORY_ACQUIRE)==18,"all custom header documents checked");rpcHttpClose(&P,C);
+    rpcHttpPeerStart(&P);xhttpfield Many[64];char Names[64][16];
+    for(unsigned N=0;N<64;++N){int S=snprintf(Names[N],sizeof(Names[N]),"X-Header-%u",N);Many[N]=(xhttpfield){{Names[N],(size_t)S},XRT_STR_LITERAL("v")};}
+    P.ExpectedHeaders=Many;xrtAtomic32Store(&P.ExpectedHeaderCount,64,XMEMORY_RELEASE);xrpcHttpConfigInit(&K);K.RequestHeaders=Many;K.RequestHeaderCount=64;C=rpcHttpConnect(&P,&K);One=rpcHttpSubmit(C,"echo","[]",5000);
+    testRequire(rpcHttpResult(One)->Status==XRPC_CALL_OK,"maximum header count");testRequire(xrtAtomic32Load(&P.HeadersChecked,XMEMORY_ACQUIRE)==1,"maximum header fields checked");xrtFutureDestroy(One);rpcHttpClose(&P,C);
+    rpcHttpPeerStart(&P);xhttpfield Exact={XRT_STR_LITERAL("X"),XRT_STR_LITERAL("v")};xrpcHttpConfigInit(&K);K.RequestHeaders=&Exact;K.RequestHeaderCount=1;K.MaxRequestHeaderBytes=8;
+    C=rpcHttpConnect(&P,&K);One=rpcHttpSubmit(C,"echo","[]",5000);testRequire(rpcHttpResult(One)->Status==XRPC_CALL_OK,"exact header block byte bound");xrtFutureDestroy(One);rpcHttpClose(&P,C);
+    rpcHttpPeerStart(&P);unsigned char Unaligned[sizeof(xhttpfield)+1];memcpy(Unaligned+1,&Exact,sizeof(Exact));xrpcHttpConfigInit(&K);K.RequestHeaders=(const xhttpfield*)(Unaligned+1);K.RequestHeaderCount=1;
+    C=rpcHttpConnect(&P,&K);memset(Unaligned,0,sizeof(Unaligned));One=rpcHttpSubmit(C,"echo","[]",5000);testRequire(rpcHttpResult(One)->Status==XRPC_CALL_OK,"unaligned header descriptor snapshot");xrtFutureDestroy(One);rpcHttpClose(&P,C);
+}
+static void testHttpHeaderRejections(void)
+{
+    static const xstrview Reserved[]={XRT_STR_LITERAL("HOST"),XRT_STR_LITERAL("content-length"),XRT_STR_LITERAL("Transfer-Encoding"),XRT_STR_LITERAL("Content-Type"),XRT_STR_LITERAL("Content-Encoding"),
+        XRT_STR_LITERAL("Accept-Encoding"),XRT_STR_LITERAL("Connection"),XRT_STR_LITERAL("Keep-Alive"),XRT_STR_LITERAL("Proxy-Connection"),XRT_STR_LITERAL("Proxy-Authorization"),XRT_STR_LITERAL("TE"),XRT_STR_LITERAL("Trailer"),XRT_STR_LITERAL("Upgrade"),XRT_STR_LITERAL("HTTP2-Settings"),XRT_STR_LITERAL("Expect")};
+    rpcHttpPeer P;rpcHttpPeerStart(&P);
+    for(size_t N=0;N<sizeof(Reserved)/sizeof(*Reserved);++N){xhttpfield H={Reserved[N],XRT_STR_LITERAL("x")};xrpchttpconfig K;xrpcHttpConfigInit(&K);K.RequestHeaders=&H;K.RequestHeaderCount=1;
+        xrpchttpclient* C=(xrpchttpclient*)(uintptr_t)1;testRequire(!xrpcHttpConnect(P.Engine,&P.Address,1,XRT_STR_LITERAL("localhost"),XRT_STR_LITERAL("/rpc"),&K,&C) && C==(xrpchttpclient*)(uintptr_t)1,"reserved header override/output mutation");xrtClearError();}
+    for(unsigned N=0;N<10;++N){xhttpfield H[2]={{XRT_STR_LITERAL("X"),XRT_STR_LITERAL("v")},{XRT_STR_LITERAL("x"),XRT_STR_LITERAL("v")}};xrpchttpconfig K;xrpcHttpConfigInit(&K);K.RequestHeaders=H;K.RequestHeaderCount=1;
+        if(N==0)H[0].Name=XRT_STR_LITERAL("X Bad");else if(N==1)H[0].Value=XRT_STR_LITERAL("a\r\nb");else if(N==2)H[0].Value=(xstrview){"a\0b",3};
+        else if(N==3)H[0].Value=(xstrview){"\x7f",1};else if(N==4)K.RequestHeaderCount=2;else if(N==5)K.RequestHeaderCount=65;
+        else if(N==6)K.RequestHeaders=NULL;else if(N==7)K.MaxRequestHeaderBytes=7;else if(N==8)K.MaxRequestHeaderBytes=0;else K.MaxRequestHeaderBytes=1048577;
+        xrpchttpclient* C=NULL;testRequire(!xrpcHttpConnect(P.Engine,&P.Address,1,XRT_STR_LITERAL("localhost"),XRT_STR_LITERAL("/rpc"),&K,&C) && !C,"invalid header syntax/count/limit");xrtClearError();}
+    testRequire(!rpcHttpPeerStream(&P) && !xrtAtomic32Load(&P.Commands,XMEMORY_ACQUIRE),"rejected headers reached the wire");rpcHttpPeerStop(&P);
+}
+static void testHttpHeaderOOM(void)
+{
+    const size_t Limits[]={1,128,512,1024,2048,4096,8192,65536,1048576};unsigned Passed=0,Failed=0;
+    for(size_t N=0;N<sizeof(Limits)/sizeof(*Limits);++N){rpcHttpPeer P;rpcHttpPeerStart(&P);xallocationbudget* B=NULL;xallocationscope Scope={0};
+        xhttpfield H={XRT_STR_LITERAL("Authorization"),XRT_STR_LITERAL("Bearer public-fixture")};xrpchttpconfig K;xrpcHttpConfigInit(&K);K.RequestHeaders=&H;K.RequestHeaderCount=1;
+        testRequire(xrtAllocationBudgetCreate(Limits[N],&B) && xrtAllocationBudgetEnter(B,&Scope),"custom header factory budget");xrpchttpclient* C=NULL;
+        bool OK=xrpcHttpConnect(P.Engine,&P.Address,1,XRT_STR_LITERAL("localhost"),XRT_STR_LITERAL("/rpc"),&K,&C);testRequire(xrtAllocationBudgetLeave(&Scope),"custom header factory budget leave");
+        if(OK){++Passed;xfuture* F=rpcHttpSubmit(C,"echo","[]",5000);testRequire(rpcHttpResult(F)->Status==XRPC_CALL_OK,"header constructor after OOM boundary");xrtFutureDestroy(F);rpcHttpClose(&P,C);}
+        else{++Failed;testRequire(!C,"failed header factory output");rpcHttpPeerStop(&P);}
+        xrtClearError();xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(B,&I) && !I.LiveBytes,"header snapshot budget/pin leak");xrtAllocationBudgetFree(B);
+    }
+    testRequire(Passed && Failed,"header constructor budget thresholds");
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);uintptr_t Pattern=(~(uintptr_t)0/255u)*0x61u;xrpchttpclient* C=(xrpchttpclient*)Pattern;
+    xhttpfield H={XRT_STR_LITERAL("X-Value"),{(cstr)&C,sizeof(C)}};K.RequestHeaders=&H;K.RequestHeaderCount=1;
+    testRequire(!xrpcHttpConnect(P.Engine,&P.Address,1,XRT_STR_LITERAL("localhost"),XRT_STR_LITERAL("/rpc"),&K,&C) && (uintptr_t)C==Pattern,"header value/output alias");xrtClearError();rpcHttpPeerStop(&P);
+}
 int main(void)
-{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();testHttpNotificationsAndBatches();testHttpBatchStopsLimitsOOM();testHttpRetainedResults();testHttpQuotaAdmissionAndSnapshots();testHttpConcurrentQuotaRelease();testHttpQuotaPrivateOOM();puts("[PASS] xrpc HTTP client: ordinary/notification/batch/reverse-ID/escaped-ID/atomic-map/error/limits/cancel/deadline/OOM/concurrency/reentry/retained-quota/independent-snapshot/physical-close");return 0;}
+{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();testHttpNotificationsAndBatches();testHttpBatchStopsLimitsOOM();testHttpRetainedResults();testHttpQuotaAdmissionAndSnapshots();testHttpConcurrentQuotaRelease();testHttpQuotaPrivateOOM();testHttpHeaders();testHttpHeaderRejections();testHttpHeaderOOM();puts("[PASS] xrpc HTTP client: ordinary/notification/batch/reverse-ID/escaped-ID/atomic-map/error/limits/cancel/deadline/OOM/concurrency/reentry/retained-quota/independent-snapshot/physical-close/custom-headers");return 0;}

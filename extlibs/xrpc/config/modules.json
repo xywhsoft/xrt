@@ -654,7 +654,8 @@
         "extlibs/xrpc/docs/api/reference.md",
         "extlibs/xrpc/docs/coverage.md",
         "extlibs/xrpc/docs/http_client.md",
-        "extlibs/xrpc/docs/http_client_results.md"
+        "extlibs/xrpc/docs/http_client_results.md",
+        "extlibs/xrpc/docs/http_headers.md"
       ]
     },
     {

@@ -65,7 +65,8 @@ struct xrpchttpclient {
     unsigned char *Input, *Payload;
     xhttpfield *Fields, *Trailers;
     xhttp1body Body;
-    xstrview Host, Target;
+    xstrview Host, Target, CustomHeaders;
+    size_t OwnedBytes;
     unsigned char Text[];
 };
 static void xrpcHttpWork(xnetworker* Worker,ptr Data);
@@ -73,6 +74,33 @@ static void xrpcHttpTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Dat
 static bool xrpcHttpWakeLocked(xrpchttpclient* C);
 static bool xrpcHttpReport(xerrkind Kind,xrpchttperror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
+static bool xrpcHttpHeaderConfig(const xrpchttpconfig* K,xrpchttpclient** Out,size_t* Bytes)
+{
+    *Bytes=0;size_t Count=K->RequestHeaderCount;
+    if(Count>XRPC_HTTP_REQUEST_HEADERS_MAX || K->MaxRequestHeaderBytes>1048576u || (Count && !K->MaxRequestHeaderBytes) ||
+        !xrtMemRangeValid(K->RequestHeaders,Count*sizeof(xhttpfield)) || xrtMemRangesOverlap(K->RequestHeaders,Count*sizeof(xhttpfield),Out,sizeof(*Out)))
+        return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid custom HTTP header count/bounds/output");
+    if(!Count)return true;
+    static const xstrview Reserved[]={XRT_STR_LITERAL("Host"),XRT_STR_LITERAL("Content-Length"),XRT_STR_LITERAL("Transfer-Encoding"),
+        XRT_STR_LITERAL("Content-Type"),XRT_STR_LITERAL("Content-Encoding"),XRT_STR_LITERAL("Accept-Encoding"),XRT_STR_LITERAL("Connection"),
+        XRT_STR_LITERAL("Keep-Alive"),XRT_STR_LITERAL("Proxy-Connection"),XRT_STR_LITERAL("Proxy-Authorization"),XRT_STR_LITERAL("TE"),
+        XRT_STR_LITERAL("Trailer"),XRT_STR_LITERAL("Upgrade"),XRT_STR_LITERAL("HTTP2-Settings"),XRT_STR_LITERAL("Expect")};
+    size_t Total=2;
+    for(size_t I=0;I<Count;++I){xhttpfield F;memcpy(&F,(const unsigned char*)K->RequestHeaders+I*sizeof(F),sizeof(F));
+        if(Total>K->MaxRequestHeaderBytes || F.Name.Size>K->MaxRequestHeaderBytes-Total)return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"custom HTTP header byte limit");
+        Total+=F.Name.Size;
+        if(F.Value.Size>K->MaxRequestHeaderBytes-Total)return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"custom HTTP header byte limit");
+        Total+=F.Value.Size;
+        if(4u>K->MaxRequestHeaderBytes-Total || !xrtMemRangeValid(F.Name.Data,F.Name.Size) || !xrtMemRangeValid(F.Value.Data,F.Value.Size) ||
+            xrtMemRangesOverlap(F.Name.Data,F.Name.Size,Out,sizeof(*Out)) || xrtMemRangesOverlap(F.Value.Data,F.Value.Size,Out,sizeof(*Out)) ||
+            !xrtHttpTokenValid(F.Name) || !xrtHttpFieldValueValid(F.Value))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid custom HTTP header syntax/output");
+        Total+=4u;
+        for(size_t J=0;J<sizeof(Reserved)/sizeof(*Reserved);++J)if(xrtHttpFieldNameEqual(F.Name,Reserved[J]))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"custom HTTP header conflicts with transport policy");
+        for(size_t J=0;J<I;++J){xhttpfield Previous;memcpy(&Previous,(const unsigned char*)K->RequestHeaders+J*sizeof(Previous),sizeof(Previous));
+            if(xrtHttpFieldNameEqual(F.Name,Previous.Name))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"duplicate custom HTTP header name");}
+    }
+    *Bytes=Total;return true;
+}
 static void xrpcHttpRef(xrpchttpclient* C)
 {(void)xrtAtomic32FetchAdd(&C->References,1,XMEMORY_RELAXED);}
 XRPC_API bool xrpcHttpRetain(xrpchttpclient* C)
@@ -92,7 +120,9 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* C)
     xrpcHttpSecureDrop(C->Secure);
 #endif
     if(C->EnginePinned)xrtNetEngineUnpin(C->Engine);
-    xrtMutexUnit(&C->Gate);xrtFree(C);
+    xrtMutexUnit(&C->Gate);
+    if(C->CustomHeaders.Size)xrtSecureZero(C->Text,C->OwnedBytes-sizeof(*C));
+    xrtFree(C);
 }
 static bool xrpcHttpWakeLocked(xrpchttpclient* C)
 {
@@ -218,7 +248,9 @@ static void xrpcHttpRequestDrop(ptr Value)
     xrpchttpclient* C=R->Client;size_t Bytes=R->WireBytes;
     size_t BatchBytes=R->Operation==XRPC_HTTP_BATCH?R->Group.Bytes:0;
     if(R->Operation==XRPC_HTTP_BATCH)xrtFree(R->Group.Batch);
-    xrpcResponsesRelease(R->Response);xrtFree(R->Wire);xrtFree(R);xrpcHttpReservationDrop(C,Bytes,BatchBytes);
+    xrpcResponsesRelease(R->Response);
+    if(R->Wire && C->CustomHeaders.Size)xrtSecureZero(R->Wire,R->WireBytes);
+    xrtFree(R->Wire);xrtFree(R);xrpcHttpReservationDrop(C,Bytes,BatchBytes);
 }
 static void xrpcHttpReset(xrpchttpclient* C)
 {
@@ -579,7 +611,7 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     if(Config->MaxRequestBytes>Config->Stream.WriteLimit)Config->MaxRequestBytes=Config->Stream.WriteLimit;
     Config->MaxRequestBytesTotal=8u*1024u*1024u;Config->WorkRequests=64;Config->ReadBytes=64u*1024u;Config->MaxResponseWireBytes=2u*1024u*1024u;Config->MaxInformational=8;
     Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;
-    Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
+    Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;Config->MaxRequestHeaderBytes=XRPC_HTTP_REQUEST_HEADER_BYTES_DEFAULT;return true;
 }
 static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpsecure* Secure,xrpchttpclient** Client)
@@ -604,17 +636,24 @@ static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affi
         (Remote && ((Remote->Family!=XNET_FAMILY_IPV4 && Remote->Family!=XNET_FAMILY_IPV6) || !Remote->Port)) || !Host.Size || !Target.Size || Target.Data[0]!='/' ||
         !xrtHttpHostValid(Host) || !xrtHttp1TargetValid(Target) || !xrtNetStreamConfigValid(&K.Stream))
         return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP endpoint/configuration");
+    size_t HeaderBytes=0;
+    if(!xrpcHttpHeaderConfig(&K,Client,&HeaderBytes))return false;
+    if(HeaderBytes>SIZE_MAX-sizeof(xrpchttpclient)-Host.Size-Target.Size)return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"HTTP header snapshot size overflows");
     size_t Capacity=K.Head.MaxHead>K.Body.MaxTrailer?K.Head.MaxHead:K.Body.MaxTrailer;
     if(Capacity>K.Stream.ReadLimit || Capacity>SIZE_MAX-K.ReadBytes)return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"HTTP input bounds exceed stream/size limit");
     if(!xrtNetEnginePin(Engine))return false;
-    xrpchttpclient* C=xrtCalloc(1,sizeof(*C)+Host.Size+Target.Size);
+    size_t OwnedBytes=sizeof(xrpchttpclient)+Host.Size+Target.Size+HeaderBytes;
+    xrpchttpclient* C=xrtCalloc(1,OwnedBytes);
     if(!C){xrtNetEngineUnpin(Engine);return false;}
-    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;if(Remote)C->Remote=*Remote;C->Config=K;
+    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;if(Remote)C->Remote=*Remote;C->Config=K;C->Config.RequestHeaders=NULL;C->OwnedBytes=OwnedBytes;
     C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));
     C->Info.Size=sizeof(C->Info);C->Info.CloseStatus=XRPC_CALL_CLOSED;C->InputCapacity=Capacity+K.ReadBytes;
     C->Host=(xstrview){(cstr)C->Text,Host.Size};C->Target=(xstrview){(cstr)C->Text+Host.Size,Target.Size};
     memcpy((ptr)C->Host.Data,Host.Data,Host.Size);memcpy((ptr)C->Target.Data,Target.Data,Target.Size);
     if(!xrtMutexInit(&C->Gate)){xrtNetEngineUnpin(Engine);xrtFree(C);return false;}
+    if(HeaderBytes){size_t Written=0;C->CustomHeaders=(xstrview){(cstr)C->Text+Host.Size+Target.Size,HeaderBytes};
+        if(!xrtHttpFieldBlockWrite(K.RequestHeaders,K.RequestHeaderCount,(ptr)C->CustomHeaders.Data,HeaderBytes,&Written) || Written!=HeaderBytes){
+            xerror* X=xrtTakeError();xrpcHttpRelease(C);xrtClearError();xrtSetErrorTake(X);return false;}}
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
     if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
         !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
@@ -637,7 +676,7 @@ static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,
 {
     if(!C || !Future || !Items || !Count || Count>SIZE_MAX/sizeof(*Items) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
         !xrtMemRangeValid(Items,Count*sizeof(*Items)) || xrtMemRangesOverlap(Items,Count*sizeof(*Items),Future,sizeof(*Future)) ||
-        Timeout<XRT_WAIT_FOREVER || xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Future,sizeof(*Future))){
+        Timeout<XRT_WAIT_FOREVER || xrtMemRangesOverlap(C,C->OwnedBytes,Future,sizeof(*Future))){
         xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP operation inputs");return XRPC_ADMISSION_ERROR;
     }
     if(Batch && Count>C->Config.MaxBatchItems){xrtMutexLock(&C->Gate);++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XRPC_ADMISSION_OVERLOADED;}
@@ -697,6 +736,8 @@ static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,
         {XRT_STR_LITERAL("Content-Length"),(xstrview){Length,(size_t)N}},
         {XRT_STR_LITERAL("Accept-Encoding"),XRT_STR_LITERAL("identity")}};
     if(!xrtHttp1RequestWrite(XRT_STR_LITERAL("POST"),C->Target,XHTTP_VERSION_1_1,Fields,4,NULL,0,&HeadBytes))goto Error;
+    size_t BaseHeadBytes=HeadBytes;
+    if(C->CustomHeaders.Size){if(HeadBytes<2u || C->CustomHeaders.Size-2u>SIZE_MAX-HeadBytes)goto Error;HeadBytes+=C->CustomHeaders.Size-2u;}
     if(BodyBytes>C->Config.MaxRequestBytes || HeadBytes>C->Config.MaxRequestBytes-BodyBytes){Admission=XRPC_ADMISSION_OVERLOADED;goto Refused;}
     size_t Bytes=HeadBytes+BodyBytes;
     xrtMutexLock(&C->Gate);
@@ -705,8 +746,9 @@ static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,
     if(Admission==XRPC_ADMISSION_ACCEPTED){C->Info.RequestBytes+=Bytes;R->WireBytes=Bytes;}
     xrtMutexUnlock(&C->Gate);if(Admission!=XRPC_ADMISSION_ACCEPTED)goto Refused;
     R->Wire=xrtMalloc(Bytes);size_t Written=0;
-    if(!R->Wire || !xrtHttp1RequestWrite(XRT_STR_LITERAL("POST"),C->Target,XHTTP_VERSION_1_1,Fields,4,R->Wire,HeadBytes,&Written) || Written!=HeadBytes ||
-        !xrpcEncodeWrite(R->Wire+HeadBytes,BodyBytes,Messages,Count,Batch,&Encode,NULL))goto Error;
+    if(!R->Wire || !xrtHttp1RequestWrite(XRT_STR_LITERAL("POST"),C->Target,XHTTP_VERSION_1_1,Fields,4,R->Wire,HeadBytes,&Written) || Written!=BaseHeadBytes)goto Error;
+    if(C->CustomHeaders.Size)memcpy(R->Wire+BaseHeadBytes-2u,C->CustomHeaders.Data,C->CustomHeaders.Size);
+    if(!xrpcEncodeWrite(R->Wire+HeadBytes,BodyBytes,Messages,Count,Batch,&Encode,NULL))goto Error;
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XRPC_HTTP_CLOSING){xrtMutexUnlock(&C->Gate);Admission=XRPC_ADMISSION_CLOSED;goto Refused;}
     if(!xrpcHttpWakeLocked(C)){xrtMutexUnlock(&C->Gate);goto Error;}
@@ -727,7 +769,7 @@ XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* C,const xrpchttpitem* 
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* C,xrpchttpinfo* Info)
 {
     if(!C || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) ||
-        xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Info,sizeof(*Info)))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP info output");
+        xrtMemRangesOverlap(C,C->OwnedBytes,Info,sizeof(*Info)))return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP info output");
     xrtMutexLock(&C->Gate);*Info=C->Info;xrtMutexUnlock(&C->Gate);
     xrpcResultQuotaInfo(C->ResultQuota,&Info->ResultBlocks,&Info->ResultBytes,&Info->ResultRejected);return true;
 }

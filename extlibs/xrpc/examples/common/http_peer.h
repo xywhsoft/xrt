@@ -15,6 +15,7 @@ static inline void rpcHttpPeerRequire(bool OK,cstr Message)
 typedef struct rpcHttpPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Commands,Closed,ListenerClosed;
+    const xhttpfield* ExpectedHeaders;xatomic32 ExpectedHeaderCount,HeadersChecked;
     unsigned char Input[65536];size_t Used;
 } rpcHttpPeer;
 static inline void rpcHttpWait(xatomic32* Value,uint32 Minimum)
@@ -117,7 +118,7 @@ static inline void rpcHttpPeerRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
 {
     (void)S;rpcHttpPeer* P=Data;size_t N=xrtNetBufSize(Buffer);rpcHttpPeerRequire(N<=sizeof(P->Input)-P->Used,"peer input limit");
     P->Used+=xrtNetBufRead(Buffer,P->Input+P->Used,N);
-    for(;;){xhttpfield Fields[32];xhttp1head M;xrtHttp1HeadInit(&M,Fields,32);
+    for(;;){xhttpfield Fields[128];xhttp1head M;xrtHttp1HeadInit(&M,Fields,128);
         xhttp1status Status=xrtHttp1RequestParse((xbytesview){P->Input,P->Used},&M,NULL,NULL);
         rpcHttpPeerRequire(Status==XHTTP1_MORE || Status==XHTTP1_READY,"peer HTTP framing");if(Status==XHTTP1_MORE)break;
         xhttp1bodyplan Plan;rpcHttpPeerRequire(xrtHttp1RequestBodyPlan(&M,&Plan) && Plan.Mode==XHTTP1_BODY_FIXED && Plan.Length<=sizeof(P->Input)-M.Bytes,"peer fixed request body");
@@ -125,6 +126,10 @@ static inline void rpcHttpPeerRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
         rpcHttpPeerRequire(M.MethodCode==XHTTP_METHOD_POST && M.Target.Size==4 && !memcmp(M.Target.Data,"/rpc",4),"peer method/target");
         const xhttpfield* Encoding=xrtHttp1Field(&M,XRT_STR_LITERAL("Accept-Encoding"));
         rpcHttpPeerRequire(Encoding && xrtHttpTokenEqual(Encoding->Value,XRT_STR_LITERAL("identity")),"peer explicit supported response encoding");
+        uint32 Expected=xrtAtomic32Load(&P->ExpectedHeaderCount,XMEMORY_ACQUIRE);
+        for(size_t I=0;I<Expected;++I){const xhttpfield* F=NULL;const xhttpfield* E=&P->ExpectedHeaders[I];
+            rpcHttpPeerRequire(xrtHttpFieldGetUnique(M.Fields,M.FieldCount,E->Name,&F)==XHTTP_NEXT_ITEM && F->Value.Size==E->Value.Size && (!E->Value.Size || !memcmp(F->Value.Data,E->Value.Data,E->Value.Size)),"peer expected unique header bytes");}
+        if(Expected)xrtAtomic32FetchAdd(&P->HeadersChecked,1,XMEMORY_RELEASE);
         rpcHttpPeerReply(P,(xstrview){(cstr)P->Input+M.Bytes,(size_t)Plan.Length});
         size_t Used=M.Bytes+(size_t)Plan.Length;memmove(P->Input,P->Input+Used,P->Used-Used);P->Used-=Used;if(!P->Used)break;
     }
@@ -140,7 +145,7 @@ static inline void rpcHttpPeerListenerClosed(xnetlistener* L,ptr Data)
 {(void)L;xrtAtomic32Store(&((rpcHttpPeer*)Data)->ListenerClosed,1,XMEMORY_RELEASE);}
 static inline void rpcHttpPeerStart(rpcHttpPeer* P)
 {
-    memset(P,0,sizeof(*P));xrtAtomicPtrInit(&P->Stream,NULL);xrtAtomic32Init(&P->Commands,0);xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);
+    memset(P,0,sizeof(*P));xrtAtomicPtrInit(&P->Stream,NULL);xrtAtomic32Init(&P->Commands,0);xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->ExpectedHeaderCount,0);xrtAtomic32Init(&P->HeadersChecked,0);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);rpcHttpPeerRequire(P->Engine && xrtNetEngineStart(P->Engine),"peer engine");
     xnetlistenconfig K;xrtNetListenConfigInit(&K);xrtNetAddrParse(&K.Address,"127.0.0.1",0);K.Affinity=0;K.Distribution=XNET_ACCEPT_LOCAL;
     static const xnetlistenerevents L={rpcHttpPeerAccept,NULL,rpcHttpPeerListenerClosed};

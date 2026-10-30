@@ -4344,3 +4344,154 @@ CPU/cycle/allocation/copy/synchronization/syscall accounting, cold/slow/contende
 and fault/recovery matrices, stable native Windows/Linux objectives and 72-hour
 native mixed/fault runs remain required. No smaller scope or production-complete
 claim is substituted by this instrumentation slice.
+
+
+
+## P3: bounded immutable HTTP request headers (2026-10-31)
+
+The HTTP client now snapshots up to 64 case-insensitively unique request fields
+before its numeric/DNS/prepared/TLS factory returns. The encoded block defaults
+to 16 KiB with a hard 1 MiB cap. Invalid names/values, control injection,
+duplicates, size/count overflow, output aliases and 15 transport-owned fields
+are rejected before TCP construction. Authorization/Cookie values remain opaque;
+this feature transports credentials without implementing authentication policy.
+Server asynchronous authorization, per-request context, challenge/refresh,
+mutual authentication and managed tickets remain pending.
+
+Descriptors, names and values may be overwritten after factory return. The flat
+client allocation holds the pre-encoded snapshot; the hot path copies that block
+over the native writer's terminal CRLF. No additional header allocation per
+request is introduced. Extra bytes count against existing wire budgets. Cold
+validation includes bounded scans, duplicate comparisons and the native writer's
+preflight/encoding. New presence checks and larger layouts affect the default
+path too; no zero-overhead claim is made. Recompile all consumers for the changed
+public config layout, including consumers selecting other module combinations.
+
+All custom fields trigger potentially sensitive-data handling. The extension
+wipes its complete encoded request wire at the real final request reference,
+and its flat text snapshot at final client release. Completion is insufficient
+while native TCP still borrows bytes. Whole-wire wiping adds work proportional
+to the request, including its body. Caller/native/OS copies and dumps are outside
+this contract. The TLS example accepts an explicit bounded authorization file,
+wipes its input buffer, and prints no credential value; no ambient secret lookup
+or credential negotiation is added.
+
+Both platforms pass 16 modular and 16 single runtime binaries each (64 total),
+17 runnable examples each, dependency trims, complete/minimal static and shared
+consumers, declaration compilation and all three size forms for the plain/TLS
+client profiles. Windows uses actual IOCP; the WSL composition uses actual epoll.
+WSL is not native Linux production acceptance. The qualified O2 TSan run retains
+the compiler's atomic-fence modeling warning; no complete race-freedom claim is
+made. ASan/UBSan and real constructor/request OOM tests remain part of the matrix.
+
+Two actual production-TU pre-free probes inspect live storage immediately before
+the real frees, covering successful/cancelled/dropped wires, final snapshots and
+partially constructed snapshots under OOM, followed by zero charged owner bytes.
+They neither read freed storage nor replace the shipped allocator. TLS fixtures
+count complete documents, with release/acquire publication of expectations.
+The independent HTTPS peer runs Basic/Bearer fixture files across example,
+static and shared consumers on both platforms: 12 matrices, 36 successful RPCs
+and 24 identity/CA refusals before RPC, including TLS 1.3/1.2 and ALPN/no ALPN.
+These are client transport checks, not an implemented authorization server.
+
+The validation scripts initially exposed two harness defects: a duplicate thread
+macro for the test-only observer and a modular-binary path assumption for that
+observer's separate suite. The macro was corrected and all single builds rerun.
+Successful build logs were preserved while fixing receipt mapping; single
+runtime checks were repeated and the separate modular observer was built/run.
+No production or C test input changed during those final runs. A prior fixture
+counter had counted incomplete TLS body retries; it now checks complete documents.
+
+### Layout and code size
+
+Sizes below are measured bytes. Single objects include Core plus extension,
+whereas static/shared profile primary artifacts contain extension-owned code;
+the separate Core libraries are reported below. These are different denominators
+and must not be interpreted as equivalent total footprints. The previous config
+was 320 bytes and previous
+client owners were 904 bytes on Windows / 976 bytes on WSL. Layout changes are
+independent of a configured header count. Request/call/quota layouts are retained
+in the receipt; the new text snapshot additionally stores actual encoded bytes.
+
+| Platform | Client owner | HTTP config | Request owner | Default header budget |
+| --- | --- | --- | --- | --- |
+| windows | 952 | 344 | 176 | 16384 |
+| wsl | 1024 | 344 | 176 | 16384 |
+
+| Platform | Profile | Form | File bytes |
+| --- | --- | --- | --- |
+| windows | xrpc_http_client | single | 872434 |
+| windows | xrpc_http_client | static | 79438 |
+| windows | xrpc_http_client | shared | 152502 |
+| windows | xrpc_http_tls | single | 1721058 |
+| windows | xrpc_http_tls | static | 95626 |
+| windows | xrpc_http_tls | shared | 169181 |
+| wsl | xrpc_http_client | single | 1105032 |
+| wsl | xrpc_http_client | static | 104186 |
+| wsl | xrpc_http_client | shared | 85376 |
+| wsl | xrpc_http_tls | single | 2179240 |
+| wsl | xrpc_http_tls | static | 127758 |
+| wsl | xrpc_http_tls | shared | 100120 |
+
+| Platform | Suite | Form | Core dependency file bytes | Extension file bytes |
+| --- | --- | --- | --- | --- |
+| windows | xrpc | static | 1972716 | 183756 |
+| windows | xrpc | shared | 1609346 | 248223 |
+| windows | xrpc_http_client | static | 858894 | 79438 |
+| windows | xrpc_http_client | shared | 786814 | 152502 |
+| windows | xrpc_http_tls | static | 1809094 | 95626 |
+| windows | xrpc_http_tls | shared | 1491120 | 169181 |
+| wsl | xrpc | static | 2515252 | 242844 |
+| wsl | xrpc | shared | 1562504 | 174200 |
+| wsl | xrpc_http_client | static | 1089520 | 104186 |
+| wsl | xrpc_http_client | shared | 734048 | 85376 |
+| wsl | xrpc_http_tls | static | 2304734 | 127758 |
+| wsl | xrpc_http_tls | shared | 1444584 | 100120 |
+
+### Paired header observations
+
+The four ordinary workloads pair no-header/two-header TCP and TLS using the same
+production closure, workers, payload, warmed persistent connection and fixed
+1000 offers/s. Each has one warmup plus five measured runs. Every measured run
+accepts/completes all 1000 offers with zero refusals/failures; all offers enter
+the latency population. Snapshot construction/erasure and handshake/shutdown are
+outside timing. The process CPU window includes the busy yielding generator and
+all concurrent work inside it. Native callback retirement and its wire wipe may
+follow the last collector observation, so the window does not prove complete
+per-request cleanup CPU. No isolated transport CPU, cycle, saturation-capacity,
+stable-baseline or representative comparator claim follows from these samples.
+
+| Platform | Workload | Completed/s | P99 us | P99.9 us | Process CPU us/offer | Encoded custom block bytes |
+| --- | --- | --- | --- | --- | --- | --- |
+| windows | tcp_baseline | 1000.896 | 239.200 | 683.400 | 1109.375 | 0 |
+| windows | tcp_auth | 1000.912 | 139.100 | 194.400 | 1062.500 | 76 |
+| windows | tls_baseline | 1000.913 | 154.100 | 217.600 | 1109.375 | 0 |
+| windows | tls_auth | 1000.915 | 159.700 | 254.400 | 1093.750 | 76 |
+| wsl | tcp_baseline | 1000.812 | 291.805 | 334.507 | 1212.596 | 0 |
+| wsl | tcp_auth | 1000.813 | 258.210 | 308.011 | 1205.716 | 76 |
+| wsl | tls_baseline | 1000.806 | 273.000 | 354.203 | 1228.477 | 0 |
+| wsl | tls_auth | 1000.807 | 248.305 | 278.305 | 1220.109 | 76 |
+
+The original 3% relative-MAD / 6% central-range gates remain unchanged. No retries
+select favorable samples, no baseline is pinned and performance remains unaccepted.
+
+windows: 60 failed noise checks. Source fingerprint: `128b4f844957603182c16a84b58493d66be910f0463d9c145bf73e0f040c19ea`; workload fingerprint: `19833c392823d003691d93ece4014ae60a514b470a442ca58c542b063c8f6371`.
+
+wsl: 32 failed noise checks. Source fingerprint: `128b4f844957603182c16a84b58493d66be910f0463d9c145bf73e0f040c19ea`; workload fingerprint: `19833c392823d003691d93ece4014ae60a514b470a442ca58c542b063c8f6371`.
+
+Evidence: `out/service-extensions/xrpc-http-headers/validation.json` binds all
+64 runtime binaries, unchanged Core inputs, two pre-free probes, qualified TSan,
+packages/layout/declaration/sizes, actual backends, 12 independent peer matrices
+and four paired 5+1 workloads to current hashes. The predecessor's 201 artifacts
+were SHA-bound before overwrite. Committed validation additionally requires clean
+HEAD/tree. Public API: 82 functions / 155 constants or macros / 76 types; normal
+maturity keeps 17 implementations, with only aggregate xrpc still developing.
+
+The full four-product scope remains active. Next RPC capabilities include server
+authorization and request context, mTLS/tickets, metadata/recovery/pooling,
+bidirectional/WebSocket/framed stdio, negotiation and deferred handlers. Redis
+HA/tracking/dedicated modes, complete MQTT 5.0/3.1.1 client/session/store, Cron
+IANA/scheduler/durability and all performance/production acceptance remain.
+Representative pinned comparators, complete cold/hot CPU/cycle/allocation/copy/
+synchronization/syscall accounting, slow/contended/fault/recovery matrices and
+native Windows/Linux mixed/fault runs of at least 72 hours are still required.

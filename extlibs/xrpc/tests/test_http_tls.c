@@ -12,6 +12,8 @@ static void tlsBasic(void)
 {
     for(unsigned Mode=0;Mode<3;++Mode){rpcTlsPeer P;rpcTlsPeerStart(&P,false,false);xrpchttptlsconfig K;rpcTlsPeerConfig(&P,&K);K.WriteBytes=3;
         xrpchttpconfig H;xrpcHttpConfigInit(&H);H.ReadBytes=3;H.WorkRequests=2;char Identity[]="rpc.fixture",Protocol[]="http/1.1";xstrview ALPN={Protocol,8};
+        char Credential[]="Bearer public-fixture";xhttpfield Auth={XRT_STR_LITERAL("Authorization"),{Credential,sizeof(Credential)-1}};
+        static const xhttpfield Expected={XRT_STR_LITERAL("Authorization"),XRT_STR_LITERAL("Bearer public-fixture")};P.ExpectedHeaders=&Expected;xrtAtomic32Store(&P.ExpectedHeaderCount,1,XMEMORY_RELEASE);H.RequestHeaders=&Auth;H.RequestHeaderCount=1;
         K.Session.VerifyName=(xstrview){Identity,11};K.Session.Protocols=&ALPN;tlsGate G;tlsGateStart(&P,&G);xrpchttpclient* C=NULL;xnetresolver* R=NULL;xnetsocket Bound=0;
         if(Mode==0){xnetresolverconfig RC;xrtNetResolverConfigInit(&RC);R=xrtNetResolverCreate(&RC);K.Dial.Family=XNET_FAMILY_IPV4;char Name[]="localhost";
             testRequire(R && xrpcHttpTlsDial(P.Engine,R,(xstrview){Name,9},P.Address.Port,1,XRT_STR_LITERAL("virtual.example"),XRT_STR_LITERAL("/rpc"),&H,&K,&C),"TLS DNS factory");memset(Name,'x',sizeof(Name));}
@@ -19,7 +21,7 @@ static void tlsBasic(void)
         else{xnetaddr A[2];testRequire(xrtNetAddrLoopback(&A[0],XNET_FAMILY_IPV4,0),"TLS refused endpoint");Bound=xrtNetSocketOpen(XNET_FAMILY_IPV4,XNET_SOCKET_STREAM,0);
             testRequire(Bound && xrtNetSocketBind(Bound,&A[0]) && xrtNetSocketLocal(Bound,&A[0]),"reserve TLS refused endpoint");A[1]=P.Address;xnetaddrlist* List=xrtNetAddrListCreate(A,2);
             K.Dial.FallbackDelay=0;testRequire(List && xrpcHttpTlsDialAddresses(P.Engine,List,1,XRT_STR_LITERAL("virtual.example"),XRT_STR_LITERAL("/rpc"),&H,&K,&C),"TLS prepared fallback factory");xrtNetAddrListDestroy(List);}
-        memset(Identity,'x',sizeof(Identity));memset(Protocol,'x',sizeof(Protocol));memset(&K,0,sizeof(K));xrtTlsVerifierRelease(P.Verifier);P.Verifier=NULL;
+        memset(Identity,'x',sizeof(Identity));memset(Protocol,'x',sizeof(Protocol));memset(Credential,'x',sizeof(Credential));memset(&Auth,0,sizeof(Auth));memset(&K,0,sizeof(K));xrtTlsVerifierRelease(P.Verifier);P.Verifier=NULL;
         xfuture* F[16];for(unsigned I=0;I<16;++I)F[I]=rpcHttpSubmit(C,"echo","[7]",5000);xrtAtomic32Store(&G.Permit,1,XMEMORY_RELEASE);
         for(unsigned I=0;I<16;++I){const xrpccallresult* V=rpcHttpResult(F[I]);xrpcresponseinfo Info={0};Info.Size=sizeof(Info);
             testRequire(V->Status==XRPC_CALL_OK && V->Delivery==XRPC_REPLIED && xrpcResponsesInfo(V->Responses,&Info) && Info.Messages[0].Result.Raw.Size==3 && !memcmp(Info.Messages[0].Result.Raw.Data,"[7]",3),"TLS copied/partial/queued correlation");if(I)xrtFutureDestroy(F[I]);}
@@ -27,7 +29,7 @@ static void tlsBasic(void)
         xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[]")},{XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),{0}},{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("error"),{0}}};
         testRequire(xrpcHttpBatchAsync(C,Items,3,5000,&Note)==XRPC_ADMISSION_ACCEPTED && rpcHttpResult(Note)->Status==XRPC_CALL_BATCH_DONE,"TLS mixed batch");xrtFutureDestroy(Note);
         Note=rpcHttpSubmit(C,"error",NULL,5000);testRequire(rpcHttpResult(Note)->Status==XRPC_CALL_REMOTE_ERROR,"TLS remote error");xrtFutureDestroy(Note);
-        rpcTlsClientClose(C);if(R)testRequire(xrtNetResolverDestroy(R),"TLS resolver join");if(Bound)testRequire(xrtNetSocketClose(Bound),"release reserved endpoint");
+        testRequire(xrtAtomic32Load(&P.HeadersChecked,XMEMORY_ACQUIRE)==19,"all TLS factory header documents checked");rpcTlsClientClose(C);if(R)testRequire(xrtNetResolverDestroy(R),"TLS resolver join");if(Bound)testRequire(xrtNetSocketClose(Bound),"release reserved endpoint");
         testRequire(xrtAtomic32Load(&P.Verified,XMEMORY_ACQUIRE)==1 && xrtAtomic32Load(&P.Commands,XMEMORY_ACQUIRE)==19,"TLS verification/no replay");rpcTlsPeerStop(&P);
         testRequire(rpcHttpResult(F[0])->Status==XRPC_CALL_OK,"TLS result retained client/engine");xrtFutureDestroy(F[0]);
     }

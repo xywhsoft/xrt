@@ -10,6 +10,7 @@ typedef struct rpcTlsPeer {
     xnetengine* Engine;xnetlistener* Listener;xnetaddr Address;xatomicptr TLS,Raw;
     xtlscontext* Context;xtlsidentity* Identity;xtlsverifier* Verifier;
     xatomic32 Closed,ListenerClosed,Commands,PlainBytes,Verified,Early,VerifyGate;
+    const xhttpfield* ExpectedHeaders;xatomic32 ExpectedHeaderCount,HeadersChecked;
     bool HoldHandshake,Reject,Truncate;
     unsigned char Input[65536],Output[131072];size_t Used,OutAt,OutEnd;
 } rpcTlsPeer;
@@ -52,10 +53,14 @@ static inline void rpcTlsPeerRead(xtlsstream* S,const xnetbuf* Buffer,ptr Data)
         cstr Body="{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":null}";char Head[128];int H=snprintf(Head,sizeof(Head),"HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n",strlen(Body));
         memcpy(P->Output,Head,(size_t)H);memcpy(P->Output+H,Body,strlen(Body));P->OutAt=0;P->OutEnd=(size_t)H+strlen(Body);rpcTlsPeerPump(S,P);return;
     }
-    for(;;){xhttpfield Fields[32];xhttp1head H;xrtHttp1HeadInit(&H,Fields,32);xhttp1status R=xrtHttp1RequestParse((xbytesview){P->Input,P->Used},&H,NULL,NULL);
+    for(;;){xhttpfield Fields[128];xhttp1head H;xrtHttp1HeadInit(&H,Fields,128);xhttp1status R=xrtHttp1RequestParse((xbytesview){P->Input,P->Used},&H,NULL,NULL);
         rpcHttpPeerRequire(R==XHTTP1_MORE || R==XHTTP1_READY,"TLS peer HTTP head");if(R==XHTTP1_MORE)return;
         xhttp1bodyplan Plan;rpcHttpPeerRequire(xrtHttp1RequestBodyPlan(&H,&Plan) && Plan.Mode==XHTTP1_BODY_FIXED && Plan.Length<=sizeof(P->Input)-H.Bytes,"TLS peer request bound");
         if(Plan.Length>P->Used-H.Bytes)return;
+        uint32 Expected=xrtAtomic32Load(&P->ExpectedHeaderCount,XMEMORY_ACQUIRE);
+        for(size_t I=0;I<Expected;++I){const xhttpfield* F=NULL;const xhttpfield* E=&P->ExpectedHeaders[I];
+            rpcHttpPeerRequire(xrtHttpFieldGetUnique(H.Fields,H.FieldCount,E->Name,&F)==XHTTP_NEXT_ITEM && F->Value.Size==E->Value.Size && (!E->Value.Size || !memcmp(F->Value.Data,E->Value.Data,E->Value.Size)),"TLS peer expected unique header bytes");}
+        if(Expected)xrtAtomic32FetchAdd(&P->HeadersChecked,1,XMEMORY_RELEASE);
         rpcHttpPeerRequire(H.MethodCode==XHTTP_METHOD_POST && H.Target.Size==4 && !memcmp(H.Target.Data,"/rpc",4),"TLS peer target");
         rpcTlsPeerReply(P,(xstrview){(cstr)P->Input+H.Bytes,(size_t)Plan.Length});size_t Used=H.Bytes+(size_t)Plan.Length;
         memmove(P->Input,P->Input+Used,P->Used-Used);P->Used-=Used;if(!P->Used)return;
@@ -87,7 +92,7 @@ static inline void rpcTlsPeerListenerClose(xnetlistener* L,ptr Data)
 static inline void rpcTlsPeerStart(rpcTlsPeer* P,bool Hold,bool Reject)
 {
     memset(P,0,sizeof(*P));xrtAtomicPtrInit(&P->TLS,NULL);xrtAtomicPtrInit(&P->Raw,NULL);
-    xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Commands,0);xrtAtomic32Init(&P->PlainBytes,0);xrtAtomic32Init(&P->Verified,0);xrtAtomic32Init(&P->Early,0);xrtAtomic32Init(&P->VerifyGate,0);P->HoldHandshake=Hold;P->Reject=Reject;
+    xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->ExpectedHeaderCount,0);xrtAtomic32Init(&P->HeadersChecked,0);xrtAtomic32Init(&P->Commands,0);xrtAtomic32Init(&P->PlainBytes,0);xrtAtomic32Init(&P->Verified,0);xrtAtomic32Init(&P->Early,0);xrtAtomic32Init(&P->VerifyGate,0);P->HoldHandshake=Hold;P->Reject=Reject;
     P->Context=testTlsServerContext();P->Identity=testTlsServerIdentity();xtlsverifierconfig V;xrtTlsVerifierConfigInit(&V);V.Verify=rpcTlsPeerVerify;V.Context=P;xtlsverifylimits VL;xrtTlsVerifyLimitsInit(&VL);
     P->Verifier=xrtTlsVerifierCreateLimited(&V,&VL);rpcHttpPeerRequire(P->Context && P->Identity && P->Verifier,"TLS peer identity/policy/verifier");
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);rpcHttpPeerRequire(P->Engine && xrtNetEngineStart(P->Engine),"TLS peer engine");

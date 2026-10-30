@@ -14,6 +14,9 @@ Mutual authentication and HTTP authentication remain pending.
 Matched TCP/TLS benchmarks use [explicit timing and CPU accounting](docs/http_measurement.md),
 with terminal-watch observations, separate arrival/collector delay and optional
 per-offer traces. Performance acceptance remains open.
+The client supports [immutable bounded request headers](docs/http_headers.md),
+including explicit Authorization transport with owned-copy erasure. Server
+authorization, challenge/refresh negotiation and richer response metadata remain pending.
 Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -214,8 +217,9 @@ cancellation and physical shutdown are described in [HTTP server](docs/http_serv
 The runnable [server example](examples/http_server/main.c) accepts optional
 `port duration_ms`; no arguments bind ephemeral loopback for a short smoke run.
 For example, `examples_http_server_main 8080 60000` serves `/rpc` for one minute.
-Only numeric plain TCP and synchronous executor handlers are delivered here;
-TLS/authentication/deferred handlers and full product acceptance remain pending.
+The plain factory uses numeric TCP; the optional TLS factory is described above.
+Synchronous executor handlers are delivered; authentication/deferred handlers
+and full product acceptance remain pending.
 
 
 HTTP client pending and retained result headers/maps/snapshots share configurable
@@ -228,4 +232,5 @@ Select `XRPC_MODULE_XRPC_HTTP_DIAL` for explicit async DNS or prepared-address
 connection setup. It reuses the HTTP client and Core candidate controller; whole
 factory deadlines and request deadlines/cancellation remain independent. See
 [HTTP dial](docs/http_dial.md) and the runnable [dial example](examples/http_dial/main.c).
-TLS and remaining recovery/transport features remain pending.
+The optional TLS module composes with numeric, DNS and prepared setup.
+Remaining recovery/transport features and full acceptance remain pending.

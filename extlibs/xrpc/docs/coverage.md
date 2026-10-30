@@ -225,3 +225,17 @@ is added per client. This is not a process RSS ceiling or final performance proo
 The probe source at `tests/interop/http_dial_close_race.py` uses the production
 client C source and actual modular objects; no production test hook is installed.
 TLS/authentication/recovery and full native/long-run acceptance remain pending.
+
+
+| Immutable HTTP client header contract | Local verification |
+| --- | --- |
+| Owned snapshot | Overwritten names, values, descriptors and config; ordinary/notification/mixed batch requests; numeric, DNS and prepared TLS factories |
+| Bounded syntax | 64 fields, exact encoded block size, unaligned descriptors, count/byte bounds, case-insensitive duplicates, 15 transport-owned names, controls and output aliases |
+| Physical erasure | Actual production client TU inspected before real free: successful/cancelled/dropped wire, final snapshot and partially constructed snapshot under OOM; native/caller copies excluded |
+| Interoperability | Independent Python HTTPS peer with public Basic/Bearer fixture files; TLS 1.3/1.2, ALPN/no-ALPN, wrong identity/CA before RPC |
+
+These fields transport application credentials; server authorization, challenge/
+refresh/replay policy and per-request server context remain pending. The paired
+TCP/TLS header profile retains all samples and original noise limits; timing
+excludes setup/shutdown and may exclude native callback retirement tails. It is
+not isolated transport CPU or performance/production acceptance.

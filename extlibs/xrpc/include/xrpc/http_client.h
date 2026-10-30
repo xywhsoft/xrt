@@ -11,6 +11,8 @@
 #endif
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
 typedef struct xrpchttpclient xrpchttpclient;
+#define XRPC_HTTP_REQUEST_HEADERS_MAX 64u
+#define XRPC_HTTP_REQUEST_HEADER_BYTES_DEFAULT 16384u
 typedef enum xrpchttpstate {
     XRPC_HTTP_CONNECTING=0, XRPC_HTTP_OPEN, XRPC_HTTP_CLOSING, XRPC_HTTP_CLOSED
 } xrpchttpstate;
@@ -33,6 +35,8 @@ typedef struct xrpchttpconfig {
     size_t MaxBatchItems, MaxBatchBytesTotal;
     size_t MaxResultBlocks, MaxResultBytes;
     uint32 MaxInformational;
+    const xhttpfield* RequestHeaders;
+    size_t RequestHeaderCount,MaxRequestHeaderBytes;
 } xrpchttpconfig;
 typedef struct xrpchttpinfo {
     size_t Size;
@@ -52,11 +56,23 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config);
 /* Numeric, plain TCP endpoint; existing running engine, one fixed worker.
  * Host is an explicit HTTP authority; Target is origin-form. They are copied.
  * One active HTTP/1 exchange, bounded concurrent submissions, persistent TCP.
- * No implicit DNS, TLS, redirects, authentication or replay. Close then Release.
+ * No implicit DNS, TLS, redirects, authentication negotiation or replay. Close then Release.
  * The engine remains pinned through physical posts/timers/cancellation tails.
  * Ordinary calls, notifications and array-shaped batches share this transport;
  * Optional http_dial/http_tls leaves provide explicit DNS/TLS factories;
  * richer transport policy remains product work. */
+/* RequestHeaders apply to every call/notification/batch on this fixed origin.
+ * Factory copies/encodes them before returning, including DNS/TLS factories.
+ * At most 64 unique case-insensitive names; encoded block (including final
+ * CRLF) defaults to 16 KiB, hard 1 MiB; zero limit disables custom fields.
+ * Names/values use native HTTP validation. Transport-owned framing/media/
+ * compression/connection/upgrade and proxy credentials cannot be overridden.
+ * Values such as Authorization/Cookie are opaque: no challenge negotiation,
+ * refresh, redirect, proxy forwarding or replay is implied. Select explicit
+ * verified TLS when credentials need encryption. All extension-owned custom
+ * header snapshots and request-wire copies are wiped before release, including
+ * failure/cancel paths; caller, native TCP/TLS buffers and retained dumps are
+ * outside that erasure contract. Recompile consumers for this config layout. */
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine, const xnetaddr* Remote,
     uint64 Affinity, xstrview Host, xstrview Target,
     const xrpchttpconfig* Config, xrpchttpclient** Client);

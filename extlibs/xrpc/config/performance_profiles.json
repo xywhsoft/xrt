@@ -2599,6 +2599,609 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_http_headers",
+      "system": "http_client",
+      "description": "Matched fixed-origin immutable custom header snapshot/copy/wipe costs with identical production TCP/TLS closure, payload/workers and arrival policy",
+      "benchmarks": [
+        {
+          "name": "xrpc_http_headers_tcp_baseline",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "0",
+            "yield",
+            "",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "0",
+            "yield",
+            "",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "custom_header_bytes": {
+              "direction": "lower",
+              "unit": "encoded block bytes"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport",
+            "arrival_wait",
+            "custom_headers"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_headers_tcp_auth",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "0",
+            "yield",
+            "",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "0",
+            "yield",
+            "",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "custom_header_bytes": {
+              "direction": "lower",
+              "unit": "encoded block bytes"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport",
+            "arrival_wait",
+            "custom_headers"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_headers_tls_baseline",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "1",
+            "yield",
+            "",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "1",
+            "yield",
+            "",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "custom_header_bytes": {
+              "direction": "lower",
+              "unit": "encoded block bytes"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport",
+            "arrival_wait",
+            "custom_headers"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_headers_tls_auth",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "1",
+            "yield",
+            "",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "1",
+            "yield",
+            "",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "watch_pending": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "watch_ready": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "observer_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "observed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "process CPU us"
+            },
+            "cpu_us_per_offer": {
+              "direction": "lower",
+              "unit": "process CPU us/offer"
+            },
+            "all_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "submit_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "observer_lag_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "harness_slot_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "harness_arrays_bytes": {
+              "direction": "lower",
+              "unit": "bytes"
+            },
+            "custom_header_bytes": {
+              "direction": "lower",
+              "unit": "encoded block bytes"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport",
+            "arrival_wait",
+            "custom_headers"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xrpc/bench/http_measure.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        }
+      ]
     }
   ]
 }
