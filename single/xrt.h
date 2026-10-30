@@ -15167,6 +15167,13 @@ XRT_API xtaskpool* xrtTaskPoolCreateOwnedExitV1(const xtaskpoolconfig* pConfig,
  * conservatively busy. The caller owns a real reference through return. */
 XRT_API xwaitresult xrtTaskPoolTryJoinV1(xtaskpool* pPool);
 
+/* Borrowed, read-only identity query for cleanup drivers. True also covers
+ * native ThreadKey/exit callbacks after a job's language activity has ended.
+ * The caller owns a real pool reference. Invalid state remains checked; this
+ * neither joins nor changes worker/resource ownership. */
+XRT_API bool xrtTaskPoolIsCurrentWorkerV1(const xtaskpool* pPool);
+
+
 /* A borrowed view of the real pool owner slot. Create contributes one actual
  * reference; successful Destroy consumes it once. Collector Hold/Release pins
  * keep the terminal shell alive after joined worker resources are retired.
@@ -118435,6 +118442,18 @@ static xwaitresult __xrtTaskPoolTryJoin(xtaskpool* pPool, size_t iEntries,
 	bReady = bJoined && pPool->Entries == iEntries && !pPool->Resources;
 	__xrtTaskPoolOwnershipEnd(pPool, &Mutation);
 	return bFailed ? XWAIT_ERROR : bReady ? XWAIT_OK : XWAIT_TIMEOUT;
+}
+
+XRT_API bool xrtTaskPoolIsCurrentWorkerV1(const xtaskpool* pPool)
+{
+    if(!pPool){__xrtErrorSetInvalidArgument();return false;}
+    xrtownershipscope Mutation={0};
+    __xrtTaskPoolOwnershipBegin((xtaskpool*)pPool,&Mutation);
+    bool Valid=pPool->Initialized && pPool->References && !pPool->OwnershipCleared;
+    bool Current=Valid && __xrtTaskPoolIsWorker((xtaskpool*)pPool);
+    __xrtTaskPoolOwnershipEnd((xtaskpool*)pPool,&Mutation);
+    if(!Valid)__xrtErrorSetInvalidState();
+    return Current;
 }
 
 XRT_API xwaitresult xrtTaskPoolTryJoinV1(xtaskpool* pPool)

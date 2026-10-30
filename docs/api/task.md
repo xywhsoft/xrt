@@ -2490,3 +2490,11 @@ Count／Trace 前匹配注册 policy 的精确地址，描述符副本不授予�
 原生 ThreadKey 析构。Restore 不重新打开已关闭的受理门；Clear 要求真实完成。
 Finish 在锁／freeze 之外调用上下文 Drop，collector pin 保留空终态壳直至实际
 引用归零，不能以猜测减计数代替真实拥有者。
+
+### 清理阶段的工作线程身份
+
+`xrtTaskPoolIsCurrentWorkerV1(pool)` 查询当前线程是否仍属于该池，包含任务函数返回后的 ThreadKey 析构与退出回调。调用者必须持有真实池引用。它不执行 join、不转移所有权；无效状态仍报告 checked 错误。
+
+非阻塞清理驱动应先检查该身份，在所属工作线程上保留未完成状态，交给外部控制线程继续清理。语言任务的活动计数结束不代表系统线程已经退出。`xrtTaskPoolTryJoinV1` 的原有约束保持不变：同池线程直接尝试 join 自身仍是调用错误；该查询不把错误静默转换成成功。
+
+原生 `test_task_pool_worker_exit.c` 保留自 join 拒绝测试，并验证退出回调仍具有工作线程身份。
