@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `56` 个函数、`124` 个常量或宏、
-`57` 个公共类型。
+当前登记 `64` 个函数、`139` 个常量或宏、
+`66` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -350,6 +350,51 @@
 
 - `xrpcresponseerror`
 - `xrpcresponseinfo`
+
+## `extlibs/xrpc/include/xrpc/server.h`
+
+[查看带契约注释的公共头](../../include/xrpc/server.h)
+
+### 函数 (8)
+
+- `xrpcServerCancel`
+- `xrpcServerClose`
+- `xrpcServerConfigInit`
+- `xrpcServerCreate`
+- `xrpcServerDestroy`
+- `xrpcServerInfo`
+- `xrpcServerSubmit`
+- `xrpcServerWaitFor`
+
+### 常量与宏 (15)
+
+- `XRPC_FEATURE_XRPC_SERVER`
+- `XRPC_SERVER_ACCEPTED`
+- `XRPC_SERVER_ADMISSION_ERROR`
+- `XRPC_SERVER_ALLOCATION`
+- `XRPC_SERVER_ARGUMENT`
+- `XRPC_SERVER_CANCELLED`
+- `XRPC_SERVER_CLOSED`
+- `XRPC_SERVER_DONE`
+- `XRPC_SERVER_LIMIT`
+- `XRPC_SERVER_LOCAL_ERROR`
+- `XRPC_SERVER_MEMORY`
+- `XRPC_SERVER_OVERLOADED`
+- `XRPC_SERVER_RESOURCE`
+- `XRPC_SERVER_STATE`
+- `XRPC_SERVER_TIMEOUT`
+
+### 类型 (9)
+
+- `xrpcserver`
+- `xrpcserveradmission`
+- `xrpcservercall`
+- `xrpcserverconfig`
+- `xrpcservercontext`
+- `xrpcservererror`
+- `xrpcserverinfo`
+- `xrpcserverresult`
+- `xrpcserverstatus`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

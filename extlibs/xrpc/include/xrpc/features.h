@@ -37,6 +37,25 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
 #define XRPC_MODULE_XRPC_HTTP_CLIENT
 #endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#endif
+
+/* xrpc_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_SERVER)
+#ifndef XRPC_FEATURE_XRPC_SERVER
+#define XRPC_FEATURE_XRPC_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
 #endif
 
 /* xrpc_http_client 及其直接依赖。 */

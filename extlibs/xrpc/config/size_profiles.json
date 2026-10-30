@@ -67,6 +67,12 @@
       "system": "http_client",
       "suite": "xrpc_http_client",
       "description": "Bounded ordinary HTTP/TCP call runtime plus actual Core closure; no TLS/DNS or full client/server acceptance"
+    },
+    {
+      "name": "xrpc_server",
+      "system": "server",
+      "suite": "xrpc_server",
+      "description": "Bounded server executor/dispatch/quota/Future closure, no network transport"
     }
   ]
 }

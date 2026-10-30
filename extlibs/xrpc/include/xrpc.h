@@ -38,4 +38,8 @@
 #error "XRPC_FEATURE_XRPC requires http_client"
 #endif
 #include <xrpc/http_client.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_SERVER)
+#error "XRPC_FEATURE_XRPC requires server"
+#endif
+#include <xrpc/server.h>
 #endif

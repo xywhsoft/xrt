@@ -183,3 +183,13 @@ exchange without claiming business execution. Batch Futures own one snapshot and
 a request-order map, including a typed empty map on stop/failure. The HTTP
 benchmark includes ordinary calls, notifications and batches of 16/64; its rates
 and observed latencies count HTTP operations, not individual batch items.
+
+
+Select `XRPC_MODULE_XRPC_SERVER` for [bounded server execution](docs/server.md)
+and its [offline mixed-batch example](examples/server/main.c). It owns a Core
+executor, copies complete requests, executes handlers off submitting threads and
+returns owned response Futures. Pending and retained result capacities share
+explicit limits, including reallocation peaks. Close drains, Cancel cooperates
+and drops queued jobs, and Destroy physically joins workers. Handler code/User
+remain borrowed through successful Destroy. This is the execution component;
+server HTTP/WebSocket/stdio transports and final acceptance remain pending.

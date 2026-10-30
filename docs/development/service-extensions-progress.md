@@ -3194,3 +3194,164 @@ performance and at least 72-hour mixed/fault runs remain unaccepted. Redis
 HA/tracking/dedicated modes, MQTT client/session/persistence and Cron IANA zones,
 scheduler/durable recovery remain active under the original scope. This commit
 completes neither xrpc nor the four-product objective.
+
+
+## P3: owned requests and bounded server execution
+
+The preceding 7e6b4378 phase is progress: it committed and verified atomic HTTP
+batches and notification completion. Its available receipts, binaries, actual
+Core/package dependencies and size/performance assets (1301 SHA-256-bound files)
+are archived at `out/service-extensions/xrpc-http-batch/before-server/` before
+shared test/package/size locations are rebuilt. This phase uses
+`out/service-extensions/xrpc-server/` and preserves the full four-product goal.
+
+The server execution component owns a bounded Core executor. Submit copies a
+whole input document; a worker fully validates it through existing Dispatch
+before invoking synchronous business handlers. Each document/batch is one job,
+admission, deadline and cooperative cancellation unit. Jobs own their native
+Future producer edge; callbacks/contexts remain opaque and are not collector
+admission. No Core API or shared service runtime is added. Network server adapters
+will reuse this path; this commit does not itself open HTTP/WebSocket/stdio
+listeners or provide deferred business replies.
+
+One result block owns its header and encoded response capacity, transferred into
+the result Future on successful publication. Typed local failures discard partial
+wire output but preserve actual handler-entry/dispatch partial-effects accounting.
+DONE includes valid protocol/remote error responses; notification-only documents
+have no wire response. Cancellation cannot roll back or forcibly interrupt user
+handlers. Deadline starts at public submission entry, sampled around handlers
+and output; queued stop completes on worker start or queued-job cancellation/drop.
+A checked Core publication refusal is counted separately and requires consumers
+to inspect Future state as well as a typed value.
+
+Aggregate bounds cover live construction/work/drop duties, copied request/job
+bytes, pending AND retained result count/header/capacity bytes, response limits
+and preallocated per-worker decode scratch. Growth reserves the complete new
+result block alongside the old one before realloc, so allocate/copy/free peaks
+are included. Failure refunds new credit; success releases old credit. The
+accounting boundary is requested private storage, excluding allocator metadata,
+rounding, diagnostics and Core/executor/thread/user-code internal allocations;
+finite operation/result/thread/queue limits independently bound their counts.
+An O(1) protected free list lends exclusive preallocated scratch slots. Retained
+results keep a separate quota ledger without pinning server/worker storage.
+
+Close drains; Cancel requests the parent token and drops queued work outside
+native locks. Wait closes admission and uses a single remaining timeout across
+executor and constructor/drop-tail drain. Destroy additionally joins workers,
+requires stopped concurrent native entries and refuses callback/self destruction.
+Retained results survive it. Public tests verify eventual zero allocation-budget
+bytes after the final retained result releases the quota ledger.
+
+Initial Windows/WSL prototypes pass, including mixed documents, owned input,
+raw huge ids, no handlers on malformed tails, result-ledger lifetime, old-plus-new
+realloc quota, worker output OOM, constructor prefixes, cancellation/drop/reentry,
+self-wait refusal and concurrent submission. A development test value limit was
+corrected from four to three: the four-value request was valid at its exact bound.
+That fixture correction is not a relaxed production limit or acceptance gate.
+
+
+Windows GCC O2/Werror and WSL GCC O2 ASan/UBSan each pass eleven modular
+and eleven direct single-header tests (44 actual binaries), twelve runnable
+examples and trim validation. The new tests include 2048 request-construction
+budget prefixes, separate factory thresholds, worker response realloc OOM,
+aggregate old-plus-new growth rejection after the first accepted batch reply,
+input/decode/output limits, mixed raw-id/error/notification documents, copied
+input overwritten on return, four concurrent submitting threads and zero
+allocation-budget bytes after a retained response outlives server destruction.
+Controlled blocking handlers verify no forced interruption, queue cancellation,
+deadline precedence, cancellation/completion reentry, self-wait/destroy refusal,
+ambient-error preservation and physical duty accounting. These are deterministic
+lifetime fixtures, not an independent transport peer or a production load run.
+
+Generated feature/API/amalgamation checks and normal maturity pass with 64
+functions, 139 constants and 66 types; 18 registered modules, 12 implementation
+nodes, 27 benchmark workloads and eleven size profiles. The product remains
+developing=1 (not a complete server/client); strict release still exits 1.
+
+
+Complete and execution-only static/shared package consumers pass on Windows
+and WSL. The complete consumer now executes the server path against the actual
+packaged host Core and reads an exact raw-id response after physical server join;
+the minimal consumer executes the offline mixed-batch example. Declaration-only
+compilation, layout and all three footprint kinds pass. Actual packaged Core
+backend probes still report IOCP and epoll; receipts bind library/compiler/source
+and executable hashes rather than infer backends from link flags.
+
+| Platform | Server | Scratch slot | Job header | Result block header | Quota ledger | Config | Info/result |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| windows | 312 | 16 | 152 | 112 | 144 | 272 | 96/96 |
+| wsl | 312 | 16 | 152 | 112 | 280 | 272 | 96/96 |
+
+Default private scratch is two workers * 256 descriptors * sizeof(xrpcmessage),
+plus server/slot/ledger headers. Per request, the job header and input use one
+allocation/copy; the result header and 256 initial output bytes use another
+zero-initialized block. Promise/Future/cancel state, producer binding, executor
+queueing, quota locks/refcounts and completion wakeups add costs. Dispatch/encoder
+preflight plus EncodeWrite validate/scan output more than once; growth may copy
+the old result header and capacity. Retained output is not a zero-copy path.
+Creation also zero-initializes private scratch. No zero-overhead claim follows.
+
+| Platform | Closure kind | text | data | bss | Logical file bytes |
+| --- | --- | --- | --- | --- | --- |
+| windows | single | 334080 | 2712 | 11136 | 511246 |
+| windows | static | 27000 | 0 | 0 | 41520 |
+| windows | shared | 38598 | 144 | 272 | 80917 |
+| wsl | single | 348298 | 4400 | 10948 | 633504 |
+| wsl | static | 27742 | 32 | 0 | 56042 |
+| wsl | shared | 35138 | 1088 | 8 | 48680 |
+
+The single object includes the selected Core closure; static/shared product rows
+exclude the separate host Core library and OS thread stacks. File sizes are
+logical bytes, independent of NTFS compression.
+
+The qualified WSL O1 TSan execution suite passes, including concurrent producers,
+queued cancellation/drop and self-wait/reentry. GCC atomic_thread_fence modeling
+warnings remain in build evidence; this is not proof of all race freedom or a
+native Linux qualification.
+
+Two server workloads run at one warmup plus five measured samples per platform.
+Each throughput sample completes 20000 documents with a 64-document submission
+window and two executor workers. A separate one-in-flight phase measures 10000
+latency samples. Both ordinary and batch-16 paths validate returned status/counts
+and observed encoded result values, then destroy result Futures. The work includes
+request copy, full decode/dispatch/encode, queue/Future/result and destruction;
+server creation and final physical join are outside timed work. Windowed
+throughput and one-in-flight latency use DIFFERENT concurrency. These are
+in-process document measurements, not network RPC capacity, per-item batch
+latency or an external comparator result.
+
+| Platform | Document | Windowed documents/s | Single-in-flight P50 us | Single-in-flight P99 us |
+| --- | --- | --- | --- | --- |
+| windows | ordinary | 427758.992 | 10.900 | 23.400 |
+| windows | batch 16 | 73005.517 | 27.600 | 51.800 |
+| wsl | ordinary | 319890.981 | 27.300 | 63.300 |
+| wsl | batch 16 | 76736.600 | 58.200 | 103.200 |
+
+Windows has three failing metric/noise checks and WSL four under unchanged 3%
+relative MAD / 6% central-range thresholds. Both runners exit 1; all samples are
+retained. Neither report is a qualified performance baseline. The subsequent
+5% throughput/10% P99 regression gates remain unchanged, and no acceptance is
+inferred from these unpinned medians. Saturation/open-arrival behavior, payloads,
+connection counts, equivalent peers and pinned native Windows/Linux performance
+remain required.
+
+Matching source fingerprint: `7a03fa57512f2b428e3d5fd4a8d9a689c9c61ca3995d9bab336ad3fc91da58b2`.
+Workload fingerprint: `f9fe2124a3e49d9142089cb3bad9eb1e747d936426c9172d8dc67e923df2f0eb`.
+
+The current validation receipt verifies current frozen inputs, 44 test binaries,
+qualified TSan, complete/minimal package consumers, declaration/layout/footprint,
+actual Core backend identities and both workload binaries/counts/fingerprints.
+The final receipt binds clean committed HEAD/tree. Full commands/compiler hashes,
+raw samples and artifact hashes stay in the ignored phase evidence folder.
+Tracked production/tests/examples/profiles and standard root tools reproduce the
+feature; the product still fails strict release as developing.
+
+Next xrpc work is HTTP server listener/peer ownership, bounded worker completion
+handoff and backpressure/close integration with this executor. Richer HTTP client
+metadata, retained client-result quotas, DNS/TLS/recovery/pooling, WebSocket/framed
+stdio, bidirectional calls, negotiated extensions and deferred business-handler
+lifetime remain pending. Broad worker faults/OOM, independent interoperability,
+native pinned Windows/Linux and at least 72-hour mixed/fault runs remain
+unaccepted. Redis HA/tracking/dedicated modes, MQTT client/session/persistence and
+Cron IANA zones/scheduler/durable recovery remain active under the original goal.
+This commit completes neither xrpc nor the four-product production objective.

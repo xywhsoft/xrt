@@ -17,6 +17,8 @@ static bool rpcConsumerEmit(const xrpcoutgoing* Response, bool Batch, size_t Enc
 		Written == sizeof("{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}")-1u &&
 		memcmp(User, "{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}", Written) == 0;
 }
+static bool rpcConsumerServerCall(const xrpcmessage* Request,xrpcreply* Reply,const xrpcservercontext* Context,ptr User)
+{if(xrtCancelRequested(Context->Cancel) || xrtTimer()>=Context->Deadline)return false;return rpcConsumerCall(Request,Reply,User);}
 int main(void)
 {
 	xrpcmessage Message; xrpcdocument Doc;
@@ -61,6 +63,13 @@ int main(void)
 	if(!xrpcCallCreate(&CallConfig,&Call,&Future) || !xrpcCallMarkSent(Call) || !xrtFutureCancel(Future) || xrpcCallPoll(Call)!=XRPC_CALL_FINISHED || !xrpcCallDestroy(Call))return 15;
 	xfutureresult Ready;if(!xrtFutureResult(Future,&Ready) || Ready.State!=XFUTURE_RESOLVED || !Ready.Value ||
 		((const xrpccallresult*)Ready.Value)->Status!=XRPC_CALL_CANCELLED || ((const xrpccallresult*)Ready.Value)->Delivery!=XRPC_MAY_HAVE_EXECUTED)return 16;
+	xrtFutureDestroy(Future);
+	xrpcserverconfig ServerConfig;xrpcServerConfigInit(&ServerConfig);ServerConfig.Call=rpcConsumerServerCall;xrpcserver* Server=NULL;
+	if(!xrpcServerCreate(&ServerConfig,&Server) || xrpcServerSubmit(Server,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"id\":1e9999}"),5000,&Future)!=XRPC_SERVER_ACCEPTED ||
+		xrtFutureWaitFor(Future,5000)!=XWAIT_OK || !xrtFutureResult(Future,&Ready) || Ready.State!=XFUTURE_RESOLVED || !Ready.Value || !xrpcServerDestroy(Server))return 17;
+	const xrpcserverresult* Served=Ready.Value;
+	if(Served->Status!=XRPC_SERVER_DONE || Served->Dispatch.Replies!=1 || Served->Wire.Size!=sizeof("{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}")-1u ||
+		memcmp(Served->Wire.Data,"{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}",Served->Wire.Size))return 18;
 	xrtFutureDestroy(Future);
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;

@@ -1143,6 +1143,97 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_server",
+      "system": "server",
+      "description": "Bounded in-process server execution; windowed throughput and separate one-in-flight latency, no transport/comparator",
+      "benchmarks": [
+        {
+          "name": "xrpc_server_ordinary",
+          "source": "extlibs/xrpc/bench/bench_server.c",
+          "suite": "xrpc_server",
+          "args": [
+            "20000",
+            "64",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "16",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "window",
+            "items",
+            "workload"
+          ]
+        },
+        {
+          "name": "xrpc_server_batch16",
+          "source": "extlibs/xrpc/bench/bench_server.c",
+          "suite": "xrpc_server",
+          "args": [
+            "20000",
+            "64",
+            "16"
+          ],
+          "smoke_args": [
+            "100",
+            "16",
+            "16"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "window",
+            "items",
+            "workload"
+          ]
+        }
+      ]
     }
   ]
 }

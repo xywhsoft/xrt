@@ -150,3 +150,15 @@ publishing stack's mechanical reference tail; engine join retires that stack.
 These fixture checks do not establish independent HTTP interoperability or final
 performance acceptance. One batch is one deadline/cancel unit; individual item
 cancellation is not provided by this HTTP binding.
+
+
+| Bounded server execution contract | Verification |
+| --- | --- |
+| Owned document and full validation | Overwritten caller input, mixed calls/notifications/invalid items/RPC errors, raw huge ids, late malformed tail before all handlers |
+| Executor isolation and lifetime | Non-submitter business thread, concurrent documents and four submitting threads, preallocated scratch, physical drain/join, retained results after Destroy |
+| Stops/reentry | Queued cancellation, running cooperative stop, deadline precedence, server cancellation/drop, callback self-wait/destruction refusal, ambient identity |
+| Aggregate memory | Pending plus retained result count/capacities, returned credits, input/job bounds, old-plus-new realloc peak, quota ledger surviving server then returning to zero |
+| Failure boundaries | 2048 request-construction quota prefixes, factory thresholds, worker output-allocation failure, JSON/per-document/aggregate caps and no partial output |
+
+Server transport adapters, deferred business handlers, independent peers and
+final native/pinned/long-run production acceptance remain pending.
