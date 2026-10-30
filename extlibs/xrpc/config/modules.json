@@ -565,7 +565,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_client.c"
       ],
       "examples": [
-        "extlibs/xrpc/examples/http_client/main.c"
+        "extlibs/xrpc/examples/http_client/main.c",
+        "extlibs/xrpc/examples/http_batch/main.c"
       ],
       "benchmarks": [
         "extlibs/xrpc/bench/bench_http_client.c"

@@ -899,27 +899,27 @@
           "metrics": {
             "offered": {
               "direction": "higher",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "accepted": {
               "direction": "higher",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "rejected": {
               "direction": "lower",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "completed": {
               "direction": "higher",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "failed": {
               "direction": "lower",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "latency_samples": {
               "direction": "higher",
-              "unit": "calls"
+              "unit": "HTTP operations"
             },
             "all_p50_us": {
               "direction": "lower",
@@ -935,11 +935,208 @@
             },
             "completed_per_sec": {
               "direction": "higher",
-              "unit": "calls/s"
+              "unit": "HTTP operations/s"
             }
           },
           "facts": [
-            "workload"
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_peer.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_client_notifications",
+          "source": "extlibs/xrpc/bench/bench_http_client.c",
+          "suite": "xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_peer.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_client_batch16",
+          "source": "extlibs/xrpc/bench/bench_http_client.c",
+          "suite": "xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "16"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "16"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_peer.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_client_batch64",
+          "source": "extlibs/xrpc/bench/bench_http_client.c",
+          "suite": "xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "64"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "64"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
           ],
           "inputs": [
             "extlibs/xrpc/examples/common/http_peer.h"

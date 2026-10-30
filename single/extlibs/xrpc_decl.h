@@ -3411,7 +3411,8 @@ typedef struct xrpccall xrpccall;
 typedef enum xrpccallstatus {
 	XRPC_CALL_OK = 0, XRPC_CALL_REMOTE_ERROR, XRPC_CALL_TIMEOUT,
 	XRPC_CALL_CANCELLED, XRPC_CALL_CLOSED, XRPC_CALL_TRANSPORT,
-	XRPC_CALL_PROTOCOL, XRPC_CALL_LIMIT, XRPC_CALL_MEMORY
+	XRPC_CALL_PROTOCOL, XRPC_CALL_LIMIT, XRPC_CALL_MEMORY,
+	XRPC_CALL_NOTIFY_DONE, XRPC_CALL_BATCH_DONE, XRPC_CALL_HTTP_ERROR
 } xrpccallstatus;
 typedef enum xrpcdelivery {XRPC_NOT_SENT=0, XRPC_MAY_HAVE_EXECUTED, XRPC_REPLIED} xrpcdelivery;
 typedef enum xrpccallfinish {
@@ -3425,6 +3426,16 @@ typedef struct xrpccallresult {
 	size_t Index;
 	const xerror* Cause;
 } xrpccallresult;
+/* A batch Future always owns this extended value, including failure/stop.
+ * Call is the unchanged ordinary result prefix. Count is the input item count;
+ * Indices maps input items to Responses.Messages, SIZE_MAX for notifications
+ * or any non-BATCH_DONE outcome. BATCH_DONE can contain remote error items.
+ * The immutable map is preallocated with this result, not a producer reference. */
+typedef struct xrpcbatchcallresult {
+	xrpccallresult Call;
+	size_t Count;
+	const size_t* Indices;
+} xrpcbatchcallresult;
 typedef struct xrpccallconfig {
 	size_t Size;
 	int64 Timeout; /* ms from Create entry, including construction/queue wait. */
@@ -3464,6 +3475,10 @@ XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config);
  * the result Future; retain Responses for a longer-lived payload view.
  * This native producer and opaque context are not collector admission. */
 XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config, xrpccall** Call, xfuture** Future);
+/* Same lifetime contract; 1..65536 items, result header plus Count size_t indices.
+ * Ordinary call result/producer storage is not enlarged for batch-only data. */
+XRPC_API bool xrpcBatchCallCreate(const xrpccallconfig* Config, size_t Count,
+	xrpccall** Call, xfuture** Future);
 /* NULL succeeds. Success consumes the unique owner right; a captured cancel
  * callback may still pin physical producer/context storage. False retains the
  * owner right for retry after a checked core publication refusal. */
@@ -3495,6 +3510,17 @@ XRPC_API bool xrpcCallCancellationRequested(const xrpccall* Call);
  * notification/release tails. Actual transport duties remain the runtime's. */
 XRPC_API xrpccallfinish xrpcCallFinish(xrpccall* Call, xrpccallstatus Status,
 	xrpcresponses* Responses, size_t Index, const xerror* Cause);
+/* Complete an already-correlated full response batch. Count equals creation's
+ * input count. Non-SIZE_MAX indices must cover every response exactly once;
+ * the runtime verifies IDs and notification membership. Failure stays pending.
+ * The index vector cannot overlap producer/result storage. BATCH_DONE publishes
+ * the map; stop/failure results keep SIZE_MAX. This alone records REPLIED even
+ * if a sampled stop wins. Ordinary Finish rejects BATCH_DONE/OK/REMOTE_ERROR on
+ * batch producers. NOTIFY_DONE forbids a payload and requires MarkSent; it means
+ * transport completion, never confirmation of notification business effects.
+ * HTTP_ERROR is a local HTTP binding outcome with optional explicit Cause. */
+XRPC_API xrpccallfinish xrpcBatchCallFinish(xrpccall* Call, xrpcresponses* Responses,
+	const size_t* Indices, size_t Count, const xerror* Cause);
 /* Publish due TIMEOUT or requested CANCELLED; otherwise ordinary PENDING. */
 XRPC_API xrpccallfinish xrpcCallPoll(xrpccall* Call);
 XRT_EXTERN_C_END
@@ -3534,15 +3560,20 @@ typedef struct xrpchttpconfig {
     xrpcresponseconfig Responses;
     size_t MaxRequests, MaxRequestBytes, MaxRequestBytesTotal;
     size_t WorkRequests, ReadBytes, MaxResponseWireBytes;
+    size_t MaxBatchItems, MaxBatchBytesTotal;
     uint32 MaxInformational;
 } xrpchttpconfig;
 typedef struct xrpchttpinfo {
     size_t Size;
     xrpchttpstate State;
-    size_t Requests, RequestBytes;
+    size_t Requests, RequestBytes, BatchBytes;
     uint64 Accepted, Rejected, Completed;
     xrpccallstatus CloseStatus;
 } xrpchttpinfo;
+typedef struct xrpchttpitem {
+    xrpcmessagekind Kind; /* CALL or NOTIFICATION only. */
+    xstrview Method, Params;
+} xrpchttpitem;
 XRT_EXTERN_C_BEGIN
 XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config);
 /* Numeric, plain TCP endpoint; existing running engine, one fixed worker.
@@ -3550,8 +3581,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config);
  * One active HTTP/1 exchange, bounded concurrent submissions, persistent TCP.
  * No implicit DNS, TLS, redirects, authentication or replay. Close then Release.
  * The engine remains pinned through physical posts/timers/cancellation tails.
- * This initial call API sends one ordinary method call per HTTP request;
- * notification, batch and full transport policy remain product work. */
+ * Ordinary calls, notifications and array-shaped batches share this transport;
+ * DNS, TLS and full transport policy remain product work. */
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine, const xnetaddr* Remote,
     uint64 Affinity, xstrview Host, xstrview Target,
     const xrpchttpconfig* Config, xrpchttpclient** Client);
@@ -3570,6 +3601,23 @@ XRPC_API void xrpcHttpRelease(xrpchttpclient* Client);
  * and must not block. Results do not retain this client/engine. */
 XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* Client,
     xstrview Method, xstrview Params, int64 Timeout, xfuture** Future);
+/* No RPC id or reply. Empty 2xx HTTP completion yields NOTIFY_DONE with
+ * MAY_HAVE_EXECUTED, never business confirmation. A nonempty successful HTTP
+ * body violates this local binding. Non-2xx yields HTTP_ERROR; optional Cause
+ * domain xrt.rpc.http carries its status when a diagnostic can be allocated. */
+XRPC_API xrpcadmission xrpcHttpNotifyAsync(xrpchttpclient* Client,
+    xstrview Method, xstrview Params, int64 Timeout, xfuture** Future);
+/* One array-shaped HTTP request, including a one-item batch. One atomic
+ * admission and one deadline/cancellation unit cover every item. The Future
+ * always contains xrpcbatchcallresult. BATCH_DONE means all call replies were
+ * validated/correlated; inspect each mapped RESULT/ERROR for business outcome.
+ * Notifications map to SIZE_MAX. All-notification batches use NOTIFY_DONE.
+ * Bad/missing/duplicate/notification/unknown IDs publish no partial replies.
+ * MaxBatchItems and aggregate in-flight BatchBytes bound metadata, separately
+ * from encoded-wire limits. Retained completed result maps/snapshots remain
+ * caller-owned and do not keep client/engine refs. Outputs/inputs cannot overlap. */
+XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
+    const xrpchttpitem* Items, size_t Count, int64 Timeout, xfuture** Future);
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
 /* Independent observer; resolves after request duties and stream retire. The

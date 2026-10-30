@@ -6,5 +6,7 @@
  * quantizing away pre-admission/encoding time. No new public ABI. */
 bool xrpcCallCreateEntered(const xrpccallconfig* Config, xrpccall** Call,
     xfuture** Future, double Entered);
+bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config, size_t Count,
+    xrpccall** Call, xfuture** Future, double Entered);
 #endif
 #endif

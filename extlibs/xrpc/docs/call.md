@@ -71,3 +71,11 @@ its own captured references beyond Wake return. The runtime must keep actual
 transport/post duties pinned independently. The native node reports its real
 reference count, but deliberately refuses ownership traversal of its opaque
 activation/context rather than inventing a collector certificate.
+
+BatchCallCreate preallocates xrpcbatchcallresult plus Count indices. It shares the
+ordinary producer lifetime and cooperative stop rules. BatchCallFinish accepts
+an already-correlated complete array snapshot and a request-order permutation
+with SIZE_MAX entries for notifications. It checks full coverage and uniqueness,
+then publishes one owned snapshot/map. A sampled stop discards both payload and
+map while retaining REPLIED knowledge. NOTIFY_DONE requires MarkSent and means
+transport completion with MAY_HAVE_EXECUTED. Ordinary call result size is unchanged.

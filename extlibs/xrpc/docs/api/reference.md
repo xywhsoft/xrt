@@ -4,15 +4,17 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `52` 个函数、`121` 个常量或宏、
-`55` 个公共类型。
+当前登记 `56` 个函数、`124` 个常量或宏、
+`57` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
 [查看带契约注释的公共头](../../include/xrpc/call.h)
 
-### 函数 (8)
+### 函数 (10)
 
+- `xrpcBatchCallCreate`
+- `xrpcBatchCallFinish`
 - `xrpcCallCancellationRequested`
 - `xrpcCallConfigInit`
 - `xrpcCallCreate`
@@ -22,17 +24,20 @@
 - `xrpcCallMarkSent`
 - `xrpcCallPoll`
 
-### 常量与宏 (21)
+### 常量与宏 (24)
 
 - `XRPC_CALL_ALLOCATION`
 - `XRPC_CALL_ALREADY_DONE`
 - `XRPC_CALL_ARGUMENT`
+- `XRPC_CALL_BATCH_DONE`
 - `XRPC_CALL_CANCELLED`
 - `XRPC_CALL_CLOSED`
 - `XRPC_CALL_FINISHED`
 - `XRPC_CALL_FINISH_ERROR`
+- `XRPC_CALL_HTTP_ERROR`
 - `XRPC_CALL_LIMIT`
 - `XRPC_CALL_MEMORY`
+- `XRPC_CALL_NOTIFY_DONE`
 - `XRPC_CALL_OK`
 - `XRPC_CALL_PENDING`
 - `XRPC_CALL_PROTOCOL`
@@ -46,8 +51,9 @@
 - `XRPC_NOT_SENT`
 - `XRPC_REPLIED`
 
-### 类型 (8)
+### 类型 (9)
 
+- `xrpcbatchcallresult`
 - `xrpccall`
 - `xrpccallconfig`
 - `xrpccallerror`
@@ -154,14 +160,16 @@
 
 [查看带契约注释的公共头](../../include/xrpc/http_client.h)
 
-### 函数 (8)
+### 函数 (10)
 
+- `xrpcHttpBatchAsync`
 - `xrpcHttpCallAsync`
 - `xrpcHttpClose`
 - `xrpcHttpClosed`
 - `xrpcHttpConfigInit`
 - `xrpcHttpConnect`
 - `xrpcHttpInfo`
+- `xrpcHttpNotifyAsync`
 - `xrpcHttpRelease`
 - `xrpcHttpRetain`
 
@@ -183,13 +191,14 @@
 - `XRPC_HTTP_RESPONSE`
 - `XRPC_HTTP_STATE`
 
-### 类型 (7)
+### 类型 (8)
 
 - `xrpcadmission`
 - `xrpchttpclient`
 - `xrpchttpconfig`
 - `xrpchttperror`
 - `xrpchttpinfo`
+- `xrpchttpitem`
 - `xrpchttpstate`
 - `xrpcresponseconfig`
 

@@ -70,13 +70,16 @@ static void testHttpAdmissionAndOOM(void)
 }
 typedef struct rpcHttpSubmitter {xrpchttpclient* C;xfuture* F[32];unsigned Index;} rpcHttpSubmitter;
 static int32 rpcHttpSubmitThread(ptr Data)
-{rpcHttpSubmitter* S=Data;for(unsigned I=0;I<32;++I){char Param[32];snprintf(Param,sizeof(Param),"[%u]",S->Index*32+I);S->F[I]=rpcHttpSubmit(S->C,"echo",Param,5000);}return 0;}
+{rpcHttpSubmitter* S=Data;for(unsigned I=0;I<32;++I){char Param[32];snprintf(Param,sizeof(Param),"[%u]",S->Index*32+I);if(S->Index<2)S->F[I]=rpcHttpSubmit(S->C,"echo",Param,5000);
+ else if(S->Index==2){xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("echo"),{Param,strlen(Param)}},{XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),{0}}};testRequire(xrpcHttpBatchAsync(S->C,Items,2,5000,&S->F[I])==XRPC_ADMISSION_ACCEPTED,"concurrent batch submit");}
+ else testRequire(xrpcHttpNotifyAsync(S->C,XRT_STR_LITERAL("echo"),(xstrview){Param,strlen(Param)},5000,&S->F[I])==XRPC_ADMISSION_ACCEPTED,"concurrent notify submit");}return 0;}
 static void testHttpConcurrentSubmit(void)
 {
     rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpclient* C=rpcHttpConnect(&P,NULL);rpcHttpSubmitter S[4];xthread* T[4];
     for(unsigned I=0;I<4;++I){S[I]=(rpcHttpSubmitter){0};S[I].C=C;S[I].Index=I;T[I]=xrtThreadCreate(rpcHttpSubmitThread,&S[I],0);testRequire(T[I]!=NULL,"HTTP producer thread");}
     for(unsigned I=0;I<4;++I){testRequire(xrtThreadWait(T[I])==XWAIT_OK,"HTTP producer join");xrtThreadDestroy(T[I]);
-        for(unsigned J=0;J<32;++J){const xrpccallresult* R=rpcHttpResult(S[I].F[J]);testRequire(R->Status==XRPC_CALL_OK,"HTTP concurrent completion");
+        for(unsigned J=0;J<32;++J){const xrpccallresult* R=rpcHttpResult(S[I].F[J]);testRequire(R->Status==(I==3?XRPC_CALL_NOTIFY_DONE:I==2?XRPC_CALL_BATCH_DONE:XRPC_CALL_OK),"HTTP concurrent completion");
+            if(I==3){xrtFutureDestroy(S[I].F[J]);continue;}
             xrpcresponseinfo V={0};V.Size=sizeof(V);testRequire(xrpcResponsesInfo(R->Responses,&V),"HTTP concurrent snapshot");char Expected[32];int N=snprintf(Expected,sizeof(Expected),"[%u]",I*32+J);
             testRequire(V.Messages[0].Result.Raw.Size==(size_t)N && !memcmp(V.Messages[0].Result.Raw.Data,Expected,(size_t)N),"HTTP concurrent ID mismatch");xrtFutureDestroy(S[I].F[J]);}
     }
@@ -114,5 +117,57 @@ static void testHttpConstruction(void)
     }
     rpcHttpPeerStop(&P);
 }
+static xfuture* rpcHttpBatch(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,int64 Timeout)
+{xfuture* F=NULL;testRequire(xrpcHttpBatchAsync(C,Items,Count,Timeout,&F)==XRPC_ADMISSION_ACCEPTED,"HTTP batch admission");return F;}
+static void testHttpNotificationsAndBatches(void)
+{
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpclient* C=rpcHttpConnect(&P,NULL);xfuture* F=NULL;
+    testRequire(xrpcHttpNotifyAsync(C,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[]"),5000,&F)==XRPC_ADMISSION_ACCEPTED,"HTTP notification admission");
+    const xrpccallresult* R=rpcHttpResult(F);testRequire(R->Status==XRPC_CALL_NOTIFY_DONE && R->Delivery==XRPC_MAY_HAVE_EXECUTED && !R->Responses,"HTTP notification confirmation");xrtFutureDestroy(F);
+    char Params[]="[7]";xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("escaped"),{Params,3}},
+        {XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[]")},{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("error"),{0}}};
+    F=rpcHttpBatch(C,Items,3,5000);memset(Params,'x',3);
+    const xrpcbatchcallresult* B=(const xrpcbatchcallresult*)rpcHttpResult(F);xrpcresponseinfo I={0};I.Size=sizeof(I);
+    testRequire(B->Call.Status==XRPC_CALL_BATCH_DONE && B->Call.Delivery==XRPC_REPLIED && B->Count==3 && B->Indices[0]==1 && B->Indices[1]==SIZE_MAX && B->Indices[2]==0 &&
+        xrpcResponsesInfo(B->Call.Responses,&I) && I.Batch && I.Count==2 && I.Messages[0].Kind==XRPC_MESSAGE_ERROR && I.Messages[1].Result.Raw.Size==3 && !memcmp(I.Messages[1].Result.Raw.Data,"[7]",3),"HTTP reverse/escaped-ID/error/copied batch");
+    xfuture* One=rpcHttpBatch(C,&Items[2],1,5000);testRequire(rpcHttpResult(One)->Status==XRPC_CALL_BATCH_DONE,"single-item batch lost array shape");xrtFutureDestroy(One);
+    xrpchttpitem Notes[2]={Items[1],Items[1]};One=rpcHttpBatch(C,Notes,2,5000);B=(const xrpcbatchcallresult*)rpcHttpResult(One);
+    testRequire(B->Call.Status==XRPC_CALL_NOTIFY_DONE && B->Call.Delivery==XRPC_MAY_HAVE_EXECUTED && B->Count==2 && B->Indices[0]==SIZE_MAX && B->Indices[1]==SIZE_MAX,"HTTP all-notification batch");xrtFutureDestroy(One);
+    rpcHttpClose(&P,C);B=(const xrpcbatchcallresult*)rpcHttpResult(F);testRequire(xrpcResponsesInfo(B->Call.Responses,&I) && B->Indices[0]==1,"batch retained engine/client");xrtFutureDestroy(F);
+    cstr Bad[]={"duplicate","missing","unknown","notifyid","shape","tail"};
+    for(size_t K=0;K<6;++K){rpcHttpPeerStart(&P);C=rpcHttpConnect(&P,NULL);Items[0].Method=(xstrview){Bad[K],strlen(Bad[K])};Items[0].Params=(xstrview){0};
+        F=rpcHttpBatch(C,Items,3,5000);B=(const xrpcbatchcallresult*)rpcHttpResult(F);
+        testRequire(B->Call.Status==XRPC_CALL_PROTOCOL && !B->Call.Responses && B->Count==3 && B->Indices[0]==SIZE_MAX && B->Indices[1]==SIZE_MAX && B->Indices[2]==SIZE_MAX,"malformed batch partial publication");rpcHttpClose(&P,C);xrtFutureDestroy(F);
+    }
+    for(unsigned Mode=0;Mode<2;++Mode){rpcHttpPeerStart(&P);C=rpcHttpConnect(&P,NULL);
+        testRequire(xrpcHttpNotifyAsync(C,Mode?XRT_STR_LITERAL("notifyerror"):XRT_STR_LITERAL("notifybody"),(xstrview){0},5000,&F)==XRPC_ADMISSION_ACCEPTED,"bad notification admission");R=rpcHttpResult(F);
+        testRequire(R->Status==(Mode?XRPC_CALL_HTTP_ERROR:XRPC_CALL_PROTOCOL) && !R->Responses && R->Delivery==XRPC_MAY_HAVE_EXECUTED,"notification HTTP failure policy");
+        if(Mode)testRequire(R->Cause && xrtErrorCode(R->Cause)==503,"notification HTTP diagnostic");
+        rpcHttpClose(&P,C);xrtFutureDestroy(F);
+    }
+}
+static void testHttpBatchStopsLimitsOOM(void)
+{
+    xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("hold"),{0}},{XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("echo"),{0}},{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("echo"),XRT_STR_LITERAL("[]")}};
+    rpcHttpPeer P;rpcHttpPeerStart(&P);xrpchttpconfig K;xrpcHttpConfigInit(&K);K.MaxBatchBytesTotal=1;xrpchttpclient* C=rpcHttpConnect(&P,&K);xfuture* F=(xfuture*)(uintptr_t)1;
+    testRequire(xrpcHttpBatchAsync(C,Items,3,5000,&F)==XRPC_ADMISSION_OVERLOADED && F==(xfuture*)(uintptr_t)1,"batch byte admission output");
+    xrpchttpitem Oversized[257]={0};
+    testRequire(xrpcHttpBatchAsync(C,Oversized,257,5000,&F)==XRPC_ADMISSION_OVERLOADED,"batch count admission");rpcHttpClose(&P,C);
+    rpcHttpPeerStart(&P);C=rpcHttpConnect(&P,NULL);F=rpcHttpBatch(C,Items,3,5000);rpcHttpWait(&P.Commands,1);
+    xfuture* Queued=rpcHttpBatch(C,Items,3,5000);testRequire(xrtFutureCancel(Queued),"queued batch cancel");
+    const xrpcbatchcallresult* B=(const xrpcbatchcallresult*)rpcHttpResult(Queued);testRequire(B->Call.Status==XRPC_CALL_CANCELLED && B->Call.Delivery==XRPC_NOT_SENT && B->Count==3 && B->Indices[0]==SIZE_MAX,"queued batch stop");
+    xfuture* Due=rpcHttpBatch(C,Items,3,0);B=(const xrpcbatchcallresult*)rpcHttpResult(Due);testRequire(B->Call.Status==XRPC_CALL_TIMEOUT && B->Call.Delivery==XRPC_NOT_SENT,"batch entry deadline");
+    testRequire(xrtFutureCancel(F),"sent batch cancel");B=(const xrpcbatchcallresult*)rpcHttpResult(F);testRequire(B->Call.Status==XRPC_CALL_CANCELLED && B->Call.Delivery==XRPC_MAY_HAVE_EXECUTED && !B->Call.Responses && B->Indices[2]==SIZE_MAX,"sent batch stop");
+    xrtFutureDestroy(F);xrtFutureDestroy(Queued);xrtFutureDestroy(Due);rpcHttpClose(&P,C);testRequire(xrtAtomic32Load(&P.Commands,XMEMORY_ACQUIRE)==1,"batch replay");
+    rpcHttpPeerStart(&P);C=rpcHttpConnect(&P,NULL);Items[0].Method=XRT_STR_LITERAL("echo");unsigned Passed=0,Failed=0;
+    for(size_t Limit=1;Limit<=4096;++Limit){xallocationbudget* Budget=NULL;xallocationscope Scope={0};F=NULL;
+        testRequire(xrtAllocationBudgetCreate(Limit,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"batch request prefix enter");
+        xrpcadmission A=xrpcHttpBatchAsync(C,Items,3,5000,&F);testRequire(xrtAllocationBudgetLeave(&Scope),"batch prefix leave");
+        if(A==XRPC_ADMISSION_ACCEPTED){++Passed;testRequire(rpcHttpResult(F)->Status==XRPC_CALL_BATCH_DONE,"admitted batch quota result");xrtFutureDestroy(F);rpcHttpIdle(C);}
+        else{++Failed;testRequire(A==XRPC_ADMISSION_ERROR && !F,"batch failed allocation output");}
+        xrtClearError();xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(Budget,&I) && !I.LiveBytes,"batch construction quota leaked");xrtAllocationBudgetFree(Budget);
+    }
+    testRequire(Passed && Failed,"batch quota boundaries");rpcHttpClose(&P,C);
+}
 int main(void)
-{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();puts("[PASS] xrpc HTTP client: TCP/queue/copy/chunk/trailer/1xx/ID/error/cancel/deadline/EOF/limits/4096-OOM/concurrent-submit/reentry/physical-close");return 0;}
+{testHttpBasic();testHttpStops();testHttpFailureAndCloseBody();testHttpAdmissionAndOOM();testHttpConcurrentSubmit();testHttpReentry();testHttpConstruction();testHttpNotificationsAndBatches();testHttpBatchStopsLimitsOOM();puts("[PASS] xrpc HTTP client: ordinary/notification/batch/reverse-ID/escaped-ID/atomic-map/error/limits/cancel/deadline/OOM/concurrency/reentry/physical-close");return 0;}

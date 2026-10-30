@@ -168,11 +168,18 @@ This operation component creates no timer/thread/queue/connection. HTTP exchange
 and XRT Future primitives are available; the network client/server integration,
 executor, aggregate quotas and transport acceptance remain pending.
 
-Select `XRPC_MODULE_XRPC_HTTP_CLIENT` for the [ordinary HTTP/TCP client](docs/http_client.md)
+Select `XRPC_MODULE_XRPC_HTTP_CLIENT` for the [HTTP/TCP client](docs/http_client.md)
 and its [offline loopback example](examples/http_client/main.c). It uses a running
 XRT engine, bounded cross-thread submissions, fresh string IDs, monotonic deadlines
 and typed call Futures. One persistent numeric plain-TCP connection runs one
-HTTP exchange at a time. Notifications/batches, DNS/TLS, HTTP metadata policy,
+HTTP exchange at a time. Calls, notifications and atomic batches are available; DNS/TLS, HTTP metadata policy,
 other transports and the server remain pending. The separate fixed-arrival
 benchmark records every offer, refusal and observed queue-inclusive completion;
 local fixture measurements do not establish production performance.
+
+The [batch example](examples/http_batch/main.c) maps mixed call/notification/error
+items after the peer reverses its response order. NotifyAsync completes the HTTP
+exchange without claiming business execution. Batch Futures own one snapshot and
+a request-order map, including a typed empty map on stop/failure. The HTTP
+benchmark includes ordinary calls, notifications and batches of 16/64; its rates
+and observed latencies count HTTP operations, not individual batch items.

@@ -132,7 +132,21 @@ retained-result quotas or end-to-end production/performance acceptance.
 | Ownership/concurrency | Four concurrent submission threads, completion-close/release reentry, request/timer/captured-post accounting and engine join |
 | Allocation failure | 4096 request-construction quota prefixes, separate factory quota thresholds, success/failure publication and zero live budget bytes after cleanup |
 
-This is the initial ordinary call slice. Notification/batch networking, TLS/DNS,
+This includes ordinary, notification and batch networking. TLS/DNS,
 other transports/server, aggregate retained-result admission, independent peers
 and final pinned/native/long-run acceptance remain pending. Closed excludes the
 publishing stack's mechanical reference tail; engine join retires that stack.
+
+
+| Batch and notification contract | Verification |
+| --- | --- |
+| Atomic result ownership | Native full-map permutation validation, independent result lifetime, preallocated finish under one-byte quota, stopped maps all SIZE_MAX |
+| Whole network document | Mixed notifications/results/errors, reversed response order, escaped decimal ids, one-item array and all-notification batch |
+| No partial publication | Duplicate/missing/unknown/notification ids, nonarray response and malformed tail |
+| Notification policy | Empty 2xx, nonempty 2xx protocol failure, non-2xx explicit HTTP_ERROR/status diagnostic |
+| Bounds and stops | Separate batch-byte and item admission, unchanged refusal output, queued/sent cancellation, immediate deadline, no replay |
+| Allocation failures | 2048 native batch constructor and 4096 HTTP batch request-construction quota prefixes, budget balance after retirement |
+
+These fixture checks do not establish independent HTTP interoperability or final
+performance acceptance. One batch is one deadline/cancel unit; individual item
+cancellation is not provided by this HTTP binding.

@@ -3,6 +3,7 @@
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <math.h>
+#include <string.h>
 
 #if defined(XRPC_FEATURE_XRPC_CALL)
 struct xrpccall {
@@ -13,7 +14,7 @@ struct xrpccall {
 	xcancel* Cancel;
 	xrpccallresult* Result;
 	xrpcdelivery Delivery;
-	bool ContextOwned, Destroying;
+	bool ContextOwned, Destroying, Batch;
 };
 static bool xrpcCallReport(xerrkind Kind,xrpccallerror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
@@ -55,7 +56,7 @@ XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config)
 	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call config output");
 	*Config=(xrpccallconfig){sizeof(*Config),5000,NULL,NULL,NULL};return true;
 }
-bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began)
+static bool xrpcCallConstruct(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began,size_t Count)
 {
 	if(!Call || !Future || !xrtMemRangeValid(Call,sizeof(*Call)) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
 		xrtMemRangesOverlap(Call,sizeof(*Call),Future,sizeof(*Future)) || (Config &&
@@ -69,9 +70,13 @@ bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture*
 	*C=(xrpccall){0};xrtAtomic32Init(&C->References,2);C->Config=Limits;
 	C->Deadline=Limits.Timeout==XRT_WAIT_FOREVER?INFINITY:Limits.Timeout==0?Began:
 		nextafter(Began+(double)(Limits.Timeout/1000)+(double)(Limits.Timeout%1000)*.001,INFINITY);
-	xfuture* Observer=NULL;C->Result=xrtMalloc(sizeof(*C->Result));
+	C->Batch=Count!=0;size_t ResultBytes=Count?sizeof(xrpcbatchcallresult)+Count*sizeof(size_t):sizeof(*C->Result);
+	xfuture* Observer=NULL;C->Result=xrtMalloc(ResultBytes);
 	if(!C->Result)xrpcCallReport(XERR_MEMORY,XRPC_CALL_ALLOCATION,"RPC call result allocation failed");
-	if(C->Result){*C->Result=(xrpccallresult){0};C->Promise=xrtPromiseCreate(&Observer,NULL);}
+	if(C->Result){*C->Result=(xrpccallresult){0};
+		if(Count){xrpcbatchcallresult* B=(xrpcbatchcallresult*)C->Result;B->Count=Count;B->Indices=(size_t*)(B+1);
+			for(size_t K=0;K<Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}
+		C->Promise=xrtPromiseCreate(&Observer,NULL);}
 	if(C->Promise)C->Cancel=xrtPromiseCancelToken(C->Promise);
 	bool Bound=C->Cancel && xrtPromiseProducerBindTakeV2(C->Promise,(xrtownershipref){C,&xrpcCallOps},&xrpcCallProducer,&xrpcCallCancellation);
 	if(!Bound){
@@ -80,8 +85,18 @@ bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture*
 	}
 	C->ContextOwned=true;*Call=C;*Future=Observer;return true;
 }
+bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began)
+{return xrpcCallConstruct(Config,Call,Future,Began,0);}
+bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future,double Began)
+{
+	if(!Count || Count>65536u || Count>(SIZE_MAX-sizeof(xrpcbatchcallresult))/sizeof(size_t))
+		return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC batch item count");
+	return xrpcCallConstruct(Config,Call,Future,Began,Count);
+}
 XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
 {return xrpcCallCreateEntered(Config,Call,Future,xrtTimer());}
+XRPC_API bool xrpcBatchCallCreate(const xrpccallconfig* Config,size_t Count,xrpccall** Call,xfuture** Future)
+{return xrpcBatchCallCreateEntered(Config,Count,Call,Future,xrtTimer());}
 XRPC_API bool xrpcCallMarkSent(xrpccall* Call)
 {
 	if(!Call)return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");
@@ -92,34 +107,62 @@ XRPC_API double xrpcCallDeadline(const xrpccall* Call)
 {if(!Call){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return NAN;}return Call->Deadline;}
 XRPC_API bool xrpcCallCancellationRequested(const xrpccall* Call)
 {if(!Call)return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return xrtCancelRequested(Call->Cancel);}
-XRPC_API xrpccallfinish xrpcCallFinish(xrpccall* C,xrpccallstatus Status,xrpcresponses* Responses,size_t Index,const xerror* Cause)
+static xrpccallfinish xrpcCallPublish(xrpccall* C,xrpccallstatus Status,xrpcresponses* Responses,size_t Index,const xerror* Cause,bool Reply,const size_t* Indices)
 {
-	if(!C){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return XRPC_CALL_FINISH_ERROR;}
-	if(!C->Promise)return XRPC_CALL_ALREADY_DONE;
-	bool Reply=Status==XRPC_CALL_OK || Status==XRPC_CALL_REMOTE_ERROR;
-	if(Status<XRPC_CALL_OK || Status>XRPC_CALL_MEMORY || (Reply?!Responses:(Responses!=NULL || Index!=0)))goto Argument;
-	if(Reply){xrpcresponseinfo Info={0};Info.Size=sizeof(Info);
-		if(!xrpcResponsesInfo(Responses,&Info))return XRPC_CALL_FINISH_ERROR;
-		if(Index>=Info.Count || Info.Messages[Index].Kind!=(Status==XRPC_CALL_OK?XRPC_MESSAGE_RESULT:XRPC_MESSAGE_ERROR))goto Argument;
-		if(!xrpcResponsesRetain(Responses))return XRPC_CALL_FINISH_ERROR;
-	}
+	if(Responses && !xrpcResponsesRetain(Responses))return XRPC_CALL_FINISH_ERROR;
 	xerror* Held=Cause?xrtErrorRef(Cause):NULL;
 	if(Cause && !Held){xrpcResponsesRelease(Responses);return XRPC_CALL_FINISH_ERROR;}
 	if(!xrpcCallRefTry(C)){
 		xrpcResponsesRelease(Responses);xrtErrorFree(Held);xrpcCallReport(XERR_RANGE,XRPC_CALL_STATE,"RPC call references overflow");return XRPC_CALL_FINISH_ERROR;}
 	if(xrtTimer()>=C->Deadline)Status=XRPC_CALL_TIMEOUT;
 	else if(xrtCancelRequested(C->Cancel))Status=XRPC_CALL_CANCELLED;
-	if(Status!=XRPC_CALL_OK && Status!=XRPC_CALL_REMOTE_ERROR){xrpcResponsesRelease(Responses);Responses=NULL;Index=0;}
+	if(Status!=XRPC_CALL_OK && Status!=XRPC_CALL_REMOTE_ERROR && Status!=XRPC_CALL_BATCH_DONE){xrpcResponsesRelease(Responses);Responses=NULL;Index=0;}
 	xpromise* Promise=C->Promise;xrpccallresult* Result=C->Result;
+	if(C->Batch){xrpcbatchcallresult* B=(xrpcbatchcallresult*)Result;Index=SIZE_MAX;
+		if(Status==XRPC_CALL_BATCH_DONE)memcpy((size_t*)B->Indices,Indices,B->Count*sizeof(size_t));
+		else for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}
 	*Result=(xrpccallresult){Status,Reply?XRPC_REPLIED:C->Delivery,Responses,Index,Held};
 	C->Promise=NULL;C->Result=NULL;
 	xerror* Previous=xrtTakeError();bool Published=xrtPromiseResolveOwned(Promise,Result,xrpcCallResultDrop,NULL);
 	if(Published)xrtPromiseDestroy(Promise);
-	else {C->Promise=Promise;C->Result=Result;xrpcResponsesRelease(Result->Responses);xrtErrorFree((xerror*)Result->Cause);*Result=(xrpccallresult){0};}
+	else {C->Promise=Promise;C->Result=Result;xrpcResponsesRelease(Result->Responses);xrtErrorFree((xerror*)Result->Cause);*Result=(xrpccallresult){0};
+		if(C->Batch){xrpcbatchcallresult* B=(xrpcbatchcallresult*)Result;for(size_t K=0;K<B->Count;++K)((size_t*)B->Indices)[K]=SIZE_MAX;}}
 	if(Published){xrpcCallUnref(C);xrtClearError();xrtSetErrorTake(Previous);return XRPC_CALL_FINISHED;}
 	xerror* Error=xrtTakeError();xrpcCallUnref(C);xrtErrorFree(Previous);xrtClearError();xrtSetErrorTake(Error);return XRPC_CALL_FINISH_ERROR;
+}
+XRPC_API xrpccallfinish xrpcCallFinish(xrpccall* C,xrpccallstatus Status,xrpcresponses* Responses,size_t Index,const xerror* Cause)
+{
+	if(!C){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return XRPC_CALL_FINISH_ERROR;}
+	if(!C->Promise)return XRPC_CALL_ALREADY_DONE;
+	bool Reply=Status==XRPC_CALL_OK || Status==XRPC_CALL_REMOTE_ERROR;
+	if(Status<XRPC_CALL_OK || Status>XRPC_CALL_HTTP_ERROR || Status==XRPC_CALL_BATCH_DONE || (C->Batch && Reply) ||
+		(Status==XRPC_CALL_NOTIFY_DONE && C->Delivery==XRPC_NOT_SENT) || (Reply?!Responses:(Responses!=NULL || Index!=0)))goto Argument;
+	if(Reply){xrpcresponseinfo Info={0};Info.Size=sizeof(Info);
+		if(!xrpcResponsesInfo(Responses,&Info))return XRPC_CALL_FINISH_ERROR;
+		if(Index>=Info.Count || Info.Messages[Index].Kind!=(Status==XRPC_CALL_OK?XRPC_MESSAGE_RESULT:XRPC_MESSAGE_ERROR))goto Argument;}
+	return xrpcCallPublish(C,Status,Responses,Index,Cause,Reply,NULL);
 Argument:
 	xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call terminal status/response/index");return XRPC_CALL_FINISH_ERROR;
+}
+XRPC_API xrpccallfinish xrpcBatchCallFinish(xrpccall* C,xrpcresponses* Responses,const size_t* Indices,size_t Count,const xerror* Cause)
+{
+	if(!C){xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");return XRPC_CALL_FINISH_ERROR;}
+	if(!C->Promise)return XRPC_CALL_ALREADY_DONE;
+	if(!C->Batch || !Responses || !Indices)goto Argument;
+	xrpcbatchcallresult* B=(xrpcbatchcallresult*)C->Result;
+	if(Count!=B->Count || !xrtMemRangeValid(Indices,Count*sizeof(*Indices)) ||
+		xrtMemRangesOverlap(Indices,Count*sizeof(*Indices),C,sizeof(*C)) ||
+		xrtMemRangesOverlap(Indices,Count*sizeof(*Indices),B,sizeof(*B)+Count*sizeof(size_t)))goto Argument;
+	xrpcresponseinfo I={0};I.Size=sizeof(I);if(!xrpcResponsesInfo(Responses,&I))return XRPC_CALL_FINISH_ERROR;
+	if(!I.Batch || I.Count>Count)goto Argument;
+	unsigned char* Seen=(unsigned char*)B->Indices;memset(Seen,0,(I.Count+7u)/8u);size_t Matched=0;
+	for(size_t K=0;K<Count;++K){size_t V=Indices[K];if(V==SIZE_MAX)continue;
+		if(V>=I.Count || (Seen[V/8u]&(1u<<(V%8u))))goto Argument;
+		Seen[V/8u]|=(unsigned char)(1u<<(V%8u));++Matched;}
+	if(Matched!=I.Count)goto Argument;
+	return xrpcCallPublish(C,XRPC_CALL_BATCH_DONE,Responses,SIZE_MAX,Cause,true,Indices);
+Argument:
+	xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC batch completion/map");return XRPC_CALL_FINISH_ERROR;
 }
 XRPC_API xrpccallfinish xrpcCallPoll(xrpccall* C)
 {

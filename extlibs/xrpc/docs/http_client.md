@@ -1,11 +1,11 @@
-# Bounded HTTP/TCP ordinary calls
+# Bounded HTTP/TCP calls, notifications and batches
 
-`xrpc_http_client` is the first network client slice. It sends one ordinary
-JSON-RPC call per HTTP POST over one persistent numeric plain-TCP connection,
+`xrpc_http_client` is the first network client slice. It sends an ordinary call, notification or nonempty
+JSON-RPC batch per HTTP POST over one persistent numeric plain-TCP connection,
 using a caller-supplied running XRT engine and fixed worker affinity. It uses
 public Core HTTP/1 head/body parsers and writer, not an HTTP parser of its own.
 There is one active exchange; concurrent submissions wait in bounded queues.
-Notifications, batches, connection pooling/pipelining, DNS, TLS, authentication,
+Connection pooling/pipelining, DNS, TLS, authentication,
 WebSocket/stdio, server execution and negotiated extensions remain product work.
 
 Host is an explicit nonempty authority and Target is origin-form. Connect copies
@@ -90,3 +90,40 @@ Protocol references: [JSON-RPC 2.0](https://www.jsonrpc.org/specification) and
 [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112.html) and
 [RFC 9110 content negotiation](https://www.rfc-editor.org/rfc/rfc9110.html#section-12.5.3). The initial HTTP binding
 and retirement policy above are local xrpc policy, not additional JSON-RPC rules.
+
+## Notifications and batches
+
+NotifyAsync encodes no id. This local HTTP binding accepts an empty 2xx HTTP
+body and yields NOTIFY_DONE with MAY_HAVE_EXECUTED; that outcome does not confirm
+business execution. An unexpected nonempty successful body is a protocol error.
+A non-2xx notification exchange yields HTTP_ERROR, with optional explicit Cause
+in domain `xrt.rpc.http` carrying the status; it retires the connection without
+replay. These HTTP policies are local binding choices, not JSON-RPC requirements.
+
+BatchAsync always sends an array, including one item. One admission, deadline
+and cancellation unit covers the whole document. Calls have fresh decimal string
+ids; notifications have no id. Nonempty batches containing only notifications
+use the same empty-2xx policy. Every batch Future contains xrpcbatchcallresult,
+including failure, timeout and cancellation. Count is the input item count;
+Indices map original request order into the one owned response snapshot, with
+SIZE_MAX for notifications. BATCH_DONE means the complete response document was
+validated and correlated. It can contain both RESULT and ERROR items, so callers
+must inspect mapped message kinds for individual business outcomes.
+
+Responses may arrive in any order. Missing, repeated, unknown, notification ids,
+wrong document shape and malformed tails publish no partial snapshot. A decoded
+canonical decimal id (including equivalent JSON escapes) maps to its reserved
+serial range in constant time. No opaque id-key representation is reinterpreted.
+The native batch producer independently verifies that the supplied map covers
+every response exactly once before publishing it; the transport verifies ids and
+notification membership. Sampled stop conditions discard the map/snapshot while
+retaining REPLIED knowledge when a complete valid response was observed.
+
+MaxBatchItems defaults to 256 (hard maximum 65536, also constrained by JSON decode
+limits). MaxBatchBytesTotal defaults to 8 MiB and bounds currently reserved batch
+metadata separately from wire bytes. Info.BatchBytes includes construction and
+captured request tails. Each batch adds one metadata/workspace allocation reused
+for encoding then decoding; the result adds a header plus Count size_t entries.
+Ordinary result storage stays unchanged. Caller-retained maps/snapshots are
+outside pending admission, so aggregate retained-result limits remain product
+work. The existing one-active-exchange queue can still cause head-of-line delay.

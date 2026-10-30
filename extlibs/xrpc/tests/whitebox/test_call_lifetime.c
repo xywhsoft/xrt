@@ -13,5 +13,18 @@ int main(void)
 		xrtAtomic32Load(&R->References,XMEMORY_RELAXED)==1,"activation ref overflow consumed response/state");xrtClearError();xrtAtomic32Store(&C->References,2,XMEMORY_RELAXED);
 	testRequire(xrpcCallFinish(C,XRPC_CALL_OK,R,0,NULL)==XRPC_CALL_FINISHED,"retry valid completion after ref failure");
 	printf("[PASS] checked payload-ref overflow/retry; producer=%zu config=%zu result=%zu\n",sizeof(xrpccall),sizeof(xrpccallconfig),sizeof(xrpccallresult));
-	testRequire(xrpcCallDestroy(C),"call private destroy");xrpcResponsesRelease(R);xrtFutureDestroy(F);return 0;
+	testRequire(xrpcCallDestroy(C),"call private destroy");xrpcResponsesRelease(R);xrtFutureDestroy(F);
+    testRequire(xrpcBatchCallCreate(&Config,2,&C,&F) && xrpcResponsesRead(XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":true}]"),NULL,&Scratch,1,&R)==XRPC_RESPONSE_DONE,"batch private setup");
+    size_t Map[]={0,SIZE_MAX};xrpcbatchcallresult* B=(xrpcbatchcallresult*)C->Result;
+    testRequire(xrpcBatchCallFinish(C,R,B->Indices,2,NULL)==XRPC_CALL_FINISH_ERROR,"batch result alias accepted");xrtClearError();
+    xrtAtomic32Store(&R->References,UINT32_MAX,XMEMORY_RELAXED);
+    testRequire(xrpcBatchCallFinish(C,R,Map,2,NULL)==XRPC_CALL_FINISH_ERROR && xrtFutureState(F)==XFUTURE_PENDING && C->Result==&B->Call,"batch snapshot overflow publication");
+    xrtClearError();xrtAtomic32Store(&R->References,1,XMEMORY_RELAXED);xrtAtomic32Store(&C->References,UINT32_MAX,XMEMORY_RELAXED);
+    testRequire(xrpcBatchCallFinish(C,R,Map,2,NULL)==XRPC_CALL_FINISH_ERROR && xrtAtomic32Load(&R->References,XMEMORY_RELAXED)==1,"batch activation overflow snapshot leak");
+    xrtClearError();xrtAtomic32Store(&C->References,2,XMEMORY_RELAXED);
+    testRequire(xrpcBatchCallFinish(C,R,Map,2,NULL)==XRPC_CALL_FINISHED && xrpcCallDestroy(C),"batch retry after reference overflow");
+    xfutureresult V;testRequire(xrtFutureResult(F,&V),"batch private result");B=V.Value;
+    testRequire(B->Count==2 && B->Indices[0]==0 && B->Indices[1]==SIZE_MAX,"batch retry map");
+    printf("[PASS] checked batch ref overflow/retry/alias; header=%zu index=%zu\n",sizeof(xrpcbatchcallresult),sizeof(size_t));
+    xrpcResponsesRelease(R);xrtFutureDestroy(F);return 0;
 }

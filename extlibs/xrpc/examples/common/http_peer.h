@@ -29,10 +29,50 @@ static inline void rpcHttpPeerSend(rpcHttpPeer* P,cstr Text,size_t Size)
     rpcHttpPeerRequire(R==XNET_RESULT_OK || R==XNET_RESULT_CLOSED ||
         (R==XNET_RESULT_ERROR && xrtNetStreamState(S)>=XNET_STREAM_CLOSING),"peer send");
 }
+static inline bool rpcHttpMethod(const xrpcmessage* M,cstr Name)
+{size_t N=strlen(Name);return M->Method.Raw.Size==N+2 && !memcmp(M->Method.Raw.Data+1,Name,N);}
+static inline void rpcHttpPeerBatch(rpcHttpPeer* P,const xrpcmessage* M,size_t Count)
+{
+    if(rpcHttpMethod(M,"hold")){xrtAtomic32FetchAdd(&P->Commands,1,XMEMORY_RELEASE);return;}
+    size_t Calls[256],N=0;for(size_t K=0;K<Count;++K)if(M[K].Kind==XRPC_MESSAGE_CALL)Calls[N++]=K;
+    char Body[65536],Head[128];size_t Used=0;
+    if(N){
+        bool Shape=rpcHttpMethod(M,"shape"),Duplicate=rpcHttpMethod(M,"duplicate"),Missing=rpcHttpMethod(M,"missing");
+        bool Unknown=rpcHttpMethod(M,"unknown"),NotifyId=rpcHttpMethod(M,"notifyid"),Escaped=rpcHttpMethod(M,"escaped");
+        if(!Shape)Body[Used++]='[';
+        for(size_t K=0;K<N-(Missing?1u:0u);++K){
+            size_t Index=Calls[N-1u-(Duplicate?0u:K)];const xrpcmessage* I=&M[Index];char Id[256];
+            xstrview V=I->Id.Raw;
+            if(K==0 && (Unknown || NotifyId)){
+                unsigned long long Serial=strtoull(M[Calls[0]].Id.Raw.Data+1,NULL,10);
+                int Written=snprintf(Id,sizeof(Id),"\"%llu\"",Unknown?18446744073709551615ull:Serial+1u);V=(xstrview){Id,(size_t)Written};
+            }else if(Escaped){
+                size_t At=0;Id[At++]='"';for(size_t J=1;J+1<V.Size;++J){int Written=snprintf(Id+At,sizeof(Id)-At,"\\u%04x",(unsigned char)V.Data[J]);rpcHttpPeerRequire(Written==6,"escaped id");At+=6;}
+                Id[At++]='"';V=(xstrview){Id,At};
+            }
+            if(K)Body[Used++]=',';
+            int Written=rpcHttpMethod(I,"error")?
+                snprintf(Body+Used,sizeof(Body)-Used,"{\"jsonrpc\":\"2.0\",\"id\":%.*s,\"error\":{\"code\":-1,\"message\":\"failure\"}}",(int)V.Size,V.Data):
+                snprintf(Body+Used,sizeof(Body)-Used,"{\"jsonrpc\":\"2.0\",\"id\":%.*s,\"result\":%.*s}",(int)V.Size,V.Data,(int)(I->Params.Raw.Size?I->Params.Raw.Size:4),I->Params.Raw.Size?I->Params.Raw.Data:"null");
+            rpcHttpPeerRequire(Written>0 && (size_t)Written<sizeof(Body)-Used,"batch reply bound");Used+=(size_t)Written;
+        }
+        if(!Shape)Body[Used++]=']';
+        if(rpcHttpMethod(M,"tail"))Body[Used++]='!';
+    }
+    int H=snprintf(Head,sizeof(Head),"HTTP/1.1 %s\r\nContent-Length: %zu\r\n\r\n",N?"200 OK":"204 No Content",Used);
+    rpcHttpPeerSend(P,Head,(size_t)H);if(Used)rpcHttpPeerSend(P,Body,Used);xrtAtomic32FetchAdd(&P->Commands,1,XMEMORY_RELEASE);
+}
 static inline void rpcHttpPeerReply(rpcHttpPeer* P,xstrview Body)
 {
-    xrpcmessage M;xrpcdocument D={0};xrpcdecodeconfig K;xrpcDecodeConfigInit(&K);K.Mode=XRPC_DECODE_REQUESTS;
-    rpcHttpPeerRequire(xrpcDecode(Body,&K,&M,1,&D)==XRPC_DECODE_DONE && M.Kind==XRPC_MESSAGE_CALL,"peer request envelope");
+    xrpcmessage Items[256];xrpcdocument D={0};xrpcdecodeconfig K;xrpcDecodeConfigInit(&K);K.Mode=XRPC_DECODE_REQUESTS;
+    rpcHttpPeerRequire(xrpcDecode(Body,&K,Items,256,&D)==XRPC_DECODE_DONE,"peer request envelope");
+    if(D.Batch){rpcHttpPeerBatch(P,Items,D.Count);return;}
+    xrpcmessage M=Items[0];
+    if(M.Kind==XRPC_MESSAGE_NOTIFICATION && !rpcHttpMethod(&M,"hold")){
+        cstr H=rpcHttpMethod(&M,"notifyerror")?"HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\n\r\n":
+            rpcHttpMethod(&M,"notifybody")?"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\nx":"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+        rpcHttpPeerSend(P,H,strlen(H));xrtAtomic32FetchAdd(&P->Commands,1,XMEMORY_RELEASE);return;
+    }
     char Reply[65536],Head[256];int N;
     if(M.Method.Raw.Size==6 && !memcmp(M.Method.Raw.Data,"\"hold\"",6)){xrtAtomic32FetchAdd(&P->Commands,1,XMEMORY_RELEASE);return;}
     if(M.Method.Raw.Size==6 && !memcmp(M.Method.Raw.Data,"\"drop\"",6)){xrtAtomic32FetchAdd(&P->Commands,1,XMEMORY_RELEASE);xrtNetStreamAbort(rpcHttpPeerStream(P));return;}
@@ -124,7 +164,7 @@ static inline const xrpccallresult* rpcHttpResult(xfuture* F)
 static inline void rpcHttpClose(rpcHttpPeer* P,xrpchttpclient* C)
 {
     xfuture* F=xrpcHttpClosed(C);rpcHttpPeerRequire(F && xrpcHttpClose(C) && xrtFutureWaitFor(F,10000)==XWAIT_OK,"RPC HTTP physical close wait");
-    xrpchttpinfo I={0};I.Size=sizeof(I);rpcHttpPeerRequire(xrpcHttpInfo(C,&I) && I.State==XRPC_HTTP_CLOSED && !I.Requests && !I.RequestBytes && I.Accepted==I.Completed,"RPC HTTP retired accounting");
+    xrpchttpinfo I={0};I.Size=sizeof(I);rpcHttpPeerRequire(xrpcHttpInfo(C,&I) && I.State==XRPC_HTTP_CLOSED && !I.Requests && !I.RequestBytes && !I.BatchBytes && I.Accepted==I.Completed,"RPC HTTP retired accounting");
     rpcHttpPeerRequire(xrpcHttpClose(C),"idempotent HTTP close");xrpcHttpRelease(C);xrtFutureDestroy(F);rpcHttpPeerStop(P);
 }
 #endif

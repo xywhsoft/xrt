@@ -1,6 +1,7 @@
 #include <xrpc/http_client.h>
 #include <xrpc/id.h>
 #include "../internal/xrpc_call_internal.h"
+#include "../internal/xrpc_string.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -10,6 +11,14 @@
 #include <string.h>
 #if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
 typedef struct xrpchttprequest xrpchttprequest;
+typedef struct xrpchttpbatch {
+    uint64 First;
+    size_t Count, Calls;
+    size_t* Indices;
+    unsigned char* Notifications;
+    void* Workspace;
+} xrpchttpbatch;
+enum {XRPC_HTTP_CALL, XRPC_HTTP_NOTIFICATION, XRPC_HTTP_BATCH};
 struct xrpchttprequest {
     xatomic32 References;
     xrpchttpclient* Client;
@@ -18,9 +27,13 @@ struct xrpchttprequest {
     xrpchttprequest *Next, *Previous;
     unsigned char* Wire;
     size_t WireBytes, IdBytes;
-    char Id[24];
+    union {
+        char Id[24];
+        struct {xrpchttpbatch* Batch;size_t Bytes;} Group;
+    };
     uint64 Timer;
     bool Linked, Sent, Completing;
+    uint8 Operation;
     xrpccallstatus Status;
     xrpcresponses* Response;
 };
@@ -43,6 +56,7 @@ struct xrpchttpclient {
     bool ReadEnded, BodyStarted, ConnectionClose;
     size_t InputUsed, InputScan, InputCapacity, BodyUsed, BodyCapacity, ResponseWireBytes;
     uint32 Informational;
+    uint16 HttpStatus;
     unsigned char *Input, *Payload;
     xhttpfield *Fields, *Trailers;
     xhttp1body Body;
@@ -100,9 +114,9 @@ static xrpccallstatus xrpcHttpParseFailure(const xhttp1errorinfo* E)
         default:return XRPC_CALL_PROTOCOL;
     }
 }
-static void xrpcHttpReservationDrop(xrpchttpclient* C,size_t Bytes)
+static void xrpcHttpReservationDrop(xrpchttpclient* C,size_t Bytes,size_t BatchBytes)
 {
-    xrtMutexLock(&C->Gate);--C->Info.Requests;C->Info.RequestBytes-=Bytes;
+    xrtMutexLock(&C->Gate);--C->Info.Requests;C->Info.RequestBytes-=Bytes;C->Info.BatchBytes-=BatchBytes;
     if(C->Info.State>=XRPC_HTTP_CLOSING)(void)xrpcHttpWakeLocked(C);
     xrtMutexUnlock(&C->Gate);xrpcHttpRelease(C);
 }
@@ -112,15 +126,19 @@ static void xrpcHttpRequestDrop(ptr Value)
 {
     xrpchttprequest* R=Value;if(xrtAtomic32FetchSub(&R->References,1,XMEMORY_ACQ_REL)!=1)return;
     xrpchttpclient* C=R->Client;size_t Bytes=R->WireBytes;
-    xrpcResponsesRelease(R->Response);xrtFree(R->Wire);xrtFree(R);xrpcHttpReservationDrop(C,Bytes);
+    size_t BatchBytes=R->Operation==XRPC_HTTP_BATCH?R->Group.Bytes:0;
+    if(R->Operation==XRPC_HTTP_BATCH)xrtFree(R->Group.Batch);
+    xrpcResponsesRelease(R->Response);xrtFree(R->Wire);xrtFree(R);xrpcHttpReservationDrop(C,Bytes,BatchBytes);
 }
 static void xrpcHttpReset(xrpchttpclient* C)
 {C->Active=NULL;C->InputUsed=0;C->InputScan=0;C->BodyUsed=0;C->ResponseWireBytes=0;C->Informational=0;C->BodyStarted=false;C->ConnectionClose=false;}
 static bool xrpcHttpFinish(xrpchttprequest* R,xrpccallstatus Status,const xerror* Cause)
 {
     xrpchttpclient* C=R->Client;
-    if(R->Completing){Status=R->Status;Cause=NULL;}
-    xrpccallfinish F=xrpcCallFinish(R->Call,Status,R->Completing?R->Response:NULL,0,Cause);
+    if(R->Completing){Status=R->Status;Cause=Status==XRPC_CALL_HTTP_ERROR?C->Cause:NULL;}
+    xrpccallfinish F=R->Completing && Status==XRPC_CALL_BATCH_DONE?
+        xrpcBatchCallFinish(R->Call,R->Response,R->Group.Batch->Indices,R->Group.Batch->Count,Cause):
+        xrpcCallFinish(R->Call,Status,R->Completing?R->Response:NULL,0,Cause);
     if(F==XRPC_CALL_FINISH_ERROR)return false;
     if(R->Previous)R->Previous->Next=R->Next;else C->Head=R->Next;
     if(R->Next)R->Next->Previous=R->Previous;else C->Tail=R->Previous;
@@ -133,6 +151,7 @@ static bool xrpcHttpFinish(xrpchttprequest* R,xrpccallstatus Status,const xerror
 static void xrpcHttpStop(xrpchttprequest* R)
 {
     if(!R->Call || !R->Linked)return;
+    if(R->Completing){(void)xrpcHttpFinish(R,R->Status,NULL);return;}
     if(xrpcCallPoll(R->Call)==XRPC_CALL_FINISHED){
         xrpchttpclient* C=R->Client;bool Sent=R->Sent;
         if(Sent)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);
@@ -189,10 +208,33 @@ static xrpccallstatus xrpcHttpAppend(xrpchttpclient* C,xbytesview Data)
     if(Data.Size)memcpy(C->Payload+C->BodyUsed,Data.Data,Data.Size);
     C->BodyUsed=Need;return XRPC_CALL_OK;
 }
+static bool xrpcHttpBatchId(xrpcvalue Id,uint64* Value)
+{
+    if(Id.Kind!=XRPC_VALUE_STRING)return false;
+    xrpcstringiterator It={Id.Raw,1,{0},0,0};unsigned char Byte;uint64 N=0;size_t Digits=0;
+    while(xrpcStringNext(&It,&Byte)){
+        if(Byte<'0' || Byte>'9' || (!Digits && Byte=='0') || Digits==20 || N>(UINT64_MAX-(uint64)(Byte-'0'))/10u)return false;
+        N=N*10u+(uint64)(Byte-'0');++Digits;
+    }
+    if(!Digits)return false;
+    *Value=N;return true;
+}
 static bool xrpcHttpReply(xrpchttpclient* C)
 {
     xrpchttprequest* R=C->Active;xrpcmessage Scratch;
-    xrpcresponsestatus S=xrpcResponsesRead((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,&Scratch,1,&R->Response);
+    xrpchttpbatch* B=R->Operation==XRPC_HTTP_BATCH?R->Group.Batch:NULL;
+    bool Notification=R->Operation==XRPC_HTTP_NOTIFICATION || (B && !B->Calls);
+    if(Notification){
+        if(C->HttpStatus<200 || C->HttpStatus>=300){
+            xrtSetErrorInfo(XERR_IO,"xrt.rpc.http",C->HttpStatus,"HTTP notification rejected");
+            const xerror* E=xrtErrorKind(xrtGetError())==XERR_MEMORY?NULL:xrtGetError();
+            R->Completing=true;R->Status=XRPC_CALL_HTTP_ERROR;xrpcHttpFail(C,XRPC_CALL_TRANSPORT,E);
+        }else if(C->BodyUsed){xrpcHttpFail(C,XRPC_CALL_PROTOCOL,NULL);return false;}
+        else{R->Completing=true;R->Status=XRPC_CALL_NOTIFY_DONE;if(C->ConnectionClose)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);}
+        return xrpcHttpFinish(R,R->Status,C->Cause);
+    }
+    xrpcresponsestatus S=xrpcResponsesRead((xstrview){(cstr)C->Payload,C->BodyUsed},&C->Config.Responses,
+        B?(xrpcmessage*)B->Workspace:&Scratch,B?B->Count:1,&R->Response);
     if(S!=XRPC_RESPONSE_DONE){
         xrpccallstatus Status=XRPC_CALL_PROTOCOL;
         if(xrtErrorKind(xrtGetError())==XERR_MEMORY)Status=XRPC_CALL_MEMORY;
@@ -200,15 +242,30 @@ static bool xrpcHttpReply(xrpchttpclient* C)
         xrpcHttpFail(C,Status,xrtGetError());return false;
     }
     xrpcresponseinfo I={0};I.Size=sizeof(I);if(!xrpcResponsesInfo(R->Response,&I))return false;
-    unsigned char Expected[64],Actual[64];size_t A=0,B=0;xrpcidconfig K;xrpcIdConfigInit(&K);K.MaxKeyBytes=sizeof(Expected);K.MaxStringBytes=sizeof(Expected);
+    if(B){
+        if(!I.Batch || I.Count!=B->Calls)goto Invalid;
+        for(size_t K=0;K<B->Count;++K)B->Indices[K]=SIZE_MAX;
+        for(size_t K=0;K<I.Count;++K){uint64 Id;
+            if(!xrpcHttpBatchId(I.Messages[K].Id,&Id) || Id<B->First || Id-B->First>=B->Count)goto Invalid;
+            size_t Item=(size_t)(Id-B->First);
+            if(B->Notifications[Item] || B->Indices[Item]!=SIZE_MAX)goto Invalid;
+            B->Indices[Item]=K;
+        }
+        R->Completing=true;R->Status=XRPC_CALL_BATCH_DONE;
+        if(C->ConnectionClose)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);
+        return xrpcHttpFinish(R,R->Status,NULL);
+    }
+    unsigned char Expected[64],Actual[64];size_t A=0,ActualBytes=0;xrpcidconfig K;xrpcIdConfigInit(&K);K.MaxKeyBytes=sizeof(Expected);K.MaxStringBytes=sizeof(Expected);
     K.MaxInputBytes=C->Config.Responses.Decode.MaxIdBytes;
     if(I.Batch || I.Count!=1 || !xrpcIdKeyWrite(Expected,sizeof(Expected),(xstrview){R->Id,R->IdBytes},&K,&A) ||
-        !xrpcIdKeyWrite(Actual,sizeof(Actual),I.Ids[0],&K,&B) || A!=B || memcmp(Expected,Actual,A)){
+        !xrpcIdKeyWrite(Actual,sizeof(Actual),I.Ids[0],&K,&ActualBytes) || A!=ActualBytes || memcmp(Expected,Actual,A)){
         xrpcHttpFail(C,XRPC_CALL_PROTOCOL,NULL);return false;
     }
     R->Completing=true;R->Status=I.Messages[0].Kind==XRPC_MESSAGE_RESULT?XRPC_CALL_OK:XRPC_CALL_REMOTE_ERROR;
     bool Close=C->ConnectionClose;if(Close)xrpcHttpFail(C,XRPC_CALL_CLOSED,NULL);
     return xrpcHttpFinish(R,R->Status,NULL);
+Invalid:
+    xrpcHttpFail(C,XRPC_CALL_PROTOCOL,NULL);return false;
 }
 /* Incremental head delimiter scan prevents reparsing growing fragmented heads.
  * Body state belongs to the public HTTP/1 reader; only an incomplete trailer
@@ -248,7 +305,7 @@ static bool xrpcHttpParse(xrpchttpclient* C,bool End)
             }
             C->ConnectionClose=(Head.Flags&XHTTP1_CONNECTION_CLOSE)!=0 ||
                 (Head.Version==XHTTP_VERSION_1_0 && !(Head.Flags&XHTTP1_KEEP_ALIVE)) || Plan.Mode==XHTTP1_BODY_CLOSE;
-            C->BodyStarted=true;Offset=HeadEnd;
+            C->HttpStatus=Head.Status;C->BodyStarted=true;Offset=HeadEnd;
         }
         xbytesview Data={0};size_t Used=0;
         xhttp1errorinfo Error={0};
@@ -355,7 +412,8 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     xrtHttp1LimitsInit(&Config->Head);xrtHttp1BodyLimitsInit(&Config->Body);xrpcResponseConfigInit(&Config->Responses);
     Config->Body.MaxBody=1024u*1024u;Config->MaxRequests=1024;Config->MaxRequestBytes=256u*1024u;
     if(Config->MaxRequestBytes>Config->Stream.WriteLimit)Config->MaxRequestBytes=Config->Stream.WriteLimit;
-    Config->MaxRequestBytesTotal=8u*1024u*1024u;Config->WorkRequests=64;Config->ReadBytes=64u*1024u;Config->MaxResponseWireBytes=2u*1024u*1024u;Config->MaxInformational=8;return true;
+    Config->MaxRequestBytesTotal=8u*1024u*1024u;Config->WorkRequests=64;Config->ReadBytes=64u*1024u;Config->MaxResponseWireBytes=2u*1024u*1024u;Config->MaxInformational=8;
+    Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;return true;
 }
 XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
@@ -369,6 +427,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     const xrpcdecodeconfig* D=&K.Responses.Decode;
     if(K.Size!=sizeof(K) || !K.MaxRequests || K.MaxRequests>1000000u || !K.MaxRequestBytes || K.MaxRequestBytes>K.MaxRequestBytesTotal ||
         K.MaxRequestBytes>K.Stream.WriteLimit || !K.WorkRequests || !K.ReadBytes || !K.MaxResponseWireBytes || !K.Head.MaxHead || !K.Head.MaxFields || !K.Head.MaxStartLine || !K.Head.MaxFieldLine ||
+        !K.MaxBatchItems || K.MaxBatchItems>65536u || K.MaxBatchItems>D->MaxMessages || !K.MaxBatchBytesTotal ||
         !K.Body.MaxBody || K.Body.MaxBody>SIZE_MAX || !K.Body.MaxTrailer || !K.Body.MaxTrailers || !K.Body.MaxChunkLine || !K.Body.MaxTrailerLine || !K.MaxInformational ||
         K.Responses.Size!=sizeof(K.Responses) || !K.Responses.MaxOwnedBytes || D->Size!=sizeof(*D) || D->Mode!=XRPC_DECODE_RESPONSES ||
         !D->MaxInputBytes || !D->MaxDepth || D->MaxDepth>XJSON_DEPTH_DEFAULT || !D->MaxStringBytes || !D->MaxValues || !D->MaxContainerItems || !D->MaxMessages || D->MaxIdBytes<22u || !D->MaxMethodBytes ||
@@ -395,32 +454,67 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     if(!Posted){xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
 }
-XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* C,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
+static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,
+    bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
-    double Entered=xrtTimer();
-    if(!C || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) || !xrtMemRangeValid(Method.Data,Method.Size) || !xrtMemRangeValid(Params.Data,Params.Size) ||
-        xrtMemRangesOverlap(Future,sizeof(*Future),Method.Data,Method.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),Params.Data,Params.Size) || Timeout<XRT_WAIT_FOREVER ||
-        xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Future,sizeof(*Future))){
-        xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP call inputs");return XRPC_ADMISSION_ERROR;
+    if(!C || !Future || !Items || !Count || Count>SIZE_MAX/sizeof(*Items) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
+        !xrtMemRangeValid(Items,Count*sizeof(*Items)) || xrtMemRangesOverlap(Items,Count*sizeof(*Items),Future,sizeof(*Future)) ||
+        Timeout<XRT_WAIT_FOREVER || xrtMemRangesOverlap(C,sizeof(*C)+C->Host.Size+C->Target.Size,Future,sizeof(*Future))){
+        xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP operation inputs");return XRPC_ADMISSION_ERROR;
     }
-    xrtMutexLock(&C->Gate);
-    xrpcadmission Admission=XRPC_ADMISSION_ACCEPTED;
+    if(Batch && Count>C->Config.MaxBatchItems){xrtMutexLock(&C->Gate);++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XRPC_ADMISSION_OVERLOADED;}
+    size_t Calls=0;
+    for(size_t K=0;K<Count;++K){const xrpchttpitem* I=&Items[K];
+        if((I->Kind!=XRPC_MESSAGE_CALL && I->Kind!=XRPC_MESSAGE_NOTIFICATION) || !xrtMemRangeValid(I->Method.Data,I->Method.Size) || !xrtMemRangeValid(I->Params.Data,I->Params.Size) ||
+            xrtMemRangesOverlap(Future,sizeof(*Future),I->Method.Data,I->Method.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),I->Params.Data,I->Params.Size)){
+            xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP item/kind/view/output overlap");return XRPC_ADMISSION_ERROR;}
+        if(I->Kind==XRPC_MESSAGE_CALL)++Calls;
+    }
+    xrtMutexLock(&C->Gate);xrpcadmission Admission=XRPC_ADMISSION_ACCEPTED;
     if(C->Info.State>=XRPC_HTTP_CLOSING)Admission=XRPC_ADMISSION_CLOSED;
     else if(C->Info.Requests>=C->Config.MaxRequests)Admission=XRPC_ADMISSION_OVERLOADED;
     if(Admission!=XRPC_ADMISSION_ACCEPTED){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return Admission;}
-    if(C->Serial==UINT64_MAX){xrtMutexUnlock(&C->Gate);xrpcHttpReport(XERR_RANGE,XRPC_HTTP_ID_EXHAUSTED,"RPC wire ID space exhausted");return XRPC_ADMISSION_ERROR;}
-    uint64 Serial=++C->Serial;++C->Info.Requests;xrpcHttpRef(C);xrtMutexUnlock(&C->Gate);
-    xrpchttprequest* R=xrtCalloc(1,sizeof(*R));if(!R){xrpcHttpReservationDrop(C,0);return XRPC_ADMISSION_ERROR;}
-    R->Client=C;xrtAtomic32Init(&R->References,1);xfuture* F=NULL;
+    size_t Serials=Calls?(Batch?Count:1):0;
+    if(Serials>UINT64_MAX-C->Serial){xrtMutexUnlock(&C->Gate);xrpcHttpReport(XERR_RANGE,XRPC_HTTP_ID_EXHAUSTED,"RPC wire ID space exhausted");return XRPC_ADMISSION_ERROR;}
+    uint64 Serial=Serials?C->Serial+1u:0;C->Serial+=(uint64)Serials;++C->Info.Requests;xrpcHttpRef(C);xrtMutexUnlock(&C->Gate);
+    xrpchttprequest* R=xrtCalloc(1,sizeof(*R));if(!R){xrpcHttpReservationDrop(C,0,0);return XRPC_ADMISSION_ERROR;}
+    R->Client=C;R->Operation=Batch?XRPC_HTTP_BATCH:Calls?XRPC_HTTP_CALL:XRPC_HTTP_NOTIFICATION;xrtAtomic32Init(&R->References,1);xfuture* F=NULL;
     xrpccallconfig CallConfig;xrpcCallConfigInit(&CallConfig);CallConfig.Timeout=Timeout;CallConfig.User=R;CallConfig.Wake=xrpcHttpCancelWake;CallConfig.Drop=xrpcHttpRequestDrop;
     xrpcHttpRequestRef(R);
-    if(!xrpcCallCreateEntered(&CallConfig,&R->Call,&F,Entered)){xrpcHttpRequestDrop(R);goto Error;}
+    bool Created=Batch?xrpcBatchCallCreateEntered(&CallConfig,Count,&R->Call,&F,Entered):xrpcCallCreateEntered(&CallConfig,&R->Call,&F,Entered);
+    if(!Created){xrpcHttpRequestDrop(R);goto Error;}
     if(!xrtNetPostInit(&R->CancelPost))goto Error;
-    int N=snprintf(R->Id,sizeof(R->Id),"\"%"PRIu64"\"",Serial);if(N<=0 || (size_t)N>=sizeof(R->Id))goto Error;R->IdBytes=(size_t)N;
-    xrpcoutgoing Message={0};Message.Kind=XRPC_MESSAGE_CALL;Message.Id=(xstrview){R->Id,R->IdBytes};Message.Method=Method;Message.Params=Params;
-    xrpcencodeconfig Encode;xrpcEncodeConfigInit(&Encode);Encode.MaxOutputBytes=C->Config.MaxRequestBytes;
-    size_t BodyBytes=0,HeadBytes=0;if(!xrpcEncodeSize(&Message,1,false,&Encode,&BodyBytes))goto Error;
-    char Length[24];N=snprintf(Length,sizeof(Length),"%zu",BodyBytes);if(N<=0 || (size_t)N>=sizeof(Length))goto Error;
+    xrpcoutgoing Single={0};xrpcoutgoing* Messages=&Single;
+    if(Batch){
+        size_t Prefix=sizeof(xrpchttpbatch)+Count*(sizeof(size_t)+1u);
+        size_t Alignment=_Alignof(xrpcmessage)>_Alignof(xrpcoutgoing)?_Alignof(xrpcmessage):_Alignof(xrpcoutgoing);
+        size_t Padding=(Alignment-Prefix%Alignment)%Alignment;
+        size_t Unit=sizeof(xrpcmessage)>sizeof(xrpcoutgoing)+24u?sizeof(xrpcmessage):sizeof(xrpcoutgoing)+24u;
+        if(Count>(SIZE_MAX-Prefix-Padding)/Unit){xrpcHttpReport(XERR_RANGE,XRPC_HTTP_ALLOCATION,"RPC batch storage overflows");goto Error;}
+        size_t Bytes=Prefix+Padding+Count*Unit;
+        xrtMutexLock(&C->Gate);
+        if(C->Info.State>=XRPC_HTTP_CLOSING)Admission=XRPC_ADMISSION_CLOSED;
+        else if(Bytes>C->Config.MaxBatchBytesTotal-C->Info.BatchBytes)Admission=XRPC_ADMISSION_OVERLOADED;
+        if(Admission==XRPC_ADMISSION_ACCEPTED){C->Info.BatchBytes+=Bytes;R->Group.Bytes=Bytes;}
+        xrtMutexUnlock(&C->Gate);if(Admission!=XRPC_ADMISSION_ACCEPTED)goto Refused;
+        xrpchttpbatch* B=xrtMalloc(Bytes);if(!B)goto Error;R->Group.Batch=B;
+        *B=(xrpchttpbatch){0};B->Count=Count;B->Calls=Calls;B->First=Serial;B->Indices=(size_t*)(B+1);
+        B->Notifications=(unsigned char*)(B->Indices+Count);B->Workspace=(unsigned char*)B+Prefix+Padding;
+        Messages=B->Workspace;char* Ids=(char*)(Messages+Count);
+        for(size_t K=0;K<Count;++K){B->Indices[K]=SIZE_MAX;B->Notifications[K]=(unsigned char)(Items[K].Kind==XRPC_MESSAGE_NOTIFICATION);
+            Messages[K]=(xrpcoutgoing){0};Messages[K].Kind=Items[K].Kind;Messages[K].Method=Items[K].Method;Messages[K].Params=Items[K].Params;
+            if(!B->Notifications[K]){int N=snprintf(Ids+K*24u,24,"\"%"PRIu64"\"",Serial+(uint64)K);
+                if(N<=0 || N>=24)goto Error;
+                Messages[K].Id=(xstrview){Ids+K*24u,(size_t)N};}
+        }
+    }else{
+        Single.Kind=Items[0].Kind;Single.Method=Items[0].Method;Single.Params=Items[0].Params;
+        if(Calls){int N=snprintf(R->Id,sizeof(R->Id),"\"%"PRIu64"\"",Serial);if(N<=0 || (size_t)N>=sizeof(R->Id))goto Error;
+            R->IdBytes=(size_t)N;Single.Id=(xstrview){R->Id,R->IdBytes};}
+    }
+    xrpcencodeconfig Encode;xrpcEncodeConfigInit(&Encode);Encode.MaxOutputBytes=C->Config.MaxRequestBytes;Encode.MaxMessages=C->Config.MaxBatchItems;
+    size_t BodyBytes=0,HeadBytes=0;if(!xrpcEncodeSize(Messages,Count,Batch,&Encode,&BodyBytes))goto Error;
+    char Length[24];int N=snprintf(Length,sizeof(Length),"%zu",BodyBytes);if(N<=0 || (size_t)N>=sizeof(Length))goto Error;
     xhttpfield Fields[]={{XRT_STR_LITERAL("Host"),C->Host},{XRT_STR_LITERAL("Content-Type"),XRT_STR_LITERAL("application/json")},
         {XRT_STR_LITERAL("Content-Length"),(xstrview){Length,(size_t)N}},
         {XRT_STR_LITERAL("Accept-Encoding"),XRT_STR_LITERAL("identity")}};
@@ -434,7 +528,7 @@ XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* C,xstrview Method,xstrv
     xrtMutexUnlock(&C->Gate);if(Admission!=XRPC_ADMISSION_ACCEPTED)goto Refused;
     R->Wire=xrtMalloc(Bytes);size_t Written=0;
     if(!R->Wire || !xrtHttp1RequestWrite(XRT_STR_LITERAL("POST"),C->Target,XHTTP_VERSION_1_1,Fields,4,R->Wire,HeadBytes,&Written) || Written!=HeadBytes ||
-        !xrpcEncodeWrite(R->Wire+HeadBytes,BodyBytes,&Message,1,false,&Encode,NULL))goto Error;
+        !xrpcEncodeWrite(R->Wire+HeadBytes,BodyBytes,Messages,Count,Batch,&Encode,NULL))goto Error;
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XRPC_HTTP_CLOSING){xrtMutexUnlock(&C->Gate);Admission=XRPC_ADMISSION_CLOSED;goto Refused;}
     if(!xrpcHttpWakeLocked(C)){xrtMutexUnlock(&C->Gate);goto Error;}
@@ -446,6 +540,12 @@ Refused:
 Error:
     {xerror* E=xrtTakeError();if(R->Call)(void)xrpcCallDestroy(R->Call);xrtFutureDestroy(F);xrpcHttpRequestDrop(R);xrtClearError();xrtSetErrorTake(E);}return XRPC_ADMISSION_ERROR;
 }
+XRPC_API xrpcadmission xrpcHttpCallAsync(xrpchttpclient* C,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
+{double Entered=xrtTimer();xrpchttpitem I={XRPC_MESSAGE_CALL,Method,Params};return xrpcHttpSubmit(C,&I,1,false,Timeout,Future,Entered);}
+XRPC_API xrpcadmission xrpcHttpNotifyAsync(xrpchttpclient* C,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future)
+{double Entered=xrtTimer();xrpchttpitem I={XRPC_MESSAGE_NOTIFICATION,Method,Params};return xrpcHttpSubmit(C,&I,1,false,Timeout,Future,Entered);}
+XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,int64 Timeout,xfuture** Future)
+{return xrpcHttpSubmit(C,Items,Count,true,Timeout,Future,xrtTimer());}
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* C,xrpchttpinfo* Info)
 {
     if(!C || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) ||

@@ -3036,3 +3036,161 @@ still require coverage. Independent peers, native pinned Windows/Linux performan
 and at least 72-hour mixed/fault runs remain unaccepted. Redis dedicated/HA/tracking,
 MQTT client/session/persistence and Cron time-zone/scheduler/recovery remain active.
 This commit completes neither xrpc nor the four-product objective.
+
+## P3: atomic HTTP batches and notification completion
+
+This phase extends the existing numeric plain-TCP HTTP client with notification
+and array-shaped batch submissions. It retains one active exchange, bounded
+cross-thread admission and one whole-document deadline/cancel unit. This is a
+product-local addition; no Core runtime/API or shared service runtime is added.
+
+Batch futures always hold xrpcbatchcallresult, including stop/failure, with one
+owned snapshot and a request-order index map. Notifications map to SIZE_MAX;
+non-success maps contain SIZE_MAX throughout. The complete document and every
+call id are checked before any snapshot is published. Response order is arbitrary;
+equivalent escaped decimal string ids are accepted. A serial range plus membership
+flags gives direct bounded indexing without parsing an opaque id-key format.
+
+An empty successful HTTP notification exchange yields NOTIFY_DONE and
+MAY_HAVE_EXECUTED, not business confirmation. A nonempty 2xx body is rejected by
+this local binding; non-2xx yields HTTP_ERROR with an optional explicit HTTP
+status diagnostic. All-notification batches use the same policy. There is no
+per-item cancellation, replay, new business callback or per-item Future.
+
+Batch-only storage adds a preallocated result header/map plus one reserved
+metadata/workspace block reused for outgoing encoding and response decoding.
+MaxBatchItems and MaxBatchBytesTotal bound admission separately from wire limits;
+Info.BatchBytes tracks actual reservation through construction/captured tails.
+Retained maps/snapshots are still caller-owned outside pending admission; final
+aggregate retained-result admission remains required. Ordinary result layout
+remains unchanged. Actual layouts and performance are recorded below after
+verification, without a zero-overhead or production claim.
+
+Preceding commit 3507e4e2's available test/package/probe/performance receipts and
+binaries are preserved in `out/service-extensions/xrpc-http-client/before-http-batch/`.
+Its `archive.json` binds 1294 files by SHA-256, including the actual packaged Core
+libraries and runtime package dependencies. The current phase evidence uses
+`out/service-extensions/xrpc-http-batch/`.
+
+
+Local source verification completed before package generation: Windows GCC 16.2.0
+O2/Werror and WSL GCC 15.2.0 O2 ASan/UBSan each pass ten modular and ten direct
+single-header binaries (40 total), eleven runnable examples and trim validation.
+The HTTP suite adds mixed concurrent ordinary/batch/notification producers while
+retaining callback-reentry and physical-close checks. New cases include reversed
+and escaped ids, per-item RPC errors, single-item/all-notification arrays,
+duplicate/missing/unknown/notification ids, nonarray/malformed tails, notification
+HTTP outcomes, batch-byte/item refusal, whole-batch stops and no replay. It sweeps
+4096 HTTP batch request-construction budget prefixes in addition to the existing
+ordinary/factory checks. Native call tests add 2048 batch-constructor prefixes,
+invalid/incomplete/duplicate maps and preallocated completion under one-byte quota.
+
+Separate private probes pass on Windows and WSL ASan/UBSan. They force snapshot
+and producer reference overflow, reject result-map aliasing, then retry completion
+successfully. Actual x64 sizes: ordinary producer 88, config 40 and result 32;
+batch result header 48, followed by Count * 8 bytes. No claim of no extra runtime
+branches or zero overhead follows from unchanged ordinary storage sizes.
+
+API documentation/features/amalgamation checks pass with 56 functions, 124
+constants and 57 types. Normal maturity checks pass: 16 modules, 11 implementation
+nodes with registered verification assets, 25 benchmark workloads and ten size
+profiles. The product remains developing=1; strict release exits 1 as required.
+This is not a final production candidate.
+
+
+Complete and HTTP-only static/shared package consumers pass on both platforms;
+the minimal consumer runs the mixed batch example. Declaration-only compilation
+and actual private HTTP layout probes also pass. Packaged Core engine probes
+report IOCP on Windows and epoll on WSL; their receipts bind the actual host
+Core static library hash, compiler, source and executable, rather than inferring
+the backend from link flags.
+
+| Platform | HTTP client | HTTP request | Config | Info | HTTP head/body |
+| --- | --- | --- | --- | --- | --- |
+| windows | 840 | 176 | 304 | 72 | 112/120 |
+| wsl | 912 | 176 | 304 | 72 | 112/120 |
+
+The ordinary HTTP request remains 176 bytes. Batch-only workspace is separately
+allocated/admitted; config and accounting structures expand deliberately under
+their Size contracts. Whole-client buffers and common branching still carry
+costs even for ordinary calls.
+
+| Platform | Closure kind | text | data | bss | Logical file bytes |
+| --- | --- | --- | --- | --- | --- |
+| windows | single | 595960 | 2672 | 11136 | 863433 |
+| windows | static | 45036 | 0 | 0 | 69632 |
+| windows | shared | 86328 | 224 | 2848 | 144591 |
+| wsl | single | 617767 | 5664 | 10940 | 1094152 |
+| wsl | static | 45633 | 128 | 0 | 90688 |
+| wsl | shared | 56707 | 1480 | 8 | 76272 |
+
+Size rows retain the existing ownership boundary: the single object includes
+its selected Core closure; static/shared product rows exclude the separate host
+Core library. File bytes are logical artifact sizes, independent of NTFS storage
+compression. These are footprint observations, not performance acceptance.
+
+
+The qualified WSL O1 TSan HTTP suite passes, including concurrent ordinary,
+batch and notification submitters, cancellation and close/reentry. GCC's retained
+atomic_thread_fence modeling warning limits this evidence; it does not prove
+all race freedom or native Linux qualification.
+
+Seven workloads run at one warmup plus five measured samples per platform. Three
+native lifecycle workloads complete 200000 cycles and use separate 10000-sample
+latency loops. Four HTTP workloads offer 2000 whole HTTP operations at absolute
+2000 operations/s arrivals: ordinary call, notification and batches of 16/64.
+Every HTTP sample accepts/completes all 2000 offers, with zero rejected/failed;
+this is a finite arrival workload, not a saturation/maximum-capacity result.
+Notifications count completed HTTP exchanges, never confirmed business effects.
+
+| Platform | Lifecycle | Calls/s | P50 us | P99 us |
+| --- | --- | --- | --- | --- |
+| windows | matched reply | 1306129 | 0.700 | 1.300 |
+| windows | cancel | 957647 | 0.900 | 1.600 |
+| windows | immediate timeout | 1415145 | 0.700 | 1.200 |
+| wsl | matched reply | 1286726 | 0.700 | 1.300 |
+| wsl | cancel | 888904 | 0.900 | 1.500 |
+| wsl | immediate timeout | 1326848 | 0.700 | 1.200 |
+
+| Platform | HTTP operation | Completed operations/s | All-offer observed P50 us | All-offer observed P99 us | Offer-lateness P99 us |
+| --- | --- | --- | --- | --- | --- |
+| windows | ordinary | 1958.676 | 22779.800 | 30820.900 | 15507.400 |
+| windows | notification | 1964.361 | 22745.400 | 30821.700 | 15434.700 |
+| windows | batch 16 | 1958.051 | 18860.500 | 27442.200 | 14828.100 |
+| windows | batch 64 | 1956.960 | 13385.900 | 23035.000 | 13299.300 |
+| wsl | ordinary | 1997.751 | 1659.311 | 2200.306 | 1067.314 |
+| wsl | notification | 1998.723 | 1654.912 | 2198.103 | 1066.412 |
+| wsl | batch 16 | 1997.366 | 1694.293 | 2260.895 | 1063.194 |
+| wsl | batch 64 | 1997.226 | 1891.400 | 2556.538 | 1063.804 |
+
+Batch rates/latencies count HTTP documents, not individual items. All-offer
+latencies include generator Sleep/polling delays, queueing, construction,
+encoding, transport, parsing, result reads and destruction. Offer lateness stays
+in the observations; it is not subtracted. These medians do not establish an RPC
+service-only P99 or comparative speedup between operation types. A precise pinned
+arrival driver, saturation, large payloads, high connection counts and equivalent
+external comparators remain necessary.
+
+Windows has seven failing metric/noise checks and WSL eleven under unchanged 3%
+relative MAD and 6% central-range thresholds; both measurement runners exit 1.
+No noisy baseline is promoted for the later 5% throughput/10% P99 regression gates.
+No source/performance threshold is weakened and no samples are discarded.
+
+Matching source fingerprint: `e83b95b41f35e3d5098d2938ab86e33822452bbd1fcef2cb78fe843bb5af84e0`.
+Workload fingerprint: `dc47c8bccb1bc9eedc9d72c13631982a7e8a4fc9e586d951f35b176d45a9e2ef`.
+
+The current validation receipt checks frozen inputs, all 40 actual test binaries,
+private overflow/layout outputs, qualified TSan, complete/minimal consumers,
+actual packaged Core identities/backends, declarations/footprint and all seven
+workload binaries/counts/fingerprints. The final receipt binds clean committed
+HEAD/tree. Raw samples, commands, compiler/artifact hashes remain in the ignored
+phase evidence folder; registered tests/examples/benchmarks remain tracked.
+
+Next xrpc work retains richer HTTP metadata and aggregate retained-result
+admission, DNS/TLS/recovery/pooling, owned server requests and bounded executor
+dispatch, WebSocket/framed stdio, bidirectional calls and negotiated extensions.
+Worker fault/OOM, independent interoperability, pinned native Windows/Linux
+performance and at least 72-hour mixed/fault runs remain unaccepted. Redis
+HA/tracking/dedicated modes, MQTT client/session/persistence and Cron IANA zones,
+scheduler/durable recovery remain active under the original scope. This commit
+completes neither xrpc nor the four-product objective.

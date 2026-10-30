@@ -145,9 +145,46 @@ static void testRpcCallReceive(void)
 			Info.Messages[R->Index].Id.Raw.Data[0]==(char)('0'+K),"Future payload mismatched correlated ID");xrtFutureDestroy(Futures[K]);}
 }
 #endif
+static void testRpcBatchCall(void)
+{
+    xrpcresponses* Replies=rpcCallReplies();xrpccallconfig K=rpcCallConfig();xrpccall* C=NULL;xfuture* F=NULL;
+    testRequire(!xrpcBatchCallCreate(&K,0,&C,&F) && !C && !F,"empty batch constructor");xrtClearError();
+    testRequire(!xrpcBatchCallCreate(&K,65537,&C,&F) && !C && !F,"oversized batch constructor");xrtClearError();
+    for(unsigned Stop=0;Stop<3;++Stop){
+        K=rpcCallConfig();if(Stop==1)K.Timeout=0;
+        testRequire(xrpcBatchCallCreate(&K,3,&C,&F),"native batch create");
+        size_t Duplicate[]={0,SIZE_MAX,0},Missing[]={0,SIZE_MAX,SIZE_MAX},Range[]={0,SIZE_MAX,2},Good[]={1,SIZE_MAX,0};
+        testRequire(xrpcBatchCallFinish(C,Replies,Duplicate,3,NULL)==XRPC_CALL_FINISH_ERROR &&
+            xrpcBatchCallFinish(C,Replies,Missing,3,NULL)==XRPC_CALL_FINISH_ERROR &&
+            xrpcBatchCallFinish(C,Replies,Range,3,NULL)==XRPC_CALL_FINISH_ERROR &&
+            xrpcBatchCallFinish(C,Replies,Good,2,NULL)==XRPC_CALL_FINISH_ERROR && xrtFutureState(F)==XFUTURE_PENDING,"bad batch maps published partial result");xrtClearError();
+        if(Stop==2)testRequire(xrtFutureCancel(F),"batch cancel");
+        xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"batch completion quota");
+        testRequire(xrpcBatchCallFinish(C,Replies,Good,3,NULL)==XRPC_CALL_FINISHED,"preallocated batch completion");
+        testRequire(xrtAllocationBudgetLeave(&Scope),"batch completion quota leave");xrtAllocationBudgetFree(Budget);
+        testRequire(xrpcCallDestroy(C),"batch producer drop");const xrpcbatchcallresult* R=(const xrpcbatchcallresult*)rpcCallResult(F);
+        testRequire(R->Count==3 && R->Call.Delivery==XRPC_REPLIED && R->Call.Index==SIZE_MAX && R->Call.Status==
+            (Stop==1?XRPC_CALL_TIMEOUT:Stop==2?XRPC_CALL_CANCELLED:XRPC_CALL_BATCH_DONE),"batch terminal type/knowledge");
+        for(size_t J=0;J<3;++J)testRequire(R->Indices[J]==(Stop?SIZE_MAX:Good[J]),"batch retained index map");
+        testRequire(R->Call.Responses==(Stop?NULL:Replies),"batch stopped payload");xrtFutureDestroy(F);
+    }
+    K=rpcCallConfig();testRequire(xrpcBatchCallCreate(&K,2,&C,&F),"notification batch create");
+    testRequire(xrpcCallFinish(C,XRPC_CALL_NOTIFY_DONE,NULL,0,NULL)==XRPC_CALL_FINISH_ERROR,"unsent notification completed");xrtClearError();
+    testRequire(xrpcCallMarkSent(C) && xrpcCallFinish(C,XRPC_CALL_NOTIFY_DONE,NULL,0,NULL)==XRPC_CALL_FINISHED && xrpcCallDestroy(C),"notification batch completion");
+    const xrpcbatchcallresult* R=(const xrpcbatchcallresult*)rpcCallResult(F);
+    testRequire(R->Count==2 && R->Call.Status==XRPC_CALL_NOTIFY_DONE && R->Call.Delivery==XRPC_MAY_HAVE_EXECUTED && !R->Call.Responses && R->Indices[0]==SIZE_MAX && R->Indices[1]==SIZE_MAX,"notification delivery/map");xrtFutureDestroy(F);
+    unsigned Passed=0,Failed=0;
+    for(size_t Limit=1;Limit<=2048;++Limit){xallocationbudget* Budget=NULL;xallocationscope Scope={0};C=NULL;F=NULL;
+        testRequire(xrtAllocationBudgetCreate(Limit,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"batch allocation prefix enter");
+        bool OK=xrpcBatchCallCreate(&K,3,&C,&F);testRequire(xrtAllocationBudgetLeave(&Scope),"batch allocation prefix leave");
+        if(OK){++Passed;testRequire(xrpcCallDestroy(C),"batch OOM producer cleanup");xrtFutureDestroy(F);}else{++Failed;testRequire(!C && !F,"batch OOM outputs");}
+        xrtClearError();xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(Budget,&I) && !I.LiveBytes,"batch OOM leak");xrtAllocationBudgetFree(Budget);
+    }
+    testRequire(Passed && Failed,"batch constructor allocation boundaries");xrpcResponsesRelease(Replies);
+}
 int main(void)
 {
-	testRpcCallOutcomes();testRpcCallStopAndCause();testRpcCallReentry();testRpcCallFailures();
+	testRpcCallOutcomes();testRpcCallStopAndCause();testRpcCallReentry();testRpcCallFailures();testRpcBatchCall();
 	#if defined(XRT_FEATURE_THREAD)
 	testRpcCallRetirement();
 	#endif
