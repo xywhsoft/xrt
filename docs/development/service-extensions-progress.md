@@ -25,9 +25,12 @@ Target and rules: [development contract](service-extensions-plan.md).
   request dispatch, immutable method indexing, exact ID comparison keys and bounded
   pending-call admission/removal, immutable owned responses and complete-document
   response correlation, native call/Future lifetime and the first ordinary
-  HTTP/TCP call client are locally verified. This client has bounded concurrent
-  submission, worker ownership and scheduled deadlines. Notification/batch
-  networking, TLS/DNS, other transports and server/executor integration remain pending.
+  HTTP/TCP call client are locally verified. Bounded asynchronous server execution,
+  ordinary/notification/batch HTTP client/server traffic, retained-result quotas
+  and asynchronous DNS/prepared-address dialing are also locally verified. The
+  client has bounded concurrent submission, worker ownership and API-entry
+  deadlines. TLS/authentication, richer HTTP metadata/recovery/pooling, other
+  transports, bidirectional calls and deferred business handlers remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -3670,3 +3673,139 @@ Windows/Linux mixed/fault runs remain unaccepted. Redis HA/tracking/dedicated
 modes, MQTT 5.0/3.1.1 client/session/persistence and Cron IANA/scheduler/durable
 recovery remain active under the original four-product goal. This storage feature
 completes neither xrpc nor the whole production objective.
+
+## P3: asynchronous HTTP DNS and prepared-address dialing (2026-10-30)
+
+Base: `540a4a1e8283b9b2e9c5f93679434849571b2e1e`. Added three public
+functions in `xrpc/http_dial.h`: config initialization, application-resolver DNS
+dialing, and immutable prepared-endpoint dialing. Both paths reuse the production
+HTTP client and native Core candidate controller. The HTTP authority/target stay
+explicit and independent of the DNS name. Prepared endpoint ports are preserved,
+with at most 64 entries. Defaults are dual stack, eight attempts, 250 ms fallback,
+a 1024-byte DNS-name bound and a 30-second connection deadline. No IDNA conversion,
+implicit TLS, cleartext fallback or application-request replay is introduced.
+
+The monotonic connection deadline starts at factory entry and covers construction,
+owner-worker admission, DNS, candidate racing and losing-resource retirement.
+Zero is immediate asynchronous timeout; -1 disables this additional deadline.
+Core Dial's separate relative timeout is disabled. Queued calls retain their own
+API-entry deadlines and cancellation; an unsent stop leaves connection setup usable.
+DNS/transport failure, admission limits, memory failure and timeout retain distinct
+typed statuses and explicit immutable cause chains. The application retains the
+resolver through Client Closed and retires/joins it separately; a noncooperative
+lookup can delay physical close after logical cancellation.
+
+This adds one pointer (eight requested bytes on these x64 builds) to the existing
+HTTP client, plus one cold sidecar allocation containing source state and a copied,
+NUL-terminated DNS name. Prepared dialing retains an immutable list until native
+admission. Source references count actual client-owner and owned-callback credits;
+opaque tracing is refused. The winning stream is published only after native
+candidate retirement. Core's owned callback drop clears the source pointer and
+releases cold source/Dial ownership immediately, instead of retaining it for an
+open connection's lifetime. A budget-observation test verifies the requested-byte
+decrease while the client stays open and zero after complete cleanup. The
+additional absolute timer holds a real client reference and is canceled on the
+owner worker. This is requested-storage accounting, not RSS or zero-overhead proof.
+
+A review found a new completion-versus-Close race: OPEN publication could overwrite
+concurrent CLOSING after an earlier unlocked state check. The tracked deterministic
+`tests/interop/http_dial_close_race.py` probe interposes mutex calls only in its
+test translation unit and links the other actual modular objects. Its preserved
+pre-fix Windows run fails with `close request overwritten by dial completion`.
+The publication now rechecks under the gate. Both final platform probes pass, and
+both complete modular/single/example/trim runs were repeated after that source fix.
+There is no production test hook. Pre-fix source/binary/receipt hashes remain in
+`out/service-extensions/xrpc-http-dial/before-close-fix/`.
+
+Local evidence: 13 modular and 13 single-header binaries per platform (52 total),
+plus the two separate deterministic race-probe binaries. All 15 documented examples
+per platform and trim checks pass. New tests cover copied-name reuse, owner-worker
+queueing, ordinary/notification/mixed-batch traffic through setup, a reserved
+non-listening endpoint followed by a working candidate, list-owner release,
+request cancellation/deadlines, immediate/infinite/factory-entry setup deadlines,
+close before admission, resolver admission exhaustion, lookup failure, invalid
+policy/NUL names, seven constructor budget thresholds and early cold retirement.
+Fast failure tests hold the owner worker until the caller has queued its request.
+Retained response results remain valid after client/engine cleanup.
+
+WSL runtime/single/example runs use ASan/UBSan with leak detection and halt-on-error.
+Qualified WSL O1 TSan passes the HTTP-dial suite with no runtime race report; GCC's
+atomic-thread-fence modeling warning is retained, not suppressed from the evidence.
+Twenty-one extension layout/single/header-coverage tool tests pass. Complete xrpc
+and minimal HTTP-dial static/shared consumers, declaration-only compilation and all
+three dial size kinds pass on both platforms. Actual Core probes report IOCP/epoll.
+Independent Python HTTP/JSON peers complete 405 server exchanges per platform,
+including eight concurrent persistent connections; one additional C DNS client
+talks to a stdlib HTTP peer per platform (810 + 2 exchanges). This is neither
+independent JSON-RPC-library parity nor external DNS/TLS interoperability.
+
+Normal maturity: 23 modules, 15 implementation nodes (14 C files), all 15 covered
+by tests/single/docs, 32 workloads and 14 size profiles. Generated public reference:
+75 functions, 151 constants/macros and 72 types. Read-only API/single checks pass.
+Strict release still fails only on the intentionally developing xrpc aggregate.
+
+Requested x64 structure sizes: client Windows 896/WSL 968; cold dial data 200
+(including a 56-byte private source plan, excluding name tail); public dial config
+48; unchanged HTTP config 320/info 96/request 176/native call 88/snapshot 40/prefix
+32. Ledger remains Windows 72/WSL 144. Native Dial/resolver/candidate allocations,
+engine timers, allocator headers, copying and synchronization are additional costs.
+
+| Platform | Profile | Kind | Text | Data | BSS | Logical file bytes |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| windows | xrpc_http_dial | single | 655492 | 2672 | 11136 | 951230 |
+| windows | xrpc_http_dial | static | 52648 | 0 | 0 | 83880 |
+| windows | xrpc_http_dial | shared | 94732 | 224 | 2848 | 157442 |
+| wsl | xrpc_http_dial | single | 677623 | 6432 | 10940 | 1206136 |
+| wsl | xrpc_http_dial | static | 53722 | 184 | 0 | 109896 |
+| wsl | xrpc_http_dial | shared | 65967 | 1616 | 8 | 86192 |
+
+These are unstripped GCC O2 artifacts. Single includes its actual Core closure;
+static/shared are the extension artifact, with Core supplied separately.
+
+Each performance workload has one warmup plus five measured runs. The three
+unchanged HTTP workloads schedule 2000 documents at 2000 planned arrivals/s,
+accept/complete all 2000 with zero failed/rejected and retain all latency samples.
+These observations include offer lateness/queueing/Future polling on this shared
+host, not isolated server latency or saturation capacity.
+
+| Platform | Workload | Completed documents/s | All-offer P99 us | Offer-lateness P99 us |
+| --- | --- | ---: | ---: | ---: |
+| windows | ordinary | 1961.514 | 30914.600 | 15371.400 |
+| windows | notification | 1966.082 | 30929.000 | 15447.100 |
+| windows | batch16 | 1960.286 | 28684.800 | 14877.200 |
+| wsl | ordinary | 1998.142 | 2196.603 | 1063.406 |
+| wsl | notification | 1997.405 | 2188.704 | 1063.407 |
+| wsl | batch16 | 1997.405 | 2261.803 | 1064.303 |
+
+The new cold benchmark performs 500 serial closed-loop client cycles per run,
+using OS IPv4 localhost resolution, resolver cache disabled, then TCP/RPC/result
+release and Client Closed observation. The existing engine/server/resolver are
+outside its timed loop. Each run records all 500 cycles and exactly 500 submitted
+lookups. Callback return tails/final engine join are outside per-cycle observation.
+Windows median 1790.002 cycles/s, P50 534.900 us, P99 744.000 us; WSL 2662.138
+cycles/s, P50 366.000 us, P99 558.900 us. This does not measure external DNS
+capacity, fixed-arrival connection pressure, TLS or all final teardown costs.
+
+Windows cold P50 fails both unchanged noise gates (3.496% relative MAD, 7.422%
+central range versus 3%/6% limits); other Windows checks pass. All WSL noise checks
+pass. Runner results 1/0 and all raw samples are retained without favorable-sample
+retries or threshold changes. No baseline is pinned and performance is unaccepted.
+Source fingerprint: `d5fa7458aaba941e381116d2733da1518cd751ba961b3d6490c89dedc1ee3a0a`.
+Workload fingerprint: `b28f93b25d87e1d1169808a7951f179eb809de9c2fdaa4019dfa443f819c5bdf`.
+
+Eighty-eight SHA-bound predecessor artifacts were archived before overwrites at
+`out/service-extensions/xrpc-http-client-quota/before-http-dial/`, a junction to
+`D:/CodexArtifacts/xrt-service-extensions/540a4a1e-before-http-dial`. No predecessor
+evidence or primary-checkout work was deleted. Current receipts at
+`out/service-extensions/xrpc-http-dial/validation.json` bind 52 runtime binaries,
+35 additional artifacts, frozen exact source/tool inputs, race probes, layouts,
+sizes, backends, TSan, interop and 5+1 raw samples. The committed validator rerun
+binds clean HEAD/tree to the same tested inputs.
+
+Next xrpc work remains TLS/authentication, richer HTTP metadata/recovery/pooling,
+WebSocket/framed stdio, bidirectional calls, negotiated extensions and deferred
+business handlers. Redis HA/tracking/dedicated modes, MQTT 5.0/3.1.1 full
+client/session/persistence, Cron IANA/scheduler/durable recovery and original P4
+remain active. Native Linux qualification, representative pinned comparators and
+at least 72-hour native Windows/Linux mixed/fault runs remain unaccepted. This
+connection feature completes neither xrpc nor the four-product production goal.

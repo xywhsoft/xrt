@@ -85,6 +85,12 @@
       "system": "result_quota",
       "suite": "xrpc_result_quota",
       "description": "Private allocation/retention quota ledger and actual response/mutex/atomic dependency closure"
+    },
+    {
+      "name": "xrpc_http_dial",
+      "system": "http_dial",
+      "suite": "xrpc_http_dial",
+      "description": "Asynchronous HTTP DNS/prepared-candidate connection source with actual client/resolver/dial closure"
     }
   ]
 }

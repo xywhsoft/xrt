@@ -48,6 +48,9 @@
 #if !defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_DIAL 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER 1
 #endif
@@ -92,6 +95,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_HTTP_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_DIAL 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_HTTP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER 1
@@ -1328,6 +1334,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
+#endif
+#if !defined(XRT_MODULE_NET_TCP_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL 1
 #endif
 #if !defined(XRT_MODULE_TIME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME 1
@@ -2569,6 +2578,22 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_SERVER
 #define XRPC_MODULE_XRPC_HTTP_SERVER
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#endif
+
+/* xrpc_http_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_HTTP_DIAL
+#define XRPC_FEATURE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_http_server 及其直接依赖。 */
@@ -3741,7 +3766,8 @@ XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
  * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
-/* Independent observer; resolves after request duties and stream retire. The
+/* Independent observer; resolves after request duties, optional connection
+ * source callback ownership and the actual stream retire. The
  * publishing stack's mechanical client-reference tail can follow; joining the
  * engine retires that stack. Dropping this observer does not close the client.
  * No blocking wait facade here. */
@@ -3931,6 +3957,55 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/http_dial.h */
+/* ========================================================================== */
+
+#ifndef XRPC_HTTP_DIAL_H
+#define XRPC_HTTP_DIAL_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL) && \
+    (!defined(XRPC_FEATURE_XRPC_HTTP_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "xrpc HTTP dial requires HTTP client and Core TCP dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+typedef struct xrpchttpdialconfig {
+    size_t Size;
+    xnetfamily Family;
+    int64 Timeout,FallbackDelay;
+    uint32 MaxAttempts;
+    size_t MaxHostBytes;
+} xrpchttpdialconfig;
+XRT_EXTERN_C_BEGIN
+/* Dual stack, 30s complete factory-to-connection deadline, 250ms fallback,
+ * eight candidates, 1024 host bytes. Timeout 0 is immediate, -1 infinite.
+ * Hard limits: 64 prepared endpoints/candidates and 65535 host bytes.
+ * Config.Stream in the HTTP client remains the TCP buffer/limit policy. */
+XRPC_API bool xrpcHttpDialConfigInit(xrpchttpdialconfig* Config);
+/* DNSName is distinct from the explicit HTTP Host authority and Target.
+ * Bounded non-NUL DNSName is copied before return; no IDNA conversion.
+ * Core supplies resolver admission, family ordering, candidate race and losing
+ * socket retirement. No application request is replayed. Calls/notifications/
+ * batches can queue, expire or cancel through connection setup.
+ * The application-owned Resolver must outlive Closed; retire/join it separately.
+ * A running uncooperative lookup can delay physical Closed after logical cancel.
+ * Success returns one creator ref: Close then Release. All inputs are borrowed
+ * only during this factory except Resolver. Failure leaves Client unchanged.
+ * Plain TCP only; TLS is a separate explicit policy, never inferred. */
+XRPC_API bool xrpcHttpDial(xnetengine* Engine,xnetresolver* Resolver,xstrview DNSName,
+    uint16 Port,uint64 Affinity,xstrview Host,xstrview Target,const xrpchttpconfig* Config,
+    const xrpchttpdialconfig* Dial,xrpchttpclient** Client);
+/* Immutable prepared endpoints, each port preserved; no Resolver is consulted.
+ * At most 64 entries. Family filters candidates; selected endpoints need a
+ * nonzero port. Factory retains the list before return, so caller may release
+ * its reference immediately. Connection/client deadline and close rules match. */
+XRPC_API bool xrpcHttpDialAddresses(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,
+    xrpchttpclient** Client);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -3969,6 +4044,9 @@ XRT_EXTERN_C_END
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
 #error "XRPC_FEATURE_XRPC requires http_server"
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+#error "XRPC_FEATURE_XRPC requires http_dial"
+#endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
 #undef XRPC_FEATURE_XRPC
@@ -3993,6 +4071,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT)
 #undef XRPC_FEATURE_XRPC_HTTP_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_DIAL)
+#undef XRPC_FEATURE_XRPC_HTTP_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER)
 #undef XRPC_FEATURE_XRPC_HTTP_SERVER
@@ -4053,6 +4135,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT)
 #undef XRPC_MODULE_XRPC_HTTP_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_DIAL)
+#undef XRPC_MODULE_XRPC_HTTP_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER)
 #undef XRPC_MODULE_XRPC_HTTP_SERVER
@@ -5702,6 +5788,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL)
+#undef XRT_MODULE_NET_TCP_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_DIAL
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME)
 #undef XRT_MODULE_TIME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME
@@ -5769,6 +5859,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_HTTP_SERVER
 #define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#endif
+
+/* xrpc_http_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_HTTP_DIAL
+#define XRPC_FEATURE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
 #endif
 #endif
 

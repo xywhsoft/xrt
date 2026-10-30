@@ -43,6 +43,22 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_SERVER
 #define XRPC_MODULE_XRPC_HTTP_SERVER
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#endif
+
+/* xrpc_http_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_HTTP_DIAL
+#define XRPC_FEATURE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_http_server 及其直接依赖。 */

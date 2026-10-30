@@ -2,6 +2,7 @@
 #include <xrpc/id.h>
 #include "../internal/xrpc_call_internal.h"
 #include "../internal/xrpc_string.h"
+#include "../internal/xrpc_http_connect.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -47,6 +48,7 @@ struct xrpchttpclient {
     xrpchttpconfig Config;
     xrpchttpinfo Info;
     xrpcresultquota* ResultQuota;
+    xrpchttpconnectplan* Connect;
     xnetpost Wake;
     xpromise* ClosePromise;
     xfuture* CloseFuture;
@@ -96,6 +98,8 @@ static bool xrpcHttpWakeLocked(xrpchttpclient* C)
 }
 static void xrpcHttpWake(xrpchttpclient* C)
 {xrtMutexLock(&C->Gate);(void)xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);}
+static void xrpcHttpConnectTimerCancel(xrpchttpclient* C)
+{uint64 Id=C->Connect?C->Connect->Timer:0;if(C->Connect)C->Connect->Timer=0;if(Id)(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
 static bool xrpcHttpClosing(xrpchttpclient* C)
 {xrtMutexLock(&C->Gate);bool R=C->Info.State>=XRPC_HTTP_CLOSING;xrtMutexUnlock(&C->Gate);return R;}
 static void xrpcHttpFail(xrpchttpclient* C,xrpccallstatus Status,const xerror* Cause)
@@ -103,6 +107,42 @@ static void xrpcHttpFail(xrpchttpclient* C,xrpccallstatus Status,const xerror* C
     xrtMutexLock(&C->Gate);
     if(C->Info.State<XRPC_HTTP_CLOSING){C->Info.State=XRPC_HTTP_CLOSING;C->Info.CloseStatus=Status;C->Cause=Cause?xrtErrorRef(Cause):NULL;}
     (void)xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
+}
+static xrpccallstatus xrpcHttpConnectFailure(xnetresult Result,const xerror* Cause)
+{
+    xerrkind Kind=xrtErrorKind(Cause);
+    return Result==XNET_RESULT_TIMEOUT || Kind==XERR_TIMEOUT?XRPC_CALL_TIMEOUT:Result==XNET_RESULT_CANCELLED?XRPC_CALL_CLOSED:
+        Kind==XERR_MEMORY?XRPC_CALL_MEMORY:(Kind==XERR_AGAIN || Kind==XERR_RANGE)?XRPC_CALL_LIMIT:XRPC_CALL_TRANSPORT;
+}
+static void xrpcHttpConnectTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data)
+{
+    (void)Worker;xrpchttpclient* C=Data;
+    if(C->Connect && C->Connect->Timer==Id){C->Connect->Timer=0;
+        if(Result==XNET_RESULT_OK)xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);
+        else if(Result!=XNET_RESULT_CANCELLED)xrpcHttpFail(C,XRPC_CALL_TRANSPORT,NULL);}
+    xrpcHttpRelease(C);
+}
+static bool xrpcHttpConnectArm(xrpchttpclient* C)
+{
+    if(C->Connect->Deadline==INFINITY)return true;
+    if(xrtTimer()>=C->Connect->Deadline){xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);return false;}
+    xrpcHttpRef(C);C->Connect->Timer=__xrtNetEngineSchedule(C->Engine,xrtNetWorkerIndex(C->Worker),C->Connect->Deadline,xrpcHttpConnectTimer,C);
+    if(C->Connect->Timer)return true;
+    xrpcHttpRelease(C);xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());return false;
+}
+void xrpcHttpConnectRetired(xrpchttpclient* C)
+{xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);xrpcHttpWake(C);}
+void xrpcHttpConnected(xrpchttpclient* C,xnetresult Result,xnetstream* Stream,const xerror* Cause)
+{
+    xrpcHttpConnectTimerCancel(C);
+    if(Stream){C->Stream=Stream;C->TransportClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
+        if(xrpcHttpClosing(C)){if(!C->TransportClosed)(void)xrtNetStreamAbort(Stream);}
+        else if(xrtNetStreamState(Stream)==XNET_STREAM_OPEN){xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);}
+        else xrpcHttpFail(C,XRPC_CALL_TRANSPORT,Cause);
+    }else{C->TransportClosed=true;
+        xrpcHttpFail(C,xrpcHttpConnectFailure(Result,Cause),Cause);
+    }
+    xrpcHttpWake(C);
 }
 static xrpccallstatus xrpcHttpParseFailure(const xhttp1errorinfo* E)
 {
@@ -347,7 +387,7 @@ static void xrpcHttpRead(xrpchttpclient* C)
     }
 }
 static void xrpcHttpOnOpen(xnetstream* Stream,ptr Data)
-{(void)Stream;xrpchttpclient* C=Data;xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);xrpcHttpWake(C);}
+{(void)Stream;xrpchttpclient* C=Data;if(C->Connect && C->Connect->Pending && !C->Stream)return;xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);xrpcHttpWake(C);}
 static void xrpcHttpOnRead(xnetstream* Stream,xnetbuf* Buffer,ptr Data)
 {(void)Buffer;xrtNetStreamPause(Stream);xrpcHttpWake(Data);}
 static void xrpcHttpOnEnd(xnetstream* Stream,ptr Data)
@@ -369,8 +409,15 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
     if(!C->Started){
         C->Started=true;
         if(!xrpcHttpClosing(C)){
-            C->Stream=xrtNetStreamConnect(C->Engine,&C->Remote,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents,C);
-            if(!C->Stream){C->TransportClosed=true;xrpcHttpFail(C,xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,xrtGetError());}
+            if(C->Connect){
+                if(xrpcHttpConnectArm(C)){C->Connect->Pending=true;
+                    if(!C->Connect->Start(C->Connect->Data,C,C->Engine,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents)){
+                        C->Connect->Pending=false;C->TransportClosed=true;xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());}}
+                else C->TransportClosed=true;
+            }else{
+                C->Stream=xrtNetStreamConnect(C->Engine,&C->Remote,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents,C);
+                if(!C->Stream){C->TransportClosed=true;xrpcHttpFail(C,xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,xrtGetError());}
+            }
         }else C->TransportClosed=true;
     }
     xrpcHttpIngest(C);
@@ -390,17 +437,19 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
         }
     }
     if(xrpcHttpClosing(C)){
+        xrpcHttpConnectTimerCancel(C);if(C->Connect && C->Connect->Pending)C->Connect->Cancel(C->Connect->Data);
         if(C->Stream && !C->TransportClosed)(void)xrtNetStreamAbort(C->Stream);
         for(size_t N=0;C->Head && N<C->Config.WorkRequests;++N)if(!xrpcHttpFinish(C->Head,C->Info.CloseStatus,C->Cause))break;
     }
     xrtMutexLock(&C->Gate);
     if(C->SubmitHead || (C->Info.State>=XRPC_HTTP_CLOSING && C->Head) || (!C->Active && C->Head && C->Info.State==XRPC_HTTP_OPEN))
         (void)xrpcHttpWakeLocked(C);
-    bool Done=C->TransportClosed && C->Info.Requests==0 && !C->WakeQueued && !C->CloseDone;
+    bool Done=C->TransportClosed && (!C->Connect || !C->Connect->Pending) && C->Info.Requests==0 && !C->WakeQueued && !C->CloseDone;
     if(Done){C->CloseDone=true;C->Info.State=XRPC_HTTP_CLOSED;C->EnginePinned=false;}
     xrtMutexUnlock(&C->Gate);
     if(Done){
         xrtNetStreamDestroy(C->Stream);C->Stream=NULL;
+        if(C->Connect){xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);}
         xpromise* P=C->ClosePromise;C->ClosePromise=NULL;
         (void)xrtNetEngineUnpin(C->Engine);(void)xrtPromiseResolve(P,NULL);xrtPromiseDestroy(P);
         xrpcHttpRelease(C); /* Runtime activation. */
@@ -418,11 +467,11 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;
     Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
 }
-XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
+static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
 {
-    if(!Engine || !Remote || !Client || !xrtMemRangeValid(Remote,sizeof(*Remote)) || !xrtMemRangeValid(Client,sizeof(*Client)) ||
-        xrtMemRangesOverlap(Remote,sizeof(*Remote),Client,sizeof(*Client)) || !xrtMemRangeValid(Host.Data,Host.Size) || !xrtMemRangeValid(Target.Data,Target.Size) ||
+    if(!Engine || (!Remote && !Plan) || !Client || (Remote && (!xrtMemRangeValid(Remote,sizeof(*Remote)) || xrtMemRangesOverlap(Remote,sizeof(*Remote),Client,sizeof(*Client)))) || !xrtMemRangeValid(Client,sizeof(*Client)) ||
+        !xrtMemRangeValid(Host.Data,Host.Size) || !xrtMemRangeValid(Target.Data,Target.Size) ||
         (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Client,sizeof(*Client)))) ||
         xrtMemRangesOverlap(Host.Data,Host.Size,Client,sizeof(*Client)) || xrtMemRangesOverlap(Target.Data,Target.Size,Client,sizeof(*Client)))
         return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP connect inputs");
@@ -438,7 +487,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
         K.Head.MaxFields>SIZE_MAX/sizeof(xhttpfield) || K.Body.MaxTrailers>SIZE_MAX/sizeof(xhttpfield) ||
         Host.Size>K.MaxRequestBytes || Target.Size>K.MaxRequestBytes-Host.Size ||
         Host.Size>SIZE_MAX-sizeof(xrpchttpclient) || Target.Size>SIZE_MAX-sizeof(xrpchttpclient)-Host.Size ||
-        (Remote->Family!=XNET_FAMILY_IPV4 && Remote->Family!=XNET_FAMILY_IPV6) || !Remote->Port || !Host.Size || !Target.Size || Target.Data[0]!='/' ||
+        (Remote && ((Remote->Family!=XNET_FAMILY_IPV4 && Remote->Family!=XNET_FAMILY_IPV6) || !Remote->Port)) || !Host.Size || !Target.Size || Target.Data[0]!='/' ||
         !xrtHttpHostValid(Host) || !xrtHttp1TargetValid(Target) || !xrtNetStreamConfigValid(&K.Stream))
         return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP endpoint/configuration");
     size_t Capacity=K.Head.MaxHead>K.Body.MaxTrailer?K.Head.MaxHead:K.Body.MaxTrailer;
@@ -446,7 +495,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     if(!xrtNetEnginePin(Engine))return false;
     xrpchttpclient* C=xrtCalloc(1,sizeof(*C)+Host.Size+Target.Size);
     if(!C){xrtNetEngineUnpin(Engine);return false;}
-    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;C->Remote=*Remote;C->Config=K;
+    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;if(Remote)C->Remote=*Remote;C->Config=K;
     C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));
     C->Info.Size=sizeof(C->Info);C->Info.CloseStatus=XRPC_CALL_CLOSED;C->InputCapacity=Capacity+K.ReadBytes;
     C->Host=(xstrview){(cstr)C->Text,Host.Size};C->Target=(xstrview){(cstr)C->Text+Host.Size,Target.Size};
@@ -455,10 +504,17 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
     if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
         !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
+    if(Plan){C->Connect=Plan;Plan->Deadline=Deadline;}
     xrpcHttpRef(C);xrtMutexLock(&C->Gate);bool Posted=xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
-    if(!Posted){xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
+    if(!Posted){C->Connect=NULL;xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
 }
+XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
+{return xrpcHttpCreate(Engine,Remote,Affinity,Host,Target,Config,NULL,INFINITY,Client);}
+bool xrpcHttpCreatePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
+    const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
+{return xrpcHttpCreate(Engine,NULL,Affinity,Host,Target,Config,Plan,Deadline,Client);}
 static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,
     bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {

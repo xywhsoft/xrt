@@ -102,7 +102,8 @@ XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
  * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
-/* Independent observer; resolves after request duties and stream retire. The
+/* Independent observer; resolves after request duties, optional connection
+ * source callback ownership and the actual stream retire. The
  * publishing stack's mechanical client-reference tail can follow; joining the
  * engine retires that stack. Dropping this observer does not close the client.
  * No blocking wait facade here. */

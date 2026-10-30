@@ -214,3 +214,10 @@ HTTP client pending and retained result headers/maps/snapshots share configurabl
 block/byte quotas. Independent response refs retain their own credits and do not
 pin the client/engine. See [result ownership/quota](docs/http_client_results.md)
 and the runnable [quota example](examples/http_result_quota/main.c).
+
+
+Select `XRPC_MODULE_XRPC_HTTP_DIAL` for explicit async DNS or prepared-address
+connection setup. It reuses the HTTP client and Core candidate controller; whole
+factory deadlines and request deadlines/cancellation remain independent. See
+[HTTP dial](docs/http_dial.md) and the runnable [dial example](examples/http_dial/main.c).
+TLS and remaining recovery/transport features remain pending.

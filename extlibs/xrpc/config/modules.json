@@ -110,6 +110,13 @@
         "source_roots": [
           "result_quota"
         ]
+      },
+      {
+        "name": "http_dial",
+        "state": "retained",
+        "source_roots": [
+          "http_dial"
+        ]
       }
     ]
   },
@@ -172,7 +179,8 @@
         "xrpc_call",
         "xrpc_http_client",
         "xrpc_server",
-        "xrpc_http_server"
+        "xrpc_http_server",
+        "xrpc_http_dial"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -604,7 +612,9 @@
       "public_headers": [
         "extlibs/xrpc/include/xrpc/http_client.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_http_connect.h"
+      ],
       "sources": [
         "extlibs/xrpc/src/http_client/http_client.c"
       ],
@@ -685,7 +695,8 @@
         "extlibs/xrpc/tests/test_call.c",
         "extlibs/xrpc/tests/test_http_client.c",
         "extlibs/xrpc/tests/test_server.c",
-        "extlibs/xrpc/tests/test_http_server.c"
+        "extlibs/xrpc/tests/test_http_server.c",
+        "extlibs/xrpc/tests/test_http_dial.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -699,7 +710,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_call.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_client.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_server.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -718,7 +730,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_call.c": "xrpc_call_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_client.c": "xrpc_http_client_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_server.c": "xrpc_server_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c": "xrpc_http_server_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c": "xrpc_http_server_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c": "xrpc_http_dial_tests"
       }
     },
     {
@@ -848,6 +861,63 @@
         "extlibs/xrpc/docs/api/reference.md",
         "extlibs/xrpc/docs/coverage.md",
         "extlibs/xrpc/docs/http_server.md"
+      ]
+    },
+    {
+      "name": "xrpc_http_dial",
+      "state": "implemented",
+      "feature": "XRPC_FEATURE_XRPC_HTTP_DIAL",
+      "depends": [
+        "xrpc_http_client",
+        "net_tcp_dial"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/http_dial.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/http_dial/http_dial.c"
+      ],
+      "tests": [
+        "extlibs/xrpc/tests/test_http_dial.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/http_dial/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_http_dial.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/http_dial.md"
+      ]
+    },
+    {
+      "name": "xrpc_http_dial_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_http_dial",
+        "xrpc_http_server",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_http_dial.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/README.md",
+        "extlibs/xrpc/docs/http_dial.md"
       ]
     }
   ]

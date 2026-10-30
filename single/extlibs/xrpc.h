@@ -100,6 +100,22 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_SERVER
 #define XRPC_MODULE_XRPC_HTTP_SERVER
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#endif
+
+/* xrpc_http_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_HTTP_DIAL
+#define XRPC_FEATURE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_http_server 及其直接依赖。 */
@@ -1272,7 +1288,8 @@ XRPC_API xrpcadmission xrpcHttpBatchAsync(xrpchttpclient* Client,
  * outside result bytes; request counts and per-document limits bound these. */
 XRPC_API bool xrpcHttpInfo(xrpchttpclient* Client, xrpchttpinfo* Info);
 XRPC_API bool xrpcHttpClose(xrpchttpclient* Client);
-/* Independent observer; resolves after request duties and stream retire. The
+/* Independent observer; resolves after request duties, optional connection
+ * source callback ownership and the actual stream retire. The
  * publishing stack's mechanical client-reference tail can follow; joining the
  * engine retires that stack. Dropping this observer does not close the client.
  * No blocking wait facade here. */
@@ -1462,6 +1479,55 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/http_dial.h */
+/* ========================================================================== */
+
+#ifndef XRPC_HTTP_DIAL_H
+#define XRPC_HTTP_DIAL_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL) && \
+    (!defined(XRPC_FEATURE_XRPC_HTTP_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "xrpc HTTP dial requires HTTP client and Core TCP dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+typedef struct xrpchttpdialconfig {
+    size_t Size;
+    xnetfamily Family;
+    int64 Timeout,FallbackDelay;
+    uint32 MaxAttempts;
+    size_t MaxHostBytes;
+} xrpchttpdialconfig;
+XRT_EXTERN_C_BEGIN
+/* Dual stack, 30s complete factory-to-connection deadline, 250ms fallback,
+ * eight candidates, 1024 host bytes. Timeout 0 is immediate, -1 infinite.
+ * Hard limits: 64 prepared endpoints/candidates and 65535 host bytes.
+ * Config.Stream in the HTTP client remains the TCP buffer/limit policy. */
+XRPC_API bool xrpcHttpDialConfigInit(xrpchttpdialconfig* Config);
+/* DNSName is distinct from the explicit HTTP Host authority and Target.
+ * Bounded non-NUL DNSName is copied before return; no IDNA conversion.
+ * Core supplies resolver admission, family ordering, candidate race and losing
+ * socket retirement. No application request is replayed. Calls/notifications/
+ * batches can queue, expire or cancel through connection setup.
+ * The application-owned Resolver must outlive Closed; retire/join it separately.
+ * A running uncooperative lookup can delay physical Closed after logical cancel.
+ * Success returns one creator ref: Close then Release. All inputs are borrowed
+ * only during this factory except Resolver. Failure leaves Client unchanged.
+ * Plain TCP only; TLS is a separate explicit policy, never inferred. */
+XRPC_API bool xrpcHttpDial(xnetengine* Engine,xnetresolver* Resolver,xstrview DNSName,
+    uint16 Port,uint64 Affinity,xstrview Host,xstrview Target,const xrpchttpconfig* Config,
+    const xrpchttpdialconfig* Dial,xrpchttpclient** Client);
+/* Immutable prepared endpoints, each port preserved; no Resolver is consulted.
+ * At most 64 entries. Family filters candidates; selected endpoints need a
+ * nonzero port. Factory retains the list before return, so caller may release
+ * its reference immediately. Connection/client deadline and close rules match. */
+XRPC_API bool xrpcHttpDialAddresses(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,
+    xrpchttpclient** Client);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -1499,6 +1565,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
 #error "XRPC_FEATURE_XRPC requires http_server"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+#error "XRPC_FEATURE_XRPC requires http_dial"
 #endif
 #endif
 
@@ -1647,6 +1716,38 @@ bool xrpcBatchCallCreateEntered(const xrpccallconfig* Config, size_t Count,
 bool xrpcCallCreateQuota(const xrpccallconfig* Config,size_t Count,
     xrpccall** Call,xfuture** Future,double Entered,xrpcresultquota* Quota,bool* Limited);
 #endif
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_http_connect.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
+#ifndef XRPC_HTTP_CONNECT_INTERNAL_H
+#define XRPC_HTTP_CONNECT_INTERNAL_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
+/* Cold connection source only, not a second transport/runtime or hot IO layer.
+ * Success-only transfer of Data's creator owner; Start/Cancel/Drop on the
+ * client's network worker. Failed Start retains Data but transfers no callback
+ * owner. Accepted Start must call Connected then Retired, once, on that worker.
+ * Retired follows physical callback-owner Drop, not merely logical completion. */
+typedef struct xrpchttpconnectplan {
+    ptr Data;
+    bool (*Start)(ptr Data,xrpchttpclient* Client,xnetengine* Engine,uint64 Affinity,
+        const xnetstreamconfig* Stream,const xnetstreamevents* Events);
+    void (*Cancel)(ptr Data);
+    void (*Drop)(ptr Data);
+    double Deadline;
+    uint64 Timer;
+    bool Pending;
+} xrpchttpconnectplan;
+bool xrpcHttpCreatePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
+    const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client);
+void xrpcHttpConnected(xrpchttpclient* Client,xnetresult Result,xnetstream* Stream,const xerror* Cause);
+void xrpcHttpConnectRetired(xrpchttpclient* Client);
 #endif
 #endif
 #endif
@@ -3518,6 +3619,7 @@ struct xrpchttpclient {
     xrpchttpconfig Config;
     xrpchttpinfo Info;
     xrpcresultquota* ResultQuota;
+    xrpchttpconnectplan* Connect;
     xnetpost Wake;
     xpromise* ClosePromise;
     xfuture* CloseFuture;
@@ -3567,6 +3669,8 @@ static bool xrpcHttpWakeLocked(xrpchttpclient* C)
 }
 static void xrpcHttpWake(xrpchttpclient* C)
 {xrtMutexLock(&C->Gate);(void)xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);}
+static void xrpcHttpConnectTimerCancel(xrpchttpclient* C)
+{uint64 Id=C->Connect?C->Connect->Timer:0;if(C->Connect)C->Connect->Timer=0;if(Id)(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
 static bool xrpcHttpClosing(xrpchttpclient* C)
 {xrtMutexLock(&C->Gate);bool R=C->Info.State>=XRPC_HTTP_CLOSING;xrtMutexUnlock(&C->Gate);return R;}
 static void xrpcHttpFail(xrpchttpclient* C,xrpccallstatus Status,const xerror* Cause)
@@ -3574,6 +3678,42 @@ static void xrpcHttpFail(xrpchttpclient* C,xrpccallstatus Status,const xerror* C
     xrtMutexLock(&C->Gate);
     if(C->Info.State<XRPC_HTTP_CLOSING){C->Info.State=XRPC_HTTP_CLOSING;C->Info.CloseStatus=Status;C->Cause=Cause?xrtErrorRef(Cause):NULL;}
     (void)xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
+}
+static xrpccallstatus xrpcHttpConnectFailure(xnetresult Result,const xerror* Cause)
+{
+    xerrkind Kind=xrtErrorKind(Cause);
+    return Result==XNET_RESULT_TIMEOUT || Kind==XERR_TIMEOUT?XRPC_CALL_TIMEOUT:Result==XNET_RESULT_CANCELLED?XRPC_CALL_CLOSED:
+        Kind==XERR_MEMORY?XRPC_CALL_MEMORY:(Kind==XERR_AGAIN || Kind==XERR_RANGE)?XRPC_CALL_LIMIT:XRPC_CALL_TRANSPORT;
+}
+static void xrpcHttpConnectTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data)
+{
+    (void)Worker;xrpchttpclient* C=Data;
+    if(C->Connect && C->Connect->Timer==Id){C->Connect->Timer=0;
+        if(Result==XNET_RESULT_OK)xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);
+        else if(Result!=XNET_RESULT_CANCELLED)xrpcHttpFail(C,XRPC_CALL_TRANSPORT,NULL);}
+    xrpcHttpRelease(C);
+}
+static bool xrpcHttpConnectArm(xrpchttpclient* C)
+{
+    if(C->Connect->Deadline==INFINITY)return true;
+    if(xrtTimer()>=C->Connect->Deadline){xrpcHttpFail(C,XRPC_CALL_TIMEOUT,NULL);return false;}
+    xrpcHttpRef(C);C->Connect->Timer=__xrtNetEngineSchedule(C->Engine,xrtNetWorkerIndex(C->Worker),C->Connect->Deadline,xrpcHttpConnectTimer,C);
+    if(C->Connect->Timer)return true;
+    xrpcHttpRelease(C);xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());return false;
+}
+void xrpcHttpConnectRetired(xrpchttpclient* C)
+{xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);xrpcHttpWake(C);}
+void xrpcHttpConnected(xrpchttpclient* C,xnetresult Result,xnetstream* Stream,const xerror* Cause)
+{
+    xrpcHttpConnectTimerCancel(C);
+    if(Stream){C->Stream=Stream;C->TransportClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
+        if(xrpcHttpClosing(C)){if(!C->TransportClosed)(void)xrtNetStreamAbort(Stream);}
+        else if(xrtNetStreamState(Stream)==XNET_STREAM_OPEN){xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);}
+        else xrpcHttpFail(C,XRPC_CALL_TRANSPORT,Cause);
+    }else{C->TransportClosed=true;
+        xrpcHttpFail(C,xrpcHttpConnectFailure(Result,Cause),Cause);
+    }
+    xrpcHttpWake(C);
 }
 static xrpccallstatus xrpcHttpParseFailure(const xhttp1errorinfo* E)
 {
@@ -3818,7 +3958,7 @@ static void xrpcHttpRead(xrpchttpclient* C)
     }
 }
 static void xrpcHttpOnOpen(xnetstream* Stream,ptr Data)
-{(void)Stream;xrpchttpclient* C=Data;xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);xrpcHttpWake(C);}
+{(void)Stream;xrpchttpclient* C=Data;if(C->Connect && C->Connect->Pending && !C->Stream)return;xrtMutexLock(&C->Gate);if(C->Info.State<XRPC_HTTP_CLOSING)C->Info.State=XRPC_HTTP_OPEN;xrtMutexUnlock(&C->Gate);xrpcHttpWake(C);}
 static void xrpcHttpOnRead(xnetstream* Stream,xnetbuf* Buffer,ptr Data)
 {(void)Buffer;xrtNetStreamPause(Stream);xrpcHttpWake(Data);}
 static void xrpcHttpOnEnd(xnetstream* Stream,ptr Data)
@@ -3840,8 +3980,15 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
     if(!C->Started){
         C->Started=true;
         if(!xrpcHttpClosing(C)){
-            C->Stream=xrtNetStreamConnect(C->Engine,&C->Remote,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents,C);
-            if(!C->Stream){C->TransportClosed=true;xrpcHttpFail(C,xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,xrtGetError());}
+            if(C->Connect){
+                if(xrpcHttpConnectArm(C)){C->Connect->Pending=true;
+                    if(!C->Connect->Start(C->Connect->Data,C,C->Engine,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents)){
+                        C->Connect->Pending=false;C->TransportClosed=true;xrpcHttpFail(C,xrpcHttpConnectFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());}}
+                else C->TransportClosed=true;
+            }else{
+                C->Stream=xrtNetStreamConnect(C->Engine,&C->Remote,xrtNetWorkerIndex(C->Worker),&C->Config.Stream,&xrpcHttpEvents,C);
+                if(!C->Stream){C->TransportClosed=true;xrpcHttpFail(C,xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT,xrtGetError());}
+            }
         }else C->TransportClosed=true;
     }
     xrpcHttpIngest(C);
@@ -3861,17 +4008,19 @@ static void xrpcHttpWork(xnetworker* Worker,ptr Data)
         }
     }
     if(xrpcHttpClosing(C)){
+        xrpcHttpConnectTimerCancel(C);if(C->Connect && C->Connect->Pending)C->Connect->Cancel(C->Connect->Data);
         if(C->Stream && !C->TransportClosed)(void)xrtNetStreamAbort(C->Stream);
         for(size_t N=0;C->Head && N<C->Config.WorkRequests;++N)if(!xrpcHttpFinish(C->Head,C->Info.CloseStatus,C->Cause))break;
     }
     xrtMutexLock(&C->Gate);
     if(C->SubmitHead || (C->Info.State>=XRPC_HTTP_CLOSING && C->Head) || (!C->Active && C->Head && C->Info.State==XRPC_HTTP_OPEN))
         (void)xrpcHttpWakeLocked(C);
-    bool Done=C->TransportClosed && C->Info.Requests==0 && !C->WakeQueued && !C->CloseDone;
+    bool Done=C->TransportClosed && (!C->Connect || !C->Connect->Pending) && C->Info.Requests==0 && !C->WakeQueued && !C->CloseDone;
     if(Done){C->CloseDone=true;C->Info.State=XRPC_HTTP_CLOSED;C->EnginePinned=false;}
     xrtMutexUnlock(&C->Gate);
     if(Done){
         xrtNetStreamDestroy(C->Stream);C->Stream=NULL;
+        if(C->Connect){xrpchttpconnectplan* P=C->Connect;C->Connect=NULL;P->Drop(P->Data);}
         xpromise* P=C->ClosePromise;C->ClosePromise=NULL;
         (void)xrtNetEngineUnpin(C->Engine);(void)xrtPromiseResolve(P,NULL);xrtPromiseDestroy(P);
         xrpcHttpRelease(C); /* Runtime activation. */
@@ -3889,11 +4038,11 @@ XRPC_API bool xrpcHttpConfigInit(xrpchttpconfig* Config)
     Config->MaxBatchItems=256;Config->MaxBatchBytesTotal=8u*1024u*1024u;
     Config->MaxResultBlocks=4096;Config->MaxResultBytes=8u*1024u*1024u;return true;
 }
-XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
-    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
+static bool xrpcHttpCreate(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
 {
-    if(!Engine || !Remote || !Client || !xrtMemRangeValid(Remote,sizeof(*Remote)) || !xrtMemRangeValid(Client,sizeof(*Client)) ||
-        xrtMemRangesOverlap(Remote,sizeof(*Remote),Client,sizeof(*Client)) || !xrtMemRangeValid(Host.Data,Host.Size) || !xrtMemRangeValid(Target.Data,Target.Size) ||
+    if(!Engine || (!Remote && !Plan) || !Client || (Remote && (!xrtMemRangeValid(Remote,sizeof(*Remote)) || xrtMemRangesOverlap(Remote,sizeof(*Remote),Client,sizeof(*Client)))) || !xrtMemRangeValid(Client,sizeof(*Client)) ||
+        !xrtMemRangeValid(Host.Data,Host.Size) || !xrtMemRangeValid(Target.Data,Target.Size) ||
         (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Client,sizeof(*Client)))) ||
         xrtMemRangesOverlap(Host.Data,Host.Size,Client,sizeof(*Client)) || xrtMemRangesOverlap(Target.Data,Target.Size,Client,sizeof(*Client)))
         return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP connect inputs");
@@ -3909,7 +4058,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
         K.Head.MaxFields>SIZE_MAX/sizeof(xhttpfield) || K.Body.MaxTrailers>SIZE_MAX/sizeof(xhttpfield) ||
         Host.Size>K.MaxRequestBytes || Target.Size>K.MaxRequestBytes-Host.Size ||
         Host.Size>SIZE_MAX-sizeof(xrpchttpclient) || Target.Size>SIZE_MAX-sizeof(xrpchttpclient)-Host.Size ||
-        (Remote->Family!=XNET_FAMILY_IPV4 && Remote->Family!=XNET_FAMILY_IPV6) || !Remote->Port || !Host.Size || !Target.Size || Target.Data[0]!='/' ||
+        (Remote && ((Remote->Family!=XNET_FAMILY_IPV4 && Remote->Family!=XNET_FAMILY_IPV6) || !Remote->Port)) || !Host.Size || !Target.Size || Target.Data[0]!='/' ||
         !xrtHttpHostValid(Host) || !xrtHttp1TargetValid(Target) || !xrtNetStreamConfigValid(&K.Stream))
         return xrpcHttpReport(XERR_ARGUMENT,XRPC_HTTP_ARGUMENT,"invalid HTTP endpoint/configuration");
     size_t Capacity=K.Head.MaxHead>K.Body.MaxTrailer?K.Head.MaxHead:K.Body.MaxTrailer;
@@ -3917,7 +4066,7 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     if(!xrtNetEnginePin(Engine))return false;
     xrpchttpclient* C=xrtCalloc(1,sizeof(*C)+Host.Size+Target.Size);
     if(!C){xrtNetEngineUnpin(Engine);return false;}
-    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;C->Remote=*Remote;C->Config=K;
+    xrtAtomic32Init(&C->References,1);C->Engine=Engine;C->EnginePinned=true;if(Remote)C->Remote=*Remote;C->Config=K;
     C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));
     C->Info.Size=sizeof(C->Info);C->Info.CloseStatus=XRPC_CALL_CLOSED;C->InputCapacity=Capacity+K.ReadBytes;
     C->Host=(xstrview){(cstr)C->Text,Host.Size};C->Target=(xstrview){(cstr)C->Text+Host.Size,Target.Size};
@@ -3926,10 +4075,17 @@ XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 A
     C->Input=xrtMalloc(C->InputCapacity);C->Fields=xrtMalloc(K.Head.MaxFields*sizeof(xhttpfield));C->Trailers=xrtMalloc(K.Body.MaxTrailers*sizeof(xhttpfield));
     if(!C->Input || !C->Fields || !C->Trailers || !xrpcResultQuotaCreate(K.MaxResultBlocks,K.MaxResultBytes,&C->ResultQuota) ||
         !xrtNetPostInit(&C->Wake) || !(C->ClosePromise=xrtPromiseCreate(&C->CloseFuture,NULL))){xrpcHttpRelease(C);return false;}
+    if(Plan){C->Connect=Plan;Plan->Deadline=Deadline;}
     xrpcHttpRef(C);xrtMutexLock(&C->Gate);bool Posted=xrpcHttpWakeLocked(C);xrtMutexUnlock(&C->Gate);
-    if(!Posted){xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
+    if(!Posted){C->Connect=NULL;xrpcHttpRelease(C);xrpcHttpRelease(C);return false;}
     *Client=C;return true;
 }
+XRPC_API bool xrpcHttpConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,xrpchttpclient** Client)
+{return xrpcHttpCreate(Engine,Remote,Affinity,Host,Target,Config,NULL,INFINITY,Client);}
+bool xrpcHttpCreatePlanned(xnetengine* Engine,uint64 Affinity,xstrview Host,xstrview Target,
+    const xrpchttpconfig* Config,xrpchttpconnectplan* Plan,double Deadline,xrpchttpclient** Client)
+{return xrpcHttpCreate(Engine,NULL,Affinity,Host,Target,Config,Plan,Deadline,Client);}
 static xrpcadmission xrpcHttpSubmit(xrpchttpclient* C,const xrpchttpitem* Items,size_t Count,
     bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
@@ -4780,6 +4936,105 @@ XRPC_API bool xrpcHttpServerDestroy(xrpchttpserver* H)
     if(!H)return true;
     if(xrpcHttpServerWaitFor(H,XRT_WAIT_FOREVER)!=XWAIT_OK || !xrpcServerDestroy(H->Execution))return false;
     xrtNetListenerDestroy(H->Listener);xrtNetEngineUnpin(H->Engine);xrtCondUnit(&H->Idle);xrtMutexUnit(&H->Gate);xrtFree(H);return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/http_dial/http_dial.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+#include <math.h>
+#include <string.h>
+#if defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+typedef struct xrpchttpdialdata {
+    xatomic32 References;
+    xrpchttpconnectplan Plan;
+    xrpchttpclient* Client; /* Borrowed through the client's runtime activation. */
+    xnetresolver* Resolver;
+    xnetaddrlist* Addresses;
+    xnetdial* Dial;
+    xnetdialconfig Config;
+    uint16 Port;
+    char Name[];
+} xrpchttpdialdata;
+static bool xrpcDialArgument(cstr Message)
+{xrtSetErrorInfo(XERR_ARGUMENT,"xrt.rpc",XRPC_HTTP_ARGUMENT,Message);return false;}
+static void xrpcDialDrop(const void* Data)
+{
+    xrpchttpdialdata* D=(xrpchttpdialdata*)Data;
+    if(xrtAtomic32FetchSub(&D->References,1,XMEMORY_ACQ_REL)!=1)return;
+    xrtNetDialDestroy(D->Dial);xrtNetAddrListDestroy(D->Addresses);xrtFree(D);
+}
+static void xrpcDialPlanDrop(ptr Data){xrpcDialDrop(Data);}
+static bool xrpcDialCount(const void* Data,size_t* Count)
+{if(!Data || !Count)return false;*Count=xrtAtomic32Load(&((const xrpchttpdialdata*)Data)->References,XMEMORY_RELAXED);return true;}
+static bool xrpcDialOpaque(const void* Data,xrtownershipvisitor Visit,ptr Context)
+{(void)Data;(void)Visit;(void)Context;return false;}
+static const xrtownershipops xrpcDialOps={xrpcDialCount,xrpcDialOpaque};
+static void xrpcDialDone(xnetdial* Dial,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
+{(void)Dial;xrpchttpdialdata* D=Data;xrpcHttpConnected(D->Client,Result,Stream,Cause);}
+static void xrpcDialRetired(const void* Data)
+{
+    xrpchttpdialdata* D=(xrpchttpdialdata*)Data;
+    /* The queued client turn cannot run until this owned callback returns on
+     * the same worker. The client's runtime activation owns its plan until it
+     * observes this retirement. Both plan and callback own real Data credits. */
+    xrpcHttpConnectRetired(D->Client);xrpcDialDrop(D);
+}
+static const xnetdialownershipv1 xrpcDialPolicy={sizeof(xnetdialownershipv1),xrpcDialDone,xrpcDialRetired,&xrpcDialOps};
+static bool xrpcDialStart(ptr Data,xrpchttpclient* C,xnetengine* Engine,uint64 Affinity,const xnetstreamconfig* Stream,const xnetstreamevents* Events)
+{
+    xrpchttpdialdata* D=Data;D->Client=C;D->Config.Stream=*Stream;D->Config.Affinity=Affinity;
+    xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED);
+    D->Dial=D->Addresses?xrtNetDialAddressesOwnedV1(Engine,D->Addresses,&D->Config,Events,C,D,&xrpcDialPolicy):
+        xrtNetDialOwnedV1(Engine,D->Resolver,D->Name,D->Port,&D->Config,Events,C,D,&xrpcDialPolicy);
+    if(!D->Dial){xrpcDialDrop(D);return false;}
+    xrtNetAddrListDestroy(D->Addresses);D->Addresses=NULL;return true;
+}
+static void xrpcDialCancel(ptr Data)
+{xrpchttpdialdata* D=Data;(void)xrtNetDialCancel(D->Dial);}
+XRPC_API bool xrpcHttpDialConfigInit(xrpchttpdialconfig* C)
+{
+    if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcDialArgument("invalid HTTP dial config output");
+    *C=(xrpchttpdialconfig){sizeof(*C),XNET_FAMILY_UNSPEC,30000,250,8,1024};return true;
+}
+static bool xrpcDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
+    xstrview Host,xstrview Target,const xrpchttpconfig* Config,const xrpchttpdialconfig* Dial,xrpchttpclient** Result,double Began)
+{
+    if(!Engine || !Result || !xrtMemRangeValid(Result,sizeof(*Result)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) ||
+        xrtMemRangesOverlap(Dial,sizeof(*Dial),Result,sizeof(*Result)))))return xrpcDialArgument("invalid HTTP dial arguments/output overlap");
+    xrpchttpdialconfig K;if(Dial)K=*Dial;else xrpcHttpDialConfigInit(&K);
+    if(K.Size!=sizeof(K) || (K.Family!=XNET_FAMILY_UNSPEC && K.Family!=XNET_FAMILY_IPV4 && K.Family!=XNET_FAMILY_IPV6) || K.Timeout<XRT_WAIT_FOREVER ||
+        K.FallbackDelay<0 || !K.MaxAttempts || K.MaxAttempts>64 || !K.MaxHostBytes || K.MaxHostBytes>65535u)return xrpcDialArgument("invalid HTTP dial policy/bounds");
+    if(Addresses){
+        size_t Count=xrtNetAddrListCount(Addresses),Eligible=0;if(!Count || Count>64u)return xrpcDialArgument("prepared HTTP endpoints exceed count limit");
+        for(size_t N=0;N<Count;++N){const xnetaddr* A=xrtNetAddrListGet(Addresses,N);if(!A)return false;
+            if(xrtMemRangesOverlap(A,sizeof(*A),Result,sizeof(*Result)))return xrpcDialArgument("endpoint/output overlap");
+            if(K.Family!=XNET_FAMILY_UNSPEC && K.Family!=A->Family)continue;
+            if(!A->Port)return xrpcDialArgument("prepared HTTP endpoint port is zero");
+            ++Eligible;}
+        if(!Eligible)return xrpcDialArgument("no HTTP endpoint matches family");
+    }else if(!Resolver || !Port || !Name.Size || Name.Size>K.MaxHostBytes || !xrtMemRangeValid(Name.Data,Name.Size) ||
+        xrtMemRangesOverlap(Name.Data,Name.Size,Result,sizeof(*Result)) || memchr(Name.Data,0,Name.Size))return xrpcDialArgument("invalid HTTP DNS name/resolver/port");
+    xrpchttpdialdata* D=xrtCalloc(1,sizeof(*D)+Name.Size+1u);if(!D)return false;
+    xrtAtomic32Init(&D->References,1);D->Plan=(xrpchttpconnectplan){.Data=D,.Start=xrpcDialStart,.Cancel=xrpcDialCancel,.Drop=xrpcDialPlanDrop};
+    D->Resolver=Resolver;D->Port=Port;xrtNetDialConfigInit(&D->Config);D->Config.Family=K.Family;D->Config.Timeout=0;
+    D->Config.FallbackDelay=K.FallbackDelay;D->Config.MaxAttempts=K.MaxAttempts;
+    if(Addresses){D->Addresses=xrtNetAddrListRef(Addresses);if(!D->Addresses){xrpcDialDrop(D);return false;}}
+    else memcpy(D->Name,Name.Data,Name.Size);
+    double Deadline=K.Timeout==XRT_WAIT_FOREVER?INFINITY:K.Timeout==0?Began:nextafter(Began+(double)(K.Timeout/1000)+(double)(K.Timeout%1000)*.001,INFINITY);
+    if(xrpcHttpCreatePlanned(Engine,Affinity,Host,Target,Config,&D->Plan,Deadline,Result))return true;
+    xerror* E=xrtTakeError();xrpcDialDrop(D);xrtClearError();xrtSetErrorTake(E);return false;
+}
+XRPC_API bool xrpcHttpDial(xnetengine* E,xnetresolver* R,xstrview Name,uint16 Port,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
+{return xrpcDialCreate(E,R,NULL,Name,Port,A,H,T,C,D,Result,xrtTimer());}
+XRPC_API bool xrpcHttpDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 A,xstrview H,xstrview T,const xrpchttpconfig* C,const xrpchttpdialconfig* D,xrpchttpclient** Result)
+{
+    double Began=xrtTimer();if(!Addresses)return xrpcDialArgument("prepared HTTP endpoints are NULL");
+    return xrpcDialCreate(E,NULL,Addresses,(xstrview){0},0,A,H,T,C,D,Result,Began);
 }
 #endif
 #endif

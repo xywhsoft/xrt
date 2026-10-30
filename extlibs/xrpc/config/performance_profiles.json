@@ -1491,6 +1491,56 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_http_dial",
+      "system": "http_dial",
+      "description": "Serial closed-loop cold client/localhost resolver/TCP/RPC/close lifecycle; no external DNS or saturation claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_http_dial",
+          "source": "extlibs/xrpc/bench/bench_http_dial.c",
+          "suite": "xrpc_http_dial,xrpc_http_server",
+          "args": [
+            "500"
+          ],
+          "smoke_args": [
+            "8"
+          ],
+          "metrics": {
+            "completed": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "resolver_submitted": {
+              "direction": "higher",
+              "unit": "cycles"
+            },
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "workload"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_service.h"
+          ]
+        }
+      ]
     }
   ]
 }

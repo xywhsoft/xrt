@@ -46,4 +46,8 @@
 #error "XRPC_FEATURE_XRPC requires http_server"
 #endif
 #include <xrpc/http_server.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_DIAL)
+#error "XRPC_FEATURE_XRPC requires http_dial"
+#endif
+#include <xrpc/http_dial.h>
 #endif

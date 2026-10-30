@@ -189,3 +189,16 @@ polling; they do not establish server saturation capacity.
 Each charged allocation owns an independent ledger reference; results retain no
 client or engine. Private prefixes enlarge existing blocks; one ledger allocation
 is added per client. This is not a process RSS ceiling or final performance proof.
+
+
+| Async HTTP DNS/prepared connection contract | Local verification |
+| --- | --- |
+| Owned setup | Worker-gated hostname overwrite, off-network resolver callback, prepared list released after factory return, non-listening first candidate followed by actual server |
+| Shared request semantics | Queued ordinary/notification/batch work, independent request timeout/cancel through held DNS, retained reply after full engine cleanup |
+| Setup limits/deadline | Resolver admission overflow becomes LIMIT, failed lookup retains cause, immediate/infinite/factory-origin deadlines, close before owner start with no DNS |
+| Resource retirement | Close during DNS with physical callback/stream barrier, factory OOM thresholds/budget zero, cold metadata released while connection remains open |
+| Concurrent close | Deterministic public-mutex interposition reproduces pre-fix reopening; locked publication now preserves concurrent Close |
+
+The probe source at `tests/interop/http_dial_close_race.py` uses the production
+client C source and actual modular objects; no production test hook is installed.
+TLS/authentication/recovery and full native/long-run acceptance remain pending.
