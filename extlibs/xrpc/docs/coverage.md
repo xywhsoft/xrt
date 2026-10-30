@@ -160,5 +160,20 @@ cancellation is not provided by this HTTP binding.
 | Aggregate memory | Pending plus retained result count/capacities, returned credits, input/job bounds, old-plus-new realloc peak, quota ledger surviving server then returning to zero |
 | Failure boundaries | 2048 request-construction quota prefixes, factory thresholds, worker output-allocation failure, JSON/per-document/aggregate caps and no partial output |
 
-Server transport adapters, deferred business handlers, independent peers and
+TLS/other server transports, deferred business handlers, broader independent peers and
 final native/pinned/long-run production acceptance remain pending.
+
+
+| HTTP server transport contract | Local verification |
+| --- | --- |
+| Real endpoint | Production HTTP client, ordinary/remote-error/notification/mixed-batch requests, retained client results after full server/engine cleanup |
+| Strict binding | Byte-fragmented head/body, exact huge IDs, charset/query/absolute target, chunk extensions, forbidden actual/declared trailers, 100 Continue, pipelined ordering, HTTP/1.0, JSON document errors and empty 204 |
+| Bounds | Head/body/trailer/wire limits before business, connection/transport-operation/private-buffer/executor admission refusal, 25-byte global send credit across eight connections |
+| Lifetime | Handler worker isolation, request budget includes body wait, incomplete-header expiry, cooperative close, noncooperative wait timeout preserving owner, own-handler wait/destroy refusal, retired counters |
+| Failure | Constructor allocation thresholds with zero live quota bytes, duplicate bind then successful retry, existing operations survive other admission refusals |
+
+These checks cover local compositions; broad worker allocation faults, TLS,
+authentication, recovery, independent protocol implementations, native Linux
+acceptance and sustained mixed/fault production runs remain required. Timings
+from the fixed-arrival client/server harness include offer lateness and Future
+polling; they do not establish server saturation capacity.

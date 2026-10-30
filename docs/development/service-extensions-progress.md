@@ -3355,3 +3355,157 @@ native pinned Windows/Linux and at least 72-hour mixed/fault runs remain
 unaccepted. Redis HA/tracking/dedicated modes, MQTT client/session/persistence and
 Cron IANA zones/scheduler/durable recovery remain active under the original goal.
 This commit completes neither xrpc nor the four-product production objective.
+
+
+## 2026-10-30 — bounded HTTP/1 server transport (local feature complete)
+
+Added `xrpc_http_server`: eight public operations for configuration, creation,
+start/local address, info, close/wait and destruction. This is numeric plain TCP
+HTTP/1 with synchronous business handlers on the existing bounded server executor.
+Create copies configuration/path, creates no listener and invokes no handlers;
+Start binds synchronously and accepts asynchronously on Core-distributed workers.
+An existing host engine is pinned through Destroy. No Core runtime was changed.
+
+Each peer is owned by its stream worker. Whole request documents go to the
+separate executor; native Future Watch completion posts an embedded continuation.
+Every request has a distinct operation/watch/header/result owner, so foreign
+publication/drop tails cannot race with reuse of embedded watch storage. Owned
+listener/stream event data, timers, posts and send references retain actual
+owners; opaque ownership graphs are refused rather than admitted as leaves.
+
+HTTP head/body parsing, targets/Host, parameters, expectations and trailers use
+public Core APIs. Binding policy is POST at a configured raw path, optional query,
+valid origin/absolute http targets, unique Host for HTTP/1.1, application/json
+with validated parameters/unique UTF-8 charset, and no unsupported content coding.
+Framing/CL/TE, chunk syntax and actual/declared trailer policy are checked before
+business dispatch. Core body syntax alone does not reject forbidden trailer
+names: this adapter explicitly validates the complete trailer section as well.
+Valid pending bodies can receive 100 Continue; unsupported expectations are 417.
+RPC responses use 200/json; notification-only output is empty 204 without
+Content-Length. Local HTTP failures are empty closing responses, never fabricated
+RPC errors. Malformed JSON and invalid RPC documents follow dispatch semantics.
+
+Connection/operation/private-buffer/global-send quotas are independent. Input and
+body growth reserves old-plus-new block capacity; large copied staging is released
+after executor submission and empty large input scratch is trimmed on reuse.
+Responses use reference sends backed by the actual Future/header owners. Global
+send credit uses worker waiting-writer queues and embedded shard kicks, with no
+backpressure polling timer. Each connection preserves pipelined request order,
+processes one exchange at a time, and has per-turn read/write byte budgets.
+The monotonic request origin includes header/body waiting and buffered pipeline
+bytes; a private entered-time helper passes the exact origin to execution without
+restarting or millisecond subtraction. Timers cover parsing, execution and send.
+
+Close stops accepts, posts peer aborts and requests cooperative cancellation.
+Wait observes listener/peer/post/timer/watch/send plus executor publication/drop
+retirement under one deadline. Network/own execution callbacks cannot block in
+Wait/Destroy. Noncooperative handlers may delay drain; timeout preserves ownership
+for retry. Destroy joins execution workers and releases the engine pin after
+concurrent API entries have stopped. Core mechanical callback return tails retire
+at host engine join. Retained client results survive full server/engine cleanup.
+
+Defaults: loopback ephemeral `/rpc`, 1024 connections, 256 transport operations,
+16 MiB private buffers, 8 MiB referenced sends, 2 MiB request wire/1 MiB decoded
+body, 64 KiB read/write turns, 16 KiB send chunks, 30 s idle/request timeouts, plus
+the executor's independent quotas. Private quota includes server/shards/path,
+peer/descriptors/input/body and operation blocks; it is not an RSS limit. Core
+metadata, allocator rounding/diagnostics, socket buffers and thread stacks are
+separate and bounded by their configured counts/capacities. Business allocations
+remain application responsibilities. Copies include stream-to-input, fragmented/
+chunked body staging, executor input ownership and JSON output assembly; reference
+sending removes a second application payload send copy, not every end-to-end copy.
+
+Validation used frozen source/header/manifest hashes. Windows native GCC O2/Werror
+and WSL GCC O2 ASan/UBSan passed 12 modular plus 12 direct-single tests each (48
+binaries), 13 runnable examples each, and trim validation. New coverage includes
+real ordinary/remote-error/notification/mixed-batch traffic; byte fragmentation;
+large exact ids; HTTP/1.0; absolute targets/queries/charset; chunks/trailers/100;
+ordered pipelines; document errors/notification 204; pre-business head/body/wire/
+trailer limits; connection/operation/private/executor refusal; eight peers with
+only 25 global queued bytes; incomplete-header expiry; body time included in
+execution; cooperative shutdown; noncooperative wait timeout; self-wait/destroy
+refusal; eight constructor quota thresholds with zero live bytes; duplicate bind
+failure then successful retry; and retained-response/full retirement accounting.
+The bind test preserves platform defaults instead of forcing the Windows-only
+exclusive-address option on Linux. Benchmark compilation required an explicit
+memory header; this benchmark-only change did not alter product/test inputs.
+The exact changed-file refreshes are preserved in the phase receipts.
+
+Independent Python stdlib HTTP/socket peers passed 405 exchanges per platform,
+including eight concurrent persistent connections, chunked requests, UTF-8/NUL
+and large integer/string ids, notifications/mixed batches and incomplete-body EOF.
+The tracked `tests/interop/http_server.py` accepts the runnable example binary;
+this is independent HTTP/JSON framing interoperability, not JSON-RPC-library parity.
+
+Both platforms passed complete and minimal static/shared packages, declaration
+compilation, private/public layout and all three size kinds. Actual linked Core
+libraries reported IOCP on Windows and epoll on WSL. The qualified WSL O1 TSan
+suite passed with no runtime race report; the GCC atomic_thread_fence modeling
+warning remains in the build log, so this is not proof of universal race freedom.
+Twenty-one extension layout/single/header-coverage tool tests also passed.
+Normal maturity audit reports 20 modules, 13 implementation nodes (12 C source
+files), all 13 covered by tests/single/docs, 30 benchmark workloads, 12 size
+profiles, and developing=1. Strict release fails only on unfinished `xrpc`.
+Public API reference now records 72 functions, 149 constants/macros and 71 types.
+
+Private/public x64 sizes (bytes): Windows HTTP server 912, WSL 1048; both peer 392,
+operation 464, shard 112, config 568, info 216. The different server size includes
+platform mutex/condition storage. Server allocation additionally includes one
+shard per network worker and the copied route; peer allocation additionally
+includes configured field/trailer descriptors and input/body capacities.
+
+| Platform | Kind | Text | Data | BSS | Logical file bytes |
+| --- | --- | ---: | ---: | ---: | ---: |
+| windows | single | 669520 | 2712 | 11168 | 964623 |
+| windows | static | 45764 | 0 | 0 | 72160 |
+| windows | shared | 89223 | 224 | 2848 | 153619 |
+| wsl | single | 690758 | 6368 | 10948 | 1220960 |
+| wsl | static | 47121 | 208 | 0 | 95402 |
+| wsl | shared | 62414 | 1832 | 8 | 82608 |
+
+Single size includes the Core closure; static/shared rows are the product artifact,
+with Core supplied separately. These are unstripped GCC O2 sizes, not a direct-C
+comparator or a zero-overhead claim.
+
+Network performance used one persistent production client/server connection,
+round-robin network workers and a separate executor in the same host engine.
+Each ordinary/notification/batch16 workload ran one warmup plus five measured
+runs, 2000 fixed planned arrivals at 2000 HTTP documents/s per run. All measured
+runs on both platforms accepted/completed every offer with zero rejected/failed
+operations and retained all 2000 latency samples. Both noise checks passed with
+zero failures under the unchanged 3% relative MAD/6% central-range policy.
+
+| Platform | Workload | Completed documents/s | All-offer P99 us | Offer-lateness P99 us |
+| --- | --- | ---: | ---: | ---: |
+| windows | ordinary | 1954.708 | 30833.400 | 15477.600 |
+| windows | notification | 1960.977 | 31029.800 | 15505.700 |
+| windows | batch16 | 1961.658 | 28592.100 | 14975.300 |
+| wsl | ordinary | 1997.933 | 2182.402 | 1060.907 |
+| wsl | notification | 1997.488 | 2200.671 | 1065.687 |
+| wsl | batch16 | 1998.160 | 2225.902 | 1058.903 |
+
+These are observed end-to-end fixed-arrival composition measurements, not saturation
+capacity or isolated server latency. Samples include construction/encoding,
+queueing, actual RPC/network work, Future polling and coordinator scheduling
+lateness; the Windows offer-lateness numbers show the substantial harness timer
+contribution. Batch throughput counts HTTP documents, not individual RPC items.
+No production baseline was pinned or performance gate relaxed. Representative
+loads, native pinned Linux, direct comparators and tail-latency capacity/overload
+runs remain required; passing this local noise check is not final P4 acceptance.
+Source fingerprint: `38ed11017a085c034c5040048d49c75c74e6df0528846802a95d70994c039880`.
+Workload fingerprint: `5b4609ac0e995e201021d6387cfbf1660da6df5a46fedcb2d07f86f44d7620b8`.
+
+Before overwrites, 1161 SHA-bound predecessor artifacts were archived under
+`out/service-extensions/xrpc-server/before-http-server/`. Current exact-input test,
+package/backend/layout/size/TSan/interop/performance evidence and 29 additional
+artifact hashes are bound by `out/service-extensions/xrpc-http-server/validation.json`.
+The committed validation rerun binds the final clean HEAD/tree; raw commands,
+compiler/binary/library hashes and samples remain in the ignored evidence folder.
+
+Next xrpc work includes aggregate retained client-result admission, richer HTTP
+metadata, DNS/TLS/authentication/recovery/pooling, WebSocket/framed stdio,
+bidirectional calls, negotiated extensions and deferred handler lifetime. Broader
+worker faults/OOM and at least 72-hour native Windows/Linux mixed/fault runs remain
+unaccepted. Redis HA/tracking/dedicated modes, MQTT 5.0/3.1.1 client/session/store,
+and Cron IANA/scheduler/durable recovery remain under the original active goal.
+This feature commit completes neither xrpc nor the four-product production goal.

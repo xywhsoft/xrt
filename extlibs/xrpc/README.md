@@ -4,7 +4,8 @@ Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
 **Bounded envelope decoding/encoding, synchronous dispatch, immutable method
 indexing, exact ID comparison keys, bounded pending calls, immutable response
 snapshots, complete response-batch correlation, native typed call Futures and a
-bounded ordinary HTTP/TCP call client are implemented.**
+bounded HTTP/TCP call/notification/batch client, bounded server execution and
+HTTP/1 server listener/peer transport are implemented.**
 Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
@@ -30,7 +31,7 @@ valid notification; explicit null remains a call. Error codes accept integral
 numeric values without native rounding. The optional ID key leaf supplies exact
 semantic comparison; the pending-call leaf adds serialized admission/removal.
 The first ordinary HTTP/TCP call runtime is described below; other transports
-and executor/server integration remain pending.
+and richer client/server integration remain pending.
 
 Nonempty batches retain one descriptor per input item, including invalid ones.
 An empty batch yields one invalid descriptor with Batch=false for a single
@@ -193,3 +194,17 @@ explicit limits, including reallocation peaks. Close drains, Cancel cooperates
 and drops queued jobs, and Destroy physically joins workers. Handler code/User
 remain borrowed through successful Destroy. This is the execution component;
 server HTTP/WebSocket/stdio transports and final acceptance remain pending.
+
+
+Select `XRPC_MODULE_XRPC_HTTP_SERVER` for the bounded HTTP/1 server. It copies
+configuration before Start, pins an existing Core engine, distributes peers to
+Core workers and hands complete documents to the separate execution pool.
+Handlers stay off network workers; response references retain their actual
+Future/header owners. Connection/operation/buffer/send quotas, per-turn byte
+budgets, global writer-credit wakeups, whole-request deadlines, cooperative
+cancellation and physical shutdown are described in [HTTP server](docs/http_server.md).
+The runnable [server example](examples/http_server/main.c) accepts optional
+`port duration_ms`; no arguments bind ephemeral loopback for a short smoke run.
+For example, `examples_http_server_main 8080 60000` serves `/rpc` for one minute.
+Only numeric plain TCP and synchronous executor handlers are delivered here;
+TLS/authentication/deferred handlers and full product acceptance remain pending.

@@ -1234,6 +1234,208 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_http_server",
+      "system": "http_server",
+      "description": "Actual local HTTP/TCP client plus production server and executor; fixed arrivals, all counts and queue-inclusive observation; no saturation or native production claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_http_server_ordinary",
+          "source": "extlibs/xrpc/bench/bench_http_server.c",
+          "suite": "xrpc_http_server,xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_service.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_notification",
+          "source": "extlibs/xrpc/bench/bench_http_server.c",
+          "suite": "xrpc_http_server,xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_service.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_batch16",
+          "source": "extlibs/xrpc/bench/bench_http_server.c",
+          "suite": "xrpc_http_server,xrpc_http_client",
+          "args": [
+            "2000",
+            "2000",
+            "16"
+          ],
+          "smoke_args": [
+            "100",
+            "1000",
+            "16"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_service.h"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -40,6 +40,37 @@
 #ifndef XRPC_MODULE_XRPC_SERVER
 #define XRPC_MODULE_XRPC_SERVER
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#endif
+
+/* xrpc_http_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER
+#define XRPC_FEATURE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_EXPECT
+#define XRT_MODULE_HTTP_EXPECT
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
+#ifndef XRT_MODULE_HTTP_PARAM
+#define XRT_MODULE_HTTP_PARAM
+#endif
+#ifndef XRT_MODULE_TIME_TEXT
+#define XRT_MODULE_TIME_TEXT
+#endif
 #endif
 
 /* xrpc_server 及其直接依赖。 */

@@ -73,6 +73,12 @@
       "system": "server",
       "suite": "xrpc_server",
       "description": "Bounded server executor/dispatch/quota/Future closure, no network transport"
+    },
+    {
+      "name": "xrpc_http_server",
+      "system": "http_server",
+      "suite": "xrpc_http_server",
+      "description": "Production HTTP listener/peer/parser/executor/Future closure; numeric plain TCP"
     }
   ]
 }

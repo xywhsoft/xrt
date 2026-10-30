@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `64` 个函数、`139` 个常量或宏、
-`66` 个公共类型。
+当前登记 `72` 个函数、`149` 个常量或宏、
+`71` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -202,6 +202,45 @@
 - `xrpchttpstate`
 - `xrpcresponseconfig`
 
+## `extlibs/xrpc/include/xrpc/http_server.h`
+
+[查看带契约注释的公共头](../../include/xrpc/http_server.h)
+
+### 函数 (8)
+
+- `xrpcHttpServerClose`
+- `xrpcHttpServerConfigInit`
+- `xrpcHttpServerCreate`
+- `xrpcHttpServerDestroy`
+- `xrpcHttpServerInfo`
+- `xrpcHttpServerLocal`
+- `xrpcHttpServerStart`
+- `xrpcHttpServerWaitFor`
+
+### 常量与宏 (11)
+
+- `XRPC_FEATURE_XRPC_HTTP_SERVER`
+- `XRPC_FEATURE_XRPC_SERVER`
+- `XRPC_HTTP_SERVER_ARGUMENT`
+- `XRPC_HTTP_SERVER_CLOSED`
+- `XRPC_HTTP_SERVER_CLOSING`
+- `XRPC_HTTP_SERVER_CREATED`
+- `XRPC_HTTP_SERVER_IO`
+- `XRPC_HTTP_SERVER_MEMORY`
+- `XRPC_HTTP_SERVER_RESOURCE`
+- `XRPC_HTTP_SERVER_RUNNING`
+- `XRPC_HTTP_SERVER_STATE`
+
+### 类型 (7)
+
+- `xrpchttpserver`
+- `xrpchttpserverconfig`
+- `xrpchttpservererror`
+- `xrpchttpserverinfo`
+- `xrpchttpserverstate`
+- `xrpcserverconfig`
+- `xrpcserverinfo`
+
 ## `extlibs/xrpc/include/xrpc/id.h`
 
 [查看带契约注释的公共头](../../include/xrpc/id.h)
@@ -366,9 +405,8 @@
 - `xrpcServerSubmit`
 - `xrpcServerWaitFor`
 
-### 常量与宏 (15)
+### 常量与宏 (14)
 
-- `XRPC_FEATURE_XRPC_SERVER`
 - `XRPC_SERVER_ACCEPTED`
 - `XRPC_SERVER_ADMISSION_ERROR`
 - `XRPC_SERVER_ALLOCATION`
@@ -384,15 +422,13 @@
 - `XRPC_SERVER_STATE`
 - `XRPC_SERVER_TIMEOUT`
 
-### 类型 (9)
+### 类型 (7)
 
 - `xrpcserver`
 - `xrpcserveradmission`
 - `xrpcservercall`
-- `xrpcserverconfig`
 - `xrpcservercontext`
 - `xrpcservererror`
-- `xrpcserverinfo`
 - `xrpcserverresult`
 - `xrpcserverstatus`
 

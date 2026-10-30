@@ -48,6 +48,9 @@
 #if !defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_ID)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_ID 1
 #endif
@@ -86,6 +89,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_HTTP_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_HTTP_SERVER)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_ID)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_ID 1
@@ -1293,8 +1299,17 @@
 #if !defined(XRT_MODULE_HTTP1_BODY)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY 1
 #endif
+#if !defined(XRT_MODULE_HTTP_EXPECT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT 1
+#endif
 #if !defined(XRT_MODULE_HTTP_HOST)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_HOST 1
+#endif
+#if !defined(XRT_MODULE_HTTP_PARAM)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_PARAM 1
+#endif
+#if !defined(XRT_MODULE_HTTP_TARGET)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_TARGET 1
 #endif
 #if !defined(XRT_MODULE_JSON_ESCAPE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_ESCAPE 1
@@ -1307,6 +1322,9 @@
 #endif
 #if !defined(XRT_MODULE_TIME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME 1
+#endif
+#if !defined(XRT_MODULE_TIME_TEXT)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME_TEXT 1
 #endif
 #if !defined(XRT_MODULE_UNICODE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE 1
@@ -2539,6 +2557,37 @@
 #ifndef XRPC_MODULE_XRPC_SERVER
 #define XRPC_MODULE_XRPC_SERVER
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#endif
+
+/* xrpc_http_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER
+#define XRPC_FEATURE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_EXPECT
+#define XRT_MODULE_HTTP_EXPECT
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
+#ifndef XRT_MODULE_HTTP_PARAM
+#define XRT_MODULE_HTTP_PARAM
+#endif
+#ifndef XRT_MODULE_TIME_TEXT
+#define XRT_MODULE_TIME_TEXT
+#endif
 #endif
 
 /* xrpc_server 及其直接依赖。 */
@@ -3762,6 +3811,82 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/http_server.h */
+/* ========================================================================== */
+
+#ifndef XRPC_HTTP_SERVER_H
+#define XRPC_HTTP_SERVER_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER) && \
+    (!defined(XRPC_FEATURE_XRPC_SERVER) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_HTTP1_BODY) || \
+     !defined(XRT_FEATURE_HTTP_EXPECT) || !defined(XRT_FEATURE_HTTP_TARGET) || !defined(XRT_FEATURE_HTTP_PARAM) || \
+     !defined(XRT_FEATURE_HTTP_TRAILER) || !defined(XRT_FEATURE_TIME_TEXT))
+#error "xrpc HTTP server requires server, TCP, HTTP body/expect/target/param/trailer and time text"
+#endif
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
+typedef struct xrpchttpserver xrpchttpserver;
+typedef enum xrpchttpserverstate {
+    XRPC_HTTP_SERVER_CREATED=0,XRPC_HTTP_SERVER_RUNNING,
+    XRPC_HTTP_SERVER_CLOSING,XRPC_HTTP_SERVER_CLOSED
+} xrpchttpserverstate;
+typedef enum xrpchttpservererror {
+    XRPC_HTTP_SERVER_ARGUMENT=11001,XRPC_HTTP_SERVER_STATE,
+    XRPC_HTTP_SERVER_MEMORY,XRPC_HTTP_SERVER_RESOURCE,XRPC_HTTP_SERVER_IO
+} xrpchttpservererror;
+typedef struct xrpchttpserverconfig {
+    size_t Size;
+    xnetlistenconfig Listen;
+    xrpcserverconfig Execution;
+    xhttp1limits Head;
+    xhttp1bodylimits Body;
+    xstrview Path;
+    size_t MaxConnections,MaxOperations,MaxBufferBytes,MaxQueuedBytes,MaxRequestWireBytes;
+    size_t InitialInputBytes,ReadBytes,WriteBytes,WriteChunkBytes;
+    int64 IdleTimeout,RequestTimeout;
+} xrpchttpserverconfig;
+typedef struct xrpchttpserverinfo {
+    size_t Size;
+    xrpchttpserverstate State;
+    size_t Connections,Operations,BufferBytes,QueuedBytes;
+    uint64 Accepted,Rejected,OperationRejected,Requests,Dispatched,Responses,ProtocolErrors,Timeouts,TransportErrors;
+    xrpcserverinfo Execution; /* Separate instant, not one atomic joint snapshot. */
+} xrpchttpserverinfo;
+XRT_EXTERN_C_BEGIN
+/* Loopback ephemeral listener, /rpc, two execution workers, round-robin network
+ * workers. 1024 connections/256 transport operations, 16 MiB private buffers,
+ * 8 MiB referenced send bytes, 2 MiB request wire, 1 MiB decoded body.
+ * Read/write work 64 KiB per turn, 16 KiB send chunks, 30s idle/request timeout. */
+XRPC_API bool xrpcHttpServerConfigInit(xrpchttpserverconfig* Config);
+/* Creates execution resources but does NOT bind/listen or invoke handlers.
+ * Copies config/path. The running Engine is pinned through successful Destroy.
+ * Callbacks/User remain borrowed through Destroy; initialize them before Start. */
+XRPC_API bool xrpcHttpServerCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchttpserver** Server);
+/* Serialized creator operation. Synchronous numeric bind followed by async
+ * accepts. All application state must be ready; handlers can run before return.
+ * Failure leaves the created handle for retry or Close/Destroy. Plain TCP only. */
+XRPC_API bool xrpcHttpServerStart(xrpchttpserver* Server);
+XRPC_API bool xrpcHttpServerLocal(xrpchttpserver* Server,xnetaddr* Address);
+XRPC_API bool xrpcHttpServerInfo(xrpchttpserver* Server,xrpchttpserverinfo* Info);
+/* Stops accepts, aborts peers and requests cooperative execution cancellation.
+ * Nonblocking internal work is posted to owning workers. User token watches may
+ * run on the caller and must not block. Body/result bytes are never replayed.
+ * May be called by a handler; blocking Wait/Destroy may not. */
+XRPC_API bool xrpcHttpServerClose(xrpchttpserver* Server);
+/* Closes and waits for listener/peer/post/timer/watch/send-reference duties AND
+ * executor publication/drop tails. One monotonic wait deadline. Rejects engine
+ * workers and own execution/drop callbacks. Noncooperative handlers can delay
+ * drain; timeout preserves all owner rights. Retained mechanical return tails
+ * retire at host engine join. */
+XRPC_API xwaitresult xrpcHttpServerWaitFor(xrpchttpserver* Server,int64 Timeout);
+/* Stop concurrent native API entries/Start first. Success joins execution
+ * workers, unpins Engine and consumes the unique owner. NULL succeeds;
+ * failure leaves it valid for retry. No collector admission of opaque graphs. */
+XRPC_API bool xrpcHttpServerDestroy(xrpchttpserver* Server);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -3797,6 +3922,9 @@ XRT_EXTERN_C_END
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_SERVER)
 #error "XRPC_FEATURE_XRPC requires server"
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
+#error "XRPC_FEATURE_XRPC requires http_server"
+#endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
 #undef XRPC_FEATURE_XRPC
@@ -3821,6 +3949,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT)
 #undef XRPC_FEATURE_XRPC_HTTP_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER)
+#undef XRPC_FEATURE_XRPC_HTTP_SERVER
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_ID)
 #undef XRPC_FEATURE_XRPC_ID
@@ -3873,6 +4005,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT)
 #undef XRPC_MODULE_XRPC_HTTP_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER)
+#undef XRPC_MODULE_XRPC_HTTP_SERVER
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_ID)
 #undef XRPC_MODULE_XRPC_ID
@@ -5482,9 +5618,21 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_HTTP1_BODY
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT)
+#undef XRT_MODULE_HTTP_EXPECT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_EXPECT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_HOST)
 #undef XRT_MODULE_HTTP_HOST
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_HOST
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_PARAM)
+#undef XRT_MODULE_HTTP_PARAM
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_PARAM
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_TARGET)
+#undef XRT_MODULE_HTTP_TARGET
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP_TARGET
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_ESCAPE)
 #undef XRT_MODULE_JSON_ESCAPE
@@ -5501,6 +5649,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME)
 #undef XRT_MODULE_TIME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME_TEXT)
+#undef XRT_MODULE_TIME_TEXT
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME_TEXT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE)
 #undef XRT_MODULE_UNICODE
@@ -5558,6 +5710,37 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_SERVER
 #define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#endif
+
+/* xrpc_http_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER
+#define XRPC_FEATURE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_EXPECT
+#define XRT_MODULE_HTTP_EXPECT
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
+#ifndef XRT_MODULE_HTTP_PARAM
+#define XRT_MODULE_HTTP_PARAM
+#endif
+#ifndef XRT_MODULE_TIME_TEXT
+#define XRT_MODULE_TIME_TEXT
 #endif
 #endif
 

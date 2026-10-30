@@ -1,4 +1,5 @@
 #include <xrpc/server.h>
+#include "../internal/xrpc_server_internal.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -176,9 +177,8 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Resul
 Argument:
     return xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server configuration/output span");
 }
-XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future)
+xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future,double Entered)
 {
-    double Entered=xrtTimer();
     if(!S || !Future || Timeout<XRT_WAIT_FOREVER || !xrtMemRangeValid(Future,sizeof(*Future)) || !xrtMemRangeValid(Input.Data,Input.Size) ||
         xrtMemRangesOverlap(Future,sizeof(*Future),Input.Data,Input.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),S,S->OwnedBytes)){
         xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server submission span/timeout");return XRPC_SERVER_ADMISSION_ERROR;}
@@ -216,6 +216,8 @@ NoJob:
     if(A==XRPC_SERVER_OVERLOADED || A==XRPC_SERVER_CLOSED){xrtClearError();xrtSetErrorTake(Ambient);return A;}
     xrtErrorFree(Ambient);return XRPC_SERVER_ADMISSION_ERROR;
 }
+XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future)
+{return xrpcServerSubmitEntered(S,Input,Timeout,Future,xrtTimer());}
 XRPC_API bool xrpcServerInfo(xrpcserver* S,xrpcserverinfo* Info)
 {
     if(!S || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) || xrtMemRangesOverlap(Info,sizeof(*Info),S,S->OwnedBytes))
