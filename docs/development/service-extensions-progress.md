@@ -4016,3 +4016,177 @@ slow consumers and contended/fault workloads, CPU/allocator/copy accounting,
 representative pinned comparators and at least 72-hour native Windows/Linux
 mixed/fault runs are still unaccepted. WSL is not native Linux qualification.
 This TLS-client slice completes neither xrpc nor the four-product production goal.
+
+
+## P3: bounded HTTP TLS server transport (2026-10-30)
+
+The explicit TLS server factory now returns the ordinary HTTP server owner;
+Start/Local/Info/Close/Wait/Destroy remain the lifecycle surface. It uses public
+Core TCP/TLS ownership APIs and the existing bounded business executor. No Core
+source, new runtime, automatic cleartext fallback or operation replay is added.
+The complete four-product scope and P4 acceptance gates remain unchanged.
+
+Construction retains native context/static identity, snapshots ALPN metadata,
+and leaves selector/resumption/error callback contexts borrowed through Destroy.
+HTTP/1.1 ALPN is selected explicitly; absence is permitted unless required by
+native policy. RSA/P-256/P-384/Ed25519 identity backends are in the declared
+closure. Runtime DER/PKCS#8 example inputs are wiped/released after construction;
+the final stats follow physical Close/Wait. Mutual client/HTTP application
+authentication and managed ticket rotation remain future slices.
+
+The ordinary TCP listener counts connection/private-buffer/handshake admission
+before constructing a native TLS session. MaxHandshakes defaults to 128 and has
+independent live/peak/admitted/completed/failed/rejected counters. The absolute
+handshake deadline starts at TCP admission and is rechecked at TLS Open, including
+selector/signing time; HTTP idle/request deadlines start at readiness/first
+plaintext. Zero handshake timeout explicitly disables it. Native TCP WriteLimit
+must still cover the selected context SendLimit; a smaller application-record
+budget is independently valid if one minimum record fits.
+
+TLS send work reserves conservative native record bounds under the HTTP server
+gate before plaintext acceptance, tracks short writes, and refunds only at full
+native drain or after session/transport destruction. Interim 100 responses also
+support partial native sends. TLS consumes plaintext through native stream APIs,
+preserving their receive flow control. Each TLS peer sidecar is in the existing
+peer allocation, rather than a second per-peer allocation. Native callback data
+owns a real peer reference; peer retirement explicitly releases the TLS creator
+to break the creator/event cycle. Close/Wait and host engine join observe the
+actual native/session/callback and executor duties.
+
+A pre-existing plain HTTP interim-send race was reproduced: credit could return
+between testing a full global budget and later registering its waiter. The new
+atomic gate operation tests the budget and registers the waiter together. A
+separate probe compiles the real pinned predecessor/current production source,
+returns real credit at gate release, and observes the missed/received post.
+Both Windows and WSL require predecessor failure and current success. No product
+test hook or Core edit is introduced.
+
+Local checks include 15 modular plus 15 single-header runtime binaries per
+platform (60 total), 17 runnable examples per platform and dependency trimming.
+Dedicated cases cover ordinary/notification/mixed batches; released caller
+identity/context and overwritten policy; multiple large replies under a shared
+128-byte wire budget; 32-byte interim-credit fragmentation; held TCP handshake
+and connection caps; stalled/plaintext handshakes; trust/ALPN rejection; idle and
+partial-header deadlines; HTTPS absolute targets, chunk/trailer/pipeline order;
+noncooperative handler shutdown; retained results after complete teardown;
+constructor and real accepting-worker allocation quotas. Both rejection and
+success occur in quota sweeps; zero charged bytes/count remain after full join.
+These thresholds do not claim exhaustive allocation-site coverage.
+
+The Windows single build exposed ignored config-init success in the test helper.
+The helper now zero-initializes and checks both initializers. All modular tests,
+the affected TLS single test, examples and qualified O2 TSan are rerun. Fourteen
+unchanged single binaries per platform are reused only with exact binary/log
+hashes, a bound old/new input set differing in that helper and the separately
+rebuilt example, and actual compiler dependency manifests proving they do not
+include either. The minimal-package check additionally caught the example's
+missing explicit memory header; that include and only its input receipt are
+refreshed after rebuilding/running the affected example on both platforms. This
+dependency proof is part of the final validator. No warning downgrade is added.
+
+Independent Python/OpenSSL clients generate temporary real CA/leaf/key material
+and exercise RSA, P-256, P-384 and Ed25519 identities. Each example/static/shared
+server consumer on each platform performs 33 HTTP exchanges: ordinary calls,
+notifications and mixed batches over TLS 1.3 with/without ALPN, plus TLS 1.2 for
+RSA/ECDSA. Each matrix also rejects four plaintext connections and verifies zero
+live connections/record credit/handshakes and admitted=completed+failed after
+physical shutdown. The keys are removed after execution; receipts retain only
+public certificate hashes. Existing plain-server 405-exchange/eight-connection
+and DNS-client peer checks also run against the rebuilt artifacts.
+
+Complete and minimal TLS-server static/shared packages, declaration-only headers,
+actual private layouts, all three tool size forms plus separately measured modular
+objects and split Core dependency sizes are validated. Real engine backend
+queries require IOCP on Windows and epoll in WSL. ASan/UBSan and O2 TSan are local
+WSL evidence; the known GCC atomic-fence modeling limitation remains explicit.
+WSL is not native Linux production acceptance. API inventory is 82 functions,
+153 constants/macros and 76 public types; normal maturity reports 27 modules,
+17 implementations and only the aggregate xrpc product remains developing.
+Strict release must continue to reject that aggregate.
+
+The six workload profiles use the same compiled client/server closure, worker
+counts, payload, 1000 planned arrivals/s and one warmed persistent connection:
+TCP/TLS ordinary, notification and batch16. One readiness RPC, construction,
+handshake and shutdown are outside timing. All offers and queue-inclusive
+latencies/lateness are retained; one warmup plus five measured samples use the
+unchanged 3% relative-MAD/6% central-range gates. This does not measure saturation,
+isolated TLS cost, cold handshakes, allocator/copy cost or an independent pinned
+comparator. No performance baseline or production acceptance is claimed.
+
+
+Measured private sizes (bytes, Windows/WSL respectively): server 920/1056,
+peer 400/400, HTTP operation 464/464, server TLS policy/counters 224/224,
+TLS peer tail 32/32. Default ALPN snapshot adds 24 bytes to the server policy
+allocation. The two always-present opaque TLS pointers add 8 bytes each to the
+server and peer base layouts; native session/buffer/identity allocations are
+separate. The tail uses the peer allocation, with no second per-peer allocation.
+Each record chunk performs native bound checks, gate-protected reservation,
+plaintext record encoding/copy and native drain observation; no zero-overhead,
+zero-copy or process-RSS claim follows from these layouts.
+
+| Platform | Owned modular text/data/file | Owned static text/file | Owned shared text/file | Single text/file (includes Core) | Core static text/file | Core shared text/file |
+| --- | --- | --- | --- | --- | --- | --- |
+| windows | 52496/0/81733 | 52496/83232 | 97007/166597 | 1133828/1549181 | 934632/1629948 | 1054849/1345456 |
+| wsl | 53857/320/108000 | 53857/109496 | 71455/96584 | 1160844/1972504 | 974830/2099908 | 1118312/1291304 |
+
+Code/data/file totals keep XRPC and Core separate for modular/static/shared forms;
+the single object includes the actual Core closure. Import/archive metadata,
+process stacks, pooled allocations and native TLS buffers are additional costs.
+
+### Matched workload measurements
+
+The report stores all five aggregate samples/counts per workload. Every offer
+enters the in-memory latency/lateness population; a per-request trace is not
+persisted by this harness. The reported observation includes Future polling.
+
+| Platform | Workload | Completed/s median | P50 us | P99 us | Offer-lateness P99 us |
+| --- | --- | --- | --- | --- | --- |
+| windows | tcp_ordinary | 978.028 | 23442.500 | 31245.700 | 15646.400 |
+| windows | tcp_notification | 973.570 | 23232.100 | 31067.500 | 15456.500 |
+| windows | tcp_batch16 | 975.124 | 21471.100 | 29664.300 | 15343.100 |
+| windows | tls_ordinary | 978.874 | 23440.700 | 31371.000 | 15450.600 |
+| windows | tls_notification | 978.663 | 23327.400 | 31308.700 | 15422.900 |
+| windows | tls_batch16 | 978.704 | 21901.100 | 29795.400 | 15311.300 |
+| wsl | tcp_ordinary | 999.443 | 1639.360 | 2181.365 | 1062.265 |
+| wsl | tcp_notification | 999.423 | 1640.568 | 2187.950 | 1062.989 |
+| wsl | tcp_batch16 | 999.377 | 1662.875 | 2221.092 | 1058.599 |
+| wsl | tls_ordinary | 999.452 | 1635.712 | 2179.916 | 1062.502 |
+| wsl | tls_notification | 999.858 | 1640.895 | 2175.796 | 1062.200 |
+| wsl | tls_batch16 | 999.229 | 1668.403 | 2226.601 | 1060.203 |
+
+Each measured run retains 1000 offers/accepted/completed/latency observations,
+with zero rejected/failed operations. Five raw aggregate samples plus one warmup
+are retained without favorable-sample retries. Unchanged noise checks:
+
+- windows: pass all 3% relative-MAD and 6% central-range checks.
+
+- wsl: pass all 3% relative-MAD and 6% central-range checks.
+
+Windows P99 is approximately 30-31 ms with about 15 ms offer lateness; both TCP
+and TLS populations include planned-arrival delay and the Sleep(1) Future
+observation loop. Passing the noise gates does not demonstrate low native RPC
+latency or saturation capacity. Separating completion publication timestamps
+from observer wakeup and improving arrival timing is the next measurement task;
+process CPU and native fault/cold/contended workloads remain required. No
+baseline is pinned and performance remains unaccepted.
+
+windows source fingerprint: `f682d2dca508f375ef46556c8efe4135c3fb7e905b1d294521a8ede5fbd3a19d`; workload fingerprint: `4f1786c63459735b07a379dd2593fc7cbeb8da5fa33e744209711d6a05f137eb`.
+
+wsl source fingerprint: `f682d2dca508f375ef46556c8efe4135c3fb7e905b1d294521a8ede5fbd3a19d`; workload fingerprint: `4f1786c63459735b07a379dd2593fc7cbeb8da5fa33e744209711d6a05f137eb`.
+
+Evidence at `out/service-extensions/xrpc-http-server-tls/validation.json` binds
+all 60 runtime binaries, rebuilt example-only include refresh, unchanged-single
+dependency proofs, complete/minimal packages, split code/dependency sizes, actual
+backends, O2 TSan, old/new wakeup probes, six independent TLS matrices and 5+1
+performance aggregates to frozen source/artifact hashes. The committed validator
+requires clean HEAD/tree and exact inputs/artifacts, normalizing mounted WSL
+cache paths before canonical-path and hash comparisons.
+
+The next production work remains mutual/HTTP application authentication, managed
+tickets, richer metadata/recovery/pooling, WebSocket/framed stdio, bidirectional
+calls, negotiated extensions and deferred handlers. Redis HA/tracking/dedicated
+modes, MQTT 5.0/3.1.1 full client/session/store, Cron IANA/scheduler/durable recovery
+and every P4 requirement remain active. Native Windows/Linux representative
+comparators, CPU/allocator/copy costs, failures, cold/slow/contended workloads and
+at least 72-hour native mixed/fault qualification are still unaccepted. This
+slice completes neither xrpc nor the full four-product production goal.

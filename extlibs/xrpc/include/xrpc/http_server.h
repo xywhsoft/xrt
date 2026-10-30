@@ -49,7 +49,8 @@ XRPC_API bool xrpcHttpServerConfigInit(xrpchttpserverconfig* Config);
 XRPC_API bool xrpcHttpServerCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchttpserver** Server);
 /* Serialized creator operation. Synchronous numeric bind followed by async
  * accepts. All application state must be ready; handlers can run before return.
- * Failure leaves the created handle for retry or Close/Destroy. Plain TCP only. */
+ * Failure leaves the created handle for retry or Close/Destroy. The factory
+ * chooses plain TCP or the explicit TLS policy. */
 XRPC_API bool xrpcHttpServerStart(xrpchttpserver* Server);
 XRPC_API bool xrpcHttpServerLocal(xrpchttpserver* Server,xnetaddr* Address);
 XRPC_API bool xrpcHttpServerInfo(xrpchttpserver* Server,xrpchttpserverinfo* Info);

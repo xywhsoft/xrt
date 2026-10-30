@@ -8,7 +8,9 @@ bounded HTTP/TCP call/notification/batch client, bounded server execution and
 HTTP/1 server listener/peer transport are implemented.**
 The optional [HTTP TLS client](docs/http_tls.md) adds explicit trusted numeric,
 DNS and prepared-address connections, HTTP/1.1 ALPN and bounded partial writes.
-TLS server transport, mutual authentication and HTTP authentication remain pending.
+The optional [HTTP TLS server](docs/http_server_tls.md) adds explicit TLS listeners,
+copied identity policy, handshake admission limits and bounded record credit.
+Mutual authentication and HTTP authentication remain pending.
 Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 

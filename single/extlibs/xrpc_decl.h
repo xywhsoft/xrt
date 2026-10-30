@@ -54,6 +54,9 @@
 #if !defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER_TLS 1
+#endif
 #if !defined(XRPC_FEATURE_XRPC_HTTP_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_TLS 1
 #endif
@@ -104,6 +107,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_HTTP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_HTTP_SERVER_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER_TLS 1
 #endif
 #if !defined(XRPC_MODULE_XRPC_HTTP_TLS)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_TLS 1
@@ -1353,6 +1359,18 @@
 #if !defined(XRT_MODULE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME 1
 #endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_ED25519)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519 1
+#endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_P256)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256 1
+#endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_P384)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P384 1
+#endif
+#if !defined(XRT_MODULE_TLS_IDENTITY_RSA)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_RSA 1
+#endif
 #if !defined(XRT_MODULE_TLS_KEY_EXCHANGE_P256)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256 1
 #endif
@@ -1373,6 +1391,9 @@
 #endif
 #if !defined(XRT_MODULE_TLS_SCHEDULE_SHA384)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384 1
+#endif
+#if !defined(XRT_MODULE_TLS_SERVER_RESUME)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SERVER_RESUME 1
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM 1
@@ -2616,6 +2637,58 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_HTTP_TLS
 #define XRPC_MODULE_XRPC_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#define XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#endif
+#endif
+
+/* xrpc_http_server_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER_TLS)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#define XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_SERVER_RESUME
+#define XRT_MODULE_TLS_SERVER_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P384
+#define XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 
@@ -4006,7 +4079,8 @@ XRPC_API bool xrpcHttpServerConfigInit(xrpchttpserverconfig* Config);
 XRPC_API bool xrpcHttpServerCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchttpserver** Server);
 /* Serialized creator operation. Synchronous numeric bind followed by async
  * accepts. All application state must be ready; handlers can run before return.
- * Failure leaves the created handle for retry or Close/Destroy. Plain TCP only. */
+ * Failure leaves the created handle for retry or Close/Destroy. The factory
+ * chooses plain TCP or the explicit TLS policy. */
 XRPC_API bool xrpcHttpServerStart(xrpchttpserver* Server);
 XRPC_API bool xrpcHttpServerLocal(xrpchttpserver* Server,xnetaddr* Address);
 XRPC_API bool xrpcHttpServerInfo(xrpchttpserver* Server,xrpchttpserverinfo* Info);
@@ -4129,6 +4203,61 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/http_server_tls.h */
+/* ========================================================================== */
+
+#ifndef XRPC_HTTP_SERVER_TLS_H
+#define XRPC_HTTP_SERVER_TLS_H
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+#if !defined(XRPC_FEATURE_XRPC_HTTP_SERVER) || !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_TLS_SERVER_RESUME)
+#error "xrpc HTTP TLS server requires HTTP server, native TLS stream and server resume"
+#endif
+#if !defined(XRT_FEATURE_TLS_IDENTITY_RSA) || !defined(XRT_FEATURE_TLS_IDENTITY_P256) || !defined(XRT_FEATURE_TLS_IDENTITY_P384) || !defined(XRT_FEATURE_TLS_IDENTITY_ED25519) || \
+    !defined(XRT_FEATURE_TLS_RECORD_AES) || !defined(XRT_FEATURE_TLS_RECORD_CHACHA) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA256) || !defined(XRT_FEATURE_TLS_SCHEDULE_SHA384) || \
+    !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_X25519) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P256) || !defined(XRT_FEATURE_TLS_KEY_EXCHANGE_P384)
+#error "xrpc HTTP TLS server requires its declared identity/cipher/schedule/key-exchange backends"
+#endif
+typedef void (*xrpchttpserverhandshakeproc)(xnetresult Result,const xerror* Cause,ptr Context);
+typedef struct xrpchttpservertlsconfig {
+    size_t Size;
+    xtlsserverconfig Session;
+    xtlsstreamconfig Stream;
+    size_t MaxHandshakes,MaxMetadataBytes;
+    xrpchttpserverhandshakeproc HandshakeError;
+    ptr Context;
+} xrpchttpservertlsconfig;
+typedef struct xrpchttpservertlsinfo {
+    size_t Size,ActiveHandshakes,PeakHandshakes;
+    uint64 Admitted,Completed,Failed,Rejected;
+} xrpchttpservertlsinfo;
+XRT_EXTERN_C_BEGIN
+/* Native TLS limits, 128 concurrent handshakes, 64 KiB copied metadata,
+ * HTTP/1.1 ALPN (no ALPN is allowed). Supply Identity or a native SNI selector.
+ * Metadata hard limit 1 MiB; connection and handshake bounds are independent. */
+XRPC_API bool xrpcHttpServerTlsConfigInit(xrpchttpservertlsconfig* Config);
+/* Create does not bind or invoke business handlers. Native Context/Identity
+ * references and ALPN bytes are snapshotted before return; callback code/context
+ * remain borrowed through Destroy and must permit concurrent network workers.
+ * HandshakeError borrows Cause for the call, runs without the server gate on
+ * the peer worker, must not block, and may Close (not Wait/Destroy) this server.
+ * Successful construction uses the ordinary Start/Local/Info/Close/Wait/Destroy
+ * API. All admitted peers, including handshakes, count against MaxConnections
+ * and private-buffer bounds before a native TLS session is allocated.
+ * Stream.HandshakeTimeout starts at TCP admission; zero disables it. HTTP
+ * idle/request deadlines begin after TLS readiness/first plaintext respectively.
+ * Required TLS, no cleartext fallback or operation replay; mutual client and
+ * HTTP application authentication are separate policies. Failure preserves Out.
+ * MaxQueuedBytes charges conservative TLS application-record bounds until drain;
+ * handshake/control bytes and native buffers have separate Core/count bounds. */
+XRPC_API bool xrpcHttpServerTlsCreate(xnetengine* Engine,const xrpchttpserverconfig* HTTP,
+    const xrpchttpservertlsconfig* TLS,xrpchttpserver** Out);
+XRPC_API bool xrpcHttpServerTlsInfo(xrpchttpserver* Server,xrpchttpservertlsinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -4173,6 +4302,9 @@ XRT_EXTERN_C_END
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_TLS)
 #error "XRPC_FEATURE_XRPC requires http_tls"
 #endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+#error "XRPC_FEATURE_XRPC requires http_server_tls"
+#endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
 #undef XRPC_FEATURE_XRPC
@@ -4205,6 +4337,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER)
 #undef XRPC_FEATURE_XRPC_HTTP_SERVER
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+#undef XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_HTTP_TLS)
 #undef XRPC_FEATURE_XRPC_HTTP_TLS
@@ -4273,6 +4409,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER)
 #undef XRPC_MODULE_XRPC_HTTP_SERVER
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER_TLS)
+#undef XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_SERVER_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_HTTP_TLS)
 #undef XRPC_MODULE_XRPC_HTTP_TLS
@@ -5938,6 +6078,22 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_TLS_CLIENT_RESUME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519)
+#undef XRT_MODULE_TLS_IDENTITY_ED25519
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256)
+#undef XRT_MODULE_TLS_IDENTITY_P256
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P384)
+#undef XRT_MODULE_TLS_IDENTITY_P384
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_RSA)
+#undef XRT_MODULE_TLS_IDENTITY_RSA
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_IDENTITY_RSA
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256)
 #undef XRT_MODULE_TLS_KEY_EXCHANGE_P256
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_KEY_EXCHANGE_P256
@@ -5965,6 +6121,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384)
 #undef XRT_MODULE_TLS_SCHEDULE_SHA384
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SERVER_RESUME)
+#undef XRT_MODULE_TLS_SERVER_RESUME
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_SERVER_RESUME
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM)
 #undef XRT_MODULE_TLS_STREAM
@@ -6035,6 +6195,58 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_HTTP_TLS
 #define XRPC_MODULE_XRPC_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#define XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#endif
+#endif
+
+/* xrpc_http_server_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER_TLS)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#define XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_SERVER_RESUME
+#define XRT_MODULE_TLS_SERVER_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P384
+#define XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 

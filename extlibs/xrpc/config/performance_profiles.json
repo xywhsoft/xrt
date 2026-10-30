@@ -1752,6 +1752,439 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_http_server_tls",
+      "system": "http_server_tls",
+      "description": "Matched actual production HTTP TCP/TLS server and client, same compiled closure/configuration, fixed arrivals/all counts; no production baseline acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_http_server_tls_tcp_ordinary",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_tls_tcp_notification",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_tls_tcp_batch16",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "16",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "16",
+            "0"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_tls_tls_ordinary",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_tls_tls_notification",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        },
+        {
+          "name": "xrpc_http_server_tls_tls_batch16",
+          "source": "extlibs/xrpc/bench/bench_http_server_tls.c",
+          "suite": "xrpc_http_server_tls,xrpc_http_tls",
+          "args": [
+            "1000",
+            "1000",
+            "16",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1000",
+            "16",
+            "1"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "HTTP operations"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "HTTP operations"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "HTTP operations/s"
+            }
+          },
+          "facts": [
+            "workload",
+            "mode",
+            "items_per_request",
+            "transport"
+          ],
+          "inputs": [
+            "extlibs/xrpc/tests/support/http_tls_service.h",
+            "extlibs/xrpc/examples/common/http_service.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ]
+        }
+      ]
     }
   ]
 }

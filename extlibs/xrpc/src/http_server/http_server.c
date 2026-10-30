@@ -1,5 +1,6 @@
 #include <xrpc/http_server.h>
 #include "../internal/xrpc_server_internal.h"
+#include "../internal/xrpc_http_server_tls.h"
 #include <xrt/atomic.h>
 #include <xrt/sync.h>
 #include <xrt/memory.h>
@@ -19,6 +20,7 @@ struct xrpchttpserver {
     xatomic32 References;
     xmutex Gate;xcond Idle;
     xnetengine* Engine;xnetlistener* Listener;xrpcserver* Execution;
+    xrpchssecure* Secure;
     xrpchttpserverconfig Config;xrpchttpserverinfo Info;xnetaddr Local;
     size_t OwnedBytes,InputLimit,ShardCount,WaitingWriters;
     xrpchsshard Shards[];
@@ -26,6 +28,7 @@ struct xrpchttpserver {
 struct xrpchspeer {
     xatomic32 References,Posted;
     xrpchttpserver* Server;xrpchsshard* Shard;xnetstream* Stream;xnetpost Post;
+    xrpchssecurepeer* Secure;
     xrpchspeer *Next,*Previous,*WriterNext,*WriterPrevious;
     xrpchsop* Operation;
     xhttpfield *Fields,*Trailers;
@@ -46,6 +49,9 @@ static void xrpcHsPeerWork(xnetworker* Worker,ptr Data);
 static void xrpcHsShardWork(xnetworker* Worker,ptr Data);
 static void xrpcHsTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data);
 static void xrpcHsPeerWake(xrpchspeer* P);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+static void xrpcHsTlsHandshakeEnd(xrpchspeer* P,bool Ready,xnetresult Result,const xerror* Cause);
+#endif
 static bool xrpcHsReport(xerrkind Kind,xrpchttpservererror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
 static double xrpcHsDeadline(double Began,int64 Timeout)
@@ -81,7 +87,11 @@ static void xrpcHsPeerDrop(const void* Data)
 {
     xrpchspeer* P=(xrpchspeer*)Data;if(xrtAtomic32FetchSub(&P->References,1,XMEMORY_ACQ_REL)!=1)return;
     xrpchttpserver* H=P->Server;size_t Bytes=P->FixedBytes+P->InputCapacity+P->PayloadCapacity;
-    xrtNetStreamDestroy(P->Stream);xrtFree(P->Input);xrtFree(P->Payload);xrtFree(P);
+    xrtNetStreamDestroy(P->Stream);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure)xrtTlsStreamDestroy(P->Secure->Stream);
+#endif
+    xrtFree(P->Input);xrtFree(P->Payload);xrtFree(P);
     xrtMutexLock(&H->Gate);--H->Info.Connections;H->Info.BufferBytes-=Bytes;xrtMutexUnlock(&H->Gate);xrpcHsDrop(H);
 }
 static bool xrpcHsPeerCount(const void* Data,size_t* Count)
@@ -101,13 +111,18 @@ static void xrpcHsUnwait(xrpchspeer* P)
     P->WriterNext=P->WriterPrevious=NULL;P->Waiting=false;
     xrtMutexLock(&P->Server->Gate);--P->Server->WaitingWriters;xrtMutexUnlock(&P->Server->Gate);
 }
+static void xrpcHsWaitLocked(xrpchspeer* P)
+{
+    if(P->Waiting)return;
+    xrpchttpserver* H=P->Server;P->Waiting=true;++H->WaitingWriters;P->WriterPrevious=P->Shard->WritersTail;
+    if(P->WriterPrevious)P->WriterPrevious->WriterNext=P;else P->Shard->Writers=P;P->Shard->WritersTail=P;
+}
 static size_t xrpcHsSendReserve(xrpchspeer* P,size_t Bytes)
 {
     xrpchttpserver* H=P->Server;xrtMutexLock(&H->Gate);size_t Left=H->Config.MaxQueuedBytes-H->Info.QueuedBytes;
     if(Bytes>Left)Bytes=Left;
     if(Bytes)H->Info.QueuedBytes+=Bytes;
-    else if(!P->Waiting){P->Waiting=true;++H->WaitingWriters;P->WriterPrevious=P->Shard->WritersTail;
-        if(P->WriterPrevious)P->WriterPrevious->WriterNext=P;else P->Shard->Writers=P;P->Shard->WritersTail=P;}
+    else xrpcHsWaitLocked(P);
     xrtMutexUnlock(&H->Gate);return Bytes;
 }
 static void xrpcHsOpRef(xrpchsop* O){xrtAtomic64FetchAdd(&O->References,1,XMEMORY_RELAXED);}
@@ -150,6 +165,9 @@ static void xrpcHsTimerCancel(xrpchspeer* P)
 static bool xrpcHsTimerArm(xrpchspeer* P)
 {
     xrpcHsTimerCancel(P);int64 T=P->Active?P->Server->Config.RequestTimeout:P->Server->Config.IdleTimeout;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure && P->Secure->Handshaking){T=P->Server->Secure->Config.Stream.HandshakeTimeout;if(!T)return true;}
+#endif
     if(T==XRT_WAIT_FOREVER)return true;
     double End=xrpcHsDeadline(P->Entered,T);xrpcHsPeerRef(P);
     P->Timer=__xrtNetEngineSchedule(P->Server->Engine,xrtNetWorkerIndex(P->Shard->Worker),End,xrpcHsTimer,P);
@@ -211,7 +229,7 @@ static uint16 xrpcHsValidate(xrpchspeer* P,const xhttp1head* Head,xhttp1bodyplan
     if(Head->MethodCode!=XHTTP_METHOD_POST)return 405;
     xhttptarget T;if(!xrtHttpTargetParse(Head->Method,Head->Target,&T))return 400;
     if(T.Form!=XHTTP_TARGET_ORIGIN && T.Form!=XHTTP_TARGET_ABSOLUTE)return 400;
-    if(T.Form==XHTTP_TARGET_ABSOLUTE && !xrtHttpTokenEqual(T.Scheme,XRT_STR_LITERAL("http")))return 400;
+    if(T.Form==XHTTP_TARGET_ABSOLUTE && !xrtHttpTokenEqual(T.Scheme,P->Secure?XRT_STR_LITERAL("https"):XRT_STR_LITERAL("http")))return 400;
     xstrview Path=T.Path.Size?T.Path:XRT_STR_LITERAL("/");
     if(Path.Size!=P->Server->Config.Path.Size || memcmp(Path.Data,P->Server->Config.Path.Data,Path.Size))return 404;
     if((Head->Flags&XHTTP1_UPGRADE) || (Head->Flags&XHTTP1_TRANSFER_OTHER))return 501;
@@ -273,23 +291,80 @@ static void xrpcHsParse(xrpchspeer* P,bool End)
     if(Offset){memmove(P->Input,P->Input+Offset,P->InputUsed-Offset);P->InputUsed-=Offset;P->InputScan=0;if(!P->InputUsed)P->InputEpoch=0;}
     if(!P->Operation && !P->Aborting && P->InputUsed>P->Server->Config.MaxRequestWireBytes-P->WireBytes)xrpcHsError(P,413);
 }
+static size_t xrpcHsAvailable(xrpchspeer* P)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure)return P->Secure->Stream?xrtTlsStreamAvailable(P->Secure->Stream):0;
+#endif
+    return xrtNetStreamAvailable(P->Stream);
+}
+static bool xrpcHsOpen(xrpchspeer* P)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure)return P->Secure->Ready && P->Secure->Stream && xrtTlsStreamState(P->Secure->Stream)==XTLS_STREAM_OPEN;
+#endif
+    return xrtNetStreamState(P->Stream)==XNET_STREAM_OPEN;
+}
+static void xrpcHsAbort(xrpchspeer* P)
+{
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure){if(P->Secure->Stream)(void)xrtTlsStreamAbort(P->Secure->Stream);return;}
+#endif
+    (void)xrtNetStreamAbort(P->Stream);
+}
 static void xrpcHsRead(xrpchspeer* P)
 {
     size_t Budget=P->Server->Config.ReadBytes;
     if(P->InputUsed)xrpcHsParse(P,false);
     while(Budget && !P->Operation && !P->Aborting && !P->Continue){
-        size_t Available=xrtNetStreamAvailable(P->Stream);if(!Available)break;
+        size_t Available=xrpcHsAvailable(P);if(!Available)break;
         if(P->InputUsed==P->InputCapacity && !xrpcHsGrow(P,false,P->InputUsed+1u)){xrpcHsError(P,503);break;}
         size_t N=P->InputCapacity-P->InputUsed;if(N>Available)N=Available;if(N>Budget)N=Budget;
         if(!P->InputUsed)P->InputEpoch=P->ReadEpoch?P->ReadEpoch:xrtTimer();
-        N=xrtNetStreamRead(P->Stream,P->Input+P->InputUsed,N);if(!N)break;P->InputUsed+=N;Budget-=N;
-        if(!xrtNetStreamAvailable(P->Stream))P->ReadEpoch=0;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(P->Secure){size_t Read=0;xtlsresult R=xrtTlsStreamRead(P->Secure->Stream,P->Input+P->InputUsed,N,&Read);N=Read;if(R==XTLS_ERROR){P->Aborting=true;break;}}
+        else
+#endif
+        N=xrtNetStreamRead(P->Stream,P->Input+P->InputUsed,N);
+        if(!N)break;
+        P->InputUsed+=N;Budget-=N;
+        if(!xrpcHsAvailable(P))P->ReadEpoch=0;
         xrpcHsParse(P,false);
     }
-    if(P->ReadEnded && !P->Operation && !P->Aborting && !xrtNetStreamAvailable(P->Stream)){
+    if(P->ReadEnded && !P->Operation && !P->Aborting && !xrpcHsAvailable(P)){
         if(P->Active || P->InputUsed)xrpcHsParse(P,true);else P->Aborting=true;
     }
 }
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+static void xrpcHsTlsCredit(xrpchspeer* P)
+{
+    xrpchssecurepeer* S=P->Secure;
+    if(S->Reserved && S->Stream && !P->Closed && xrtTlsStreamState(S->Stream)==XTLS_STREAM_OPEN && !xrtTlsStreamPending(S->Stream)){
+        size_t N=S->Reserved;S->Reserved=0;xrpcHsCredit(P->Server,N);
+    }
+}
+static void xrpcHsTlsWriteError(xrpchspeer* P)
+{if(!P->Aborting){xrtMutexLock(&P->Server->Gate);++P->Server->Info.TransportErrors;xrtMutexUnlock(&P->Server->Gate);}P->Aborting=true;}
+static size_t xrpcHsTlsSend(xrpchspeer* P,const void* Data,size_t Size)
+{
+    xrpchssecurepeer* S=P->Secure;xrpchttpserver* H=P->Server;xrpcHsTlsCredit(P);
+    if(Size>XTLS_RECORD_PLAINTEXT_MAX)Size=XTLS_RECORD_PLAINTEXT_MAX;
+    size_t Bound=0;if(!xrtTlsStreamSendBound(S->Stream,Size,&Bound) || Bound<=Size){xrpcHsTlsWriteError(P);return 0;}
+    size_t Overhead=Bound-Size;xrtMutexLock(&H->Gate);size_t Room=H->Config.MaxQueuedBytes-H->Info.QueuedBytes;
+    if(Bound>Room){Size=Room>Overhead?Room-Overhead:0;Bound=Size?Size+Overhead:0;}
+    if(Bound)H->Info.QueuedBytes+=Bound;
+    else xrpcHsWaitLocked(P);
+    xrtMutexUnlock(&H->Gate);if(!Bound)return 0;
+    /* Native AEAD bounds are affine inside one maximum-size record. Verify the
+     * chosen shorter prefix as well; never submit an unreserved wire bound. */
+    size_t Actual=0;if(!xrtTlsStreamSendBound(S->Stream,Size,&Actual) || Actual>Bound){xrpcHsCredit(H,Bound);xrpcHsTlsWriteError(P);return 0;}
+    if(Actual<Bound){xrpcHsCredit(H,Bound-Actual);Bound=Actual;}
+    S->Reserved+=Bound;size_t Written=0;xtlsresult R=xrtTlsStreamSend(S->Stream,Data,Size,&Written);
+    if(!Written){S->Reserved-=Bound;xrpcHsCredit(H,Bound);}
+    if(R==XTLS_ERROR || R==XTLS_CLOSED || (R==XTLS_OK && !Written))xrpcHsTlsWriteError(P);
+    xrpcHsTlsCredit(P);return Written;
+}
+#endif
 static void xrpcHsWrite(xrpchspeer* P)
 {
     xrpchsop* O=P->Operation;
@@ -303,17 +378,34 @@ static void xrpcHsWrite(xrpchspeer* P)
     while(Budget && !P->Aborting){bool Head=O->HeadOffset<O->HeadSize;size_t Offset=Head?O->HeadOffset:O->BodyOffset;
         size_t Left=(Head?O->HeadSize:O->Body.Size)-Offset;if(!Left)break;
         size_t N=Left;if(N>P->Server->Config.WriteChunkBytes)N=P->Server->Config.WriteChunkBytes;if(N>Budget)N=Budget;
+        size_t Written=N;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(P->Secure){Written=xrpcHsTlsSend(P,(const unsigned char*)(Head?O->Head:O->Body.Data)+Offset,N);if(!Written)break;}
+        else{
+#endif
         xnetstreamstats Stats;if(!xrtNetStreamStats(P->Stream,&Stats)){P->Aborting=true;break;}
         size_t Room=P->Server->Config.Listen.Stream.WriteLimit-Stats.QueuedBytes;if(N>Room)N=Room;if(!N)break;
         N=xrpcHsSendReserve(P,N);if(!N)break;
         xrpcHsOpRef(O);xrtAtomic64FetchAdd(&O->Queued,(uint64)N,XMEMORY_RELAXED);
         xnetresult R=xrtNetStreamSendRef(P->Stream,(const unsigned char*)(Head?O->Head:O->Body.Data)+Offset,N,xrpcHsSent,O);
         if(R!=XNET_RESULT_OK){xrtAtomic64FetchSub(&O->Queued,(uint64)N,XMEMORY_RELAXED);xrpcHsCredit(P->Server,N);xrpcHsOpDrop(O);if(R!=XNET_RESULT_AGAIN)P->Aborting=true;break;}
-        if(Head)O->HeadOffset+=N;else O->BodyOffset+=N;Budget-=N;
+        Written=N;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        }
+#endif
+        if(Head)O->HeadOffset+=Written;else O->BodyOffset+=Written;Budget-=Written;
     }
-    if(O->HeadOffset==O->HeadSize && O->BodyOffset==O->Body.Size && !xrtAtomic64Load(&O->Queued,XMEMORY_ACQUIRE)){
+    bool Drained=!xrtAtomic64Load(&O->Queued,XMEMORY_ACQUIRE);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure){xrpcHsTlsCredit(P);Drained=!P->Secure->Reserved;}
+#endif
+    if(!P->Aborting && O->HeadOffset==O->HeadSize && O->BodyOffset==O->Body.Size && Drained){
         P->Operation=NULL;xrpcHsOpDrop(O);xrtMutexLock(&P->Server->Gate);++P->Server->Info.Responses;xrtMutexUnlock(&P->Server->Gate);
-        if(P->CloseAfter || P->ReadEnded){(void)xrtNetStreamClose(P->Stream);return;}
+        if(P->CloseAfter || P->ReadEnded){
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+            if(P->Secure){(void)xrtTlsStreamClose(P->Secure->Stream);return;}
+#endif
+            (void)xrtNetStreamClose(P->Stream);return;}
         P->Active=P->BodyStarted=false;P->PayloadUsed=P->WireBytes=P->InputScan=0;P->Version=XHTTP_VERSION_1_1;P->Entered=xrtTimer();
         if(!P->InputUsed && P->InputCapacity>65536u && P->InputCapacity>P->Server->Config.InitialInputBytes){
             size_t Bytes=P->InputCapacity;xrtFree(P->Input);P->Input=NULL;P->InputCapacity=0;xrpcHsRefund(P->Server,Bytes);
@@ -325,11 +417,17 @@ static void xrpcHsWrite(xrpchspeer* P)
 static void xrpcHsContinue(xrpchspeer* P)
 {
     static const char Text[]="HTTP/1.1 100 Continue\r\n\r\n";
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure){size_t Left=sizeof(Text)-1-P->Secure->ContinueOffset,Bytes=xrpcHsTlsSend(P,Text+P->Secure->ContinueOffset,Left);
+        P->Secure->ContinueOffset+=Bytes;if(P->Secure->ContinueOffset==sizeof(Text)-1){P->Continue=false;P->Secure->ContinueOffset=0;}
+        else if(Bytes && !P->Waiting)xrpcHsPeerWake(P);
+        return;}
+#endif
     /* One short interim reference; require its complete budget atomically. */
     xrpchttpserver* H=P->Server;xrtMutexLock(&H->Gate);bool Room=sizeof(Text)-1<=H->Config.MaxQueuedBytes-H->Info.QueuedBytes;
-    if(Room)H->Info.QueuedBytes+=sizeof(Text)-1;
+    if(Room)H->Info.QueuedBytes+=sizeof(Text)-1;else xrpcHsWaitLocked(P);
     xrtMutexUnlock(&H->Gate);
-    if(!Room){(void)xrpcHsSendReserve(P,0);return;}
+    if(!Room)return;
     xrpcHsPeerRef(P);xnetresult R=xrtNetStreamSendRef(P->Stream,Text,sizeof(Text)-1,xrpcHsContinueSent,P);
     if(R==XNET_RESULT_OK)P->Continue=false;
     else{xrpcHsCredit(H,sizeof(Text)-1);xrpcHsPeerDrop(P);if(R!=XNET_RESULT_AGAIN)P->Aborting=true;}
@@ -337,21 +435,27 @@ static void xrpcHsContinue(xrpchspeer* P)
 static void xrpcHsPeerWork(xnetworker* Worker,ptr Data)
 {
     (void)Worker;xrpchspeer* P=Data;xrtAtomic32Store(&P->Posted,0,XMEMORY_RELEASE);xrtClearError();xrpcHsUnwait(P);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure)xrpcHsTlsCredit(P);
+#endif
     if(xrpcHsClosing(P->Server))P->Aborting=true;
     if(P->Closed || P->Aborting){
         xrpcHsTimerCancel(P);
         if(P->Operation){xrpchsop* O=P->Operation;P->Operation=NULL;if(O->Future)(void)xrtFutureCancel(O->Future);xrpcHsOpDrop(O);}
-        if(!P->Closed)(void)xrtNetStreamAbort(P->Stream);
+        if(!P->Closed)xrpcHsAbort(P);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(P->Closed && P->Secure && P->Secure->Stream){xtlsstream* S=P->Secure->Stream;P->Secure->Stream=NULL;xrtTlsStreamDestroy(S);}
+#endif
         if(P->Closed && P->Linked){if(P->Previous)P->Previous->Next=P->Next;else P->Shard->Peers=P->Next;if(P->Next)P->Next->Previous=P->Previous;P->Linked=false;xrpcHsPeerDrop(P);}
     }else{
         if(P->Operation)xrpcHsWrite(P);
-        if(!P->Operation && !P->Aborting && xrtNetStreamState(P->Stream)==XNET_STREAM_OPEN){
+        if(!P->Operation && !P->Aborting && xrpcHsOpen(P)){
             if(P->Continue)xrpcHsContinue(P);
             if(!P->Continue){xrpcHsRead(P);if(P->Operation || P->Continue)xrpcHsPeerWake(P);}
         }
         if(P->Aborting)xrpcHsPeerWake(P);
-        else if(P->Operation || P->Continue)xrtNetStreamPause(P->Stream);
-        else if(xrtNetStreamState(P->Stream)==XNET_STREAM_OPEN){if(xrtNetStreamAvailable(P->Stream))xrpcHsPeerWake(P);else (void)xrtNetStreamResume(P->Stream);}
+        else if(P->Operation || P->Continue){if(P->Stream)xrtNetStreamPause(P->Stream);}
+        else if(xrpcHsOpen(P)){if(xrpcHsAvailable(P))xrpcHsPeerWake(P);else if(P->Stream)(void)xrtNetStreamResume(P->Stream);}
     }
     xrpcHsPeerDrop(P);
 }
@@ -374,20 +478,95 @@ static void xrpcHsOnClosed(xnetstream* Stream,xnetresult Result,const xerror* Er
 {(void)Stream;(void)Error;xrpchspeer* P=Data;P->Closed=true;if(Result!=XNET_RESULT_OK && !P->Aborting){xrtMutexLock(&P->Server->Gate);++P->Server->Info.TransportErrors;xrtMutexUnlock(&P->Server->Gate);}xrpcHsPeerWake(P);}
 static void xrpcHsEventsDrop(const void* Data){xrpcHsPeerWake((xrpchspeer*)Data);xrpcHsPeerDrop(Data);}
 static const xnetstreameventsownershipv1 xrpcHsEvents={sizeof(xnetstreameventsownershipv1),{NULL,xrpcHsOnRead,xrpcHsOnEnd,NULL,xrpcHsOnLow,xrpcHsOnDrain,xrpcHsOnClosed},xrpcHsEventsDrop,&xrpcHsPeerOps};
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+static void xrpcHsTlsHandshakeEnd(xrpchspeer* P,bool Ready,xnetresult Result,const xerror* Cause)
+{
+    if(!P->Secure->Handshaking)return;
+    P->Secure->Handshaking=false;P->Secure->Ready=Ready;xrpchttpserver* H=P->Server;xrtMutexLock(&H->Gate);
+    --H->Secure->Info.ActiveHandshakes;if(Ready)++H->Secure->Info.Completed;else ++H->Secure->Info.Failed;xrtMutexUnlock(&H->Gate);
+    if(!Ready && H->Secure->Config.HandshakeError)H->Secure->Config.HandshakeError(Result,Cause,H->Secure->Config.Context);
+}
+static void xrpcHsTlsOpenFail(xrpchspeer* P,xnetresult Result,xerrkind Kind,cstr Message)
+{
+    P->Aborting=true;if(Result==XNET_RESULT_TIMEOUT){xrtMutexLock(&P->Server->Gate);++P->Server->Info.Timeouts;xrtMutexUnlock(&P->Server->Gate);}
+    xrpcHsReport(Kind,XRPC_HTTP_SERVER_IO,Message);xerror* Cause=xrtTakeError();xrpcHsTlsHandshakeEnd(P,false,Result,Cause);xrtErrorFree(Cause);xrpcHsPeerWake(P);
+}
+static void xrpcHsTlsOpen(xtlsstream* Stream,ptr Data)
+{
+    xrpchspeer* P=Data;int64 Timeout=P->Server->Secure->Config.Stream.HandshakeTimeout;
+    if(Timeout && xrtTimer()>=xrpcHsDeadline(P->Entered,Timeout)){xrpcHsTlsOpenFail(P,XNET_RESULT_TIMEOUT,XERR_TIMEOUT,"TLS readiness exceeded admission deadline");return;}
+    xbytesview Protocol={0};size_t Minimum=0;
+    if((xrtTlsSessionProtocol(xrtTlsStreamSession(Stream),&Protocol) && (Protocol.Size!=8 || memcmp(Protocol.Data,"http/1.1",8))) ||
+        !xrtTlsStreamSendBound(Stream,1,&Minimum) || Minimum>P->Server->Config.MaxQueuedBytes){xrpcHsTlsOpenFail(P,XNET_RESULT_ERROR,XERR_RANGE,"TLS HTTP protocol/record credit policy cannot admit plaintext");return;}
+    xrpcHsTlsHandshakeEnd(P,true,XNET_RESULT_OK,NULL);P->Entered=xrtTimer();if(!xrpcHsTimerArm(P))P->Aborting=true;xrpcHsPeerWake(P);
+}
+static void xrpcHsTlsRead(xtlsstream* Stream,const xnetbuf* Buffer,ptr Data)
+{(void)Stream;(void)Buffer;xrpchspeer* P=Data;if(!P->ReadEpoch)P->ReadEpoch=xrtTimer();xrpcHsPeerWake(P);}
+static void xrpcHsTlsEnd(xtlsstream* Stream,ptr Data){(void)Stream;xrpcHsOnEnd(NULL,Data);}
+static void xrpcHsTlsWritable(xtlsstream* Stream,ptr Data){(void)Stream;xrpcHsPeerWake(Data);}
+static void xrpcHsTlsClosed(xtlsstream* Stream,xnetresult Result,const xerror* Cause,ptr Data)
+{
+    (void)Stream;xrpchspeer* P=Data;
+    if(P->Secure->Handshaking && !P->Aborting && (Result==XNET_RESULT_TIMEOUT || xrtErrorKind(Cause)==XERR_TIMEOUT)){
+        P->Aborting=true;xrtMutexLock(&P->Server->Gate);++P->Server->Info.Timeouts;xrtMutexUnlock(&P->Server->Gate);}
+    xrpcHsTlsHandshakeEnd(P,false,Result,Cause);xrpcHsOnClosed(NULL,Result,Cause,P);
+}
+static void xrpcHsTlsDrop(const void* Data)
+{
+    xrpchspeer* P=(xrpchspeer*)Data;size_t Bytes=P->Secure->Reserved;P->Secure->Reserved=0;
+    /* Core drops Data only after Session and TCP ownership are destroyed. */
+    if(Bytes)xrpcHsCredit(P->Server,Bytes);
+    xrpcHsPeerWake(P);xrpcHsPeerDrop(P);
+}
+static const xtlsstreamownershipv1 xrpcHsTlsEvents={sizeof(xtlsstreamownershipv1),{xrpcHsTlsOpen,xrpcHsTlsRead,xrpcHsTlsEnd,xrpcHsTlsWritable,xrpcHsTlsWritable,xrpcHsTlsClosed,NULL},xrpcHsTlsDrop,&xrpcHsPeerOps};
+#endif
 static bool xrpcHsAccept(xnetlistener* Listener,xnetstream* Stream,ptr Data)
 {
-    (void)Listener;xrpchttpserver* H=Data;size_t Fixed=sizeof(xrpchspeer)+(H->Config.Head.MaxFields+H->Config.Body.MaxTrailers)*sizeof(xhttpfield);
+    (void)Listener;double Entered=xrtTimer();xrpchttpserver* H=Data;size_t Fixed=sizeof(xrpchspeer)+(H->Config.Head.MaxFields+H->Config.Body.MaxTrailers)*sizeof(xhttpfield);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(H->Secure)Fixed+=sizeof(xrpchssecurepeer);
+#endif
     size_t Bytes=Fixed+H->Config.InitialInputBytes;xrtMutexLock(&H->Gate);
     bool OK=H->Info.State==XRPC_HTTP_SERVER_RUNNING && H->Info.Connections<H->Config.MaxConnections && Bytes<=H->Config.MaxBufferBytes-H->Info.BufferBytes;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(H->Secure){OK=OK && H->Secure->Info.ActiveHandshakes<H->Secure->Config.MaxHandshakes;
+        if(OK){++H->Secure->Info.Admitted;if(++H->Secure->Info.ActiveHandshakes>H->Secure->Info.PeakHandshakes)H->Secure->Info.PeakHandshakes=H->Secure->Info.ActiveHandshakes;}
+        else ++H->Secure->Info.Rejected;}
+#endif
     if(OK){++H->Info.Connections;H->Info.BufferBytes+=Bytes;xrpcHsRef(H);}else ++H->Info.Rejected;xrtMutexUnlock(&H->Gate);if(!OK)return false;
     xrpchspeer* P=xrtCalloc(1,Fixed);
-    if(!P){xrtMutexLock(&H->Gate);--H->Info.Connections;H->Info.BufferBytes-=Bytes;++H->Info.Rejected;xrtMutexUnlock(&H->Gate);xrpcHsDrop(H);return false;}
+    if(!P){xrtMutexLock(&H->Gate);--H->Info.Connections;H->Info.BufferBytes-=Bytes;++H->Info.Rejected;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(H->Secure){--H->Secure->Info.ActiveHandshakes;++H->Secure->Info.Failed;}
+#endif
+        xrtMutexUnlock(&H->Gate);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(H->Secure && H->Secure->Config.HandshakeError){xerror* Cause=xrtTakeError();H->Secure->Config.HandshakeError(XNET_RESULT_ERROR,Cause,H->Secure->Config.Context);xrtSetErrorTake(Cause);}
+#endif
+        xrpcHsDrop(H);return false;}
     xrtAtomic32Init(&P->References,1);xrtAtomic32Init(&P->Posted,0);P->Server=H;P->FixedBytes=Fixed;P->InputCapacity=H->Config.InitialInputBytes;
     P->Fields=(xhttpfield*)(P+1);P->Trailers=P->Fields+H->Config.Head.MaxFields;P->Input=xrtMalloc(P->InputCapacity);
-    P->Shard=&H->Shards[xrtNetWorkerIndex(xrtNetStreamWorker(Stream))];P->Version=XHTTP_VERSION_1_1;P->Entered=xrtTimer();
-    if(!P->Input || !xrtNetPostInit(&P->Post)){xrtMutexLock(&H->Gate);++H->Info.Rejected;xrtMutexUnlock(&H->Gate);xrpcHsPeerDrop(P);return false;}
-    xrpcHsPeerRef(P);if(!xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcHsEvents)){xrtMutexLock(&H->Gate);++H->Info.Rejected;xrtMutexUnlock(&H->Gate);xrpcHsPeerDrop(P);xrpcHsPeerDrop(P);return false;}
-    P->Stream=Stream;P->Next=P->Shard->Peers;if(P->Next)P->Next->Previous=P;P->Shard->Peers=P;P->Linked=true;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(H->Secure){P->Secure=(xrpchssecurepeer*)((bytes)P+Fixed-sizeof(xrpchssecurepeer));P->Secure->Handshaking=true;}
+#endif
+    P->Shard=&H->Shards[xrtNetWorkerIndex(xrtNetStreamWorker(Stream))];P->Version=XHTTP_VERSION_1_1;P->Entered=Entered;
+    if(!P->Input || !xrtNetPostInit(&P->Post)){
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(P->Secure){xerror* Cause=xrtTakeError();xrpcHsTlsHandshakeEnd(P,false,XNET_RESULT_ERROR,Cause);xrtSetErrorTake(Cause);}
+#endif
+        xrtMutexLock(&H->Gate);++H->Info.Rejected;xrtMutexUnlock(&H->Gate);xrpcHsPeerDrop(P);return false;}
+    xrpcHsPeerRef(P);bool Installed;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(P->Secure)Installed=xrtTlsStreamAcceptOwnedV1(Stream,&H->Secure->Config.Session,&H->Secure->Config.Stream,P,&xrpcHsTlsEvents,&P->Secure->Stream);
+    else
+#endif
+    {Installed=xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcHsEvents);if(Installed)P->Stream=Stream;}
+    if(!Installed){
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+        if(P->Secure){xerror* Cause=xrtTakeError();xrpcHsTlsHandshakeEnd(P,false,XNET_RESULT_ERROR,Cause);xrtSetErrorTake(Cause);}
+#endif
+        xrtMutexLock(&H->Gate);++H->Info.Rejected;xrtMutexUnlock(&H->Gate);xrpcHsPeerDrop(P);xrpcHsPeerDrop(P);return false;}
+    P->Next=P->Shard->Peers;if(P->Next)P->Next->Previous=P;P->Shard->Peers=P;P->Linked=true;
     xrtMutexLock(&H->Gate);++H->Info.Accepted;xrtMutexUnlock(&H->Gate);
     if(!xrpcHsTimerArm(P))P->Aborting=true;
     xrpcHsPeerWake(P);return true;
@@ -404,39 +583,56 @@ XRPC_API bool xrpcHttpServerConfigInit(xrpchttpserverconfig* C)
     C->MaxConnections=1024;C->MaxOperations=256;C->MaxBufferBytes=16u*1024u*1024u;C->MaxQueuedBytes=8u*1024u*1024u;C->MaxRequestWireBytes=2u*1024u*1024u;
     C->InitialInputBytes=4096;C->ReadBytes=C->WriteBytes=64u*1024u;C->WriteChunkBytes=16u*1024u;C->IdleTimeout=C->RequestTimeout=30000;return true;
 }
-XRPC_API bool xrpcHttpServerCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchttpserver** Result)
+static bool xrpcHsCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchssecure* Secure,xrpchttpserver** Result)
 {
     if(!Engine || !Result || !xrtMemRangeValid(Result,sizeof(*Result)) || (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Result,sizeof(*Result)))))goto Argument;
     xrpchttpserverconfig C;if(Config)C=*Config;else xrpcHttpServerConfigInit(&C);
+    size_t PeerExtra=0,SourceBytes=0;
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    if(Secure){PeerExtra=sizeof(xrpchssecurepeer);SourceBytes=Secure->Bytes;}
+#endif
     if(C.Size!=sizeof(C) || !xrtMemRangeValid(C.Path.Data,C.Path.Size) || xrtMemRangesOverlap(C.Path.Data,C.Path.Size,Result,sizeof(*Result)) || !C.Path.Size || C.Path.Data[0]!='/' ||
         !C.MaxConnections || C.MaxConnections>1000000u || !C.MaxOperations || C.MaxOperations>1000000u || !C.MaxBufferBytes || C.MaxQueuedBytes<25u || !C.MaxRequestWireBytes ||
         !C.InitialInputBytes || !C.ReadBytes || !C.WriteBytes || !C.WriteChunkBytes || (C.IdleTimeout<=0 && C.IdleTimeout!=XRT_WAIT_FOREVER) || (C.RequestTimeout<=0 && C.RequestTimeout!=XRT_WAIT_FOREVER) ||
         !C.Head.MaxHead || !C.Head.MaxFields || !C.Head.MaxStartLine || !C.Head.MaxFieldLine || !C.Body.MaxBody || C.Body.MaxBody>SIZE_MAX || !C.Body.MaxTrailer || !C.Body.MaxTrailers || !C.Body.MaxChunkLine || !C.Body.MaxTrailerLine ||
-        C.Head.MaxFields>(SIZE_MAX-sizeof(xrpchspeer))/sizeof(xhttpfield) || C.Body.MaxTrailers>(SIZE_MAX-sizeof(xrpchspeer))/sizeof(xhttpfield)-C.Head.MaxFields ||
+        C.Head.MaxFields>(SIZE_MAX-sizeof(xrpchspeer)-PeerExtra)/sizeof(xhttpfield) || C.Body.MaxTrailers>(SIZE_MAX-sizeof(xrpchspeer)-PeerExtra)/sizeof(xhttpfield)-C.Head.MaxFields ||
         (C.Listen.Address.Family!=XNET_FAMILY_IPV4 && C.Listen.Address.Family!=XNET_FAMILY_IPV6) || C.Listen.Stream.WriteLimit<25u || !xrtNetStreamConfigValid(&C.Listen.Stream))goto Argument;
     xhttptarget Route;if(!xrtHttpTargetParse(XRT_STR_LITERAL("POST"),C.Path,&Route) || Route.Form!=XHTTP_TARGET_ORIGIN || (Route.Flags&XHTTP_TARGET_HAS_QUERY))goto Argument;
     size_t Limit=C.Head.MaxHead;if(Limit<C.Body.MaxTrailer)Limit=C.Body.MaxTrailer;if(Limit<C.Body.MaxChunkLine)Limit=C.Body.MaxChunkLine;
     if(Limit>SIZE_MAX-C.ReadBytes)goto Argument;
     Limit+=C.ReadBytes;if(C.InitialInputBytes>Limit)C.InitialInputBytes=Limit;
-    size_t Fixed=sizeof(xrpchspeer)+(C.Head.MaxFields+C.Body.MaxTrailers)*sizeof(xhttpfield);if(Fixed>SIZE_MAX-C.InitialInputBytes)goto Argument;
+    size_t Fixed=sizeof(xrpchspeer)+PeerExtra+(C.Head.MaxFields+C.Body.MaxTrailers)*sizeof(xhttpfield);if(Fixed>SIZE_MAX-C.InitialInputBytes)goto Argument;
     uint32 Workers=xrtNetEngineWorkerCount(Engine);size_t Base=sizeof(xrpchttpserver);
     if(!Workers || Workers>65536u || Workers>(SIZE_MAX-Base)/sizeof(xrpchsshard))goto Argument;
     Base+=(size_t)Workers*sizeof(xrpchsshard);
     if(C.Path.Size>SIZE_MAX-Base || Base+C.Path.Size>C.MaxBufferBytes)goto Argument;
     Base+=C.Path.Size;
+    if(SourceBytes>C.MaxBufferBytes-Base)goto Argument;
     if(!xrtNetEnginePin(Engine))return false;
     xrpchttpserver* H=xrtCalloc(1,Base);if(!H){xrtNetEngineUnpin(Engine);return false;}
     H->Engine=Engine;H->Config=C;H->OwnedBytes=Base;H->InputLimit=Limit;H->ShardCount=Workers;xrtAtomic32Init(&H->References,1);
     H->Config.Path=(xstrview){(cstr)(H->Shards+Workers),C.Path.Size};memcpy((ptr)H->Config.Path.Data,C.Path.Data,C.Path.Size);
     if(!xrtMutexInit(&H->Gate)){xrtFree(H);xrtNetEngineUnpin(Engine);return false;}
     if(!xrtCondInit(&H->Idle)){xrtMutexUnit(&H->Gate);xrtFree(H);xrtNetEngineUnpin(Engine);return false;}
-    H->Info.Size=sizeof(H->Info);H->Info.BufferBytes=Base;
+    H->Info.Size=sizeof(H->Info);H->Info.BufferBytes=Base+SourceBytes;
     for(size_t K=0;K<Workers;++K){H->Shards[K].Server=H;H->Shards[K].Worker=xrtNetEngineWorker(Engine,(uint32)K);xrtAtomic32Init(&H->Shards[K].Posted,0);xrtNetPostInit(&H->Shards[K].Post);}
     if(!xrpcServerCreate(&C.Execution,&H->Execution)){xerror* E=xrtTakeError();xrtCondUnit(&H->Idle);xrtMutexUnit(&H->Gate);xrtFree(H);xrtNetEngineUnpin(Engine);xrtClearError();xrtSetErrorTake(E);return false;}
-    *Result=H;return true;
+    H->Secure=Secure;*Result=H;return true;
 Argument:
     return xrpcHsReport(XERR_ARGUMENT,XRPC_HTTP_SERVER_ARGUMENT,"invalid HTTP server config/span/limit");
 }
+XRPC_API bool xrpcHttpServerCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchttpserver** Result)
+{return xrpcHsCreate(Engine,Config,NULL,Result);}
+bool xrpcHttpServerCreateSecure(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchssecure* Secure,xrpchttpserver** Result)
+{return xrpcHsCreate(Engine,Config,Secure,Result);}
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+XRPC_API bool xrpcHttpServerTlsInfo(xrpchttpserver* H,xrpchttpservertlsinfo* Info)
+{
+    if(!H || !H->Secure || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) ||
+        xrtMemRangesOverlap(Info,sizeof(*Info),H,H->OwnedBytes))return xrpcHsReport(XERR_ARGUMENT,XRPC_HTTP_SERVER_ARGUMENT,"invalid TLS server info output");
+    xrtMutexLock(&H->Gate);*Info=H->Secure->Info;xrtMutexUnlock(&H->Gate);return true;
+}
+#endif
 XRPC_API bool xrpcHttpServerStart(xrpchttpserver* H)
 {
     if(!H)return xrpcHsReport(XERR_ARGUMENT,XRPC_HTTP_SERVER_ARGUMENT,"HTTP server is NULL");
@@ -481,6 +677,10 @@ XRPC_API bool xrpcHttpServerDestroy(xrpchttpserver* H)
 {
     if(!H)return true;
     if(xrpcHttpServerWaitFor(H,XRT_WAIT_FOREVER)!=XWAIT_OK || !xrpcServerDestroy(H->Execution))return false;
-    xrtNetListenerDestroy(H->Listener);xrtNetEngineUnpin(H->Engine);xrtCondUnit(&H->Idle);xrtMutexUnit(&H->Gate);xrtFree(H);return true;
+    xrtNetListenerDestroy(H->Listener);
+#if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
+    xrpcHsSecureDrop(H->Secure);
+#endif
+    xrtNetEngineUnpin(H->Engine);xrtCondUnit(&H->Idle);xrtMutexUnit(&H->Gate);xrtFree(H);return true;
 }
 #endif

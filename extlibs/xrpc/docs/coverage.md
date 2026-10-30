@@ -1,5 +1,27 @@
 # Envelope and synchronous dispatch contracts
 
+The optional HTTP TLS server now shares the bounded HTTP/execution machinery.
+Its [dedicated contract and runnable example](http_server_tls.md) cover these
+additional local verification cases; product maturity remains developing:
+
+| TLS server contract | Verification |
+| --- | --- |
+| Explicit encrypted transport | Actual native TLS stream, call/notification/mixed batch, no cleartext fallback or request replay |
+| Snapshot lifetime | Reused ALPN/config storage, released caller identity/context references before Start, retained client results after complete server/engine teardown |
+| Pre-session admission | Held raw TCP connections reach handshake/connection caps; rejection precedes native session construction |
+| Deadlines and errors | Stalled and plaintext handshakes, trust/required-ALPN failure, idle and incomplete-header deadlines; error callback inspects/closes and rejects self-wait/destroy |
+| Bounded output | Multiple peers with 128-byte shared record credit; 32-byte credit splits the interim 100 response; exact large reply bytes and zero retired credit |
+| HTTP binding | HTTPS absolute target, cleartext scheme rejection, fragmented/chunked/trailer/pipelined requests and connection close |
+| Physical ownership | Noncooperative business handler preserves Wait timeout; Close/Wait observes peer/session/callback owners, separate executor and engine join |
+| Allocation failure | Constructor and actual accepting-worker quotas span rejection/success; full teardown leaves zero charged bytes/count; threshold coverage is not exhaustive site coverage |
+| Wakeup regression | Real predecessor/current server source, real credit return at gate release; old waiter misses the kick and atomic registration receives it |
+
+TLS session tickets/SNI use native policy callbacks with borrowed application
+context. Managed ticket rotation, mutual client authentication, HTTP credentials,
+native Linux production qualification and the full performance/fault/72-hour
+matrix remain pending. Local protocol and lifetime evidence does not satisfy
+those release gates.
+
 These leaves implement JSON-RPC 2.0 document/envelope decoding, encoding and
 synchronous request dispatch and serialized pending-call admission/removal on public XRT APIs. The [full product scope](../../../docs/development/service-extensions-plan.md)
 remains in force; no async runtime/transport completion is implied.

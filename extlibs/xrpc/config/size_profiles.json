@@ -97,6 +97,12 @@
       "system": "http_tls",
       "suite": "xrpc_http_tls",
       "description": "Verified HTTP TLS client and actual Core TLS/cipher/dial closure"
+    },
+    {
+      "name": "xrpc_http_server_tls",
+      "system": "http_server_tls",
+      "suite": "xrpc_http_server_tls",
+      "description": "Production HTTP TLS server/executor and actual Core identity/cipher dependency closure"
     }
   ]
 }
