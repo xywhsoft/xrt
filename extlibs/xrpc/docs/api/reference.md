@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `44` 个函数、`107` 个常量或宏、
-`49` 个公共类型。
+当前登记 `52` 个函数、`121` 个常量或宏、
+`55` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -150,6 +150,49 @@
 - `XRPC_BUILD_SHARED`
 - `XRPC_USE_SHARED`
 
+## `extlibs/xrpc/include/xrpc/http_client.h`
+
+[查看带契约注释的公共头](../../include/xrpc/http_client.h)
+
+### 函数 (8)
+
+- `xrpcHttpCallAsync`
+- `xrpcHttpClose`
+- `xrpcHttpClosed`
+- `xrpcHttpConfigInit`
+- `xrpcHttpConnect`
+- `xrpcHttpInfo`
+- `xrpcHttpRelease`
+- `xrpcHttpRetain`
+
+### 常量与宏 (15)
+
+- `XRPC_ADMISSION_ACCEPTED`
+- `XRPC_ADMISSION_CLOSED`
+- `XRPC_ADMISSION_ERROR`
+- `XRPC_ADMISSION_OVERLOADED`
+- `XRPC_FEATURE_XRPC_HTTP_CLIENT`
+- `XRPC_FEATURE_XRPC_ID`
+- `XRPC_HTTP_ALLOCATION`
+- `XRPC_HTTP_ARGUMENT`
+- `XRPC_HTTP_CLOSED`
+- `XRPC_HTTP_CLOSING`
+- `XRPC_HTTP_CONNECTING`
+- `XRPC_HTTP_ID_EXHAUSTED`
+- `XRPC_HTTP_OPEN`
+- `XRPC_HTTP_RESPONSE`
+- `XRPC_HTTP_STATE`
+
+### 类型 (7)
+
+- `xrpcadmission`
+- `xrpchttpclient`
+- `xrpchttpconfig`
+- `xrpchttperror`
+- `xrpchttpinfo`
+- `xrpchttpstate`
+- `xrpcresponseconfig`
+
 ## `extlibs/xrpc/include/xrpc/id.h`
 
 [查看带契约注释的公共头](../../include/xrpc/id.h)
@@ -160,9 +203,8 @@
 - `xrpcIdKeySize`
 - `xrpcIdKeyWrite`
 
-### 常量与宏 (5)
+### 常量与宏 (4)
 
-- `XRPC_FEATURE_XRPC_ID`
 - `XRPC_ID_ARGUMENT`
 - `XRPC_ID_CAPACITY`
 - `XRPC_ID_LIMIT`
@@ -266,11 +308,10 @@
 - `XRPC_RECEIVE_ARGUMENT`
 - `XRPC_RECEIVE_CAPACITY`
 
-### 类型 (4)
+### 类型 (3)
 
 - `xrpcreceiveerror`
 - `xrpcreceiveinfo`
-- `xrpcresponseconfig`
 - `xrpcresponsestatus`
 
 ## `extlibs/xrpc/include/xrpc/response.h`

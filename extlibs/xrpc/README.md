@@ -3,8 +3,9 @@
 Independent pure-C JSON-RPC 2.0 client/server extension using public XRT APIs.
 **Bounded envelope decoding/encoding, synchronous dispatch, immutable method
 indexing, exact ID comparison keys, bounded pending calls, immutable response
-snapshots, complete response-batch correlation and native typed call Futures are implemented.**
-Async client/server runtime, bidirectional transport, HTTP/WebSocket/framed stdio,
+snapshots, complete response-batch correlation, native typed call Futures and a
+bounded ordinary HTTP/TCP call client are implemented.**
+Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
@@ -28,7 +29,8 @@ scientific numbers and embedded-NUL string escapes. Missing id identifies a
 valid notification; explicit null remains a call. Error codes accept integral
 numeric values without native rounding. The optional ID key leaf supplies exact
 semantic comparison; the pending-call leaf adds serialized admission/removal.
-The asynchronous connection runtime and executor remain pending.
+The first ordinary HTTP/TCP call runtime is described below; other transports
+and executor/server integration remain pending.
 
 Nonempty batches retain one descriptor per input item, including invalid ones.
 An empty batch yields one invalid descriptor with Batch=false for a single
@@ -165,3 +167,12 @@ python tools/test_xrpc_call_lifetime.py --sanitize --output out/service-extensio
 This operation component creates no timer/thread/queue/connection. HTTP exchange
 and XRT Future primitives are available; the network client/server integration,
 executor, aggregate quotas and transport acceptance remain pending.
+
+Select `XRPC_MODULE_XRPC_HTTP_CLIENT` for the [ordinary HTTP/TCP client](docs/http_client.md)
+and its [offline loopback example](examples/http_client/main.c). It uses a running
+XRT engine, bounded cross-thread submissions, fresh string IDs, monotonic deadlines
+and typed call Futures. One persistent numeric plain-TCP connection runs one
+HTTP exchange at a time. Notifications/batches, DNS/TLS, HTTP metadata policy,
+other transports and the server remain pending. The separate fixed-arrival
+benchmark records every offer, refusal and observed queue-inclusive completion;
+local fixture measurements do not establish production performance.

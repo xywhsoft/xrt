@@ -121,3 +121,18 @@ runtime work. No end-to-end performance or final production acceptance follows.
 Async operation lifetime is locally testable without sockets. This does not prove
 HTTP/WebSocket/stdio transport, physical network close, executor behavior, aggregate
 retained-result quotas or end-to-end production/performance acceptance.
+
+
+| Ordinary HTTP/TCP call contract | Verification |
+| --- | --- |
+| Real runtime | IOCP/epoll loopback, fixed worker affinity, persistent queued calls, copied caller params and retained results after engine cleanup |
+| Framing/correlation | Fragmented reads, fixed/chunked/EOF bodies, informational responses/trailers, matching IDs, remote errors on HTTP 500, invalid ID/framing/truncation/encoding |
+| Limits/admission | Count/byte overload preserves output/error, HTTP head/body/trailer and JSON/owned-snapshot caps, invalid nested configuration and output/client alias |
+| Deadline/cancellation | Immediate unsent timeout, queued cancellation, sent cancel/timeout retires connection without replay or sending cancelled queued work |
+| Ownership/concurrency | Four concurrent submission threads, completion-close/release reentry, request/timer/captured-post accounting and engine join |
+| Allocation failure | 4096 request-construction quota prefixes, separate factory quota thresholds, success/failure publication and zero live budget bytes after cleanup |
+
+This is the initial ordinary call slice. Notification/batch networking, TLS/DNS,
+other transports/server, aggregate retained-result admission, independent peers
+and final pinned/native/long-run acceptance remain pending. Closed excludes the
+publishing stack's mechanical reference tail; engine join retires that stack.

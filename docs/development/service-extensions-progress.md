@@ -24,8 +24,10 @@ Target and rules: [development contract](service-extensions-plan.md).
   a locally verified raw Scan API. RPC envelope decoding/encoding, synchronous
   request dispatch, immutable method indexing, exact ID comparison keys and bounded
   pending-call admission/removal, immutable owned responses and complete-document
-  response correlation and native call/Future lifetime are locally verified.
-  Bounded cross-thread admission, async scheduling and transports remain pending.
+  response correlation, native call/Future lifetime and the first ordinary
+  HTTP/TCP call client are locally verified. This client has bounded concurrent
+  submission, worker ownership and scheduled deadlines. Notification/batch
+  networking, TLS/DNS, other transports and server/executor integration remain pending.
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
@@ -74,7 +76,8 @@ Source: `1d4109aff9d52d0452742669e81caa8bef626922`.
 | xrpc | bounded serialized pending calls | locally verified | exact ID admission/removal, token ABA protection, deadline heap, shutdown drain, 100000-operation linear model, 50000 private invariants/exhaustion per platform, no steady table allocation and OOM/alias/publication coverage |
 | xrpc | immutable responses and complete-document correlation | locally verified | full validation and ID preflight before any removal, one owned copy/allocation, rebased lossless views, retained concurrent readers, batch matched/repeated/unknown outcomes, OOM/alias/capacity/lifetime coverage and independent packages |
 | xrpc | native typed call/Future lifetime | locally verified | independent result/context lifetime, delivery knowledge, cooperative cancellation/deadlines, nonblocking captured-cancel retirement, completion reentry, 4096 OOM prefixes, checked reference overflow and shuffled-batch Future integration |
-| xrpc | async client/server, transport response pump | pending | no claim |
+| xrpc | first ordinary HTTP/TCP call runtime | locally verified | real persistent IOCP/epoll connection, bounded concurrent submission, copied input, fresh exact IDs, HTTP framing, deadlines/cancel retirement, quotas/OOM/reentry and qualified TSan; detailed P3 entry below |
+| xrpc | remaining client/server and transports | pending | notifications/batches over network, DNS/TLS, pooling/pipelining, WebSocket/stdio, server/executors and negotiated extensions remain |
 | xmqtt | bounded wire framing and string/binary primitives | locally verified | Windows O2 modular/single and Ubuntu/WSL O2 ASan+UBSan modular/direct-single; all Unicode scalars, exhaustive two-byte UTF-8/VBI prefixes, full flag matrix, fragmentation/coalescing, limits/atomicity/zero-heap/OOM; real examples/trim/static/shared consumers |
 | xmqtt | bounded MQTT 5.0 property-section codec | locally verified | all 27 ids / 7 types, scope/direction/repetition/range/auth/UTF-8 rules, typed error classes independent of diagnostic OOM; Windows/WSL modular/single/sanitizer, examples/trim/static/shared; 20,000 mutations, prefix/limit/atomicity/zero-heap tests |
 | xmqtt | shared packet descriptors/grammar and complete MQTT 5.0 packet codec | locally verified | all 15 types, 25 literal canonical fixtures, 4608 reason/sender cases, 256 CONNECT flags, 512 subscription options, packet boundary/borrowed-view checks, 30,000 mutations, limits/atomicity/zero-heap/OOM; Windows/WSL modular/single/sanitizer/examples/trim/static/shared |
@@ -2830,3 +2833,206 @@ Negotiated extensions, aggregate retained-result/storage budgets, independent
 peers, native pinned performance and at least 72-hour mixed/fault runs remain.
 The original Redis dedicated/HA/tracking, MQTT client/session/persistence and
 Cron time-zone/scheduler/recovery scope remains active. No product is complete.
+
+
+## P3 xrpc first ordinary HTTP/TCP call runtime
+
+`xrpc_http_client` adds an actual asynchronous network call path on a running
+public XRT engine. One worker owns one persistent numeric plain-TCP connection;
+concurrent callers submit copied ordinary method calls through bounded admission.
+One HTTP exchange is active at a time. Public Core HTTP/1 writer/head/body parsers
+provide framing; no shared runtime or new Core API is introduced. Eight public
+APIs expose config/connect, retain/release, async call, info, close and closed
+observer. The product remains developing. Notification/batch networking, DNS/TLS,
+pooling/pipelining, per-call HTTP metadata, other transports and server/executors
+remain under the original final scope rather than being declared complete here.
+
+The endpoint, HTTP authority/target and config are copied at Connect. Call input
+is validated/encoded on the submitting thread and copied into one owned HTTP/JSON
+wire block. Caller views can be reused on return. Calls get never-reused decimal-
+string IDs; refused construction can leave gaps and 64-bit serial exhaustion
+refuses further calls. A complete single response must have an equivalent string
+ID, including escaped spellings. HTTP response order is not used to waive this
+check. A valid matching RPC error on HTTP 500 remains a remote RPC error. No
+implicit status-to-RPC-error mapping, redirect, authentication or replay occurs.
+
+The deadline begins at CallAsync entry, including gate/admission, encoding,
+worker queue, connect and reply. A product-private constructor passes the exact
+monotonic origin into existing call logic; the public call ABI is unchanged.
+The private entry can add a compiler-dependent call/tail-call rather than a
+quantized timeout workaround; current lifecycle workloads are remeasured.
+Queued timeout/cancel removes unsent work. After TCP accepts any bytes, a local
+stop resolves the call with MAY_HAVE_EXECUTED and retires this connection; other
+queued work closes without replay. A valid reply is REPLIED. Explicit causes
+remain separate from ambient diagnostics, and payload Futures outlive client and
+engine cleanup without retaining them.
+
+Each accepted queue entry, timer, cancellation post and captured call-context
+reference has an actual lifetime owner. Fixed-work/read-byte turns bound queue
+scans and wire reads; complete JSON validation/copy still runs on the owner and
+is separately bounded by response/JSON byte limits. Count admission includes concurrent construction and physical request
+retirement, while byte admission includes each owned encoded wire until its last
+request reference drops. Core stream read/write budgets are separate. Limits
+also cover HTTP heads/fields, body/chunk/trailer sizes, informational count,
+JSON decode/owned snapshot and aggregate response wire bytes. The wire cap counts
+headers and chunk framing/extensions independently of decoded body size, avoiding
+unbounded wire amplification within an otherwise small body limit.
+
+Close retires transport and all request construction/timer/post/captured-context
+duties before its observer completes. Its publishing stack still has a mechanical
+client-reference tail; engine join is required before checking the final allocation
+baseline. Completion Watches can close/release the user client reference without
+invalidating the publishing worker/request. No business code runs under the
+submission gate. I/O-worker Watches must not block. Native opaque contexts are
+not collector admission. Aggregate caller-retained-result quotas remain pending.
+
+The deterministic C loopback fixture is separate from implementation sources. It
+checks actual POST/target/framing and emits literal fixed, chunked, informational,
+trailer, malformed, truncated and close-delimited responses. This is useful local
+protocol/runtime coverage, not independent peer interoperability. Tests cover:
+
+- 64 queued calls with overwritten caller input and exact per-call result routing;
+  retained results remain readable after all client/peer/engine cleanup.
+- Fragmented three-byte read turns; chunk data split into single-byte chunks;
+  100 Continue, trailers, matching IDs, remote error at HTTP 500 and EOF framing.
+- Wrong IDs, conflicting TE/CL, truncation, duplicate unsupported content encoding,
+  response body/head/trailer/JSON/snapshot/total-wire limits and typed retirement.
+- Immediate unsent timeout, queued cancellation, sent timeout/cancel and absence
+  of replay or transmission of cancelled queued calls.
+- Count/byte refusal with unchanged output and ambient diagnostic; invalid nested
+  configuration, malformed local Params and output/client aliases.
+- 4096 request-construction quota prefixes, both admission successes and allocation
+  failures, success-only publication and zero live budget bytes after retirement.
+  Separate factory quota thresholds cover failure and successful close/join.
+- Four submitting threads produce 128 independently checked calls. Completion-
+  Watch close/release reentry and exact accepted/completed/retired accounting pass.
+
+A separate O1 WSL TSan run passes the HTTP client unit. The existing GCC
+atomic_thread_fence modeling warning remains retained; this is qualified evidence,
+not complete race freedom or native Linux acceptance. The independent call
+payload/activation overflow and ABI probe is retained for the constructor refactor.
+
+Development iterations are preserved separately. The first peer crash was a
+fixture event-context installation error, diagnosed in Windows GDB and WSL
+Sanitizer output; accepted streams now explicitly bind their event context.
+A later wire-limit test correctly made the client abort while the peer was still
+sending. The fixture now accepts its resulting terminal send status; healthy-path
+result checks and negative-path typed limit checks remain required.
+
+A WSL example compile encountered ENOSPC on /mnt/c, while Linux / and /tmp were
+available. Native NTFS compression of this task's out/ preserved all content and
+paths: 23432 files/675 directories, 2501568811 logical bytes stored in 1100403844
+bytes (2.3:1). No evidence or sources were deleted. Final checks rerun after this
+space recovery. Performance artifacts use logical file sizes; compression is an
+additional environment qualification, not a pinned performance acceptance.
+
+Raw frozen-source/compiler/binary receipts and development logs are under
+`out/service-extensions/xrpc-http-client/`. Before shared outputs were overwritten,
+270 preceding call-stage artifacts, including actual allocation-probe objects,
+were copied and SHA-256 verified under `xrpc-call/before-http-client/` with an
+archive map. The earlier before-wire-limit snapshot and fixture iteration logs and transcribed
+environment-error excerpts remain distinct from final evidence. The original full
+ENOSPC/native-compiler allocation-error logs were overwritten by retries; excerpts
+are not presented as final validation evidence.
+
+
+Final functional verification uses Windows GCC 16.2.0 O2/Wall/Wextra/Werror and
+WSL GCC 15.2.0 O2 ASan/UBSan: ten modular and ten direct single programs per
+platform (40), all ten examples and trim pass. Complete xrpc and HTTP-client-only
+static/shared consumers pass on both platforms. The minimal manifest differs
+only in package_consumer, selecting the already-registered offline TCP example;
+its production closure does not pull in test statistics or other RPC runtime
+leaves. Declaration consumers compile Connect and CallAsync independently.
+
+A separate executable linked to each actual packaged host Core library creates,
+starts, queries, stops and destroys an engine: Windows reports iocp, WSL epoll.
+Commands, compiler/library/source/binary hashes and results are retained.
+Generated API/features/singles and normal maturity pass: 52 functions, 121
+constants, 55 types; 16 modules, 11 covered implementation nodes, 22 workloads,
+10 size profiles and developing=1. Strict release remains rejected without
+an override. WSL is development evidence, not native Linux acceptance.
+
+Measured x64 layout: Windows client 816 bytes, WSL client 888; request 176,
+public config 288, info 64, Core head 112 and body reader 120 on both platforms.
+Private client size differs with native synchronization storage; public layouts
+stay stable for the selected ABI. Extension request/call/result structures alone
+request 176+88+32=296 bytes before wire and Core Future/cancel/timer/buffer costs.
+Default receive scratch reserves 128 KiB per client, plus two 100-field arrays,
+copied Host/Target, lazy payload growth, request metadata/wire and Core storage.
+This is a reported cost, not high-connection-count memory acceptance. Complete
+JSON validation/copy still runs on the I/O owner within body/JSON caps; larger
+payload tail latency and worker-fault/OOM injection remain further acceptance work.
+
+HTTP-client closure size is text/data/bss/logical-file bytes without stripping:
+
+| Platform | Complete-closure single object | Product-only static | Product-only shared |
+| --- | --- | --- | --- |
+| Windows x64 | 590652 / 2672 / 11136 / 857270 | 39732 / 0 / 0 / 62718 | 80789 / 224 / 2848 / 138455 |
+| WSL x64 | 611713 / 5664 / 10940 / 1086112 | 40210 / 128 / 0 / 82970 | 50959 / 1464 / 8 / 67680 |
+
+The single object includes the Core closure; separate product artifacts exclude
+host XRT. Those are not comparable deployment totals or physical NTFS block usage.
+Requests explicitly advertise Accept-Encoding: identity. RFC 9110 section 12.5.3
+allows any coding when that field is absent, so omission would not correctly
+advertise this initial client's capability. The peer asserts this header, and
+unsupported/duplicate response content codings remain rejected. Final tests,
+packages and measurements use this policy; earlier pre-policy receipts are
+historical development snapshots.
+
+
+Performance is measured separately at one warmup plus five runs per workload.
+The three call-only lifecycle modes each complete 200000 cycles and a separate
+10000-sample latency phase. They remeasure the private-origin refactor without
+queue, timer scheduling or network work. The HTTP profile offers 2000 requests
+at fixed 2000/s absolute timestamps, retaining every offer/refusal/outcome and
+measuring observed latency from planned arrival, including generator lateness
+and Future polling. It is an offered-load observation, not a peak capacity test.
+In every HTTP sample on both platforms: offered=accepted=completed=latency
+samples=2000, rejected=failed=0. Final close/join is outside timed arrivals.
+
+| Platform | Lifecycle | Calls/s | P50 us | P99 us |
+| --- | --- | --- | --- | --- |
+| windows | reply | 1582688 | 0.700 | 1.000 |
+| windows | cancel | 1153707 | 0.900 | 1.200 |
+| windows | immediate timeout | 1496662 | 0.700 | 1.000 |
+| wsl | reply | 780385 | 1.200 | 1.700 |
+| wsl | cancel | 827679 | 0.900 | 1.900 |
+| wsl | immediate timeout | 1358821 | 0.700 | 1.200 |
+
+| Platform | Completed/s at 2000 offers/s | All-offer observed P50 us | All-offer observed P99 us | Offer-lateness P99 us |
+| --- | --- | --- | --- | --- |
+| windows | 1958.295 | 22772.800 | 30763.200 | 15652.900 |
+| wsl | 1997.566 | 1642.804 | 2185.117 | 1062.718 |
+
+The Windows report includes 15.653 ms P99 offer lateness, while WSL includes
+1.063 ms. These observations include the generator's Sleep/polling delays; they
+cannot be presented as the RPC service's own tail latency. A more precise pinned
+arrival/observation driver, larger payloads, saturation and high connection counts
+remain necessary. None of these observations freeze an absolute performance target.
+
+Windows has six failing metric/noise checks; WSL fourteen, under unchanged 3%
+relative MAD and 6% central-range limits. Both runners exit 1. All samples remain,
+no thresholds are relaxed and no generator/timing delay is subtracted. Counter
+comparisons correctly treat rejected/failed as lower-is-better. There is no stable
+regression baseline, equivalent external comparator, native Linux run or final
+performance/production acceptance. Prior noisy lifecycle medians are not used as
+a valid regression comparator.
+
+Matching source fingerprint: `02f956a2ee1e6e9709af6e9bc8db1f98b0f9b26bd1243db116538870c8cc15ae`.
+Workload fingerprint: `dfe5fc92d924b273f2b60449d3c359afa4ac0b75debbf499f0202dcf5efc63fa`.
+
+`validation.json` checks current frozen inputs, all 40 actual test binaries,
+private overflow/layout outputs, qualified TSan, complete/minimal consumers,
+backend executables and packaged Core identities, declaration/layout/size and
+four workload binaries/counts/fingerprints. The final receipt binds clean committed
+HEAD/tree. Compiler/command/binary hashes and raw samples stay in the ignored
+evidence directory; the feature assets and reproduction tools remain tracked.
+
+Next work retains the full P3/P4 scope: notification/batch networking and richer
+transport metadata, DNS/TLS/recovery/pooling, owned server requests and bounded
+executor dispatch, WebSocket/framed stdio and negotiated extensions. Worker OOM/
+fault injection, large payloads, high connection counts and retained-result quotas
+still require coverage. Independent peers, native pinned Windows/Linux performance
+and at least 72-hour mixed/fault runs remain unaccepted. Redis dedicated/HA/tracking,
+MQTT client/session/persistence and Cron time-zone/scheduler/recovery remain active.
+This commit completes neither xrpc nor the four-product objective.

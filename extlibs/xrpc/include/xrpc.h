@@ -34,4 +34,8 @@
 #error "XRPC_FEATURE_XRPC requires call"
 #endif
 #include <xrpc/call.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_HTTP_CLIENT)
+#error "XRPC_FEATURE_XRPC requires http_client"
+#endif
+#include <xrpc/http_client.h>
 #endif

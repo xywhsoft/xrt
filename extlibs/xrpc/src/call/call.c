@@ -1,4 +1,5 @@
 #include <xrpc/call.h>
+#include "../internal/xrpc_call_internal.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <math.h>
@@ -54,9 +55,8 @@ XRPC_API bool xrpcCallConfigInit(xrpccallconfig* Config)
 	if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"invalid RPC call config output");
 	*Config=(xrpccallconfig){sizeof(*Config),5000,NULL,NULL,NULL};return true;
 }
-XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
+bool xrpcCallCreateEntered(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future,double Began)
 {
-	double Began=xrtTimer();
 	if(!Call || !Future || !xrtMemRangeValid(Call,sizeof(*Call)) || !xrtMemRangeValid(Future,sizeof(*Future)) ||
 		xrtMemRangesOverlap(Call,sizeof(*Call),Future,sizeof(*Future)) || (Config &&
 		(!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Call,sizeof(*Call),Config,sizeof(*Config)) ||
@@ -80,6 +80,8 @@ XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfutur
 	}
 	C->ContextOwned=true;*Call=C;*Future=Observer;return true;
 }
+XRPC_API bool xrpcCallCreate(const xrpccallconfig* Config,xrpccall** Call,xfuture** Future)
+{return xrpcCallCreateEntered(Config,Call,Future,xrtTimer());}
 XRPC_API bool xrpcCallMarkSent(xrpccall* Call)
 {
 	if(!Call)return xrpcCallReport(XERR_ARGUMENT,XRPC_CALL_ARGUMENT,"RPC call is NULL");

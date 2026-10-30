@@ -34,6 +34,34 @@
 #ifndef XRPC_MODULE_XRPC_CALL
 #define XRPC_MODULE_XRPC_CALL
 #endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#endif
+
+/* xrpc_http_client 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_CLIENT)
+#ifndef XRPC_FEATURE_XRPC_HTTP_CLIENT
+#define XRPC_FEATURE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_HOST
+#define XRT_MODULE_HTTP_HOST
+#endif
 #endif
 
 /* xrpc_call 及其直接依赖。 */

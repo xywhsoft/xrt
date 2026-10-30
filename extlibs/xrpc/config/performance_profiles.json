@@ -878,6 +878,74 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_http_client",
+      "system": "http_client",
+      "description": "Fixed absolute arrivals through a local C HTTP/TCP peer, all offers/observed queue-inclusive outcomes; no production comparator",
+      "benchmarks": [
+        {
+          "name": "xrpc_http_client_arrivals",
+          "source": "extlibs/xrpc/bench/bench_http_client.c",
+          "suite": "xrpc_http_client",
+          "args": [
+            "2000",
+            "2000"
+          ],
+          "smoke_args": [
+            "100",
+            "1000"
+          ],
+          "metrics": {
+            "offered": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "accepted": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "rejected": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "failed": {
+              "direction": "lower",
+              "unit": "calls"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "calls"
+            },
+            "all_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "all_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "offer_lateness_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "completed_per_sec": {
+              "direction": "higher",
+              "unit": "calls/s"
+            }
+          },
+          "facts": [
+            "workload"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/http_peer.h"
+          ]
+        }
+      ]
     }
   ]
 }
