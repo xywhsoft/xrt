@@ -5,7 +5,7 @@ title: Проект 6 (финал книги): комплексный стати
 volume: 卷十三 实战项目 · 全书收官
 type: project
 lead: Безопасный вход TLS, отображение каталогов и защита от выхода из корня, условные запросы ETag и возобновление Range, согласование сжатия, журналы и graceful-остановка — слияние опыта шести проектов и общее стягивание карты знаний книги.
-api: xhttp-http_server, xhttp-http_server_static, xhttp-http_server_middleware
+api: xhttp-http_server, xhttp-server-http_server_static, xhttp-server-http_server_middleware
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

@@ -5,7 +5,7 @@ title: xws: Server Routing and Sessions
 volume: 卷十一 其他扩展库
 type: practice
 lead: One registration serving both plaintext and TLS on a fixed endpoint, Origin policy and the authorize callback, staged low-level upgrade APIs, and the coroutine session form — xws concludes.
-api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-http_server_router
+api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-server-http_server_router
 ---
 
 ## Orientation

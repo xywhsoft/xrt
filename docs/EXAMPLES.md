@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `414` 个可运行示例。
+当前共登记 `415` 个可运行示例。
 
 ## asn1 (5)
 
@@ -212,8 +212,9 @@
 - [file/walk](../examples/file/walk/main.c) - `file_walk`
 - [file/whole](../examples/file/whole/main.c) - `file_whole`
 
-## hash (4)
+## hash (5)
 
+- [hash/crc32](../examples/hash/crc32/main.c) - `crc32`
 - [hash/hash32](../examples/hash/hash32/main.c) - `hash32`
 - [hash/hash64](../examples/hash/hash64/main.c) - `hash64`
 - [hash/keyed](../examples/hash/keyed/main.c) - `hash_keyed`

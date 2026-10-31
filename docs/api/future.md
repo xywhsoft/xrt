@@ -5848,6 +5848,31 @@ const xrtownershipadapterv1* xrtFutureOwnershipAdapterV5(
     const xrtownershipfinishv1** ppCompletion);
 ```
 
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pAdmission` | 拥有图准入配置或检查回调，须显式识别允许的精确策略身份。 |
+| `ppCompletion` | 用于接收完成对象或任务组条目的输出指针。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/future/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+
 显式的 Clear 后退役协议，不在语言终结前关闭待决 Future 或触发
 观察者。查询在全图冻结中按真实策略指针白名单验证 payload、
 producer、直接及投影 Watch、取消观察者；未知和 legacy 注册仍
@@ -6556,3 +6581,82 @@ typedef struct xfuturewatchownershipv2 {
 | `size` | `size_t` | 描述符字节大小，必须与当前协议版本相符。 |
 | `Notify` | `xfuturewatchproc` | 通知入口，代码覆盖已接受注册的全部生存期。 |
 | `Release` | `xfuturewatchreleaseproc` | 释放上下文实际拥有引用的回调。 |
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xrtFutureCombineOwnershipAdapterV2`
+
+Post-Clear physical retirement, with no eager input completion, mapper or
+cancellation. Use Future V5, Watch V2 and Token V3 for the transitive graph.
+Clear suppresses new completion/map work and keeps every strong slot.
+Step first obtains a short exclusive freeze: an active/queued callback or
+a busy freeze yields BUSY with no owning-edge changes. Stable registrations
+are then detached; context and endpoint rights are dropped outside freeze.
+All physical plan pins outlive every duty, including dispatch tails. Map
+Data still needs independent semantic finalization/admission. This protocol
+does not replace the old preparation contract or authorize skipping an
+accepted language callback. Mandatory completion output is unchanged on
+refusal; unknown/legacy mapped policies remain unadmitted.
+
+公开声明与相关策略见 [future.h](../../include/xrt/future.h)。
+
+```c
+const xrtownershipadapterv1* xrtFutureCombineOwnershipAdapterV2(xrtownershipref Reference, const xfuturecombineownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershipfinishv1** ppCompletion);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppCompletion` | 用于接收完成对象或任务组条目的输出指针。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/future/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtFutureOwnershipQuiescenceV1Get`
+
+Same physical Future/Promise identity. Only native completion reservation
+and cancellation dispatch defer admission; unknown payloads stay refused.
+
+公开声明与相关策略见 [future.h](../../include/xrt/future.h)。
+
+```c
+const xrtownershipquiescencev1* xrtFutureOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/future/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

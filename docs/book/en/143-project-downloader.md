@@ -5,7 +5,7 @@ title: Project 4: An HTTPS Downloader
 volume: 卷十三 实战项目
 type: project
 lead: From a one-line GET to a deliverable downloader: resumable transfers (Range + ETag checks), streaming writes (memory decoupled from file size), atomic completion (temp file + rename) — xhttp and the file layers applied together.
-api: xhttp-http_client, xhttp-http_client_easy, file
+api: xhttp-http_client, xhttp-client-http_client_easy, file
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

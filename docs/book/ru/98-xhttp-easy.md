@@ -5,7 +5,7 @@ title: xhttp easy: полная сила однострочного запрос
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: За одной строкой GetSync нет второй реализации — как слой удобства прозрачно наследует тайм-ауты, кэш, TLS и цепочку ошибок среды выполнения.
-api: xhttp-http_client, xhttp-http_client_easy, net
+api: xhttp-http_client, xhttp-client-http_client_easy, net
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

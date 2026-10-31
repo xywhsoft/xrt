@@ -550,3 +550,380 @@ xrtExecutorDestroy(pExecutor);
 ```
 
 完整示例位于 `examples/concurrency/executor/main.c` 与 `examples/concurrency/executor_tour/main.c`。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xexecutordataownershipv1`
+
+```c
+typedef struct xexecutordataownershipv1 {
+	size_t size;
+	xexecutorproc Proc;
+	xexecutorfreeproc Drop;
+	const xrtownershipops* Ops;
+} xexecutordataownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Proc` | `xexecutorproc` | 工作过程回调。 |
+| `Drop` | `xexecutorfreeproc` | 释放当前拥有引用的回调。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xexecutorowneditemv1`
+
+```c
+typedef struct xexecutorowneditemv1 {
+	ptr Data;
+	const xexecutordataownershipv1* Policy;
+} xexecutorowneditemv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `Data` | `ptr` | 拥有型上下文或负载地址。 |
+| `Policy` | `const xexecutordataownershipv1*` | 与负载配对的精确策略描述符。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+
+
+### `xexecutorworkerexitownershipv1`
+
+```c
+typedef struct xexecutorworkerexitownershipv1 {
+	size_t size;
+	xexecutorproc Exit;
+	xexecutorfreeproc Drop;
+	const xrtownershipops* Ops;
+} xexecutorworkerexitownershipv1;
+```
+
+| 字段 | 类型 | 语义 |
+|---|---|---|
+| `size` | `size_t` | 策略结构的字节大小，用于版本与形状校验。 |
+| `Exit` | `xexecutorproc` | 工作线程退出阶段执行的回调。 |
+| `Drop` | `xexecutorfreeproc` | 释放当前拥有引用的回调。 |
+| `Ops` | `const xrtownershipops*` | 精确匹配的所有权计数和追踪操作表。 |
+
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。
+### `xrtExecutorCreateOwnedExitV1`
+
+Success consumes ONE Data reference. Failure consumes none and invokes no
+Exit/Drop, including partial native-thread creation rollback. Unlike plain
+Create, Close+drain stops these workers; Wait includes every Exit tail.
+Native queue statistics still count jobs only. Exit records semantic errors
+in its owned context; it cannot change physical completion into a lost
+native creator. NULL Data/policy are invalid; use plain Create without it.
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+xexecutor* xrtExecutorCreateOwnedExitV1(const xexecutorconfig* pConfig, ptr pData, const xexecutorworkerexitownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pConfig` | 当前操作的配置；合法字段和默认行为见相应配置类型。 |
+| `pData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorJobOwnershipAdapterV1`
+
+Match an admitted resident Data policy identity BEFORE following its fields.
+A pinned completed slot is not reused and keeps its containing allocation
+alive, even after Executor destruction. Outputs change only on success.
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+const xrtownershipadapterv1* xrtExecutorJobOwnershipAdapterV1(xrtownershipref Reference, const xexecutordataownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorJobOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+const xrtownershipquiescencev1* xrtExecutorJobOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorOwnership`
+
+Read under the entire graph's exclusive ownership freeze. Queued slots own
+their actual Data and one containing Executor reference. Active callbacks,
+cleanup tails and native entries refuse Count. Legacy opaque queued items
+refuse admission; worker/control allocations are uniquely contained, not
+fabricated reference-counted nodes. Preparation closes admission and drains
+original work, then joins at zero timeout outside freeze; it never cancels
+work to manufacture readiness. Clear requires physical join.
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+xrtownershipref xrtExecutorOwnership(const xexecutor* pExecutor);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pExecutor` | 执行器句柄；调用方须按相应生命周期契约保持目标有效。 |
+
+
+#### 返回值
+
+返回声明中的状态、身份或计数；枚举取值见本模块类型及稳定契约。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorOwnershipAdapterV1`
+
+验证物理所有权描述、精确策略身份和静止条件，成功时返回接管适配器及相应准备协议。
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+const xrtownershipadapterv1* xrtExecutorOwnershipAdapterV1(xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorOwnershipAdapterV2`
+
+V1 refuses a live owned exit context. V2 matches its exact registered policy
+identity BEFORE Count/Trace. Equal descriptor copies are not authority.
+Unknown/BUSY leaves output unchanged; plain executors are still admitted.
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+const xrtownershipadapterv1* xrtExecutorOwnershipAdapterV2(xrtownershipref Reference, const xexecutorworkerexitownershipv1* const* pPolicies, size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `Reference` | 借用的物理对象与精确 Count/Trace 操作表身份；不增加普通拥有引用。 |
+| `pPolicies` | 允许的精确策略指针数组，与相应的策略数量参数配对。 |
+| `iPolicyCount` | 对应输入数组的有效元素数量。 |
+| `ppPreparation` | 适配成功后返回的准备协议描述符；只有准入成功后才能使用。 |
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+空指针表示对象、精确策略或静止条件不满足；准入拒绝不等同于系统调用失败，不得对拒绝的对象继续执行接管协议。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorOwnershipQuiescenceV1Get`
+
+返回该原生对象或异步结果的常驻只读策略描述符，供精确身份匹配使用。
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+const xrtownershipquiescencev1* xrtExecutorOwnershipQuiescenceV1Get(void);
+```
+
+#### 参数
+
+无参数。
+
+
+#### 返回值
+
+返回声明类型的指针；借用/拥有规则及空指针含义遵循上述契约，取得有效结果后才能继续访问。
+
+
+#### 错误
+
+返回库内常驻只读策略，调用本身不分配动态内存。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorSubmitOwnedBatchV1`
+
+按拥有型条目批量提交工作；已受理和未受理条目的释放责任按批提交契约划分。
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+bool xrtExecutorSubmitOwnedBatchV1(xexecutor* pExecutor, const xexecutorowneditemv1* pItems, size_t iCount);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pExecutor` | 执行器句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pItems` | 工作条目、订阅分支或拥有型切片数组；与有效数量及接管规则配对。 |
+| `iCount` | 对应输入数组的有效元素数量。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+
+### `xrtExecutorSubmitOwnedV1`
+
+Same bounded, allocation-free admission as Submit/SubmitBatch. Batch is
+all-or-nothing; each item transfers a separate actual Data reference.
+
+公开声明与相关策略见 [executor.h](../../include/xrt/executor.h)。
+
+```c
+bool xrtExecutorSubmitOwnedV1(xexecutor* pExecutor, ptr pData, const xexecutordataownershipv1* pPolicy);
+```
+
+#### 参数
+
+| 参数 | 说明 |
+|---|---|
+| `pExecutor` | 执行器句柄；调用方须按相应生命周期契约保持目标有效。 |
+| `pData` | 交给操作或回调的用户上下文；接管点和失败时释放责任见当前接口的所有权契约。 |
+| `pPolicy` | 对象或操作要求的精确策略描述符，生命周期覆盖受理的上下文。 |
+
+
+#### 返回值
+
+| 返回 | 含义 | 状态约定 |
+|---|---|---|
+| `true` | 操作完成或满足声明中的条件 | 按上述契约使用结果 |
+| `false` | 操作拒绝或条件不成立 | 区分正常拒绝与实际错误 |
+
+
+#### 错误
+
+依照上述参数、状态和回调契约处理拒绝；需要错误详情时读取 `xrtGetError()`。条件查询与非等待接口的正常拒绝不得当作部分成功。
+
+
+#### 范例
+
+[同模块资源的基础组合示例](../../examples/concurrency/executor/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。

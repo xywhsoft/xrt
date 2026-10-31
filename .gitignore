@@ -1,5 +1,6 @@
 # 构建、打包和测试输出
 /build/
+/.build/
 /out/
 /release/
 /extlibs/*/build/

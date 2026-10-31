@@ -5,7 +5,7 @@ title: xws: серверная маршрутизация и сессии
 volume: 卷十一 其他扩展库
 type: practice
 lead: Одна регистрация, обслуживающая открытый текст и TLS на фиксированной конечной точке, политика Origin и обратный вызов авторизации, ступенчатый низкоуровневый Upgrade и форма сессии на корутинах — xws завершается.
-api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-http_server_router
+api: xws-server-websocket_server_router, xws-server-websocket_server, xhttp-server-http_server_router
 ---
 
 ## Ориентация

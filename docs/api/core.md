@@ -3326,3 +3326,19 @@ bool xrtAllocationBudgetLeave(xallocationscope* pScope);
 
 [内存分配示例](../../examples/core/memory/main.c) 展示额度内可调用的分配与释放入口。
 额度的完整作用域用法见 [共享分配额度](memory.md#共享分配额度)。
+
+## 原生对象与异步协议补充参考
+
+拥有图引用描述实际强引用边，不是额外 pin；适配器要求精确策略身份和静止条件，只在准入成功后使用准备、接管和释放协议。普通查询与非等待拒绝须按各接口契约区分。
+
+### `xrtownershipquiescencev1`
+
+```c
+typedef struct xrtownershipquiescencev1 {
+	size_t size;
+	const xrtownershipops* Ops;
+	bool (*Busy)(const void* pData);
+} xrtownershipquiescencev1;
+```
+
+字段、回调签名和版本布局如上；须与本模块相应操作的所有权、静止及精确策略身份契约配对。

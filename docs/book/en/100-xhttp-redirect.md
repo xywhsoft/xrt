@@ -5,7 +5,7 @@ title: xhttp Automatic Behaviors: Redirects, Retries, and Cookies
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Method rewrites for 301/302/303 and body replay for 307/308, idempotency-gated automatic retries, cross-origin credential stripping — the client's three automatic gears.
-api: xhttp-http_client, xhttp-http_retry, xhttp-cookie_jar
+api: xhttp-http_client, xhttp-http_retry, xhttp-policy-cookie_jar
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

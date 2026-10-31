@@ -5,7 +5,7 @@ title: Project 6 (The Book's Finale): A Comprehensive Static File Server
 volume: 卷十三 实战项目 · 全书收官
 type: project
 lead: A TLS security entrance, directory mapping with traversal protection, ETag conditional requests and Range resume, compression negotiation, logging and graceful shutdown — the fusion of six projects' lessons and the final gathering of the book's knowledge map.
-api: xhttp-http_server, xhttp-http_server_static, xhttp-http_server_middleware
+api: xhttp-http_server, xhttp-server-http_server_static, xhttp-server-http_server_middleware
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

@@ -5,7 +5,7 @@ title: 服务端收官：压缩、Range 与综合
 volume: 卷十 扩展库：xhttp · 卷十收官
 type: practice
 lead: 内容协商驱动的响应压缩、Range 组合、代理头族与卷十全景——服务端主题的收官与卷十一预告。
-api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
+api: xhttp-http_server, xhttp-server-http_compress, xhttp-policy-http_cache_range
 ---
 
 > 分层说明：字段和消息编解码属于 `xhttp`；网络调用属于 `xhttp-client`；监听、路由及文件服务属于 `xhttp-server`；CookieJar、缓存与重试/重定向决策属于 `xhttp-policy`。仅选择用到的模块。详见 [HTTP 分层与迁移](../../extlibs/xhttp/docs/design/http-layers.md)。

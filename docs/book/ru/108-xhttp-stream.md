@@ -5,7 +5,7 @@ title: Потоковые тела: загрузка, скачивание и а
 volume: 卷十 扩展库：xhttp
 type: practice
 lead: Пять источников xhttpbody и семантика переигрывания, потребление на лизингах у Reader, ограниченный поток-производитель и асинхронные файловые тела — память тела развязана с размером содержимого.
-api: xhttp-http_body, xhttp-http_body_stream, xhttp-http_body_file
+api: xhttp-http_body, xhttp-http_body_stream, xhttp-server-http_body_file
 ---
 
 > Разделение слоёв: `xhttp` — сообщения и кодеки полей; `xhttp-client` — сетевые вызовы; `xhttp-server` — слушатели, маршрутизация и файловые сервисы; `xhttp-policy` — CookieJar, кэш и решения о повторах/перенаправлениях. Выбирайте только нужные модули. См. [Слои HTTP и миграция](../../../extlibs/xhttp/docs/design/http-layers.md).

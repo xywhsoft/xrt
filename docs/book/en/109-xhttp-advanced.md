@@ -5,7 +5,7 @@ title: Server Wrap-Up: Compression, Range, and the Big Picture
 volume: 卷十 扩展库：xhttp · 卷十收官
 type: practice
 lead: Content-negotiation-driven response compression, Range composition, the proxy header family, and volume ten's full picture — closing the server topics and previewing volume eleven.
-api: xhttp-http_server, xhttp-http_compress, xhttp-http_cache_range
+api: xhttp-http_server, xhttp-server-http_compress, xhttp-policy-http_cache_range
 ---
 
 > Layer ownership: `xhttp` owns message and field codecs; `xhttp-client` owns network calls; `xhttp-server` owns listeners, routing and file services; `xhttp-policy` owns CookieJar, caches and retry/redirect decisions. Select only the modules you use. See [HTTP layers and migration](../../../extlibs/xhttp/docs/design/http-layers.md).

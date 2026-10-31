@@ -857,7 +857,7 @@ static xhttp1status __xrtHttp1Parse(
 	cstr sOperation
 )
 {
-	xhttp1limits Limits;
+	xhttp1limits Limits = {0};
 	xhttp1head Parsed;
 	xrt_http1_semantics Semantics;
 	size_t iHeadBytes = 0;

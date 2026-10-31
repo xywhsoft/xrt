@@ -10,7 +10,7 @@ struct Case {
     xnetengine* engine;
     xatomic32 jobs,jobGate,exits,exitGate,drops;
     bool blockJob,blockExit,reenter;
-    unsigned contextCounts,contextTraces,edges;
+    unsigned contextCounts,contextTraces,edges,poolEdges;
 };
 static void wait_count(xatomic32* value,uint32 expected)
 {
@@ -56,11 +56,21 @@ static const xnetengineworkerexitownershipv1 otherPolicy={sizeof(otherPolicy),co
 static Context* make_context(Case* test)
 {Context* data=xrtCalloc(1,sizeof(*data));assert(data);data->refs=1;data->test=test;return data;}
 static bool edge(xrtownershipref ref,ptr raw)
-{Case* test=raw;assert(ref.Ops==&contextOps);++test->edges;size_t count;assert(ref.Ops->Count(ref.Data,&count)&&count==1);return true;}
+{
+    Case* test=raw;size_t count;
+    assert(ref.Data&&ref.Ops&&ref.Ops->Count(ref.Data,&count)&&count>0);
+    if(ref.Ops==&contextOps){assert(count==1);++test->edges;return true;}
+    assert(ref.Ops==xrtNetBufPoolOwnershipQuiescenceV1Get()->Ops);
+    const xrtownershippreparationv1* preparation=NULL;
+    assert(xrtNetBufPoolOwnershipAdapterV1(ref,&preparation));
+    ++test->poolEdges;return true;
+}
 static bool admit(xrtownershipref ref,ptr raw)
 {
     (void)raw;const xnetengineworkerexitownershipv1* policies[]={&exitPolicy};
     const xrtownershippreparationv1* preparation=NULL;
+    if(ref.Ops==xrtNetBufPoolOwnershipQuiescenceV1Get()->Ops)
+        return xrtNetBufPoolOwnershipAdapterV1(ref,&preparation)!=NULL;
     return xrtNetEngineOwnershipAdapterV2(ref,NULL,0,NULL,0,policies,1,&preparation)||ref.Ops==&contextOps;
 }
 static void inspect(Case* test,const xrtownershipadapterv1** adapter,const xrtownershippreparationv1** prep)
@@ -81,7 +91,9 @@ static void inspect(Case* test,const xrtownershipadapterv1** adapter,const xrtow
     assert(!xrtNetEngineOwnershipAdapterV2(ref,NULL,0,NULL,0,wrong,1,&sentinel)&&sentinel==(const xrtownershippreparationv1*)test);
     assert(test->contextCounts+test->contextTraces==calls);
     *adapter=xrtNetEngineOwnershipAdapterV2(ref,NULL,0,NULL,0,policies,1,prep);assert(*adapter&&*prep&&count==1);
-    test->edges=0;assert(ref.Ops->Trace(ref.Data,edge,test)&&test->edges==1);
+    test->edges=test->poolEdges=0;
+    assert(ref.Ops->Trace(ref.Data,edge,test)&&test->edges==1&&
+        test->poolEdges<=xrtNetEngineWorkerCount(test->engine));
     xrtownershipsnapshot* snapshot=NULL;assert(xrtOwnershipSnapshotCreate(&ref,1,&ref,1,admit,test,&snapshot)&&snapshot);
     xrtOwnershipSnapshotDestroy(snapshot);assert(xrtOwnershipScopeEnd(&freeze));
 }

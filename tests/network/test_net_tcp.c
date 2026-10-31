@@ -86,7 +86,7 @@ static void testTcpIdlePool(xnetworker* pWorker, ptr pData)
 
 
 /* 在两个 Stream 所属 Worker 稳定后验证没有活跃接收块。 */
-static void testTcpRequireIdlePool(
+static void testTcpSamplePools(
 	xnetengine* pEngine,
 	testtcpcontext* pContext,
 	cstr sMessage
@@ -117,7 +117,15 @@ static void testTcpRequireIdlePool(
 		), "TCP server idle-pool check post failed");
 	}
 	testTcpWait(&pContext->IdleChecks, iChecks,
-		"TCP idle-pool checks did not finish");
+		sMessage);
+}
+
+
+
+static void testTcpRequireIdlePool(xnetengine* pEngine,
+	testtcpcontext* pContext, cstr sMessage)
+{
+	testTcpSamplePools(pEngine, pContext, sMessage);
 	testRequire(xrtAtomic32Load(
 		&pContext->IdleLiveBlocks,
 		XMEMORY_ACQUIRE
@@ -584,9 +592,25 @@ int main(void)
 	testRequire(xrtNetStreamSendBuffer(
 		Context.Client.Stream,
 		&OffWorker
-	) == XNET_RESULT_ERROR && (xrtNetBufSize(&OffWorker) == 1) &&
-		(xrtErrorKind(xrtGetError()) == XERR_STATE),
-		"TCP buffer send crossed its worker ownership boundary");
+	) == XNET_RESULT_OK && xrtNetBufEmpty(&OffWorker),
+		"TCP off-worker heap buffer transfer failed");
+	testTcpWait(&Context.Server.ReadBytes, 1,
+		"TCP off-worker buffer was not received");
+	testTcpWait(&Context.Client.ReadBytes, 1,
+		"TCP off-worker buffer was not echoed");
+	testRequire(Context.Server.Text[0] == 'X' && Context.Client.Text[0] == 'X',
+		"TCP off-worker buffer payload mismatch");
+	/* Synchronize callback tails before resetting observations. An IOCP
+	 * adaptive read may already own the next receive buffer after this byte. */
+	testTcpSamplePools(pEngine, &Context,
+		"TCP off-worker transfer worker barrier failed");
+	xrtAtomic32Store(&Context.Server.ReadBytes, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(&Context.Client.ReadBytes, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(&Context.Client.HighWater, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(&Context.Client.LowWater, 0, XMEMORY_RELEASE);
+	xrtAtomic32Store(&Context.Client.Drain, 0, XMEMORY_RELEASE);
+	memset(Context.Server.Text, 0, sizeof(Context.Server.Text));
+	memset(Context.Client.Text, 0, sizeof(Context.Client.Text));
 	xrtNetBufClear(&OffWorker);
 	xrtClearError();
 
@@ -819,13 +843,13 @@ int main(void)
 		&ServerStats
 	), "TCP stream stats failed");
 	testRequire((ClientStats.State == XNET_STREAM_CLOSED) &&
-		 (ClientStats.ReceivedBytes == 269) &&
-		 (ClientStats.SentBytes == 12) &&
+		 (ClientStats.ReceivedBytes == 270) &&
+		 (ClientStats.SentBytes == 13) &&
 		 (ClientStats.SendRejected == 3) &&
 		 (ClientStats.QueuedBytes == 0) &&
 		 (ClientStats.PeakQueuedBytes <= 3) &&
-		 (ServerStats.ReceivedBytes == 12) &&
-		 (ServerStats.SentBytes == 269),
+		 (ServerStats.ReceivedBytes == 13) &&
+		 (ServerStats.SentBytes == 270),
 		"TCP stream stats mismatch");
 
 	testRequire(xrtNetListenerClose(pListener),
