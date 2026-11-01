@@ -297,6 +297,74 @@ def lifecycle_case(client: Path, ca: Path) -> None:
     print("  all requests after cleanup rejected before connecting: passed")
 
 
+def dns_budget_case(client: Path, ca: Path, *, api: str, silent: bool, timeout: bool) -> None:
+    """Independent UDP counts and a pre-destruction client/engine barrier."""
+    peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    peer.bind(("127.0.0.1", 0))
+    peer.settimeout(0.05)
+    returned = threading.Event()
+    requests, errors, marker = [], [], []
+
+    def serve():
+        end = time.monotonic() + 8
+        last = time.monotonic()
+        try:
+            while time.monotonic() < end:
+                if returned.is_set() and time.monotonic() - last >= 0.2:
+                    return
+                try:
+                    data, address = peer.recvfrom(2048)
+                except socket.timeout:
+                    continue
+                last = time.monotonic()
+                if len(data) < 12 or data[12:] != b"\x06budget\x04test\x00\x00\x10\x00\x01":
+                    raise AssertionError("DNS budget query changed its name/type/class")
+                requests.append(data)
+                if not silent and len(requests) == 1:
+                    time.sleep(1.2)
+                    answer = data[:2] + b"\x81\x80\x00\x01\x00\x01\x00\x00\x00\x00" + data[12:]
+                    answer += b"\xc0\x0c\x00\x10\x00\x01\x00\x00\x00\x00\x00\x06\x05probe"
+                    peer.sendto(answer, address)
+            raise AssertionError("DNS budget peer exceeded its independent guard")
+        except Exception as exc:
+            errors.append(exc)
+
+    worker = threading.Thread(target=serve, daemon=True)
+    worker.start()
+    mode = f"dns-budget-{api}-{'timeout' if timeout else 'control'}"
+    process = subprocess.Popen([str(client), str(ca), mode, str(peer.getsockname()[1])],
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def observe():
+        marker.append(process.stdout.readline())
+        returned.set()
+
+    watcher = threading.Thread(target=observe, daemon=True)
+    watcher.start()
+    try:
+        if not returned.wait(timeout=8) or not marker or not marker[0].startswith("DNS_RETURNED "):
+            raise AssertionError(f"DNS budget did not return before destruction: {marker}")
+        worker.join(timeout=8)
+        # Always release the probe's barrier before reporting a mismatch, so a
+        # negative old-source run also executes its ordinary destructors.
+        _, stderr = process.communicate(input="\n", timeout=6)
+        if worker.is_alive() or errors or len(requests) != 1:
+            raise AssertionError(f"DNS budget peer requests={len(requests)} errors={errors}")
+        if process.returncode != 0:
+            raise AssertionError(f"DNS budget client failed ({process.returncode}): {marker} {stderr}")
+        fields = dict(part.split("=", 1) for part in marker[0].split()[1:])
+        if fields.get("live") != "0" or fields.get("result") != ("0" if timeout else "1"):
+            raise AssertionError(f"DNS budget published late output or retained UDP: {marker}")
+        print(f"  DNS budget {api} silent={silent} timeout={timeout}: one query, no live UDP before destruction", flush=True)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+        worker.join(timeout=8)
+        watcher.join(timeout=1)
+        peer.close()
+
+
 def dns_lifecycle_case(client: Path, ca: Path, *, endpoint_mode: str | None = None) -> None:
     absent = endpoint_mode in {"nul-prefix", "malformed-after", "truncated", "authority-only", "additional-only"}
     family = socket.AF_INET6 if endpoint_mode in {"ipv6", "ipv6-expanded"} else socket.AF_INET
@@ -604,6 +672,11 @@ def main() -> None:
             if completed.returncode != 0:
                 failures.append(f"public aggregate provider guards: {completed.stderr}")
         if "dns-lifecycle" in selected:
+            for api in ("query", "contains", "wait"):
+                for silent, timeout in ((False, False), (False, True), (True, True)):
+                    check(f"DNS budget {api} silent={silent} timeout={timeout}",
+                          lambda api=api, silent=silent, timeout=timeout: dns_budget_case(
+                              ownership_client, ca, api=api, silent=silent, timeout=timeout))
             check("DNS UDP lifecycle", lambda: dns_lifecycle_case(ownership_client, ca))
             for endpoint_mode in ("ipv4", "invalid", "ipv6", "ipv6-expanded", "late", "split-empty",
                                   "empty-before", "nul-prefix", "long-before", "malformed-after",

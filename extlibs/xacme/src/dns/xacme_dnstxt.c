@@ -28,6 +28,36 @@ static void xacmeTxtFailure(
 		xacmeTxtError(Kind, Code, sMessage);
 }
 
+static void xacmeTxtTimeout(const xerror* pCause, cstr sMessage)
+{
+	xerror* pError;
+	/* A producer's actual allocation failure wins over elapsed wall time. */
+	if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return;
+	if(pCause != NULL)
+	{
+		pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.dns.txt",
+			XACME_TXT_ERROR_TIMEOUT, sMessage);
+		if(pError != NULL) xrtSetErrorTake(pError);
+	}
+	else xacmeTxtError(XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT, sMessage);
+}
+
+static bool xacmeTxtBudget(double Deadline, const xerror* pFirst)
+{
+	const xerror* pError;
+	cstr sDomain;
+	if(!__xrtWaitExpired(Deadline)) return true;
+	pError = xrtGetError();
+	sDomain = xrtErrorDomain(pError);
+	/* Do not repeatedly wrap an already published DNS timeout. */
+	if(!(xrtErrorKind(pError) == XERR_TIMEOUT &&
+		xrtErrorCode(pError) == XACME_TXT_ERROR_TIMEOUT && sDomain != NULL &&
+		strcmp(sDomain, "xrt.acme.dns.txt") == 0))
+		xacmeTxtTimeout(pFirst != NULL ? pFirst : pError,
+			"acme dns txt query budget exhausted");
+	return false;
+}
+
 bool xacmeDnsInit(xacmedns* pDns, struct xnetengine* pBorrowedEngine)
 {
 	if(pDns == NULL)
@@ -265,7 +295,7 @@ bool xacmeTxtResponseContains(
 static bool xacmeDnsTxtExchange(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
-	size_t* pOutCount, cstr sExpected, bool* pFound)
+	size_t* pOutCount, cstr sExpected, bool* pFound, double Deadline)
 {
 	xbuffer Query;
 	xnetaddr Peer;
@@ -275,6 +305,7 @@ static bool xacmeDnsTxtExchange(
 	const uint8* p;
 	size_t iSize;
 	bool bOk = false;
+	xerror* pFirst = NULL;
 
 	if(pOutCount != NULL) *pOutCount = 0u;
 	if(pFound != NULL) *pFound = false;
@@ -287,7 +318,10 @@ static bool xacmeDnsTxtExchange(
 			"acme dns txt query requires dns, resolver, fqdn and outputs");
 		return false;
 	}
+	if(!__xrtWaitValid(Deadline)) return false;
+	xrtClearError();
 	xrtBufferInit(&Query);
+	if(!xacmeTxtBudget(Deadline, NULL)) goto Done;
 	/* 探测仅咨询性（失败不阻断），但事务 ID 仍用密码学随机，
 	   降低在路径攻击者伪造应答提前放行传播门的概率。 */
 	{
@@ -327,6 +361,7 @@ static bool xacmeDnsTxtExchange(
 			"acme dns txt resolver address invalid");
 		goto Done;
 	}
+	if(!xacmeTxtBudget(Deadline, NULL)) goto Done;
 	pUdp = xrtNetUdpConnect(pDns->pEngine, &Peer, 0u, NULL, NULL, NULL);
 	if(pUdp == NULL)
 	{
@@ -335,6 +370,7 @@ static bool xacmeDnsTxtExchange(
 			"acme dns txt udp open failed");
 		goto Done;
 	}
+	if(!xacmeTxtBudget(Deadline, NULL)) goto Done;
 	if(xrtNetUdpSend(pUdp, Query.Data, Query.Size) != XNET_RESULT_OK)
 	{
 		xacmeTxtFailure(
@@ -347,18 +383,25 @@ static bool xacmeDnsTxtExchange(
 		bool bGot = false;
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
+			double ReceiveDeadline;
+			if(!xacmeTxtBudget(Deadline, pFirst)) goto Done;
+			ReceiveDeadline = __xrtWaitAfter(INT64_C(2000));
+			if(Deadline < ReceiveDeadline) ReceiveDeadline = Deadline;
+			xrtClearError();
 			pPacket = __xrtNetUdpReceiveWait(
-				pUdp, xrtTimer() + 2, NULL);
+				pUdp, ReceiveDeadline, NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
+				if(pFirst == NULL) pFirst = xrtErrorRef(xrtGetError());
+				if(!xacmeTxtBudget(Deadline, pFirst)) goto Done;
 				if(iAttempt == 1)
 				{
-					xacmeTxtError(
-						XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT,
+					xacmeTxtTimeout(pFirst,
 						"acme dns txt udp receive timeout");
 					goto Done;
 				}
+				xrtClearError();
 				if(xrtNetUdpSend(pUdp, Query.Data, Query.Size) != XNET_RESULT_OK)
 				{
 					xacmeTxtFailure(XERR_IO, XACME_TXT_ERROR_NETWORK,
@@ -367,6 +410,7 @@ static bool xacmeDnsTxtExchange(
 				}
 				continue;
 			}
+			if(!xacmeTxtBudget(Deadline, pFirst)) goto Done;
 			if((xrtNetUdpPacketSize(pPacket) >= 12u) &&
 				(xrtNetUdpPacketData(pPacket)[0] ==
 					(uint8)(iId >> 8u)) &&
@@ -400,8 +444,10 @@ static bool xacmeDnsTxtExchange(
 	bOk = true;
 
 Done:
+	if(!xacmeTxtBudget(Deadline, pFirst)) bOk = false;
 	{
 		xerror* pPrevious = xrtErrorRef(xrtGetError());
+		xrtErrorFree(pFirst);
 		if(!bOk)
 		{
 			if(pOutCount != NULL) *pOutCount = 0u;
@@ -433,13 +479,30 @@ bool xacmeDnsTxtQuery(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity, size_t* pOutCount)
 {
+	return xacmeDnsTxtQueryUntil(pDns, sResolver, iPort, sFqdn,
+		sOutRecords, iCapacity, pOutCount, INFINITY);
+}
+
+bool xacmeDnsTxtQueryUntil(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
+	size_t* pOutCount, double Deadline)
+{
 	return xacmeDnsTxtExchange(pDns, sResolver, iPort, sFqdn,
-		sOutRecords, iCapacity, pOutCount, NULL, NULL);
+		sOutRecords, iCapacity, pOutCount, NULL, NULL, Deadline);
 }
 
 bool xacmeDnsTxtContains(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	cstr sExpected, bool* pFound)
+{
+	return xacmeDnsTxtContainsUntil(pDns, sResolver, iPort, sFqdn,
+		sExpected, pFound, INFINITY);
+}
+
+bool xacmeDnsTxtContainsUntil(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	cstr sExpected, bool* pFound, double Deadline)
 {
 	if(pFound == NULL)
 	{
@@ -448,32 +511,40 @@ bool xacmeDnsTxtContains(
 		return false;
 	}
 	return xacmeDnsTxtExchange(pDns, sResolver, iPort, sFqdn,
-		NULL, 0u, NULL, sExpected, pFound);
+		NULL, 0u, NULL, sExpected, pFound, Deadline);
 }
 
 bool xacmeDnsTxtWait(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	cstr sExpected, int64 uTimeoutMs)
 {
-	double uDeadline = __xrtWaitAfter(uTimeoutMs);
-	if((sExpected == NULL) || (sExpected[0] == '\0'))
+	double uDeadline;
+	if((pDns == NULL) || (pDns->pEngine == NULL) || (sResolver == NULL) ||
+		(sFqdn == NULL) || (sExpected == NULL) || (sExpected[0] == '\0') ||
+		(uTimeoutMs < XRT_WAIT_FOREVER))
 	{
 		xacmeTxtError(
 			XERR_ARGUMENT, XACME_TXT_ERROR_ARGUMENT,
 			"acme dns txt wait requires expected value");
 		return false;
 	}
+	xrtClearError();
+	uDeadline = __xrtWaitAfter(uTimeoutMs);
 	if (!__xrtWaitValid(uDeadline)) return false;
 	while(!__xrtWaitExpired(uDeadline))
 	{
 		bool bFound = false;
-		if(!xacmeDnsTxtContains(
-			pDns, sResolver, iPort, sFqdn, sExpected, &bFound))
+		if(!xacmeDnsTxtContainsUntil(
+			pDns, sResolver, iPort, sFqdn, sExpected, &bFound, uDeadline))
 		{
 			return false;
 		}
+		if(!xacmeTxtBudget(uDeadline, NULL)) return false;
 		if(bFound) return true;
-		xrtSleep(1000u);
+		{
+			int64 Remaining = __xrtWaitRemaining(uDeadline);
+			xrtSleep(Remaining >= 0 && Remaining < INT64_C(1000) ? Remaining : INT64_C(1000));
+		}
 	}
 	xacmeTxtError(
 		XERR_TIMEOUT, XACME_TXT_ERROR_TIMEOUT,

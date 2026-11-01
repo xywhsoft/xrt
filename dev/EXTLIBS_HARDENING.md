@@ -1171,3 +1171,65 @@ RSA 导入及 provider/签名/XML 复核继续；大同名 RRset 的递归探测
 `acme-issue-budget-mock-linux-gcc-stale-binary.log`、`acme-issue-budget-packages-final-*.json`、
 `acme-issue-budget-checks.json`、`acme-issue-budget-final-input-audit.json`、
 `ci-0ef84948-acme-coverage-provenance.json` 及对应原始 zip/json/log。
+
+
+### 第 35 批：DNS 查询、重发与传播等待共享截止时间
+
+- 以 3595c0d5 的实际 DNS 源码替换当前独立 UDP 夹具中的该实现：原有 Wait
+  API 的 1000ms 超时仍接受 1.218 秒后的匹配响应；静默对端下发送两次查询，
+  约 4 秒才结束。2500ms 控制组正常通过。新增 Until 名称仅用测试兼容转发器
+  满足组合夹具的其他调用，本组旧版本对照实际调用未改变签名的旧 Wait，
+  不把这些转发器冒称为旧版已支持的截止时间 API。
+- 内部 QueryUntil / ContainsUntil 显式接收 Core Timer 的绝对截止时间，预算覆盖
+  随机数、组包、打开 UDP、首次发送、两轮接收和重发；每轮接收仍保留原 2 秒上限，
+  同时取外层剩余时间。普通 Query/Contains 继续以 INFINITY 委托，未加入可串扰的
+  DNS 可变预算状态。超时后的成功或解析结果不交付部分输出，失败统一关闭/Abort，
+  释放 packet/buffer/调用方引用；运行中的借用引擎不被关闭。
+- 真实接收失败的首个原因保留到截止时间包装；实际 producer MEMORY 或超时上下文
+  自身 OOM 保持真实 MEMORY。入口旧错误清除，清理诊断不能覆盖主错误。普通随机数/
+  地址/发送错误仍使用既有稳定 DNS 诊断，不将本批宣称为所有底层错误均保留 cause。
+  Wait 的查询、重发和退避共用一次预算：0 立即超时，-1 不限时，其他负数非法。
+- 传播探测取 Issue / 自身传播预算中较早者，跨 resolver 传入同一截止时间，
+  超限不再咨询后续 resolver，2 秒睡眠按剩余量截断。传播自身超时保持咨询性，
+  Issue 超时和实际 MEMORY 仍可成为签发主错误；已确认的 TXT 先登记清理拥有权。
+  配置注释明确同步宿主回调不能抢占，Remove 与引擎退休使用独立清理预算，
+  因而函数返回时间可能晚于工作预算。内置 provider HTTP/重签退避尚未贯通。
+- DNS 故障程序新增 60 组：实际 Core engine/UDP/packet/Future/allocator 运行，
+  仅在提交/完成边界收费时钟，覆盖无穷/非法/立即预算、随机数与打开/发送耗尽、
+  迟到响应/解析、错误 ID、重发、首因链、真实 MEMORY、包装 OOM、旧错误、
+  退避截断、清理和同引擎恢复。flow 另增 7 组，核对父预算与传播自身预算、
+  多 resolver、实际 MEMORY 对象和 TXT Remove；完整 Issue 预算矩阵共 25 组。
+- 独立真实 UDP 对端另加 9 组 Query/Contains/Wait 的迟到控制、迟到超时和静默超时：
+  以实际查询数量核对无额外重发，在 stdin 析构屏障前确认借用引擎仍运行且
+  LiveObjects=0；原 DNS 生命周期与 13 组 resolver/完整应答场景保留。
+  Windows/Linux GCC、Linux Clang ASan+UBSan+leaks 均通过，原拥有权/公开单头 guard
+  一并通过；未增加已有 90 秒总界限。
+- 完整 ACME Windows GCC 38 程序、Linux GCC/Clang ASan+UBSan+
+  float-cast-overflow+leaks/TCC 各 37 程序通过；每环境均含上述 60/25 组。
+  模拟 CA 脚本 Windows/Linux GCC、Linux Clang sanitizer 各 18 项通过；
+  Windows/Linux static/shared 四个消费者通过。Windows shared 首次编译在
+  Core value.c 报 cc1 无法分配 65536 字节；保留原日志，在可用内存恢复后
+  单独原参数重跑通过，不改代码/预算/门禁。生成实现/声明、features、
+  API 文档/参考与 release maturity 检查通过；1211 项最终输入归一化 LF
+  后 Windows/WSL 一致。
+- 3595c0d5 PR CI 40416266467 的实际终态为 72 成功 / 1 失败，唯一失败是
+  Linux GCC 的 xsmtp test_smtp_upload_tls_fault_runtime 收到 SIGSEGV；两项 ACME
+  coverage 成功，push mail 40416259726 成功。原 GCC 在 GDB 下 33 轮和 Clang
+  ASan+UBSan 下 20 轮均通过，不能视为根因修复。进一步可控调度已复现邮件测试
+  TLS Upgrade 助手在发布失败 Future 后，Worker 仍读取借用栈任务而调用线程已返回；
+  xmail/xsmtp/xpop3/ximap 对应助手段落完全一致。该夹具缺陷待下一批修复，
+  与上述 CI 崩溃的唯一因果关系尚未证实，不以它宣称报错已解决。
+- 本批关闭库内 UDP 与传播等待预算。下一步继续内置 provider 的操作锁内 HTTP/
+  重签退避、宿主同步边界、Retry-After、EAB/RSA/provider/签名/XML、DNS 问题/
+  属主/CNAME 绑定及 EDNS/TCP 恢复。其余扩展仍按整库标准推进，只有 xjwt/xoauth2
+  完成有界首轮验收，合计仍为 2/21，未合并或发布。
+
+证据：acme-dns-budget-before.json、acme-dns-budget-before-build.log、
+acme-dns-budget-full-{windows,linux}.json、acme-dns-budget-wire-windows-gcc.log、
+acme-dns-budget-final-{windows,linux}.json 及对应日志、
+acme-dns-budget-mock-{windows,linux}.json、acme-dns-budget-packages-final-*.json、
+acme-dns-budget-package-final-windows-shared.log、
+acme-dns-budget-package-windows-shared-oom-retry.{json,log}、
+acme-dns-budget-checks.json、acme-dns-budget-final-input-audit.json、
+ci-3595-xsmtp-extension-failed.log、smtp-3595-{gcc-gdb,clang-asan}.json 及原日志、
+smtp-upgrade-stack-before{,-provenance}.json、smtp-upgrade-stack-before.log。

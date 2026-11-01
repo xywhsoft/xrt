@@ -14,6 +14,83 @@ static dnsfault Active;
 static bool Enabled, Inject, Armed;
 static unsigned SendCalls, ReceiveCalls;
 static xerror* FirstError;
+/* The engine, UDP endpoints, packets, futures and allocator remain real.
+ * Only time charged at submission/completion boundaries is controlled. */
+static bool BudgetProbe;
+static cstr BudgetMode;
+static double BudgetClock, BudgetParent;
+static xnetudp* BudgetListener;
+static xerror* BudgetFirstError;
+static xerror* BudgetMetadata;
+static bool BudgetWrapTriggered;
+static unsigned BudgetOpens, BudgetQueries, BudgetCloses, BudgetAborts, BudgetDestroys;
+static unsigned BudgetSleeps, BudgetSlept, BudgetDataReads;
+static bool budget_mode(cstr name) {return BudgetProbe && strcmp(BudgetMode,name)==0;}
+static void budget_charge(unsigned ms) {if(BudgetProbe) BudgetClock+=(double)ms/1000.0;}
+static double budget_after(int64 ms) {
+    if(!BudgetProbe || ms < XRT_WAIT_FOREVER) return __xrtWaitAfter(ms);
+    return ms==XRT_WAIT_FOREVER?INFINITY:ms==0?BudgetClock:nextafter(BudgetClock+(double)ms/1000.0,INFINITY);
+}
+static bool budget_expired(double deadline) {
+    if(!BudgetProbe || isnan(deadline)) return __xrtWaitExpired(deadline);
+    return BudgetClock>=deadline;
+}
+static int64 budget_remaining(double deadline) {
+    if(!BudgetProbe || isnan(deadline)) return __xrtWaitRemaining(deadline);
+    if(deadline==INFINITY) return XRT_WAIT_FOREVER;
+    return deadline<=BudgetClock?0:(int64)ceil((deadline-BudgetClock)*1000.0);
+}
+static void budget_sleep(int64 ms) {
+    if(!BudgetProbe) {xrtSleep(ms);return;}
+    testRequire(ms>=0 && ms<=1000,"DNS budget sleep bound");
+    BudgetSleeps++;BudgetSlept+=(unsigned)ms;budget_charge((unsigned)ms);
+}
+static bool budget_random(ptr data,size_t size) {
+    bool ok=xrtSecureRandom(data,size);
+    if(budget_mode("random-spent")) budget_charge(105u);
+    return ok;
+}
+static void budget_wire(const void* data,size_t size) {
+    xnetudppacket* query=__xrtNetUdpReceiveWait(BudgetListener,__xrtWaitAfter(1000),NULL);
+    testRequire(query!=NULL && xrtNetUdpPacketSize(query)==size && size>=17u && size+18u<=512u,"actual DNS query delivered");
+    testRequire(memcmp(xrtNetUdpPacketData(query),data,size)==0,"DNS query bytes changed");
+    BudgetQueries++;xnetaddr remote=*xrtNetUdpPacketRemote(query);
+    xrtNetUdpPacketDestroy(query);
+    bool retry=budget_mode("retry-control");
+    bool no_reply=budget_mode("receive-timeout") || budget_mode("retry-spent") || budget_mode("retry-timeout-two") ||
+        budget_mode("late-memory") || budget_mode("timeout-wrap-oom") || (retry && SendCalls==1u);
+    if(no_reply) return;
+    bool wrong=budget_mode("wrong-id-spent") || budget_mode("wrong-id-two");
+    bool other=(budget_mode("wait-sleep") || budget_mode("wait-control") || budget_mode("wait-forever")) && SendCalls==1u;
+    uint8 response[512];memcpy(response,data,size);response[2]=0x81u;response[3]=0x80u;response[6]=0;response[7]=1;
+    static const uint8 head[]={0xc0,0x0c,0,16,0,1,0,0,0,0,0,6,5};
+    memcpy(response+size,head,sizeof(head));memcpy(response+size+sizeof(head),other?"other":"probe",5u);
+    if(wrong) response[1]^=1u;
+    testRequire(xrtNetUdpSendTo(BudgetListener,&remote,response,size+sizeof(head)+5u)==XNET_RESULT_OK,"actual DNS response send");
+    if(budget_mode("wrong-id-two")) {
+        response[1]^=1u;
+        testRequire(xrtNetUdpSendTo(BudgetListener,&remote,response,size+sizeof(head)+5u)==XNET_RESULT_OK,"actual second DNS response send");
+    }
+}
+static cbytes budget_data(const xnetudppacket* packet) {
+    if(BudgetProbe && ++BudgetDataReads==3u && budget_mode("parse-spent")) budget_charge(60u);
+    return xrtNetUdpPacketData(packet);
+}
+static bool budget_close(xnetudp* udp) {if(BudgetProbe) BudgetCloses++;return xrtNetUdpClose(udp);}
+static bool budget_abort(xnetudp* udp) {
+    bool result=xrtNetUdpAbort(udp);
+    if(BudgetProbe) {BudgetAborts++;xrtSetErrorInfo(XERR_IO,"test.dns.cleanup",94,"cleanup diagnostic must not replace the primary failure");}
+    return result;
+}
+static void budget_destroy(xnetudp* udp) {if(BudgetProbe) BudgetDestroys++;xrtNetUdpDestroy(udp);}
+static xerror* budget_wrap(const xerror* cause,xerrkind kind,cstr domain,int32 code,cstr message) {
+    xerror* result=xrtErrorWrap(cause,kind,domain,code,message);
+    if(!result && budget_mode("timeout-wrap-oom")) {
+        BudgetWrapTriggered=xrtMemDebugFailTriggered();BudgetMetadata=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
+    }
+    return result;
+}
+
 
 static void arm(void)
 {
@@ -41,6 +118,7 @@ static xnetudp* dns_open(xnetengine* engine, const xnetaddr* peer, uint64 affini
     if(Active == DNS_OPEN) arm();
     xnetudp* result = xrtNetUdpConnect(engine, peer, affinity, config, events, data);
     if(result == NULL) remember();
+    if(BudgetProbe) {BudgetOpens++;budget_charge(budget_mode("open-spent")?105u:10u);}
     return result;
 }
 static xnetresult dns_send(xnetudp* udp, const void* data, size_t size)
@@ -49,11 +127,33 @@ static xnetresult dns_send(xnetudp* udp, const void* data, size_t size)
     if(Active == DNS_SEND || (Active == DNS_RESEND && SendCalls == 2u)) arm();
     xnetresult result = xrtNetUdpSend(udp, data, size);
     if(result != XNET_RESULT_OK) remember();
+    if(BudgetProbe && result==XNET_RESULT_OK) {
+        budget_wire(data,size);
+        budget_charge(budget_mode("send-spent")?105u:budget_mode("retry-spent") && SendCalls==2u?60u:20u);
+    }
     return result;
 }
 static xnetudppacket* dns_receive(xnetudp* udp, double deadline, xcancel* cancel)
 {
     ReceiveCalls++;
+    if(BudgetProbe) {
+        testRequire(deadline<=BudgetClock+2.000001 && (!isfinite(BudgetParent) || deadline<=BudgetParent+0.000001),"DNS receive restarted the enclosing budget");
+        bool timeout=budget_mode("receive-timeout") || budget_mode("retry-spent") || budget_mode("retry-timeout-two") ||
+            budget_mode("late-memory") || budget_mode("timeout-wrap-oom") || (budget_mode("retry-control") && ReceiveCalls==1u);
+        if(budget_mode("late-memory")) testRequire(xrtMemDebugFailAfter(0),"DNS late producer MEMORY arm");
+        xnetudppacket* result=__xrtNetUdpReceiveWait(udp,__xrtWaitAfter(timeout?0:1000),cancel);
+        if(!result && !BudgetFirstError) BudgetFirstError=xrtErrorRef(xrtGetError());
+        if(budget_mode("late-memory")) {
+            testRequire(!result && xrtMemDebugFailTriggered() && xrtErrorKind(xrtGetError())==XERR_MEMORY,"actual DNS receive producer MEMORY");xrtMemDebugFailClear();
+        }
+        unsigned cost=budget_mode("response-spent") || budget_mode("late-memory")?105u:
+            budget_mode("wrong-id-spent")?75u:budget_mode("wrong-id-two")?40u:
+            budget_mode("retry-timeout-two")?(ReceiveCalls==1u?20u:50u):30u;
+        if(budget_mode("receive-timeout") || budget_mode("timeout-wrap-oom")) cost=(unsigned)ceil((deadline-BudgetClock)*1000.0)+1u;
+        budget_charge(cost);
+        if(budget_mode("timeout-wrap-oom")) testRequire(xrtMemDebugFailAfter(0),"DNS timeout context OOM arm");
+        return result;
+    }
     if(Enabled && Inject && Active == DNS_RECEIVE && !Armed) {
         arm();
         xnetudppacket* result = __xrtNetUdpReceiveWait(udp, deadline, cancel);
@@ -63,6 +163,17 @@ static xnetudppacket* dns_receive(xnetudp* udp, double deadline, xcancel* cancel
     xrtSetErrorInfo(XERR_TIMEOUT, "test.dns.receive", 91, "controlled receive timeout");
     return NULL;
 }
+#define __xrtWaitAfter budget_after
+#define __xrtWaitExpired budget_expired
+#define __xrtWaitRemaining budget_remaining
+#define xrtTimer() (BudgetProbe?BudgetClock:xrtTimer())
+#define xrtSleep budget_sleep
+#define xrtSecureRandom budget_random
+#define xrtNetUdpPacketData budget_data
+#define xrtNetUdpClose budget_close
+#define xrtNetUdpAbort budget_abort
+#define xrtNetUdpDestroy budget_destroy
+#define xrtErrorWrap budget_wrap
 #define xrtBufferAppend dns_append
 #define xrtNetUdpConnect dns_open
 #define xrtNetUdpSend dns_send
@@ -72,6 +183,18 @@ static xnetudppacket* dns_receive(xnetudp* udp, double deadline, xcancel* cancel
 #undef xrtNetUdpConnect
 #undef xrtNetUdpSend
 #undef __xrtNetUdpReceiveWait
+#undef __xrtWaitAfter
+#undef __xrtWaitExpired
+#undef __xrtWaitRemaining
+#undef xrtTimer
+#undef xrtSleep
+#undef xrtSecureRandom
+#undef xrtNetUdpPacketData
+#undef xrtNetUdpClose
+#undef xrtNetUdpAbort
+#undef xrtNetUdpDestroy
+#undef xrtErrorWrap
+
 
 static void wait_objects(xnetengine* engine, size_t expected)
 {
@@ -84,6 +207,80 @@ static void wait_objects(xnetengine* engine, size_t expected)
     } while(!__xrtWaitExpired(deadline));
     fprintf(stderr, "DNS objects live=%zu expected=%zu\n", stats.LiveObjects, expected);
     testRequire(false, "DNS query retained UDP objects");
+}
+static const cstr BudgetNames[]={"control","forever","expired","invalid","invalid-min","random-spent",
+    "open-spent","send-spent","response-spent","parse-spent","wrong-id-spent","wrong-id-two","receive-timeout",
+    "retry-spent","retry-timeout-two","retry-control","late-memory","timeout-wrap-oom","stale-memory",
+    "wait-sleep","wait-control","wait-forever"};
+static bool budget_has_cause(const xerror* error,const xerror* cause) {
+    for(;error;error=xrtErrorCause(error)) if(error==cause) return true;
+    return false;
+}
+static void run_budget(cstr name,unsigned api) {
+    testRequire(api<3u && (strncmp(name,"wait-",5u)!=0 || api==2u),"DNS budget API selector");
+    xnetengineconfig config;xrtNetEngineConfigInit(&config);config.Workers=1u;
+    xnetengine* engine=xrtNetEngineCreate(&config);testRequire(engine && xrtNetEngineStart(engine),"DNS budget actual engine");
+    xacmedns dns;testRequire(xacmeDnsInit(&dns,engine),"DNS budget borrower");
+    xnetaddr address;testRequire(xrtNetAddrParse(&address,"127.0.0.1",0),"DNS budget listener address");
+    BudgetListener=xrtNetUdpBind(engine,&address,0,NULL,NULL,NULL);
+    testRequire(BudgetListener && xrtNetUdpLocal(BudgetListener,&address),"DNS budget actual listener");
+    BudgetMode=name;BudgetProbe=true;BudgetClock=100.0;Enabled=Inject=Armed=false;
+    BudgetFirstError=BudgetMetadata=NULL;BudgetWrapTriggered=false;
+    SendCalls=ReceiveCalls=BudgetOpens=BudgetQueries=BudgetCloses=BudgetAborts=BudgetDestroys=BudgetSleeps=BudgetSlept=BudgetDataReads=0u;
+    int64 ms=budget_mode("forever") || budget_mode("wait-forever")?-1:budget_mode("expired") || budget_mode("stale-memory")?0:
+        budget_mode("invalid")?-2:budget_mode("invalid-min")?INT64_MIN:budget_mode("control") || budget_mode("retry-control")?1000:budget_mode("wait-control")?2000:100;
+    BudgetParent=ms==-1?INFINITY:ms<0?NAN:100.0+(double)ms/1000.0;
+    double deadline=budget_mode("invalid-min")?-1.0:BudgetParent;
+    if(budget_mode("stale-memory")) {
+        testRequire(xrtMemDebugFailAfter(0),"DNS stale allocator cause arm");
+        testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"DNS actual stale allocator cause");
+        BudgetFirstError=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
+    } else xrtClearError();
+    char records[2][XACME_TXT_RECORD_MAX];size_t count=SIZE_MAX;bool found=true;
+    bool ok=api==0u?xacmeDnsTxtQueryUntil(&dns,"127.0.0.1",address.Port,"budget.test",records,2u,&count,deadline):
+        api==1u?xacmeDnsTxtContainsUntil(&dns,"127.0.0.1",address.Port,"budget.test","probe",&found,deadline):
+        xacmeDnsTxtWait(&dns,"127.0.0.1",address.Port,"budget.test","probe",ms);
+    bool success=budget_mode("control") || budget_mode("forever") || budget_mode("retry-control") ||
+        budget_mode("wait-control") || budget_mode("wait-forever");
+    bool memory=budget_mode("late-memory") || budget_mode("timeout-wrap-oom");
+    bool invalid=budget_mode("invalid") || budget_mode("invalid-min");
+    bool no_io=invalid || budget_mode("expired") || budget_mode("stale-memory") || budget_mode("random-spent");
+    unsigned opens=no_io?0u:budget_mode("wait-control") || budget_mode("wait-forever")?2u:1u;
+    unsigned sends=no_io || budget_mode("open-spent")?0u:strstr(name,"retry-") || opens==2u?2u:1u;
+    unsigned receives=!sends || budget_mode("send-spent")?0u:budget_mode("wrong-id-two") || budget_mode("retry-timeout-two") || budget_mode("retry-control") || opens==2u?2u:1u;
+    unsigned closes=success || budget_mode("wait-sleep")?opens:0u;
+    printf("[dns-budget] %s api=%u success=%d kind=%d ms=%.3f open=%u tx=%u rx=%u close=%u abort=%u sleep=%u/%u\n",
+        name,api,ok,(int)xrtErrorKind(xrtGetError()),(BudgetClock-100.0)*1000.0,BudgetOpens,SendCalls,ReceiveCalls,BudgetCloses,BudgetAborts,BudgetSleeps,BudgetSlept);
+    testRequire(ok==success,"DNS accepted late success or rejected in-budget control");
+    testRequire(BudgetOpens==opens && SendCalls==sends && BudgetQueries==sends && ReceiveCalls==receives &&
+        BudgetCloses==closes && BudgetAborts==opens-closes && BudgetDestroys==opens,"DNS submitted work after expiry, replayed or lost UDP ownership");
+    if(ok) {
+        testRequire(xrtGetError()==NULL && (api!=0u || (count==1u && strcmp(records[0],"probe")==0)) && (api!=1u || found),"DNS control lost output or retained a retry diagnostic");
+    } else {
+        testRequire((api!=0u || count==0u) && (api!=1u || !found),"DNS failure published partial output");
+        testRequire(xrtErrorKind(xrtGetError())==(memory?XERR_MEMORY:invalid?XERR_ARGUMENT:XERR_TIMEOUT),"DNS budget lost memory/argument/timeout category");
+        if(budget_mode("late-memory")) testRequire(BudgetFirstError && xrtGetError()==BudgetFirstError,"DNS late actual MEMORY lost identity during cleanup");
+        else if(budget_mode("timeout-wrap-oom")) testRequire(BudgetWrapTriggered && BudgetMetadata && xrtGetError()==BudgetMetadata,"DNS timeout-context actual OOM lost identity");
+        else if(budget_mode("stale-memory")) testRequire(!budget_has_cause(xrtGetError(),BudgetFirstError),"DNS attributed a caller's stale MEMORY to this operation");
+        else if(BudgetFirstError) testRequire(budget_has_cause(xrtGetError(),BudgetFirstError),"DNS budget lost its first actual receive producer cause");
+    }
+    if(budget_mode("wait-sleep")) testRequire(BudgetSleeps==1u && BudgetSlept<=41u,"DNS polling restarted the one-second backoff");
+    if(budget_mode("wait-control") || budget_mode("wait-forever")) testRequire(BudgetSleeps==1u && BudgetSlept==1000u,"DNS polling control changed ordinary delay");
+    xrtMemDebugFailClear();xerror* primary=xrtErrorRef(xrtGetError());
+    wait_objects(engine,1u);testRequire(xrtGetError()==primary && dns.pEngine==engine && !dns.bEngineOwned,"DNS budget cleanup lost cause or borrower");xrtErrorFree(primary);
+    xrtClearError();xrtErrorFree(BudgetFirstError);BudgetFirstError=NULL;xrtErrorFree(BudgetMetadata);BudgetMetadata=NULL;
+    /* A separately requested unbounded operation still works on this borrower. */
+    BudgetMode="control";BudgetClock=100.0;SendCalls=ReceiveCalls=BudgetQueries=BudgetOpens=BudgetDataReads=0u;BudgetParent=INFINITY;
+    count=SIZE_MAX;found=false;
+    testRequire(xacmeDnsTxtContainsUntil(&dns,"127.0.0.1",address.Port,"budget.test","probe",&found,INFINITY) && found &&
+        SendCalls==1u && ReceiveCalls==1u && xrtGetError()==NULL,"DNS same-borrower explicit recovery failed");
+    wait_objects(engine,1u);BudgetProbe=false;
+    testRequire(xrtNetUdpClose(BudgetListener),"DNS budget listener close");xrtNetUdpDestroy(BudgetListener);BudgetListener=NULL;
+    wait_objects(engine,0u);
+    testRequire(xacmeDnsUnit(&dns) && xrtNetEngineState(engine)==XNET_ENGINE_RUNNING,"DNS budget borrower stopped engine");
+    testRequire(xrtNetEngineDestroy(engine),"DNS budget actual engine retirement");xrtClearError();
+    testMemoryDebugDrain("DNS budget retained actual packet/future/UDP allocations");
+    printf("[PASS] DNS_BUDGET %s/%u\n",name,api);
 }
 static void run_fault(dnsfault fault, bool inject, bool contains)
 {
@@ -260,6 +457,14 @@ static void match_matrix(void) {
 }
 int main(int argc, char** argv)
 {
+    if(argc==4 && strcmp(argv[1],"budget")==0) {run_budget(argv[2],(unsigned)strtoul(argv[3],NULL,10));return 0;}
+    if(argc==1 || (argc==2 && strcmp(argv[1],"budgets")==0)) {
+        for(size_t i=0;i<sizeof(BudgetNames)/sizeof(BudgetNames[0]);i++) for(unsigned api=0;api<3u;api++) {
+            if(strncmp(BudgetNames[i],"wait-",5u)==0 && api!=2u) continue;
+            run_budget(BudgetNames[i],api);
+        }
+        if(argc==2) return 0;
+    }
     if(argc==2 && strcmp(argv[1],"match-matrix")==0) {match_matrix();return 0;}
     if(argc==2 && strcmp(argv[1],"parser-matrix")==0) {parser_matrix();return 0;}
     testRequire(argc == 1 || argc == 2 || argc == 3, "DNS fixture usage: [null-count|partial-count|fault control|oom]");

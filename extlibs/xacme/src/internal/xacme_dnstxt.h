@@ -53,12 +53,26 @@ bool xacmeDnsTxtQuery(
 	size_t* pOutCount
 );
 
+/* Same query with an enclosing absolute Core Timer deadline (INFINITY means
+ * no enclosing limit). Setup, both receives and resend share this limit;
+ * each receive still has its ordinary two-second cap. Cleanup is independent. */
+bool xacmeDnsTxtQueryUntil(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	char (*sOutRecords)[XACME_TXT_RECORD_MAX], size_t iCapacity,
+	size_t* pOutCount, double Deadline);
+
 /* Query the complete received answer without a fixed text-record window.
  * Success publishes whether the exact nonempty expected value was found.
  * Failure clears pFound and preserves allocator causes. UDP transport only. */
 bool xacmeDnsTxtContains(
 	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
 	cstr sExpected, bool* pFound);
+
+/* Exact-match query under the same enclosing deadline; no late success or
+ * partial result. Invalid deadlines fail before transport setup. */
+bool xacmeDnsTxtContainsUntil(
+	xacmedns* pDns, cstr sResolver, uint16 iPort, cstr sFqdn,
+	cstr sExpected, bool* pFound, double Deadline);
 
 /*
 	解析完整 DNS 响应报文为 TXT 记录集合（不可信网络输入的唯一
@@ -83,7 +97,8 @@ bool xacmeTxtResponseContains(
 	const uint8* pData, size_t iSize, uint16 uExpectId,
 	xbytesview Expected, bool* pFound);
 
-/* 轮询直到期望 TXT 值在解析器可见；超时返回 false。 */
+/* 轮询直到期望 TXT 值在解析器可见。全部查询/重发/退避共用截止时间；
+ * 0 立即超时，-1 不限时，其他负数非法。超时失败，实际 MEMORY 保真。 */
 bool xacmeDnsTxtWait(
 	xacmedns* pDns,
 	cstr sResolver,

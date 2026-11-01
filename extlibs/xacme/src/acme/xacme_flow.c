@@ -1047,12 +1047,13 @@ static uint16 xacmeFlowResolverPort(
 /* 任一配置 resolver 已返回期望 TXT 值即视为可见。 */
 static bool xacmeFlowTxtVisible(
 	xacmedns* pDns, const xacmeclient* pClient,
-	cstr sFqdn, cstr sExpected)
+	cstr sFqdn, cstr sExpected, double Deadline)
 {
 	size_t i;
 	for(i = 0; i < pClient->iPropagateResolverCount; i++)
 	{
 		char sHost[64];
+		if(xrtTimer() >= Deadline) return false;
 		uint16 iPort = xacmeFlowResolverPort(
 			pClient->sPropagateResolvers[i], sHost, sizeof(sHost));
 		bool bFound = false;
@@ -1062,10 +1063,11 @@ static bool xacmeFlowTxtVisible(
 			xrtClearError();
 			continue;
 		}
-		if(!xacmeDnsTxtContains(
-				pDns, sHost, iPort, sFqdn, sExpected, &bFound))
+		if(!xacmeDnsTxtContainsUntil(
+				pDns, sHost, iPort, sFqdn, sExpected, &bFound, Deadline))
 		{
 			if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) return false;
+			if(xrtTimer() >= Deadline) return false;
 			xrtClearError(); /* Advisory reachability failure must not mask a later OOM. */
 			continue; /* 单个 resolver 不可达不算失败。 */
 		}
@@ -1108,7 +1110,7 @@ static void xacmeFlowWaitPropagate(
 	}
 	while(xrtTimer() < uDeadline)
 	{
-		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt))
+		if(xacmeFlowTxtVisible(&Probe, pClient, sFqdn, sTxt, uDeadline))
 		{
 			xacmeDnsUnit(&Probe);
 			return;
@@ -1118,9 +1120,17 @@ static void xacmeFlowWaitPropagate(
 			xacmeDnsUnit(&Probe);
 			return;
 		}
-		xrtSleep(2000u);
+		{
+			int64 Remaining = __xrtWaitRemaining(uDeadline);
+			if(Remaining <= 0) break;
+			xrtSleep(Remaining < INT64_C(2000) ? Remaining : INT64_C(2000));
+		}
 	}
 	xacmeDnsUnit(&Probe);
+	/* Probe exhaustion is advisory; only the enclosing Issue deadline or an
+	 * actual MEMORY failure may become the primary issuance failure. */
+	if(xrtErrorKind(xrtGetError()) != XERR_MEMORY && !xacmeFlowDeadlineHit(pClient))
+		xrtClearError();
 	if(getenv("XACME_DEBUG"))
 	{
 		printf("[dbg] propagate confirm timeout fqdn=%s\n", sFqdn);

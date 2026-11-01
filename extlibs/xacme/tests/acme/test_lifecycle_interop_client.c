@@ -1109,7 +1109,7 @@ static bool dns_resolver_endpoint(cstr endpoint, bool expected)
 	strcpy(client.sPropagateResolvers[0], endpoint);
 	client.iPropagateResolverCount = 1u;
 	xrtClearError();
-	visible = xacmeFlowTxtVisible(&dns, &client, "resolver.test", "probe");
+	visible = xacmeFlowTxtVisible(&dns, &client, "resolver.test", "probe", INFINITY);
 	ok = visible == expected;
 	if(visible && expected) {
 		char address[64];
@@ -1193,6 +1193,47 @@ static bool constructor_faults(void)
 	return false;
 }
 
+/* A real UDP peer observes the complete wait/Until operation before the
+ * borrowed engine is destroyed. The stdin barrier belongs only to the probe. */
+static bool dns_budget(uint16 port, unsigned api, bool timeout)
+{
+    xnetengine* engine = create_engine();
+    xacmedns dns;
+    xnetenginestats stats = {0};
+    xerror* primary;
+    char records[2][XACME_TXT_RECORD_MAX];
+    size_t count = SIZE_MAX;
+    bool found = false, result, ok;
+    int64 budget = timeout ? 1000 : 2500;
+    double started, deadline;
+    if(engine == NULL || !xacmeDnsInit(&dns, engine)) return false;
+    xrtClearError();started = xrtTimer();deadline = __xrtWaitAfter(budget);
+    result = api == 0u ? xacmeDnsTxtQueryUntil(&dns, "127.0.0.1", port, "budget.test", records, 2u, &count, deadline) :
+        api == 1u ? xacmeDnsTxtContainsUntil(&dns, "127.0.0.1", port, "budget.test", "probe", &found, deadline) :
+        xacmeDnsTxtWait(&dns, "127.0.0.1", port, "budget.test", "probe", budget);
+    primary = xrtErrorRef(xrtGetError());
+    ok = result == !timeout && (timeout ? xrtErrorKind(primary) == XERR_TIMEOUT : primary == NULL);
+    if(api == 0u) ok = ok && count == (timeout ? 0u : 1u) && (timeout || strcmp(records[0], "probe") == 0);
+    if(api == 1u) ok = ok && found == !timeout;
+    /* Check retirement while the same engine remains running and the process
+     * is held before Unit/Destroy; process teardown cannot hide leaked sockets. */
+    deadline = __xrtWaitAfter(5000);
+    for(;;) {
+        if(!xrtNetEngineStats(engine, &stats)) {ok = false;break;}
+        if(stats.LiveObjects == 0u) break;
+        if(__xrtWaitExpired(deadline)) {ok = false;break;}
+        xrtSleep(1u);
+    }
+    ok = ok && stats.LiveObjects == 0u && xrtNetEngineState(engine) == XNET_ENGINE_RUNNING && xrtGetError() == primary;
+    printf("DNS_RETURNED api=%u result=%d kind=%d live=%zu elapsed=%.3f\n",api,result,(int)xrtErrorKind(primary),stats.LiveObjects,xrtTimer()-started);
+    fflush(stdout);
+    if(getchar() != '\n') ok = false;
+    ok = xacmeDnsUnit(&dns) && xrtNetEngineState(engine) == XNET_ENGINE_RUNNING && ok;
+    ok = xrtNetEngineDestroy(engine) && ok;
+    xrtErrorFree(primary);xrtClearError();
+    return memory_empty() && ok;
+}
+
 int main(int argc, char** argv)
 {
 	FILE* file;
@@ -1219,7 +1260,12 @@ int main(int argc, char** argv)
 	if(fread(ca, 1u, (size_t)size, file) != (size_t)size) { free(ca); fclose(file); return 2; }
 	ca[size] = 0; fclose(file); TestCa = ca;
 	if(argc == 4) {
-		if(strcmp(argv[2], "dns") == 0) ok = dns_query_lifecycle((uint16)strtoul(argv[3], NULL, 10));
+        if(strncmp(argv[2], "dns-budget-", 11u) == 0) {
+            cstr mode = argv[2] + 11u;
+            unsigned api = strncmp(mode, "query-", 6u) == 0 ? 0u : strncmp(mode, "contains-", 9u) == 0 ? 1u : 2u;
+            ok = dns_budget((uint16)strtoul(argv[3], NULL, 10), api, strstr(mode, "timeout") != NULL);
+        }
+        else if(strcmp(argv[2], "dns") == 0) ok = dns_query_lifecycle((uint16)strtoul(argv[3], NULL, 10));
 		else if(strcmp(argv[2], "dns-resolver") == 0) ok = dns_resolver_endpoint(argv[3], true);
 		else if(strcmp(argv[2], "dns-resolver-invalid") == 0) ok = dns_resolver_endpoint(argv[3], false);
 		else if(strcmp(argv[2], "dns-txt-absent") == 0) ok = dns_resolver_endpoint(argv[3], false);

@@ -141,7 +141,7 @@ static double ResolverClock;
 static bool IssueBudgetProbe;
 static cstr IssueBudgetMode;
 static double IssueBudgetClock;
-static unsigned IssueBudgetSlept, IssueBudgetPropagates, IssueBudgetTriggers, IssueBudgetFaults, IssueBudgetScopeErrors, IssueBudgetClockChecks;
+static unsigned IssueBudgetSlept, IssueBudgetPropagates, IssueBudgetTriggers, IssueBudgetFaults, IssueBudgetScopeErrors, IssueBudgetClockChecks, IssueBudgetDnsCalls;
 static xerror* IssueBudgetCause;
 static bool issue_mode(cstr Mode) { return IssueBudgetProbe && strcmp(IssueBudgetMode,Mode)==0; }
 static void issue_charge(unsigned Ms) { if(IssueBudgetProbe) IssueBudgetClock+=(double)Ms/1000.0; }
@@ -633,14 +633,34 @@ static bool flow_dns_query(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
     }
     xrtClearError(); strcpy(Records[0],ResolverTxt); *Count=1; return true;
 }
-static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,cstr Expected,bool* Found) {
-    if(!selected("resolver")) return xacmeDnsTxtContains(Dns,Resolver,Port,Fqdn,Expected,Found);
+static bool flow_dns_contains_until(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,cstr Expected,bool* Found,double Deadline) {
+    if(IssueBudgetProbe && strncmp(IssueBudgetMode,"dns-",4u)==0) {
+        IssueBudgetDnsCalls++;*Found=false;
+        bool own=issue_mode("dns-propagate-expired") || issue_mode("dns-own-no-match-sleep");
+        if(fabs(Deadline-(own?100.04:100.1))>0.000001) IssueBudgetScopeErrors++;
+        if(issue_mode("dns-io-memory") && IssueBudgetDnsCalls==1u) {
+            issue_charge(20u);xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.resolver",92,"advisory resolver failure before real MEMORY");return false;
+        }
+        if(issue_mode("dns-memory-before-deadline") || issue_mode("dns-memory-at-deadline") || issue_mode("dns-io-memory")) {
+            testRequire(xrtMemDebugFailAfter(0),"propagation actual allocator MEMORY arm");
+            testRequire(!xrtMalloc(1u) && xrtMemDebugFailTriggered(),"propagation actual allocator MEMORY");
+            IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
+            issue_charge(issue_mode("dns-memory-at-deadline")?120u:20u);return false;
+        }
+        if(issue_mode("dns-no-match-sleep") || issue_mode("dns-own-no-match-sleep")) {
+            issue_charge(own?10u:60u);xrtClearError();return true;
+        }
+        issue_charge(own?41u:101u);
+        xrtSetErrorInfo(XERR_TIMEOUT,"test.flow.resolver",93,"resolver consumed enclosing propagation deadline");
+        IssueBudgetCause=xrtErrorRef(xrtGetError());return false;
+    }
+    if(!selected("resolver")) return xacmeDnsTxtContainsUntil(Dns,Resolver,Port,Fqdn,Expected,Found,Deadline);
     char Record[1][XACME_TXT_RECORD_MAX];size_t Count=0;*Found=false;
     bool Result=flow_dns_query(Dns,Resolver,Port,Fqdn,Record,1u,&Count);
     if(Result && Count) *Found=strcmp(Record[0],Expected)==0;
     return Result;
 }
-#define xacmeDnsTxtContains flow_dns_contains
+#define xacmeDnsTxtContainsUntil flow_dns_contains_until
 #define xacmeHttpInit flow_init
 #define xacmeHttpExchange flow_exchange
 #define xrtJsonParse flow_json
@@ -674,7 +694,7 @@ static bool flow_dns_contains(xacmedns* Dns,cstr Resolver,uint16 Port,cstr Fqdn,
 #define xrtFree(pMemory) xrtFreeAt((pMemory), __FILE__, (uint32)__LINE__)
 #undef xrtSecureZero
 #undef xrtBase64Decode
-#undef xacmeDnsTxtContains
+#undef xacmeDnsTxtContainsUntil
 #undef xacmeHttpInit
 #undef xacmeHttpExchange
 #undef xrtJsonParse
@@ -916,10 +936,10 @@ static void resolver_endpoints(void) {
         strcpy(Client.sPropagateResolvers[1],"[::1]:5353");Client.iPropagateResolverCount=2u;
         Active=&Probe;Enabled=true;Inject=false;ResolverQueries=0;strcpy(ResolverTxt,"fixture-TXT");
         ResolverEndpointExpected="::1";ResolverEndpointPort=5353;
-        testRequire(xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt) && ResolverQueries==1u,
+        testRequire(xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt,INFINITY) && ResolverQueries==1u,
             "invalid resolver must be skipped before querying the valid IPv6 endpoint");
         ResolverQueries=0;testRequire(xrtMemDebugFailAfter(0),"resolver parse diagnostic allocation fault arm");
-        bool Visible=xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt);
+        bool Visible=xacmeFlowTxtVisible(&Dns,&Client,"_acme-challenge.example.test",ResolverTxt,INFINITY);
         testRequire(!Visible && ResolverQueries==0u && xrtMemDebugFailTriggered() && xrtErrorKind(xrtGetError())==XERR_MEMORY,
             "resolver parse MEMORY must stop before querying a later endpoint");
         xrtMemDebugFailClear();ResolverEndpointExpected=NULL;Enabled=false;Active=NULL;xrtClearError();
@@ -1352,7 +1372,9 @@ static bool issue_has_cause(const xerror* Error,const xerror* Expected) {
 static void issue_budget_policy(cstr Only) {
     static const cstr Modes[]={"control","unlimited-zero","unlimited-minus-one","order-spent","nonce-spent",
         "sign-spent","poll-backoff","read-backoff","add-backoff","add-ack-expired","propagate-expired",
-        "certificate-spent","certificate-parse-spent","cleanup-spent","late-memory","timeout-wrap-oom","invalid-domain","stale-memory"};
+        "certificate-spent","certificate-parse-spent","cleanup-spent","late-memory","timeout-wrap-oom","invalid-domain","stale-memory",
+        "dns-issue-expired","dns-propagate-expired","dns-no-match-sleep","dns-own-no-match-sleep",
+        "dns-memory-before-deadline","dns-memory-at-deadline","dns-io-memory"};
     static const flowcase Fixture={"issue-budget",FLOW_ISSUE,FLOW_SUCCESS,NULL,false};
     bool Matched=Only==NULL;
     for(size_t i=0;i<sizeof(Modes)/sizeof(Modes[0]);i++) {
@@ -1361,11 +1383,18 @@ static void issue_budget_policy(cstr Only) {
         struct xacmeclient* Client=create_client(false);testRequire(Client!=NULL,"Issue budget client fixture");
         Client->uIssueTimeoutMs=strcmp(Modes[i],"unlimited-zero")==0?0:strcmp(Modes[i],"unlimited-minus-one")==0?-1:100;
         IssueBudgetMode=Modes[i];IssueBudgetProbe=true;IssueBudgetClock=100.0;
-        IssueBudgetSlept=IssueBudgetPropagates=IssueBudgetTriggers=IssueBudgetFaults=IssueBudgetScopeErrors=IssueBudgetClockChecks=0u;IssueBudgetCause=NULL;
+        IssueBudgetSlept=IssueBudgetPropagates=IssueBudgetTriggers=IssueBudgetFaults=IssueBudgetScopeErrors=IssueBudgetClockChecks=IssueBudgetDnsCalls=0u;IssueBudgetCause=NULL;
         Requests=NonceRequests=AuthzRequests=OrderRequests=Sleeps=Adds=Removes=0u;Finalized=false;InOperation=true;
         if(issue_mode("nonce-spent")) Client->sNonce[0]=0;
         xstrview Domain=issue_mode("invalid-domain")?(xstrview){"example.com\0suffix",18u}:(xstrview)XRT_STR_LITERAL("example.com");
         xacmednsprovider Dns={"fixture",XACME_DNS_CAP_PROPAGATE,NULL,dns_add,dns_remove,dns_propagate};
+        bool dns_budget=strncmp(Modes[i],"dns-",4u)==0;
+        if(dns_budget) {
+            Dns.iCaps=0u;Dns.Propagate=NULL;Client->iPropagateResolverCount=3u;
+            for(unsigned n=0;n<3u;n++) snprintf(Client->sPropagateResolvers[n],sizeof(Client->sPropagateResolvers[n]),"127.0.0.1:%u",n+1u);
+            Client->uPropagateTimeoutMs=issue_mode("dns-propagate-expired") || issue_mode("dns-own-no-match-sleep")?40u:1000u;
+            if(issue_mode("dns-no-match-sleep") || issue_mode("dns-own-no-match-sleep")) Client->iPropagateResolverCount=1u;
+        }
         xacmeissuegrant Grant;memset(&Grant,0xa5,sizeof(Grant));
         if(issue_mode("stale-memory")) {
             testRequire(xrtMemDebugFailAfter(0),"stale caller MEMORY arm");
@@ -1373,8 +1402,8 @@ static void issue_budget_policy(cstr Only) {
             IssueBudgetCause=xrtErrorRef(xrtGetError());xrtMemDebugFailClear();
         }
         bool Result=xrtAcmeClientIssue(Client,&Domain,1u,&Dns,&Grant);
-        bool Oom=issue_mode("late-memory") || issue_mode("timeout-wrap-oom");
-        bool Success=issue_mode("control") || issue_mode("unlimited-zero") || issue_mode("unlimited-minus-one") || issue_mode("cleanup-spent");
+        bool Oom=issue_mode("late-memory") || issue_mode("timeout-wrap-oom") || issue_mode("dns-memory-before-deadline") || issue_mode("dns-memory-at-deadline") || issue_mode("dns-io-memory");
+        bool Success=issue_mode("control") || issue_mode("unlimited-zero") || issue_mode("unlimited-minus-one") || issue_mode("cleanup-spent") || issue_mode("dns-propagate-expired") || issue_mode("dns-own-no-match-sleep");
         printf("[issue-budget] %s success=%d kind=%d ms=%.3f requests=%u nonce=%u adds=%u removes=%u propagates=%u triggers=%u sleep=%u/%u scope-errors=%u\n",
             Modes[i],Result,(int)xrtErrorKind(xrtGetError()),(IssueBudgetClock-100.0)*1000.0,Requests,NonceRequests,Adds,Removes,
             IssueBudgetPropagates,IssueBudgetTriggers,Sleeps,IssueBudgetSlept,IssueBudgetScopeErrors);
@@ -1387,7 +1416,7 @@ static void issue_budget_policy(cstr Only) {
             testRequire(!Grant.sFullchainPem && !Grant.sKeyPem,"Issue timeout delivered partial grant");
             testRequire(xrtErrorKind(xrtGetError())==(Oom?XERR_MEMORY:issue_mode("invalid-domain")?XERR_ARGUMENT:XERR_TIMEOUT),"Issue timeout lost MEMORY/argument category");
             if(IssueBudgetCause && !issue_mode("timeout-wrap-oom") && !issue_mode("stale-memory")) testRequire(issue_has_cause(xrtGetError(),IssueBudgetCause),"Issue budget lost immutable producer cause");
-            if(issue_mode("late-memory")) testRequire(xrtGetError()==IssueBudgetCause,"late producer MEMORY was wrapped or replaced");
+            if(issue_mode("late-memory") || (dns_budget && Oom)) testRequire(xrtGetError()==IssueBudgetCause,"late producer MEMORY was wrapped or replaced");
         }
         if(issue_mode("stale-memory")) testRequire(Requests==0u && !issue_has_cause(xrtGetError(),IssueBudgetCause),"new Issue inherited a stale caller cause or submitted expired work");
         if(issue_mode("sign-spent")) testRequire(Requests==0u,"signing consumed budget but HTTP was submitted");
@@ -1399,9 +1428,16 @@ static void issue_budget_policy(cstr Only) {
         if(issue_mode("propagate-expired")) testRequire(Removes==1u && IssueBudgetPropagates==1u && IssueBudgetTriggers==0u,"expired propagation triggered challenge or lost TXT cleanup");
         if(issue_mode("cleanup-spent")) testRequire(Removes==3u && Sleeps==2u && IssueBudgetSlept==3000u,"cleanup inherited exhausted issue budget");
         if(issue_mode("certificate-spent") || issue_mode("certificate-parse-spent")) testRequire(Removes==1u,"late certificate failure lost record cleanup");
+        if(dns_budget) {
+            unsigned expected=issue_mode("dns-io-memory")?2u:1u;
+            testRequire(IssueBudgetDnsCalls==expected && Adds==1u && Removes==1u && IssueBudgetTriggers==(Success?1u:0u),"propagation ignored deadline/memory or lost TXT cleanup");
+            if(issue_mode("dns-no-match-sleep")) testRequire(Sleeps==1u && IssueBudgetSlept<=41u,"propagation slept past the enclosing Issue budget");
+            else if(issue_mode("dns-own-no-match-sleep")) testRequire(Sleeps==1u && IssueBudgetSlept<=31u,"advisory probe slept past its own budget");
+            else testRequire(Sleeps==0u,"expired/terminal propagation started a new backoff");
+        }
         xrtMemDebugFailClear();xrtAcmeGrantUnit(&Grant);xrtErrorFree(IssueBudgetCause);IssueBudgetCause=NULL;xrtClearError();
         /* One failed read now retries normally on this same client. */
-        IssueBudgetProbe=false;ReadRetryProbe=true;ReadRetryCalls=0u;ReadRetryFailures=1u;ReadRetryUncertain=true;Sleeps=0u;
+        IssueBudgetProbe=false;Dns.iCaps=XACME_DNS_CAP_PROPAGATE;Dns.Propagate=dns_propagate;ReadRetryProbe=true;ReadRetryCalls=0u;ReadRetryFailures=1u;ReadRetryUncertain=true;Sleeps=0u;
         xrtSetErrorInfo(XERR_IO,"xrt.acme.http",XACME_HTTP_ERROR_UNCERTAIN,"separately requested read");
         ReadRetryError=xrtErrorRef(xrtGetError());xrtClearError();xacmehttpresponse Response;
         testRequire(xacmeFlowPostAsGet(Client,"http://ca.example/read-retry",&Response) && ReadRetryCalls==2u && Sleeps==1u,"expired Issue poisoned separate caller read retry");
