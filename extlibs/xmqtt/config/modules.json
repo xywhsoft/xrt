@@ -360,7 +360,9 @@
       "examples": [
         "extlibs/xmqtt/examples/client/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_qos1.c"
+      ],
       "docs": [
         "extlibs/xmqtt/docs/client.md"
       ]

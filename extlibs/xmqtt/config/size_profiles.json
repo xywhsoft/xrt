@@ -37,10 +37,18 @@
       "system": "codec311",
       "suite": "xmqtt_codec311",
       "forbid_symbols": [
-        "xmqttProperties", "xmqttInternalProperties", "xmqtt5",
-        "xmqttPacketRead5", "xmqttPacketSize5", "xmqttPacketWrite5",
-        "_xmqttProperties", "_xmqttInternalProperties", "_xmqtt5",
-        "_xmqttPacketRead5", "_xmqttPacketSize5", "_xmqttPacketWrite5"
+        "xmqttProperties",
+        "xmqttInternalProperties",
+        "xmqtt5",
+        "xmqttPacketRead5",
+        "xmqttPacketSize5",
+        "xmqttPacketWrite5",
+        "_xmqttProperties",
+        "_xmqttInternalProperties",
+        "_xmqtt5",
+        "_xmqttPacketRead5",
+        "_xmqttPacketSize5",
+        "_xmqttPacketWrite5"
       ],
       "description": "Full MQTT 3.1.1 packet codec and public packet/wire/Unicode closure, without MQTT 5 properties or codec"
     },
@@ -49,6 +57,12 @@
       "system": "negotiation",
       "suite": "xmqtt_negotiation",
       "description": "Validated dual-version CONNECT/CONNACK negotiation and per-packet client constraints; no transport/session storage"
+    },
+    {
+      "name": "xmqtt_client",
+      "system": "client",
+      "suite": "xmqtt_client",
+      "description": "MQTT TCP/QoS0 receive/QoS0-1 send client, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately"
     }
   ]
 }

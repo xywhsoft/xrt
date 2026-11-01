@@ -3,10 +3,11 @@
 `xmqtt_client` is developing. It implements one numeric-address TCP connection
 on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
-QoS-0 PUBLISH send/receive, server keep-alive override, PINGREQ/PINGRESP,
+QoS-0 PUBLISH send/receive, QoS-1 publishing with correlated PUBACK results,
+server keep-alive override, PINGREQ/PINGRESP,
 abortive close and physical retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. QoS 1/2, subscription and
+This stage does **not** complete the planned client. QoS-1 receive, QoS 2, subscription and
 identifier state, aliases, enhanced authentication, graceful DISCONNECT,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
 Enhanced authentication and positive receive Topic Alias Maximum are refused
@@ -24,9 +25,10 @@ owns original/assigned client identity views. It has no Client/Engine reference.
 
 Async publish first validates, sizes and encodes a caller-independent immutable
 packet. ACCEPTED transfers one Future observer to the caller. Ordinary CLOSED
-and OVERLOADED leave that output and the ambient error unchanged. A writeresult
+and OVERLOADED leave that output and the ambient error unchanged. A QoS-0 result
 OK means every native write-buffer reference retired while the transport was
-open. It acknowledges no broker receipt, routing, storage or delivery. Any
+open. It acknowledges no broker receipt, routing, storage or delivery. QoS-1
+completion and decision metadata follow the sender contract below. Any
 prefix accepted by TCP makes delivery uncertain, including timeout/cancellation
 results. Cancelling/timing out a request with an accepted prefix retires the
 connection; no incomplete frame is followed by another packet or auto-replayed.
@@ -95,6 +97,67 @@ can incur memmove and growth can copy staging once. There is one host-worker
 protocol owner, a Client admission/snapshot gate, atomic physical references and
 a separate object-quota gate. Request/deadline scans are bounded by MaxRequests.
 No zero-allocation or zero-copy end-to-end claim is made.
+
+## QoS-1 sender and acknowledgement ownership
+
+Publish accepts fresh QoS-0/1 descriptors (DUP=0). For QoS 1, Identifier=0
+assigns an unused nonzero id; an explicit id reserves that value. Concurrent
+attempts to reserve the same id return normal OVERLOADED, preserving the Future
+output and ambient error. No caller packet is modified. An id remains reserved
+until its real request references retire, possibly after Future completion.
+No id is silently reused for a still-unacknowledged publication.
+
+One bitmap/hash table is allocated lazily on the first QoS-1 attempt, charged
+to private bytes and retained through Destroy. A later allocation/admission
+failure can leave that cold table cached. The bitmap is 8192 bytes; bucket
+count is the next power of two at least twice MaxRequests. Worker-owned hash
+chains correlate ACKs, and a doubly linked active list removes completions
+without an additional request scan. Lookup collisions remain bounded by the
+configured request count; deadline and send scans are still bounded scans.
+QoS-0 allocates no table and performs no extra descriptor copy. QoS-1 copies
+one descriptor to substitute its assigned id, retaining the two independent
+public Size/Write preflights and one wire encoding copy.
+
+MQTT 5 Receive Maximum limits started, unacknowledged QoS-1 publications.
+Only the first successfully accepted native prefix consumes credit. A matching
+PUBACK returns it, including negative reason codes. Queued QoS-1 packets wait
+at zero credit; QoS-0 and PING traffic may proceed. A partial frame is completed
+before another control packet is inserted. MQTT 3.1.1 uses local request bounds
+without a negotiated Receive Maximum. No retransmission occurs on the same
+connection; reconnect/session/durable replay is separate unfinished work.
+
+QoS-1 success waits for a matching PUBACK, not native write retirement. The
+result appends Identifier/Reason/Puback after its original four-field prefix;
+the latter's offsets are unchanged. PEER_ACCEPTED indicates a reason below
+0x80 (including no matching subscribers); PEER_REJECTED indicates a negative
+decision and Status=REJECTED. Neither promises subscriber delivery or durability.
+The immutable ACK retains all reason/User Properties and may be separately
+retained through the message API. Results/ACKs remain independent of Client
+and Engine. If ACK metadata cannot fit the object budget, close with LIMIT or
+MEMORY while retaining its scalar reason and accepted/rejected decision.
+
+CONNECT Request Problem Information=0 is retained as connection state after
+startup wire retirement. PUBACK Reason String/User Properties then cause a
+protocol close; a bare PUBACK remains valid. CONNACK, PUBLISH and DISCONNECT
+retain their permitted diagnostics behavior.
+
+Unknown, duplicate, unsent or wrong-kind acknowledgements on this connection
+close with PROTOCOL; they cannot complete an unrelated Future or mint credit.
+Timeout/cancellation while awaiting PUBACK closes the connection with uncertain
+delivery. Existing native-write, cancellation, quota and physical-close rules
+still apply. Incoming QoS-1 PUBLISH remains explicitly unsupported in this
+sender stage; it is not silently consumed or acknowledged.
+
+`bench_client_qos1.c` supplies a separate loopback workload: one client, a local
+healthy peer on another host worker, window 32, 32-byte payload, application
+observation of PUBACK completion, P50/P99/max latency and throughput. Timing
+starts after CONNECT/CONNACK and stops before teardown; the first lazy id-table
+allocation is included. Allocation variants instrument the client **and peer**,
+reporting XRT block counts/bytes rather than RSS or all system allocations.
+Uninstrumented and instrumented variants are separate. Host polling and timer
+sampling, peer decoding/ACK copies and scheduling are included. This fixture
+is neither an independent broker nor a pinned comparator; no performance
+acceptance is inferred from one successful run or a smoke result.
 
 The source fixture, independent stdlib wire peer and example are separate.
 Native Windows and WSL sanitizer runs are development evidence; WSL is not the

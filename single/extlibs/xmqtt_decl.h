@@ -3212,14 +3212,22 @@ typedef enum xmqttclientstatus {
     XMQTT_STATUS_MEMORY,XMQTT_STATUS_UNSUPPORTED,XMQTT_STATUS_SESSION,
     XMQTT_STATUS_INITIALIZATION,XMQTT_STATUS_SERVER_DISCONNECT,XMQTT_STATUS_RESTRICTED
 } xmqttclientstatus;
-typedef enum xmqttdelivery {XMQTT_NOT_SENT=0,XMQTT_MAY_HAVE_REACHED_PEER} xmqttdelivery;
+typedef enum xmqttdelivery {XMQTT_NOT_SENT=0,XMQTT_MAY_HAVE_REACHED_PEER,XMQTT_PEER_ACCEPTED,XMQTT_PEER_REJECTED} xmqttdelivery;
 typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCEPTED=0,XMQTT_ADMISSION_OVERLOADED,XMQTT_ADMISSION_CLOSED} xmqttclientadmission;
 /* A resolved Future is a typed outcome, not necessarily operation success.
  * QoS-0 OK observes complete native write-buffer retirement while open; it
  * does not acknowledge broker receipt, routing, storage or subscriber delivery.
  * Accepting ANY prefix into TCP makes delivery uncertain. Never auto-replayed.
- * Cause is borrowed from the result; retained results do not retain Client. */
-typedef struct xmqttwriteresult {xmqttclientstatus Status;xmqttdelivery Delivery;size_t AcceptedBytes;const xerror* Cause;} xmqttwriteresult;
+ * QoS-1 completes after a corresponding PUBACK; PEER_ACCEPTED/REJECTED denotes
+ * its decision, not subscriber delivery or durable storage. Puback (if present)
+ * owns its reason/properties and may be separately retained. Local metadata
+ * exhaustion can return LIMIT/MEMORY after an ACK, retaining its scalar decision.
+ * Cause is borrowed from the result; retained results do not retain Client.
+ * The original four-field prefix is unchanged; new fields are appended. */
+typedef struct xmqttwriteresult {
+    xmqttclientstatus Status;xmqttdelivery Delivery;size_t AcceptedBytes;const xerror* Cause;
+    uint16 Identifier;uint8 Reason;const xmqttmessage* Puback;
+} xmqttwriteresult;
 /* Connack and Negotiated views belong to this Future. The optional message
  * may be separately retained. No connection/engine reference survives in it. */
 typedef struct xmqttreadyresult {
@@ -3253,8 +3261,8 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * only on success. Startup wire is wiped after handshake/stops AND its final
  * native reference. Caller/native/system copies are outside that contract.
  * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0
- * publishes/receives and server DISCONNECT. Enhanced auth and positive receive
- * alias capacity are explicitly unsupported; QoS 1/2, subscriptions, reconnect,
+ * receives, QoS-0/1 sends and server DISCONNECT. Enhanced auth and positive receive
+ * alias capacity are explicitly unsupported; QoS-1 receive, QoS 2, subscriptions, reconnect,
  * durable sessions and graceful DISCONNECT remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap. */
@@ -3263,8 +3271,14 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
 /* Shared readiness Future, always typed. Explicit Future cancellation requests
  * Close; raw cancel-token requests are sampled on IO/deadline progress. */
 XMQTT_API xfuture* xmqttClientReady(xmqttclient* Client);
-/* Thread-safe finite admission, immutable preencoded copy. Only QoS-0 PUBLISH
- * with a nonempty topic and no topic alias. May queue while connecting, but no
+/* Thread-safe finite admission, immutable preencoded copy. QoS-0/1 new PUBLISH
+ * (DUP=0), with a nonempty topic and no topic alias. QoS-1 Identifier=0 assigns
+ * an unused id; nonzero reserves the explicit id, with normal OVERLOADED on
+ * conflict. Its physical reservation lasts until real request retirement.
+ * A bounded bitmap/hash table is allocated lazily on the first QoS-1 attempt,
+ * charged to MaxPrivateBytes and retained through Destroy, even on later
+ * admission failure. Peer Receive Maximum limits QoS-1 sends; QoS-0/control
+ * traffic may continue while it is exhausted. May queue while connecting, but no
  * publish is sent before accepted CONNACK. Timeout includes encoding/queueing.
  * Future output changes on ACCEPTED only; normal overload/closed is counted.
  * Explicit Future cancellation wakes the owner; raw token sampled on progress.

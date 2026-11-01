@@ -30,3 +30,14 @@ The in-process fault/OOM/lifetime fixture is `../test_client.c`; the separately
 documented runnable example is `../../examples/client/main.c`. These peers are
 development fixtures. Pinned real-broker interoperability, reconnect/QoS/durable
 scenarios, performance comparisons and native >=72h qualification remain.
+
+`qos1_probe.c` plus `run_qos1_wire.py` adds 37 independent sender scenarios
+across both versions. Use the same compilation/link procedure with this probe
+source and invoke `run_qos1_wire.py --probe ... --report ...`. Cases cover
+automatic/explicit/reused/colliding identifiers, out-of-order PUBACKs, negative
+and no-subscriber decisions, repeated User Properties and retained ACKs,
+Receive Maximum exhaustion with QoS0/PING progress, cancellation/deadline,
+metadata/private bounds, and unknown/zero/duplicate/unsent/wrong-kind/bad-reason
+or truncated ACKs, plus Request Problem Information=0 rejection/clean-ACK
+acceptance. It uses standard-library framing helpers, never xmqtt codecs.
+Incoming QoS-1 delivery and QoS-2/session replay still require subsequent work.

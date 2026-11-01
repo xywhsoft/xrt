@@ -5100,3 +5100,134 @@ recovery, MQTT QoS1/2/subscriptions/session/alias/auth/recovery/store/transports
 Cron IANA/scheduler/durable scope, runtime throughput/P99 comparisons and native
 Windows/Linux >=72h qualification remain. The four-product goal stays active;
 the next implementation work is the real MQTT QoS state chain.
+
+
+## 2026-11-02 — real MQTT QoS-1 sender, bounded identifiers and PUBACK ownership
+
+Extended the developing TCP client from QoS0 to fresh QoS0/1 publishing for
+MQTT 5 and 3.1.1. The original four-result-field prefix is preserved; appended
+Identifier/Reason/Puback expose the actual broker decision and retained ACK
+properties. No public Core change or new shared runtime was introduced.
+
+### Implemented protocol/resource behavior
+
+- QoS1 Identifier=0 assigns an unused nonzero id; explicit ids are reserved.
+  Busy ids yield normal OVERLOADED with output/ambient-error preservation.
+  A lazily allocated bitmap and bounded hash buckets are charged to private
+  bytes. Only the worker mutates ACK lookup chains; reservations are gated.
+  Failed constructions release their id; real native/producer references keep
+  physical request/wire/id reservations charged through their actual retirement.
+- Receive Maximum limits started unacknowledged QoS1 publications. The first
+  accepted native prefix consumes credit; matching positive/negative PUBACKs
+  return it. QoS0 and PING traffic proceed while QoS1 waits at zero credit, with
+  no partial-frame interleaving. No same-connection retransmission or fallback.
+- Native write completion alone cannot complete QoS1. A correlated PUBACK
+  resolves a typed accepted/rejected decision, including no-subscriber success.
+  Unknown, duplicate, unsent, wrong-kind, zero-id or malformed ACKs cannot finish
+  another request. Awaiting-ACK cancellation/deadline retires the connection
+  with uncertain delivery. Peer acceptance is not subscriber/durability proof.
+- Immutable PUBACK metadata owns all reason/repeated User Property views and
+  survives Client/Engine/Future destruction through message retention. Metadata
+  quota failure closes with LIMIT/MEMORY and preserves the scalar ACK decision.
+  A doubly linked active list avoids an extra request scan on ACK removal;
+  deadline/send scans and hash collision chains remain bounded, not universally
+  constant work. QoS0 allocates no table and adds no descriptor copy.
+- The offline example now asserts both QoS0 echo and QoS1 PUBACK/lifetime rules.
+  Its healthy local fixture is separate from adversarial tests and independent
+  stdlib wire peers; it is not a production broker or a shared library runtime.
+
+### Verified current-source behavior and delivered forms
+
+Evidence root: `out/service-extensions/xmqtt-qos1/`.
+
+Windows GCC -O2 and WSL GCC -O2 ASan/UBSan/leak-check matrices passed all seven
+modular and seven single-header binaries per platform (28 executions). Sender
+coverage includes automatic/explicit ids, full-write-but-no-ACK pending state,
+positive/negative ACK metadata lifetime, receive-window/QoS0/PING progress,
+collision chains/out-of-order ACKs, duplicate/unknown/unsent ACKs, explicit
+65535, cancellation/deadline, peer QoS restriction, ACK object limits and cold
+allocation failure/identifier rollback. Original QoS0/network tests also pass.
+
+The independent peers cover 31 original plus 37 sender scenarios in six forms:
+Windows/WSL monolithic, static and shared package clients, 408 successful
+process cases. Full/minimal static/shared consumers passed on both platforms
+(eight consumers); both updated offline examples ran. Both platforms passed
+trim/declaration/layout checks. Config/info/ready/packet/codec/property sizes
+remain 264/144/136/168/56/40 bytes. Writer result grows 24 to 40 bytes with
+its original 24-byte prefix offsets checked at compilation.
+
+One separate functional 70,000-publication run per platform verifies actual
+identifier rollover and checksum 2157421225. Those runs are not additional
+performance samples. Size reports cover single/static/shared forms; size
+measurement's rebuilt minimal libraries were followed by final consumer
+relink/run and artifact-hash refresh, with final byte counts revalidated.
+Single objects include Core; primary static/shared extension files require
+separate Core dependency libraries. Their byte denominators differ.
+
+| Platform | Single object bytes | Extension static bytes | Extension shared bytes | Core static dependency bytes | Core shared dependency bytes |
+| --- | --- | --- | --- | --- | --- |
+| Windows | 565929 | 114818 | 142788 | 475580 | 445513 |
+| WSL | 725200 | 151692 | 110336 | 606060 | 409264 |
+
+A final independent protocol check reproduced acceptance of forbidden PUBACK
+Reason String/User Properties after CONNECT Request Problem Information=0.
+The client now preserves this setting after startup-wire retirement and rejects
+such ACKs before acknowledging a request; bare PUBACKs remain valid. Two new
+MQTT 5 peer scenarios exercise both decisions across all six forms. Functional,
+package, size and performance reports were rebuilt against the corrected source.
+`before-problem-info/` preserves 371 exact prior source/artifact files, their
+hash map and prior reports; its earlier measurements are historical evidence,
+not selected current-source samples.
+
+A temporary C: disk exhaustion caused a failed performance **compile**, before
+measurement. Only checked task-owned output directories were SHA-preserving
+moved to D: junctions; native/compiler temporary files now use the task's D:
+cache. No other task's files were deleted and no runtime source was changed
+for that environmental repair. The failed compile log is preserved.
+
+Build/package/API-reference/performance-tool regression reports 78 tests, OK.
+Previously reproduced xhttp scope/ABI failures remain outside that passing
+subset; no green global repository gate is claimed.
+
+### Initial runtime measurements — unaccepted
+
+Added a separate loopback workload: one client/local healthy peer, two host IO
+workers plus the observer, 32 in-flight publishes, 32-byte payload, 20,000
+publications/sample. Timing starts after CONNACK and ends at observed PUBACK
+completion before teardown; first lazy id-table allocation is included. The
+allocation variants include client AND peer XRT block traffic, not all system
+allocations/RSS. The plain and instrumented variants are separate binaries.
+
+Each variant retains all five measured samples, with one configured/logged
+warmup, original 3% relative-MAD / 6% central-range quality gates and unchanged
+5% throughput / 10% P99 regression thresholds. Warmup numeric metric values
+are not retained by the existing collector. The 20k runs are short observations;
+longer representative loads, pinned comparators and complete cold-path/CPU/
+synchronization/syscall accounting remain required. No favorable retry, lower
+threshold, pinned baseline, broker parity or production performance is claimed.
+
+| Platform | Version | Instrumented | Publish/s median | P99 us median | Failed metric noise gates |
+| --- | --- | --- | --- | --- | --- |
+| windows | 5 | no | 328504.320 | 160.900 | 1 |
+| windows | 4 | no | 342601.269 | 172.200 | 2 |
+| windows | 5 | yes | 306106.675 | 170.800 | 4 |
+| windows | 4 | yes | 285405.233 | 187.400 | 3 |
+| wsl | 5 | no | 87594.899 | 753.200 | 3 |
+| wsl | 4 | no | 109613.965 | 477.400 | 3 |
+| wsl | 5 | yes | 102018.955 | 538.300 | 1 |
+| wsl | 4 | yes | 103641.069 | 584.700 | 4 |
+
+Both complete reports exited 1 on noise checks. Performance remains unaccepted.
+The allocator variants observed approximately 6.002 XRT blocks / 757–758 block
+bytes per publish on Windows and 6.127–6.146 / 973–974 on WSL, including the peer and
+amortized first table allocation. These do not establish library-only costs or
+zero overhead. Source/workload fingerprints and exact compiler/environment,
+arguments and sample arrays remain in the performance reports.
+
+Full target remains active: incoming QoS1, QoS2, subscriptions/id/session/alias/
+auth/reconnect/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated modes, RPC
+remaining client/server security/recovery/transports/deferred scope, Cron IANA/
+scheduler/durability, pinned performance and native Windows/native Linux >=72h
+qualification. WSL is not native Linux acceptance. No merge into D:/GIT/xrt,
+push or production-complete claim was made. This is a verified sender stage,
+not completion of MQTT or the four-product objective.
