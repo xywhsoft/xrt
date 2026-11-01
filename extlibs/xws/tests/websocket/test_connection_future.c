@@ -2677,6 +2677,25 @@ static void testWsFutureGroupOperation(
 		(xrtErrorKind(Result.Error) == XERR_AGAIN),
 		"WebSocket group partial admission was not reported"
 	);
+	memset(ResultStorage, 0xA5, sizeof(ResultStorage));
+	testRequire(
+		xrtWsGroupOpResult(
+			pOperation,
+			0,
+			(xwsgroupopresult*)(void*)(ResultStorage + 1u)
+		) &&
+		(ResultStorage[0] == 0xA5) &&
+		(ResultStorage[sizeof(ResultStorage) - 1u] == 0xA5),
+		"WebSocket group rejected item unaligned result range failed"
+	);
+	memcpy(&Result, ResultStorage + 1u, sizeof(Result));
+	testRequire(
+		(Result.State == XWS_GROUP_OP_REJECTED) &&
+		(Result.Connection == pClient) &&
+		(Result.Error != NULL) &&
+		(xrtErrorKind(Result.Error) == XERR_AGAIN),
+		"WebSocket group rejected item unaligned result mismatch"
+	);
 	xrtAtomic32Store(
 		&pTest->Release,
 		1,

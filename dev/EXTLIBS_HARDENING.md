@@ -57,7 +57,7 @@
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
-| xws-group | 3 | 3 | 4 | 3 | 2 | 待复核 |
+| xws-group | 3 | 3 | 4 | 3 | 2 | 三个自有 C/API/所有权复核、四环境完整测试与双平台交付通过，待本批 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 
 ## 执行记录
@@ -1380,3 +1380,48 @@ acme-decorated-unit-{windows,linux}.json、acme-decorated-unit-windows-initial-o
 acme-decorated-wire-final-{windows,linux}.json、acme-decorated-debug-*.log、
 acme-decorated-checks.json、acme-decorated-final-input-audit.json 及对应逐组日志；
 ci-eccd5638-{run,jobs,artifacts}.json。
+
+
+### 第三十九批：连接组源码复核、字节视图与本地交付验收
+
+- 逐段复核 xws-group 的三个自有 C 文件、两个内部头及 38 项公开接口：唯一成员/容量/
+  Seal、锁外释放与快照扩容、成员引用回滚、广播共享负载、部分接纳、Future 监听引用、
+  聚合取消和最终退休。基础层不引入 Future；快照独立于原组，取消聚合等待不代表成员
+  全部已终止。完整测试包括八线程各 1000 轮成员/快照并发、128 次双成员广播、
+  真实 TCP/Worker 队列背压、取消、OOM、未对齐范围/哨兵及失败所有权。
+- 原实现 Linux Clang 21 ASan/UBSan/float-cast-overflow 在现有未对齐结果用例报错。
+  保留 halt-on-error 失败；另一次仅用于观察全部诊断的执行确认 Result 写入和 Ref
+  读取两处报告，未当作通过证据。三个自有 C 文件及共享夹具的旧哈希与 eccd5638
+  Git blob 一致，原二进制和日志保留。实际修复为两个 Result 发布点及一个 Ref
+  快照入口的显式 void/const void 字节视图，保持原有范围/重叠/所有权规则。
+- 新增部分接纳时 REJECTED 槽位的未对齐结果、哨兵、连接与错误保真检查；保留原有
+  RESOLVED/Ref 未对齐用例。包消费者新增真实公开 Future 广播调用：空组接管 Ref
+  恰好 Release 一次，独立完成 Future 在 Operation/Group 销毁后仍有效。
+- 修复主题文档遗留的 Core 模块宏及 xrt.h 入口说明，改为本库宏与 xws-group.h；
+  Limit 固定值和加锁瞬时查询区分，删除重复 WaitFor 名称。
+- 最终 Windows GCC、Linux GCC / Clang ASan+UBSan+float-cast-overflow+leaks / TCC
+  各执行全部 4 个模块测试、3 个单头程序及 2 个可运行示例，9/9 均通过。两平台
+  static/shared 四个消费者与模块依赖裁剪均通过。五项生成/features/API/release 门禁
+  通过。原 Windows 包编译 OOM、随后一次无 CPU/子进展的 GCC 编译停滞均保留；
+  仅终止已核对属于本任务的停滞编译器（约 234 秒），最终完整复跑通过。
+- 两平台各执行基础组/广播两个体积 profile 的 single/static/shared 六种产物，禁用
+  HTTP/Client/Server 符号检查通过；空组 snapshot 性能 smoke 通过，不据此声称吞吐
+  或性能回归结论。WSL 首次体积命令无终态摘要且宿主返回 1，空日志保留；观察到
+  WSL 系统重启记录，但未宣称唯一因果，最终重新执行两个 profile 均通过。
+- 广范围比对发现一个未选择的 Core ownership 测试快照不同；保留初始报告，不覆盖
+  无关源文件。该程序及包含它的 Core 单头不在组资产/包含闭包中；排除这一项后，
+  覆盖注册输入、Core/xws/group C/头及嵌套测试的 2223 项超集归一化一致。
+- eccd5638 的两平台 ACME coverage 已下载并各核对 16 个生产源文件 Git blob：Windows
+  6044/6918 行（87.37%）、5063/7173 分支结果（70.58%）；Linux 6035/6921 行
+  （87.20%）、5073/7181（70.64%）。70%/55% 原门槛不变，范围仅为该旧提交。
+- 本产品尚需本批提交的 GitHub CI；Windows MSVC/clang-cl/x86 未本地执行，
+  Android/BSD/macOS、TSan 和长稳不在本次证据内。现有并发与 sanitizer 结果不替代这些
+  环境。暂不计入完成，整库首轮验收维持 2/21，待 CI 后更新本产品有界验收状态。
+
+证据：xws-group-alignment-before-provenance.json、xws-group-alignment-before-all.log、
+xws-group-alignment-before-client（WSL）、xws-group-accept-*-before.{json,log}、
+xws-group-accept-windows-stalled.json 及对应日志；xws-group-accept-{windows,linux}.json、
+xws-group-selected-assets.json、xws-group-checks.json、xws-group-size-{windows,linux}.json、
+xws-group-performance-{windows,linux}.json、xws-group-profile-*.json、
+xws-group-broad-input-audit.json、xws-group-final-input-audit.json、xws-group-final-validation.json；
+ci-eccd5638-acme-{windows,linux}-coverage{,-provenance}.json 及原始 zip。
