@@ -239,3 +239,14 @@ refresh/replay policy and per-request server context remain pending. The paired
 TCP/TLS header profile retains all samples and original noise limits; timing
 excludes setup/shutdown and may exclude native callback retirement tails. It is
 not isolated transport CPU or performance/production acceptance.
+
+
+| Copied server context contract | Verification |
+| --- | --- |
+| Immutable document snapshot | Worker-gated caller overwrite, batch/notification sharing, source-span overlap, canonical empty legacy views |
+| Bounds and ownership | Exact configured limit, disabled context, 1 MiB content verification, global request budget, output aliases, retained result after context/server retirement |
+| Concurrency and stops | Four producers with independent metadata, queued Future/server cancellation and deadline precedence without business entry |
+| Failure/erasure | Alternating empty/nonempty 2048 construction quota prefixes, actual production-TU inspection before real job free on success/stops/partial construction |
+
+This is the execution data channel needed by transport authorization. HTTP
+authorization, principal policy and typed request metadata remain pending.

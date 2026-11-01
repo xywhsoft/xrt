@@ -3952,6 +3952,8 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC_SERVER)
 typedef struct xrpcserver xrpcserver;
+#define XRPC_SERVER_CONTEXT_BYTES_DEFAULT 16384u
+#define XRPC_SERVER_CONTEXT_BYTES_MAX 1048576u
 typedef enum xrpcserverstatus {
     XRPC_SERVER_DONE=0, XRPC_SERVER_CANCELLED, XRPC_SERVER_TIMEOUT,
     XRPC_SERVER_MEMORY, XRPC_SERVER_LIMIT, XRPC_SERVER_LOCAL_ERROR
@@ -3967,6 +3969,7 @@ typedef enum xrpcservererror {
 typedef struct xrpcservercontext {
     xcancel* Cancel; /* Borrowed. Poll for request or server cancellation. */
     double Deadline; /* Absolute xrtTimer seconds; may be INFINITY. */
+    xbytesview Data; /* Immutable copied request context, borrowed through Call. */
 } xrpcservercontext;
 /* Runs on a Core executor worker, never the submitting/I/O thread. Request,
  * Reply and Context are borrowed through this call only. Reply is synchronous;
@@ -3983,11 +3986,13 @@ typedef struct xrpcserverconfig {
     size_t InitialOutputBytes;
     xrpcservercall Call;
     ptr User; /* Borrowed code/context; alive through successful Destroy. */
+    size_t MaxContextBytes;
 } xrpcserverconfig;
 typedef struct xrpcserverinfo {
     size_t Size;
     bool Accepting,Cancelling;
     size_t Operations,RequestBytes,Results,ResultBytes,WorkspaceBytes,Running;
+    size_t ContextBytes; /* Included in RequestBytes; excludes alignment padding. */
     uint64 Accepted,Rejected,Completed,PublicationFailures;
 } xrpcserverinfo;
 typedef struct xrpcserverresult {
@@ -4023,6 +4028,18 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Serve
  * Completion Watches run on worker/cancel-drop threads and must not block them. */
 XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* Server,xstrview Input,
     int64 Timeout,xfuture** Future);
+/* Same request semantics, with an independent byte snapshot for every handler
+ * in this document. Copies Context before return into the existing job block;
+ * it may overlap Input, but neither may overlap Future. At most MaxContextBytes
+ * (default 16 KiB, hard 1 MiB; zero disables nonempty context). Job header,
+ * alignment padding, Input and Context share MaxRequestBytesTotal. Nonempty
+ * Data is aligned for max_align_t; embedded pointers are not deep-copied.
+ * Do not mutate or retain the borrowed handler view. Context storage is wiped
+ * at the final job reference, independent of retained result Futures. No user
+ * cleanup callback or extra context allocation is installed. Plain Submit uses
+ * an empty view. Recompile consumers for config/context layout changes. */
+XRPC_API xrpcserveradmission xrpcServerSubmitWithContext(xrpcserver* Server,
+    xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future);
 XRPC_API bool xrpcServerInfo(xrpcserver* Server,xrpcserverinfo* Info);
 /* Concurrent nonblocking admission close/drain, or cooperative cancellation plus
  * queued-job drop. User cancel watches can run on the Cancel caller, outside

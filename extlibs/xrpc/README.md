@@ -6,6 +6,8 @@ indexing, exact ID comparison keys, bounded pending calls, immutable response
 snapshots, complete response-batch correlation, native typed call Futures and a
 bounded HTTP/TCP call/notification/batch client, bounded server execution and
 HTTP/1 server listener/peer transport are implemented.**
+Server submission also accepts [copied per-request context](docs/server_context.md),
+with aligned immutable handler views, physical erasure and aggregate accounting.
 The optional [HTTP TLS client](docs/http_tls.md) adds explicit trusted numeric,
 DNS and prepared-address connections, HTTP/1.1 ALPN and bounded partial writes.
 The optional [HTTP TLS server](docs/http_server_tls.md) adds explicit TLS listeners,

@@ -795,7 +795,8 @@
         "extlibs/xrpc/README.md",
         "extlibs/xrpc/docs/api/reference.md",
         "extlibs/xrpc/docs/coverage.md",
-        "extlibs/xrpc/docs/server.md"
+        "extlibs/xrpc/docs/server.md",
+        "extlibs/xrpc/docs/server_context.md"
       ]
     },
     {

@@ -3202,6 +3202,181 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_server_context",
+      "system": "server",
+      "description": "Matched 0/32/4096 copied context bytes; windowed throughput and serial latency; process CPU through physical join, no transport/comparator",
+      "benchmarks": [
+        {
+          "name": "xrpc_server_context_0",
+          "source": "extlibs/xrpc/bench/bench_server.c",
+          "suite": "xrpc_server",
+          "args": [
+            "2000",
+            "64",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "us including physical shutdown"
+            },
+            "cpu_us_per_document": {
+              "direction": "lower",
+              "unit": "us/document across throughput and latency phases"
+            }
+          },
+          "facts": [
+            "window",
+            "items",
+            "workload",
+            "context_bytes"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        },
+        {
+          "name": "xrpc_server_context_32",
+          "source": "extlibs/xrpc/bench/bench_server.c",
+          "suite": "xrpc_server",
+          "args": [
+            "2000",
+            "64",
+            "1",
+            "32"
+          ],
+          "smoke_args": [
+            "32",
+            "8",
+            "1",
+            "32"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "us including physical shutdown"
+            },
+            "cpu_us_per_document": {
+              "direction": "lower",
+              "unit": "us/document across throughput and latency phases"
+            }
+          },
+          "facts": [
+            "window",
+            "items",
+            "workload",
+            "context_bytes"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        },
+        {
+          "name": "xrpc_server_context_4096",
+          "source": "extlibs/xrpc/bench/bench_server.c",
+          "suite": "xrpc_server",
+          "args": [
+            "2000",
+            "64",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "32",
+            "8",
+            "1",
+            "4096"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "documents/s"
+            },
+            "completed": {
+              "direction": "higher",
+              "unit": "documents"
+            },
+            "latency_samples": {
+              "direction": "higher",
+              "unit": "samples"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_us": {
+              "direction": "lower",
+              "unit": "us including physical shutdown"
+            },
+            "cpu_us_per_document": {
+              "direction": "lower",
+              "unit": "us/document across throughput and latency phases"
+            }
+          },
+          "facts": [
+            "window",
+            "items",
+            "workload",
+            "context_bytes"
+          ],
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h"
+          ]
+        }
+      ]
     }
   ]
 }

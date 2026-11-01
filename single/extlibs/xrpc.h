@@ -1420,6 +1420,8 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC_SERVER)
 typedef struct xrpcserver xrpcserver;
+#define XRPC_SERVER_CONTEXT_BYTES_DEFAULT 16384u
+#define XRPC_SERVER_CONTEXT_BYTES_MAX 1048576u
 typedef enum xrpcserverstatus {
     XRPC_SERVER_DONE=0, XRPC_SERVER_CANCELLED, XRPC_SERVER_TIMEOUT,
     XRPC_SERVER_MEMORY, XRPC_SERVER_LIMIT, XRPC_SERVER_LOCAL_ERROR
@@ -1435,6 +1437,7 @@ typedef enum xrpcservererror {
 typedef struct xrpcservercontext {
     xcancel* Cancel; /* Borrowed. Poll for request or server cancellation. */
     double Deadline; /* Absolute xrtTimer seconds; may be INFINITY. */
+    xbytesview Data; /* Immutable copied request context, borrowed through Call. */
 } xrpcservercontext;
 /* Runs on a Core executor worker, never the submitting/I/O thread. Request,
  * Reply and Context are borrowed through this call only. Reply is synchronous;
@@ -1451,11 +1454,13 @@ typedef struct xrpcserverconfig {
     size_t InitialOutputBytes;
     xrpcservercall Call;
     ptr User; /* Borrowed code/context; alive through successful Destroy. */
+    size_t MaxContextBytes;
 } xrpcserverconfig;
 typedef struct xrpcserverinfo {
     size_t Size;
     bool Accepting,Cancelling;
     size_t Operations,RequestBytes,Results,ResultBytes,WorkspaceBytes,Running;
+    size_t ContextBytes; /* Included in RequestBytes; excludes alignment padding. */
     uint64 Accepted,Rejected,Completed,PublicationFailures;
 } xrpcserverinfo;
 typedef struct xrpcserverresult {
@@ -1491,6 +1496,18 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Serve
  * Completion Watches run on worker/cancel-drop threads and must not block them. */
 XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* Server,xstrview Input,
     int64 Timeout,xfuture** Future);
+/* Same request semantics, with an independent byte snapshot for every handler
+ * in this document. Copies Context before return into the existing job block;
+ * it may overlap Input, but neither may overlap Future. At most MaxContextBytes
+ * (default 16 KiB, hard 1 MiB; zero disables nonempty context). Job header,
+ * alignment padding, Input and Context share MaxRequestBytesTotal. Nonempty
+ * Data is aligned for max_align_t; embedded pointers are not deep-copied.
+ * Do not mutate or retain the borrowed handler view. Context storage is wiped
+ * at the final job reference, independent of retained result Futures. No user
+ * cleanup callback or extra context allocation is installed. Plain Submit uses
+ * an empty view. Recompile consumers for config/context layout changes. */
+XRPC_API xrpcserveradmission xrpcServerSubmitWithContext(xrpcserver* Server,
+    xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future);
 XRPC_API bool xrpcServerInfo(xrpcserver* Server,xrpcserverinfo* Info);
 /* Concurrent nonblocking admission close/drain, or cooperative cancellation plus
  * queued-job drop. User cancel watches can run on the Cancel caller, outside
@@ -2013,6 +2030,9 @@ void xrpcHttpSecureDrop(xrpchttpsecure* Secure);
 /* Product-private: transport first-byte deadline origin, without ms rounding. */
 xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* Server,xstrview Input,
     int64 Timeout,xfuture** Future,double Entered);
+/* Copied context with the same transport-origin deadline. */
+xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* Server,xstrview Input,
+    xbytesview Context,int64 Timeout,xfuture** Future,double Entered);
 #endif
 #endif
 #endif
@@ -4637,6 +4657,7 @@ XRPC_API xfuture* xrpcHttpClosed(xrpchttpclient* C)
 
 #if defined(XRPC_FEATURE_XRPC_SERVER)
 #include <math.h>
+#include <stddef.h>
 #include <string.h>
 #if defined(XRPC_FEATURE_XRPC_SERVER)
 typedef struct xrpcserverquota {
@@ -4673,6 +4694,13 @@ struct xrpcserver {
     size_t OwnedBytes,FreeSlot;
     xrpcserverslot Slots[];
 };
+static xbytesview xrpcServerContextView(const xrpcserverjob* J)
+{
+    size_t At=sizeof(*J)+J->InputBytes;
+    if(J->OwnedBytes==At)return (xbytesview){0};
+    size_t Align=_Alignof(max_align_t);At+=(Align-At%Align)%Align;
+    return (xbytesview){(const unsigned char*)J+At,J->OwnedBytes-At};
+}
 static bool xrpcServerReport(xerrkind Kind,xrpcservererror Code,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Message);return false;}
 static double xrpcServerDeadline(double Entered,int64 Timeout)
@@ -4685,14 +4713,15 @@ static void xrpcServerResultRefund(xrpcserverquota* Q,size_t Bytes)
 {xrtMutexLock(&Q->Gate);--Q->Info.Results;Q->Info.ResultBytes-=Bytes;xrtMutexUnlock(&Q->Gate);xrpcServerQuotaDrop(Q);}
 static void xrpcServerResultDrop(ptr Value,ptr User)
 {(void)User;xrpcserverbox* B=Value;xrpcserverquota* Q=B->Quota;size_t Bytes=sizeof(*B)+B->Capacity;xrtErrorFree((xerror*)B->Value.Cause);xrtFree(B);xrpcServerResultRefund(Q,Bytes);}
-static void xrpcServerOperationDrop(xrpcserver* S,size_t Bytes)
-{xrpcserverquota* Q=S->Quota;xrtMutexLock(&Q->Gate);--Q->Info.Operations;Q->Info.RequestBytes-=Bytes;xrtCondBroadcast(&Q->Idle);xrtMutexUnlock(&Q->Gate);}
+static void xrpcServerOperationDrop(xrpcserver* S,size_t Bytes,size_t ContextBytes)
+{xrpcserverquota* Q=S->Quota;xrtMutexLock(&Q->Gate);--Q->Info.Operations;Q->Info.RequestBytes-=Bytes;Q->Info.ContextBytes-=ContextBytes;xrtCondBroadcast(&Q->Idle);xrtMutexUnlock(&Q->Gate);}
 static void xrpcServerJobDropRef(xrpcserverjob* J)
 {
     if(xrtAtomic32FetchSub(&J->References,1,XMEMORY_ACQ_REL)!=1)return;
-    xrpcserver* S=J->Server;size_t Bytes=J->OwnedBytes;
+    xrpcserver* S=J->Server;size_t Bytes=J->OwnedBytes;xbytesview Context=xrpcServerContextView(J);
     if(J->ResultOwned){if(J->Box)xrpcServerResultDrop(J->Box,NULL);else xrpcServerResultRefund(S->Quota,J->InitialBoxBytes);}
-    xrtCancelDestroy(J->Cancel);xrtFree(J);xrpcServerOperationDrop(S,Bytes);
+    xrtCancelDestroy(J->Cancel);if(Context.Size)xrtSecureZero((ptr)Context.Data,Context.Size);
+    xrtFree(J);xrpcServerOperationDrop(S,Bytes,Context.Size);
 }
 static void xrpcServerProducerDrop(const void* Data){xrpcServerJobDropRef((xrpcserverjob*)Data);}
 static bool xrpcServerJobCount(const void* Data,size_t* Count)
@@ -4733,7 +4762,7 @@ static bool xrpcServerEmit(const xrpcoutgoing* Response,bool Batch,size_t Bytes,
 static bool xrpcServerInvoke(const xrpcmessage* Request,xrpcreply* Reply,ptr Data)
 {
     xrpcserverjob* J=Data;if(xrpcServerStop(J)!=XRPC_SERVER_DONE){(void)xrpcReplyAbort(Reply,NULL);return true;}
-    xrpcservercontext Context={J->Cancel,J->Deadline};J->Entered=true;
+    xrpcservercontext Context={J->Cancel,J->Deadline,xrpcServerContextView(J)};J->Entered=true;
     bool Handled=J->Server->Config.Call(Request,Reply,&Context,J->Server->Config.User);
     if(xrpcServerStop(J)!=XRPC_SERVER_DONE)(void)xrpcReplyAbort(Reply,NULL);
     return Handled;
@@ -4780,7 +4809,7 @@ XRPC_API bool xrpcServerConfigInit(xrpcserverconfig* C)
     if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server config output");
     *C=(xrpcserverconfig){0};C->Size=sizeof(*C);C->Executor=(xexecutorconfig){2,64,0};xrpcDispatchConfigInit(&C->Dispatch);
     C->MaxOperations=128;C->MaxRequestBytesTotal=8u*1024u*1024u;C->MaxResults=1024;C->MaxResultBytes=8u*1024u*1024u;
-    C->MaxWorkspaceBytes=4u*1024u*1024u;C->InitialOutputBytes=256;return true;
+    C->MaxWorkspaceBytes=4u*1024u*1024u;C->InitialOutputBytes=256;C->MaxContextBytes=XRPC_SERVER_CONTEXT_BYTES_DEFAULT;return true;
 }
 XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Result)
 {
@@ -4788,7 +4817,7 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Resul
     xrpcserverconfig C;if(Config)C=*Config;else xrpcServerConfigInit(&C);
     const xrpcdecodeconfig* D=&C.Dispatch.Decode;const xrpcencodeconfig* E=&C.Dispatch.Reply;
     if(C.Size!=sizeof(C) || !C.Executor.Threads || C.Executor.Threads>XRT_EXECUTOR_THREAD_LIMIT || !C.Executor.QueueLimit || !C.MaxOperations ||
-        !C.MaxRequestBytesTotal || !C.MaxResults || !C.MaxResultBytes || !C.MaxWorkspaceBytes || !C.InitialOutputBytes ||
+        !C.MaxRequestBytesTotal || !C.MaxResults || !C.MaxResultBytes || !C.MaxWorkspaceBytes || !C.InitialOutputBytes || C.MaxContextBytes>XRPC_SERVER_CONTEXT_BYTES_MAX ||
         C.Dispatch.Size!=sizeof(C.Dispatch) || !C.Dispatch.MaxReplies || !C.Dispatch.MaxOutputBytes || C.Dispatch.MaxOutputBytes>SIZE_MAX-sizeof(xrpcserverbox) ||
         D->Size!=sizeof(*D) || D->Mode!=XRPC_DECODE_REQUESTS || !D->MaxInputBytes || !D->MaxDepth || D->MaxDepth>XJSON_DEPTH_DEFAULT ||
         !D->MaxStringBytes || !D->MaxValues || !D->MaxContainerItems || !D->MaxMessages || !D->MaxIdBytes || !D->MaxMethodBytes ||
@@ -4810,28 +4839,34 @@ XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Resul
 Argument:
     return xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server configuration/output span");
 }
-xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future,double Entered)
+xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* S,xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future,double Entered)
 {
     if(!S || !Future || Timeout<XRT_WAIT_FOREVER || !xrtMemRangeValid(Future,sizeof(*Future)) || !xrtMemRangeValid(Input.Data,Input.Size) ||
+        !xrtMemRangeValid(Context.Data,Context.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),Context.Data,Context.Size) ||
         xrtMemRangesOverlap(Future,sizeof(*Future),Input.Data,Input.Size) || xrtMemRangesOverlap(Future,sizeof(*Future),S,S->OwnedBytes)){
         xrpcServerReport(XERR_ARGUMENT,XRPC_SERVER_ARGUMENT,"invalid server submission span/timeout");return XRPC_SERVER_ADMISSION_ERROR;}
     if(Input.Size>SIZE_MAX-sizeof(xrpcserverjob)){xrpcServerReport(XERR_RANGE,XRPC_SERVER_RESOURCE,"server request size overflows");return XRPC_SERVER_ADMISSION_ERROR;}
     size_t JobBytes=sizeof(xrpcserverjob)+Input.Size,Capacity=S->Config.InitialOutputBytes;
+    size_t ContextAt=JobBytes;
+    if(Context.Size){size_t Align=_Alignof(max_align_t),Padding=(Align-JobBytes%Align)%Align;
+        if(Padding>SIZE_MAX-JobBytes || Context.Size>SIZE_MAX-JobBytes-Padding){xrpcServerReport(XERR_RANGE,XRPC_SERVER_RESOURCE,"server context size overflows");return XRPC_SERVER_ADMISSION_ERROR;}
+        ContextAt+=Padding;JobBytes=ContextAt+Context.Size;}
     if(Capacity>S->Config.Dispatch.MaxOutputBytes)Capacity=S->Config.Dispatch.MaxOutputBytes;
     size_t BoxBytes=sizeof(xrpcserverbox)+Capacity;xrpcserverquota* Q=S->Quota;xerror* Ambient=xrtTakeError();
     xrtMutexLock(&Q->Gate);xrpcserveradmission A=XRPC_SERVER_ACCEPTED;
     if(!Q->Info.Accepting)A=XRPC_SERVER_CLOSED;
-    else if(Q->Info.Operations>=S->Config.MaxOperations || Q->Info.Results>=S->Config.MaxResults || Input.Size>S->Config.Dispatch.Decode.MaxInputBytes ||
+    else if(Q->Info.Operations>=S->Config.MaxOperations || Q->Info.Results>=S->Config.MaxResults || Input.Size>S->Config.Dispatch.Decode.MaxInputBytes || Context.Size>S->Config.MaxContextBytes ||
         JobBytes>S->Config.MaxRequestBytesTotal-Q->Info.RequestBytes || BoxBytes>S->Config.MaxResultBytes-Q->Info.ResultBytes ||
         xrtAtomic32Load(&Q->References,XMEMORY_RELAXED)>=UINT32_MAX/2u)A=XRPC_SERVER_OVERLOADED;
     if(A!=XRPC_SERVER_ACCEPTED){++Q->Info.Rejected;xrtMutexUnlock(&Q->Gate);xrtSetErrorTake(Ambient);return A;}
-    ++Q->Info.Operations;Q->Info.RequestBytes+=JobBytes;++Q->Info.Results;Q->Info.ResultBytes+=BoxBytes;
+    ++Q->Info.Operations;Q->Info.RequestBytes+=JobBytes;Q->Info.ContextBytes+=Context.Size;++Q->Info.Results;Q->Info.ResultBytes+=BoxBytes;
     xrtAtomic32FetchAdd(&Q->References,1,XMEMORY_RELAXED);xrtMutexUnlock(&Q->Gate);
     xrpcserverjob* J=xrtMalloc(JobBytes);xfuture* F=NULL;
-    if(!J){xrpcServerResultRefund(Q,BoxBytes);xrpcServerOperationDrop(S,JobBytes);goto NoJob;}
+    if(!J){xrpcServerResultRefund(Q,BoxBytes);xrpcServerOperationDrop(S,JobBytes,Context.Size);goto NoJob;}
     *J=(xrpcserverjob){0};J->Server=S;J->OwnedBytes=JobBytes;J->InputBytes=Input.Size;J->InitialBoxBytes=BoxBytes;J->ResultOwned=true;
     J->Deadline=xrpcServerDeadline(Entered,Timeout);J->Dispatch.Size=sizeof(J->Dispatch);xrtAtomic32Init(&J->References,1);
     if(Input.Size)memcpy(J->Input,Input.Data,Input.Size);
+    if(Context.Size)memcpy((unsigned char*)J+ContextAt,Context.Data,Context.Size);
     J->Box=xrtCalloc(1,BoxBytes);if(!J->Box)goto Error;J->Box->Quota=Q;J->Box->Capacity=Capacity;
     J->Promise=xrtPromiseCreate(&F,S->Cancel);if(!J->Promise)goto Error;J->Cancel=xrtPromiseCancelToken(J->Promise);if(!J->Cancel)goto Error;
     xrtAtomic32FetchAdd(&J->References,1,XMEMORY_RELAXED);
@@ -4849,6 +4884,10 @@ NoJob:
     if(A==XRPC_SERVER_OVERLOADED || A==XRPC_SERVER_CLOSED){xrtClearError();xrtSetErrorTake(Ambient);return A;}
     xrtErrorFree(Ambient);return XRPC_SERVER_ADMISSION_ERROR;
 }
+xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future,double Entered)
+{return xrpcServerSubmitContextEntered(S,Input,(xbytesview){0},Timeout,Future,Entered);}
+XRPC_API xrpcserveradmission xrpcServerSubmitWithContext(xrpcserver* S,xstrview Input,xbytesview Context,int64 Timeout,xfuture** Future)
+{return xrpcServerSubmitContextEntered(S,Input,Context,Timeout,Future,xrtTimer());}
 XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future)
 {return xrpcServerSubmitEntered(S,Input,Timeout,Future,xrtTimer());}
 XRPC_API bool xrpcServerInfo(xrpcserver* S,xrpcserverinfo* Info)

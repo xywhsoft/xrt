@@ -84,3 +84,8 @@ reallocation copies. InitialOutputBytes can be raised to the complete output
 limit to reserve/allocate capacity before handlers, trading admission footprint
 for fewer later growth failures; allocator/user/diagnostic failures and remote
 business uncertainty still cannot be eliminated by that setting.
+
+
+Explicit per-document [copied context](server_context.md) is available through
+`xrpcServerSubmitWithContext`. Its bytes and alignment padding share the request
+budget; handlers borrow an aligned immutable snapshot, independent of results.

@@ -4495,3 +4495,149 @@ IANA/scheduler/durability and all performance/production acceptance remain.
 Representative pinned comparators, complete cold/hot CPU/cycle/allocation/copy/
 synchronization/syscall accounting, slow/contended/fault/recovery matrices and
 native Windows/Linux mixed/fault runs of at least 72 hours are still required.
+
+
+
+## P3: bounded copied server request context (2026-11-01)
+
+`xrpcServerSubmitWithContext` supplies an independent immutable byte snapshot to
+each execution document. Handlers borrow `Context->Data`; a whole batch shares
+one snapshot. Inputs/context may overlap and may be overwritten/freed after
+submission returns, but cannot overlap the Future output. Empty legacy/context
+submissions present canonical NULL/zero data. Embedded pointers are not deep
+copied and the view cannot be retained. Nonempty data is aligned for max_align_t.
+
+The configured per-document cap defaults to 16 KiB, hard 1 MiB, with zero
+disabling nonempty context. The private job remains one allocation containing
+the existing header, input, alignment padding and context. All are charged to
+MaxRequestBytesTotal. ContextBytes is included in RequestBytes and includes
+construction reservations until actual final job retirement. Context bytes
+are securely zeroed before the real job free, including constructor/stop paths;
+caller/pointed-to/result/native/system copies are outside this erasure contract.
+Results own their existing independent quota ledger and do not retain context.
+
+This is the per-request execution data channel required by later authorization,
+not implemented HTTP authorization or principal policy. Async head authorization
+before 100 Continue/body/business, typed HTTP metadata, mutual authentication,
+tickets and all remaining transport/runtime features stay pending. No Core
+source or new shared runtime is added. The copied-context design infers its bounds from existing input/allocation
+lengths, preserving the private job header size. The copied-context design installs no
+context allocation, reference counter or user cleanup callback. There are still
+new validation/presence/accounting operations, larger public/owner structures, one explicit
+context copy and size-proportional final erasure; no zero-overhead claim is made.
+
+The offline server example demonstrates copied context for a call/notification
+batch, caller overwrite and reading the response after physical server destroy.
+Tests cover binary/overlapping data, worker-gated lifetime, batch sharing,
+canonical empties, configured/aggregate limits, all 1 MiB bytes, output aliases,
+four producer threads with 128 independent contexts, queued Future/server cancel,
+deadline precedence and independent retained results. Alternating empty/nonempty
+contexts exercise 2048 request-construction quota prefixes and zero budget balance.
+
+The two production-TU probes inspect live job storage immediately before real
+free; each observes 10 context erasures and actual constructor-failure cleanup.
+They gate successful jobs so completion cannot be mistaken for constructor
+failure, do not read freed memory and do not modify the shipped allocator. With
+the same sample input the requested job allocation is 192 bytes empty / 200 bytes
+with eight context bytes on both platforms; other input lengths can add padding.
+Allocator metadata/rounding and native storage are outside these requested-byte
+figures and remain separate performance-accounting work.
+
+Both platforms pass 15 modular runtime binaries and the three affected server,
+HTTP-server and TLS-server single binaries: 36 total, plus 17 examples each.
+WSL uses ASan/UBSan; qualified O2 TSan passes with its atomic-fence modeling
+warning retained. This does not prove complete race freedom or native Linux
+acceptance. Full/minimal static/shared consumers, declaration compilation and
+three server size forms pass. Archived c4ab0d02 sources compile with their own
+headers for actual previous/current private layout observations. Independent
+peers drive 405 plain exchanges/eight concurrent connections and 33 TLS exchanges
+with RSA/P256/P384/Ed25519, TLS 1.3/1.2, ALPN/absence and plaintext rejection on
+each platform. These regress existing transports, not new authorization behavior.
+
+### Measured layouts and file sizes
+
+Consumers must rebuild for public config/context/info and nested HTTP layouts.
+Values below are bytes; columns are compiled predecessor and current layouts.
+
+| Platform | Object | Previous | Current |
+| --- | --- | --- | --- |
+| windows | server | 312 | 320 |
+| windows | job | 152 | 152 |
+| windows | quota | 144 | 152 |
+| windows | config | 272 | 280 |
+| windows | context | 16 | 32 |
+| windows | info | 96 | 104 |
+| windows | http_server | 920 | 936 |
+| windows | http_config | 568 | 576 |
+| windows | http_info | 216 | 224 |
+| wsl | server | 312 | 320 |
+| wsl | job | 152 | 152 |
+| wsl | quota | 280 | 288 |
+| wsl | config | 272 | 280 |
+| wsl | context | 16 | 32 |
+| wsl | info | 96 | 104 |
+| wsl | http_server | 1056 | 1072 |
+| wsl | http_config | 568 | 576 |
+| wsl | http_info | 216 | 224 |
+
+Single objects include Core plus extension. Static/shared primary artifacts
+contain extension code and require separately reported Core dependencies; these
+forms have different denominators and are not interchangeable total footprints.
+
+| Platform | Form | Primary file bytes | Core dependency file bytes |
+| --- | --- | --- | --- |
+| windows | single | 512955 | included |
+| windows | static | 43080 | 521590 |
+| windows | shared | 82292 | 521724 |
+| wsl | single | 635280 | included |
+| wsl | static | 57824 | 659808 |
+| wsl | shared | 52976 | 461128 |
+
+### Paired execution-context observations
+
+The 0/32/4096-byte workloads use identical workers, a 64-document window and one
+item per document. Each run completes 2000 windowed documents plus 2000 separate
+one-in-flight latency samples. One warmup and all five measured samples remain
+available. These are windowed throughput/serial latency, not open-loop network
+capacity or tail-latency acceptance. Handler size/edge verification and submit
+selection are harness costs. Process CPU spans both phases after factory return
+through physical server Destroy/join, including all context copy/erasure and
+native retirement/shutdown plus possible startup-return tails. Source allocation,
+later sort/report/free are outside this window. Wall metrics exclude shutdown
+and can precede mechanical tails. CPU is normalized by all 4000 documents and
+is neither isolated transport CPU nor steady-state CPU without shutdown.
+
+| Platform | Context bytes | Windowed documents/s | Serial P50 us | Serial P99 us | Process CPU us/document through join |
+| --- | --- | --- | --- | --- | --- |
+| windows | 0 | 415256.524 | 11.700 | 22.400 | 11.719 |
+| windows | 32 | 409651.388 | 12.000 | 25.900 | 11.719 |
+| windows | 4096 | 357110.970 | 12.800 | 23.000 | 11.719 |
+| wsl | 0 | 231085.640 | 49.100 | 100.500 | 27.193 |
+| wsl | 32 | 280225.862 | 42.300 | 76.600 | 23.263 |
+| wsl | 4096 | 204392.393 | 47.700 | 105.300 | 28.343 |
+
+Original 3% relative-MAD / 6% central-range limits are unchanged. No favorable
+retry, pinned baseline, stable comparator, saturation or production claim is made.
+Performance remains unaccepted; full native Windows/Linux and 72-hour mixed/fault
+qualification are still required.
+
+windows: 21 failed noise checks. Source fingerprint: `d921e142bf5fb769b91ca8d4454876f3e35e65d50611c6c3c6bae3c0b535db61`; workload fingerprint: `1af0aae2709d7d39f5a6df0b7df9f5f677d0c0b6f019ad0627f50653533dfd41`.
+
+wsl: 19 failed noise checks. Source fingerprint: `d921e142bf5fb769b91ca8d4454876f3e35e65d50611c6c3c6bae3c0b535db61`; workload fingerprint: `1af0aae2709d7d39f5a6df0b7df9f5f677d0c0b6f019ad0627f50653533dfd41`.
+
+Evidence: `out/service-extensions/xrpc-server-context/validation.json` binds current
+inputs, 36 runtimes/34 examples, two pre-free probes, TSan, packages/layout/sizes,
+independent peers and paired 5+1 reports. 847 predecessor source/artifact files
+were SHA-bound before overwrites; the committed validator requires clean HEAD/tree.
+Public API: 83 functions / 157 constants or macros / 76 types. Normal maturity
+retains 17 implementations and only aggregate xrpc is developing.
+
+The complete four-product objective remains active. RPC HTTP authorization and
+transport metadata, mTLS/tickets, recovery/pooling, bidirectional/WebSocket/framed
+stdio, negotiation and deferred handlers remain. Redis HA/tracking/dedicated
+modes, full MQTT 5.0/3.1.1 client/session/store and Cron IANA/scheduler/durability
+remain, together with pinned representative comparisons, complete cold/hot
+CPU/cycle/allocation/copy/synchronization/syscall accounting and native fault/
+slow/contended/recovery matrices. This prerequisite completes neither xrpc nor
+the four-product production goal. Integration with subsequent primary-checkout
+changes also remains a separate verified step.

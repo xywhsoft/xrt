@@ -5,5 +5,8 @@
 /* Product-private: transport first-byte deadline origin, without ms rounding. */
 xrpcserveradmission xrpcServerSubmitEntered(xrpcserver* Server,xstrview Input,
     int64 Timeout,xfuture** Future,double Entered);
+/* Copied context with the same transport-origin deadline. */
+xrpcserveradmission xrpcServerSubmitContextEntered(xrpcserver* Server,xstrview Input,
+    xbytesview Context,int64 Timeout,xfuture** Future,double Entered);
 #endif
 #endif
