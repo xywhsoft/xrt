@@ -1052,8 +1052,7 @@ static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview 
 bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd &&
-		pProvider->Remove == xacmeAliRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd;
 	if(!*pMatched) return false;
 	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }

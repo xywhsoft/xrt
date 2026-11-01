@@ -1360,6 +1360,14 @@ static int32 provider_budget_gate(ptr data)
     return xrtMutexUnlock(gate->Lock)?0:1;
 }
 
+static xacmednsremoveproc BudgetActualRemove;
+static unsigned BudgetRemoveCalls;
+static bool budget_counted_remove(xacmednsprovider* provider, xstrview owner, xstrview value)
+{
+    BudgetRemoveCalls++;
+    return BudgetActualRemove(provider, owner, value);
+}
+
 static bool exercise_budget(xacmednsprovider* provider, const char* mode)
 {
     const xstrview owner=XRT_STR_LITERAL("_acme-challenge.api.example.com");
@@ -1374,6 +1382,7 @@ static bool exercise_budget(xacmednsprovider* provider, const char* mode)
     bool retry=strstr(mode,"retry")!=NULL;
     bool conflict=strstr(mode,"conflict")!=NULL;
     bool ack=strstr(mode,"ack")!=NULL;
+    bool decorated=strstr(mode,"decorated")!=NULL;
     int64 ms=timeout?(gate_case?100:1000):((retry || conflict)?5000:2500);
     double started;
     bool result,issue,ok,clean=true,recovered=false,cleared;
@@ -1404,6 +1413,10 @@ static bool exercise_budget(xacmednsprovider* provider, const char* mode)
             xrtThreadYield();
         }
     }
+    if(decorated) {
+        BudgetActualRemove=provider->Remove;BudgetRemoveCalls=0u;
+        provider->Remove=budget_counted_remove;
+    }
     BudgetAckDelay=ack;
     xrtClearError();started=xrtTimer();
     client.bIssueDeadline=true;client.IssueDeadline=__xrtWaitAfter(ms);
@@ -1431,6 +1444,10 @@ static bool exercise_budget(xacmednsprovider* provider, const char* mode)
     xrtClearError();
     recovered=provider->Add(provider,owner,value);
     if(recovered) clean=provider->Remove(provider,owner,value) && clean;
+    if(decorated) {
+        clean=BudgetRemoveCalls==(result?2u:1u) && clean;
+        provider->Remove=BudgetActualRemove;
+    }
     xrtErrorFree(primary);xrtClearError();
     return recovered && clean && ok;
 }

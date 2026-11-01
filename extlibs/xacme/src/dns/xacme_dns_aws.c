@@ -596,8 +596,7 @@ static bool xacmeAwsRemove(
 bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd &&
-		pProvider->Remove == xacmeAwsRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd;
 	if(!*pMatched) return false;
 	return xacmeAwsAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }

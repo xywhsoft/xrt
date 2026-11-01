@@ -2132,7 +2132,7 @@ SCENARIOS += [("tencent", "tc-zone-" + fault, "rest-tc-zone-" + fault) for fault
 
 BUDGET_SCENARIOS = [(p, f"budget-{kind}-{outcome}", f"budget-{kind}-{outcome}")
                     for p in ("ali", "aws", "cf", "tencent", "huawei")
-                    for kind in ("delay", "retry", "gate", "ack")
+                    for kind in ("delay", "retry", "gate", "ack", "decorated")
                     for outcome in ("control", "timeout")]
 BUDGET_SCENARIOS += [("aws", f"budget-conflict-{outcome}", f"budget-conflict-{outcome}")
                      for outcome in ("control", "timeout")]
@@ -2161,7 +2161,7 @@ def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, 
         peer.setblocking(False); selector.register(peer, selectors.EVENT_READ)
     endpoint = f"localhost:{listener.getsockname()[1]}"
     stop, returned = threading.Event(), threading.Event()
-    errors, requests, marker = [], [], []
+    errors, requests, marker, diagnostics = [], [], [], []
     first_done = threading.Event()
 
     def serve():
@@ -2181,8 +2181,8 @@ def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, 
                             # Two verified rejections precede the one-second deadline.
                             # Later recovery succeeds and must preserve both outside values.
                             service.scenario = "normal"
-                        if index == 1 and not returned.is_set() and kind in {"delay", "retry"}:
-                            time.sleep(1.2 if kind == "delay" else 0.9)
+                        if index == 1 and not returned.is_set() and kind in {"delay", "retry", "decorated"}:
+                            time.sleep(0.9 if kind == "retry" else 1.2)
                             if kind == "retry": continue
                         status, payload = response
                         if isinstance(payload, dict):
@@ -2191,7 +2191,7 @@ def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, 
                 except (ssl.SSLError, ConnectionError, TimeoutError) as exc:
                     raw.close()
                     # The first validated slow read may observe the client's Abort.
-                    if not (timeout and index == 1 and kind in {"delay", "retry"}):
+                    if not (timeout and index == 1 and kind in {"delay", "retry", "decorated"}):
                         errors.append(repr(exc)); return
                 except Exception as exc:
                     raw.close(); errors.append(repr(exc)); return
@@ -2202,12 +2202,16 @@ def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, 
     process = subprocess.Popen([str(client), endpoint, str(ca), provider, scenario],
                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     def observe():
-        marker.append(process.stdout.readline()); returned.set()
+        for line in process.stdout:
+            if line.startswith("BUDGET_RETURNED "):
+                marker.append(line); returned.set(); return
+            diagnostics.append(line)
+        returned.set()
     observer = threading.Thread(target=observe, daemon=True); observer.start()
     prefix = None
     try:
         if not returned.wait(timeout=10) or not marker or not marker[0].startswith("BUDGET_RETURNED "):
-            raise AssertionError(f"{provider}/{scenario} did not publish before cleanup: {marker}")
+            raise AssertionError(f"{provider}/{scenario} did not publish before cleanup: {marker}; diagnostics={diagnostics}")
         if requests and not first_done.wait(timeout=4):
             raise AssertionError("provider budget peer did not finish its first validated request")
         # Keep observing independently after the operation returned and before
@@ -2220,8 +2224,8 @@ def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, 
         fields = dict(item.split("=", 1) for item in marker[0].split()[1:])
         expected_creates = int(not timeout or kind == "ack")
         if errors or process.returncode or fields.get("issue") != ("0" if timeout else "1") or fields.get("cleared") != "1":
-            raise AssertionError(f"{provider}/{scenario} rc={process.returncode} server={errors} marker={marker} prefix={prefix}\n{stderr}")
-        if prefix[1] != expected_creates or (timeout and kind in {"delay", "retry", "gate"} and prefix[0] != (0 if kind == "gate" else 1)):
+            raise AssertionError(f"{provider}/{scenario} rc={process.returncode} server={errors} marker={marker} prefix={prefix}; diagnostics={diagnostics}\n{stderr}")
+        if prefix[1] != expected_creates or (timeout and kind in {"delay", "retry", "gate", "decorated"} and prefix[0] != (0 if kind == "gate" else 1)):
             raise AssertionError(f"{provider}/{scenario} submitted work after deadline: {prefix}")
         if kind == "conflict" and timeout and prefix[2].get("change") != 2:
             raise AssertionError(f"RMW budget failed to stop after two verified conflicts: {prefix}")

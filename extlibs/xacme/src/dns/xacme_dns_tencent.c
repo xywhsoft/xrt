@@ -890,8 +890,7 @@ static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstr
 bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd &&
-		pProvider->Remove == xacmeTencentRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd;
 	if(!*pMatched) return false;
 	return xacmeTencentAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }

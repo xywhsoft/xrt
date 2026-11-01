@@ -133,6 +133,8 @@ int main(void)
     const cstr Ids[]={"ali","cf","tencent","aws","huawei"};
     const xacmednsaddproc Adds[]={xacmeAliAdd,xacmeCfAdd,xacmeTencentAdd,xacmeAwsAdd,xacmeHuaweiAdd};
     const xacmednsremoveproc Removes[]={xacmeAliRemove,xacmeCfRemove,xacmeTencentRemove,xacmeAwsRemove,xacmeHuaweiRemove};
+    typedef bool (*untilproc)(xacmednsprovider*,xstrview,xstrview,double,bool*);
+    const untilproc Untils[]={xacmeDnsAliAddUntil,xacmeDnsCfAddUntil,xacmeDnsTencentAddUntil,xacmeDnsAwsAddUntil,xacmeDnsHuaweiAddUntil};
     xacmednsprovider Provider={0};
     xacmehttp Http={0};
     xacmednsbudgetscope Scope;
@@ -152,6 +154,12 @@ int main(void)
         Provider.Add=Adds[i];Provider.pContext=NULL;
         testRequire(!xacmeDnsProviderAddUntil(&Provider,Owner,Txt,INFINITY) &&
             xrtErrorKind(xrtGetError())==XERR_STATE,"provider released context state");
+        require_empty();
+        Provider.Remove=custom_remove;
+        bool Matched=false;
+        testRequire(!Untils[i](&Provider,Owner,Txt,INFINITY,&Matched) && Matched &&
+            xrtErrorKind(xrtGetError())==XERR_STATE,
+            "native Add lost its context contract when Remove was decorated");
         require_empty();
     }
     Provider.Add=custom_add;Provider.Remove=custom_remove;Provider.pContext=NULL;CustomCalls=0u;

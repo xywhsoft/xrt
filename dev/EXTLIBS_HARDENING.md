@@ -1349,3 +1349,34 @@ acme-provider-budget-minimal-complete-linux.json、acme-provider-budget-trim-win
 acme-provider-budget-checks-final.json、acme-provider-budget-final-input-audit.json、
 acme-provider-budget-final-validation.json；ci-1c6f4cee-{runs,jobs}.json、
 ci-1c6f4cee-acme-coverage-provenance.json 及对应原始 coverage zip/json。
+
+
+### 第三十八批：Remove 装饰保持内置 Add 预算与诊断屏障
+
+- 以 eccd5638 的 16 个生产 C 文件哈希核对原实现，加入只包装 Remove、保持原生 Add
+  与上下文的真实 TLS 场景。五家 provider 的 1 秒超时组都复现约 1.21 秒后仍创建记录，
+  五个 2.5 秒控制组通过；每例都完成清理及同实例恢复，未留下测试记录。
+- 内置 Add 本身决定其私有上下文类型契约，Remove 可独立包装。五个私有 Until 入口现只
+  按原生 Add 地址匹配，保留自定义 Add 不解引用上下文的规则；不按 sId 猜类型，
+  不改变公开结构、普通 Add、Remove、已确认晚成功及独立清理的契约。
+- 新增十个网络场景及五个匹配/已释放上下文断言。provider budget 单头在 Windows GCC、
+  Linux GCC、Clang ASan/UBSan/float-cast-overflow+leaks、TCC 通过。Windows 初次
+  编译报 cc1 内存分配失败，原日志保留，随后同命令完整编译运行通过。
+- 最终 Linux GCC 773 个真实 provider 协议场景全通过；Windows GCC 与 Linux Clang
+  ASan/UBSan+leaks 各 52 个预算场景通过。全部保持返回屏障前的请求/创建数、屏障后
+  清理、恢复及零 Core 资源断言；没有提高超时或减少协议场景。
+- 另用原实现二进制、XACME_DEBUG=1 复现 AWS retry 正控制被诊断行误判为返回屏障。
+  Python 观察器现在跳过并保留诊断行，等待实际 BUDGET_RETURNED 标记；三个网络环境
+  各六个开启诊断的控制组通过，包括五家 decorated timeout 和 AWS retry control。
+- 五项生成/features/API 文档/参考/release 检查通过；1213 项最终 ACME 构建输入归一化
+  后 Windows/WSL 相同。本批刷新受影响预算单头与真实网络测试；上一批完整套件、
+  包消费与裁剪证据仍按上一批源码范围记录，不冒称本批重跑了全部资产。
+- eccd5638 的 PR CI 41330775664 目前 70 项成功、3 项运行中；独立 mail 成功，
+  重复 push CI 和 PR mail 均已确认取消。其最终 CI/coverage 与本批新提交继续分开核对。
+  全部产品首轮验收仍 2/21，ACME 的协议/RSA/DNS 语义复核及其他产品继续。
+
+证据：acme-decorated-before{,-provenance}.json、acme-budget-debug-before.json、
+acme-decorated-unit-{windows,linux}.json、acme-decorated-unit-windows-initial-oom.json、
+acme-decorated-wire-final-{windows,linux}.json、acme-decorated-debug-*.log、
+acme-decorated-checks.json、acme-decorated-final-input-audit.json 及对应逐组日志；
+ci-eccd5638-{run,jobs,artifacts}.json。

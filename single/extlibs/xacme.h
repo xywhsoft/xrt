@@ -2367,37 +2367,38 @@ XRT_EXTERN_C_END
 
 
 #if defined(XACME_FEATURE_ACME_DNS)
-/* Internal synchronous Add dispatch. Only exact built-in callback pairs may
- * expose their private context; custom callbacks keep their host contract. */
+/* Internal synchronous Add dispatch. A native Add callback establishes its
+ * typed-context contract independently of Remove decoration. Custom Add
+ * callbacks retain their host contract. */
 bool xacmeDnsProviderAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline);
 
 #if defined(XACME_FEATURE_DNS_ALI)
-/* A foreign callback pair leaves Matched=false without inspecting context. */
+/* A foreign Add leaves Matched=false without inspecting context. */
 bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
 #endif
 
 #if defined(XACME_FEATURE_DNS_CF)
-/* A foreign callback pair leaves Matched=false without inspecting context. */
+/* A foreign Add leaves Matched=false without inspecting context. */
 bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
 #endif
 
 #if defined(XACME_FEATURE_DNS_TENCENT)
-/* A foreign callback pair leaves Matched=false without inspecting context. */
+/* A foreign Add leaves Matched=false without inspecting context. */
 bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
 #endif
 
 #if defined(XACME_FEATURE_DNS_AWS)
-/* A foreign callback pair leaves Matched=false without inspecting context. */
+/* A foreign Add leaves Matched=false without inspecting context. */
 bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
 #endif
 
 #if defined(XACME_FEATURE_DNS_HUAWEI)
-/* A foreign callback pair leaves Matched=false without inspecting context. */
+/* A foreign Add leaves Matched=false without inspecting context. */
 bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
 #endif
@@ -8271,8 +8272,7 @@ static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview 
 bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd &&
-		pProvider->Remove == xacmeAliRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd;
 	if(!*pMatched) return false;
 	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
@@ -12879,8 +12879,7 @@ static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview 
 bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd &&
-		pProvider->Remove == xacmeCfRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd;
 	if(!*pMatched) return false;
 	return xacmeCfAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
@@ -13857,8 +13856,7 @@ static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstr
 bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd &&
-		pProvider->Remove == xacmeTencentRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd;
 	if(!*pMatched) return false;
 	return xacmeTencentAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
@@ -14547,8 +14545,7 @@ static bool xacmeAwsRemove(
 bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd &&
-		pProvider->Remove == xacmeAwsRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd;
 	if(!*pMatched) return false;
 	return xacmeAwsAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
@@ -16108,8 +16105,7 @@ static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrv
 bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd &&
-		pProvider->Remove == xacmeHuaweiRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd;
 	if(!*pMatched) return false;
 	return xacmeHuaweiAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }

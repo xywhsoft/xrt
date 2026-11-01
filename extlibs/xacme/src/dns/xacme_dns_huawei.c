@@ -814,8 +814,7 @@ static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrv
 bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd &&
-		pProvider->Remove == xacmeHuaweiRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd;
 	if(!*pMatched) return false;
 	return xacmeHuaweiAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }

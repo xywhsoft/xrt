@@ -473,8 +473,7 @@ static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview 
 bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
 	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
 {
-	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd &&
-		pProvider->Remove == xacmeCfRemove;
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd;
 	if(!*pMatched) return false;
 	return xacmeCfAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
