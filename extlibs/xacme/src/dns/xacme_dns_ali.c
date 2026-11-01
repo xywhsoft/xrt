@@ -398,6 +398,8 @@ static bool xacmeAliCall(
 	xacmehttpheader Extra[6];
 	xacmehttpresponse R;
 	uint32 uAttempt;
+	xerror* pFirst = NULL;
+	bool bOk = false;
 	bool bReadOnly = strcmp(sAction, "DescribeDomainRecords") == 0 ||
 		strcmp(sAction, "DescribeDomainRecordInfo") == 0;
 	/* This RPC has not sent anything yet; older unknown writes live in the ledger. */
@@ -405,9 +407,10 @@ static bool xacmeAliCall(
 	for(uAttempt = 1u; uAttempt <= 3u; ++uAttempt)
 	{
 		xerrkind Kind;
+		if(!xacmeDnsOperationBudget(&pCtx->Http)) goto Done;
 		if(!xrtSecureRandom(uNonce, sizeof(uNonce)))
 		{
-			return false;
+			goto Done;
 		}
 		xacmeAliHex(uNonce, sizeof(uNonce), sNonce);
 		xrtSecureZero(uNonce, sizeof(uNonce));
@@ -416,20 +419,20 @@ static bool xacmeAliCall(
 				sAuth, sizeof(sAuth), sDate, sizeof(sDate),
 				sCanonicalQuery, sizeof(sCanonicalQuery)))
 		{
-			return false;
+			goto Done;
 		}
 		if(sCanonicalQuery[0] != 0u)
 		{
 			if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/?%s",
 				pCtx->sEndpoint, sCanonicalQuery))
 			{
-				return false;
+				goto Done;
 			}
 		}
 		else if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/",
 			pCtx->sEndpoint))
 		{
-			return false;
+			goto Done;
 		}
 
 		Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
@@ -449,7 +452,7 @@ static bool xacmeAliCall(
 			*pOutBody = R.sBody;
 			R.sBody = NULL;
 			xacmeHttpResponseUnit(&R);
-			return true;
+			bOk = true; goto Done;
 		}
 		xacmeHttpResponseUnit(&R);
 		if(bReadOnly) {
@@ -465,15 +468,21 @@ static bool xacmeAliCall(
 			pCtx->Http.bWriteUncertain = false;
 		}
 		Kind = xrtErrorKind(xrtGetError());
+		if(pFirst == NULL && (Kind == XERR_IO || Kind == XERR_TIMEOUT || Kind == XERR_CLOSED))
+			pFirst = xrtErrorRef(xrtGetError());
 		if((uAttempt == 3u) ||
 			pCtx->Http.bWriteUncertain ||
 			((Kind != XERR_IO) && (Kind != XERR_TIMEOUT)))
 		{
-			return false;
+			goto Done;
 		}
-		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+		if(!xacmeDnsOperationSleep(&pCtx->Http, (uAttempt == 1u) ? 500u : 1000u)) goto Done;
 	}
-	return false;
+
+Done:
+	if(!bOk) xacmeDnsRetryBudgetCause(&pCtx->Http, pFirst);
+	xrtErrorFree(pFirst);
+	return bOk;
 }
 
 static bool xacmeAliRecordIdCopy(
@@ -997,20 +1006,31 @@ static bool xacmeAliRemoveLocked(
 	return true;
 }
 
-static bool xacmeAliAdd(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
+static bool xacmeAliAddDeadline(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt, double Deadline)
 {
 	xacmednsalicontext* pCtx = (xacmednsalicontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
 	bOk = xacmeAliAddLocked(pProvider, Fqdn, Txt);
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeAliAdd(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
+{
+	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, INFINITY);
 }
 
 static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
@@ -1027,6 +1047,15 @@ static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview 
 	bOk = xacmeAliRemoveLocked(pProvider, Fqdn, Txt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd &&
+		pProvider->Remove == xacmeAliRemove;
+	if(!*pMatched) return false;
+	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)

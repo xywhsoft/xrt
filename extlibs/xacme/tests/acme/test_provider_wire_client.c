@@ -16,6 +16,7 @@
 #include <string.h>
 
 static char* TestCa;
+static bool BudgetAckDelay;
 static bool UncertaintyErrorOom;
 static unsigned UncertaintyOomTriggered;
 static bool CreateParseOom;
@@ -121,10 +122,50 @@ static xx509store* test_store(void)
 #include "../../src/acme/xacme_http.c"
 #undef xrtX509StoreSystem
 #define xrtJsonParse create_json_parse
+
+/* Delay only after the actual transport has delivered a successful create
+ * response. This models local completion work after an acknowledged write. */
+static bool budget_create_request(cstr method, const xacmehttpheader* extra, size_t count)
+{
+    if(strcmp(method, "POST") != 0) return false;
+    for(size_t i=0u;i<count;i++) {
+        if(strcmp(extra[i].sName,"x-acs-action")==0)
+            return strcmp(extra[i].sValue,"AddDomainRecord")==0;
+        if(strcmp(extra[i].sName,"X-TC-Action")==0)
+            return strcmp(extra[i].sValue,"CreateRecord")==0;
+    }
+    return true;
+}
+static void budget_ack_delay(bool result, cstr method, const xacmehttpheader* extra, size_t count)
+{
+    if(result && BudgetAckDelay && budget_create_request(method,extra,count)) {
+        BudgetAckDelay=false;
+        xrtSleep(1200u);
+    }
+}
+static bool budget_exchange(xacmehttp* http,cstr method,cstr url,cstr type,
+    xstrview body,const xacmehttpheader* extra,size_t count,xacmehttpresponse* response)
+{
+    bool result=xacmeHttpExchangeV(http,method,url,type,body,extra,count,response);
+    budget_ack_delay(result,method,extra,count);
+    return result;
+}
+static bool budget_exchange_once(xacmehttp* http,cstr method,cstr url,cstr type,
+    xstrview body,const xacmehttpheader* extra,size_t count,xacmehttpresponse* response)
+{
+    bool result=xacmeHttpExchangeOnceV(http,method,url,type,body,extra,count,response);
+    budget_ack_delay(result,method,extra,count);
+    return result;
+}
+
 #include "../../src/dns/xacme_dns_aws_txt.c"
+#define xacmeHttpExchangeV budget_exchange
 #include "../../src/dns/xacme_dns_aws.c"
+#undef xacmeHttpExchangeV
 #define xrtSecureRandom ali_secure_random
+#define xacmeHttpExchangeOnceV budget_exchange_once
 #include "../../src/dns/xacme_dns_ali.c"
+#undef xacmeHttpExchangeOnceV
 #undef xrtSecureRandom
 static bool rest_exchange(xacmehttp* http, cstr method, cstr url, cstr type,
 	xstrview body, const xacmehttpheader* extra, size_t count, xacmehttpresponse* response)
@@ -142,7 +183,7 @@ static bool rest_exchange(xacmehttp* http, cstr method, cstr url, cstr type,
 		if(TencentDeletePresendFailure) { xrtSetErrorKind(XERR_MEMORY); return false; }
 		TencentDeleteCalls++;
 	}
-	return xacmeHttpExchangeV(http, method, url, type, body, extra, count, response);
+	return budget_exchange(http, method, url, type, body, extra, count, response);
 }
 #define xacmeHttpExchangeV rest_exchange
 #include "../../src/dns/xacme_dns_cf.c"
@@ -1303,6 +1344,97 @@ static bool report_live_allocation(const xmemdebugallocation* allocation, ptr un
 	return true;
 }
 
+
+typedef struct providerbudgetgate {
+    xmutex* Lock;
+    xatomic32 Held;
+    double Guard;
+} providerbudgetgate;
+
+static int32 provider_budget_gate(ptr data)
+{
+    providerbudgetgate* gate=(providerbudgetgate*)data;
+    if(!xrtMutexLock(gate->Lock)) return 1;
+    xrtAtomic32Store(&gate->Held,1u,XMEMORY_RELEASE);
+    xrtSleep(400u);
+    return xrtMutexUnlock(gate->Lock)?0:1;
+}
+
+static bool exercise_budget(xacmednsprovider* provider, const char* mode)
+{
+    const xstrview owner=XRT_STR_LITERAL("_acme-challenge.api.example.com");
+    const xstrview value=XRT_STR_LITERAL("first_digest-01");
+    xacmehttp* http=NULL;
+    xmutex* lock=NULL;
+    xacmeclient client={0};
+    providerbudgetgate gate;
+    xthread* thread=NULL;
+    bool timeout=strstr(mode,"timeout")!=NULL;
+    bool gate_case=strstr(mode,"gate")!=NULL;
+    bool retry=strstr(mode,"retry")!=NULL;
+    bool conflict=strstr(mode,"conflict")!=NULL;
+    bool ack=strstr(mode,"ack")!=NULL;
+    int64 ms=timeout?(gate_case?100:1000):((retry || conflict)?5000:2500);
+    double started;
+    bool result,issue,ok,clean=true,recovered=false,cleared;
+    xerror* primary;
+    if(provider->Add==xacmeAliAdd) {
+        http=&((xacmednsalicontext*)provider->pContext)->Http;
+        lock=&((xacmednsalicontext*)provider->pContext)->Lock;
+    } else if(provider->Add==xacmeAwsAdd) {
+        http=&((xacmednsawscontext*)provider->pContext)->Http;
+        lock=&((xacmednsawscontext*)provider->pContext)->Lock;
+    } else if(provider->Add==xacmeCfAdd) {
+        http=&((xacmednscfcontext*)provider->pContext)->Http;
+        lock=&((xacmednscfcontext*)provider->pContext)->Lock;
+    } else if(provider->Add==xacmeTencentAdd) {
+        http=&((xacmednstencentcontext*)provider->pContext)->Http;
+        lock=&((xacmednstencentcontext*)provider->pContext)->Lock;
+    } else if(provider->Add==xacmeHuaweiAdd) {
+        http=&((xacmednshuaaweicontext*)provider->pContext)->Http;
+        lock=&((xacmednshuaaweicontext*)provider->pContext)->Lock;
+    } else return false;
+    if(gate_case) {
+        gate.Lock=lock;gate.Guard=__xrtWaitAfter(5000);
+        xrtAtomic32Init(&gate.Held,0u);
+        thread=xrtThreadCreate(provider_budget_gate,&gate,0);
+        if(thread==NULL) return false;
+        while(!xrtAtomic32Load(&gate.Held,XMEMORY_ACQUIRE)) {
+            if(__xrtWaitExpired(gate.Guard)) return false;
+            xrtThreadYield();
+        }
+    }
+    BudgetAckDelay=ack;
+    xrtClearError();started=xrtTimer();
+    client.bIssueDeadline=true;client.IssueDeadline=__xrtWaitAfter(ms);
+    result=xacmeFlowDnsAdd(&client,provider,owner.Data,value.Data);
+    /* Mirror the Issue caller: a confirmed Add is registered before checking
+     * elapsed work. Its pair remains available for independent Remove. */
+    issue=result?xacmeFlowBudget(&client):false;
+    primary=xrtErrorRef(xrtGetError());
+    cleared=!http->bOperationDeadline && http->OperationDeadline==0.0;
+    ok=cleared && (timeout?(!issue && xrtErrorKind(primary)==XERR_TIMEOUT &&
+        result==ack):(result && issue));
+    printf("BUDGET_RETURNED result=%d issue=%d kind=%d cleared=%d elapsed=%.3f\n",
+        result,issue,(int)xrtErrorKind(primary),cleared,xrtTimer()-started);
+    fflush(stdout);
+    if(getchar()!='\n') ok=false;
+    if(thread!=NULL) {
+        clean=__xrtThreadWaitUntil(thread,__xrtWaitAfter(5000))==XWAIT_OK &&
+            xrtThreadExitCode(thread)==0;
+        xrtThreadDestroy(thread);
+    }
+    BudgetAckDelay=false;
+    if(result) clean=provider->Remove(provider,owner,value) && clean;
+    /* A new direct callback on the same instance must have its ordinary
+     * independent HTTP budget after both finite success and failure. */
+    xrtClearError();
+    recovered=provider->Add(provider,owner,value);
+    if(recovered) clean=provider->Remove(provider,owner,value) && clean;
+    xrtErrorFree(primary);xrtClearError();
+    return recovered && clean && ok;
+}
+
 int main(int argc, char** argv)
 {
 	xacmednsprovider provider = { 0 };
@@ -1348,7 +1480,7 @@ int main(int argc, char** argv)
 		config.sEndpoint = argv[1];
 		ok = xrtAcmeDnsAli(&config, NULL, &provider);
 	}
-	if(ok) ok = strncmp(argv[4], "rest-", 5u) == 0 ? exercise_rest(&provider, argv[3], argv[4]) : exercise(&provider, aws, argv[4]);
+	if(ok) ok = strncmp(argv[4], "budget-", 7u) == 0 ? exercise_budget(&provider, argv[4]) : strncmp(argv[4], "rest-", 5u) == 0 ? exercise_rest(&provider, argv[3], argv[4]) : exercise(&provider, aws, argv[4]);
 	if(!ok) fprintf(stderr, "provider=%s mode=%s failed: error kind=%d code=%d\n",
 		argv[3], argv[4], (int)xrtErrorKind(xrtGetError()), (int)xrtErrorCode(xrtGetError()));
 	if(aws) xrtAcmeDnsAwsProviderUnit(&provider);

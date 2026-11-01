@@ -33,26 +33,26 @@
 
 ## 逐库状态
 
-下表数量是该产品清单内去重的资产数量，未包含依赖库的测试，也不表示本机已执行全部资产。
+下表资产数量保留启动时的去重基线，后续新增用例见各批次；不包含依赖库的测试，也不表示本机已执行全部资产。
 `tests` 包括专门的在线或平台测试，执行时需要依其声明与支持范围选择。
 
 | 产品目录 | 实现模块 | 源文件 | tests | single_tests | examples | 本轮状态 |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Issue 预算作用域与外层退避、Obtain/私钥副本等修复通过，DNS/provider 预算及 RSA 导入复核继续 |
+| xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Issue/DNS/provider 预算及清理修复本地通过，RSA/协议与测试资产支持依赖复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 正文流/前置条件字节快照及专项测试通过，其余源码复核继续 |
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 待复核 |
+| ximap | 11 | 9 | 22 | 15 | 5 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
-| xmail | 19 | 19 | 27 | 18 | 14 | 待复核 |
+| xmail | 19 | 19 | 27 | 18 | 14 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 已完成本轮：源码、本地、双平台认证 CI、Hydra 及交付验收 |
-| xpop3 | 6 | 4 | 10 | 6 | 4 | 待复核 |
+| xpop3 | 6 | 4 | 10 | 6 | 4 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
-| xsmtp | 6 | 4 | 8 | 6 | 4 | Windows 覆盖率 TLS 故障夹具失败追查中，已补阶段/错误诊断 |
+| xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
@@ -1276,3 +1276,76 @@ mail-tls-upgrade-{windows,linux}.json、mail-tls-upgrade-*-{gcc,clang,tcc}.log�
 mail-tls-upgrade-final-audit.json、mail-tls-upgrade-checks.json、
 mail-tls-upgrade-input-audit.json、ci-3595c0d5-acme-coverage-provenance.json
 及对应原始 coverage zip/json。
+
+
+### 第 37 批：内置 provider 的操作锁、HTTP 与重签退避预算
+
+- 真实签名 TLS 对端先复现：给 Flow 的 Ali Add 配 1000ms Issue 截止时间，
+  首个只读响应延迟 1.2 秒后仍继续发创建请求并交付记录；2500ms 控制组通过，
+  测试记录最终完整清除。随后用最终 42 组夹具配 1c6f4cee 的全部自有 C/公开/
+  私有头原始 Git blob：16 个超时场景失败，26 个控制通过；只重定向 include，
+  未替换 signer、transport、allocator 或生产实现。原始快照、逐项哈希及二进制留存。
+- 增加内部 AddUntil 分发，依据原始内置 Add/Remove 回调地址配对识别实例，
+  不依据可自定义的 sId 强转上下文。自定义回调保留宿主同步契约。五家内置实现
+  在自己的操作锁内保存/缩短/恢复 HTTP 上层截止时间，等待锁也计入有限预算，
+  获取锁前不读写另一调用拥有的 HTTP 预算字段。普通公开 Add 委托无限上层预算，
+  原有单次 HTTP 上限仍在。参数/已释放/清理中状态检查和 Unit 串行契约保留。
+- 每次提供商请求在签名/提交前检查预算，HTTP 拨号/全量 IO/安全重试继承同一截止时间；
+  Ali 重签、Tencent 只读 RPC、AWS RMW 冲突及 Huawei 删除确认的睡眠共用剩余量。
+  Remove 的独立清理不继承本次 Add 预算。AWS 在新请求签名/预算检查前重置旧的
+  bWriteUncertain，避免无新 IO 的失败沿用上一请求状态；写入结果未知仍不重放。
+- 已确认创建的成功必须先交付句柄并登记 Flow 清理拥有权，即使后续本地完成工作
+  跨过预算，不能先改成 false 丢失清理入口。新增迟到 ACK 场景在实际 transport
+  成功返回后延迟本地完成，核对 Add 确认/Issue 超时、Scope 恢复和实际 Remove。
+- 独立协议对端新增 42 组：五家各有迟到响应、丢失只读响应/重签退避、锁竞争、
+  迟到 ACK 的控制/超时；AWS 另有两次真实冲突后的控制/超时。stdin 屏障前核对
+  实际请求/已写入记录数；锁超时零请求，普通读超时只允许首个查询，预算耗尽不再创建。
+  AWS 有限预算在两次已证实拒绝后停止 RMW，后续同实例恢复/删除保留外部 TXT 值。
+  每例放行后完成独立清理、同实例无上层预算恢复及最终零 Core 资源。
+- 新注册 provider budget 故障单头程序覆盖 id 碰撞/毒化上下文、回调配对、已释放
+  状态、非法/已耗尽预算、旧 MEMORY 隔离、真实错误对象/allocator/包装 OOM、
+  嵌套预算恢复、截断退避和非法锁。时间/睡眠边界受控，真实签名、错误、分配器与
+  互斥锁执行实际源码；不把该程序冒充真实网络证据。
+- 首轮候选另复现 Ali/Tencent 重签期间首因丢失：第二次请求清除旧错误后才发现
+  超时，最终链中不含首个真实 IO 对象。两组失败、两组实际 MEMORY 控制通过，
+  单独保留候选源码快照。现在每次调用保留首个可重试错误引用至统一 Done；
+  超时保留该因果链，后续实际 MEMORY 优先，成功/失败均释放引用。最终四组通过，
+  不宣称所有跨 RPC 的普通最终失败均已改为首因策略。
+- 完整套件首轮的 28 个模块程序每环境通过，但 flow 单头夹具只嵌入一家 provider，
+  与实际启用五家的选择不一致，导致四个私有符号未定义；原失败保留。补齐实际选择
+  并让分发入口使用同一受控 Issue 时钟，25 组 Issue 预算回归通过。最后在首因修复
+  后重跑完整套件：Windows GCC 39 程序，Linux GCC / Clang ASan+UBSan+
+  float-cast-overflow+leaks / TCC 各 38 程序全部通过，含 146 组 HTTP、60 组 DNS、
+  25 组 Issue 及新的 provider budget/首因单头程序。
+- 最终 Linux GCC 完整独立 provider 协议集合 763 组通过；Windows GCC 与 Linux
+  Clang ASan+UBSan+leaks 的新增 42 组分别通过。此前拥有权/构造与 provider body
+  程序三环境通过；首因修复后刷新三环境各 18 项模拟 CA 及 Windows/Linux
+  static/shared 四个消费者。生成实现/声明、features、API 文档/参考及 release
+  maturity 检查通过；1213 项最终输入归一化 LF 后 Windows/WSL 一致。
+- 最小选择检查：六个 DNS 根与纯客户端 acme_flow 根实际编译链接/运行，测试所需
+  memory_debug 显式作为支持模块；两平台 GCC 模块裁剪通过。第一次直接选择 dns_ali
+  缺少其测试使用的 memory_debug，第一次选 acme_flow 的 test_flow 又依赖 Obtain
+  聚合能力；均保留失败，改用显式支持依赖及纯 test_client 核对最小生产闭包。
+  这些结果不表示所有聚合集成测试可单独放在最小模块运行；测试资产支持依赖/
+  归属的进一步整理保留为后续工作，不往生产模块塞入测试用依赖来换取通过。
+- 已推送 1c6f4cee 的 PR CI 41321375367 最终 73/73 成功，独立 mail 41321370433 成功；
+  两项重复工作流已确认取消。该 head 的两平台 ACME 原始 coverage artifact 已下载，
+  各 16 个自有 C 文件哈希与 Git blob 一致：Windows 5942/6820 行（87.13%）、
+  4954/7061 分支结果（70.16%）；Linux 5935/6823 行（86.99%）、4966/7069
+  （70.25%），原 70%/55% 门槛不变。这证明前两批 DNS/邮件 head；
+  本批新 provider 控制流仍需要自己的 CI/coverage，不能套用这些比例。
+- 宿主同步回调不可抢占，包装后的回调仍须遵守宿主预算协作；Remove/退休可晚于
+  工作预算返回。下一步继续实际 CI、Retry-After、EAB/RSA/provider/XML、
+  DNS 问题/属主/CNAME 绑定与 EDNS/TCP 恢复及其他产品源码验收。
+  整库有界首轮完成仍只有 xjwt/xoauth2，2/21，未合并或发布。
+
+证据：acme-provider-parent-before.json、acme-provider-budget-before-final42{,-provenance}.json、
+acme-provider-budget-baseline-final-42/、acme-provider-retry-cause-before{,-provenance}.json
+及对应源码快照/构建日志；acme-provider-budget-full-final-{windows,linux}.json、
+acme-provider-budget-wire-postcause-{windows,linux}.json、acme-provider-budget-postcause-*.json、
+acme-provider-budget-package-postcause-*.log、acme-provider-budget-singles-final-*.json、
+acme-provider-budget-minimal-final-linux.json（含被保留的选择失败）、
+acme-provider-budget-minimal-complete-linux.json、acme-provider-budget-trim-windows-gcc.json、
+acme-provider-budget-checks-final.json、acme-provider-budget-final-input-audit.json、
+acme-provider-budget-final-validation.json；ci-1c6f4cee-{runs,jobs}.json、
+ci-1c6f4cee-acme-coverage-provenance.json 及对应原始 coverage zip/json。

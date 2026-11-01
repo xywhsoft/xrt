@@ -2129,7 +2129,123 @@ SCENARIOS += [("huawei", "hw-record-" + suffix, "rest-hw-record-" + suffix) for 
 SCENARIOS += [("tencent", "tc-zone-" + fault, "rest-tc-zone-" + fault) for fault in TC_ZONE_FAULTS]
 
 
+
+BUDGET_SCENARIOS = [(p, f"budget-{kind}-{outcome}", f"budget-{kind}-{outcome}")
+                    for p in ("ali", "aws", "cf", "tencent", "huawei")
+                    for kind in ("delay", "retry", "gate", "ack")
+                    for outcome in ("control", "timeout")]
+BUDGET_SCENARIOS += [("aws", f"budget-conflict-{outcome}", f"budget-conflict-{outcome}")
+                     for outcome in ("control", "timeout")]
+SCENARIOS += BUDGET_SCENARIOS
+
+
+def budget_case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, scenario: str):
+    """Count requests/mutations before releasing the client's cleanup barrier."""
+    kind, outcome = scenario.removeprefix("budget-").split("-")
+    timeout = outcome == "timeout"
+    service = (Service(provider, "conflict-limit" if kind == "conflict" else "normal")
+               if provider in {"ali", "aws"} else RestOwnedService(provider, "rest-owned-normal"))
+    listeners = []
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0)); listener.listen(16); listeners.append(listener)
+    if socket.has_ipv6:
+        ipv6 = None
+        try:
+            ipv6 = socket.socket(socket.AF_INET6)
+            ipv6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+            ipv6.bind(("::1", listener.getsockname()[1])); ipv6.listen(16); listeners.append(ipv6)
+        except OSError:
+            if ipv6 is not None: ipv6.close()
+    selector = selectors.DefaultSelector()
+    for peer in listeners:
+        peer.setblocking(False); selector.register(peer, selectors.EVENT_READ)
+    endpoint = f"localhost:{listener.getsockname()[1]}"
+    stop, returned = threading.Event(), threading.Event()
+    errors, requests, marker = [], [], []
+    first_done = threading.Event()
+
+    def serve():
+        while not stop.is_set():
+            for ready, _ in selector.select(timeout=0.05):
+                try: raw, _ = ready.fileobj.accept()
+                except BlockingIOError: continue
+                index = 0
+                try:
+                    raw.settimeout(8)
+                    with context.wrap_socket(raw, server_side=True) as peer:
+                        method, target, headers, body = read_request(peer)
+                        assert headers["host"] == endpoint
+                        requests.append((method, target)); index = len(requests)
+                        response = service.dispatch(method, target, headers, body)
+                        if provider == "aws" and kind == "conflict" and service.calls["change"] == 2:
+                            # Two verified rejections precede the one-second deadline.
+                            # Later recovery succeeds and must preserve both outside values.
+                            service.scenario = "normal"
+                        if index == 1 and not returned.is_set() and kind in {"delay", "retry"}:
+                            time.sleep(1.2 if kind == "delay" else 0.9)
+                            if kind == "retry": continue
+                        status, payload = response
+                        if isinstance(payload, dict):
+                            payload = json.dumps(payload, separators=(",", ":")).encode()
+                        peer.sendall(f"HTTP/1.1 {status} Fixture\r\nContent-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode() + payload)
+                except (ssl.SSLError, ConnectionError, TimeoutError) as exc:
+                    raw.close()
+                    # The first validated slow read may observe the client's Abort.
+                    if not (timeout and index == 1 and kind in {"delay", "retry"}):
+                        errors.append(repr(exc)); return
+                except Exception as exc:
+                    raw.close(); errors.append(repr(exc)); return
+                finally:
+                    if index == 1: first_done.set()
+
+    worker = threading.Thread(target=serve, daemon=True); worker.start()
+    process = subprocess.Popen([str(client), endpoint, str(ca), provider, scenario],
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    def observe():
+        marker.append(process.stdout.readline()); returned.set()
+    observer = threading.Thread(target=observe, daemon=True); observer.start()
+    prefix = None
+    try:
+        if not returned.wait(timeout=10) or not marker or not marker[0].startswith("BUDGET_RETURNED "):
+            raise AssertionError(f"{provider}/{scenario} did not publish before cleanup: {marker}")
+        if requests and not first_done.wait(timeout=4):
+            raise AssertionError("provider budget peer did not finish its first validated request")
+        # Keep observing independently after the operation returned and before
+        # any Remove, recovery Add, or process destructor can run.
+        time.sleep(0.2)
+        creates = (len(service.ali) if provider == "ali" else
+                   int('"first_digest-01"' in service.aws[OWNER][1]) if provider == "aws" else len(service.records))
+        prefix = (len(requests), creates, dict(service.calls))
+        _, stderr = process.communicate(input="\n", timeout=45)
+        fields = dict(item.split("=", 1) for item in marker[0].split()[1:])
+        expected_creates = int(not timeout or kind == "ack")
+        if errors or process.returncode or fields.get("issue") != ("0" if timeout else "1") or fields.get("cleared") != "1":
+            raise AssertionError(f"{provider}/{scenario} rc={process.returncode} server={errors} marker={marker} prefix={prefix}\n{stderr}")
+        if prefix[1] != expected_creates or (timeout and kind in {"delay", "retry", "gate"} and prefix[0] != (0 if kind == "gate" else 1)):
+            raise AssertionError(f"{provider}/{scenario} submitted work after deadline: {prefix}")
+        if kind == "conflict" and timeout and prefix[2].get("change") != 2:
+            raise AssertionError(f"RMW budget failed to stop after two verified conflicts: {prefix}")
+        if provider == "ali":
+            if service.ali: raise AssertionError(f"provider budget left records: {service.ali}")
+        elif provider == "aws":
+            expected_values = [MANUAL] + (['"outside-1"', '"outside-2"'] if kind == "conflict" else [])
+            if service.aws != {OWNER: (721, expected_values), OTHER: (913, [MANUAL])}:
+                raise AssertionError(f"provider budget changed unrelated TXT values: {service.aws}")
+        elif service.records or service.pending:
+            raise AssertionError(f"provider budget left records: {service.records}")
+        print(f"  {provider}/{scenario}: prefix requests={prefix[0]} creates={prefix[1]}, cleanup and same-instance recovery passed", flush=True)
+    finally:
+        if process.poll() is None:
+            process.kill(); process.communicate(timeout=5)
+        stop.set(); worker.join(timeout=10); observer.join(timeout=1)
+        selector.close()
+        for listener in listeners: listener.close()
+        if worker.is_alive(): raise AssertionError("provider budget peer did not retire")
+
+
 def case(client: Path, ca: Path, context: ssl.SSLContext, provider: str, scenario: str, mode: str):
+    if scenario.startswith("budget-"):
+        return budget_case(client, ca, context, provider, scenario)
     service = (AwsZoneService(provider, scenario) if scenario.startswith("aws-zone-") else
                AwsErrorService(provider, scenario) if scenario.startswith("aws-error-") else
                CfRecordService(provider, scenario) if scenario.startswith("cf-record-") else

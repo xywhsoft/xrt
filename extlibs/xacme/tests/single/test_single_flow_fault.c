@@ -8,8 +8,19 @@
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"
 #include "../../src/acme/xacme_core.c"
+/* This source uses the same controlled Issue clock as the flow below.
+ * Actual provider entries remain linked for the selected module closure. */
+static bool flow_provider_expired(double Deadline);
+#define __xrtWaitExpired flow_provider_expired
 #include "../../src/acme/xacme_dns.c"
+#undef __xrtWaitExpired
 #include "../../src/acme/xacme_http.c"
+#include "../../src/dns/xacme_dns_ali.c"
+#include "../../src/dns/xacme_dns_aws_txt.c"
+#include "../../src/dns/xacme_dns_aws.c"
+#include "../../src/dns/xacme_dns_cf.c"
+#include "../../src/dns/xacme_dns_tencent.c"
+#include "../../src/dns/xacme_dns_huawei.c"
 #include "../../src/acme/xacme_jose.c"
 #include "../../src/acme/xacme_csr.c"
 #include "../../src/dns/xacme_dnstxt.c"
@@ -145,6 +156,10 @@ static unsigned IssueBudgetSlept, IssueBudgetPropagates, IssueBudgetTriggers, Is
 static xerror* IssueBudgetCause;
 static bool issue_mode(cstr Mode) { return IssueBudgetProbe && strcmp(IssueBudgetMode,Mode)==0; }
 static void issue_charge(unsigned Ms) { if(IssueBudgetProbe) IssueBudgetClock+=(double)Ms/1000.0; }
+static bool flow_provider_expired(double Deadline)
+{
+    return IssueBudgetProbe ? IssueBudgetClock >= Deadline : __xrtWaitExpired(Deadline);
+}
 
 static cstr LastJson;
 static xerror* FirstError;

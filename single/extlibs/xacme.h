@@ -1274,8 +1274,9 @@ typedef struct xacmeclientconfig {
 	uint32 uPropagateTimeoutMs;
 	/*
 		单次签发工作阶段的总预算（毫秒；0 或 -1 不限时，其他负数非法）：
-		覆盖订单/挑战/finalize/证书下载和库内 DNS 探测的轮询与退避，
-		超限以 XERR_TIMEOUT 失败。同步宿主 DNS 回调须自行限制阻塞，
+		覆盖订单/挑战/finalize/证书下载、内置 DNS provider 的锁等待/
+		HTTP/退避及库内 DNS 探测。超限以 XERR_TIMEOUT 失败。
+		同步宿主 DNS 回调须自行限制阻塞，
 		库在回调返回后检查预算，不抢占宿主线程。TXT Remove 与引擎
 		退休使用独立清理预算，函数返回可能晚于此值。
 	*/
@@ -2357,6 +2358,55 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* internal: extlibs/xacme/src/internal/xacme_dns_budget.h */
+/* ========================================================================== */
+
+#if defined(XACME_FEATURE_ACME_DNS)
+#ifndef XACME_DNS_BUDGET_H
+#define XACME_DNS_BUDGET_H
+
+
+#if defined(XACME_FEATURE_ACME_DNS)
+/* Internal synchronous Add dispatch. Only exact built-in callback pairs may
+ * expose their private context; custom callbacks keep their host contract. */
+bool xacmeDnsProviderAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline);
+
+#if defined(XACME_FEATURE_DNS_ALI)
+/* A foreign callback pair leaves Matched=false without inspecting context. */
+bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
+#endif
+
+#if defined(XACME_FEATURE_DNS_CF)
+/* A foreign callback pair leaves Matched=false without inspecting context. */
+bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
+#endif
+
+#if defined(XACME_FEATURE_DNS_TENCENT)
+/* A foreign callback pair leaves Matched=false without inspecting context. */
+bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
+#endif
+
+#if defined(XACME_FEATURE_DNS_AWS)
+/* A foreign callback pair leaves Matched=false without inspecting context. */
+bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
+#endif
+
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+/* A foreign callback pair leaves Matched=false without inspecting context. */
+bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched);
+#endif
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: extlibs/xacme/src/internal/xacme_dnscommon.h */
 /* ========================================================================== */
 
@@ -2383,6 +2433,130 @@ XRT_EXTERN_C_END
 #define XACME_DNS_RECORD_TEXT_CAP 320u
 
 #if defined(XACME_FEATURE_ACME_DNS) && defined(XACME_FEATURE_ACME_HTTP)
+
+
+typedef struct xacmednsbudgetscope {
+	bool bPrevious;
+	double Previous;
+} xacmednsbudgetscope;
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsDeadlineBudget(double Deadline)
+{
+	xerror* pCause;
+	xerror* pError;
+	cstr Domain;
+	if(!__xrtWaitExpired(Deadline)) return true;
+	pCause = xrtErrorRef(xrtGetError());
+	Domain = xrtErrorDomain(pCause);
+	if(xrtErrorKind(pCause) != XERR_MEMORY &&
+		!(xrtErrorKind(pCause) == XERR_TIMEOUT && Domain != NULL &&
+		  strcmp(Domain, "xrt.acme.dns") == 0 &&
+		  xrtErrorCode(pCause) == XACME_DNS_ERROR_NETWORK)) {
+		if(pCause != NULL) {
+			pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.dns",
+				XACME_DNS_ERROR_NETWORK, "acme DNS operation budget exhausted");
+			if(pError != NULL) xrtSetErrorTake(pError);
+		} else xrtSetErrorInfo(XERR_TIMEOUT, "xrt.acme.dns",
+			XACME_DNS_ERROR_NETWORK, "acme DNS operation budget exhausted");
+	}
+	xrtErrorFree(pCause);
+	return false;
+}
+
+/* The deadline applies while waiting for the provider gate too. Its HTTP
+ * state belongs exclusively to the gate owner and is never touched here. */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsProviderLock(xmutex* pLock, double Deadline)
+{
+	if(!__xrtWaitValid(Deadline)) return false;
+	if(Deadline == INFINITY) return xrtMutexLock(pLock);
+	xrtClearError();
+	while(xacmeDnsDeadlineBudget(Deadline)) {
+		xrtClearError();
+		if(xrtMutexTryLock(pLock)) return true;
+		if(xrtGetError() != NULL) return false;
+		if(!xacmeDnsDeadlineBudget(Deadline)) return false;
+		xrtSleep(1u);
+	}
+	return false;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsProviderBegin(xacmehttp* pHttp, double Deadline,
+	xacmednsbudgetscope* pScope)
+{
+	pScope->bPrevious = pHttp->bOperationDeadline;
+	pScope->Previous = pHttp->OperationDeadline;
+	if(Deadline != INFINITY &&
+		(!pHttp->bOperationDeadline || Deadline < pHttp->OperationDeadline)) {
+		pHttp->bOperationDeadline = true;
+		pHttp->OperationDeadline = Deadline;
+	}
+	if(!pHttp->bOperationDeadline || xacmeDnsDeadlineBudget(pHttp->OperationDeadline))
+		return true;
+	pHttp->bOperationDeadline = pScope->bPrevious;
+	pHttp->OperationDeadline = pScope->Previous;
+	return false;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsProviderEnd(xacmehttp* pHttp, const xacmednsbudgetscope* pScope)
+{
+	pHttp->bOperationDeadline = pScope->bPrevious;
+	pHttp->OperationDeadline = pScope->Previous;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsOperationBudget(const xacmehttp* pHttp)
+{
+	return !pHttp->bOperationDeadline ||
+		xacmeDnsDeadlineBudget(pHttp->OperationDeadline);
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsOperationSleep(const xacmehttp* pHttp, uint32 Ms)
+{
+	if(!xacmeDnsOperationBudget(pHttp)) return false;
+	if(pHttp->bOperationDeadline) {
+		int64 Remaining = __xrtWaitRemaining(pHttp->OperationDeadline);
+		if(Remaining >= 0 && Remaining < (int64)Ms) Ms = (uint32)Remaining;
+	}
+	xrtSleep(Ms);
+	return xacmeDnsOperationBudget(pHttp);
+}
+
+
+/* A later signed attempt can clear the caller error before observing expiry.
+ * The retry owner keeps its first error alive until the call settles. */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsRetryBudgetCause(const xacmehttp* pHttp, const xerror* pFirst)
+{
+	const xerror* pError;
+	xerrkind Kind = xrtErrorKind(xrtGetError());
+	bool Found = false;
+	if(pFirst == NULL || !pHttp->bOperationDeadline ||
+		!__xrtWaitExpired(pHttp->OperationDeadline) ||
+		(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) return;
+	for(pError = xrtGetError(); pError != NULL; pError = xrtErrorCause(pError))
+		if(pError == pFirst) { Found = true; break; }
+	if(!Found) xrtSetError(pFirst);
+	(void)xacmeDnsOperationBudget(pHttp);
+}
 
 /* Unit is serialized by the host. Check the context before touching its lock. */
 #if defined(__GNUC__)
@@ -3044,8 +3218,8 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发的总预算（毫秒；0 = 不限时）。Issue 入口打点，
-	   轮询/传播/退避逐段检查剩余时间。 */
+	/* 签发工作预算（毫秒；0/-1 不限时，其他负数非法）。Issue 入口打点，
+	   HTTP/provider 锁与退避/传播共用截止时间，清理独立。 */
 	int64 uIssueTimeoutMs;
 	double IssueDeadline;
 	bool bIssueDeadline;
@@ -6391,6 +6565,48 @@ bool xrtAcmeDnsProviderValidate(const xacmednsprovider* pProvider)
 	return true;
 }
 
+bool xacmeDnsProviderAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline)
+{
+	bool Matched = false, Result = false;
+	if(pProvider == NULL || pProvider->Add == NULL) {
+		xrtSetErrorInfo(XERR_ARGUMENT, "xrt.acme.dns", XACME_DNS_ERROR_ARGUMENT,
+			"acme DNS Add requires a provider callback");
+		return false;
+	}
+	if(!__xrtWaitValid(Deadline)) return false;
+	if(Deadline != INFINITY) {
+		xrtClearError();
+		if(__xrtWaitExpired(Deadline)) {
+			xrtSetErrorInfo(XERR_TIMEOUT, "xrt.acme.dns", XACME_DNS_ERROR_NETWORK,
+				"acme DNS operation budget exhausted before Add");
+			return false;
+		}
+	}
+#if defined(XACME_FEATURE_DNS_ALI)
+	Result = xacmeDnsAliAddUntil(pProvider, Fqdn, Txt, Deadline, &Matched);
+	if(Matched) return Result;
+#endif
+#if defined(XACME_FEATURE_DNS_CF)
+	Result = xacmeDnsCfAddUntil(pProvider, Fqdn, Txt, Deadline, &Matched);
+	if(Matched) return Result;
+#endif
+#if defined(XACME_FEATURE_DNS_TENCENT)
+	Result = xacmeDnsTencentAddUntil(pProvider, Fqdn, Txt, Deadline, &Matched);
+	if(Matched) return Result;
+#endif
+#if defined(XACME_FEATURE_DNS_AWS)
+	Result = xacmeDnsAwsAddUntil(pProvider, Fqdn, Txt, Deadline, &Matched);
+	if(Matched) return Result;
+#endif
+#if defined(XACME_FEATURE_DNS_HUAWEI)
+	Result = xacmeDnsHuaweiAddUntil(pProvider, Fqdn, Txt, Deadline, &Matched);
+	if(Matched) return Result;
+#endif
+	(void)Matched; (void)Result;
+	return pProvider->Add(pProvider, Fqdn, Txt);
+}
+
 #endif
 #endif
 
@@ -7401,6 +7617,8 @@ static bool xacmeAliCall(
 	xacmehttpheader Extra[6];
 	xacmehttpresponse R;
 	uint32 uAttempt;
+	xerror* pFirst = NULL;
+	bool bOk = false;
 	bool bReadOnly = strcmp(sAction, "DescribeDomainRecords") == 0 ||
 		strcmp(sAction, "DescribeDomainRecordInfo") == 0;
 	/* This RPC has not sent anything yet; older unknown writes live in the ledger. */
@@ -7408,9 +7626,10 @@ static bool xacmeAliCall(
 	for(uAttempt = 1u; uAttempt <= 3u; ++uAttempt)
 	{
 		xerrkind Kind;
+		if(!xacmeDnsOperationBudget(&pCtx->Http)) goto Done;
 		if(!xrtSecureRandom(uNonce, sizeof(uNonce)))
 		{
-			return false;
+			goto Done;
 		}
 		xacmeAliHex(uNonce, sizeof(uNonce), sNonce);
 		xrtSecureZero(uNonce, sizeof(uNonce));
@@ -7419,20 +7638,20 @@ static bool xacmeAliCall(
 				sAuth, sizeof(sAuth), sDate, sizeof(sDate),
 				sCanonicalQuery, sizeof(sCanonicalQuery)))
 		{
-			return false;
+			goto Done;
 		}
 		if(sCanonicalQuery[0] != 0u)
 		{
 			if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/?%s",
 				pCtx->sEndpoint, sCanonicalQuery))
 			{
-				return false;
+				goto Done;
 			}
 		}
 		else if(!xacmeAliFormat(sUrl, sizeof(sUrl), "https://%s/",
 			pCtx->sEndpoint))
 		{
-			return false;
+			goto Done;
 		}
 
 		Extra[0] = (xacmehttpheader){ "Authorization", sAuth };
@@ -7452,7 +7671,7 @@ static bool xacmeAliCall(
 			*pOutBody = R.sBody;
 			R.sBody = NULL;
 			xacmeHttpResponseUnit(&R);
-			return true;
+			bOk = true; goto Done;
 		}
 		xacmeHttpResponseUnit(&R);
 		if(bReadOnly) {
@@ -7468,15 +7687,21 @@ static bool xacmeAliCall(
 			pCtx->Http.bWriteUncertain = false;
 		}
 		Kind = xrtErrorKind(xrtGetError());
+		if(pFirst == NULL && (Kind == XERR_IO || Kind == XERR_TIMEOUT || Kind == XERR_CLOSED))
+			pFirst = xrtErrorRef(xrtGetError());
 		if((uAttempt == 3u) ||
 			pCtx->Http.bWriteUncertain ||
 			((Kind != XERR_IO) && (Kind != XERR_TIMEOUT)))
 		{
-			return false;
+			goto Done;
 		}
-		xrtSleep((uAttempt == 1u) ? 500u : 1000u);
+		if(!xacmeDnsOperationSleep(&pCtx->Http, (uAttempt == 1u) ? 500u : 1000u)) goto Done;
 	}
-	return false;
+
+Done:
+	if(!bOk) xacmeDnsRetryBudgetCause(&pCtx->Http, pFirst);
+	xrtErrorFree(pFirst);
+	return bOk;
 }
 
 static bool xacmeAliRecordIdCopy(
@@ -8000,20 +8225,31 @@ static bool xacmeAliRemoveLocked(
 	return true;
 }
 
-static bool xacmeAliAdd(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
+static bool xacmeAliAddDeadline(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt, double Deadline)
 {
 	xacmednsalicontext* pCtx = (xacmednsalicontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
 	bOk = xacmeAliAddLocked(pProvider, Fqdn, Txt);
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeAliAdd(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
+{
+	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, INFINITY);
 }
 
 static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview Txt)
@@ -8030,6 +8266,15 @@ static bool xacmeAliRemove(xacmednsprovider* pProvider, xstrview Fqdn, xstrview 
 	bOk = xacmeAliRemoveLocked(pProvider, Fqdn, Txt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsAliAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAliAdd &&
+		pProvider->Remove == xacmeAliRemove;
+	if(!*pMatched) return false;
+	return xacmeAliAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsAliConfigInit(xacmednaliconfig* pConfig)
@@ -10168,9 +10413,10 @@ static bool xacmeFlowDnsAdd(
 	{
 		xerror* pFirst;
 		if(!xacmeFlowBudget(pClient)) return false;
-		if(pDns->Add((xacmednsprovider*)pDns,
+		if(xacmeDnsProviderAddUntil((xacmednsprovider*)pDns,
 				(xstrview){ sFqdn, strlen(sFqdn) },
-				(xstrview){ sTxt, strlen(sTxt) }))
+				(xstrview){ sTxt, strlen(sTxt) },
+				pClient != NULL && pClient->bIssueDeadline ? pClient->IssueDeadline : INFINITY))
 		{
 			return true;
 		}
@@ -12205,6 +12451,7 @@ static bool xacmeCfCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	snprintf(sAuth, sizeof(sAuth), "Bearer %s", pCtx->sToken);
 	if(!xacmeDnsHttpsUrl(sUrl, sizeof(sUrl), pCtx->sEndpoint,
 			sPathAndQuery))
@@ -12583,23 +12830,34 @@ static bool xacmeCfRemoveLocked(
 		xacmeCfDeleteRecord, pCtx);
 }
 
-static bool xacmeCfAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeCfAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeCfReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeCfAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeCfAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeCfAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -12616,6 +12874,15 @@ static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview 
 	bOk = xacmeCfRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd &&
+		pProvider->Remove == xacmeCfRemove;
+	if(!*pMatched) return false;
+	return xacmeCfAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig)
@@ -12882,6 +13149,7 @@ static bool xacmeTencentCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xacmeDnsTencentAuthorization(
 		pCtx->sId, pCtx->sKey, pCtx->sEndpoint, sAction, sBody,
 		xrtNow(), sAuth, sizeof(sAuth), sTimestamp, sizeof(sTimestamp)) ||
@@ -13000,17 +13268,25 @@ static bool xacmeTencentReadCall(xacmednstencentcontext* pCtx, cstr sAction,
 	cstr sBody, uint16* pStatus, str* pBody, size_t* pSize)
 {
 	uint32 i;
+	xerror* pFirst = NULL;
+	bool bOk = false;
 	for(i = 0u; i < 3u; i++) {
 		xerrkind Kind;
 		xrtClearError();
-		if(xacmeTencentCall(pCtx, sAction, sBody, pStatus, pBody, pSize)) return true;
+		if(xacmeTencentCall(pCtx, sAction, sBody, pStatus, pBody, pSize)) { bOk = true; goto Done; }
 		xrtFree(*pBody); *pBody = NULL;
 		Kind = xrtErrorKind(xrtGetError());
+		if(pFirst == NULL && (Kind == XERR_IO || Kind == XERR_TIMEOUT || Kind == XERR_CLOSED))
+			pFirst = xrtErrorRef(xrtGetError());
 		if(!pCtx->Http.bWriteUncertain ||
-			(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) return false;
-		if(i != 2u) xrtSleep(250u << i);
+			(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) goto Done;
+		if(i != 2u && !xacmeDnsOperationSleep(&pCtx->Http, 250u << i)) goto Done;
 	}
-	return false;
+
+Done:
+	if(!bOk) xacmeDnsRetryBudgetCause(&pCtx->Http, pFirst);
+	xrtErrorFree(pFirst);
+	return bOk;
 }
 
 static bool xacmeTencentResponseOk(const xvalue* pResponse, uint16 iStatus)
@@ -13532,23 +13808,34 @@ static bool xacmeTencentRemoveLocked(
 		xacmeTencentDeleteRecord, pCtx);
 }
 
-static bool xacmeTencentAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeTencentAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednstencentcontext* pCtx = (xacmednstencentcontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeTencentReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeTencentAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeTencentAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeTencentAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -13565,6 +13852,15 @@ static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstr
 	bOk = xacmeTencentRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd &&
+		pProvider->Remove == xacmeTencentRemove;
+	if(!*pMatched) return false;
+	return xacmeTencentAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig)
@@ -13794,6 +14090,8 @@ static bool xacmeAwsCall(
 	uint8 kSigning[XRT_SHA256_SIZE];
 	uint8 Signature[XRT_SHA256_SIZE];
 
+	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xrtTimeSplitAt(xrtNow(), 0, &Now))
 	{
 		return false;
@@ -14067,7 +14365,7 @@ static xacmeawsmutationresult xacmeAwsMutateTxt(xacmednsawscontext* pCtx,
 		if(Result == XACME_AWS_FAILED || (bAdd && Result == XACME_AWS_UNCERTAIN)) return Result;
 		Last = Result;
 		bRetried = true;
-		if(iAttempt + 1u < 4u) xrtSleep(500u << iAttempt);
+		if(iAttempt + 1u < 4u && !xacmeDnsOperationSleep(&pCtx->Http, 500u << iAttempt)) return XACME_AWS_FAILED;
 	}
 	if(Last == XACME_AWS_BUSY) return XACME_AWS_FAILED;
 	xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
@@ -14201,21 +14499,32 @@ static bool xacmeAwsRemoveLocked(
 	return true;
 }
 
-static bool xacmeAwsAdd(
-	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeAwsAddDeadline(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednsawscontext* pCtx = (xacmednsawscontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
 	bOk = xacmeAwsAddLocked(pProvider, sFqdn, sTxt);
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeAwsAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeAwsAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeAwsRemove(
@@ -14233,6 +14542,15 @@ static bool xacmeAwsRemove(
 	bOk = xacmeAwsRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd &&
+		pProvider->Remove == xacmeAwsRemove;
+	if(!*pMatched) return false;
+	return xacmeAwsAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig)
@@ -15258,6 +15576,7 @@ static bool xacmeHuaweiCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xacmeDnsHuaweiAuthorization(pCtx->sAk, pCtx->sSk,
 			pCtx->sEndpoint, sMethod, sPathAndQuery, sBody, xrtNow(),
 			sAuth, sizeof(sAuth), sStampText, sizeof(sStampText)) ||
@@ -15621,7 +15940,7 @@ static bool xacmeHuaweiAwaitDelete(xacmednshuaaweicontext* pCtx, size_t iSlot,
 	static const uint32 Delays[] = { 500u, 1000u, 2000u };
 	for(iAttempt = 0u; iAttempt < 4u; iAttempt++) {
 		xacmehuaweirecordresult Result;
-		if(iAttempt != 0u) xrtSleep(Delays[iAttempt - 1u]);
+		if(iAttempt != 0u && !xacmeDnsOperationSleep(&pCtx->Http, Delays[iAttempt - 1u])) return false;
 		Result = xacmeHuaweiReadRecord(pCtx, sPath, sZoneId, sRecordId, sOwner, Txt, false);
 		if(Result == XACME_HUAWEI_RECORD_MISSING) {
 			pCtx->bDeletePending[iSlot] = false;
@@ -15740,23 +16059,34 @@ static bool xacmeHuaweiRemoveLocked(
 		xacmeHuaweiDeleteRecord, pCtx);
 }
 
-static bool xacmeHuaweiAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeHuaweiAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednshuaaweicontext* pCtx = (xacmednshuaaweicontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeHuaweiReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeHuaweiAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeHuaweiAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeHuaweiAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -15773,6 +16103,15 @@ static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrv
 	bOk = xacmeHuaweiRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd &&
+		pProvider->Remove == xacmeHuaweiRemove;
+	if(!*pMatched) return false;
+	return xacmeHuaweiAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig)

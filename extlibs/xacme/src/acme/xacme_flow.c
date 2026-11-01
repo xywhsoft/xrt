@@ -14,6 +14,7 @@
 #include <xrt/x509.h>
 
 #include "../internal/xacme_dnstxt.h"
+#include "../internal/xacme_dns_budget.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -951,9 +952,10 @@ static bool xacmeFlowDnsAdd(
 	{
 		xerror* pFirst;
 		if(!xacmeFlowBudget(pClient)) return false;
-		if(pDns->Add((xacmednsprovider*)pDns,
+		if(xacmeDnsProviderAddUntil((xacmednsprovider*)pDns,
 				(xstrview){ sFqdn, strlen(sFqdn) },
-				(xstrview){ sTxt, strlen(sTxt) }))
+				(xstrview){ sTxt, strlen(sTxt) },
+				pClient != NULL && pClient->bIssueDeadline ? pClient->IssueDeadline : INFINITY))
 		{
 			return true;
 		}

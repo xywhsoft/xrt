@@ -282,6 +282,7 @@ static bool xacmeHuaweiCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xacmeDnsHuaweiAuthorization(pCtx->sAk, pCtx->sSk,
 			pCtx->sEndpoint, sMethod, sPathAndQuery, sBody, xrtNow(),
 			sAuth, sizeof(sAuth), sStampText, sizeof(sStampText)) ||
@@ -645,7 +646,7 @@ static bool xacmeHuaweiAwaitDelete(xacmednshuaaweicontext* pCtx, size_t iSlot,
 	static const uint32 Delays[] = { 500u, 1000u, 2000u };
 	for(iAttempt = 0u; iAttempt < 4u; iAttempt++) {
 		xacmehuaweirecordresult Result;
-		if(iAttempt != 0u) xrtSleep(Delays[iAttempt - 1u]);
+		if(iAttempt != 0u && !xacmeDnsOperationSleep(&pCtx->Http, Delays[iAttempt - 1u])) return false;
 		Result = xacmeHuaweiReadRecord(pCtx, sPath, sZoneId, sRecordId, sOwner, Txt, false);
 		if(Result == XACME_HUAWEI_RECORD_MISSING) {
 			pCtx->bDeletePending[iSlot] = false;
@@ -764,23 +765,34 @@ static bool xacmeHuaweiRemoveLocked(
 		xacmeHuaweiDeleteRecord, pCtx);
 }
 
-static bool xacmeHuaweiAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeHuaweiAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednshuaaweicontext* pCtx = (xacmednshuaaweicontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeHuaweiReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeHuaweiAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeHuaweiAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeHuaweiAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -797,6 +809,15 @@ static bool xacmeHuaweiRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrv
 	bOk = xacmeHuaweiRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsHuaweiAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeHuaweiAdd &&
+		pProvider->Remove == xacmeHuaweiRemove;
+	if(!*pMatched) return false;
+	return xacmeHuaweiAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsHuaweiConfigInit(xacmednshuaaweiconfig* pConfig)

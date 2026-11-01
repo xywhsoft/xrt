@@ -3872,8 +3872,9 @@ typedef struct xacmeclientconfig {
 	uint32 uPropagateTimeoutMs;
 	/*
 		单次签发工作阶段的总预算（毫秒；0 或 -1 不限时，其他负数非法）：
-		覆盖订单/挑战/finalize/证书下载和库内 DNS 探测的轮询与退避，
-		超限以 XERR_TIMEOUT 失败。同步宿主 DNS 回调须自行限制阻塞，
+		覆盖订单/挑战/finalize/证书下载、内置 DNS provider 的锁等待/
+		HTTP/退避及库内 DNS 探测。超限以 XERR_TIMEOUT 失败。
+		同步宿主 DNS 回调须自行限制阻塞，
 		库在回调返回后检查预算，不抢占宿主线程。TXT Remove 与引擎
 		退休使用独立清理预算，函数返回可能晚于此值。
 	*/

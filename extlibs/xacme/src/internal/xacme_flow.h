@@ -55,8 +55,8 @@ typedef struct xacmeclient {
 	char sPropagateResolvers[XACME_FLOW_RESOLVER_MAX][64];
 	size_t iPropagateResolverCount;
 	uint32 uPropagateTimeoutMs;
-	/* 单次签发的总预算（毫秒；0 = 不限时）。Issue 入口打点，
-	   轮询/传播/退避逐段检查剩余时间。 */
+	/* 签发工作预算（毫秒；0/-1 不限时，其他负数非法）。Issue 入口打点，
+	   HTTP/provider 锁与退避/传播共用截止时间，清理独立。 */
 	int64 uIssueTimeoutMs;
 	double IssueDeadline;
 	bool bIssueDeadline;
