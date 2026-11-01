@@ -358,11 +358,13 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c"
       ],
       "examples": [
-        "extlibs/xmqtt/examples/client/main.c"
+        "extlibs/xmqtt/examples/client/main.c",
+        "extlibs/xmqtt/examples/error_disconnect/main.c"
       ],
       "benchmarks": [
         "extlibs/xmqtt/bench/bench_client_qos1.c",
-        "extlibs/xmqtt/bench/bench_client_receive.c"
+        "extlibs/xmqtt/bench/bench_client_receive.c",
+        "extlibs/xmqtt/bench/bench_client_disconnect.c"
       ],
       "docs": [
         "extlibs/xmqtt/docs/client.md"

@@ -532,6 +532,173 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_disconnect",
+      "system": "client",
+      "description": "Whole connection/error/physical-retirement cycles on a persistent local Engine: construction, CONNECT/CONNACK, malformed header, MQTT5 diagnostic close or 311 abort, observer waits and destruction. Client plus fixture costs, cold first cache use; not isolated close latency or broker parity.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_close_5",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "5",
+            "0"
+          ],
+          "smoke_args": [
+            "3",
+            "5",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_4",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "3",
+            "4",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "5",
+            "1"
+          ],
+          "smoke_args": [
+            "3",
+            "5",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_cycle": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_cycle": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "4",
+            "1"
+          ],
+          "smoke_args": [
+            "3",
+            "4",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_cycle": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_cycle": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -142,6 +142,10 @@ def serve(listener, version, case, errors):
                 elif case == 'truncated':
                     s.sendall(b'\x30\x10\0')
                     s.shutdown(socket.SHUT_WR)
+            reason = {'duplicate': 0x82, 'malformed': 0x81, 'alias': 0x94,
+                      'advertised_limit': 0x95, 'unsolicited_auth': 0x82}.get(case)
+            if version == 5 and reason is not None:
+                assert read_packet(s) == (0xe0, bytes([reason])), 'final diagnostic DISCONNECT'
             try:
                 assert s.recv(1) == b'', 'unexpected client bytes/replay'
             except ConnectionResetError:

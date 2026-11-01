@@ -84,6 +84,9 @@ def serve(listener, version, case, errors):
                     s.sendall(publish(version, 0 if case == 'zero_id' else 1, qos=2 if case == 'qos2' else 1))
                 if case in ('ordered', 'tiny', 'partial_ack', 'backpressure', 'duplicate', 'duplex', 'partial_outgoing'):
                     s.sendall(publish(version, qos=0))  # peer-observed ACK barrier
+            reason = {'zero_id': 0x81, 'receive_window': 0x93}.get(case)
+            if version == 5 and reason is not None:
+                assert read_packet(s) == (0xe0, bytes([reason])), 'final diagnostic DISCONNECT'
             try:
                 assert s.recv(1) == b'', 'unexpected ACK or replay after failure'
             except ConnectionResetError:

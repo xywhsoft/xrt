@@ -3243,16 +3243,21 @@ typedef struct xmqttclientconfig {
     size_t MaxPrivateBytes,MaxSetupBytes,InitialInputBytes,ReadBytes,WriteBytes,WriteChunkBytes,WorkPackets;
     int64 SetupTimeout,PingTimeout;
     xmqttclientnotify Notify;ptr User;
+    int64 CloseTimeout; /* Positive diagnostic drain deadline, default 5000 ms. */
 } xmqttclientconfig;
 typedef struct xmqttclientinfo {
     size_t Size;xmqttclientstate State;xmqttclientstatus CloseStatus;uint8 ServerReason;
     bool Ready;size_t Requests,OutgoingBytes,Messages,MessageBytes,Objects,ObjectBytes,PrivateBytes,StartupBytes;
     uint64 Accepted,Rejected,Completed,Received,ProtocolErrors,Pings,Pongs;
+    /* Intended MQTT5 error reason and bytes accepted into native output (0..3).
+     * Neither proves peer receipt. Timeout preserves the original CloseStatus. */
+    uint8 LocalReason;bool DrainTimedOut,DrainStarted;size_t DisconnectBytes;
 } xmqttclientinfo;
 XRT_EXTERN_C_BEGIN
 /* MQTT 5, finite codec defaults; 128 requests/4 MiB outgoing; 512 objects/16 MiB,
  * 64 queued messages/8 MiB; 4 MiB private, 64 KiB setup, 1 KiB initial input;
- * 64 KiB read/write work, 16 KiB chunks, 64 packets/turn; 5s setup/ping timeout. */
+ * 64 KiB read/write work, 16 KiB chunks, 64 packets/turn; 5s setup/ping/diagnostic
+ * close timeout. CloseTimeout must be positive; all durations use milliseconds. */
 XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
 /* One numeric TCP connection on a running host Engine, no TLS/DNS/fallback or
  * implicit replay. CONNECT is fully encoded/copied before return; callbacks may
@@ -3269,7 +3274,11 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * QoS 2, subscriptions, reconnect,
  * durable sessions and graceful DISCONNECT remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
- * Explicit Maximum Packet Size must not exceed the local codec packet cap. */
+ * Explicit Maximum Packet Size must not exceed the local codec packet cap.
+ * After accepted MQTT5 negotiation, protocol failures attempt a final minimal
+ * diagnostic DISCONNECT at a frame boundary, bounded by CloseTimeout including
+ * native queue drain. Partial frames, peer caps, EOF, resource failure or explicit
+ * Close force abort instead. The original typed error survives every fallback. */
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Client);
 /* Shared readiness Future, always typed. Explicit Future cancellation requests
@@ -3301,7 +3310,9 @@ XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* Message);
 XMQTT_API bool xmqttMessageRetain(const xmqttmessage* Message);
 XMQTT_API void xmqttMessageRelease(const xmqttmessage* Message);
 XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
-/* Abortive/nonblocking; sends no MQTT DISCONNECT, so a broker may publish Will.
+/* Abortive/nonblocking; application Close starts no MQTT DISCONNECT, so a broker
+ * may publish Will. It can interrupt a previously started automatic error drain;
+ * already accepted diagnostic bytes cannot be retracted. First error wins.
  * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
  * event-owner and native stream reference retirement. Timeout preserves owner.
  * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */

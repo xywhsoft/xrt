@@ -100,6 +100,11 @@ def serve(listener, version, case, errors):
                             s.sendall(bytes([b]))
                     else:
                         s.sendall(wire + (wire if case == 'duplicate_ack' else b''))
+            reason = {'duplicate_ack': 0x82, 'unknown_ack': 0x82, 'zero_ack': 0x81,
+                      'wrong_kind': 0x82, 'unsent_ack': 0x82, 'bad_reason': 0x81,
+                      'problem_info': 0x82}.get(case)
+            if version == 5 and reason is not None:
+                assert read_packet(s) == (0xe0, bytes([reason])), 'final diagnostic DISCONNECT'
             try:
                 assert s.recv(1) == b'', 'unexpected packet/replay'
             except ConnectionResetError:

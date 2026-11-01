@@ -62,7 +62,7 @@
       "name": "xmqtt_client",
       "system": "client",
       "suite": "xmqtt_client",
-      "description": "MQTT TCP/QoS0 receive/QoS0-1 send client, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately"
+      "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately"
     }
   ]
 }

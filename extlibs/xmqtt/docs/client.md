@@ -5,7 +5,8 @@ on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
 QoS-0/1 PUBLISH send/receive, correlated publishing PUBACK results,
 server keep-alive override, PINGREQ/PINGRESP,
-abortive close and physical retirement. There is no protocol fallback/replay.
+abortive application Close, bounded automatic MQTT5 error DISCONNECT and physical
+retirement. There is no protocol fallback/replay.
 
 This stage does **not** complete the planned client. QoS 2, subscription and
 shared outgoing identifier state, aliases, enhanced authentication, graceful DISCONNECT,
@@ -46,8 +47,10 @@ Client and Engine destruction. Already queued messages remain available after
 Close; Destroy releases any untaken queue references. Server DISCONNECT records
 its reason in Info and closes; it is not a PUBLISH queue item.
 
-Close is nonblocking and **abortive**: it sends no MQTT DISCONNECT and therefore
-can cause the server to publish the Will. CLOSED is the logical terminal state.
+Application Close is nonblocking and **abortive**: it initiates no MQTT DISCONNECT
+and can cause the server to publish the Will. It also interrupts an automatic
+error drain; bytes already accepted by TCP cannot be retracted. CLOSED is the
+logical terminal state.
 Wait additionally observes producer, event, post, timer, send-buffer and native
 stream retirement. It uses the original wait deadline; timeout preserves the
 caller owner. Destroy requests Close and waits off-worker before releasing it.
@@ -60,7 +63,8 @@ Defaults: 128 physical requests / 4 MiB wire; 512 retained objects / 16 MiB;
 64 queued messages / 8 MiB; 4 MiB private bytes / 64 KiB startup wire;
 1 KiB initial receive storage, 1 MiB codec packet/payload/property caps;
 64 KiB read/write work, 16 KiB write chunks, 64 packets/turn; setup and PING
-timeouts 5 seconds. Caller configuration may tighten these finite limits.
+timeouts 5 seconds, including positive CloseTimeout for diagnostic queue drain.
+Caller configuration may tighten these finite limits.
 
 Requests and outgoing wire remain charged until their **last real reference**
 retires, potentially after the result Future resolves. Their bound is
@@ -169,11 +173,10 @@ A local full ACK ring pauses parsing at the already buffered next QoS-1 frame;
 its bytes are not discarded or acknowledged. ACK progress wakes parsing without
 a busy repost while native writes are blocked. Exceeding the advertised MQTT 5
 receive credit closes with PROTOCOL. The credit is returned only once all four
-PUBACK bytes are accepted into the ordered native stream. Error exits currently
-remain abortive: MQTT 5 diagnostic DISCONNECT (including reason 0x93), graceful
-close/drain and application-controlled/durable acknowledgements remain pending.
-These are explicit gaps in full client qualification, not protocol-complete
-production acceptance.
+PUBACK bytes are accepted into the ordered native stream. MQTT5 protocol errors after accepted negotiation now follow the bounded
+diagnostic-close contract below, including Receive Maximum reason 0x93. Normal
+application DISCONNECT and application-controlled/durable acknowledgements remain
+pending; full client/production acceptance is not claimed.
 
 A partial outgoing PUBLISH, PING or PUBACK is finished before another packet can
 start. A pending receive ACK takes priority over new publications, including
@@ -192,6 +195,69 @@ the corresponding incoming message; throughput additionally waits for the peer
 to observe every receiver PUBACK. It includes polling, scheduling and fixture
 costs. Instrumented variants include client AND peer XRT block traffic, not all
 system allocations or RSS. It is not a receiver-only benchmark or broker parity.
+
+## Automatic MQTT5 diagnostic close
+
+After accepted MQTT5 negotiation, protocol failures select a final minimal
+three-byte DISCONNECT: malformed framing/codec input 0x81, unexpected protocol
+state 0x82, receive-window violation 0x93, invalid receive alias 0x94, or an
+advertised packet-size violation 0x95. No Reason String/User Property, session
+mutation or extra retained message is allocated for this diagnostic. MQTT 3.1.1,
+pre-readiness failures, server DISCONNECT, local resource/transport failure and
+unsupported unfinished flows retain abortive behavior. No server-only reason
+code is emitted by this client. This does not implement normal reason-0 graceful
+application disconnection or complete all remaining protocol state.
+
+The first typed CloseStatus/Cause wins. New admissions stop immediately. Fully
+accepted native output frames may drain ahead of the final diagnostic; a partial
+PUBLISH, PING or PUBACK instead forces abort, preventing control-byte insertion
+inside that frame. The peer packet cap must allow all three bytes. One-byte
+write limits and the configured per-turn byte/chunk limits are respected. Native
+queue pressure waits for real low-water/drain events; no busy repost at zero
+writability is needed. The copied-send API owns each accepted diagnostic chunk.
+After the complete diagnostic is queued, Core Close stops reading and drains its
+output; no further MQTT packet is sent.
+
+A single host timer bounds this phase by positive CloseTimeout, default 5000ms,
+from the diagnostic-close attempt through native queue retirement. The deadline
+is monotonic and never extended by progress. Timer or copied-send allocation
+failure, peer EOF/reset, explicit application Close or deadline expiry falls back
+to abort without changing the original typed cause. Close timeout is evaluated
+on owner progress; it cannot preempt a blocked user callback or OS scheduling
+stall. Callbacks remain required to be nonblocking. CLOSING is notified once on
+initial stop, outside the gate, so a reentrant Close can interrupt before further
+diagnostic output. CLOSED still follows terminal request work, and Wait checks
+actual timer/post/event/send/native ownership retirement.
+
+Info.LocalReason is the intended local diagnostic reason; zero means no such
+attempt was selected. DrainStarted means the finite drain timer was installed.
+DisconnectBytes counts only bytes accepted into native output (0..3), never peer
+receipt. DrainTimedOut records deadline fallback independently of CloseStatus.
+A native write result may already be OK before an unread peer protocol error is
+processed; that OK observes local buffer retirement and does not establish peer
+receipt or business success. These guarantees apply equally when the kernel has
+buffered output beyond the library's native queue.
+
+This developing API appends CloseTimeout and diagnostic Info fields. On the
+current Windows/Linux x64 layouts config grows 264 to 272 and Info 144 to 160
+bytes; original prefixes remain at their prior offsets. Callers must rebuild:
+this is not binary compatibility with the older structure sizes. Feature/module
+selection keeps each new public layout identical. Ready/write/packet layouts are
+unchanged. The diagnostic uses stack bytes plus existing Core timer/send nodes,
+with no new worker or shared runtime; those Core allocations are outside private
+bytes and may fail normally. Fault tests disable the public Engine node cache to
+exercise cold timer allocation as well as copied-send allocation failure.
+
+The separate error example demonstrates peer-observed reason 0x81 and full
+cleanup. `bench_client_disconnect.c` measures complete connection/error/physical
+retirement cycles on a persistent local Engine: client construction, handshake,
+malformed peer header, diagnostic (MQTT5) or abort (311), observer waits, client
+and peer stream destruction. Per-cycle latency stops after physical Client Wait;
+cycle throughput also includes destruction/reuse. Engine creation/listener setup,
+latency-array allocation/sorting and final Engine teardown are excluded. First
+cache use and client AND fixture XRT allocations are included. Public millisecond
+observer waits affect these timings. This is not isolated DISCONNECT speed,
+receiver throughput, a pinned broker comparator or production acceptance.
 
 `bench_client_qos1.c` supplies a separate loopback workload: one client, a local
 healthy peer on another host worker, window 32, 32-byte payload, application

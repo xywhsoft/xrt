@@ -57,3 +57,19 @@ qualify graceful/error DISCONNECT, durable acknowledgement or broker parity.
 ```
 python extlibs/xmqtt/tests/interop/run_receive_wire.py --probe PATH_TO_RECEIVE_PROBE --report out/receive-wire.json
 ```
+
+
+`disconnect_probe.c` and `run_disconnect_wire.py` add byte-exact diagnostic-close
+checks: MQTT5 reasons 0x81/0x82/0x93/0x94/0x95, caps of two/three bytes, one-byte
+output, pre-readiness and 311 abort, partial PUBLISH/PUBACK suppression, peer reset,
+reentrant CLOSING abort, absolute deadline expiry after an intentionally stalled
+adversarial callback, and native queued-output retirement. The large native queue
+case permits either completed local retirement or deadline fallback: kernel buffer
+ownership and unread peer bytes are not the same state. It still asserts original
+protocol classification, bounded physical completion and valid outgoing prefixes.
+The earlier Linux blocked-queue result and initial overstrict Windows result are
+preserved with exact source inputs under the stage evidence directory.
+
+```
+python extlibs/xmqtt/tests/interop/run_disconnect_wire.py --probe PATH_TO_DISCONNECT_PROBE --report out/disconnect-wire.json
+```

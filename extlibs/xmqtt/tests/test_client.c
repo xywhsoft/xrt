@@ -7,12 +7,12 @@
 /* In-process protocol fixture. Independent wire/broker interoperability lives
  * separately; this fixture exercises ownership, limits and worker reentrancy. */
 enum {MQTT_TEST_HOLD=1,MQTT_TEST_REFUSE=2,MQTT_TEST_SESSION=4,MQTT_TEST_DUPLICATE=8,MQTT_TEST_NO_PONG=16,MQTT_TEST_KEEPALIVE=32,
-    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512};
+    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024};
 typedef struct mqttTestPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Closed,ListenerClosed,Connects,Publishes,Pings,NotifyChecks;
     xatomicptr CallbackFuture,CallbackMessage;xatomic32 CallbackSubmit;
-    xatomic32 LastIdentifier,QosZeroes,Acks,AckIdentifier;
+    xatomic32 LastIdentifier,QosZeroes,Acks,AckIdentifier,Disconnects,DisconnectReason;
     unsigned Mode;xmqttversion Version;unsigned char Input[65536];size_t Used;
 } mqttTestPeer;
 static void mqttTestWait(xatomic32* A,uint32 N)
@@ -63,6 +63,7 @@ static void mqttTestRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
                 xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);
             }
             else if(F.Header.Type==XMQTT_PACKET_PUBACK){testRequire(F.Wire.Size==4,"minimal receiver PUBACK");const unsigned char* W=F.Wire.Data;xrtAtomic32Store(&P->AckIdentifier,((uint32)W[2]<<8)|W[3],XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);}
+            else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){const unsigned char* W=F.Wire.Data;testRequire(P->Version==XMQTT_VERSION_5 && F.Wire.Size==3 && W[1]==1,"minimal diagnostic DISCONNECT");xrtAtomic32Store(&P->DisconnectReason,W[2],XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);testRequire(xrtNetStreamClose(S),"peer diagnostic close");}
             else {testRequire(F.Header.Type==XMQTT_PACKET_PINGREQ,"fixture unexpected client packet");xrtAtomic32FetchAdd(&P->Pings,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_TEST_NO_PONG)){const unsigned char Pong[]={0xd0,0};mqttTestSend(P,Pong,sizeof(Pong));}}
             P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
         }
@@ -84,8 +85,8 @@ static void mqttTestStart(mqttTestPeer* P,xmqttversion Version,unsigned Mode)
     memset(P,0,sizeof(*P));P->Version=Version;P->Mode=Mode;xrtAtomicPtrInit(&P->Stream,NULL);
     xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Connects,0);xrtAtomic32Init(&P->Publishes,0);xrtAtomic32Init(&P->Pings,0);xrtAtomic32Init(&P->NotifyChecks,0);
     xrtAtomicPtrInit(&P->CallbackFuture,NULL);xrtAtomicPtrInit(&P->CallbackMessage,NULL);xrtAtomic32Init(&P->CallbackSubmit,0);
-    xrtAtomic32Init(&P->LastIdentifier,0);xrtAtomic32Init(&P->QosZeroes,0);xrtAtomic32Init(&P->Acks,0);xrtAtomic32Init(&P->AckIdentifier,0);
-    xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);testRequire(P->Engine && xrtNetEngineStart(P->Engine),"MQTT fixture engine");
+    xrtAtomic32Init(&P->LastIdentifier,0);xrtAtomic32Init(&P->QosZeroes,0);xrtAtomic32Init(&P->Acks,0);xrtAtomic32Init(&P->AckIdentifier,0);xrtAtomic32Init(&P->Disconnects,0);xrtAtomic32Init(&P->DisconnectReason,0);
+    xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;if(Mode&MQTT_TEST_UNCACHED_NODES)E.NodeCacheBytes=0;P->Engine=xrtNetEngineCreate(&E);testRequire(P->Engine && xrtNetEngineStart(P->Engine),"MQTT fixture engine");
     xnetlistenconfig K;xrtNetListenConfigInit(&K);xrtNetAddrParse(&K.Address,"127.0.0.1",0);K.Distribution=XNET_ACCEPT_LOCAL;
     static const xnetlistenerevents L={mqttTestAccept,NULL,mqttTestListenerClosed};
     P->Listener=xrtNetListen(P->Engine,&K,&L,NULL,P);testRequire(P->Listener && xrtNetListenerLocal(P->Listener,&P->Address),"MQTT fixture listener");
@@ -371,7 +372,7 @@ static void mqttReceiveBudgetNotify(xmqttclient* C,ptr User)
     mqttReceiveBudget* B=User;xmqttclientinfo I;xmqttClientInfo(C,&I);
     if(!B->Entered && I.Received==1 && I.State==XMQTT_CLIENT_OPEN){xmqttmessage* Marker=NULL;testRequire(xmqttClientTakeMessage(C,&Marker),"OOM marker ownership");xmqttMessageRelease(Marker);
         testRequire(xrtAllocationBudgetEnter(B->Budget,&B->Scope),"worker receive allocation scope");B->Active=B->Entered=true;}
-    if(B->Active && (I.Received==2 || I.State>=XMQTT_CLIENT_CLOSING)){testRequire(xrtAllocationBudgetLeave(&B->Scope),"worker receive scope leave");B->Active=false;}
+    if(B->Active && (I.Received==2 || I.State==XMQTT_CLIENT_CLOSED)){testRequire(xrtAllocationBudgetLeave(&B->Scope),"worker receive scope leave");B->Active=false;}
 }
 static void testMqttReceiveOneAllocationFailure(void)
 {
@@ -392,5 +393,31 @@ static void testMqttReceiveOneAllocationFailure(void)
     }
     testRequire(BeforeFlow && AfterFlow && Success,"cold receive ring and message allocation faults plus success covered");
 }
+static void testMqttErrorDisconnect(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned Byte=0;Byte<2;++Byte){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,0);xmqttclientconfig K;xmqttClientConfigInit(&K);K.CloseTimeout=1000;
+        if(Byte){K.Stream.WriteLimit=1;K.Stream.WriteHighWater=1;K.Stream.WriteLowWater=0;K.WriteBytes=K.WriteChunkBytes=1;}
+        xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);
+        const unsigned char Bad[]={0,0};mqttTestSend(&P,Bad,sizeof(Bad));testRequire(xmqttClientWaitFor(C,5000)==XWAIT_OK,"diagnostic physical retirement");xmqttclientinfo I;xmqttClientInfo(C,&I);
+        testRequire(I.CloseStatus==XMQTT_STATUS_PROTOCOL && I.ProtocolErrors==1 && !I.DrainTimedOut,"original protocol error survives diagnostic closure");
+        testRequire(I.DisconnectBytes==(V==5?3u:0u) && I.LocalReason==(V==5?0x81:0) && I.DrainStarted==(V==5),"MQTT5 diagnostic vs 311 abortive output");
+        if(V==5)testRequire(xrtAtomic32Load(&P.Disconnects,XMEMORY_ACQUIRE)==1 && xrtAtomic32Load(&P.DisconnectReason,XMEMORY_ACQUIRE)==0x81,"byte-exact final error reason");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(Ready);
+    }
+}
+static void testMqttErrorDisconnectAllocationFailure(void)
+{
+    const size_t Limits[]={1,128,256,512,1024,8192};bool TimerFailure=false,SendFailure=false,Success=false;
+    for(size_t J=0;J<sizeof(Limits)/sizeof(*Limits);++J){mqttTestPeer P;mqttTestStart(&P,XMQTT_VERSION_5,MQTT_TEST_UNCACHED_NODES);mqttReceiveBudget B={0};testRequire(xrtAllocationBudgetCreate(Limits[J],&B.Budget),"diagnostic allocation budget");
+        xmqttclientconfig K;xmqttClientConfigInit(&K);K.Notify=mqttReceiveBudgetNotify;K.User=&B;K.CloseTimeout=1000;xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);
+        const unsigned char Wire[]={0x30,5,0,1,'t',0,'m',0,0};mqttTestSend(&P,Wire,sizeof(Wire));testRequire(xmqttClientWaitFor(C,5000)==XWAIT_OK,"diagnostic OOM remains physically bounded");xmqttclientinfo I;xmqttClientInfo(C,&I);
+        testRequire(I.CloseStatus==XMQTT_STATUS_PROTOCOL && I.LocalReason==0x81 && !I.DrainTimedOut && I.Received==1,"diagnostic OOM cannot replace protocol classification");
+        printf("[diagnostic-oom] budget=%zu started=%u bytes=%zu\n",Limits[J],I.DrainStarted?1u:0u,I.DisconnectBytes);
+        if(!I.DrainStarted)TimerFailure=true;else if(!I.DisconnectBytes)SendFailure=true;else {Success=true;testRequire(I.DisconnectBytes==3,"diagnostic success-control bytes");}
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(Ready);testRequire(B.Entered && !B.Active,"diagnostic worker allocation scope retired");xallocationbudgetinfo Q={0};Q.Size=sizeof(Q);
+        testRequire(xrtAllocationBudgetInfo(B.Budget,&Q) && !Q.LiveCount && !Q.LiveBytes,"diagnostic/timer/native OOM allocation lifetime");xrtAllocationBudgetFree(B.Budget);
+    }
+    testRequire(TimerFailure && SendFailure && Success,"diagnostic timer/send allocation failure and success controls");
+}
 int main(void)
-{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();puts("[PASS] xmqtt TCP/QoS1: send/receive decisions and lifetimes, ids, flow control, restrictions, metadata limits, cancel/timeout, mismatches and OOM rollback");return 0;}
+{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}

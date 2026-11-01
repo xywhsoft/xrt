@@ -5357,3 +5357,149 @@ durability remain. Pinned comparators, complete cold/hot CPU/synchronization/
 syscall accounting and native Windows/native Linux >=72h qualification are still
 required. WSL is development evidence only. No primary-checkout merge or push
 occurred; this goal remains active and incomplete.
+
+
+## 2026-11-02 — MQTT5 diagnostic DISCONNECT and bounded native queue drain
+
+Added automatic error-disconnect output after accepted MQTT5 negotiation, with a
+finite native drain phase. Application Close remains abortive and normal reason-0
+application DISCONNECT is still pending. The full four-library goal stays active.
+No public Core source change or new shared runtime was introduced.
+
+### Protocol, deadline and ownership behavior
+
+- Protocol failures select client-permitted reasons: malformed framing/codec
+  input 0x81, unexpected state 0x82, Receive Maximum violation 0x93, receive alias
+  violation 0x94, advertised packet-size violation 0x95. The minimal three-byte
+  packet omits property length as permitted when its value is zero. No reason
+  text/User Property, retained message or session mutation is created for it.
+  3.1.1, pre-readiness, server DISCONNECT and local resource/transport/unsupported
+  unfinished-flow exits retain abortive behavior. No server-only code is emitted.
+- The first typed error/cause wins. New admission stops. Fully accepted native
+  output frames may drain before the final DISCONNECT. A partial PUBLISH/PING/
+  PUBACK, peer packet cap below three, EOF/reset or explicit Close forces abort;
+  no diagnostic is inserted inside another frame and no packet follows it.
+  Chunk/turn limits include one-byte output. Zero writable capacity waits for
+  real low-water/drain events instead of spinning.
+- A single host timer bounds diagnostic output AND native queue drain from its
+  initial attempt, without extending on progress. The new positive CloseTimeout
+  defaults to 5000ms. Timer/send allocation failure and expiry abort without
+  replacing PROTOCOL with MEMORY, TRANSPORT, TIMEOUT or successful closure.
+  Timeout is observed on owner progress and cannot preempt a stalled callback.
+- Initial CLOSING now notifies outside the gate; callback Close can interrupt
+  the automatic drain. Request outcomes can complete before native references
+  retire. Wire/id/private reservations and Wait continue to follow real timer,
+  producer, post, event and native send ownership. Queued receive messages survive.
+- New Info fields expose intended LocalReason, installed-timer DrainStarted,
+  accepted native DisconnectBytes (0..3) and independent DrainTimedOut. They do
+  not prove peer receipt. A prior QoS0 OK still means local write-buffer retirement;
+  it can precede later processing of an unread peer protocol error.
+
+The developing API appends CloseTimeout and Info diagnostic fields: x64 config
+264 -> 272 and Info 144 -> 160 bytes. Original prefix offsets are compile-checked,
+but callers must rebuild; binary compatibility with old structure sizes is not
+claimed. Ready136/write40/old-write-prefix24/packet168/codec56/property40 remain.
+All module selections use the same new public layouts. Private bytes use the
+actual larger Client/scratch allocation. Core timer/send nodes are separate
+bounds; no extra library result object, worker or shared runtime is created.
+
+### Current-source verification and artifacts
+
+Evidence root: `out/service-extensions/xmqtt-error-disconnect/`.
+
+Windows GCC -O2 and WSL GCC -O2 ASan/UBSan/leak checks passed seven modular and
+seven single-header binaries per platform (28 executions). Diagnostic OOM tests
+cover cold timer and copied-send allocation failures plus successful controls,
+using the public Engine NodeCacheBytes=0 option so cached nodes cannot hide the
+cold timer failure. They assert original PROTOCOL and zero live budget objects
+through Client/Engine destruction; existing QoS1/receive OOM tests also pass.
+
+Independent wire peers cover 31 original + 37 sender + 30 receiver + 23 diagnostic
+scenarios in six forms (Windows/WSL monolithic, minimal static/shared): 726
+successful process cases. Byte-exact reason/final-packet checks extend the prior
+matrices. New cases check caps two/three, byte-sized writes, pre-readiness/311
+abort, partial PUBLISH/PUBACK suppression, retained receive/outcome views, peer
+reset, reentrant CLOSING abort and deadline expiry after an intentionally stalled
+adversarial callback. That stall is fault injection, not production guidance to
+block callbacks.
+
+The large native output case preserves the native/kernel/peer distinction.
+In this monolithic observation Windows retired its queue before the 50ms bound;
+WSL required timeout fallback at about 53ms. Both preserve the first protocol
+failure and valid outgoing prefixes. A native write may have completed before
+the peer error is processed. The original overstrict Windows assertion and the
+earlier WSL blocked-queue result are saved with 307 exact source inputs under
+`before-close-callbacks/`. Current tests do not require a kernel-buffering outcome
+that the public native API does not promise.
+
+Full/minimal static/shared consumers passed on both platforms (eight consumers).
+The healthy echo and new malformed-peer error examples ran on both (four program
+executions). Size rebuilds were followed by consumer relink/run and final static/
+shared wire suites; all final source/artifact hashes match. Both platforms passed
+trim/declaration/layout/prefix/generated checks. The size-profile caption now
+correctly includes incoming QoS1. The build/package/API-reference/performance-tool
+subset reports 78 tests, OK; earlier xhttp global scope/ABI defects remain pending.
+
+| Platform | Single object bytes | Extension static bytes | Extension shared bytes |
+| --- | --- | --- | --- |
+| Windows | 569666 | 119292 | 146713 |
+| WSL | 730408 | 156916 | 114624 |
+
+Single objects include Core; extension static/shared files need separate Core
+libraries whose independent sizes/hashes remain in final receipts. These are
+different denominators. WSL is not native Linux qualification.
+
+### Close-cycle measurements — qualification remains pending
+
+Added `xmqtt_client_disconnect`: whole connection/error/physical-retirement cycles
+on one persistent local Engine, both protocol versions and separate allocator
+variants. Each measured sample uses 100 cycles. Timing includes Client creation,
+CONNECT/CONNACK, malformed peer header, MQTT5 diagnostic or 311 abort, observer
+waits and Client/peer-stream retirement. Per-cycle latency ends at physical
+Client Wait; aggregate cycle rate also includes destruction/reuse. Engine/listener
+setup, latency-array allocation/sorting and final Engine teardown are outside
+measurement. First cache use and client AND peer XRT allocations are included;
+RSS/all system allocations are not. Public millisecond observer waits affect the
+numbers. This is not isolated DISCONNECT speed, steady messaging throughput or
+an independent/pinned broker comparison.
+
+Each variant retains all five measured samples and one configured/logged warmup,
+with unchanged 3% relative-MAD / 6% central-range gates and 5% throughput / 10% P99
+regression limits. Warmup numeric values are not retained by the existing
+collector. No threshold change, selected favorable retry, pinned baseline or
+production acceptance is claimed.
+
+| Platform | Version | Instrumented | Cycles/s median | P99 us median | Failed metric noise gates |
+| --- | --- | --- | --- | --- | --- |
+| windows | 5 | no | 32.055 | 16087.000 | 0 |
+| windows | 4 | no | 32.176 | 16045.100 | 0 |
+| windows | 5 | yes | 32.203 | 16096.100 | 0 |
+| windows | 4 | yes | 32.281 | 16069.400 | 0 |
+| wsl | 5 | no | 424.625 | 1340.100 | 0 |
+| wsl | 4 | no | 424.472 | 1328.300 | 0 |
+| wsl | 5 | yes | 424.295 | 1322.400 | 0 |
+| wsl | 4 | yes | 424.355 | 1317.200 | 0 |
+
+Both platform reports exit 0 on noise quality; this does not establish acceptable
+latency or comparator parity. Windows observed ~16ms whole-cycle P99 through
+physical Client Wait and ~32 cycles/s expose
+a material pending cost in this whole-cycle workload. Investigate the fixed
+millisecond polling in Client Wait/Destroy using a proper ownership completion
+signal; do not substitute busy-spin or system timer-resolution changes to obtain
+a better number. Both platforms
+remain unaccepted for performance/production, and WSL is not native Linux.
+Separate functional 1000-cycle runs passed on both platforms, asserting every
+peer-observed diagnostic and checksum 129000. They are not additional performance
+samples.
+Raw arrays, compiler/environment/arguments and source/workload fingerprints are
+bound by the final validation receipts.
+
+
+Full MQTT scope still requires normal application DISCONNECT/graceful close,
+QoS2, subscriptions/shared outgoing ids, sessions, expiry/alias/auth/reconnect/
+store/TLS/WebSocket/DNS. Redis HA/tracking/dedicated, remaining RPC client/server
+security/recovery/transports/deferred and Cron IANA/scheduler/durability scope
+remain. Pinned comparators, complete hot/cold CPU/synchronization/syscall costs,
+performance acceptance and native Windows/native Linux >=72h qualification are
+still required. No primary-checkout merge, push or production-complete claim was
+made. The complete four-product objective remains active and incomplete.

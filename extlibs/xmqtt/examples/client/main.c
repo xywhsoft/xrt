@@ -4,7 +4,7 @@
 #include "../common/client_peer.h"
 int main(void)
 {
-    mqttExamplePeer P;mqttExampleStart(&P,XMQTT_VERSION_5);P.EchoQosOne=true;
+    mqttExamplePeer P;mqttExampleStartMode(&P,XMQTT_VERSION_5,true,false);
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("example");
     xmqttclient* C=NULL;mqttExampleCheck(xmqttClientConnect(P.Engine,&P.Address,1,NULL,&Connect,&C),"client factory");xfuture* Ready=xmqttClientReady(C);
     mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"CONNACK");

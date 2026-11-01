@@ -11,7 +11,7 @@ int main(int Argc,char** Argv)
     uint64 Count=Argc>1?strtoull(Argv[1],NULL,10):20000;unsigned Version=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):5,Window=Argc>3?(unsigned)strtoul(Argv[3],NULL,10):32;
     bool Instrument=Argc>4 && strtoul(Argv[4],NULL,10)!=0;
     if(!Count || Count>1000000 || (Version!=4 && Version!=5) || !Window || Window>64 || Argc>5)return 1;
-    mqttExamplePeer P;mqttExampleStart(&P,(xmqttversion)Version);P.EchoQosOne=true;
+    mqttExamplePeer P;mqttExampleStartMode(&P,(xmqttversion)Version,true,false);
     xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-receive");xmqttclient* C=NULL;
     mqttExampleCheck(xmqttClientConnect(P.Engine,&P.Address,1,&K,&Connect,&C),"echo factory");xfuture* Ready=xmqttClientReady(C);

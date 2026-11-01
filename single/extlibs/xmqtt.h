@@ -846,16 +846,21 @@ typedef struct xmqttclientconfig {
     size_t MaxPrivateBytes,MaxSetupBytes,InitialInputBytes,ReadBytes,WriteBytes,WriteChunkBytes,WorkPackets;
     int64 SetupTimeout,PingTimeout;
     xmqttclientnotify Notify;ptr User;
+    int64 CloseTimeout; /* Positive diagnostic drain deadline, default 5000 ms. */
 } xmqttclientconfig;
 typedef struct xmqttclientinfo {
     size_t Size;xmqttclientstate State;xmqttclientstatus CloseStatus;uint8 ServerReason;
     bool Ready;size_t Requests,OutgoingBytes,Messages,MessageBytes,Objects,ObjectBytes,PrivateBytes,StartupBytes;
     uint64 Accepted,Rejected,Completed,Received,ProtocolErrors,Pings,Pongs;
+    /* Intended MQTT5 error reason and bytes accepted into native output (0..3).
+     * Neither proves peer receipt. Timeout preserves the original CloseStatus. */
+    uint8 LocalReason;bool DrainTimedOut,DrainStarted;size_t DisconnectBytes;
 } xmqttclientinfo;
 XRT_EXTERN_C_BEGIN
 /* MQTT 5, finite codec defaults; 128 requests/4 MiB outgoing; 512 objects/16 MiB,
  * 64 queued messages/8 MiB; 4 MiB private, 64 KiB setup, 1 KiB initial input;
- * 64 KiB read/write work, 16 KiB chunks, 64 packets/turn; 5s setup/ping timeout. */
+ * 64 KiB read/write work, 16 KiB chunks, 64 packets/turn; 5s setup/ping/diagnostic
+ * close timeout. CloseTimeout must be positive; all durations use milliseconds. */
 XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
 /* One numeric TCP connection on a running host Engine, no TLS/DNS/fallback or
  * implicit replay. CONNECT is fully encoded/copied before return; callbacks may
@@ -872,7 +877,11 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * QoS 2, subscriptions, reconnect,
  * durable sessions and graceful DISCONNECT remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
- * Explicit Maximum Packet Size must not exceed the local codec packet cap. */
+ * Explicit Maximum Packet Size must not exceed the local codec packet cap.
+ * After accepted MQTT5 negotiation, protocol failures attempt a final minimal
+ * diagnostic DISCONNECT at a frame boundary, bounded by CloseTimeout including
+ * native queue drain. Partial frames, peer caps, EOF, resource failure or explicit
+ * Close force abort instead. The original typed error survives every fallback. */
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Client);
 /* Shared readiness Future, always typed. Explicit Future cancellation requests
@@ -904,7 +913,9 @@ XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* Message);
 XMQTT_API bool xmqttMessageRetain(const xmqttmessage* Message);
 XMQTT_API void xmqttMessageRelease(const xmqttmessage* Message);
 XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
-/* Abortive/nonblocking; sends no MQTT DISCONNECT, so a broker may publish Will.
+/* Abortive/nonblocking; application Close starts no MQTT DISCONNECT, so a broker
+ * may publish Will. It can interrupt a previously started automatic error drain;
+ * already accepted diagnostic bytes cannot be retracted. First error wins.
  * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
  * event-owner and native stream reference retirement. Timeout preserves owner.
  * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */
@@ -2886,7 +2897,7 @@ struct xmqttrequest {
 struct xmqttclient {
     xatomic32 Refs;xmutex Gate;xnetengine* Engine;xnetworker* Worker;xnetstream* Stream;
     xmqttclientconfig Config;xmqttclientinfo Info;xmqttquota* Quota;
-    xnetpost Post;bool Posted,Started,Stopped,ReadEnded,NativeClosed,ProblemInfo,ReceivePaused;
+    xnetpost Post;bool Posted,Started,Stopped,ReadEnded,NativeClosed,ProblemInfo,ReceivePaused,AbortRequested,Draining,DrainClosing;
     xpromise* ReadyPromise;xfuture* ReadyFuture;xcancel* ReadyCancel;xmqttreadybox* ReadyBox;
     xmqttstartup* Startup;size_t SetupOffset;xmqttpacket SetupPacket;
     xmqttproperty *SetupProps,*Props;
@@ -2896,7 +2907,7 @@ struct xmqttclient {
     xmqttreceiveflow* ReceiveFlow;
     xmqttmessage *MessageHead,*MessageTail;
     xmqttnegotiated Peer;xerror* Cause;
-    double SetupDeadline,NextPing,PingDeadline,TimerAt;
+    double SetupDeadline,NextPing,PingDeadline,TimerAt,DrainDeadline;
     uint64 Timer;unsigned PingOffset;bool PingOutstanding;
     xmqttproperty Scratch[];
 };
@@ -3089,15 +3100,18 @@ static void xmqttRequestFinish(xmqttclient* C,xmqttrequest** Link,xmqttclientsta
     if(!xrtPromiseResolveOwned(P,B,xmqttWriteFree,NULL))xmqttWriteFree(B,NULL);
     xrtPromiseDestroy(P);xmqttRequestDrop(R);xmqttClientNotify(C);
 }
-static void xmqttClientFail(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause)
+static void xmqttClientFailReason(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause,uint8 Reason)
 {
     xrtMutexLock(&C->Gate);
     if(C->Info.State<XMQTT_CLIENT_CLOSING){C->Info.State=XMQTT_CLIENT_CLOSING;C->Info.CloseStatus=Status;
         if(Status==XMQTT_STATUS_PROTOCOL)++C->Info.ProtocolErrors;
         if(Cause)C->Cause=xrtErrorRef(Cause);
+        if(C->Config.Version==XMQTT_VERSION_5 && C->Info.Ready)C->Info.LocalReason=Reason;
     }
     xrtMutexUnlock(&C->Gate);
 }
+static void xmqttClientFail(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause)
+{xmqttClientFailReason(C,Status,Cause,Status==XMQTT_STATUS_PROTOCOL?0x82:0);}
 static void xmqttClientOpen(xnetstream* S,ptr Data)
 {(void)S;xmqttClientWake(Data);}
 static void xmqttClientRead(xnetstream* S,xnetbuf* B,ptr Data)
@@ -3184,7 +3198,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
     }
     if(P->Type==XMQTT_PACKET_DISCONNECT){xrtMutexLock(&C->Gate);C->Info.ServerReason=P->Reason;xrtMutexUnlock(&C->Gate);xmqttClientFail(C,XMQTT_STATUS_SERVER_DISCONNECT,NULL);return false;}
     if(P->Type!=XMQTT_PACKET_PUBLISH){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
-    for(size_t I=0;I<P->Properties.Count;++I)if(P->Properties.Data[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
+    for(size_t I=0;I<P->Properties.Count;++I)if(P->Properties.Data[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x94);return false;}
     unsigned Qos=(P->Flags>>1)&3u;
     if(Qos>1){xmqttClientFail(C,XMQTT_STATUS_UNSUPPORTED,NULL);return false;}
     if(Qos && !xmqttReceivePrepare(C))return false;
@@ -3203,16 +3217,16 @@ static void xmqttClientReadPump(xmqttclient* C)
     while(!xmqttClientClosing(C) && Packets<C->Config.WorkPackets){
         size_t Needed=5;xmqttfixedheader H;xmqttwireconfig K={sizeof(K),C->Config.Version,XMQTT_PACKET_MAX_BYTES};
         xmqttwirestatus Header=xmqttHeaderRead((xbytesview){C->Input,C->InputBytes},&K,&H);
-        if(Header==XMQTT_WIRE_ERROR){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,xrtGetError());return;}
+        if(Header==XMQTT_WIRE_ERROR){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,xrtGetError(),0x81);return;}
         if(Header==XMQTT_WIRE_DONE){
-            if(H.PacketBytes>C->Peer.ReceivePacketBytes){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return;}
+            if(H.PacketBytes>C->Peer.ReceivePacketBytes){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x95);return;}
             if(H.PacketBytes>C->Config.Codec.MaxPacketBytes){xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);return;}
             Needed=H.PacketBytes;
             if(C->InputBytes>=Needed){xmqttpacket P;xmqttcodecissue Issue;xmqttcodecbuffers B={C->Props,C->Config.Codec.MaxProperties,NULL,0};
                 xmqttcodecstatus S=C->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){C->Input,Needed},XMQTT_SERVER_TO_CLIENT,&C->Config.Codec,&B,&P,&Issue):xmqttPacketRead311((xbytesview){C->Input,Needed},XMQTT_SERVER_TO_CLIENT,&C->Config.Codec,&B,&P,&Issue);
-                if(S!=XMQTT_CODEC_DONE){xmqttClientFail(C,S==XMQTT_CODEC_LOCAL_ERROR?XMQTT_STATUS_LIMIT:XMQTT_STATUS_PROTOCOL,xrtGetError());return;}
+                if(S!=XMQTT_CODEC_DONE){xmqttClientFailReason(C,S==XMQTT_CODEC_LOCAL_ERROR?XMQTT_STATUS_LIMIT:XMQTT_STATUS_PROTOCOL,xrtGetError(),S==XMQTT_CODEC_LOCAL_ERROR?0:0x81);return;}
                 if(P.Type==XMQTT_PACKET_PUBLISH && ((P.Flags>>1)&3u)==1 && C->ReceiveFlow){
-                    if(C->ReceiveFlow->Count>=C->Peer.ReceiveMaximum){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return;}
+                    if(C->ReceiveFlow->Count>=C->Peer.ReceiveMaximum){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x93);return;}
                     /* A local ACK bound is backpressure, not permission to drop
                      * the already buffered frame or acknowledge it early. */
                     if(C->ReceiveFlow->Count==C->ReceiveFlow->Capacity){C->ReceivePaused=true;return;}
@@ -3325,15 +3339,54 @@ static void xmqttClientCollect(xmqttclient* C)
     if(Head){if(C->RequestTail)C->RequestTail->Next=Head;else C->Requests=Head;
         while(Head){Head->Previous=C->RequestTail;C->RequestTail=Head;xmqttRequestMapInsert(C,Head);Head=Head->Next;}}
 }
+static void xmqttClientDrainStop(xmqttclient* C,bool Abort)
+{
+    C->Draining=false;
+    if(C->Timer){uint64 Id=C->Timer;C->Timer=0;C->TimerAt=INFINITY;(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
+    if(Abort)(void)xrtNetStreamAbort(C->Stream);
+}
+static void xmqttClientDrainError(xmqttclient* C)
+{
+    xrtMutexLock(&C->Gate);bool Abort=C->AbortRequested;size_t Offset=C->Info.DisconnectBytes;uint8 Reason=C->Info.LocalReason;xrtMutexUnlock(&C->Gate);
+    if(C->NativeClosed){xmqttClientDrainStop(C,false);return;}
+    if(Abort || C->ReadEnded || xrtTimer()>=C->DrainDeadline){
+        if(!Abort && !C->ReadEnded){xrtMutexLock(&C->Gate);C->Info.DrainTimedOut=true;xrtMutexUnlock(&C->Gate);}
+        xmqttClientDrainStop(C,true);return;
+    }
+    if(C->DrainClosing)return;
+    const unsigned char Wire[]={0xe0,1,Reason};size_t Budget=C->Config.WriteBytes;
+    while(Offset<sizeof(Wire) && Budget){size_t N=sizeof(Wire)-Offset,Available=xrtNetStreamWritable(C->Stream);
+        if(N>Available)N=Available;
+        if(N>Budget)N=Budget;
+        if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
+        if(!N)return;
+        xnetresult S=xrtNetStreamSend(C->Stream,Wire+Offset,N);
+        if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientDrainStop(C,true);return;}
+        Offset+=N;Budget-=N;xrtMutexLock(&C->Gate);C->Info.DisconnectBytes=Offset;xrtMutexUnlock(&C->Gate);
+    }
+    if(Offset==sizeof(Wire)){C->DrainClosing=true;if(!xrtNetStreamClose(C->Stream))xmqttClientDrainStop(C,true);}
+    else xmqttClientWake(C);
+}
 static void xmqttClientStop(xmqttclient* C)
 {
     if(!C->Stopped){C->Stopped=true;
         if(C->Timer){uint64 Id=C->Timer;C->Timer=0;(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
-        (void)xrtNetStreamAbort(C->Stream);xmqttReadyFinish(C,C->Info.CloseStatus);xmqttStartupRetire(C);
+        xmqttReadyFinish(C,C->Info.CloseStatus);xmqttStartupRetire(C);
+        xrtMutexLock(&C->Gate);bool Diagnostic=C->Info.LocalReason && !C->AbortRequested;xrtMutexUnlock(&C->Gate);
+        /* Never append a diagnostic inside a partial MQTT packet. Already
+         * fully accepted output frames may drain ahead of the final packet. */
+        C->Draining=Diagnostic && !C->Partial && !C->PingOffset && !(C->ReceiveFlow && C->ReceiveFlow->Offset) &&
+            !C->ReadEnded && !C->NativeClosed && C->Peer.SendPacketBytes>=3 && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
+        if(C->Draining){C->DrainDeadline=xmqttClientDeadline(xrtTimer(),C->Config.CloseTimeout);xmqttClientSchedule(C,C->DrainDeadline);
+            if(!C->Timer)C->Draining=false;else {xrtMutexLock(&C->Gate);C->Info.DrainStarted=true;xrtMutexUnlock(&C->Gate);}}
+        if(!C->Draining)(void)xrtNetStreamAbort(C->Stream);
+        xmqttClientNotify(C); /* CLOSING is observable; reentrant Close may abort. */
     }
+    if(C->Draining)xmqttClientDrainError(C);
     size_t Count=0;
     while(C->Requests && Count++<C->Config.WorkPackets)xmqttRequestFinish(C,&C->Requests,C->Info.CloseStatus);
     if(C->Requests){xmqttClientWake(C);return;}
+    if(C->Draining)return;
     xrtMutexLock(&C->Gate);bool Changed=C->Info.State!=XMQTT_CLIENT_CLOSED;C->Info.State=XMQTT_CLIENT_CLOSED;xrtMutexUnlock(&C->Gate);
     if(Changed)xmqttClientNotify(C);
 }
@@ -3378,7 +3431,7 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* K)
     if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid client config output");
     *K=(xmqttclientconfig){0};K->Size=sizeof(*K);K->Version=XMQTT_VERSION_5;xrtNetStreamConfigInit(&K->Stream);xmqttCodecConfigInit(&K->Codec);
     K->MaxRequests=128;K->MaxOutgoingBytes=4u*1024u*1024u;K->MaxObjects=512;K->MaxObjectBytes=16u*1024u*1024u;K->MaxMessages=64;K->MaxMessageBytes=8u*1024u*1024u;
-    K->MaxPrivateBytes=4u*1024u*1024u;K->MaxSetupBytes=64u*1024u;K->InitialInputBytes=1024;K->ReadBytes=K->WriteBytes=64u*1024u;K->WriteChunkBytes=16u*1024u;K->WorkPackets=64;K->SetupTimeout=K->PingTimeout=5000;return true;
+    K->MaxPrivateBytes=4u*1024u*1024u;K->MaxSetupBytes=64u*1024u;K->InitialInputBytes=1024;K->ReadBytes=K->WriteBytes=64u*1024u;K->WriteChunkBytes=16u*1024u;K->WorkPackets=64;K->SetupTimeout=K->PingTimeout=K->CloseTimeout=5000;return true;
 }
 static void xmqttClientFree(xmqttclient* C)
 {
@@ -3393,7 +3446,7 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
        K.Size!=sizeof(K) || (K.Version!=XMQTT_VERSION_5 && K.Version!=XMQTT_VERSION_311) || Connect->Type!=XMQTT_PACKET_CONNECT ||
        !K.MaxRequests || K.MaxRequests>65536 || !K.MaxOutgoingBytes || K.MaxObjects<2 || K.MaxObjects>UINT32_MAX/8u || !K.MaxObjectBytes ||
        !K.MaxMessages || !K.MaxMessageBytes || !K.MaxSetupBytes || K.InitialInputBytes<5 || K.InitialInputBytes>K.Codec.MaxPacketBytes ||
-       !K.ReadBytes || !K.WriteBytes || !K.WriteChunkBytes || !K.WorkPackets || K.SetupTimeout<0 || K.PingTimeout<=0)
+       !K.ReadBytes || !K.WriteBytes || !K.WriteChunkBytes || !K.WorkPackets || K.SetupTimeout<0 || K.PingTimeout<=0 || K.CloseTimeout<=0)
         return xmqttClientError(XERR_ARGUMENT,"invalid MQTT client configuration");
     if(!xrtNetStreamConfigValid(&K.Stream))return false;
     size_t WireBytes=0;bool Valid=K.Version==XMQTT_VERSION_5?xmqttPacketSize5(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes):xmqttPacketSize311(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes);
@@ -3507,6 +3560,7 @@ XMQTT_API bool xmqttClientClose(xmqttclient* C)
 {
     if(!C)return xmqttClientError(XERR_ARGUMENT,"client is NULL");
     xrtMutexLock(&C->Gate);
+    C->AbortRequested=true;
     if(C->Info.State<XMQTT_CLIENT_CLOSING){C->Info.State=XMQTT_CLIENT_CLOSING;C->Info.CloseStatus=XMQTT_STATUS_CLOSED;}
     bool OK=xmqttClientWakeLocked(C);xrtMutexUnlock(&C->Gate);return OK;
 }
