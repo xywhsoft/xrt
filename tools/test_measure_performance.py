@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import copy
+import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -89,6 +91,45 @@ class MeasurePerformanceTest(unittest.TestCase):
 		)
 		self.assertAlmostEqual(robust["relative_range"], 900.0 / 102.0)
 		self.assertAlmostEqual(robust["relative_central_range"], 2.0 / 102.0)
+
+	def test_exports_zero_median_spread_without_weakening_gate(self) -> None:
+		"""零中位数的真实波动必须保留样本、导出合法 JSON 并继续失败。"""
+
+		samples = [0.0, 0.0, 0.0, 1.0, 2.0]
+		summary = measure_performance._metric_summary(samples)
+		report = {"profiles": {"test": {"benchmarks": {
+			"zero": {"metrics": {"ready": summary}},
+		}}}}
+		exported = json.loads(measure_performance._report_text(report))
+		metric = exported["profiles"]["test"]["benchmarks"]["zero"]["metrics"]["ready"]
+		self.assertEqual(metric["samples"], samples)
+		self.assertEqual(metric["median"], 0.0)
+		self.assertEqual(metric["relative_mad"], 0.0)
+		self.assertEqual(metric["relative_range"], "inf")
+		self.assertEqual(metric["relative_central_range"], "inf")
+		self.assertGreater(float(metric["relative_central_range"]), 0.06)
+		self.assertEqual(summary["relative_central_range"], math.inf)
+		self.assertEqual(summary["samples"], samples)
+
+	def test_export_keeps_finite_metrics_numeric(self) -> None:
+		"""全零和有限指标维持数字，不制造未知值或改变原始统计。"""
+
+		for samples in ([0.0] * 5, [100.0, 101.0, 102.0, 103.0, 104.0]):
+			summary = measure_performance._metric_summary(samples)
+			report = {"profiles": {"test": {"benchmarks": {
+				"finite": {"metrics": {"rate": summary}},
+			}}}}
+			self.assertEqual(json.loads(measure_performance._report_text(report)), report)
+
+	def test_export_still_rejects_nonfinite_samples(self) -> None:
+		"""字符串编码仅用于派生相对比值，不能放行非法原始样本。"""
+
+		for invalid in (math.inf, -math.inf, math.nan):
+			report = {"profiles": {"test": {"benchmarks": {
+				"invalid": {"metrics": {"rate": {"samples": [invalid]}}},
+			}}}}
+			with self.subTest(sample=invalid), self.assertRaises(ValueError):
+				measure_performance._report_text(report)
 
 	def test_parses_only_declared_facts(self) -> None:
 		"""离散运行条件必须完整、唯一，并保留可读字符串。"""

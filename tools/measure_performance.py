@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import ctypes
 from datetime import datetime, timezone
 import json
@@ -452,6 +453,22 @@ def _metric_summary(samples: list[float]) -> dict[str, float | list[float]]:
 
 
 
+def _report_text(result: dict) -> str:
+	"""用显式字符串记录无限相对离散度，保留内存中的门禁判定。"""
+
+	report = copy.deepcopy(result)
+	for profile in report["profiles"].values():
+		for benchmark in profile["benchmarks"].values():
+			for metric in benchmark["metrics"].values():
+				for field in (
+					"relative_mad", "relative_range", "relative_central_range",
+				):
+					if metric.get(field) == math.inf:
+						metric[field] = "inf"
+	return json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+
+
+
 def _compile_benchmark(
 	compiler: str,
 	arch: str,
@@ -895,7 +912,7 @@ def main() -> int:
 	report_path.parent.mkdir(parents=True, exist_ok=True)
 	write_utf8(
 		report_path,
-		json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+		_report_text(result),
 	)
 	print(f"[pass] performance-report={_display_path(report_path)}")
 	for profile_name, profile_value in result["profiles"].items():
