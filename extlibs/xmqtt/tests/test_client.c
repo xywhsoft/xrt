@@ -7,7 +7,7 @@
 /* In-process protocol fixture. Independent wire/broker interoperability lives
  * separately; this fixture exercises ownership, limits and worker reentrancy. */
 enum {MQTT_TEST_HOLD=1,MQTT_TEST_REFUSE=2,MQTT_TEST_SESSION=4,MQTT_TEST_DUPLICATE=8,MQTT_TEST_NO_PONG=16,MQTT_TEST_KEEPALIVE=32,
-    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024,MQTT_TEST_GRACEFUL=2048};
+    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024,MQTT_TEST_GRACEFUL=2048,MQTT_TEST_HOLD_COMP=4096,MQTT_TEST_REJECT_REC=8192,MQTT_TEST_REJECT_COMP=16384};
 typedef struct mqttTestPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Closed,ListenerClosed,Connects,Publishes,Pings,NotifyChecks;
@@ -45,6 +45,12 @@ static void mqttTestPuback(mqttTestPeer* P,uint16 Identifier)
     unsigned char Wire[128];size_t N=0;
     testRequire(P->Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&N):xmqttPacketWrite311(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&N),"fixture PUBACK encode");mqttTestSend(P,Wire,N);
 }
+static void mqttTestQosTwoAck(mqttTestPeer* P,xmqttpackettype Type,uint16 Id)
+{
+    xmqttpacket A;xmqttPacketInit(Type,&A);A.Identifier=Id;
+    if(P->Version==XMQTT_VERSION_5)A.Reason=Type==XMQTT_PACKET_PUBREC && (P->Mode&MQTT_TEST_REJECT_REC)?0x87:Type==XMQTT_PACKET_PUBCOMP && (P->Mode&MQTT_TEST_REJECT_COMP)?0x92:0;
+    unsigned char Wire[32];size_t Size=0;testRequire(P->Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&Size):xmqttPacketWrite311(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&Size),"QoS2 fixture ACK encode");mqttTestSend(P,Wire,Size);
+}
 static void mqttTestRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
 {
     (void)S;mqttTestPeer* P=Data;size_t N=xrtNetBufSize(Buffer);
@@ -58,10 +64,11 @@ static void mqttTestRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
                 if((F.Header.Flags>>1)&3u){xmqttpacket Pub;xmqttproperty Props[8];xmqttcodecbuffers B={Props,8,NULL,0};
                     testRequire((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL))==XMQTT_CODEC_DONE,"fixture QoS1 publish decode");
                     xrtAtomic32Store(&P->LastIdentifier,Pub.Identifier,XMEMORY_RELEASE);
-                    if(!(P->Mode&MQTT_TEST_HOLD_PUBACK))mqttTestPuback(P,Pub.Identifier);
+                    if(!(P->Mode&MQTT_TEST_HOLD_PUBACK)){if(((Pub.Flags>>1)&3u)==2)mqttTestQosTwoAck(P,XMQTT_PACKET_PUBREC,Pub.Identifier);else mqttTestPuback(P,Pub.Identifier);}
                 }else {mqttTestSend(P,F.Wire.Data,F.Wire.Size);xrtAtomic32FetchAdd(&P->QosZeroes,1,XMEMORY_RELEASE);}
                 xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);
             }
+            else if(F.Header.Type==XMQTT_PACKET_PUBREL){testRequire(F.Wire.Size==4 && F.Header.Flags==2,"minimal outgoing PUBREL");const unsigned char* W=F.Wire.Data;uint16 Id=(uint16)(((uint16)W[2]<<8)|W[3]);xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_TEST_HOLD_COMP))mqttTestQosTwoAck(P,XMQTT_PACKET_PUBCOMP,Id);}
             else if(F.Header.Type==XMQTT_PACKET_PUBACK){testRequire(F.Wire.Size==4,"minimal receiver PUBACK");const unsigned char* W=F.Wire.Data;xrtAtomic32Store(&P->AckIdentifier,((uint32)W[2]<<8)|W[3],XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);}
             else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){const unsigned char* W=F.Wire.Data;if(!(P->Mode&MQTT_TEST_GRACEFUL))testRequire(P->Version==XMQTT_VERSION_5 && F.Wire.Size==3 && W[1]==1,"minimal diagnostic DISCONNECT");xrtAtomic32Store(&P->DisconnectReason,F.Wire.Size>2?W[2]:0,XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);testRequire(xrtNetStreamClose(S),"peer diagnostic close");}
             else {testRequire(F.Header.Type==XMQTT_PACKET_PINGREQ,"fixture unexpected client packet");xrtAtomic32FetchAdd(&P->Pings,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_TEST_NO_PONG)){const unsigned char Pong[]={0xd0,0};mqttTestSend(P,Pong,sizeof(Pong));}}
@@ -533,5 +540,50 @@ static void testMqttGracefulCloseRace(void)
         mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Ready);
     }
 }
+static xfuture* mqttTestPublishTwo(xmqttclient* C,uint16 Id,int64 Timeout)
+{
+    xmqttpacket P;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&P);P.Flags=4;P.Identifier=Id;P.Body.Publish.Topic=XRT_STR_LITERAL("two");P.Body.Publish.Payload=XRT_BYTES_LITERAL("exactly once handshake");xfuture* F=NULL;
+    testRequire(xmqttClientPublishAsync(C,&P,Timeout,&F)==XMQTT_ADMISSION_ACCEPTED,"QoS2 admission");return F;
+}
+static void testMqttQosTwoSender(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned Tiny=0;Tiny<2;++Tiny){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,0);xmqttclientconfig K;xmqttClientConfigInit(&K);if(Tiny){K.WriteBytes=K.WriteChunkBytes=1;K.Stream.WriteLimit=1;K.Stream.WriteHighWater=1;K.Stream.WriteLowWater=0;}
+        xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);xfuture* F=mqttTestPublishTwo(C,19,5000);const xmqttwriteresult* R=mqttTestResult(F);
+        testRequire(R->Status==XMQTT_STATUS_OK && R->Delivery==XMQTT_PEER_ACCEPTED && R->Identifier==19 && R->AcceptedBytes && !R->Puback && R->PubrecReceived && R->PubcompReceived && !R->PubrecReason && !R->Reason && R->Pubrec && R->Pubcomp,"complete two-phase result");
+        testRequire(xmqttMessageRetain(R->Pubrec) && xmqttMessageRetain(R->Pubcomp),"independent QoS2 ACK ownership");xmqttMessageRelease(R->Pubrec);xmqttMessageRelease(R->Pubcomp);mqttTestClose(C);mqttTestStop(&P);
+        testRequire(xmqttMessagePacket(R->Pubrec)->Type==XMQTT_PACKET_PUBREC && xmqttMessagePacket(R->Pubcomp)->Type==XMQTT_PACKET_PUBCOMP,"QoS2 result after Client and Engine destruction");xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+    }
+    for(unsigned Kind=0;Kind<4;++Kind){mqttTestPeer P;mqttTestStart(&P,XMQTT_VERSION_5,Kind==0?MQTT_TEST_REJECT_REC:Kind==1?MQTT_TEST_REJECT_COMP:0);xmqttclientconfig K;xmqttClientConfigInit(&K);if(Kind>=2)K.MaxObjects=Kind==2?3:4;
+        xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);xfuture* F=mqttTestPublishTwo(C,0,5000);const xmqttwriteresult* R=mqttTestResult(F);
+        testRequire(R->PubrecReceived && R->Status==(Kind<2?XMQTT_STATUS_REJECTED:XMQTT_STATUS_LIMIT),"negative/metadata phase outcomes");
+        if(Kind==0)testRequire(R->PubrecReason==0x87 && R->Reason==0x87 && !R->PubcompReceived && !xrtAtomic32Load(&P.Acks,XMEMORY_ACQUIRE),"negative PUBREC sends no PUBREL");
+        if(Kind==1)testRequire(R->PubcompReceived && R->Reason==0x92 && R->Delivery==XMQTT_PEER_REJECTED,"negative PUBCOMP does not imply delivery");
+        if(Kind==2)testRequire(!R->Pubrec && !R->PubcompReceived && R->Delivery==XMQTT_MAY_HAVE_REACHED_PEER,"PUBREC scalar retained through metadata exhaustion");
+        if(Kind==3)testRequire(R->Pubrec && !R->Pubcomp && R->PubcompReceived && R->Delivery==XMQTT_PEER_ACCEPTED,"PUBCOMP scalar retained through metadata exhaustion");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+    }
+}
+static void testMqttQosTwoWindowAndDuplicates(void)
+{
+    for(unsigned V=4;V<=5;++V){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,MQTT_TEST_WINDOW_ONE|MQTT_TEST_HOLD_COMP);xmqttclient* C=mqttTestConnect(&P,NULL);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);xfuture* F=mqttTestPublishTwo(C,71,5000);mqttTestWait(&P.Acks,1);
+        xfuture* Second=V==5?mqttTestPublishTwo(C,72,5000):NULL;if(V==5){xfuture* Zero=mqttTestPublish(C,5000);(void)mqttTestResult(Zero);mqttTestWait(&P.QosZeroes,1);mqttTestWait(&P.Publishes,2);testRequire(xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE)==2 && xrtFutureWaitFor(Second,0)==XWAIT_TIMEOUT,"QoS2 credit remains held through PUBCOMP; QoS0 proceeds");xrtFutureDestroy(Zero);}
+        mqttTestQosTwoAck(&P,XMQTT_PACKET_PUBREC,71);mqttTestWait(&P.Acks,2);mqttTestQosTwoAck(&P,XMQTT_PACKET_PUBCOMP,71);testRequire(((const xmqttwriteresult*)mqttTestResult(F))->Status==XMQTT_STATUS_OK,"duplicate PUBREC retransmits release");
+        mqttTestQosTwoAck(&P,XMQTT_PACKET_PUBCOMP,71); /* Extra terminal ACK cannot mint quota. */
+        if(!Second)Second=mqttTestPublishTwo(C,72,5000);
+        mqttTestWait(&P.Publishes,V==5?3:2);mqttTestWait(&P.Acks,3);mqttTestQosTwoAck(&P,XMQTT_PACKET_PUBCOMP,72);testRequire(((const xmqttwriteresult*)mqttTestResult(Second))->Status==XMQTT_STATUS_OK,"following QoS2 flow");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Second);xrtFutureDestroy(Ready);
+    }
+}
+static void testMqttQosTwoTerminalAndDrain(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned Kind=0;Kind<3;++Kind){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,MQTT_TEST_HOLD_COMP|MQTT_TEST_GRACEFUL);xmqttclient* C=mqttTestConnect(&P,NULL);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);xfuture* F=mqttTestPublishTwo(C,31,Kind==0?100:5000);mqttTestWait(&P.Acks,1);xfuture* Closed=NULL;
+        if(Kind==1)testRequire(xrtFutureCancel(F),"cancel after PUBREC/PUBREL");
+        if(Kind==2){testRequire(xmqttClientDisconnectAsync(C,NULL,5000,&Closed)==XMQTT_ADMISSION_ACCEPTED && xrtFutureWaitFor(Closed,0)==XWAIT_TIMEOUT && !xrtAtomic32Load(&P.Disconnects,XMEMORY_ACQUIRE),"graceful shutdown waits for PUBCOMP");mqttTestQosTwoAck(&P,XMQTT_PACKET_PUBCOMP,31);}
+        const xmqttwriteresult* R=mqttTestResult(F);testRequire(R->Status==(Kind==0?XMQTT_STATUS_TIMEOUT:Kind==1?XMQTT_STATUS_CANCELLED:XMQTT_STATUS_OK) && R->PubrecReceived && R->Pubrec && R->PubcompReceived==(Kind==2),"two-phase terminal outcome retains receipt");
+        if(Kind==2)testRequire(((const xmqttwriteresult*)mqttTestResult(Closed))->Status==XMQTT_STATUS_OK,"graceful after complete QoS2 handshake");
+        else testRequire(R->Delivery==XMQTT_MAY_HAVE_REACHED_PEER && xmqttClientWaitFor(C,5000)==XWAIT_OK,"incomplete handshake retires without claiming completion");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(Closed);xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+    }
+}
 int main(void)
-{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
+{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();testMqttQosTwoSender();testMqttQosTwoWindowAndDuplicates();testMqttQosTwoTerminalAndDrain();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}

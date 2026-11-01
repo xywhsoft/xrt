@@ -36,7 +36,12 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
-  grammar. Negotiated rules, sessions and the client remain pending.
+  grammar and negotiated connection constraints. The developing numeric TCP
+  client supports CONNECT/CONNACK, keep-alive, QoS-0/1 receive, QoS-0/1/2 send,
+  bounded identifiers/credit, retained ACK/message ownership, diagnostic and
+  application graceful DISCONNECT, and physical retirement. QoS-2 receive,
+  subscriptions, session/auth/alias/reconnect/store, richer transports and full
+  performance/production qualification remain pending.
 - Primary checkout changes remain outside this branch.
 
 ## Baseline checks
@@ -5838,3 +5843,84 @@ expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated
 remaining RPC client/server security/recovery/transports/deferred and Cron
 IANA/scheduler/durability remain required. No primary-checkout merge or push
 occurred. The complete four-library objective remains active and incomplete.
+
+
+## MQTT current-connection QoS-2 sender (2026-11-02)
+
+Baseline: `6d3ae7aca68a0279e1abed60197805f66b0ae3c5`. The developing client
+now admits fresh QoS-2 PUBLISH on MQTT 5.0 and 3.1.1, using the existing bounded
+QoS-1/2 identifier table and native-owned request lifetime. Positive PUBREC
+schedules immutable inline PUBREL; successful final completion waits for
+PUBCOMP. Send credit remains held through PUBCOMP or negative PUBREC. Negative
+PUBCOMP (including id-not-found) describes the protocol result, not proof of
+non-delivery. There is no PUBLISH replay, timer retransmission, reconnect or
+session store in this slice. Unknown/early PUBCOMP cannot complete a different
+flow or mint credit; unknown PUBREC/wrong-kind/unsent ACKs close with PROTOCOL.
+
+Repeated successful PUBREC coalesces while release is unsent/partial and repeats
+the immutable frame after a complete release. A terminal ACK arriving during a
+partial repeat defers logical completion until that frame boundary. Native
+release tails retain the actual request and its identifier; no borrowed stack
+buffer is passed to TCP. Timeout/cancellation/Close after an accepted prefix
+retires the connection with uncertain delivery. Graceful shutdown drains the
+final ACK and partial release before its final packet. No Core or new shared
+runtime changes were needed.
+
+The typed result appends independent owned Pubrec/Pubcomp messages and scalar
+receipt/completion flags. Scalar reasons/decisions are recorded before metadata
+allocation; quota failure may therefore return LIMIT with the protocol decision
+still available. ACK properties survive Client/Engine destruction and can be
+retained independently. Duplicate positive receipts make no additional ACK
+copy. Original PUBLISH wire stays charged through actual request retirement,
+even after PUBREC. AcceptedBytes excludes release bytes.
+
+Measured layout on both tested x64 ABIs: write result 40 -> 64 bytes, preserving
+the complete old prefix (Puback offset 32; Pubrec starts at 40); request 96 ->
+104 bytes. Those requested-size costs also affect QoS-0/1 and shutdown. Private
+Client remains 1144 Windows / 1352 WSL bytes; public config/info/ready/packet/
+codec/property remain 272/160/136/168/56/40. Struct sizes do not measure allocator
+buckets, RSS, all copies or throughput/P99. PUBREC and PUBCOMP each consume an
+owned message in the existing object budget. No zero-cost claim is made.
+
+Verification: native Windows GCC O2 and WSL GCC O2 with ASan/UBSan/leak halt for
+modular/single programs. All 7 modular + 7 single programs per OS pass, together
+with minimal/full static/shared package consumers, four offline client examples
+per OS, declaration-only/prefix layout, trimming, generated features/single/API
+checks and 78 build/package/API-reference/performance-tool regression tests.
+The new QoS-2 stdlib socket peer has 37 cases on each of modular/single/static/
+shared, each on both OSes (296 new cases). Existing basic/QoS1/receive/error
+cases remain 121 x 6; graceful cases remain 43 x 8: 1366 total independent wire
+cases, 28 modular/single programs, 8 package consumers and 8 example executions.
+
+Cases include both versions, byte writes, repeated/late/premature/wrong-kind
+ACKs, unchanged original PUBLISH, credit held through completion, QoS0 bypass,
+negative receipt/completion, phase timeout/cancel/close, graceful ordering,
+metadata quota decisions and retained owned properties. Initial fixture failures
+assumed peer receipt from a local QoS0 Future or required PUBREL ahead of legal
+QoS0 traffic; both observation/order assumptions were corrected, with prior
+receipts retained. No runtime workaround was added for those assumptions.
+
+Final rebuilt artifact file bytes (single includes Core; static/shared extension
+files require separately recorded Core artifacts):
+
+| Platform | single object | extension static | extension shared |
+| --- | --- | --- | --- |
+| windows | 580234 | 125094 | 152202 |
+| wsl | 743608 | 164414 | 119128 |
+
+Exact commands, source/compiler identities, final artifact hashes and per-case
+results are indexed by `out/service-extensions/xmqtt-qos2-send/validation.json`.
+The runnable `examples/qos2_send/main.c` and independent single-wire reproduction
+commands are documented in `extlibs/xmqtt/docs/client.md`. Post-size consumers
+and wire fixtures use the final packages.
+
+There is no fresh performance acceptance for this slice. Previous noise-quality
+failures remain unaccepted; frozen thresholds are unchanged. Full hot/cold
+allocation/copy/synchronization/syscall/CPU accounting, QoS-2 load and pinned
+throughput/P99 comparisons, native Linux and native >=72h fault/mixed-load runs
+remain required. WSL is development evidence, not native Linux qualification.
+MQTT QoS-2 receive, subscriptions/shared ids/session/expiry/alias/auth/reconnect/
+store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated, remaining RPC security/
+recovery/transports/deferred handlers and Cron IANA/scheduler/durability remain
+required. There was no primary-checkout merge or push. The complete four-library
+objective remains active and incomplete.

@@ -3,13 +3,13 @@
 `xmqtt_client` is developing. It implements one numeric-address TCP connection
 on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
-QoS-0/1 PUBLISH send/receive, correlated publishing PUBACK results,
+QoS-0/1 PUBLISH receive, QoS-0/1/2 send, correlated publishing ACK results,
 server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. QoS 2, subscription and
-shared outgoing identifier state, aliases, enhanced authentication, graceful DISCONNECT,
+This stage does **not** complete the planned client. QoS-2 receiver, subscription and
+shared outgoing identifier state, aliases, enhanced authentication,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
 Enhanced authentication and positive receive Topic Alias Maximum are refused
 at creation. Receiving QoS 2 currently closes with UNSUPPORTED; it never
@@ -52,7 +52,7 @@ application shutdown after an accepted CONNACK; NULL Packet means reason 0.
 `xmqttClientDisconnect` is the blocking form and rejects every same-Engine worker.
 A caller may submit the asynchronous form from Notify. Accepted shutdown stops
 new PUBLISH/disconnect admissions immediately. It drains prior accepted PUBLISH
-frames, QoS-0 native write completion, QoS-1 PUBACK outcomes and partial control
+frames, QoS-0 native write completion, QoS-1 PUBACK/QoS-2 PUBCOMP outcomes and partial control
 frames before appending the final DISCONNECT to the native queue. No MQTT packet
 follows it, and the client initiates TCP close. Queued receive messages remain
 available until Take/Destroy. It does not wait for a broker acknowledgement of
@@ -191,25 +191,25 @@ No zero-allocation or zero-copy end-to-end claim is made.
 
 ## QoS-1 sender and acknowledgement ownership
 
-Publish accepts fresh QoS-0/1 descriptors (DUP=0). For QoS 1, Identifier=0
+Publish accepts fresh QoS-0/1/2 descriptors (DUP=0). For QoS 1 or 2, Identifier=0
 assigns an unused nonzero id; an explicit id reserves that value. Concurrent
 attempts to reserve the same id return normal OVERLOADED, preserving the Future
 output and ambient error. No caller packet is modified. An id remains reserved
 until its real request references retire, possibly after Future completion.
 No id is silently reused for a still-unacknowledged publication.
 
-One bitmap/hash table is allocated lazily on the first QoS-1 attempt, charged
+One bitmap/hash table is allocated lazily on the first QoS-1/2 attempt, charged
 to private bytes and retained through Destroy. A later allocation/admission
 failure can leave that cold table cached. The bitmap is 8192 bytes; bucket
 count is the next power of two at least twice MaxRequests. Worker-owned hash
 chains correlate ACKs, and a doubly linked active list removes completions
 without an additional request scan. Lookup collisions remain bounded by the
 configured request count; deadline and send scans are still bounded scans.
-QoS-0 allocates no table and performs no extra descriptor copy. QoS-1 copies
+QoS-0 allocates no table and performs no extra descriptor copy. QoS-1/2 copies
 one descriptor to substitute its assigned id, retaining the two independent
 public Size/Write preflights and one wire encoding copy.
 
-MQTT 5 Receive Maximum limits started, unacknowledged QoS-1 publications.
+MQTT 5 Receive Maximum limits started, unacknowledged QoS-1/2 publications.
 Only the first successfully accepted native prefix consumes credit. A matching
 PUBACK returns it, including negative reason codes. Queued QoS-1 packets wait
 at zero credit; QoS-0 and PING traffic may proceed. A partial frame is completed
@@ -232,11 +232,82 @@ startup wire retirement. PUBACK Reason String/User Properties then cause a
 protocol close; a bare PUBACK remains valid. CONNACK, PUBLISH and DISCONNECT
 retain their permitted diagnostics behavior.
 
-Unknown, duplicate, unsent or wrong-kind acknowledgements on this connection
+Unknown, duplicate, unsent or wrong-kind PUBACKs on this connection
 close with PROTOCOL; they cannot complete an unrelated Future or mint credit.
 Timeout/cancellation while awaiting PUBACK closes the connection with uncertain
 delivery. Existing native-write, cancellation, quota and physical-close rules
 still apply. Incoming QoS-1 PUBLISH follows the receiver contract below.
+
+## QoS-2 sender on the current connection
+
+A fresh QoS-2 PUBLISH uses the same finite request/wire quota, lazy identifier
+bitmap/hash table, immutable encoded input and physical id retirement as QoS 1.
+A successful PUBREC retains its reason/properties, then schedules the four-byte
+PUBREL with the same id. The sender holds Receive Maximum credit until PUBCOMP
+or a negative PUBREC; positive PUBREC alone cannot start another credit-limited
+publication. QoS 0 and bounded control traffic can continue. MQTT 3.1.1 uses the
+same four-phase handshake without MQTT 5 reason/properties or negotiated credit.
+
+Completion requires a corresponding PUBCOMP after a complete PUBREL. A negative
+PUBREC terminates with REJECTED and sends no new PUBREL. A negative PUBCOMP also
+returns REJECTED: id-not-found (0x92) describes a protocol/state mismatch and
+cannot prove the message was never delivered. PEER_ACCEPTED denotes final
+protocol success, not subscriber processing, durable storage or recovery after
+crashes. Incoming QoS 2 and durable/reconnected sessions remain unsupported.
+
+Duplicate successful PUBREC coalesces while PUBREL is unsent/partial; after a
+complete PUBREL it schedules the same immutable frame again. It never replays
+the original PUBLISH and introduces no timer-based retransmission. If a repeated
+PUBREL is partial when a terminal ACK arrives, its remaining bytes are finished
+before another frame or graceful DISCONNECT. Native references retain its
+request/inline frame; physical id reuse waits for all actual references.
+Unknown PUBREC, an ACK for an unsent flow and wrong-kind ACKs close with PROTOCOL.
+Unknown/repeated PUBCOMP or PUBCOMP before that flow's first complete PUBREL is
+ignored, without completing a Future or returning credit. There is no stored
+session from which to recover an unknown PUBREC. These are current-connection
+policies; they do not establish session recovery.
+
+`xmqttwriteresult` keeps its original 40-byte prefix (including Puback at offset
+32) and appends Pubrec/Pubcomp plus PubrecReason/PubrecReceived/PubcompReceived.
+Its tested x64 size becomes 64 bytes; callers must rebuild. Puback remains NULL
+for QoS 2. Pubrec is the first successful or terminating negative receipt;
+Reason is the final ACK reason when available. Both immutable message owners
+may be retained separately and survive Client/Engine destruction. Scalar flags
+and reasons are stored before copying metadata: a LIMIT/MEMORY outcome may
+therefore retain a completed protocol decision even when a message pointer is
+NULL. Request Problem Information=0 rejects forbidden ACK properties.
+AcceptedBytes still counts only the original PUBLISH, excluding PUBREL bytes.
+Timeout/cancellation/Close after any accepted prefix retires the connection;
+receipt alone leaves delivery uncertain. Graceful shutdown waits for the final
+ACK (or each request's terminal failure), then its own final packet/native close.
+
+The inline release frame/state increases private request metadata for every
+request, including QoS 0/1 and shutdown. Appended result fields add 24 requested
+bytes to every write-result box, also for those existing operations; allocator
+bucket/RSS effects are not inferred from struct sizes. Successful PUBREC and
+PUBCOMP each consume one owned message in the existing object budget.
+Duplicate positive receipts create no new ACK copy. The original PUBLISH wire
+remains charged until real request retirement, even after PUBREC, so no payload
+memory reduction or zero-cost/performance claim is made for this stage.
+
+The [offline QoS-2 example](../examples/qos2_send/main.c) runs in the normal
+`xmqtt_client` example suite. It checks both ACK owners, graceful final bytes/EOF
+and physical cleanup. The separate stdlib peer covers both protocol versions,
+window/negative reasons, duplicate/late/premature ACKs, byte-sized writes, phase
+timeout/cancellation/close, metadata quotas and retained properties. Reproduce
+its single implementation on Windows GCC (use `-lm -pthread` instead of
+`-lws2_32` on Linux):
+
+```text
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/qos2_single_probe.c -lws2_32 -o out/qos2_probe.exe
+python extlibs/xmqtt/tests/interop/run_qos2_wire.py --probe out/qos2_probe.exe --report out/qos2-wire.json
+```
+
+Create `out/` first if absent. The peer binds ephemeral loopback ports only;
+success prints each case and writes `complete=true`. It closes sockets, joins
+threads and needs no credentials/broker. Generated executable/report files can
+be removed after inspection. This is functional evidence, not a benchmark.
+The protocol basis is OASIS MQTT 5.0/3.1.1 sections 4.3.3 and MQTT 5.0 section 4.9.
 
 ## QoS-1 receiver and ordered acknowledgements
 

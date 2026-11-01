@@ -98,5 +98,22 @@ normal native close is distinct from any broker acknowledgement. Modular/single
 fault suites and the separate stdlib peer verify reasons/expiry/caps, input
 snapshot lifetime, final-frame order, fragmented ACK/data/disconnect, peer EOF,
 first protocol failure, timeout/cancel/abort, admission OOM and retained results.
-The developing session/store/QoS2 scope and pinned broker/production/performance
+The developing session/store/QoS2-receiver scope and pinned broker/production/performance
 qualification remain required; this row does not establish those capabilities.
+
+
+## QoS-2 sender
+
+The developing TCP client now sends fresh QoS-2 PUBLISH through PUBREC/PUBREL/
+PUBCOMP on MQTT 5.0 and 3.1.1. It holds send credit through PUBCOMP or negative
+PUBREC; shared QoS-1/2 ids remain reserved through actual native reference
+retirement. Positive duplicate receipts coalesce/repeat the immutable inline
+PUBREL, with no original PUBLISH replay or timer retry. It retains both phase
+ACKs, scalar decisions under metadata quota failures, and finishes a partial
+repeated frame before graceful close. Unit/single tests and an independent
+stdlib socket peer cover windows, negative/duplicate/late/premature/wrong-kind
+ACKs, byte writes, phase timeout/cancel/abort, graceful ordering, quotas and
+metadata lifetime beyond Client/Engine. A separate offline sender example is
+part of the client suite. Incoming QoS 2, subscriptions/shared subscription ids,
+session persistence/recovery and pinned broker/native Linux/72h/performance
+qualification remain required. This row does not establish those capabilities.

@@ -27,10 +27,19 @@ typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCE
  * owns its reason/properties and may be separately retained. Local metadata
  * exhaustion can return LIMIT/MEMORY after an ACK, retaining its scalar decision.
  * Cause is borrowed from the result; retained results do not retain Client.
- * The original four-field prefix is unchanged; new fields are appended. */
+ * QoS2 keeps the first successful PUBREC (or terminating negative PUBREC) and
+ * final PUBCOMP independently. Flags/reasons survive metadata allocation failure.
+ * PEER_ACCEPTED denotes final protocol success, not subscriber/durable delivery.
+ * A negative PUBCOMP (including id-not-found) does not prove non-delivery.
+ * Negative PUBREC ends with REJECTED; otherwise completion requires PUBCOMP and
+ * any partial repeated PUBREL frame. No timer-based PUBLISH/PUBREL retransmission,
+ * reconnect or persistence. AcceptedBytes counts only the original PUBLISH.
+ * The original four-field/Puback prefixes stay fixed; callers must rebuild for
+ * the appended QoS2 metadata (write result 40 -> 64 bytes on supported x64). */
 typedef struct xmqttwriteresult {
     xmqttclientstatus Status;xmqttdelivery Delivery;size_t AcceptedBytes;const xerror* Cause;
     uint16 Identifier;uint8 Reason;const xmqttmessage* Puback;
+    const xmqttmessage *Pubrec,*Pubcomp;uint8 PubrecReason;bool PubrecReceived,PubcompReceived;
 } xmqttwriteresult;
 /* Connack and Negotiated views belong to this Future. The optional message
  * may be separately retained. No connection/engine reference survives in it. */
@@ -70,12 +79,12 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * only on success. Startup wire is wiped after handshake/stops AND its final
  * native reference. Caller/native/system copies are outside that contract.
  * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0/1
- * receives/sends and server DISCONNECT. Incoming QoS-1 is acknowledged only after
+ * receives, QoS-0/1/2 sends and server DISCONNECT. Incoming QoS-1 is acknowledged only after
  * an owned message enters the bounded local queue, independent of application
  * Take/Release. PUBACKs are ordered, bounded by min(MaxMessages, ReceiveMaximum),
  * lazily charged to private bytes, and never interleave a partial outgoing frame.
  * Enhanced auth and positive receive alias capacity are explicitly unsupported;
- * QoS 2, subscriptions, reconnect,
+ * Receiver QoS 2, subscriptions, reconnect,
  * durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap.
@@ -88,14 +97,15 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
 /* Shared readiness Future, always typed. Explicit Future cancellation requests
  * Close; raw cancel-token requests are sampled on IO/deadline progress. */
 XMQTT_API xfuture* xmqttClientReady(xmqttclient* Client);
-/* Thread-safe finite admission, immutable preencoded copy. QoS-0/1 new PUBLISH
- * (DUP=0), with a nonempty topic and no topic alias. QoS-1 Identifier=0 assigns
+/* Thread-safe finite admission, immutable preencoded copy. QoS-0/1/2 new PUBLISH
+ * (DUP=0), with a nonempty topic and no topic alias. QoS-1/2 Identifier=0 assigns
  * an unused id; nonzero reserves the explicit id, with normal OVERLOADED on
  * conflict. Its physical reservation lasts until real request retirement.
- * A bounded bitmap/hash table is allocated lazily on the first QoS-1 attempt,
+ * A bounded bitmap/hash table is allocated lazily on the first QoS-1/2 attempt,
  * charged to MaxPrivateBytes and retained through Destroy, even on later
- * admission failure. Peer Receive Maximum limits QoS-1 sends; QoS-0/control
- * traffic may continue while it is exhausted. May queue while connecting, but no
+ * admission failure. Peer Receive Maximum limits QoS-1/2 sends; QoS-0/control
+ * traffic may continue while it is exhausted. QoS2 holds credit through PUBCOMP
+ * or negative PUBREC, and repeats PUBREL only for duplicate successful PUBREC. May queue while connecting, but no
  * publish is sent before accepted CONNACK. Timeout includes encoding/queueing.
  * Future output changes on ACCEPTED only; normal overload/closed is counted.
  * Explicit Future cancellation wakes the owner; raw token sampled on progress.
@@ -106,7 +116,7 @@ XMQTT_API xmqttclientadmission xmqttClientPublishAsync(xmqttclient* Client,
 XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Stop new admissions after accepted CONNACK, drain all accepted publishes and
- * their QoS1 PUBACKs plus partial control frames, then send this final DISCONNECT
+ * their QoS1 PUBACKs/QoS2 PUBCOMPs plus partial control frames, then send this final DISCONNECT
  * and gracefully close TCP. NULL Packet selects normal reason 0. Version 311
  * forbids properties/nonzero reason. Negotiated packet/expiry limits apply.
  * Snapshot/encode before return; one request and its wire use the existing
