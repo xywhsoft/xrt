@@ -4,8 +4,75 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `26` 个函数、`143` 个常量或宏、
-`35` 个公共类型。
+当前登记 `39` 个函数、`168` 个常量或宏、
+`46` 个公共类型。
+
+## `extlibs/xmqtt/include/xmqtt/client.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client.h)
+
+### 函数 (13)
+
+- `xmqttClientClose`
+- `xmqttClientConfigInit`
+- `xmqttClientConnect`
+- `xmqttClientDestroy`
+- `xmqttClientInfo`
+- `xmqttClientPublish`
+- `xmqttClientPublishAsync`
+- `xmqttClientReady`
+- `xmqttClientTakeMessage`
+- `xmqttClientWaitFor`
+- `xmqttMessagePacket`
+- `xmqttMessageRelease`
+- `xmqttMessageRetain`
+
+### 常量与宏 (26)
+
+- `XMQTT_ADMISSION_ACCEPTED`
+- `XMQTT_ADMISSION_CLOSED`
+- `XMQTT_ADMISSION_ERROR`
+- `XMQTT_ADMISSION_OVERLOADED`
+- `XMQTT_CLIENT_CLOSED`
+- `XMQTT_CLIENT_CLOSING`
+- `XMQTT_CLIENT_CONNECTING`
+- `XMQTT_CLIENT_OPEN`
+- `XMQTT_FEATURE_XMQTT_CLIENT`
+- `XMQTT_FEATURE_XMQTT_NEGOTIATION`
+- `XMQTT_MAY_HAVE_REACHED_PEER`
+- `XMQTT_NOT_SENT`
+- `XMQTT_STATUS_CANCELLED`
+- `XMQTT_STATUS_CLOSED`
+- `XMQTT_STATUS_INITIALIZATION`
+- `XMQTT_STATUS_LIMIT`
+- `XMQTT_STATUS_MEMORY`
+- `XMQTT_STATUS_OK`
+- `XMQTT_STATUS_PROTOCOL`
+- `XMQTT_STATUS_REJECTED`
+- `XMQTT_STATUS_RESTRICTED`
+- `XMQTT_STATUS_SERVER_DISCONNECT`
+- `XMQTT_STATUS_SESSION`
+- `XMQTT_STATUS_TIMEOUT`
+- `XMQTT_STATUS_TRANSPORT`
+- `XMQTT_STATUS_UNSUPPORTED`
+
+### 类型 (15)
+
+- `xmqttclient`
+- `xmqttclientadmission`
+- `xmqttclientconfig`
+- `xmqttclientinfo`
+- `xmqttclientnotify`
+- `xmqttclientstate`
+- `xmqttclientstatus`
+- `xmqttcodecconfig`
+- `xmqttdelivery`
+- `xmqttmessage`
+- `xmqttnegotiated`
+- `xmqttpacket`
+- `xmqttreadyresult`
+- `xmqttversion`
+- `xmqttwriteresult`
 
 ## `extlibs/xmqtt/include/xmqtt/codec311.h`
 
@@ -22,14 +89,12 @@
 - `XMQTT_FEATURE_XMQTT_CODEC311`
 - `XMQTT_FEATURE_XMQTT_PACKET`
 
-### 类型 (6)
+### 类型 (4)
 
 - `xmqttcodecbuffers`
-- `xmqttcodecconfig`
 - `xmqttcodecissue`
 - `xmqttcodecstatus`
 - `xmqttdirection`
-- `xmqttpacket`
 
 ## `extlibs/xmqtt/include/xmqtt/codec5.h`
 
@@ -65,9 +130,8 @@
 - `xmqttNegotiatedPacketCheck`
 - `xmqttNegotiationConfigInit`
 
-### 常量与宏 (22)
+### 常量与宏 (21)
 
-- `XMQTT_FEATURE_XMQTT_NEGOTIATION`
 - `XMQTT_NEGOTIATION_ARGUMENT`
 - `XMQTT_NEGOTIATION_AUTH_DATA`
 - `XMQTT_NEGOTIATION_AUTH_METHOD`
@@ -90,15 +154,13 @@
 - `XMQTT_NEGOTIATION_TOPIC_ALIAS`
 - `XMQTT_NEGOTIATION_WILDCARD`
 
-### 类型 (7)
+### 类型 (5)
 
-- `xmqttnegotiated`
 - `xmqttnegotiationconfig`
 - `xmqttnegotiationerror`
 - `xmqttnegotiationissue`
 - `xmqttnegotiationstatus`
 - `xmqttpropertyid`
-- `xmqttversion`
 
 ## `extlibs/xmqtt/include/xmqtt/packet.h`
 

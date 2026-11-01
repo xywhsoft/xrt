@@ -6,10 +6,11 @@ framing; the properties leaf implements explicit MQTT 5.0 sections. The packet
 and codec5/codec311 leaves cover shared descriptors/grammar and all MQTT 5/3.1.1
 packet bodies. A separate negotiation leaf checks CONNECT/CONNACK relationships
 and client per-packet capabilities; its [contracts](negotiation.md) distinguish
-those pure checks from negotiated inbound/runtime state. QoS/session/auth/alias/
-expiry/subscription state, reconnect,
-persistence and transports remain pending. There is no reference-peer or final
-performance/production acceptance yet.
+those pure checks from negotiated inbound/runtime state. The developing
+[TCP client](client.md) integrates handshake, basic credentials, keep-alive,
+QoS-0 send/receive and physical shutdown. QoS 1/2, session/auth/alias/expiry/
+subscription state, reconnect, persistence and TLS/WebSocket remain pending.
+There is no pinned-broker or final performance/production acceptance yet.
 
 | Contract | Verification |
 | --- | --- |

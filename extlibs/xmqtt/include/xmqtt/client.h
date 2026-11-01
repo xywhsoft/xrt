@@ -1,0 +1,99 @@
+#ifndef XMQTT_CLIENT_H
+#define XMQTT_CLIENT_H
+#include <xmqtt/negotiation.h>
+#include <xrt/tcp.h>
+#include <xrt/future.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
+#error "MQTT client requires negotiation, TCP and Future"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT)
+typedef struct xmqttclient xmqttclient;
+typedef struct xmqttmessage xmqttmessage;
+typedef enum xmqttclientstate {XMQTT_CLIENT_CONNECTING=0,XMQTT_CLIENT_OPEN,XMQTT_CLIENT_CLOSING,XMQTT_CLIENT_CLOSED} xmqttclientstate;
+typedef enum xmqttclientstatus {
+    XMQTT_STATUS_OK=0,XMQTT_STATUS_REJECTED,XMQTT_STATUS_TIMEOUT,XMQTT_STATUS_CANCELLED,
+    XMQTT_STATUS_CLOSED,XMQTT_STATUS_TRANSPORT,XMQTT_STATUS_PROTOCOL,XMQTT_STATUS_LIMIT,
+    XMQTT_STATUS_MEMORY,XMQTT_STATUS_UNSUPPORTED,XMQTT_STATUS_SESSION,
+    XMQTT_STATUS_INITIALIZATION,XMQTT_STATUS_SERVER_DISCONNECT,XMQTT_STATUS_RESTRICTED
+} xmqttclientstatus;
+typedef enum xmqttdelivery {XMQTT_NOT_SENT=0,XMQTT_MAY_HAVE_REACHED_PEER} xmqttdelivery;
+typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCEPTED=0,XMQTT_ADMISSION_OVERLOADED,XMQTT_ADMISSION_CLOSED} xmqttclientadmission;
+/* A resolved Future is a typed outcome, not necessarily operation success.
+ * QoS-0 OK observes complete native write-buffer retirement while open; it
+ * does not acknowledge broker receipt, routing, storage or subscriber delivery.
+ * Accepting ANY prefix into TCP makes delivery uncertain. Never auto-replayed.
+ * Cause is borrowed from the result; retained results do not retain Client. */
+typedef struct xmqttwriteresult {xmqttclientstatus Status;xmqttdelivery Delivery;size_t AcceptedBytes;const xerror* Cause;} xmqttwriteresult;
+/* Connack and Negotiated views belong to this Future. The optional message
+ * may be separately retained. No connection/engine reference survives in it. */
+typedef struct xmqttreadyresult {
+    xmqttclientstatus Status;uint8 Reason;xmqttnegotiated Negotiated;
+    const xmqttmessage* Connack;const xerror* Cause;
+} xmqttreadyresult;
+/* Nonblocking IO-worker notification. May take messages, submit or Close, but
+ * must not block or Wait/Destroy. Code/User stay alive through Destroy. */
+typedef void (*xmqttclientnotify)(xmqttclient* Client,ptr User);
+typedef struct xmqttclientconfig {
+    size_t Size;xmqttversion Version;xnetstreamconfig Stream;xmqttcodecconfig Codec;
+    size_t MaxRequests,MaxOutgoingBytes,MaxObjects,MaxObjectBytes,MaxMessages,MaxMessageBytes;
+    size_t MaxPrivateBytes,MaxSetupBytes,InitialInputBytes,ReadBytes,WriteBytes,WriteChunkBytes,WorkPackets;
+    int64 SetupTimeout,PingTimeout;
+    xmqttclientnotify Notify;ptr User;
+} xmqttclientconfig;
+typedef struct xmqttclientinfo {
+    size_t Size;xmqttclientstate State;xmqttclientstatus CloseStatus;uint8 ServerReason;
+    bool Ready;size_t Requests,OutgoingBytes,Messages,MessageBytes,Objects,ObjectBytes,PrivateBytes,StartupBytes;
+    uint64 Accepted,Rejected,Completed,Received,ProtocolErrors,Pings,Pongs;
+} xmqttclientinfo;
+XRT_EXTERN_C_BEGIN
+/* MQTT 5, finite codec defaults; 128 requests/4 MiB outgoing; 512 objects/16 MiB,
+ * 64 queued messages/8 MiB; 4 MiB private, 64 KiB setup, 1 KiB initial input;
+ * 64 KiB read/write work, 16 KiB chunks, 64 packets/turn; 5s setup/ping timeout. */
+XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
+/* One numeric TCP connection on a running host Engine, no TLS/DNS/fallback or
+ * implicit replay. CONNECT is fully encoded/copied before return; callbacks may
+ * run before return. Setup timeout starts at factory entry. Caller owns one
+ * unique Client; Close/Wait/Destroy it before destroying Engine. Output changes
+ * only on success. Startup wire is wiped after handshake/stops AND its final
+ * native reference. Caller/native/system copies are outside that contract.
+ * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0
+ * publishes/receives and server DISCONNECT. Enhanced auth and positive receive
+ * alias capacity are explicitly unsupported; QoS 1/2, subscriptions, reconnect,
+ * durable sessions and graceful DISCONNECT remain separate pending work.
+ * No state is restored: MQTT 5 SessionPresent without local state closes.
+ * Explicit Maximum Packet Size must not exceed the local codec packet cap. */
+XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Client);
+/* Shared readiness Future, always typed. Explicit Future cancellation requests
+ * Close; raw cancel-token requests are sampled on IO/deadline progress. */
+XMQTT_API xfuture* xmqttClientReady(xmqttclient* Client);
+/* Thread-safe finite admission, immutable preencoded copy. Only QoS-0 PUBLISH
+ * with a nonempty topic and no topic alias. May queue while connecting, but no
+ * publish is sent before accepted CONNACK. Timeout includes encoding/queueing.
+ * Future output changes on ACCEPTED only; normal overload/closed is counted.
+ * Explicit Future cancellation wakes the owner; raw token sampled on progress.
+ * Cancelling/timing out an already accepted prefix retires the connection. */
+XMQTT_API xmqttclientadmission xmqttClientPublishAsync(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Same operation/deadline; rejects ANY worker of the same Engine. */
+XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Transfer one queued message reference, false/unchanged on empty. Overfull
+ * receive/object budgets close rather than silently dropping a packet. Already
+ * queued messages remain available after Close; Destroy releases untaken ones.
+ * Server DISCONNECT's reason is in Info, not added to the PUBLISH queue. */
+XMQTT_API bool xmqttClientTakeMessage(xmqttclient* Client,xmqttmessage** Message);
+XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* Message);
+XMQTT_API bool xmqttMessageRetain(const xmqttmessage* Message);
+XMQTT_API void xmqttMessageRelease(const xmqttmessage* Message);
+XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
+/* Abortive/nonblocking; sends no MQTT DISCONNECT, so a broker may publish Will.
+ * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
+ * event-owner and native stream reference retirement. Timeout preserves owner.
+ * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */
+XMQTT_API bool xmqttClientClose(xmqttclient* Client);
+XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* Client,int64 Timeout);
+XMQTT_API bool xmqttClientDestroy(xmqttclient* Client);
+XRT_EXTERN_C_END
+#endif
+#endif

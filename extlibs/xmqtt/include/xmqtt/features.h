@@ -22,6 +22,25 @@
 #ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
 #define XMQTT_MODULE_XMQTT_NEGOTIATION
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
+#endif
+
+/* xmqtt_client 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT
+#define XMQTT_FEATURE_XMQTT_CLIENT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
+#define XMQTT_MODULE_XMQTT_NEGOTIATION
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
 #endif
 
 /* xmqtt_negotiation 及其直接依赖。 */

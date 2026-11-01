@@ -1,9 +1,17 @@
+#if !defined(XMQTT_FEATURE_XMQTT_WIRE)
 #define XMQTT_MODULE_XMQTT
+#endif
 #include <xmqtt.h>
 #include <string.h>
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT)
+    xmqttclientconfig ClientConfig;xmqttclient* Client=(xmqttclient*)(uintptr_t)1;
+    if(!xmqttClientConfigInit(&ClientConfig) || ClientConfig.Version!=XMQTT_VERSION_5 ||
+       xmqttClientConnect(NULL,NULL,0,&ClientConfig,NULL,&Client) || Client!=(xmqttclient*)(uintptr_t)1 || !xmqttClientDestroy(NULL))return 20;
+    xrtClearError();
+#endif
 	unsigned char Output[128]; size_t Written; xmqttframe Frame;
 	if (!xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) || Written != 2 ||
 		xmqttFrameRead((xbytesview){Output,Written},NULL,&Frame) != XMQTT_WIRE_DONE || Frame.Header.Type != XMQTT_PACKET_PINGREQ) return 1;

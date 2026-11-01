@@ -4947,3 +4947,100 @@ negotiation/deferred handlers, Cron IANA/scheduler/durability and native Windows
 Linux >=72-hour mixed/fault qualification remain. WSL does not satisfy native
 Linux acceptance. Integration with subsequent primary checkout changes remains
 a separate verified step; this prerequisite completes neither xmqtt nor the goal.
+
+
+## 2026-11-02 — bounded MQTT TCP/QoS-0 client vertical slice
+
+Added the developing `xmqtt_client` leaf on public XRT TCP, Future V2 producer,
+post and timer APIs. No Core source/API changes and no shared runtime were
+introduced. Root xmqtt remains developing. This is a real network vertical
+slice, not completion of the complete MQTT/session or four-product objective.
+
+### Implemented behavior and ownership
+
+- Explicit MQTT 5.0 default / 3.1.1 numeric TCP connection, copied CONNECT with
+  basic credentials/Will, independently validated CONNACK negotiation and owned
+  original/assigned identity plus retained CONNACK. No fallback or replay.
+- Bounded immutable QoS-0 publishing, receiving copied immutable messages,
+  server keep-alive override, PINGREQ/PINGRESP (including one-byte write queues),
+  typed server DISCONNECT reason, finite deadlines, cooperative Future
+  cancellation and abortive close. No PUBLISH is sent before successful CONNACK.
+- Independent retained-object quota; retained results/messages do not keep a
+  Client or Engine alive. Request/wire reservations last through actual producer
+  and native-send retirement, possibly after Future completion. Startup wire is
+  wiped after negotiation/stopping AND final native send-reference retirement.
+- One host-worker protocol owner; bounded admission/read/write/packet work and
+  old+new staging capacity during growth. No thread or Engine per Client.
+  Overfull receive/object budgets close; already queued messages remain readable.
+  Cancellation/timeout after any accepted prefix retires the connection.
+- Write OK means complete native-buffer retirement while open, never broker
+  acknowledgement/receipt/routing/storage/delivery. Native acceptance of any
+  prefix leaves delivery uncertain. Blocking APIs reject all same-Engine workers;
+  notification reentrant submit/take/close and real physical teardown are tested.
+- Root and client dependency guards, modular/implementation/declaration headers,
+  separate Core/extension static/shared packages and a runnable offline TCP
+  example. Independent stdlib wire peer and fault/OOM/lifetime tests are separate.
+  Public API inventory: 39 functions / 168 constants / 46 types, missing=0.
+
+Full contracts, allocation/copy/synchronization boundaries and costs are in
+`extlibs/xmqtt/docs/client.md`; commands and peer limitations are in
+`extlibs/xmqtt/tests/interop/README.md`. Foreign ownership collectors are refused
+for opaque private child graphs; this does not claim a new GC integration.
+
+### Actual verification
+
+Evidence root: `out/service-extensions/xmqtt-client/`. Final runtime matrices:
+`windows-checks.json`, `wsl-checks.json`; package consumers: `windows-packages.json`,
+`wsl-packages.json`; packaged network checks: `windows-package-wire.json`,
+`wsl-package-wire.json`; consolidated bindings: `validation.json`.
+
+- Windows GCC -O2 and WSL GCC -O2 + ASan/UBSan/leak checks: seven modular and
+  seven single-header test binaries per platform (28 executions total).
+- Client test groups cover MQTT5/311 roundtrip, one-byte limits, negotiation
+  refusals/session/order, queue/object bounds, queued deadline/cancel, keepalive
+  response/timeout, worker restrictions, notification reentrancy, factory and
+  request OOM accounting, retained results/messages and physical teardown.
+- Independent Python peer: 31 scenarios in each of six configurations (Windows
+  and WSL monolithic, static package and shared package), 186 successful child
+  process cases. Includes split/coalesced traffic, copied CONNECT credentials,
+  assigned ids, copied PUBLISH payload, retained binary/User Property views,
+  malformed/early/duplicate control packets, server DISCONNECT, local/advertised/
+  private/queue/object limits, truncated EOF and close after a publish prefix.
+- Eight static/shared package consumers across full/minimal client selection and
+  two platforms; two actual offline client example executions. Both platforms'
+  dependency trimming, declaration-only compilation and layout checks passed.
+- Earlier test-fixture failures were preserved: worker callback code now consumes
+  its supplied read buffer; abortive EOF assertions also accept TCP reset.
+  A physical-request-bound test waits for real reservation retirement before
+  resubmitting at a limit of one. No performance threshold was relaxed.
+
+Actual x64 sizes, identical on both platforms: client config 264, info 144,
+readiness result 136, write result 24 bytes. Existing packet/codec/property
+layouts remain 168/56/40 bytes. These are type sizes, not complete runtime memory
+or delivered binary size measurements.
+
+The broader Python tool run reports `Ran 76 tests; failures=3, errors=1`.
+The same errors/subtest failures were reproduced by the three affected methods
+in an independently extracted, unchanged c16a44c2 tree at
+`D:/codex-service-extensions-cache/xmqtt-client-baseline-c16a44c2`:
+xhttp full/trimmed ABI fixtures, xhttp external-integration registration and
+xredis TLS-auth example selection on Windows/Linux. Logs are `tool-tests.log`
+and `baseline-tool-failures.log`. These baseline defects are not an all-green
+repository gate, and the Redis example selection remains a follow-up within the
+four-product goal. No xhttp or Redis source was changed by this MQTT stage.
+
+### Still required
+
+Client/runtime throughput and P99 benchmarks, pinned real-broker comparisons,
+size/cold-path accounting, race/stall/fault qualification and native Windows /
+native Linux >=72-hour production tests are not accepted or complete. WSL is
+not native Linux acceptance. Existing 3% relative-MAD / 6% central-range noise
+and 5% throughput / 10% P99 regression gates remain unchanged.
+
+MQTT QoS1/2, subscriptions/id/flow state, aliases, enhanced authentication,
+graceful DISCONNECT, TLS/WebSocket/DNS, reconnect, expiry and durable recovery
+remain. Redis HA/tracking/dedicated modes and its example gate, RPC remaining
+metadata/security/recovery/transport/deferred scope, Cron IANA/scheduler/durable
+scope and primary-checkout integration remain required. The development worktree
+is still isolated; D:/GIT/xrt master was verified clean at 93347eb5. No merge,
+push or production-complete claim is made. The full objective stays active.
