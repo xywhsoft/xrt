@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `23` 个函数、`121` 个常量或宏、
-`30` 个公共类型。
+当前登记 `26` 个函数、`143` 个常量或宏、
+`35` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/codec311.h`
 
@@ -54,6 +54,51 @@
 
 - `XMQTT_BUILD_SHARED`
 - `XMQTT_USE_SHARED`
+
+## `extlibs/xmqtt/include/xmqtt/negotiation.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/negotiation.h)
+
+### 函数 (3)
+
+- `xmqttNegotiate`
+- `xmqttNegotiatedPacketCheck`
+- `xmqttNegotiationConfigInit`
+
+### 常量与宏 (22)
+
+- `XMQTT_FEATURE_XMQTT_NEGOTIATION`
+- `XMQTT_NEGOTIATION_ARGUMENT`
+- `XMQTT_NEGOTIATION_AUTH_DATA`
+- `XMQTT_NEGOTIATION_AUTH_METHOD`
+- `XMQTT_NEGOTIATION_CLIENT_ID`
+- `XMQTT_NEGOTIATION_DONE`
+- `XMQTT_NEGOTIATION_LOCAL_ERROR`
+- `XMQTT_NEGOTIATION_OK`
+- `XMQTT_NEGOTIATION_PACKET_SIZE`
+- `XMQTT_NEGOTIATION_PROTOCOL_ERROR`
+- `XMQTT_NEGOTIATION_QOS`
+- `XMQTT_NEGOTIATION_REJECTED`
+- `XMQTT_NEGOTIATION_RESPONSE_INFO`
+- `XMQTT_NEGOTIATION_RESTRICTED`
+- `XMQTT_NEGOTIATION_RETAIN`
+- `XMQTT_NEGOTIATION_SESSION`
+- `XMQTT_NEGOTIATION_SESSION_EXPIRY`
+- `XMQTT_NEGOTIATION_SHARED`
+- `XMQTT_NEGOTIATION_STATE_ERROR`
+- `XMQTT_NEGOTIATION_SUBSCRIPTION_ID`
+- `XMQTT_NEGOTIATION_TOPIC_ALIAS`
+- `XMQTT_NEGOTIATION_WILDCARD`
+
+### 类型 (7)
+
+- `xmqttnegotiated`
+- `xmqttnegotiationconfig`
+- `xmqttnegotiationerror`
+- `xmqttnegotiationissue`
+- `xmqttnegotiationstatus`
+- `xmqttpropertyid`
+- `xmqttversion`
 
 ## `extlibs/xmqtt/include/xmqtt/packet.h`
 
@@ -175,12 +220,11 @@
 - `XMQTT_PROPERTY_WILL_DELAY`
 - `XMQTT_VARIABLE_MAX`
 
-### 类型 (9)
+### 类型 (8)
 
 - `xmqttpropertyconfig`
 - `xmqttpropertydocument`
 - `xmqttpropertyerror`
-- `xmqttpropertyid`
 - `xmqttpropertyscope`
 - `xmqttpropertystatus`
 - `xmqttpropertytype`
@@ -241,11 +285,10 @@
 - `XMQTT_WIRE_MORE`
 - `XMQTT_WIRE_UTF8`
 
-### 类型 (6)
+### 类型 (5)
 
 - `xmqttfixedheader`
 - `xmqttframe`
-- `xmqttversion`
 - `xmqttwireconfig`
 - `xmqttwireerror`
 - `xmqttwirestatus`

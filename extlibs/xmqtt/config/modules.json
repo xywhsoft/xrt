@@ -48,6 +48,11 @@
         "name": "codec311",
         "state": "retained",
         "source_roots": ["codec311"]
+      },
+      {
+        "name": "negotiation",
+        "state": "retained",
+        "source_roots": ["negotiation"]
       }
     ]
   },
@@ -78,7 +83,8 @@
         "xmqtt_wire",
         "xmqtt_properties",
         "xmqtt_codec5",
-        "xmqtt_codec311"
+        "xmqtt_codec311",
+        "xmqtt_negotiation"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -207,6 +213,20 @@
       "docs": ["extlibs/xmqtt/README.md", "extlibs/xmqtt/docs/codec311.md", "extlibs/xmqtt/docs/coverage.md", "extlibs/xmqtt/docs/api/reference.md"]
     },
     {
+      "name": "xmqtt_negotiation",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_NEGOTIATION",
+      "depends": ["xmqtt_codec5", "xmqtt_codec311"],
+      "public_headers": ["extlibs/xmqtt/include/xmqtt/negotiation.h", "extlibs/xmqtt/include/xmqtt/export.h"],
+      "internal_headers": [],
+      "sources": ["extlibs/xmqtt/src/negotiation/negotiation.c"],
+      "tests": ["extlibs/xmqtt/tests/test_negotiation.c"],
+      "single_tests": ["extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c"],
+      "examples": ["extlibs/xmqtt/examples/negotiation/main.c"],
+      "benchmarks": ["extlibs/xmqtt/bench/bench_negotiation.c"],
+      "docs": ["extlibs/xmqtt/docs/negotiation.md", "extlibs/xmqtt/docs/coverage.md", "extlibs/xmqtt/docs/api/reference.md", "extlibs/xmqtt/README.md"]
+    },
+    {
       "name": "xmqtt_tests",
       "state": "implemented",
       "feature": null,
@@ -222,14 +242,16 @@
         "extlibs/xmqtt/tests/test_properties.c",
         "extlibs/xmqtt/tests/test_packet.c",
         "extlibs/xmqtt/tests/test_codec5.c",
-        "extlibs/xmqtt/tests/test_codec311.c"
+        "extlibs/xmqtt/tests/test_codec311.c",
+        "extlibs/xmqtt/tests/test_negotiation.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_packet.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -241,7 +263,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c": "xmqtt_properties",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_packet.c": "xmqtt_packet",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c": "xmqtt_codec5",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c": "xmqtt_codec311"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c": "xmqtt_codec311",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c": "xmqtt_negotiation"
       }
     }
   ]

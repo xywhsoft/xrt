@@ -137,6 +137,51 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_negotiation",
+      "system": "negotiation",
+      "description": "Two validated handshake descriptors and one outbound packet check per cycle; dual version, no network/session/capacity/comparator claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_negotiation_5",
+          "source": "extlibs/xmqtt/bench/bench_negotiation.c",
+          "suite": "xmqtt_negotiation,time",
+          "args": [
+            "1000000",
+            "5"
+          ],
+          "smoke_args": [
+            "10000",
+            "5"
+          ],
+          "metrics": {
+            "negotiation_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_negotiation_4",
+          "source": "extlibs/xmqtt/bench/bench_negotiation.c",
+          "suite": "xmqtt_negotiation,time",
+          "args": [
+            "1000000",
+            "4"
+          ],
+          "smoke_args": [
+            "10000",
+            "4"
+          ],
+          "metrics": {
+            "negotiation_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

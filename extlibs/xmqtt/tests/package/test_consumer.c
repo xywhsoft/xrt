@@ -34,6 +34,10 @@ int main(void)
 		xmqttPacketRead311((xbytesview){Output,Written},XMQTT_CLIENT_TO_SERVER,&Config,NULL,&Decoded,&Issue)!=XMQTT_CODEC_DONE ||
 		Decoded.Identifier!=42 || Decoded.Body.Publish.Payload.Size!=sizeof(Raw) || memcmp(Decoded.Body.Publish.Payload.Data,Raw,sizeof(Raw)) ||
 		Decoded.Properties.Count!=0 || Issue.Error!=XMQTT_CODEC_OK) return 7;
+	xmqttpacket Connect,Connack; xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect); xmqttPacketInit(XMQTT_PACKET_CONNACK,&Connack);
+	Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("package");xmqttnegotiated Peer;
+	if(xmqttNegotiate(&Connect,&Connack,NULL,&Peer,NULL)!=XMQTT_NEGOTIATION_DONE || !Peer.Accepted || Peer.SendReceiveMaximum!=65535 ||
+	   xmqttNegotiatedPacketCheck(&Peer,&Packet,NULL,&Required,NULL)!=XMQTT_NEGOTIATION_DONE)return 8;
 	if (xmqttFrameRead((xbytesview){NULL,1},NULL,&Frame) != XMQTT_WIRE_ERROR || xrtErrorDomain(xrtGetError()) == NULL ||
 		strcmp(xrtErrorDomain(xrtGetError()),"xrt.mqtt") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 3;
 	xrtClearError(); return 0;

@@ -43,6 +43,12 @@
         "_xmqttPacketRead5", "_xmqttPacketSize5", "_xmqttPacketWrite5"
       ],
       "description": "Full MQTT 3.1.1 packet codec and public packet/wire/Unicode closure, without MQTT 5 properties or codec"
+    },
+    {
+      "name": "xmqtt_negotiation",
+      "system": "negotiation",
+      "suite": "xmqtt_negotiation",
+      "description": "Validated dual-version CONNECT/CONNACK negotiation and per-packet client constraints; no transport/session storage"
     }
   ]
 }

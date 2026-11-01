@@ -2,7 +2,7 @@
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
-packet codecs are implemented.** Client/session/QoS state machines,
+packet codecs and negotiated connection constraints are implemented.** Client/session/QoS state machines,
 authentication, reconnect, durable storage and TCP/TLS/WebSocket are pending.
 No broker or production/performance acceptance is claimed.
 
@@ -97,7 +97,9 @@ MORE changes no output/scratch, and independent typed Issue context survives
 diagnostic OOM. Size/Write are atomic independent preflights, with one data copy
 and no repeated string validation during emission. Encoded strings forbid NUL;
 PFI=1 payload character data permits it. MQTT 5 password-only CONNECT is legal.
-Negotiated aliases/auth/session/QoS effects belong to the pending client runtime.
+Negotiated CONNECT/CONNACK capabilities and outbound constraints have a separate
+leaf described below. Alias mappings/auth/session/QoS state still belong to the
+pending client runtime.
 See [packet contracts and costs](docs/codec.md). `XMQTT_MODULE_XMQTT_PACKET`
 selects just the shared descriptors/config/initializers and private grammar.
 
@@ -112,6 +114,16 @@ accepted and canonicalized, including the full four-byte range fixed by Errata
 rejects 5.0 producer fields instead of discarding them; callers select a negotiated
 protocol explicitly. See [3.1.1 contracts](docs/codec311.md) for version differences,
 ignored property scratch fields, lifetimes, limits and pending session work.
+
+Select `XMQTT_MODULE_XMQTT_NEGOTIATION` for `xmqttNegotiate` and
+`xmqttNegotiatedPacketCheck`. They independently preflight descriptors, enforce
+cross-packet session/id/auth/response rules and directional peer limits, and
+check client packets against those capabilities. They allocate nothing on valid
+acceptance/refusal and retain no packet/property scratch. Result text borrows
+the relevant input bytes. This leaf selects both complete codecs; it does not
+provide a minimal 3.1.1-only runtime. See [negotiation contracts and costs](docs/negotiation.md)
+for version-specific session policy, original expiry, lifetime/alias/OOM rules
+and the still-pending transport, credit, alias-map and authentication state.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --cflag=-O2
@@ -133,8 +145,11 @@ no broker/network or cleanup. The [packet example](examples/codec5/main.c)
 round-trips a full QoS-1 PUBLISH with a PFI UTF-8 payload containing NUL. The
 [representation example](examples/packet/main.c) initializes PUBREL/config.
 The [3.1.1 packet example](examples/codec311/main.c) round-trips binary PUBLISH.
-Five workloads separately measure wire primitives, property sections, private
+The [negotiation example](examples/negotiation/main.c) decodes literal peer
+packets and checks allowed/forbidden publishes, with no broker or cleanup.
+The existing workloads separately measure wire primitives, property sections, private
 already-UTF8-validated ASCII filter grammar, MQTT 5 PFI/property PUBLISH, and
 MQTT 3.1.1 binary PUBLISH decode/encode.
-They do not establish network delivery throughput, tail latency, QoS sessions,
+Two negotiation variants measure independent handshake descriptor preflights
+plus one outbound check for MQTT 5 and 3.1.1. They do not establish network delivery throughput, tail latency, QoS sessions,
 durability or performance parity.

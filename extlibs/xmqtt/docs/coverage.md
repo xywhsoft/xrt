@@ -4,8 +4,10 @@ The full [service-extension target](../../../docs/development/service-extensions
 remains required. The wire leaf implements data representations and fixed-header
 framing; the properties leaf implements explicit MQTT 5.0 sections. The packet
 and codec5/codec311 leaves cover shared descriptors/grammar and all MQTT 5/3.1.1
-packet bodies. Negotiated property rules,
-QoS/session/auth/alias/expiry/subscriptions, reconnect,
+packet bodies. A separate negotiation leaf checks CONNECT/CONNACK relationships
+and client per-packet capabilities; its [contracts](negotiation.md) distinguish
+those pure checks from negotiated inbound/runtime state. QoS/session/auth/alias/
+expiry/subscription state, reconnect,
 persistence and transports remain pending. There is no reference-peer or final
 performance/production acceptance yet.
 
@@ -66,3 +68,18 @@ Errata 01 four-byte transition, protocol maximum header-only bounds, wrapped
 spans/aliases, atomic failures, 30,000 raw/mutated canonical forms, 10,000 warm
 allocation/error-identity cycles and quota/diagnostic OOM. The single trim asserts
 no properties/codec5 feature; root package consumers exercise both versions.
+
+## Connection negotiation constraints
+
+The negotiation leaf checks cross-packet CONNECT/CONNACK consistency and client
+per-packet capabilities. Tests cover literal wire peers, every version/clean/
+session-present/local-state combination, client-id assignment/lifetimes,
+successful/refused authentication (including present empty methods), directional
+packet/receive/alias bounds, server keep-alive/expiry overrides and response-info
+request rules. All 32 capability combinations exercise independent publish/
+subscribe expectations. Requested subscription QoS and unsubscribe cleanup retain
+their distinct rules. Original CONNECT expiry still constrains DISCONNECT after
+a server override. Output/source/config aliases, wrapped spans, unchanged outputs,
+10,000 allocation/error-identity cycles, one-byte budgets and typed semantic
+errors under diagnostic OOM are covered. It provides no flow-credit/alias map,
+authentication sequence, session store, transport or broker interoperability.

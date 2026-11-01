@@ -4819,3 +4819,131 @@ cold/hot CPU/cycle/allocation/copy/synchronization/syscall costs, slow/contended
 fault/recovery matrices and native Windows/Linux >=72-hour mixed/fault runs remain
 required. WSL results do not satisfy native Linux acceptance. Integration with
 subsequent primary-checkout changes remains a separate verified step.
+
+
+
+## P3: MQTT negotiated connection constraints (2026-11-01)
+
+The xmqtt negotiation leaf now independently preflights CONNECT/CONNACK and
+checks their cross-packet relationship for MQTT 5.0 and 3.1.1. It returns a
+caller-owned capability value with separate send/receive packet/receive/alias
+limits, keep-alive override, requested/effective expiry and server capabilities.
+Rejected connections are normal typed results with reason/optional redirect
+metadata. No automatic downgrade, reconnect or credential verification occurs.
+The leaf selects both complete codecs; the existing minimal codec311 closure
+still excludes MQTT 5 code. Public existing packet/property/config layouts are
+unchanged; three APIs and five value types are added. No Core source is changed.
+
+Cross checks cover Clean Start/Session and Session Present, assigned identifiers,
+authentication method consistency (including present empty methods), unsolicited
+authentication data and unrequested response information. MQTT 5 missing local
+state with Session Present requires closing as STATE_ERROR, not pretending to
+resume or necessarily blaming the broker. 3.1.1 retains caller mismatch policy.
+A continuing MQTT 5 client must discard old local state when Session Present is
+zero; this pure function does not delete or claim to recover that state.
+
+The client packet check enforces peer packet/QoS/retain/alias/subscription caps,
+AUTH method and original CONNECT expiry constraints. Requested subscription QoS
+may exceed the server's maximum PUBLISH QoS. Disabled shared/wildcard support
+does not prohibit removing old subscriptions. A server expiry override does not
+erase the original CONNECT restriction on a positive DISCONNECT expiry.
+Receive credit, id/ACK correlation, alias maps, auth exchange order, full inbound
+constraints, live transports, session persistence/recovery remain client work.
+
+Result text borrows the original CONNECT/CONNACK bytes and does not retain
+property scratch. There is no successful/refused allocation, payload/text copy,
+DOM or shared runtime. Negotiation performs two complete codec preflights; the
+packet check performs one, followed by property/alias walks and relevant text
+comparisons/scans. A fixed result value is copied. Diagnostics can allocate;
+typed semantic decisions survive diagnostic OOM. Invalid API/descriptor/alias
+errors leave Issue unchanged, while all negative statuses preserve Result/size.
+These costs are not a zero-overhead or end-to-end zero-copy claim.
+
+Tests include literal peer bytes, all version/clean/present/local-state tuples,
+numeric boundaries and all 32 capability combinations, explicit accepted/refused
+auth rules, lifetime/alias/wrapped spans and atomic outputs. Ten thousand warm
+cycles preserve allocation counters and ambient-error identity; one-byte quota
+success and diagnostic OOM retain classifications and return charged bytes to
+zero. The offline example decodes literal peer packets and checks allowed/
+forbidden publishes without broker/files/cleanup. It prints keep-alive=30,
+max-qos=1, receive-max=4, alias-max=8, packet-max=1024, publish-bytes=13.
+
+Windows and WSL pass six modular plus six single tests each (24 total), six
+examples each (12 total), trim, full/minimal static/shared package consumers,
+declaration compilation and three negotiation size forms per platform. WSL uses
+O2 ASan/UBSan. This stateless leaf adds no worker/cancellation owner and has no
+TSan/runtime-race claim. API coverage is 26 functions / 143 constants / 35 types,
+zero missing docs. Strict maturity still refuses developing aggregate xmqtt.
+
+Initial verification exposed a misleading-indentation error, a fixture that
+misclassified invalid AUTH without Method as a negotiated restriction, and a
+Windows single-header collision with the platform IN annotation macro. They
+were corrected; the last fix renamed only local size variables. Both final
+matrices were rerun on final hashes, with previous source/receipts preserved.
+Size measurement rebuilds package libraries. Final evidence therefore relinks
+and runs the minimal consumers against the final measured libraries and refreshes
+their artifact hashes, checking size file counts rather than keeping stale
+pre-measurement package hashes. This repair changes no runtime source or samples.
+
+### Actual value layouts and size forms
+
+Both platforms compile these sizes in bytes:
+
+| Type | Bytes |
+| --- | --- |
+| config | 72 |
+| result | 112 |
+| issue | 12 |
+| packet | 168 |
+| codec | 56 |
+| property | 40 |
+
+Single objects contain Core plus extension. Static/shared primary artifacts
+require the separately reported Core files; denominators are not interchangeable.
+
+| Platform | Kind | Primary bytes | Core dependency bytes |
+| --- | --- | --- | --- |
+| windows | single | 144205 | included |
+| windows | static | 81144 | 70922 |
+| windows | shared | 105969 | 132795 |
+| wsl | single | 172520 | included |
+| wsl | static | 107234 | 87462 |
+| wsl | shared | 72384 | 73792 |
+
+### Descriptor workload observations
+
+One cycle checks two handshake descriptors and one QoS-0 outgoing descriptor,
+with a changing keep-alive value and observable checksum. Each version/platform
+retains one warmup plus all five measured million-cycle samples. These are
+public descriptor-validation cycles, not wire parsing, connection throughput,
+queueing/tail latency, QoS/durable delivery or comparator parity. Allocation,
+copy and scan boundaries are documented; full CPU/cycle/synchronization/syscall
+accounting and representative pinned comparisons remain required.
+
+| Platform | Version byte | Cycles/s median | Failed noise checks |
+| --- | --- | --- | --- |
+| windows | 5 | 5003928.084 | 0 |
+| windows | 4 | 7292201.431 | 0 |
+| wsl | 5 | 4705800.439 | 1 |
+| wsl | 4 | 6846323.085 | 1 |
+
+The original 3% relative-MAD / 6% central-range gates are unchanged; no favorable
+retry or stable pinned baseline is claimed. Performance remains unaccepted.
+
+windows: source `bde1a7d294684f64a763120efc350106752d00be590564bb8a67ea69b151baa8`, workload `7475bf64210f5cab846ddbfc125eced22b4a3a9aea9fca4a357bfff9f1074d22`.
+
+wsl: source `bde1a7d294684f64a763120efc350106752d00be590564bb8a67ea69b151baa8`, workload `7475bf64210f5cab846ddbfc125eced22b4a3a9aea9fca4a357bfff9f1074d22`.
+
+Evidence: `out/service-extensions/xmqtt-negotiation/validation.json` binds current
+inputs/artifacts, final runtime/example/package/size/declaration results and 5+1
+reports. 327 predecessor source/artifact files are SHA-preserved; the
+committed validator requires clean HEAD/tree.
+
+The full four-product objective remains active. Next MQTT work is the actual
+bounded client/session/keep-alive/auth/QoS/alias/reconnect/store/transport chain,
+with MQTT 5.0 primary and 3.1.1 compatibility. Redis HA/tracking/dedicated modes,
+RPC metadata/mTLS/tickets/recovery/pooling/bidirectional/WebSocket/framed stdio/
+negotiation/deferred handlers, Cron IANA/scheduler/durability and native Windows/
+Linux >=72-hour mixed/fault qualification remain. WSL does not satisfy native
+Linux acceptance. Integration with subsequent primary checkout changes remains
+a separate verified step; this prerequisite completes neither xmqtt nor the goal.
