@@ -7,7 +7,7 @@
 /* In-process protocol fixture. Independent wire/broker interoperability lives
  * separately; this fixture exercises ownership, limits and worker reentrancy. */
 enum {MQTT_TEST_HOLD=1,MQTT_TEST_REFUSE=2,MQTT_TEST_SESSION=4,MQTT_TEST_DUPLICATE=8,MQTT_TEST_NO_PONG=16,MQTT_TEST_KEEPALIVE=32,
-    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024};
+    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024,MQTT_TEST_GRACEFUL=2048};
 typedef struct mqttTestPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Closed,ListenerClosed,Connects,Publishes,Pings,NotifyChecks;
@@ -63,7 +63,7 @@ static void mqttTestRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
                 xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);
             }
             else if(F.Header.Type==XMQTT_PACKET_PUBACK){testRequire(F.Wire.Size==4,"minimal receiver PUBACK");const unsigned char* W=F.Wire.Data;xrtAtomic32Store(&P->AckIdentifier,((uint32)W[2]<<8)|W[3],XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);}
-            else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){const unsigned char* W=F.Wire.Data;testRequire(P->Version==XMQTT_VERSION_5 && F.Wire.Size==3 && W[1]==1,"minimal diagnostic DISCONNECT");xrtAtomic32Store(&P->DisconnectReason,W[2],XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);testRequire(xrtNetStreamClose(S),"peer diagnostic close");}
+            else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){const unsigned char* W=F.Wire.Data;if(!(P->Mode&MQTT_TEST_GRACEFUL))testRequire(P->Version==XMQTT_VERSION_5 && F.Wire.Size==3 && W[1]==1,"minimal diagnostic DISCONNECT");xrtAtomic32Store(&P->DisconnectReason,F.Wire.Size>2?W[2]:0,XMEMORY_RELEASE);xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);testRequire(xrtNetStreamClose(S),"peer diagnostic close");}
             else {testRequire(F.Header.Type==XMQTT_PACKET_PINGREQ,"fixture unexpected client packet");xrtAtomic32FetchAdd(&P->Pings,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_TEST_NO_PONG)){const unsigned char Pong[]={0xd0,0};mqttTestSend(P,Pong,sizeof(Pong));}}
             P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
         }
@@ -465,5 +465,73 @@ static void testMqttRetirementSignals(void)
     for(unsigned V=4;V<=5;++V){mqttWaitCase((xmqttversion)V,true);for(unsigned J=0;J<16;++J)mqttWaitCase((xmqttversion)V,false);}
     puts("[PASS] MQTT retirement: held CLOSED callback, 32 wake races, multiple borrowers, timeout ownership and allocation-free ready waits");
 }
+static void testMqttGraceful(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned Tiny=0;Tiny<2;++Tiny){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,MQTT_TEST_GRACEFUL);xmqttclientconfig K;xmqttClientConfigInit(&K);
+        if(Tiny){K.WriteBytes=K.WriteChunkBytes=1;K.Stream.WriteLimit=1;K.Stream.WriteHighWater=1;K.Stream.WriteLowWater=0;}
+        xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);xfuture* F=NULL;
+        testRequire(xmqttClientDisconnectAsync(C,NULL,5000,&F)==XMQTT_ADMISSION_ACCEPTED,"normal graceful admission");
+        const xmqttwriteresult* R=mqttTestResult(F);testRequire(R->Status==XMQTT_STATUS_OK && R->AcceptedBytes==2 && R->Delivery==XMQTT_MAY_HAVE_REACHED_PEER && !R->Identifier && !R->Puback && !R->Reason,"normal DISCONNECT typed local result");
+        testRequire(xmqttClientWaitFor(C,5000)==XWAIT_OK,"graceful physical wait");mqttTestWait(&P.Disconnects,1);xmqttclientinfo I;xmqttClientInfo(C,&I);
+        testRequire(I.CloseStatus==XMQTT_STATUS_OK && I.DrainStarted && !I.DrainTimedOut && I.DisconnectBytes==2 && !I.Requests && I.Accepted==I.Completed,"graceful accounting");
+        mqttTestClose(C);mqttTestStop(&P);testRequire(R->Status==XMQTT_STATUS_OK,"graceful result survives Client and Engine");xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+    }
+}
+static void testMqttGracefulDrain(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned Kind=0;Kind<5;++Kind){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,MQTT_TEST_GRACEFUL|MQTT_TEST_HOLD_PUBACK);xmqttclient* C=mqttTestConnect(&P,NULL);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);
+        xmqttpacket Packet;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Packet);Packet.Flags=2;Packet.Body.Publish.Topic=XRT_STR_LITERAL("t");xfuture *Publish=NULL,*F=NULL;
+        testRequire(xmqttClientPublishAsync(C,&Packet,5000,&Publish)==XMQTT_ADMISSION_ACCEPTED,"pre-close QoS1 accepted");mqttTestWait(&P.Publishes,1);
+        testRequire(xmqttClientDisconnectAsync(C,NULL,Kind==1?10:5000,&F)==XMQTT_ADMISSION_ACCEPTED && xrtFutureWaitFor(F,0)==XWAIT_TIMEOUT,"disconnect waits for prior PUBACK");
+        xfuture* Sentinel=(xfuture*)(uintptr_t)1;testRequire(xmqttClientPublishAsync(C,&Packet,5000,&Sentinel)==XMQTT_ADMISSION_CLOSED && Sentinel==(xfuture*)(uintptr_t)1 && !xrtAtomic32Load(&P.Disconnects,XMEMORY_ACQUIRE),"new admission stops before final frame");
+        if(Kind==0)mqttTestPuback(&P,(uint16)xrtAtomic32Load(&P.LastIdentifier,XMEMORY_ACQUIRE));
+        if(Kind==2)testRequire(xrtFutureCancel(F),"cancel graceful request");
+        if(Kind==3)testRequire(xmqttClientClose(C),"abort graceful request");
+        if(Kind==4){const unsigned char Bad[]={0,0};mqttTestSend(&P,Bad,sizeof(Bad));}
+        xmqttclientstatus Expected=Kind==0?XMQTT_STATUS_OK:Kind==1?XMQTT_STATUS_TIMEOUT:Kind==2?XMQTT_STATUS_CANCELLED:Kind==3?XMQTT_STATUS_CLOSED:XMQTT_STATUS_PROTOCOL;
+        testRequire(((const xmqttwriteresult*)mqttTestResult(F))->Status==Expected && ((const xmqttwriteresult*)mqttTestResult(Publish))->Status==Expected,"graceful drain or first interrupted outcome");
+        testRequire(xmqttClientWaitFor(C,5000)==XWAIT_OK,"graceful interrupted physical wait");if(Kind)testRequire(!xrtAtomic32Load(&P.Disconnects,XMEMORY_ACQUIRE),"no final frame before prior QoS1 settles");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Publish);xrtFutureDestroy(Ready);
+    }
+}
+static void testMqttGracefulAdmissionAndOom(void)
+{
+    for(unsigned Kind=0;Kind<4;++Kind){mqttTestPeer P;mqttTestStart(&P,XMQTT_VERSION_5,MQTT_TEST_GRACEFUL|(Kind==0?MQTT_TEST_HOLD:0));xmqttclientconfig K;xmqttClientConfigInit(&K);
+        if(Kind==1)K.MaxObjects=2;
+        if(Kind==2)K.MaxOutgoingBytes=1;
+        xmqttclient* C=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(C);if(Kind)(void)mqttTestResult(Ready);
+        xfuture* Out=(xfuture*)(uintptr_t)1;xmqttpacket D;xmqttPacketInit(XMQTT_PACKET_DISCONNECT,&D);xmqttproperty Expiry={XMQTT_PROPERTY_SESSION_EXPIRY,XMQTT_PROPERTY_UINT32,{0}};Expiry.Value.Number=1;
+        if(Kind==3)D.Properties=(xmqttpropertylist){&Expiry,1};
+        xmqttclientadmission A=xmqttClientDisconnectAsync(C,&D,1000,&Out);testRequire(A==(Kind==0 || Kind==3?XMQTT_ADMISSION_ERROR:XMQTT_ADMISSION_OVERLOADED) && Out==(xfuture*)(uintptr_t)1,"disconnect validation/quota rejection preserves output");
+        xrtClearError();xmqttclientinfo I;xmqttClientInfo(C,&I);testRequire(I.State<XMQTT_CLIENT_CLOSING && !I.Requests && !I.OutgoingBytes,"rejected disconnect leaves connection owned/open");mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(Ready);
+    }
+    const size_t Limits[]={1,128,256,512,1024,4096,16384};bool Failed=false,Success=false;
+    for(size_t J=0;J<sizeof(Limits)/sizeof(*Limits);++J){mqttTestPeer P;mqttTestStart(&P,XMQTT_VERSION_5,MQTT_TEST_GRACEFUL);xmqttclient* C=mqttTestConnect(&P,NULL);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);
+        xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limits[J],&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"graceful admission allocation scope");xfuture* F=(xfuture*)(uintptr_t)1;
+        xmqttclientadmission A=xmqttClientDisconnectAsync(C,NULL,5000,&F);testRequire(xrtAllocationBudgetLeave(&Scope),"graceful scope leave");
+        if(A==XMQTT_ADMISSION_ACCEPTED){Success=true;testRequire(((const xmqttwriteresult*)mqttTestResult(F))->Status==XMQTT_STATUS_OK,"graceful allocation-success control");}
+        else {Failed=true;testRequire(A==XMQTT_ADMISSION_ERROR && F==(xfuture*)(uintptr_t)1,"graceful allocation rollback output");F=NULL;xmqttclientinfo I;xmqttClientInfo(C,&I);testRequire(I.State==XMQTT_CLIENT_OPEN && !I.Requests && !I.OutgoingBytes,"graceful OOM reservation/producer rollback");xrtClearError();}
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Ready);xallocationbudgetinfo B={0};B.Size=sizeof(B);testRequire(xrtAllocationBudgetInfo(Budget,&B) && !B.LiveBytes && !B.LiveCount,"graceful OOM lifetime budget retired");xrtAllocationBudgetFree(Budget);
+    }
+    testRequire(Failed && Success,"graceful cold admission faults and success control");
+}
+typedef struct mqttCloseRace {xmqttclient* Client;} mqttCloseRace;
+static int32 mqttCloseRaceThread(ptr Data)
+{
+    mqttCloseRace* R=Data;double End=xrtTimer()+5;
+    for(;;){xmqttclientinfo I;testRequire(xmqttClientInfo(R->Client,&I),"race snapshot");
+        if(I.State==XMQTT_CLIENT_CLOSED || I.DisconnectBytes){testRequire(xmqttClientClose(R->Client),"racing explicit Close");return 0;}
+        testRequire(xrtTimer()<End,"race progress");xrtThreadYield();
+    }
+}
+static void testMqttGracefulCloseRace(void)
+{
+    for(unsigned V=4;V<=5;++V)for(unsigned J=0;J<16;++J){mqttTestPeer P;mqttTestStart(&P,(xmqttversion)V,MQTT_TEST_GRACEFUL);xmqttclient* C=mqttTestConnect(&P,NULL);xfuture* Ready=xmqttClientReady(C);(void)mqttTestResult(Ready);
+        mqttCloseRace Race={C};xthread* Thread=xrtThreadCreate(mqttCloseRaceThread,&Race,0);testRequire(Thread!=NULL,"graceful Close race thread");xfuture* F=NULL;testRequire(xmqttClientDisconnectAsync(C,NULL,5000,&F)==XMQTT_ADMISSION_ACCEPTED,"racing graceful admission");
+        const xmqttwriteresult* R=mqttTestResult(F);testRequire(xrtThreadWaitFor(Thread,5000)==XWAIT_OK,"racing Close completed");xrtThreadDestroy(Thread);testRequire(xmqttClientWaitFor(C,5000)==XWAIT_OK,"race physical retirement");xmqttclientinfo I;xmqttClientInfo(C,&I);
+        testRequire((R->Status==XMQTT_STATUS_OK || R->Status==XMQTT_STATUS_CLOSED) && R->Status==I.CloseStatus,"Future and Info share final Close linearization");
+        mqttTestClose(C);mqttTestStop(&P);xrtFutureDestroy(F);xrtFutureDestroy(Ready);
+    }
+}
 int main(void)
-{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
+{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}

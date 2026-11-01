@@ -5,7 +5,7 @@ on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
 QoS-0/1 PUBLISH send/receive, correlated publishing PUBACK results,
 server keep-alive override, PINGREQ/PINGRESP,
-abortive application Close, bounded automatic MQTT5 error DISCONNECT and physical
+application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
 This stage does **not** complete the planned client. QoS 2, subscription and
@@ -47,6 +47,62 @@ Client and Engine destruction. Already queued messages remain available after
 Close; Destroy releases any untaken queue references. Server DISCONNECT records
 its reason in Info and closes; it is not a PUBLISH queue item.
 
+`xmqttClientDisconnectAsync(Client, Packet, Timeout, &Future)` requests normal
+application shutdown after an accepted CONNACK; NULL Packet means reason 0.
+`xmqttClientDisconnect` is the blocking form and rejects every same-Engine worker.
+A caller may submit the asynchronous form from Notify. Accepted shutdown stops
+new PUBLISH/disconnect admissions immediately. It drains prior accepted PUBLISH
+frames, QoS-0 native write completion, QoS-1 PUBACK outcomes and partial control
+frames before appending the final DISCONNECT to the native queue. No MQTT packet
+follows it, and the client initiates TCP close. Queued receive messages remain
+available until Take/Destroy. It does not wait for a broker acknowledgement of
+DISCONNECT: none exists.
+
+Each prior PUBLISH keeps its own deadline, cancellation and capability outcome.
+An unsent request may expire/be rejected without making the connection unhealthy;
+shutdown can then complete normally. Inspect each PUBLISH Future: graceful OK
+does not mean all prior publishes succeeded or were delivered.
+
+The descriptor and properties are encoded/copied before return. MQTT 5 reason,
+Reason String, repeated User Properties and Session Expiry obey the existing
+codec and negotiated limits. In particular an originally zero CONNECT expiry
+cannot become nonzero at DISCONNECT, including after a CONNACK override. MQTT
+3.1.1 uses the two-byte normal packet and rejects v5 properties/nonzero reason.
+Oversized packets are rejected rather than silently stripping caller properties.
+The finite Timeout (>=0 milliseconds) starts at entry, includes validation,
+encoding, prior-request drain and native queue close, and never restarts. Zero
+is an immediately expired operation. Its explicit Future cancellation, raw-token
+sampling, explicit Close, first protocol/transport/resource error or deadline
+interrupts shutdown and aborts; it does not reopen admissions. No incomplete
+frame is followed by a diagnostic or another MQTT packet. Bytes already accepted
+into native output cannot be retracted.
+
+One shutdown uses one slot and its wire in the existing request/outgoing quotas,
+plus one typed-result box in the shared object quota. A full quota can return
+OVERLOADED while leaving the connection open; the caller may retry after work
+retires or choose abortive Close. Invalid arguments, pre-CONNACK state and peer
+limits return ERROR; outputs change only on ACCEPTED. Duplicate/closed admission
+is CLOSED and normal CLOSED/OVERLOADED preserve the ambient error. Accepted and
+Completed counters include the shutdown request and its physical reservation.
+
+Its retained `xmqttwriteresult` has Identifier=0, Puback=NULL and Reason equal to
+the requested reason. OK means the complete native write queue drained and TCP
+closed normally. Delivery remains MAY_HAVE_REACHED_PEER for any accepted prefix,
+even on OK; neither OK nor DisconnectBytes proves broker processing, delivery or
+Will suppression. NOT_SENT means no native prefix was accepted. Status/Cause
+preserve the first actual failure; a normal shutdown intent is not a failure.
+While State=CLOSING, CloseStatus=OK is provisional. The Future is the typed local
+outcome; WaitFor also observes every actual producer/native/callback tail.
+Config/user code must stay alive through Destroy and all concurrent API entries
+and wait borrowers must finish before destroying the caller owner.
+
+The protocol basis is OASIS [MQTT 5.0 section 3.14](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
+and [MQTT 3.1.1 section 3.14](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html).
+Only receipt of a normal DISCONNECT gives the server the specified Will behavior;
+reason 0x04 in MQTT 5 explicitly requests disconnection with the Will instead.
+Independent wire fixtures verify the bytes/order and client EOF; pinned broker
+Will/session interoperability remains separate required qualification.
+
 Application Close is nonblocking and **abortive**: it initiates no MQTT DISCONNECT
 and can cause the server to publish the Will. It also interrupts an automatic
 error drain; bytes already accepted by TCP cannot be retracted. CLOSED is the
@@ -81,6 +137,14 @@ config/info/ready/write/packet layouts stay 272/160/136/40/168 bytes. Mutex and
 condition initialization/destruction, terminal locking/broadcasts, and ordinary
 reference load/CAS work are real costs. These changes establish neither zero
 overhead nor steady-message throughput parity; those require measurements.
+
+Application shutdown adds one private pointer and four flags (16 bytes on tested
+Windows/WSL x64): Client sizeof is now 1144/1352, charged to MaxPrivateBytes.
+The request metadata is reused, without another runtime or per-message object.
+Each admitted shutdown still allocates its owned request/wire, Future/token and
+quota result, and uses existing Core timer/send nodes. Ordinary workloads also
+execute the added state/deadline branches; no zero-cost or throughput parity
+claim is established by the functional tests.
 
 Defaults: 128 physical requests / 4 MiB wire; 512 retained objects / 16 MiB;
 64 queued messages / 8 MiB; 4 MiB private bytes / 64 KiB startup wire;
@@ -315,3 +379,24 @@ Run modular fault/lifetime tests:
 ```
 python tools/build.py --compiler gcc --manifest extlibs/xmqtt/config/modules.json --suite xmqtt_tests --test test_client --no-single --no-examples --cflag=-O2
 ```
+
+
+The same offline command runs `examples/graceful/main.c`, which sends a QoS-1
+message, observes its PUBACK, requests a normal DISCONNECT, verifies the peer's
+final bytes/EOF and releases all Client/Stream/Listener/Engine owners. The typed
+shutdown result remains valid after Client and Engine destruction.
+
+
+To reproduce the independent graceful wire cases with a single implementation
+(Windows GCC; replace `-lws2_32` by `-lm -pthread` on Linux):
+
+```text
+python -c "from pathlib import Path; Path('out').mkdir(exist_ok=True)"
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/graceful_single_probe.c -lws2_32 -o out/graceful_probe.exe
+python extlibs/xmqtt/tests/interop/run_graceful_wire.py --probe out/graceful_probe.exe --report out/graceful-wire.json
+```
+
+The fixture binds only an ephemeral loopback port, starts one client per case,
+checks exact final frames and EOF, joins its threads and closes every socket.
+The successful report has `complete=true`; stdout lists the passing cases.
+The generated executable/report under `out/` may be removed after inspection.

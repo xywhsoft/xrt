@@ -9,7 +9,7 @@ and client per-packet capabilities; its [contracts](negotiation.md) distinguish
 those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
 QoS-0/1 send/receive, ordered PUBACK flow, bounded automatic MQTT5 error
-DISCONNECT and physical shutdown. Normal graceful application DISCONNECT is pending.
+DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
 QoS 2, session/auth/alias/expiry/
 subscription state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
@@ -86,3 +86,17 @@ a server override. Output/source/config aliases, wrapped spans, unchanged output
 10,000 allocation/error-identity cycles, one-byte budgets and typed semantic
 errors under diagnostic OOM are covered. It provides no flow-credit/alias map,
 authentication sequence, session store, transport or broker interoperability.
+
+
+## Application graceful DISCONNECT
+
+The client exposes asynchronous and blocking shutdown with preencoded immutable
+reason/properties, shared request/wire/object quotas, one drain/native deadline,
+explicit cancellation and abortive Close interruption. The worker finishes prior
+QoS-0 writes, QoS-1 PUBACK obligations and partial data/control frames first;
+normal native close is distinct from any broker acknowledgement. Modular/single
+fault suites and the separate stdlib peer verify reasons/expiry/caps, input
+snapshot lifetime, final-frame order, fragmented ACK/data/disconnect, peer EOF,
+first protocol failure, timeout/cancel/abort, admission OOM and retained results.
+The developing session/store/QoS2 scope and pinned broker/production/performance
+qualification remain required; this row does not establish those capabilities.

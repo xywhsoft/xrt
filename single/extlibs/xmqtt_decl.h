@@ -3255,8 +3255,8 @@ typedef struct xmqttclientinfo {
     size_t Size;xmqttclientstate State;xmqttclientstatus CloseStatus;uint8 ServerReason;
     bool Ready;size_t Requests,OutgoingBytes,Messages,MessageBytes,Objects,ObjectBytes,PrivateBytes,StartupBytes;
     uint64 Accepted,Rejected,Completed,Received,ProtocolErrors,Pings,Pongs;
-    /* Intended MQTT5 error reason and bytes accepted into native output (0..3).
-     * Neither proves peer receipt. Timeout preserves the original CloseStatus. */
+    /* Outgoing reason and bytes accepted into native output (0..3 for diagnostics).
+     * Neither proves peer receipt. Diagnostic timeout preserves the original error. */
     uint8 LocalReason;bool DrainTimedOut,DrainStarted;size_t DisconnectBytes;
 } xmqttclientinfo;
 XRT_EXTERN_C_BEGIN
@@ -3278,7 +3278,7 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * lazily charged to private bytes, and never interleave a partial outgoing frame.
  * Enhanced auth and positive receive alias capacity are explicitly unsupported;
  * QoS 2, subscriptions, reconnect,
- * durable sessions and graceful DISCONNECT remain separate pending work.
+ * durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap.
  * After accepted MQTT5 negotiation, protocol failures attempt a final minimal
@@ -3306,6 +3306,25 @@ XMQTT_API xmqttclientadmission xmqttClientPublishAsync(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Same operation/deadline; rejects ANY worker of the same Engine. */
 XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Stop new admissions after accepted CONNACK, drain all accepted publishes and
+ * their QoS1 PUBACKs plus partial control frames, then send this final DISCONNECT
+ * and gracefully close TCP. NULL Packet selects normal reason 0. Version 311
+ * forbids properties/nonzero reason. Negotiated packet/expiry limits apply.
+ * Snapshot/encode before return; one request and its wire use the existing
+ * request/outgoing/object quotas. OVERLOADED/CLOSED leave Future/error unchanged.
+ * Timeout is finite >=0 ms from entry, covering admission, drain and native close;
+ * 0 expires immediately. Cancellation/Close/errors abort without reopening.
+ * ACCEPTED returns a typed xmqttwriteresult Future: OK means the native queue
+ * drained and TCP closed normally, NOT a broker ACK/Will-suppression guarantee.
+ * AcceptedBytes and MAY_HAVE_REACHED_PEER are uncertain even on OK; Reason is
+ * the requested reason, Identifier=0 and Puback=NULL. Failure preserves first
+ * error and any accepted prefix. The result may outlive Client/Engine. WaitFor
+ * additionally observes all actual references. Counters include this request. */
+XMQTT_API xmqttclientadmission xmqttClientDisconnectAsync(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Same operation/deadline; blocking wrapper rejects every same-Engine worker. */
+XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Transfer one queued message reference, false/unchanged on empty. Overfull
  * receive/object budgets close rather than silently dropping a packet. Already

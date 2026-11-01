@@ -5726,3 +5726,115 @@ original artifacts are retained, and all new commands/hashes are under
 `out/service-extensions/xmqtt-retirement-zero/`. No performance rerun was selected
 and neither noise failure nor pending full/native qualification is waived.
 The complete four-library objective remains active and incomplete.
+
+
+## 2026-11-02 — bounded application MQTT DISCONNECT
+
+Implemented `xmqttClientDisconnectAsync` and its off-worker blocking counterpart
+for MQTT 5.0 and 3.1.1. After accepted CONNACK, admission atomically stops new
+requests only after its encoded snapshot, quota result, Future/producer token
+and worker wake are committed. A NULL packet means normal reason zero. One
+operation reserves one existing request slot and its wire/object budgets; quota,
+validation, peer-cap/expiry and OOM failure leave the caller output unchanged and
+do not turn an open connection into a closing one. Duplicate/closed admission
+and ordinary overload preserve ambient error. The request metadata and typed
+write result are reused; there is no new runtime, thread, operation dispatch or
+public structure layout change.
+
+The sole protocol owner keeps draining prior accepted PUBLISH outcomes, partial
+PUBLISH/PING/receiver-PUBACK frames and QoS1 acknowledgements before sending the
+final DISCONNECT. Each earlier request retains its own typed outcome/deadline;
+unsent expiry/restriction need not make a healthy connection fail. The shutdown
+has one finite API-entry deadline through encoding, all drain work and native
+queue close. Zero is explicitly expired, independently of timer precision.
+Explicit Future cancellation wakes the owner; raw token requests are sampled on
+progress/deadline. Cancellation, abortive Close or the first connection/resource
+failure interrupts the operation without reopening admission or appending an
+additional packet after a partial frame. Once final output starts, keep-alive
+processing stops. Existing timer/send nodes and actual producer/native leases
+remain real obligations through physical retirement.
+
+A successful result means normal native drain/close, not a broker acknowledgement,
+Will guarantee or proof that every preceding PUBLISH succeeded. The Future keeps
+AcceptedBytes, requested Reason, first Status/Cause, Identifier=0 and Puback=NULL;
+any accepted prefix remains MAY_HAVE_REACHED_PEER even on OK. Retained results
+outlive Client and Engine. Wait additionally observes all actual reference tails.
+The final Status snapshot and CLOSED publication share the admission gate, so a
+racing explicit Close cannot produce mismatched Future and Info outcomes.
+Application callbacks can request asynchronous shutdown; blocking helpers reject
+all workers of the same Engine.
+
+The independent protocol basis is OASIS MQTT 5.0 sections 3.14/3.14.2.2.2 and
+MQTT 3.1.1 section 3.14, linked in the client documentation. The wire peer checks
+normal/0x04 final bytes, reason/user-property snapshot lifetime, original CONNECT
+expiry constraints, exact peer packet caps, ordering and client-initiated EOF.
+The 0x04 fixture verifies the requested wire reason, not actual broker Will
+publication. Pinned broker Will/session interoperability remains required.
+
+### Final verification
+
+Windows O2 and WSL O2 ASan/UBSan pass seven modular plus seven selected single
+programs each. Added normal/byte-at-a-time shutdown, held QoS1 ACK drain,
+per-request drain timeout, cancellation, explicit abort, first protocol error,
+pre-CONNACK and quota rejection, allocation-budget rollback/success/lifetimes,
+retained outcome and 32 explicit-Close completion races. The race requires the
+Future Status and final Info CloseStatus to agree, allowing either legal winner.
+
+Independent stdlib socket peers pass 1070 cases: the existing (31 basic + 37
+sender QoS1 + 30 receiver QoS1 + 23 diagnostics) in modular/static/shared on both
+platforms, plus 43 application-shutdown cases in modular/single/static/shared on
+both. New cases include zero expiry, fragmented receiver ACK, partial prior
+PUBLISH, immutable properties, peer size/expiry constraints, held-ACK drain,
+quota/admission, duplicate shutdown, partial final-frame abort/timeout, immediate
+and posted reentrant Close, slow reader and final EOF with no further packets.
+A before-CONNACK local abort may legitimately cancel TCP before peer accept;
+the fixture permits only that absent-connection case, not an accepted socket leak.
+
+The initial receive-ACK fixture incorrectly classified every `_ack` name as an
+outgoing QoS1 test and added an unintended PUBLISH. Both platform failures and
+the previous driver are retained under `before-case-classification-fix/`;
+explicit case classification fixes the fixture without dropping the ACK case.
+A successful earlier candidate is preserved under `before-explicit-zero/`.
+Zero-deadline and final-status publication were then tightened, followed by the
+final complete matrix; no stale earlier artifacts support this final stage.
+
+Minimal/full static/shared package consumers pass on both platforms (eight).
+The original healthy echo/error examples and the new offline graceful example
+run on both (six executions). The new example checks QoS1 PUBACK, final normal
+DISCONNECT, peer EOF, physical Stream/Client/Listener/Engine cleanup and a retained
+result. Both new entry points compile through declaration-only single headers.
+Trim/feature/amalgamation/reference/layout/prefix checks pass, and the existing
+build/package/API-reference/performance-tool subset reports 78 tests, OK. The
+prior Core TCP assertion/size-gate and global xhttp failures remain unresolved;
+no fully green global suite is claimed. WSL is development evidence, not native
+Linux production qualification.
+
+Client private sizeof grows 1128 -> 1144 on Windows and 1336 -> 1352 on WSL
+(+16 bytes), charged to MaxPrivateBytes. The request metadata is unchanged; one
+accepted shutdown allocates its owned request/wire, result/Future/token and uses
+existing native nodes. Snapshot validation/encoding, quota/producer bookkeeping,
+additional state/deadline branches and timer/send work are real costs. Public
+config/info/ready/write/packet/codec/property remain 272/160/136/40/168/56/40 bytes.
+No zero-overhead or steady-message throughput parity is inferred.
+
+| Platform | Single object bytes | Extension static bytes | Extension shared bytes |
+| --- | --- | --- | --- |
+| Windows | 578976 | 124314 | 151120 |
+| WSL | 741344 | 161966 | 119080 |
+
+Single objects contain Core; extension static/shared outputs require separate
+Core files whose sizes/hashes remain in receipts. Post-size consumer relink and
+all final packaged wire runs use the final artifacts. Exact commands, inputs,
+binaries and per-case outputs are indexed by
+`out/service-extensions/xmqtt-graceful/validation.json`. Reproducible single wire
+and offline example commands are in `extlibs/xmqtt/docs/client.md`.
+
+There is no fresh performance acceptance for this new operation. Existing noise
+failures are not relaxed or replaced by functional counts. Dedicated graceful
+shutdown load/CPU measurements, complete hot/cold allocation/copy/synchronization/
+syscall accounting, pinned throughput/P99 comparisons and native Windows/native
+Linux >=72h runs remain. MQTT QoS2/subscriptions/shared outgoing ids/session/
+expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated,
+remaining RPC client/server security/recovery/transports/deferred and Cron
+IANA/scheduler/durability remain required. No primary-checkout merge or push
+occurred. The complete four-library objective remains active and incomplete.
