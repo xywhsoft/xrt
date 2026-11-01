@@ -368,16 +368,39 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		/* A successful CAS above two cannot publish the final caller-only state.
+		 * It therefore needs no wait lock or notification. Serialize 2->1 and
+		 * 1->0 through the same lock as waiters: no lost wake or freed notifier
+		 * tail may follow publication of retirement. No access follows fast CAS. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Observed = __xrtAtomicRefCompareExchange(&pStream->References,Count-1,Count);
+				if (Observed == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Observed;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		pStream->EventOwner || pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail ||
 		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 &&
+			!xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
 	}
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		__xrtSpinUnit(&pStream->WaitLock);
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
 	#endif
 	xrtErrorFree(pStream->Error);
 	__xrtNetStreamReleaseEngine(pStream);
@@ -2532,6 +2555,14 @@ static xnetstream* __xrtNetStreamCreate(
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {
+			xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+		if (!xrtCondInit(&pStream->RetirementReady)) {
+			xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+	#endif
 	pStream->References = 2;
 	xrtAtomic32Init(&pStream->EventDropPending, 0);
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);

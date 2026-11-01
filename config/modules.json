@@ -9443,6 +9443,35 @@
 			]
 		},
 		{
+			"name": "net_tcp_retire",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_TCP_RETIRE",
+			"depends": [
+				"net_tcp",
+				"cond"
+			],
+			"public_headers": [
+				"include/xrt/tcp.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_tcp.h"
+			],
+			"sources": [
+				"src/network/tcp_retire.c"
+			],
+			"tests": [
+				"tests/network/test_net_tcp_retire.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_net_tcp_retire.c"
+			],
+			"examples": [],
+			"benchmarks": [],
+			"docs": [
+				"docs/api/tcp.md"
+			]
+		},
+		{
 			"name": "net_tcp_file",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_TCP_FILE",

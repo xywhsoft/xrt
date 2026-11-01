@@ -242,6 +242,10 @@ struct xnetstream {
 		bool WaitClosed;
 		bool ReadPush;
 	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
+	#endif
 };
 
 

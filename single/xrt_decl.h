@@ -653,6 +653,9 @@
 #if !defined(XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE 1
 #endif
+#if !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE 1
+#endif
 #if !defined(XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER 1
 #endif
@@ -1831,6 +1834,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE 1
+#endif
+#if !defined(XRT_MODULE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
 #endif
 #if !defined(XRT_MODULE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SERVER 1
@@ -3910,6 +3916,19 @@
 #endif
 #ifndef XRT_MODULE_FILE
 #define XRT_MODULE_FILE
+#endif
+#endif
+
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 
@@ -27612,6 +27631,11 @@ XRT_EXTERN_C_END
 	#error "XRT TCP support requires network engine support"
 #endif
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND))
+	#error "XRT TCP retirement waiting requires TCP and condition variables"
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FILE))
 	#error "XRT TCP file support requires TCP and file support"
@@ -28048,6 +28072,17 @@ XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream);
 
 /* 释放 Stream 引用；空指针视为空操作。 */
 XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Wait for CLOSED and exactly the caller's one remaining strong Stream reference.
+ * Unlike WAIT_CLOSE this includes native/control/send/owned-event callback tails.
+ * Does not request close, retain the Stream or consume the caller owner. Keep that
+ * owner alive through all concurrent waits; stop other API/ref entries before
+ * treating success as final retirement or destroying it. Extra caller aliases
+ * also keep the result pending. Any worker of the same Engine is rejected.
+ * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+#endif
 
 
 
@@ -47866,6 +47901,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#undef XRT_FEATURE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #undef XRT_FEATURE_NET_TCP_SERVER
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER
@@ -49437,6 +49476,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE)
 #undef XRT_MODULE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE)
+#undef XRT_MODULE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SERVER)
 #undef XRT_MODULE_NET_TCP_SERVER
@@ -51700,6 +51743,19 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_FILE
 #define XRT_MODULE_FILE
+#endif
+#endif
+
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
 #endif
 #endif
 

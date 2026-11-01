@@ -8,6 +8,11 @@
 
 #if defined(XRT_FEATURE_NET_ENGINE)
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Current thread only; never dereferences a possibly retired Engine address. */
+xnetworker* __xrtNetEngineCurrentThread(void);
+#endif
+
 #define XRT_NET_ENGINE_NODE_CLASS_COUNT 5u
 #define XRT_NET_ENGINE_NODE_SIZE_MAX 1024u
 

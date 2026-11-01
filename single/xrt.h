@@ -1569,6 +1569,19 @@
 #endif
 #endif
 
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
 /* net_tcp_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_FUTURE)
 #ifndef XRT_FEATURE_NET_TCP_FUTURE
@@ -25268,6 +25281,11 @@ XRT_EXTERN_C_END
 	#error "XRT TCP support requires network engine support"
 #endif
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND))
+	#error "XRT TCP retirement waiting requires TCP and condition variables"
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FILE))
 	#error "XRT TCP file support requires TCP and file support"
@@ -25704,6 +25722,17 @@ XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream);
 
 /* 释放 Stream 引用；空指针视为空操作。 */
 XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Wait for CLOSED and exactly the caller's one remaining strong Stream reference.
+ * Unlike WAIT_CLOSE this includes native/control/send/owned-event callback tails.
+ * Does not request close, retain the Stream or consume the caller owner. Keep that
+ * owner alive through all concurrent waits; stop other API/ref entries before
+ * treating success as final retirement or destroying it. Extra caller aliases
+ * also keep the result pending. Any worker of the same Engine is rejected.
+ * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+#endif
 
 
 
@@ -44821,6 +44850,12 @@ XRT_EXTERN_C_END
 #endif
 
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Borrow only from the current native XRT thread after exact entry identity.
+ * Proc/Data are immutable throughout that thread body and its exit cleanup. */
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc);
+#endif
+
 /* A private body preserves its existing early-return/error contract while one
  * outer scope covers the COMPLETE edge/count transition, before any object
  * lock and through callback/rollback tails. The failure value is explicit:
@@ -47999,6 +48034,11 @@ static void __xrtNetIOCPTimerUnit(__xrt_net_iocp_timer* pTimer)
 
 
 #if defined(XRT_FEATURE_NET_ENGINE)
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Current thread only; never dereferences a possibly retired Engine address. */
+xnetworker* __xrtNetEngineCurrentThread(void);
+#endif
 
 #define XRT_NET_ENGINE_NODE_CLASS_COUNT 5u
 #define XRT_NET_ENGINE_NODE_SIZE_MAX 1024u
@@ -52965,6 +53005,7 @@ enum
 #if defined(XRT_FEATURE_NET_TCP) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	defined(XRT_FEATURE_NET_PROXY_DIAL) || \
+	defined(XRT_FEATURE_NET_TCP_RETIRE) || \
 	defined(XRT_FEATURE_NET_TCP_FILE)
 #ifndef XRT_INTERNAL_TCP_H
 #define XRT_INTERNAL_TCP_H
@@ -53207,6 +53248,10 @@ struct xnetstream {
 		bool WaitPosted;
 		bool WaitClosed;
 		bool ReadPush;
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
 	#endif
 };
 
@@ -81711,6 +81756,14 @@ XRT_API xthread* xrtThreadCurrent(void)
 	return __xrtThreadCurrentGet();
 }
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc)
+{
+	xthread* Thread=__xrtThreadCurrentGet();
+	return Thread && Thread->Proc==Proc ? Thread->Data : NULL;
+}
+#endif
+
 
 
 /* 主动让出当前线程的处理器时间片。 */
@@ -88328,6 +88381,13 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 	 * publish that state until this exit callback AND XRT TLS cleanup return. */
 	return Result;
 }
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+xnetworker* __xrtNetEngineCurrentThread(void)
+{
+	return __xrtThreadCurrentDataFor(__xrtNetEngineWorkerMain);
+}
+#endif
 
 /* 释放尚未进入 Worker 的命令；正常停止时队列已经排空。 */
 static void __xrtNetEngineCommandDiscard(ptr pItem, ptr pData)
@@ -160990,16 +161050,39 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		/* A successful CAS above two cannot publish the final caller-only state.
+		 * It therefore needs no wait lock or notification. Serialize 2->1 and
+		 * 1->0 through the same lock as waiters: no lost wake or freed notifier
+		 * tail may follow publication of retirement. No access follows fast CAS. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Observed = __xrtAtomicRefCompareExchange(&pStream->References,Count-1,Count);
+				if (Observed == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Observed;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		pStream->EventOwner || pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail ||
 		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 &&
+			!xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
 	}
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		__xrtSpinUnit(&pStream->WaitLock);
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
 	#endif
 	xrtErrorFree(pStream->Error);
 	__xrtNetStreamReleaseEngine(pStream);
@@ -163154,6 +163237,14 @@ static xnetstream* __xrtNetStreamCreate(
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {
+			xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+		if (!xrtCondInit(&pStream->RetirementReady)) {
+			xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+	#endif
 	pStream->References = 2;
 	xrtAtomic32Init(&pStream->EventDropPending, 0);
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
@@ -261437,6 +261528,45 @@ bool __xrtNetListenerWaitOwnershipWalk(const xnetlistener* pListener, xrtownersh
 	return pTail == pListener->WaitTail && iCount == xrtAtomic32Load(&pListener->AcceptWaiters, XMEMORY_ACQUIRE);
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/network/tcp_retire.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+#if !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND)
+#error "TCP retirement waiting requires TCP and condition variables"
+#endif
+
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* Stream,int64 Timeout)
+{
+    if (!Stream || Timeout<XRT_WAIT_FOREVER) {
+        __xrtErrorSetInvalidArgument();return XWAIT_ERROR;
+    }
+    /* Inspect only this live thread's certified worker context. A Stream can
+     * outlive its Engine, including while real caller aliases remain. */
+    xnetworker* Current=__xrtNetEngineCurrentThread();
+    if (Current && Current->Engine==Stream->Engine) {
+        __xrtErrorSetInvalidState();return XWAIT_ERROR;
+    }
+    double Deadline=__xrtWaitAfter(Timeout);if(!__xrtWaitValid(Deadline))return XWAIT_ERROR;
+    if(!xrtMutexLock(&Stream->RetirementLock))return XWAIT_ERROR;
+    xwaitresult Result=XWAIT_OK;
+    while(xrtNetStreamState(Stream)!=XNET_STREAM_CLOSED || __xrtAtomicRefLoad(&Stream->References)!=1) {
+        if(__xrtWaitExpired(Deadline)){Result=XWAIT_TIMEOUT;break;}
+        Result=xrtCondWaitFor(&Stream->RetirementReady,&Stream->RetirementLock,__xrtWaitRemaining(Deadline));
+        if(Result!=XWAIT_OK && Result!=XWAIT_TIMEOUT)break;
+        /* Recheck even after a timeout/spurious wake under the predicate lock. */
+    }
+    if(Result!=XWAIT_ERROR && xrtNetStreamState(Stream)==XNET_STREAM_CLOSED && __xrtAtomicRefLoad(&Stream->References)==1)Result=XWAIT_OK;
+    if(!xrtMutexUnlock(&Stream->RetirementLock))return XWAIT_ERROR;
+    return Result;
+}
 #endif
 #endif
 

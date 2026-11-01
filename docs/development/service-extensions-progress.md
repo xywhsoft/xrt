@@ -5503,3 +5503,94 @@ remain. Pinned comparators, complete hot/cold CPU/synchronization/syscall costs,
 performance acceptance and native Windows/native Linux >=72h qualification are
 still required. No primary-checkout merge, push or production-complete claim was
 made. The complete four-product objective remains active and incomplete.
+
+
+## 2026-11-02 — prototype-proven physical TCP retirement wait
+
+The fc35b100 close-cycle observation (~16ms Windows P99 through physical Client
+Wait) is a real pending performance cost, not an accepted production baseline.
+Before changing Core, a real owned TCP connection deliberately held its actual
+Drop callback. Both native Windows and WSL observed CLOSED while the owned Drop
+was still pending with two real context references. Ten ordinary Sleep(1) calls
+averaged about 14,432us on Windows and 1,073us on WSL in this prototype. Existing
+logical close waits cannot replace actual retirement. Source, commands, object
+hashes and outputs are retained in `out/service-extensions/xmqtt-physical-wait/`;
+exact fc35b100 inputs, measurement reports and executable copies are preserved.
+
+Implemented the opt-in Core `net_tcp_retire` module with one public operation,
+`xrtNetStreamWaitRetired`. It waits for CLOSED and exactly the caller's one real
+Stream reference. Aliases remain real; native/control/send/owned-callback tails
+must physically drop their credits. It neither closes nor consumes/retains the
+caller owner. Waiters share a caller-pinned owner and any same-Engine Worker is
+rejected. It uses existing condition variables with one monotonic deadline, no
+wait-node allocation, polling, graph freeze or new shared runtime.
+
+The module adds embedded synchronization only when selected. Release CAS above
+two keeps the ordinary >2 -> >=2 path out of the wait lock. The 2->1 publication
+and 1->0 destruction share the predicate lock, preventing lost wakeups and a freed
+notification tail. Embedded bytes and terminal synchronization are real costs;
+no zero-overhead or accepted throughput claim is made. This Core stage does not
+yet change MQTT Wait/Destroy or claim that its measured latency has improved.
+
+### Validation and known pre-existing failures
+
+Windows O2 and WSL O2 ASan/UBSan passed 18 modular programs each across
+`net_tcp,net_tcp_future,net_tcp_retire,net_tcp_ownership_tests`, excluding exactly
+two separately reproduced baseline failures below. Three selected single-header
+programs ran on each platform: retirement, graph ownership and owned Stream
+events. Minimal static/shared package verification and the actual retirement
+test linked against each delivered library passed on both platforms (four
+ordinary package consumers plus four packaged retirement executions). The new
+retirement test runs one deliberately held Drop and 32 wake races per executable;
+its 33 cases ran in modular, single, static and shared forms on both platforms.
+It verifies real aliases, two concurrent borrowers of a stable caller owner,
+zero/finite deadlines, same-Engine Worker rejection, allocation-free ready waits
+and an inert Stream retained after Engine destruction.
+
+An early ASan run caught a real use-after-free in the initial implementation:
+`xrtNetEngineCurrent` scans the supplied Engine, which can already be destroyed
+while a caller keeps the inert Stream. The final implementation obtains the
+current live native XRT thread's data only after matching its immutable entry
+procedure to the existing Engine Worker procedure. It compares that live context
+without dereferencing the old Engine. This uses existing thread context, no new
+TLS slot or public thread API. The regression includes a real alias retained
+AFTER Engine destruction; it times out until that alias physically drops.
+
+Dependency trimming now rejects both missing direct dependencies (`net_tcp` and
+`cond`) in the PUBLIC header. Declaration-only single headers compile with strict
+C11 warnings on both platforms. Generated features, amalgamation and network API
+reference checks pass. The Python build/package/API-reference/performance-tool
+subset reports 78 tests, OK. The generated network reference was stale at the
+baseline: refreshing it reconciles 125 previously missing function entries plus
+the one new operation (390 -> 516), and existing constants/types (284 -> 288,
+128 -> 141). These regenerated entries are not newly implemented runtime scope.
+
+The expanded regression run exposed two pre-existing failures. Both reproduce
+with `net_tcp_retire` NOT selected on Windows and WSL, and their exact commands,
+nonzero exits and logs are retained separately:
+
+- `test_net_tcp.c` still expects a heap-backed off-Worker SendBuffer to fail. The
+  existing public contract and unchanged send path explicitly permit that case.
+- `test_net_tcp_invalid.c` retains a 576-byte base Stream size gate; the actual
+  baseline Stream is already 704 bytes on both tested x64 platforms.
+
+Those two programs were explicitly excluded from the 18-program run above;
+neither a fully green Core suite nor their repair is claimed. The Stream storage
+probe records base/retirement/future/future+retirement sizes of 704/744/760/800 on
+Windows and 704/880/760/936 on WSL. Embedded synchronization thus adds 40 and 176
+bytes respectively; placing it last avoids extra padding. The public structure
+layouts are unchanged. The opt-in release path adds terminal locking/broadcasts,
+constructor initialization and final primitive cleanup; no performance parity
+or zero overhead is established. TinyCC and native Linux remain unverified.
+
+Immutable input/artifact hashes, compiler commands, individual logs and the
+separate baseline failures are indexed by
+`out/service-extensions/xmqtt-physical-wait/validation.json`. All comparisons use
+the same source inputs; the earlier fc35b100 MQTT performance data are preserved
+as a separate baseline. MQTT runtime adoption and new message/close measurements
+are deliberately absent from this Core-only stage.
+
+The full xredis/xrpc/xmqtt/xcron scope, MQTT caller integration and performance
+comparison, pinned comparators and native Windows/Linux >=72h qualification
+remain required. WSL is not native Linux qualification. No primary-checkout merge
+or push occurred, and the goal remains active and incomplete.
