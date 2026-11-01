@@ -46,7 +46,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [xredis, xcron, xrpc, xmqtt]
+        include:
+          - product: xredis
+            examples: xredis_examples
+          - product: xcron
+            examples: xcron
+          - product: xrpc
+            examples: xrpc
+          - product: xmqtt
+            examples: xmqtt
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -70,7 +78,7 @@ jobs:
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
       - name: Address and undefined behavior sanitizers
         run: >-
@@ -118,7 +126,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        product: [xredis, xcron, xrpc, xmqtt]
+        include:
+          - product: xredis
+            examples: xredis_examples
+          - product: xcron
+            examples: xcron
+          - product: xrpc
+            examples: xrpc
+          - product: xmqtt
+            examples: xmqtt
     defaults:
       run:
         shell: msys2 {0}
@@ -151,7 +167,7 @@ jobs:
       - name: Modules, single header, example and trimming
         run: |
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
-          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
           python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
       - name: Check isolated MQTT 3.1.1 size closure
         if: matrix.product == 'xmqtt'

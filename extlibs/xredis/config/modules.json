@@ -392,6 +392,14 @@
       "examples": ["extlibs/xredis/examples/tls_auth/main.c"], "benchmarks": [], "docs": []
     },
     {
+      "name": "xredis_examples", "state": "implemented", "feature": null,
+      "depends": ["xredis", "xredis_tls_auth_examples"],
+      "collect_dependency_assets": ["examples"],
+      "public_headers": [], "internal_headers": [], "sources": [],
+      "tests": [], "single_tests": [], "examples": [], "benchmarks": [],
+      "docs": ["extlibs/xredis/README.md"]
+    },
+    {
       "name": "xredis_tls_auth_tests", "state": "implemented", "feature": null,
       "depends": ["xredis_tls_auth", "xredis_tls_tests"],
       "public_headers": [], "internal_headers": [], "sources": [],

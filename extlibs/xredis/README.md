@@ -151,6 +151,7 @@ production/performance acceptance.
 
 ```sh
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_tests
+python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis_examples --no-single
 python tools/build.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --trim-only
 python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind static --verify
 python tools/package.py --compiler gcc --manifest extlibs/xredis/config/modules.json --suite xredis --kind shared --verify
@@ -158,6 +159,13 @@ python tools/check_release_maturity.py --manifest extlibs/xredis/config/modules.
 python tools/amalgamate.py --manifest extlibs/xredis/config/modules.json --check
 python tools/measure_performance.py --config extlibs/xredis/config/performance_profiles.json --smoke
 ```
+
+`xredis_examples` builds and runs every registered example, including the
+certificate-file TLS-auth example and its optional RSA identity dependency.
+The `xredis` library selection keeps its existing dependency closure. TLS and
+TLS-auth examples print usage without arguments; exercise their live PONG path
+with the documented disposable Redis/CA/client-certificate prerequisites in
+[TLS auth](docs/tls-auth.md). Passwords come from a runtime environment variable.
 
 Normal maturity audits may pass for the currently registered assets; `--release`
 must fail while the overall product is developing. Performance smoke verifies

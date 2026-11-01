@@ -5044,3 +5044,59 @@ metadata/security/recovery/transport/deferred scope, Cron IANA/scheduler/durable
 scope and primary-checkout integration remain required. The development worktree
 is still isolated; D:/GIT/xrt master was verified clean at 93347eb5. No merge,
 push or production-complete claim is made. The full objective stays active.
+
+
+## 2026-11-02 — complete Redis example selection without library expansion
+
+Added the `xredis_examples` asset aggregate. It selects `xredis` plus the
+existing certificate-file/RSA helper, so the documented all-example command
+actually builds all 14 example entry points. Ordinary `xredis` selection keeps
+its original library closure. Both service-extension workflow matrices now
+carry an explicit example suite, selecting the new aggregate for Redis and
+retaining the other products' example roots. No runtime C/H, public API, type
+layout, algorithm default or library implementation changed.
+
+The existing all-example regression still requires exact coverage of every
+`examples/**/main.c` on Windows and Linux; it now uses the documented aggregate.
+A separate regression verifies the aggregate is exactly the union of library
+and example-helper source closures, and that the normal library does not
+select TLS_IDENTITY_RSA. Prior/current comparison against b460ad0b confirms
+identical source, test, example, feature, link and include/header-root lists
+for the ordinary library on both platforms: 149 source units. The dedicated
+example aggregate has 154 units and all 14 main programs. Generated headers
+and API reference are unchanged/current; no package/runtime or performance
+change is inferred from this metadata fix.
+
+Actual evidence: `out/service-extensions/xredis-example-selection/`.
+
+- Seven aggregate asset regression tests passed. The broader build/package/API
+  reference subset reports 65 tests, OK. YAML parsing verifies both workflow
+  matrices select the documented suites; no remote workflow run is claimed.
+- All 14 actual examples compiled and ran on Windows GCC -O2 and WSL GCC -O2
+  (28 program executions). Online TLS examples deliberately print prerequisites
+  with no arguments; their usage exits are not live network acceptance.
+- Fresh source-bound native Windows and WSL drivers then connected to disposable
+  real Redis TLS peers. In each mode, RSA client-certificate authentication was
+  verified for TLS 1.2 and TLS 1.3. The **new aggregate's actual TLS-auth example
+  binary** was also invoked with real ephemeral CA/chain/key files for both
+  versions, asserting trusted-server/client proof, Redis initialization, PONG
+  and complete cleanup: four client-driver and four live-example executions.
+  Windows binaries used a WSL Redis peer and native Windows health checks;
+  WSL results do not satisfy native Linux production qualification.
+- Exact client build receipts and peer/server/compiler hashes are retained in
+  `windows-client-build.json`, `wsl-client-build.json`, `windows-live.json` and
+  `wsl-live.json`; `selection.json` records prior/current closure equality.
+  Aggregate build logs bind the actual 14 example names and execution exits.
+- Full tool rerun now reports `Ran 77 tests; failures=1, errors=1`. The Redis
+  Windows/Linux example-selection subtest failures are repaired. The remaining
+  xhttp integration-registration and public-ABI fixture defects are the already
+  reproduced b460ad0b predecessor/c16a44c2 baseline failures, not a green global
+  repository gate. Their remediation/integration remains outstanding.
+
+No public Core change, new shared runtime, performance threshold change,
+production acceptance, push or primary-checkout merge occurred. Full Redis
+HA/tracking/dedicated scope, RPC remaining client/server transports/security/
+recovery, MQTT QoS1/2/subscriptions/session/alias/auth/recovery/store/transports,
+Cron IANA/scheduler/durable scope, runtime throughput/P99 comparisons and native
+Windows/Linux >=72h qualification remain. The four-product goal stays active;
+the next implementation work is the real MQTT QoS state chain.
