@@ -1233,3 +1233,46 @@ acme-dns-budget-package-windows-shared-oom-retry.{json,log}、
 acme-dns-budget-checks.json、acme-dns-budget-final-input-audit.json、
 ci-3595-xsmtp-extension-failed.log、smtp-3595-{gcc-gdb,clang-asan}.json 及原日志、
 smtp-upgrade-stack-before{,-provenance}.json、smtp-upgrade-stack-before.log。
+
+
+### 第 36 批：邮件 TLS 测试助手退休栈任务后返回
+
+- xmail/xsmtp/xpop3/ximap 的 TLS Upgrade 助手把 Upgrade 和 Stream 栈对象借给
+  Worker。在 Promise Resolve/Reject/Close 发布终态后，Worker 仍读取 Upgrade.Promise
+  并销毁 Promise；旧等待线程却可能已经走失败返回，或因超时返回。终态可见并不证明
+  producer 任务已经退休，不能据此释放借用栈帧。四份相关助手段落的原始内容相同。
+- 用真实 Core TCP listener/connect/accept、Engine Post、Promise/Future 和 TLS
+  constructor 创建缺少 context/identity 的实际拒绝：发布拒绝后门控 Worker，
+  确认等待线程已经观察到 Future 终态，再检查调用线程仍不得返回。最终同一回归配
+  655bdbae 旧助手源码明确失败，打印 Worker 仍借用栈任务；未伪造 Future 状态或
+  以进程析构掩盖安全性。旧源码对照只调整 include 路径，Core/夹具仍为真实实现。
+- 四份助手增加独立 release/acquire 完成标志。Worker 销毁 Promise、结束所有任务
+  字段访问后发布完成；等待线程在任何返回分支前确认完成，再检查 Future 和 TLS。
+  原截止时间内未退休则直接使测试失败，不能携未退休栈任务返回；未延长原预算。
+  放行门控后核对调用线程成功退休、引擎销毁、零存活分配及零 invalid/double free。
+- 共用门控回归分别挂入四库的测试 manifest。原 7 个实际使用该助手的 TLS 故障/
+  升级/压缩程序与 4 个新门控程序，在 Windows GCC、Linux GCC、Clang ASan+UBSan+
+  float-cast-overflow+leaks、TCC 均通过，每环境 11 程序。原始构建输出存在合并行，
+  初版计数器以行首匹配只报 3 个 PASS；逐程序运行记录及全文标记复核均为 4 个
+  门控程序通过，修正后的统计独立存于 final-audit，不隐去原始日志。
+- SMTP 上传测试 stdout 不缓冲，每个 DATA/BDAT ×取消/超时/断开场景打印 begin/
+  opened/retired 阶段，以保留下一次异常前最后阶段；断言、传输负载、15 秒场景预算、
+  3 秒写超时和清理预算均未变。该批修复已确认的测试夹具竞态，3595c0d5 的
+  SIGSEGV 尚未证明唯一根因，后续仍需实际 CI，不能仅凭本地通过宣称 CI 报错已解决。
+- 四库的生成/feature/API 文档/参考/release maturity 共 20 项检查通过；914 项
+  Core 和邮件库源码、头、manifest、共享夹具及驱动输入归一化 LF 后 Windows/WSL
+  一致。上述为受影响路径验证，不冒称本地重新运行四库全部协议/单头/裁剪验收。
+- 已下载 3595c0d5 的原始 ACME coverage artifact，两平台全部 16 个自有 C 文件
+  哈希与对应 Git blob 一致。Windows 5908/6776 行（87.19%）、4923/6997 分支
+  结果（70.36%）；Linux 5899/6779 行（87.02%）、4932/7005（70.41%），均超过
+  未变的 70%/55% 门槛。这只证明 3595c0d5 的 Issue 变化，不能套用于 655bdbae
+  的新 DNS 控制流，本批新 head 仍须独立远端验证。
+- 下一步继续实际 CI 及 ACME 内置 provider 的操作锁/HTTP/重签退避预算。整库
+  有界首轮完成仍为 xjwt/xoauth2，共 2/21，其余 19 个产品继续，未合并或发布。
+
+证据：smtp-upgrade-stack-before{,-provenance}.json、mail-tls-upgrade-final-before.json、
+mail-tls-upgrade-final-before{,-build}.log、mail-tls-upgrade-selected.json、
+mail-tls-upgrade-{windows,linux}.json、mail-tls-upgrade-*-{gcc,clang,tcc}.log、
+mail-tls-upgrade-final-audit.json、mail-tls-upgrade-checks.json、
+mail-tls-upgrade-input-audit.json、ci-3595c0d5-acme-coverage-provenance.json
+及对应原始 coverage zip/json。

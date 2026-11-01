@@ -390,6 +390,27 @@
 			"legacy": []
 		},
 		{
+			"name": "pop3_tls_upgrade_lifetime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_client_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_tls_upgrade_lifetime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "xpop3_tests",
 			"state": "implemented",
 			"feature": null,
@@ -403,7 +424,8 @@
 				"pop3_client_tls_runtime_tests",
 				"pop3_protocol_oom_tests",
 				"xpop3",
-				"pop3_read_tls_fault_runtime_tests"
+				"pop3_read_tls_fault_runtime_tests",
+				"pop3_tls_upgrade_lifetime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],

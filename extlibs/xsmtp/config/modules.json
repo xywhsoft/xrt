@@ -381,6 +381,27 @@
 			"legacy": []
 		},
 		{
+			"name": "smtp_tls_upgrade_lifetime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_client_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_tls_upgrade_lifetime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "xsmtp_tests",
 			"state": "implemented",
 			"feature": null,
@@ -393,7 +414,8 @@
 				"smtp_client_tls_runtime_tests",
 				"smtp_protocol_oom_tests",
 				"xsmtp",
-				"smtp_upload_tls_fault_runtime_tests"
+				"smtp_upload_tls_fault_runtime_tests",
+				"smtp_tls_upgrade_lifetime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],

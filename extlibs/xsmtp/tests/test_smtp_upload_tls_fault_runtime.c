@@ -181,6 +181,7 @@ static bool testSmtpTlsWrite(xsmtpclient* pClient, bool Bdat, const void* pData,
 
 int main(void)
 {
+	setvbuf(stdout, NULL, _IONBF, 0);
 	xnetengineconfig EngineConfig;
 	xnetlistenconfig ListenConfig;
 	xnetresolverconfig ResolverConfig;
@@ -246,6 +247,7 @@ int main(void)
 
 	for ( int Bdat = 0; Bdat <= 1; Bdat++ ) {
 		for ( int Mode = TEST_SMTP_TLS_CANCEL; Mode <= TEST_SMTP_TLS_DISCONNECT; Mode++ ) {
+			printf("[SMTP TLS upload] bdat=%d mode=%d begin\n", Bdat, Mode);
 			testsmtptlsserver Server;
 			memset(&Server, 0, sizeof(Server));
 			Server.Listener = pListener;
@@ -276,6 +278,7 @@ int main(void)
 			}
 			testRequire(pClient != NULL && xrtSmtpClientState(pClient) == XSMTP_CLIENT_READY,
 				"SMTP TLS fault client open failed");
+			printf("[SMTP TLS upload] bdat=%d mode=%d opened\n", Bdat, Mode);
 			Server.ClientTls = xrtTlsStreamRef(pClient->Transport.Tls);
 			testRequire(Server.ClientTls != NULL, "SMTP TLS fault transport reference missing");
 			testMailPartialSmallSocket(xrtTlsStreamTransport(Server.ClientTls), Server.Deadline);
@@ -343,6 +346,7 @@ int main(void)
 			xrtSmtpClientDestroy(pClient);
 			xrtTlsStreamDestroy(Server.ClientTls);
 			xrtCancelDestroy(Server.Cancel);
+			printf("[SMTP TLS upload] bdat=%d mode=%d retired\n", Bdat, Mode);
 		}
 	}
 	xrtFree(pPayload);

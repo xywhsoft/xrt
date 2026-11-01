@@ -633,6 +633,27 @@
 			"legacy": []
 		},
 		{
+			"name": "imap_tls_upgrade_lifetime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_client_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_tls_upgrade_lifetime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "ximap_tests",
 			"state": "implemented",
 			"feature": null,
@@ -648,7 +669,8 @@
 				"imap_data_error_tests",
 				"imap_body_error_tests",
 				"imap_protocol_oom_tests",
-				"ximap"
+				"ximap",
+				"imap_tls_upgrade_lifetime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
