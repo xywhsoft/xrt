@@ -5704,3 +5704,25 @@ security/recovery/transports/deferred, Cron IANA/scheduler/durability, pinned
 comparators and full hot/cold CPU/synchronization/syscall accounting, accepted
 throughput/tail latency and native Windows/native Linux >=72h runs remain. No
 primary-checkout merge, push or production-complete claim is made.
+
+
+## 2026-11-02 — explicit zero-timeout MQTT retirement polls
+
+Final review after `1bb84eb` found that the zero-timeout path relied on a later
+monotonic clock read advancing beyond nextafter(now). Make zero explicit in both
+Client-reference and native phases, so an unchanged timer tick cannot turn a
+poll into a one-millisecond condition/native wait. Positive and infinite waits
+keep the previous remaining-budget behavior. The caller owner, public layouts,
+protocol handling and module closure are unchanged.
+
+Windows O2 and WSL O2 ASan/UBSan passed the existing full Client lifetime/fault
+suite in modular and single forms (four program executions), including zero
+polls on open/retired Clients, finite waits on held CLOSED callbacks, multiple
+borrowers, 32 wake races, OOM and original-error cases. The generated single
+implementation matches. This follow-up is verified locally; the complete package
+and performance evidence above belongs specifically to `1bb84eb`, rather than a
+new measurement claim for this two-guard correction. Its source snapshot and
+original artifacts are retained, and all new commands/hashes are under
+`out/service-extensions/xmqtt-retirement-zero/`. No performance rerun was selected
+and neither noise failure nor pending full/native qualification is waived.
+The complete four-library objective remains active and incomplete.

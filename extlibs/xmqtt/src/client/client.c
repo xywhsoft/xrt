@@ -727,7 +727,7 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
     if(!xrtMutexLock(&C->RetirementLock))return XWAIT_ERROR;
     xwaitresult Result=XWAIT_OK;
     while(xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE)!=1){
-        if(xrtTimer()>=Deadline){Result=XWAIT_TIMEOUT;break;}
+        if(!Timeout || xrtTimer()>=Deadline){Result=XWAIT_TIMEOUT;break;}
         Result=xrtCondWaitFor(&C->RetirementReady,&C->RetirementLock,xmqttClientRemaining(Deadline));
         if(Result!=XWAIT_OK && Result!=XWAIT_TIMEOUT)break;
     }
@@ -741,7 +741,7 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
     if(!Closed){xmqttClientError(XERR_STATE,"client retired before logical close");return XWAIT_ERROR;}
     /* Logical Client publication can precede the actual native callback tail.
      * Carry only the original budget, rounded to the public millisecond unit. */
-    return xrtNetStreamWaitRetired(C->Stream,xrtTimer()>=Deadline?0:xmqttClientRemaining(Deadline));
+    return xrtNetStreamWaitRetired(C->Stream,(!Timeout || xrtTimer()>=Deadline)?0:xmqttClientRemaining(Deadline));
 }
 XMQTT_API bool xmqttClientDestroy(xmqttclient* C)
 {
