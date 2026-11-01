@@ -41,3 +41,19 @@ metadata/private bounds, and unknown/zero/duplicate/unsent/wrong-kind/bad-reason
 or truncated ACKs, plus Request Problem Information=0 rejection/clean-ACK
 acceptance. It uses standard-library framing helpers, never xmqtt codecs.
 Incoming QoS-1 delivery and QoS-2/session replay still require subsequent work.
+
+
+The independent incoming QoS-1 matrix uses `receive_probe.c` with
+`run_receive_wire.py`. It checks MQTT 5/3.1.1 ordered PUBACKs, fragmented input,
+one-byte output, post-ACK DUP/id reuse, duplex identifier independence, ACK
+backpressure with callback message taking, partial outgoing-frame integrity,
+peer close during ACK, reentrant close, object/queue/private limits, zero ids,
+unsupported QoS2, MQTT5 advertised receive-window violations and peer packet caps.
+The success peer sends a QoS0 barrier only after observing every expected ACK;
+the probe retains messages/properties through Client/Engine destruction. Failure
+cases assert absence of success ACKs for unaccepted messages. This does not
+qualify graceful/error DISCONNECT, durable acknowledgement or broker parity.
+
+```
+python extlibs/xmqtt/tests/interop/run_receive_wire.py --probe PATH_TO_RECEIVE_PROBE --report out/receive-wire.json
+```

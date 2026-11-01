@@ -8,8 +8,8 @@ packet bodies. A separate negotiation leaf checks CONNECT/CONNACK relationships
 and client per-packet capabilities; its [contracts](negotiation.md) distinguish
 those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
-QoS-0 send/receive, QoS-1 send/PUBACK flow and physical shutdown.
-QoS-1 receive, QoS 2, session/auth/alias/expiry/
+QoS-0/1 send/receive, ordered PUBACK flow and physical shutdown.
+QoS 2, session/auth/alias/expiry/
 subscription state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 

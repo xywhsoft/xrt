@@ -9,7 +9,7 @@
 #include <string.h>
 typedef struct mqttExamplePeer {
     xnetengine* Engine;xnetlistener* Listener;xnetaddr Address;xmqttversion Version;
-    xatomicptr Stream;xatomic32 Closed,ListenerClosed;unsigned char Input[65536];size_t Used;
+    xatomicptr Stream;xatomic32 Closed,ListenerClosed,Acks;bool EchoQosOne;unsigned char Input[65536];size_t Used;
 } mqttExamplePeer;
 static inline void mqttExampleCheck(bool OK,const char* Message)
 {if(!OK){fprintf(stderr,"MQTT fixture failed: %s\n",Message);exit(1);}}
@@ -26,7 +26,9 @@ static inline void mqttExampleRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
             if((F.Header.Flags>>1)&3u){xmqttpacket Pub;xmqttproperty Props[16];xmqttcodecbuffers B={Props,16,NULL,0};
                 mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL))==XMQTT_CODEC_DONE && ((Pub.Flags>>1)&3u)==1,"QoS1 request");
                 unsigned char Ack[]={0x40,2,(unsigned char)(Pub.Identifier>>8),(unsigned char)Pub.Identifier};mqttExampleCheck(xrtNetStreamSend(S,Ack,sizeof(Ack))==XNET_RESULT_OK,"PUBACK");
+                if(P->EchoQosOne)mqttExampleCheck(xrtNetStreamSend(S,F.Wire.Data,F.Wire.Size)==XNET_RESULT_OK,"QoS1 echo");
             }else mqttExampleCheck(xrtNetStreamSend(S,F.Wire.Data,F.Wire.Size)==XNET_RESULT_OK,"QoS0 echo");
+        }else if(F.Header.Type==XMQTT_PACKET_PUBACK){mqttExampleCheck(P->EchoQosOne && F.Wire.Size==4,"echo PUBACK");xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);
         }else if(F.Header.Type==XMQTT_PACKET_PINGREQ){const unsigned char Pong[]={0xd0,0};mqttExampleCheck(xrtNetStreamSend(S,Pong,sizeof(Pong))==XNET_RESULT_OK,"PINGRESP");}
         else mqttExampleCheck(false,"packet type");
         P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
@@ -45,7 +47,7 @@ static inline void mqttExampleListenerClosed(xnetlistener* L,ptr Data)
 {(void)L;xrtAtomic32Store(&((mqttExamplePeer*)Data)->ListenerClosed,1,XMEMORY_RELEASE);}
 static inline void mqttExampleStart(mqttExamplePeer* P,xmqttversion Version)
 {
-    memset(P,0,sizeof(*P));P->Version=Version;xrtAtomicPtrInit(&P->Stream,NULL);xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);
+    memset(P,0,sizeof(*P));P->Version=Version;xrtAtomicPtrInit(&P->Stream,NULL);xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Acks,0);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);mqttExampleCheck(P->Engine && xrtNetEngineStart(P->Engine),"Engine");
     xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrParse(&L.Address,"127.0.0.1",0);L.Distribution=XNET_ACCEPT_LOCAL;
     static const xnetlistenerevents Events={mqttExampleAccept,NULL,mqttExampleListenerClosed};P->Listener=xrtNetListen(P->Engine,&L,&Events,NULL,P);

@@ -28,7 +28,7 @@ int main(int Argc,char** Argv)
     if(!strcmp(Case,"receive_limit"))K.MaxMessages=1;
     if(!strcmp(Case,"object_limit"))K.MaxObjects=2;
     if(!strcmp(Case,"private_limit"))K.MaxPrivateBytes=20000;
-    bool Roundtrip=!strcmp(Case,"roundtrip"),Partial=!strcmp(Case,"partial_close");
+    bool Roundtrip=!strcmp(Case,"roundtrip"),Partial=!strcmp(Case,"partial_close"),ReceiveOne=!strcmp(Case,"qos1");
     if(Roundtrip || Partial){K.Stream.WriteLimit=1;K.Stream.WriteHighWater=1;K.Stream.WriteLowWater=0;K.WriteChunkBytes=1;K.WriteBytes=1;}
     if(Partial)K.Codec.MaxPacketBytes=1024u*1024u;
     char Id[]="probe-copy",Username[]="user-copy",Password[]="password-copy";
@@ -52,7 +52,7 @@ int main(int Argc,char** Argv)
         if(Partial)require(W->AcceptedBytes<N,"partial frame must close with unsent suffix");
     }
     xmqttmessage* Saved=NULL;uint64 Sum=0;size_t Received=0;
-    if(Roundtrip){double End=xrtTimer()+5;while(Received<3){xmqttmessage* M=NULL;
+    if(Roundtrip || ReceiveOne){double End=xrtTimer()+5;while(Received<(Roundtrip?3u:2u)){xmqttmessage* M=NULL;
         if(xmqttClientTakeMessage(C,&M)){++Received;if(!Saved){Saved=M;Sum=checksum(M);}else xmqttMessageRelease(M);}else {require(xrtTimer()<End,"receive split/coalesced packets");xrtSleep(1);}
     }}
     if(CloseStatus==XMQTT_STATUS_CLOSED)require(xmqttClientClose(C),"close");

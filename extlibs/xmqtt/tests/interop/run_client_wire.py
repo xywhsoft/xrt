@@ -130,6 +130,8 @@ def serve(listener, version, case, errors):
                     s.sendall(publish(version, properties=b'\x23\0\x01'))
                 elif case == 'qos1':
                     s.sendall(packet(0x32, string(b'wire/test') + b'\0\x01' + (b'\0' if version == 5 else b'') + b'payload'))
+                    assert read_packet(s) == (0x40, b'\0\x01')
+                    s.sendall(publish(version, b'ack-observed'))
                 elif case == 'disconnect':
                     s.sendall(packet(0xe0, b'\x89'))
                 elif case == 'unsolicited_auth':
@@ -156,7 +158,7 @@ def main():
     common = [('roundtrip', 0, 4), ('refuse', 1, 1), ('setup_timeout', 2, 2),
               ('before_connack', 6, 6), ('duplicate', 0, 6), ('malformed', 0, 6),
               ('local_limit', 0, 7), ('receive_limit', 0, 7), ('object_limit', 0, 7),
-              ('private_limit', 0, 7), ('qos1', 0, 9), ('truncated', 0, 5),
+              ('private_limit', 0, 7), ('qos1', 0, 4), ('truncated', 0, 5),
               ('partial_close', 0, 5)]
     rows = []
     for version in [4, 5]:

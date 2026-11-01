@@ -5231,3 +5231,129 @@ scheduler/durability, pinned performance and native Windows/native Linux >=72h
 qualification. WSL is not native Linux acceptance. No merge into D:/GIT/xrt,
 push or production-complete claim was made. This is a verified sender stage,
 not completion of MQTT or the four-product objective.
+
+
+## 2026-11-02 — bounded MQTT QoS-1 receiver and ordered PUBACK output
+
+Extended the real TCP client to receive QoS1 on MQTT 5 and 3.1.1. This is another
+verified client state-chain stage; the full four-library scope remains active.
+No public Core source, shared runtime or public structure layout was changed.
+
+### Implemented behavior and actual costs
+
+- A decoded QoS1 publication is accepted only after an owned immutable copy is
+  enqueued within message/object/byte limits. The success PUBACK carries the
+  corresponding id and is independent of application Take/Retain/Release.
+  It establishes volatile local acceptance, not business completion, durable
+  storage, subscriber delivery or exactly-once effects. An accepted message may
+  remain queued after transport failure before its ACK reaches the server.
+- A lazy private ring holds at most min(MaxMessages, CONNECT Receive Maximum)
+  uint16 ids; 3.1.1 uses the default 65535 bound. Its header plus two bytes/entry
+  remain charged to private bytes until Destroy. It allocates no per-ACK library
+  object or receive-id bitmap; native copied-send nodes remain separately bounded
+  by Stream limits. The QoS0 receive path allocates no ring.
+- PUBACKs are emitted in received order and in bounded chunks, including a
+  one-byte native write limit. Their credit remains occupied until all four ACK
+  bytes enter the ordered native stream. A locally full ring pauses parsing at
+  the retained next frame; actual ACK progress wakes parsing. There is no busy
+  repost when the native write queue is blocked and no early success ACK/drop.
+- One explicit partial-request pointer ensures a PUBLISH is finished before a
+  PUBACK/PING/new publication can be inserted, including an earlier queued QoS1
+  request that just regained credit. A partial PUBACK/PING also finishes first.
+  Inbound ACK traffic proceeds independently of exhausted outgoing QoS1 credit.
+- Post-ACK duplicate/id reuse is delivered as a new message even with DUP=1.
+  Incoming and outgoing packet-id namespaces remain independent. Retained
+  incoming topic/payload/User/binary-property views survive Client/Engine teardown.
+  Queue/object/private/OOM failures never acknowledge an unaccepted message.
+- The offline example enables a separate fixture echo mode, verifies incoming
+  QoS1 and waits for its peer-observed ACK before Close. Sender-only benchmarks
+  leave echo mode disabled. The fixture remains outside the library runtime and
+  independent adversarial peers; it is not a production broker/comparator.
+
+### Verification and packaging
+
+Evidence root: `out/service-extensions/xmqtt-qos1-receive/`.
+
+Windows GCC -O2 and WSL GCC -O2 ASan/UBSan/leak-check matrices passed all seven
+modular and seven single-header programs (28 executions). The new receiver tests
+cover one-byte PUBACKs, post-ACK DUP, retained views, object/queue/private limits
+and allocation failures both before and after cold ring allocation. A QoS0 marker
+enters a budget on the actual IO worker before the coalesced incoming QoS1;
+the tests assert typed MEMORY, no false ACK and zero surviving budget allocations.
+An initial test used an older Info snapshot after its peer had observed the ACK;
+it now refreshes that snapshot. Original failing logs are retained separately.
+
+Independent stdlib peers now run 31 original, 37 sender and 30 receiver scenarios
+per delivered form: Windows/WSL monolithic, minimal static and minimal shared,
+588 successful process cases. Receiver scenarios additionally verify fragmented
+input, ordered ACKs, callback-driven ring backpressure, same-id duplex traffic,
+ACK after a partial outgoing frame, peer EOF during ACK, callback Close, malformed
+zero ids, unsupported QoS2, MQTT5 receive-window violations and peer packet caps.
+The success peer sends a barrier only after observing the required ACKs; failure
+peers check there is no success ACK for an unaccepted message.
+
+Full/minimal static/shared package consumers passed on both platforms (eight
+consumers). Both updated offline examples ran. Final size rebuilds were followed
+by minimal consumer relink/run and static/shared peer tests; source and artifact
+hashes match their final receipts. Both platforms passed trim, declarations,
+layout and generated-header/reference checks. Public sizes remain config264,
+info144, ready136, write40 (old prefix24), packet168, codec56, property40 bytes.
+The build/package/API-reference/performance-tool subset reports 78 tests, OK;
+previously reproduced xhttp global scope/ABI defects remain unresolved.
+
+| Platform | Single object bytes | Extension static bytes | Extension shared bytes |
+| --- | --- | --- | --- |
+| Windows | 567306 | 116260 | 144383 |
+| WSL | 727368 | 153668 | 114480 |
+
+Single objects include Core. Static/shared extension files require separate Core
+libraries; final reports retain their independent sizes and hashes. These are
+not equal byte denominators, and no native Linux qualification is inferred.
+
+### Performance workload and remaining qualification
+
+Added `xmqtt_client_receive` as a distinct combined QoS1 publish/echo workload:
+window32, payload32, one client/local peer, two host IO workers and one observer.
+Latency measures application observation of the outgoing PUBACK result AND the
+matching incoming message. Throughput additionally waits for peer observation
+of every receiver PUBACK. Connect/close and latency-array allocation are outside
+timing; first cold sender/receiver flow allocations are included. Allocator
+variants count client AND peer XRT block traffic, not RSS/all system allocations.
+It is not an isolated receive benchmark or an independent broker comparison.
+
+Each variant retains all five measured samples and one configured/logged warmup,
+with unchanged 3% relative-MAD / 6% central-range quality gates and 5% throughput /
+10% P99 regression thresholds. Numeric warmup values are not retained by the
+existing collector. The 20k samples are short observations, not a long-run or
+pinned-comparator acceptance test. No favorable retry or threshold change occurred.
+
+| Platform | Version | Instrumented | Exchanges/s median | P99 us median | Failed metric noise gates |
+| --- | --- | --- | --- | --- | --- |
+| windows | 5 | no | 289557.122 | 149.700 | 0 |
+| windows | 4 | no | 294106.834 | 150.200 | 2 |
+| windows | 5 | yes | 223949.370 | 192.300 | 2 |
+| windows | 4 | yes | 237392.951 | 215.600 | 1 |
+| wsl | 5 | no | 61986.304 | 811.800 | 1 |
+| wsl | 4 | no | 61055.539 | 800.200 | 0 |
+| wsl | 5 | yes | 59577.889 | 815.400 | 2 |
+| wsl | 4 | yes | 60098.718 | 818.000 | 2 |
+
+Both full reports exit 1 on noise checks; performance remains unaccepted even
+though the Windows MQTT5 uninstrumented group clears its individual noise gates.
+All raw sample arrays, environment/compiler/arguments and source/workload
+fingerprints are preserved. A separate functional 70,000-exchange run per platform
+checks all paired messages/identifiers through rollover with checksum 2449965000;
+its output is not an additional performance sample. Current-source/artifact
+validation binds 588 peer cases and the complete package/test/measurement receipts.
+
+
+Full MQTT qualification still requires QoS2, subscribe/unsubscribe shared ids,
+sessions/expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, graceful draining
+and MQTT5 diagnostic error DISCONNECT (including Receive Maximum reason 0x93).
+Current error exits remain explicitly abortive, so full MQTT protocol/production
+acceptance is not claimed. Redis HA/tracking/dedicated scope, remaining RPC
+client/server transports/security/recovery/deferred scope and Cron IANA/scheduler/
+durability remain. Pinned comparators, complete cold/hot CPU/synchronization/
+syscall accounting and native Windows/native Linux >=72h qualification are still
+required. WSL is development evidence only. No primary-checkout merge or push
+occurred; this goal remains active and incomplete.

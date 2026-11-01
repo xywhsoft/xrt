@@ -64,9 +64,13 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * unique Client; Close/Wait/Destroy it before destroying Engine. Output changes
  * only on success. Startup wire is wiped after handshake/stops AND its final
  * native reference. Caller/native/system copies are outside that contract.
- * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0
- * receives, QoS-0/1 sends and server DISCONNECT. Enhanced auth and positive receive
- * alias capacity are explicitly unsupported; QoS-1 receive, QoS 2, subscriptions, reconnect,
+ * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0/1
+ * receives/sends and server DISCONNECT. Incoming QoS-1 is acknowledged only after
+ * an owned message enters the bounded local queue, independent of application
+ * Take/Release. PUBACKs are ordered, bounded by min(MaxMessages, ReceiveMaximum),
+ * lazily charged to private bytes, and never interleave a partial outgoing frame.
+ * Enhanced auth and positive receive alias capacity are explicitly unsupported;
+ * QoS 2, subscriptions, reconnect,
  * durable sessions and graceful DISCONNECT remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap. */

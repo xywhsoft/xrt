@@ -4,15 +4,15 @@ Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
-keep-alive, QoS-0 send/receive and QoS-1 publishing with retained PUBACKs,
+keep-alive, QoS-0/1 send/receive with ordered PUBACKs and retained messages,
 bounded identifiers/flow credit and physical shutdown.
-QoS-1 receive, QoS 2, subscriptions, enhanced authentication, aliases, reconnect, durable
+QoS 2, subscriptions, enhanced authentication, aliases, reconnect, durable
 sessions, graceful DISCONNECT and TLS/WebSocket remain pending.
 No broker or production/performance acceptance is claimed.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt
 manifest and `--suite xmqtt_client --no-single`. It asserts handshake, QoS-0
-send/receive, QoS-1 acknowledgement and retained-message validity after
+send/receive, QoS-1 echo/acknowledgements and retained-message validity after
 Client/Engine destruction.
 
 The independent implementation follows the OASIS

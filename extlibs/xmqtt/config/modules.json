@@ -361,7 +361,8 @@
         "extlibs/xmqtt/examples/client/main.c"
       ],
       "benchmarks": [
-        "extlibs/xmqtt/bench/bench_client_qos1.c"
+        "extlibs/xmqtt/bench/bench_client_qos1.c",
+        "extlibs/xmqtt/bench/bench_client_receive.c"
       ],
       "docs": [
         "extlibs/xmqtt/docs/client.md"
