@@ -24,7 +24,7 @@ static void testServiceShutdown(void)
 }
 typedef struct serviceRaw {
     xnetstream* Stream;xmutex Gate;xatomic32 Open,Closed;
-    unsigned char* Data;size_t Used;
+    unsigned char* Data;size_t Used;char Challenge[256];
 } serviceRaw;
 static void serviceRawOpen(xnetstream* Stream,ptr Data)
 {(void)Stream;xrtAtomic32Store(&((serviceRaw*)Data)->Open,1,XMEMORY_RELEASE);}
@@ -52,7 +52,8 @@ static bool serviceRawResponse(serviceRaw* R,unsigned* Status,char* Body,size_t 
         if(S==XHTTP1_READY){xhttp1bodyplan P;testRequire(xrtHttp1ResponseBodyPlan(&H,XRT_STR_LITERAL("POST"),&P) && (P.Mode==XHTTP1_BODY_NONE || P.Mode==XHTTP1_BODY_FIXED),"raw response body plan");
             size_t N=P.Mode==XHTTP1_BODY_NONE?0:(size_t)P.Length;
             if(N<=R->Used-H.Bytes){testRequire(N<=Capacity,"raw response capacity");if(N)memcpy(Body,R->Data+H.Bytes,N);*Bytes=N;*Status=H.Status;
-                if(H.Status>=200){const xhttpfield* Date=xrtHttp1Field(&H,XRT_STR_LITERAL("Date"));xtime Parsed;testRequire(Date && xrtTimeParseHTTPDate(Date->Value,&Parsed),"HTTP response date");}
+                if(H.Status>=200){const xhttpfield* Date=xrtHttp1Field(&H,XRT_STR_LITERAL("Date"));xtime Parsed;testRequire(Date && xrtTimeParseHTTPDate(Date->Value,&Parsed),"HTTP response date");
+                    const xhttpfield* Challenge=xrtHttp1Field(&H,XRT_STR_LITERAL("WWW-Authenticate"));R->Challenge[0]=0;if(Challenge){testRequire(Challenge->Value.Size<sizeof(R->Challenge),"challenge bound");memcpy(R->Challenge,Challenge->Value.Data,Challenge->Value.Size);R->Challenge[Challenge->Value.Size]=0;}}
                 size_t Used=H.Bytes+N;memmove(R->Data,R->Data+Used,R->Used-Used);R->Used-=Used;xrtMutexUnlock(&R->Gate);return true;}}
         bool Closed=xrtAtomic32Load(&R->Closed,XMEMORY_ACQUIRE)!=0;xrtMutexUnlock(&R->Gate);if(Closed)return false;
         testRequire(xrtTimer()<End,"raw response timeout");xrtSleep(1);
@@ -177,5 +178,81 @@ static void testServiceBackpressureAndTimeouts(void)
     xrtSleep(200);serviceRawSend(&Raw,Body,strlen(Body));testRequire(serviceRawResponse(&Raw,&Status,Response,sizeof(Response),&Bytes) && Status==200,"remaining body/execution deadline");
     testRequire(xrtAtomic32Load(&S.Window,XMEMORY_ACQUIRE)>0 && xrtAtomic32Load(&S.Window,XMEMORY_ACQUIRE)<400,"execution deadline restarted after body");serviceRawDestroy(&Raw);rpcServiceStop(&S);
 }
+typedef struct authTest {
+    rpcService* Service;xatomic32 Calls,Entered,Permit;unsigned Mode;
+} authTest;
+static void authInit(authTest* A,rpcService* S)
+{memset(A,0,sizeof(*A));A->Service=S;xrtAtomic32Init(&A->Calls,0);xrtAtomic32Init(&A->Entered,0);xrtAtomic32Init(&A->Permit,0);}
+static void authWait(xatomic32* Value,uint32 N)
+{double End=xrtTimer()+10;while(xrtAtomic32Load(Value,XMEMORY_ACQUIRE)<N){testRequire(xrtTimer()<End,"authorization event timeout");xrtSleep(1);}}
+static bool authValueEqual(xstrview V,xstrview Expected)
+{return V.Size==Expected.Size && (!V.Size || !memcmp(V.Data,Expected.Data,V.Size));}
+static xrpchttpauthstatus authorizeTest(const xrpchttpauthrequest* R,bytes Context,size_t Capacity,size_t* Used,ptr Data)
+{
+    authTest* A=Data;testRequire(!xrtNetEngineCurrent(A->Service->Engine) && R->Head->MethodCode==XHTTP_METHOD_POST && R->Cancel && R->Deadline>0 && !R->Secure,"authorization callback context/worker");
+    xrtAtomic32FetchAdd(&A->Calls,1,XMEMORY_RELAXED);
+    if(A->Mode){xrtAtomic32FetchAdd(&A->Entered,1,XMEMORY_RELEASE);
+        if(A->Mode==4){testRequire(xrpcHttpServerWaitFor(A->Service->Server,0)==XWAIT_ERROR && !xrpcHttpServerDestroy(A->Service->Server),"authorizer self-wait/destroy");xrtClearError();return XRPC_HTTP_AUTH_ALLOW;}
+        while(!xrtAtomic32Load(&A->Permit,XMEMORY_ACQUIRE)){if(A->Mode!=2 && (xrtCancelRequested(R->Cancel) || xrtTimer()>=R->Deadline))return XRPC_HTTP_AUTH_ERROR;xrtSleep(1);}}
+    const xhttpfield* F=NULL;xhttpnext N=xrtHttpFieldGetUnique(R->Head->Fields,R->Head->FieldCount,XRT_STR_LITERAL("Authorization"),&F);
+    if(N!=XHTTP_NEXT_ITEM)return XRPC_HTTP_AUTH_UNAUTHORIZED;
+    if(authValueEqual(F->Value,XRT_STR_LITERAL("Bearer forbidden")))return XRPC_HTTP_AUTH_FORBIDDEN;
+    if(authValueEqual(F->Value,XRT_STR_LITERAL("Bearer error")))return XRPC_HTTP_AUTH_ERROR;
+    if(authValueEqual(F->Value,XRT_STR_LITERAL("Bearer overflow"))){*Used=Capacity+1;return XRPC_HTTP_AUTH_ALLOW;}
+    if(authValueEqual(F->Value,XRT_STR_LITERAL("Bearer invalid")))return (xrpchttpauthstatus)99;
+    if(!authValueEqual(F->Value,XRT_STR_LITERAL("Bearer public-fixture")))return XRPC_HTTP_AUTH_UNAUTHORIZED;
+    testRequire(Capacity>=4,"authorization output capacity");memcpy(Context,"[42]",4);*Used=4;return XRPC_HTTP_AUTH_ALLOW;
+}
+static void testServiceAuthorization(void)
+{
+    rpcService S;authTest A;authInit(&A,&S);xrpchttpserverconfig K;xrpcHttpServerConfigInit(&K);K.Authorize=authorizeTest;K.AuthorizationUser=&A;K.Execution.MaxOperations=1;K.Execution.Executor.Threads=1;
+    char Challenge[]="Bearer realm=\"rpc\"";K.UnauthorizedChallenge=(xstrview){Challenge,sizeof(Challenge)-1};rpcServiceStart(&S,&K);memset(Challenge,'x',sizeof(Challenge));
+    const struct {cstr Header;unsigned Status;} Cases[]={{"",401},{"Authorization: Bearer forbidden\r\n",403},{"Authorization: Bearer error\r\n",503},{"Authorization: Bearer overflow\r\n",500},{"Authorization: Bearer invalid\r\n",500},{"Authorization: a\r\nauthorization: b\r\n",400}};
+    for(size_t N=0;N<sizeof(Cases)/sizeof(*Cases);++N){serviceRaw R;serviceRawConnect(&S,&R);char Wire[1024],Body[128];unsigned Status;size_t Bytes;
+        int Len=snprintf(Wire,sizeof(Wire),"POST /rpc HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 123\r\nExpect: 100-continue\r\n%s\r\n",Cases[N].Header);
+        serviceRawSend(&R,Wire,(size_t)Len);testRequire(serviceRawResponse(&R,&Status,Body,sizeof(Body),&Bytes) && Status==Cases[N].Status && !Bytes,"authorization rejection/100-continue policy");
+        if(Status==401)testRequire(!strcmp(R.Challenge,"Bearer realm=\"rpc\""),"owned WWW-Authenticate challenge");
+        serviceRawDestroy(&R);}
+    testRequire(!xrtAtomic32Load(&S.Calls,XMEMORY_RELAXED) && xrtAtomic32Load(&A.Calls,XMEMORY_RELAXED)==5,"unauthorized requests entered business/duplicate credentials entered authorization");
+    xrpchttpconfig Client;xrpcHttpConfigInit(&Client);xhttpfield F={XRT_STR_LITERAL("Authorization"),XRT_STR_LITERAL("Bearer public-fixture")};Client.RequestHeaders=&F;Client.RequestHeaderCount=1;xrpchttpclient* C=rpcServiceClient(&S,&Client);
+    for(unsigned N=0;N<16;++N){xfuture* Future=rpcServiceSubmit(C,"identity","[]",5000);const xrpccallresult* R=rpcServiceResult(Future);xrpcresponseinfo I={0};I.Size=sizeof(I);
+        testRequire(R->Status==XRPC_CALL_OK && xrpcResponsesInfo(R->Responses,&I) && I.Messages[0].Result.Raw.Size==4 && !memcmp(I.Messages[0].Result.Raw.Data,"[42]",4),"authorized identity transfer / one-operation execution credit");xrtFutureDestroy(Future);}
+    xrpchttpitem Items[]={{XRPC_MESSAGE_CALL,XRT_STR_LITERAL("identity"),{0}},{XRPC_MESSAGE_NOTIFICATION,XRT_STR_LITERAL("identity"),{0}}};xfuture* Future=NULL;
+    testRequire(xrpcHttpBatchAsync(C,Items,2,5000,&Future)==XRPC_ADMISSION_ACCEPTED && rpcServiceResult(Future)->Status==XRPC_CALL_BATCH_DONE,"authorization whole-document context");xrtFutureDestroy(Future);rpcServiceClientClose(C);
+    xrpchttpserverinfo I={0};I.Size=sizeof(I);testRequire(xrpcHttpServerInfo(S.Server,&I) && I.AuthorizationAllowed==17 && I.AuthorizationDenied==2 && I.AuthorizationErrors==3,"authorization status counters");rpcServiceStop(&S);
+}
+static void testServiceAuthorizationWaits(void)
+{
+    for(unsigned Mode=0;Mode<4;++Mode){rpcService S;authTest A;authInit(&A,&S);A.Mode=Mode==1?2:Mode==3?4:1;xrpchttpserverconfig K;xrpcHttpServerConfigInit(&K);K.Authorize=authorizeTest;K.AuthorizationUser=&A;K.RequestTimeout=Mode==2?50:5000;
+        rpcServiceStart(&S,&K);serviceRaw R;serviceRawConnect(&S,&R);cstr Head="POST /rpc HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 44\r\nAuthorization: Bearer public-fixture\r\nExpect: 100-continue\r\n\r\n";
+        serviceRawSend(&R,Head,strlen(Head));authWait(&A.Entered,1);
+        if(!Mode){xrtMutexLock(&R.Gate);testRequire(!R.Used,"100 Continue preceded authorization");xrtMutexUnlock(&R.Gate);xrtAtomic32Store(&A.Permit,1,XMEMORY_RELEASE);
+            char Body[256];unsigned Status;size_t Bytes;testRequire(serviceRawResponse(&R,&Status,Body,sizeof(Body),&Bytes) && Status==100,"authorized Continue");
+            cstr Input="{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"identity\"}";testRequire(strlen(Input)==44,"test request length");serviceRawSend(&R,Input,strlen(Input));testRequire(serviceRawResponse(&R,&Status,Body,sizeof(Body),&Bytes) && Status==200,"authorized body/handler");}
+        else if(Mode==1){testRequire(xrpcHttpServerClose(S.Server) && xrpcHttpServerWaitFor(S.Server,0)==XWAIT_TIMEOUT,"noncooperative authorization lost physical owner");xrtAtomic32Store(&A.Permit,1,XMEMORY_RELEASE);}
+        else if(Mode==2){authWait(&R.Closed,1);testRequire(!xrtAtomic32Load(&S.Calls,XMEMORY_RELAXED),"expired authorization entered handler");}
+        else authWait(&R.Closed,1);
+        serviceRawDestroy(&R);rpcServiceStop(&S);}
+}
+static void testServiceAuthorizationBounds(void)
+{
+    for(unsigned Mode=0;Mode<3;++Mode){rpcService S;authTest A;authInit(&A,&S);A.Mode=2;xrpchttpserverconfig K;xrpcHttpServerConfigInit(&K);K.Authorize=authorizeTest;K.AuthorizationUser=&A;K.Execution.Executor.Threads=1;
+        if(!Mode)K.MaxAuthorizations=1;else if(Mode==1)K.Execution.MaxOperations=1;else K.Execution.Executor.QueueLimit=1;
+        rpcServiceStart(&S,&K);serviceRaw First,Second,Third;serviceRawConnect(&S,&First);
+        cstr Head="POST /rpc HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: 44\r\nAuthorization: Bearer public-fixture\r\n\r\n";
+        serviceRawSend(&First,Head,strlen(Head));authWait(&A.Entered,1);serviceRawConnect(&S,&Second);serviceRawSend(&Second,Head,strlen(Head));
+        serviceRaw* Refused=&Second;
+        if(Mode==2){double End=xrtTimer()+5;for(;;){xrpchttpserverinfo I={0};I.Size=sizeof(I);testRequire(xrpcHttpServerInfo(S.Server,&I),"queued authorization info");if(I.Execution.Auxiliary==2)break;testRequire(xrtTimer()<End,"authorization queue did not fill");xrtSleep(1);}
+            serviceRawConnect(&S,&Third);serviceRawSend(&Third,Head,strlen(Head));Refused=&Third;}
+        char Body[64];unsigned Status;size_t Bytes;testRequire(serviceRawResponse(Refused,&Status,Body,sizeof(Body),&Bytes) && Status==503,"authorization admission boundary");
+        testRequire(xrtAtomic32Load(&A.Calls,XMEMORY_RELAXED)==1 && !xrtAtomic32Load(&S.Calls,XMEMORY_RELAXED),"refused authorization executed callback/business");
+        testRequire(xrpcHttpServerClose(S.Server),"authorization queued cancel");xrtAtomic32Store(&A.Permit,1,XMEMORY_RELEASE);
+        serviceRawDestroy(&First);serviceRawDestroy(&Second);if(Mode==2)serviceRawDestroy(&Third);rpcServiceStop(&S);}
+    rpcService S;authTest A;authInit(&A,&S);
+    for(unsigned Mode=0;Mode<4;++Mode){xrpchttpserverconfig K;xrpcHttpServerConfigInit(&K);K.Authorize=authorizeTest;K.AuthorizationUser=&A;
+        if(!Mode)K.MaxAuthorizations=0;else if(Mode==1)K.MaxAuthorizationContextBytes=K.Execution.MaxContextBytes+1;else if(Mode==2)K.UnauthorizedChallenge=XRT_STR_LITERAL("Bearer\r\nX: injected");else K.UnauthorizedChallenge=(xstrview){0};
+        xnetengineconfig C;xrtNetEngineConfigInit(&C);xnetengine* E=xrtNetEngineCreate(&C);testRequire(E && xrtNetEngineStart(E),"invalid auth factory engine");xrpchttpserver* H=(xrpchttpserver*)(uintptr_t)1;
+        testRequire(!xrpcHttpServerCreate(E,&K,&H) && H==(xrpchttpserver*)(uintptr_t)1,"invalid authorization factory published output");xrtClearError();testRequire(xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"invalid auth factory pin leak");}
+}
 int main(void)
-{testServiceCalls();testServiceShutdown();testServiceRawProtocol();testServiceDocumentsAndLimits();testServiceAdmissionAndJoin();testServiceCreateOOMAndBind();testServiceBackpressureAndTimeouts();puts("[PASS] xrpc HTTP server: real-client/call/notification/batch/raw-HTTP/chunk/trailer/expect/pipeline/worker-isolation/backpressure/deadline/admission/OOM/bind-retry/self-wait/retained-response/physical-close");return 0;}
+{testServiceCalls();testServiceShutdown();testServiceRawProtocol();testServiceDocumentsAndLimits();testServiceAdmissionAndJoin();testServiceCreateOOMAndBind();testServiceBackpressureAndTimeouts();testServiceAuthorization();testServiceAuthorizationWaits();testServiceAuthorizationBounds();puts("[PASS] xrpc HTTP server: real-client/call/notification/batch/raw-HTTP/chunk/trailer/expect/pipeline/worker-isolation/backpressure/deadline/admission/OOM/bind-retry/self-wait/retained-response/physical-close/async-authorization/identity/challenge");return 0;}

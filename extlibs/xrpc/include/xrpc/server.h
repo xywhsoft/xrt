@@ -50,6 +50,8 @@ typedef struct xrpcserverinfo {
     bool Accepting,Cancelling;
     size_t Operations,RequestBytes,Results,ResultBytes,WorkspaceBytes,Running;
     size_t ContextBytes; /* Included in RequestBytes; excludes alignment padding. */
+    size_t Auxiliary; /* Included in Operations; queued/running transport work. */
+    uint64 AuxiliaryAccepted,AuxiliaryCompleted;
     uint64 Accepted,Rejected,Completed,PublicationFailures;
 } xrpcserverinfo;
 typedef struct xrpcserverresult {
@@ -67,7 +69,11 @@ XRPC_API bool xrpcServerConfigInit(xrpcserverconfig* Config);
 /* Owns a bounded Core executor and preallocated per-worker dispatch scratch.
  * Config is copied; no transport/listener or shared runtime is created. */
 XRPC_API bool xrpcServerCreate(const xrpcserverconfig* Config,xrpcserver** Server);
-/* Concurrent bounded admission. Input is copied before return and fully decoded
+/* Auxiliary counts share Operations/RequestBytes during transport callbacks;
+ * their admission credit returns before transport completion publication. Native
+ * executor drop/join and transport references still cover physical return tails.
+ * Accepted/Completed count documents; AuxiliaryAccepted/Completed are separate.
+ * Concurrent bounded admission. Input is copied before return and fully decoded
  * on a worker before any handler. One document (including a mixed batch) is one
  * job, deadline and cooperative cancel unit. Timeout starts at entry. Raw token
  * or Future cancellation is sampled before/after handlers and output emission;

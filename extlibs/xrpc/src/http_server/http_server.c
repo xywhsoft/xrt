@@ -7,11 +7,14 @@
 #include <xrt/http_expect.h>
 #include <xrt/http_trailer.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER)
 typedef struct xrpchspeer xrpchspeer;
 typedef struct xrpchsop xrpchsop;
+typedef struct xrpchsauth xrpchsauth;
+typedef struct xrpchsauthslot {xrpchsauth* Request;xnetaddr Remote;} xrpchsauthslot;
 typedef struct xrpchsshard {
     xrpchttpserver* Server;xnetworker* Worker;xnetpost Post;xatomic32 Posted;
     xrpchspeer *Peers,*Writers,*WritersTail;
@@ -45,10 +48,24 @@ struct xrpchsop {
     bool Prepared;
     char Head[320];
 };
+struct xrpchsauth {
+    xrpcserverwork Work; /* First: the embedded executor-owned reference. */
+    xatomic32 References,Ready;
+    xrpchspeer* Peer;size_t Bytes,ContextBytes;
+    unsigned char* Context;
+    xrpchttpauthrequest Request;xhttp1head Head;xhttp1bodyplan Plan;
+    uint16 Status;
+    unsigned char Data[];
+};
 static void xrpcHsPeerWork(xnetworker* Worker,ptr Data);
 static void xrpcHsShardWork(xnetworker* Worker,ptr Data);
 static void xrpcHsTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data);
 static void xrpcHsPeerWake(xrpchspeer* P);
+static void xrpcHsAuthRelease(xrpchsauth* A);
+static xrpchsauthslot* xrpcHsAuthSlot(xrpchspeer* P)
+{return (xrpchsauthslot*)(P->Trailers+P->Server->Config.Body.MaxTrailers);}
+static bool xrpcHsAuthPending(xrpchspeer* P)
+{if(!P->Server->Config.Authorize)return false;xrpchsauth* A=xrpcHsAuthSlot(P)->Request;return A && !xrtAtomic32Load(&A->Ready,XMEMORY_ACQUIRE);}
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
 static void xrpcHsTlsHandshakeEnd(xrpchspeer* P,bool Ready,xnetresult Result,const xerror* Cause);
 #endif
@@ -91,6 +108,7 @@ static void xrpcHsPeerDrop(const void* Data)
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
     if(P->Secure)xrtTlsStreamDestroy(P->Secure->Stream);
 #endif
+    if(H->Config.Authorize){if(P->Input)xrtSecureZero(P->Input,P->InputCapacity);if(P->Payload)xrtSecureZero(P->Payload,P->PayloadCapacity);}
     xrtFree(P->Input);xrtFree(P->Payload);xrtFree(P);
     xrtMutexLock(&H->Gate);--H->Info.Connections;H->Info.BufferBytes-=Bytes;xrtMutexUnlock(&H->Gate);xrpcHsDrop(H);
 }
@@ -101,6 +119,54 @@ static void xrpcHsPeerWake(xrpchspeer* P)
 {
     uint32 Old=0;if(!xrtAtomic32CompareExchange(&P->Posted,&Old,1,XMEMORY_ACQ_REL,XMEMORY_RELAXED))return;
     xrpcHsPeerRef(P);if(!xrtNetPost(P->Shard->Worker,&P->Post,xrpcHsPeerWork,P)){xrtAtomic32Store(&P->Posted,0,XMEMORY_RELEASE);xrpcHsPeerDrop(P);}
+}
+static void xrpcHsAuthRelease(xrpchsauth* A)
+{
+    if(!A || xrtAtomic32FetchSub(&A->References,1,XMEMORY_ACQ_REL)!=1)return;
+    xrpchspeer* P=A->Peer;xrpchttpserver* H=P->Server;size_t Bytes=A->Bytes;
+    xrtCancelDestroy(A->Work.Cancel);xrtSecureZero(A,Bytes);xrtFree(A);
+    xrtMutexLock(&H->Gate);--H->Info.Authorizations;H->Info.BufferBytes-=Bytes;xrtMutexUnlock(&H->Gate);xrpcHsPeerDrop(P);
+}
+static void xrpcHsAuthCall(xrpcserverwork* Work,xrpcserverstatus Status)
+{
+    xrpchsauth* A=(xrpchsauth*)Work;xrpchttpserver* H=A->Peer->Server;A->Status=503;
+    if(Status!=XRPC_SERVER_DONE)return;
+    size_t Used=0;xrpchttpauthstatus R=H->Config.Authorize(&A->Request,A->Context,H->Config.MaxAuthorizationContextBytes,&Used,H->Config.AuthorizationUser);
+    if(xrtTimer()>=Work->Deadline || xrtCancelRequested(Work->Cancel))return;
+    if((unsigned)R>(unsigned)XRPC_HTTP_AUTH_ERROR || Used>H->Config.MaxAuthorizationContextBytes){A->Status=500;return;}
+    A->Status=R==XRPC_HTTP_AUTH_ALLOW?200:R==XRPC_HTTP_AUTH_UNAUTHORIZED?401:R==XRPC_HTTP_AUTH_FORBIDDEN?403:503;
+    if(R==XRPC_HTTP_AUTH_ALLOW)A->ContextBytes=Used;
+}
+static void xrpcHsAuthDrop(xrpcserverwork* Work)
+{
+    xrpchsauth* A=(xrpchsauth*)Work;xrpchttpserver* H=A->Peer->Server;
+    xrtMutexLock(&H->Gate);if(A->Status==200)++H->Info.AuthorizationAllowed;else if(A->Status==401 || A->Status==403)++H->Info.AuthorizationDenied;else ++H->Info.AuthorizationErrors;xrtMutexUnlock(&H->Gate);
+    xrtAtomic32Store(&A->Ready,1,XMEMORY_RELEASE);xrpcHsPeerWake(A->Peer);xrpcHsAuthRelease(A);
+}
+static xstrview xrpcHsAuthView(xstrview V,const unsigned char* Old,unsigned char* New)
+{return V.Size?(xstrview){(cstr)New+((const unsigned char*)V.Data-Old),V.Size}:(xstrview){0};}
+static bool xrpcHsAuthorize(xrpchspeer* P,const xhttp1head* Head,const xhttp1bodyplan* Plan)
+{
+    xrpchttpserver* H=P->Server;size_t Fields=Head->FieldCount*sizeof(xhttpfield);
+    if(Fields>SIZE_MAX-sizeof(xrpchsauth) || Head->Bytes>SIZE_MAX-sizeof(xrpchsauth)-Fields)return false;
+    size_t At=sizeof(xrpchsauth)+Fields+Head->Bytes,Align=_Alignof(max_align_t),Pad=(Align-At%Align)%Align;
+    if(Pad>SIZE_MAX-At || H->Config.MaxAuthorizationContextBytes>SIZE_MAX-At-Pad)return false;
+    At+=Pad;size_t Bytes=At+H->Config.MaxAuthorizationContextBytes;
+    xrtMutexLock(&H->Gate);bool Fits=H->Info.Authorizations<H->Config.MaxAuthorizations && Bytes<=H->Config.MaxBufferBytes-H->Info.BufferBytes;
+    if(Fits){++H->Info.Authorizations;H->Info.BufferBytes+=Bytes;}else ++H->Info.AuthorizationRejected;xrtMutexUnlock(&H->Gate);if(!Fits)return false;
+    xrpchsauth* A=xrtCalloc(1,Bytes);if(!A){xrtMutexLock(&H->Gate);--H->Info.Authorizations;H->Info.BufferBytes-=Bytes;++H->Info.AuthorizationRejected;xrtMutexUnlock(&H->Gate);return false;}
+    xrtAtomic32Init(&A->References,1);xrtAtomic32Init(&A->Ready,0);A->Peer=P;A->Bytes=Bytes;A->Plan=*Plan;A->Head=*Head;xrpcHsPeerRef(P);
+    A->Head.Fields=(xhttpfield*)(A+1);A->Head.FieldCapacity=Head->FieldCount;unsigned char* Raw=(unsigned char*)A->Head.Fields+Fields;memcpy(Raw,P->Input,Head->Bytes);
+    A->Head.Method=xrpcHsAuthView(Head->Method,P->Input,Raw);A->Head.Target=xrpcHsAuthView(Head->Target,P->Input,Raw);A->Head.Reason=(xstrview){0};
+    for(size_t K=0;K<Head->FieldCount;++K)A->Head.Fields[K]=(xhttpfield){xrpcHsAuthView(Head->Fields[K].Name,P->Input,Raw),xrpcHsAuthView(Head->Fields[K].Value,P->Input,Raw)};
+    A->Context=H->Config.MaxAuthorizationContextBytes?(unsigned char*)A+At:NULL;
+    A->Work.Bytes=Bytes;A->Work.Deadline=xrpcHsDeadline(P->Entered,H->Config.RequestTimeout);A->Work.Call=xrpcHsAuthCall;A->Work.Drop=xrpcHsAuthDrop;A->Work.Cancel=xrpcServerCancelChild(H->Execution);
+    A->Request.Head=&A->Head;A->Request.Cancel=A->Work.Cancel;A->Request.Deadline=A->Work.Deadline;A->Request.Secure=P->Secure!=NULL;A->Request.Remote=xrpcHsAuthSlot(P)->Remote;
+    if(!A->Work.Cancel){xrtMutexLock(&H->Gate);++H->Info.AuthorizationRejected;xrtMutexUnlock(&H->Gate);xrpcHsAuthRelease(A);return false;}
+    xrpcHsAuthSlot(P)->Request=A;xrtAtomic32FetchAdd(&A->References,1,XMEMORY_RELAXED);
+    xrpcserveradmission R=xrpcServerWorkSubmit(H->Execution,&A->Work);
+    if(R!=XRPC_SERVER_ACCEPTED){xrpcHsAuthSlot(P)->Request=NULL;xrpcHsAuthRelease(A);xrpcHsAuthRelease(A);xrtMutexLock(&H->Gate);++H->Info.AuthorizationRejected;xrtMutexUnlock(&H->Gate);return false;}
+    xrtMutexLock(&H->Gate);++H->Info.AuthorizationAccepted;xrtMutexUnlock(&H->Gate);return true;
 }
 static void xrpcHsUnwait(xrpchspeer* P)
 {
@@ -155,7 +221,9 @@ static bool xrpcHsGrow(xrpchspeer* P,bool Body,size_t Need)
     if(N>Limit)N=Limit;
     while(N<Need){if(N>Limit/2u){N=Limit;break;}N*=2u;}
     if(!xrpcHsReserve(P->Server,N))return false;
-    ptr Q=xrtRealloc(Body?P->Payload:P->Input,N);
+    ptr Previous=Body?P->Payload:P->Input;ptr Q;
+    if(P->Server->Config.Authorize){Q=xrtMalloc(N);if(Q){size_t Used=Body?P->PayloadUsed:P->InputUsed;if(Used)memcpy(Q,Previous,Used);if(Previous){xrtSecureZero(Previous,Old);xrtFree(Previous);}}}
+    else Q=xrtRealloc(Previous,N);
     if(!Q){xrpcHsRefund(P->Server,N);return false;}
     if(Body){P->Payload=Q;P->PayloadCapacity=N;}else{P->Input=Q;P->InputCapacity=N;}
     xrpcHsRefund(P->Server,Old);return true;
@@ -188,13 +256,14 @@ static bool xrpcHsHeader(xrpchsop* O)
     if(O->Body.Size)F[Count++]=(xhttpfield){XRT_STR_LITERAL("Content-Type"),XRT_STR_LITERAL("application/json")};
     F[Count++]=(xhttpfield){XRT_STR_LITERAL("Connection"),(P->CloseAfter || P->ReadEnded)?XRT_STR_LITERAL("close"):XRT_STR_LITERAL("keep-alive")};
     if(O->Status==405)F[Count++]=(xhttpfield){XRT_STR_LITERAL("Allow"),XRT_STR_LITERAL("POST")};
+    if(O->Status==401)F[Count++]=(xhttpfield){XRT_STR_LITERAL("WWW-Authenticate"),P->Server->Config.UnauthorizedChallenge};
     size_t D=xrtTimeWriteHTTPDate(Date,sizeof(Date),xrtNow());if(D)F[Count++]=(xhttpfield){XRT_STR_LITERAL("Date"),(xstrview){Date,D}};
     if(!xrtHttp1ResponseWrite(P->Version,O->Status,(xstrview){0},F,Count,O->Head,sizeof(O->Head),&O->HeadSize))return false;
     O->Prepared=true;return true;
 }
 static void xrpcHsError(xrpchspeer* P,uint16 Status)
 {
-    if(P->PayloadCapacity){size_t Bytes=P->PayloadCapacity;xrtFree(P->Payload);P->Payload=NULL;P->PayloadCapacity=P->PayloadUsed=0;xrpcHsRefund(P->Server,Bytes);}
+    if(P->PayloadCapacity){size_t Bytes=P->PayloadCapacity;if(P->Server->Config.Authorize)xrtSecureZero(P->Payload,Bytes);xrtFree(P->Payload);P->Payload=NULL;P->PayloadCapacity=P->PayloadUsed=0;xrpcHsRefund(P->Server,Bytes);}
     P->CloseAfter=true;P->Continue=false;P->Operation=xrpcHsOpCreate(P);
     if(!P->Operation){P->Aborting=true;return;}P->Operation->Status=Status;
     if(!xrpcHsHeader(P->Operation))P->Aborting=true;
@@ -204,8 +273,10 @@ static void xrpcHsSubmit(xrpchspeer* P,xstrview Body)
 {
     xrpchttpserver* H=P->Server;xrtMutexLock(&H->Gate);++H->Info.Requests;xrtMutexUnlock(&H->Gate);
     P->Operation=xrpcHsOpCreate(P);if(!P->Operation){P->Aborting=true;return;}xrpchsop* O=P->Operation;
-    xrpcserveradmission A=xrpcServerSubmitEntered(H->Execution,Body,H->Config.RequestTimeout,&O->Future,P->Entered);
-    if(P->PayloadCapacity>65536u){size_t Bytes=P->PayloadCapacity;xrtFree(P->Payload);P->Payload=NULL;P->PayloadCapacity=P->PayloadUsed=0;xrpcHsRefund(H,Bytes);}
+    xrpchsauth* Auth=H->Config.Authorize?xrpcHsAuthSlot(P)->Request:NULL;
+    xrpcserveradmission A=xrpcServerSubmitContextEntered(H->Execution,Body,Auth?(xbytesview){Auth->Context,Auth->ContextBytes}:(xbytesview){0},H->Config.RequestTimeout,&O->Future,P->Entered);
+    if(Auth){xrpcHsAuthSlot(P)->Request=NULL;xrpcHsAuthRelease(Auth);}
+    if(P->PayloadCapacity>65536u){size_t Bytes=P->PayloadCapacity;if(H->Config.Authorize)xrtSecureZero(P->Payload,Bytes);xrtFree(P->Payload);P->Payload=NULL;P->PayloadCapacity=P->PayloadUsed=0;xrpcHsRefund(H,Bytes);}
     if(A!=XRPC_SERVER_ACCEPTED){xrtMutexLock(&H->Gate);++H->Info.OperationRejected;xrtMutexUnlock(&H->Gate);O->Status=503;P->CloseAfter=true;if(!xrpcHsHeader(O))P->Aborting=true;return;}
     xrtMutexLock(&H->Gate);++H->Info.Dispatched;xrtMutexUnlock(&H->Gate);
     if(!xrtFutureWatchInit(&O->Watch,xrpcHsReady,xrpcHsOpDrop,O)){P->Aborting=true;return;}
@@ -226,6 +297,7 @@ static uint16 xrpcHsValidate(xrpchspeer* P,const xhttp1head* Head,xhttp1bodyplan
 {
     const xhttpfield* Host=NULL;xhttpnext R=xrtHttpFieldGetUnique(Head->Fields,Head->FieldCount,XRT_STR_LITERAL("Host"),&Host);
     if(R==XHTTP_NEXT_ERROR || (Head->Version==XHTTP_VERSION_1_1 && R!=XHTTP_NEXT_ITEM) || (Host && !xrtHttpHostValid(Host->Value)))return 400;
+    if(P->Server->Config.Authorize && xrtHttpFieldGetUnique(Head->Fields,Head->FieldCount,XRT_STR_LITERAL("Authorization"),&Host)==XHTTP_NEXT_ERROR)return 400;
     if(Head->MethodCode!=XHTTP_METHOD_POST)return 405;
     xhttptarget T;if(!xrtHttpTargetParse(Head->Method,Head->Target,&T))return 400;
     if(T.Form!=XHTTP_TARGET_ORIGIN && T.Form!=XHTTP_TARGET_ABSOLUTE)return 400;
@@ -255,13 +327,19 @@ static void xrpcHsParse(xrpchspeer* P,bool End)
     size_t Offset=0;
     if(!P->Active){P->Active=true;P->Entered=P->InputEpoch?P->InputEpoch:xrtTimer();if(!xrpcHsTimerArm(P)){P->Aborting=true;return;}}
     while(!P->Operation && !P->Aborting){
-        if(!P->BodyStarted){size_t HeadEnd=0;
-            while(P->InputScan<P->InputUsed){size_t N=++P->InputScan;if(N>=4 && !memcmp(P->Input+N-4,"\r\n\r\n",4)){HeadEnd=N;break;}if(N>=P->Server->Config.Head.MaxHead)break;}
+        if(!P->BodyStarted){xrpchsauth* Auth=P->Server->Config.Authorize?xrpcHsAuthSlot(P)->Request:NULL;size_t HeadEnd=Auth?Auth->Head.Bytes:0;
+            while(!HeadEnd && P->InputScan<P->InputUsed){size_t N=++P->InputScan;if(N>=4 && !memcmp(P->Input+N-4,"\r\n\r\n",4)){HeadEnd=N;break;}if(N>=P->Server->Config.Head.MaxHead)break;}
             if(!HeadEnd){if(End || P->InputUsed>=P->Server->Config.Head.MaxHead || P->InputUsed>P->Server->Config.MaxRequestWireBytes)xrpcHsError(P,End?400:P->InputUsed>=P->Server->Config.Head.MaxHead?431:413);break;}
-            xhttp1head Head;xrtHttp1HeadInit(&Head,P->Fields,P->Server->Config.Head.MaxFields);xhttp1errorinfo E={0};
-            if(xrtHttp1RequestParse((xbytesview){P->Input,HeadEnd},&Head,&P->Server->Config.Head,&E)!=XHTTP1_READY){xrpcHsError(P,xrpcHsParseStatus(&E));break;}
-            P->Version=Head.Version;P->CloseAfter=(Head.Flags&XHTTP1_CONNECTION_CLOSE)!=0 || (Head.Version==XHTTP_VERSION_1_0 && !(Head.Flags&XHTTP1_KEEP_ALIVE));
-            xhttp1bodyplan Plan;uint16 Bad=xrpcHsValidate(P,&Head,&Plan);if(Bad){xrpcHsError(P,xrtErrorKind(xrtGetError())==XERR_MEMORY?503:Bad);break;}
+            xhttp1bodyplan Plan;
+            if(Auth){if(!xrtAtomic32Load(&Auth->Ready,XMEMORY_ACQUIRE))break;if(Auth->Status!=200){xrpcHsError(P,Auth->Status);break;}Plan=Auth->Plan;HeadEnd=Auth->Head.Bytes;}
+            else{
+                xhttp1head Head;xrtHttp1HeadInit(&Head,P->Fields,P->Server->Config.Head.MaxFields);xhttp1errorinfo E={0};
+                if(xrtHttp1RequestParse((xbytesview){P->Input,HeadEnd},&Head,&P->Server->Config.Head,&E)!=XHTTP1_READY){xrpcHsError(P,xrpcHsParseStatus(&E));break;}
+                P->Version=Head.Version;P->CloseAfter=(Head.Flags&XHTTP1_CONNECTION_CLOSE)!=0 || (Head.Version==XHTTP_VERSION_1_0 && !(Head.Flags&XHTTP1_KEEP_ALIVE));
+                uint16 Bad=xrpcHsValidate(P,&Head,&Plan);if(Bad){xrpcHsError(P,xrtErrorKind(xrtGetError())==XERR_MEMORY?503:Bad);break;}
+                if(HeadEnd>P->Server->Config.MaxRequestWireBytes){xrpcHsError(P,413);break;}
+                if(P->Server->Config.Authorize){if(!xrpcHsAuthorize(P,&Head,&Plan))xrpcHsError(P,503);break;}
+            }
             if(!xrpcHsWire(P,HeadEnd))break;
             Offset=HeadEnd;P->BodyStarted=true;
             if((Plan.Mode==XHTTP1_BODY_FIXED && Plan.Length<=P->InputUsed-Offset) || Plan.Mode==XHTTP1_BODY_NONE){
@@ -288,7 +366,7 @@ static void xrpcHsParse(xrpchspeer* P,bool End)
         }
         if(!Used || (S==XHTTP1_BODY_MORE && Offset==P->InputUsed))break;
     }
-    if(Offset){memmove(P->Input,P->Input+Offset,P->InputUsed-Offset);P->InputUsed-=Offset;P->InputScan=0;if(!P->InputUsed)P->InputEpoch=0;}
+    if(Offset){memmove(P->Input,P->Input+Offset,P->InputUsed-Offset);if(P->Server->Config.Authorize)xrtSecureZero(P->Input+P->InputUsed-Offset,Offset);P->InputUsed-=Offset;P->InputScan=0;if(!P->InputUsed)P->InputEpoch=0;}
     if(!P->Operation && !P->Aborting && P->InputUsed>P->Server->Config.MaxRequestWireBytes-P->WireBytes)xrpcHsError(P,413);
 }
 static size_t xrpcHsAvailable(xrpchspeer* P)
@@ -316,7 +394,7 @@ static void xrpcHsRead(xrpchspeer* P)
 {
     size_t Budget=P->Server->Config.ReadBytes;
     if(P->InputUsed)xrpcHsParse(P,false);
-    while(Budget && !P->Operation && !P->Aborting && !P->Continue){
+    while(Budget && !P->Operation && !P->Aborting && !P->Continue && !xrpcHsAuthPending(P)){
         size_t Available=xrpcHsAvailable(P);if(!Available)break;
         if(P->InputUsed==P->InputCapacity && !xrpcHsGrow(P,false,P->InputUsed+1u)){xrpcHsError(P,503);break;}
         size_t N=P->InputCapacity-P->InputUsed;if(N>Available)N=Available;if(N>Budget)N=Budget;
@@ -331,7 +409,7 @@ static void xrpcHsRead(xrpchspeer* P)
         if(!xrpcHsAvailable(P))P->ReadEpoch=0;
         xrpcHsParse(P,false);
     }
-    if(P->ReadEnded && !P->Operation && !P->Aborting && !xrpcHsAvailable(P)){
+    if(P->ReadEnded && !P->Operation && !P->Aborting && !xrpcHsAuthPending(P) && !xrpcHsAvailable(P)){
         if(P->Active || P->InputUsed)xrpcHsParse(P,true);else P->Aborting=true;
     }
 }
@@ -408,7 +486,7 @@ static void xrpcHsWrite(xrpchspeer* P)
             (void)xrtNetStreamClose(P->Stream);return;}
         P->Active=P->BodyStarted=false;P->PayloadUsed=P->WireBytes=P->InputScan=0;P->Version=XHTTP_VERSION_1_1;P->Entered=xrtTimer();
         if(!P->InputUsed && P->InputCapacity>65536u && P->InputCapacity>P->Server->Config.InitialInputBytes){
-            size_t Bytes=P->InputCapacity;xrtFree(P->Input);P->Input=NULL;P->InputCapacity=0;xrpcHsRefund(P->Server,Bytes);
+            size_t Bytes=P->InputCapacity;if(P->Server->Config.Authorize)xrtSecureZero(P->Input,Bytes);xrtFree(P->Input);P->Input=NULL;P->InputCapacity=0;xrpcHsRefund(P->Server,Bytes);
             if(!xrpcHsGrow(P,false,P->Server->Config.InitialInputBytes))P->Aborting=true;
         }
         if(!xrpcHsTimerArm(P))P->Aborting=true;
@@ -441,6 +519,7 @@ static void xrpcHsPeerWork(xnetworker* Worker,ptr Data)
     if(xrpcHsClosing(P->Server))P->Aborting=true;
     if(P->Closed || P->Aborting){
         xrpcHsTimerCancel(P);
+        if(P->Server->Config.Authorize){xrpchsauthslot* Slot=xrpcHsAuthSlot(P);xrpchsauth* A=Slot->Request;Slot->Request=NULL;if(A){(void)xrtCancelRequest(A->Work.Cancel);xrpcHsAuthRelease(A);}}
         if(P->Operation){xrpchsop* O=P->Operation;P->Operation=NULL;if(O->Future)(void)xrtFutureCancel(O->Future);xrpcHsOpDrop(O);}
         if(!P->Closed)xrpcHsAbort(P);
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
@@ -449,12 +528,13 @@ static void xrpcHsPeerWork(xnetworker* Worker,ptr Data)
         if(P->Closed && P->Linked){if(P->Previous)P->Previous->Next=P->Next;else P->Shard->Peers=P->Next;if(P->Next)P->Next->Previous=P->Previous;P->Linked=false;xrpcHsPeerDrop(P);}
     }else{
         if(P->Operation)xrpcHsWrite(P);
-        if(!P->Operation && !P->Aborting && xrpcHsOpen(P)){
-            if(P->Continue)xrpcHsContinue(P);
-            if(!P->Continue){xrpcHsRead(P);if(P->Operation || P->Continue)xrpcHsPeerWake(P);}
+        if(!P->Operation && !P->Aborting && !xrpcHsAuthPending(P) && xrpcHsOpen(P)){
+            bool Resolve=P->Server->Config.Authorize && !P->BodyStarted && xrpcHsAuthSlot(P)->Request;
+            if(P->Continue && !Resolve)xrpcHsContinue(P);
+            if(!P->Continue || Resolve){xrpcHsRead(P);if(!xrpcHsAuthPending(P) && (P->Operation || P->Continue))xrpcHsPeerWake(P);}
         }
         if(P->Aborting)xrpcHsPeerWake(P);
-        else if(P->Operation || P->Continue){if(P->Stream)xrtNetStreamPause(P->Stream);}
+        else if(P->Operation || P->Continue || xrpcHsAuthPending(P)){if(P->Stream)xrtNetStreamPause(P->Stream);}
         else if(xrpcHsOpen(P)){if(xrpcHsAvailable(P))xrpcHsPeerWake(P);else if(P->Stream)(void)xrtNetStreamResume(P->Stream);}
     }
     xrpcHsPeerDrop(P);
@@ -522,7 +602,8 @@ static const xtlsstreamownershipv1 xrpcHsTlsEvents={sizeof(xtlsstreamownershipv1
 #endif
 static bool xrpcHsAccept(xnetlistener* Listener,xnetstream* Stream,ptr Data)
 {
-    (void)Listener;double Entered=xrtTimer();xrpchttpserver* H=Data;size_t Fixed=sizeof(xrpchspeer)+(H->Config.Head.MaxFields+H->Config.Body.MaxTrailers)*sizeof(xhttpfield);
+    (void)Listener;double Entered=xrtTimer();xrpchttpserver* H=Data;xnetaddr Remote={0};if(H->Config.Authorize && !xrtNetStreamRemote(Stream,&Remote))return false;size_t Fixed=sizeof(xrpchspeer)+(H->Config.Head.MaxFields+H->Config.Body.MaxTrailers)*sizeof(xhttpfield);
+    if(H->Config.Authorize)Fixed+=sizeof(xrpchsauthslot);
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
     if(H->Secure)Fixed+=sizeof(xrpchssecurepeer);
 #endif
@@ -546,6 +627,7 @@ static bool xrpcHsAccept(xnetlistener* Listener,xnetstream* Stream,ptr Data)
         xrpcHsDrop(H);return false;}
     xrtAtomic32Init(&P->References,1);xrtAtomic32Init(&P->Posted,0);P->Server=H;P->FixedBytes=Fixed;P->InputCapacity=H->Config.InitialInputBytes;
     P->Fields=(xhttpfield*)(P+1);P->Trailers=P->Fields+H->Config.Head.MaxFields;P->Input=xrtMalloc(P->InputCapacity);
+    if(H->Config.Authorize)xrpcHsAuthSlot(P)->Remote=Remote;
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
     if(H->Secure){P->Secure=(xrpchssecurepeer*)((bytes)P+Fixed-sizeof(xrpchssecurepeer));P->Secure->Handshaking=true;}
 #endif
@@ -581,15 +663,16 @@ XRPC_API bool xrpcHttpServerConfigInit(xrpchttpserverconfig* C)
     *C=(xrpchttpserverconfig){0};C->Size=sizeof(*C);xrtNetListenConfigInit(&C->Listen);xrtNetAddrParse(&C->Listen.Address,"127.0.0.1",0);
     xrpcServerConfigInit(&C->Execution);xrtHttp1LimitsInit(&C->Head);xrtHttp1BodyLimitsInit(&C->Body);C->Body.MaxBody=1024u*1024u;C->Path=XRT_STR_LITERAL("/rpc");
     C->MaxConnections=1024;C->MaxOperations=256;C->MaxBufferBytes=16u*1024u*1024u;C->MaxQueuedBytes=8u*1024u*1024u;C->MaxRequestWireBytes=2u*1024u*1024u;
-    C->InitialInputBytes=4096;C->ReadBytes=C->WriteBytes=64u*1024u;C->WriteChunkBytes=16u*1024u;C->IdleTimeout=C->RequestTimeout=30000;return true;
+    C->InitialInputBytes=4096;C->ReadBytes=C->WriteBytes=64u*1024u;C->WriteChunkBytes=16u*1024u;C->IdleTimeout=C->RequestTimeout=30000;
+    C->UnauthorizedChallenge=XRT_STR_LITERAL("Bearer");C->MaxAuthorizations=128;C->MaxAuthorizationContextBytes=256;return true;
 }
 static bool xrpcHsCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,xrpchssecure* Secure,xrpchttpserver** Result)
 {
     if(!Engine || !Result || !xrtMemRangeValid(Result,sizeof(*Result)) || (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Result,sizeof(*Result)))))goto Argument;
     xrpchttpserverconfig C;if(Config)C=*Config;else xrpcHttpServerConfigInit(&C);
-    size_t PeerExtra=0,SourceBytes=0;
+    size_t PeerExtra=C.Authorize?sizeof(xrpchsauthslot):0,SourceBytes=0;
 #if defined(XRPC_FEATURE_XRPC_HTTP_SERVER_TLS)
-    if(Secure){PeerExtra=sizeof(xrpchssecurepeer);SourceBytes=Secure->Bytes;}
+    if(Secure){PeerExtra+=sizeof(xrpchssecurepeer);SourceBytes=Secure->Bytes;}
 #endif
     if(C.Size!=sizeof(C) || !xrtMemRangeValid(C.Path.Data,C.Path.Size) || xrtMemRangesOverlap(C.Path.Data,C.Path.Size,Result,sizeof(*Result)) || !C.Path.Size || C.Path.Data[0]!='/' ||
         !C.MaxConnections || C.MaxConnections>1000000u || !C.MaxOperations || C.MaxOperations>1000000u || !C.MaxBufferBytes || C.MaxQueuedBytes<25u || !C.MaxRequestWireBytes ||
@@ -597,6 +680,9 @@ static bool xrpcHsCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,x
         !C.Head.MaxHead || !C.Head.MaxFields || !C.Head.MaxStartLine || !C.Head.MaxFieldLine || !C.Body.MaxBody || C.Body.MaxBody>SIZE_MAX || !C.Body.MaxTrailer || !C.Body.MaxTrailers || !C.Body.MaxChunkLine || !C.Body.MaxTrailerLine ||
         C.Head.MaxFields>(SIZE_MAX-sizeof(xrpchspeer)-PeerExtra)/sizeof(xhttpfield) || C.Body.MaxTrailers>(SIZE_MAX-sizeof(xrpchspeer)-PeerExtra)/sizeof(xhttpfield)-C.Head.MaxFields ||
         (C.Listen.Address.Family!=XNET_FAMILY_IPV4 && C.Listen.Address.Family!=XNET_FAMILY_IPV6) || C.Listen.Stream.WriteLimit<25u || !xrtNetStreamConfigValid(&C.Listen.Stream))goto Argument;
+    if(C.Authorize && (!C.MaxAuthorizations || C.MaxAuthorizations>1000000u || C.MaxAuthorizationContextBytes>C.Execution.MaxContextBytes || !C.UnauthorizedChallenge.Size || C.UnauthorizedChallenge.Size>128u ||
+        !xrtMemRangeValid(C.UnauthorizedChallenge.Data,C.UnauthorizedChallenge.Size) || xrtMemRangesOverlap(C.UnauthorizedChallenge.Data,C.UnauthorizedChallenge.Size,Result,sizeof(*Result)) || !xrtHttpFieldValueValid(C.UnauthorizedChallenge)))goto Argument;
+    if(!C.Authorize)C.UnauthorizedChallenge=(xstrview){0};
     xhttptarget Route;if(!xrtHttpTargetParse(XRT_STR_LITERAL("POST"),C.Path,&Route) || Route.Form!=XHTTP_TARGET_ORIGIN || (Route.Flags&XHTTP_TARGET_HAS_QUERY))goto Argument;
     size_t Limit=C.Head.MaxHead;if(Limit<C.Body.MaxTrailer)Limit=C.Body.MaxTrailer;if(Limit<C.Body.MaxChunkLine)Limit=C.Body.MaxChunkLine;
     if(Limit>SIZE_MAX-C.ReadBytes)goto Argument;
@@ -607,11 +693,14 @@ static bool xrpcHsCreate(xnetengine* Engine,const xrpchttpserverconfig* Config,x
     Base+=(size_t)Workers*sizeof(xrpchsshard);
     if(C.Path.Size>SIZE_MAX-Base || Base+C.Path.Size>C.MaxBufferBytes)goto Argument;
     Base+=C.Path.Size;
+    if(C.UnauthorizedChallenge.Size>SIZE_MAX-Base || Base+C.UnauthorizedChallenge.Size>C.MaxBufferBytes)goto Argument;
+    Base+=C.UnauthorizedChallenge.Size;
     if(SourceBytes>C.MaxBufferBytes-Base)goto Argument;
     if(!xrtNetEnginePin(Engine))return false;
     xrpchttpserver* H=xrtCalloc(1,Base);if(!H){xrtNetEngineUnpin(Engine);return false;}
     H->Engine=Engine;H->Config=C;H->OwnedBytes=Base;H->InputLimit=Limit;H->ShardCount=Workers;xrtAtomic32Init(&H->References,1);
     H->Config.Path=(xstrview){(cstr)(H->Shards+Workers),C.Path.Size};memcpy((ptr)H->Config.Path.Data,C.Path.Data,C.Path.Size);
+    H->Config.UnauthorizedChallenge=C.UnauthorizedChallenge.Size?(xstrview){H->Config.Path.Data+C.Path.Size,C.UnauthorizedChallenge.Size}:(xstrview){0};if(C.UnauthorizedChallenge.Size)memcpy((ptr)H->Config.UnauthorizedChallenge.Data,C.UnauthorizedChallenge.Data,C.UnauthorizedChallenge.Size);
     if(!xrtMutexInit(&H->Gate)){xrtFree(H);xrtNetEngineUnpin(Engine);return false;}
     if(!xrtCondInit(&H->Idle)){xrtMutexUnit(&H->Gate);xrtFree(H);xrtNetEngineUnpin(Engine);return false;}
     H->Info.Size=sizeof(H->Info);H->Info.BufferBytes=Base+SourceBytes;

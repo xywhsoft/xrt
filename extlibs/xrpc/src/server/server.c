@@ -237,6 +237,39 @@ XRPC_API xrpcserveradmission xrpcServerSubmitWithContext(xrpcserver* S,xstrview 
 {return xrpcServerSubmitContextEntered(S,Input,Context,Timeout,Future,xrtTimer());}
 XRPC_API xrpcserveradmission xrpcServerSubmit(xrpcserver* S,xstrview Input,int64 Timeout,xfuture** Future)
 {return xrpcServerSubmitEntered(S,Input,Timeout,Future,xrtTimer());}
+xcancel* xrpcServerCancelChild(xrpcserver* S){return xrtCancelChild(S->Cancel);}
+static xrpcserverstatus xrpcServerWorkStatus(xrpcserverwork* W)
+{return xrtTimer()>=W->Deadline?XRPC_SERVER_TIMEOUT:xrtCancelRequested(W->Cancel)?XRPC_SERVER_CANCELLED:XRPC_SERVER_DONE;}
+static void xrpcServerWorkRun(ptr Data)
+{
+    xrpcserverwork* W=Data;xrpcserverquota* Q=W->Server->Quota;
+    xrtMutexLock(&Q->Gate);++Q->Info.Running;xrtMutexUnlock(&Q->Gate);
+    W->Called=true;W->Call(W,xrpcServerWorkStatus(W));
+    xrtMutexLock(&Q->Gate);--Q->Info.Running;xrtMutexUnlock(&Q->Gate);
+}
+static void xrpcServerWorkDrop(ptr Data,ptr Context)
+{
+    (void)Context;xrpcserverwork* W=Data;xrpcserverquota* Q=W->Server->Quota;
+    if(!W->Called)W->Call(W,xrpcServerWorkStatus(W)==XRPC_SERVER_TIMEOUT?XRPC_SERVER_TIMEOUT:XRPC_SERVER_CANCELLED);
+    /* Return queue credit before notifying the transport, so a one-slot
+     * executor can admit the now-authorized document. Native drop/join remains
+     * the physical barrier and transport-owned storage retains its own quota. */
+    xrtMutexLock(&Q->Gate);--Q->Info.Operations;--Q->Info.Auxiliary;Q->Info.RequestBytes-=W->Bytes;++Q->Info.AuxiliaryCompleted;xrtCondBroadcast(&Q->Idle);xrtMutexUnlock(&Q->Gate);
+    W->Drop(W);
+}
+xrpcserveradmission xrpcServerWorkSubmit(xrpcserver* S,xrpcserverwork* W)
+{
+    xerror* Ambient=xrtTakeError();xrpcserverquota* Q=S->Quota;xrpcserveradmission A=XRPC_SERVER_ACCEPTED;
+    xrtMutexLock(&Q->Gate);
+    if(!Q->Info.Accepting)A=XRPC_SERVER_CLOSED;
+    else if(Q->Info.Operations>=S->Config.MaxOperations || W->Bytes>S->Config.MaxRequestBytesTotal-Q->Info.RequestBytes)A=XRPC_SERVER_OVERLOADED;
+    else{W->Server=S;
+        if(!xrtExecutorSubmit(S->Executor,xrpcServerWorkRun,W,xrpcServerWorkDrop,NULL)){
+            xerrkind K=xrtErrorKind(xrtGetError());A=K==XERR_AGAIN?XRPC_SERVER_OVERLOADED:K==XERR_CLOSED?XRPC_SERVER_CLOSED:XRPC_SERVER_ADMISSION_ERROR;
+        }else{++Q->Info.Operations;++Q->Info.Auxiliary;Q->Info.RequestBytes+=W->Bytes;++Q->Info.AuxiliaryAccepted;}}
+    xrtMutexUnlock(&Q->Gate);
+    if(A!=XRPC_SERVER_ADMISSION_ERROR){xrtClearError();xrtSetErrorTake(Ambient);}else xrtErrorFree(Ambient);return A;
+}
 XRPC_API bool xrpcServerInfo(xrpcserver* S,xrpcserverinfo* Info)
 {
     if(!S || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) || xrtMemRangesOverlap(Info,sizeof(*Info),S,S->OwnedBytes))

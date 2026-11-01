@@ -30,6 +30,7 @@ static inline bool rpcServiceCall(const xrpcmessage* R,xrpcreply* Reply,const xr
         xrtAtomic32Store(&S->Window,OK?1u:0u,XMEMORY_RELEASE);
     }
     if(rpcServiceMethod(R,"error"))return xrpcReplyError(Reply,XRT_STR_LITERAL("-1"),XRT_STR_LITERAL("failure"),(xstrview){0});
+    if(rpcServiceMethod(R,"identity"))return xrpcReplyResult(Reply,(xstrview){(cstr)Context->Data.Data,Context->Data.Size});
     if(rpcServiceMethod(R,"budget"))xrtAtomic32Store(&S->Window,(uint32)((Context->Deadline-xrtTimer())*1000.),XMEMORY_RELEASE);
     return xrpcReplyResult(Reply,R->Params.Raw.Size?R->Params.Raw:XRT_STR_LITERAL("null"));
 }
@@ -54,7 +55,7 @@ static inline void rpcServiceStop(rpcService* S)
 {
     rpcServiceRequire(xrpcHttpServerClose(S->Server) && xrpcHttpServerWaitFor(S->Server,10000)==XWAIT_OK,"server physical drain");
     xrpchttpserverinfo I={0};I.Size=sizeof(I);rpcServiceRequire(xrpcHttpServerInfo(S->Server,&I) && I.State==XRPC_HTTP_SERVER_CLOSED &&
-        !I.Connections && !I.Operations && !I.QueuedBytes && I.BufferBytes==S->BaseBytes && !I.Execution.Operations && !I.Execution.Results,"server retired accounting");
+        !I.Connections && !I.Operations && !I.Authorizations && !I.QueuedBytes && I.BufferBytes==S->BaseBytes && !I.Execution.Operations && !I.Execution.Results && !I.Execution.Auxiliary && I.Execution.AuxiliaryAccepted==I.Execution.AuxiliaryCompleted,"server retired accounting");
     rpcServiceRequire(xrpcHttpServerDestroy(S->Server),"server destroy");S->Server=NULL;
     rpcServiceRequire(xrtNetEngineStop(S->Engine) && xrtNetEngineDestroy(S->Engine),"host engine physical duties leaked");S->Engine=NULL;
 }

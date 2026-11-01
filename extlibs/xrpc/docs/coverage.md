@@ -224,7 +224,8 @@ is added per client. This is not a process RSS ceiling or final performance proo
 
 The probe source at `tests/interop/http_dial_close_race.py` uses the production
 client C source and actual modular objects; no production test hook is installed.
-TLS/authentication/recovery and full native/long-run acceptance remain pending.
+Verified TLS and optional request authorization are covered below. Recovery,
+credential lifecycle and full native/long-run acceptance remain pending.
 
 
 | Immutable HTTP client header contract | Local verification |
@@ -234,8 +235,9 @@ TLS/authentication/recovery and full native/long-run acceptance remain pending.
 | Physical erasure | Actual production client TU inspected before real free: successful/cancelled/dropped wire, final snapshot and partially constructed snapshot under OOM; native/caller copies excluded |
 | Interoperability | Independent Python HTTPS peer with public Basic/Bearer fixture files; TLS 1.3/1.2, ALPN/no-ALPN, wrong identity/CA before RPC |
 
-These fields transport application credentials; server authorization, challenge/
-refresh/replay policy and per-request server context remain pending. The paired
+These fields transport application credentials; copied server context and
+authorization are covered below. Automatic challenge negotiation, credential
+refresh and replay policy remain pending. The paired
 TCP/TLS header profile retains all samples and original noise limits; timing
 excludes setup/shutdown and may exclude native callback retirement tails. It is
 not isolated transport CPU or performance/production acceptance.
@@ -248,5 +250,17 @@ not isolated transport CPU or performance/production acceptance.
 | Concurrency and stops | Four producers with independent metadata, queued Future/server cancellation and deadline precedence without business entry |
 | Failure/erasure | Alternating empty/nonempty 2048 construction quota prefixes, actual production-TU inspection before real job free on success/stops/partial construction |
 
-This is the execution data channel needed by transport authorization. HTTP
-authorization, principal policy and typed request metadata remain pending.
+This is the execution data channel consumed by HTTP authorization below.
+Applications supply credential/principal policy; typed transport metadata
+remains pending.
+
+
+| Async HTTP authorization contract | Verification |
+| --- | --- |
+| Header gate | No premature Continue/business, owned challenge, missing/forbidden/error/invalid callback results, duplicate credential rejection |
+| Identity and transport | Persistent one-operation executor, per-document identity for call/batch/notification, verified TLS with partial write credit and retained replies |
+| Bounds/stops | Snapshot/executor/queue limits, child cancel/deadline, noncooperative physical wait, own callback self-wait refusal and config alias/injection limits |
+| Real storage/failure | Production-TU pre-free inspection, held callback before erasure, one-byte snapshot allocation failure, child-token quota sweep and complete owner/budget retirement |
+
+Credential negotiation/lifecycle, mTLS and final native/comparator/72-hour
+production qualification remain pending.

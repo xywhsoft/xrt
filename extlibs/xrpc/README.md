@@ -12,13 +12,15 @@ The optional [HTTP TLS client](docs/http_tls.md) adds explicit trusted numeric,
 DNS and prepared-address connections, HTTP/1.1 ALPN and bounded partial writes.
 The optional [HTTP TLS server](docs/http_server_tls.md) adds explicit TLS listeners,
 copied identity policy, handshake admission limits and bounded record credit.
-Mutual authentication and HTTP authentication remain pending.
+Optional [asynchronous HTTP authorization](docs/http_authorization.md) gates
+Continue/body/business on the existing bounded executor and transfers copied
+identity bytes to handlers. Mutual authentication and credential lifecycle remain pending.
 Matched TCP/TLS benchmarks use [explicit timing and CPU accounting](docs/http_measurement.md),
 with terminal-watch observations, separate arrival/collector delay and optional
 per-offer traces. Performance acceptance remains open.
 The client supports [immutable bounded request headers](docs/http_headers.md),
 including explicit Authorization transport with owned-copy erasure. Server
-authorization, challenge/refresh negotiation and richer response metadata remain pending.
+authorization is explicit; challenge/refresh negotiation and richer response metadata remain pending.
 Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 

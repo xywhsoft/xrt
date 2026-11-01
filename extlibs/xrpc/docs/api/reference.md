@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `83` 个函数、`157` 个常量或宏、
-`76` 个公共类型。
+当前登记 `83` 个函数、`161` 个常量或宏、
+`79` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -238,10 +238,14 @@
 - `xrpcHttpServerStart`
 - `xrpcHttpServerWaitFor`
 
-### 常量与宏 (11)
+### 常量与宏 (15)
 
 - `XRPC_FEATURE_XRPC_HTTP_SERVER`
 - `XRPC_FEATURE_XRPC_SERVER`
+- `XRPC_HTTP_AUTH_ALLOW`
+- `XRPC_HTTP_AUTH_ERROR`
+- `XRPC_HTTP_AUTH_FORBIDDEN`
+- `XRPC_HTTP_AUTH_UNAUTHORIZED`
 - `XRPC_HTTP_SERVER_ARGUMENT`
 - `XRPC_HTTP_SERVER_CLOSED`
 - `XRPC_HTTP_SERVER_CLOSING`
@@ -252,8 +256,11 @@
 - `XRPC_HTTP_SERVER_RUNNING`
 - `XRPC_HTTP_SERVER_STATE`
 
-### 类型 (7)
+### 类型 (10)
 
+- `xrpchttpauthorize`
+- `xrpchttpauthrequest`
+- `xrpchttpauthstatus`
 - `xrpchttpserver`
 - `xrpchttpserverconfig`
 - `xrpchttpservererror`

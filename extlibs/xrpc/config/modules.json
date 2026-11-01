@@ -863,7 +863,8 @@
         "extlibs/xrpc/README.md",
         "extlibs/xrpc/docs/api/reference.md",
         "extlibs/xrpc/docs/coverage.md",
-        "extlibs/xrpc/docs/http_server.md"
+        "extlibs/xrpc/docs/http_server.md",
+        "extlibs/xrpc/docs/http_authorization.md"
       ]
     },
     {

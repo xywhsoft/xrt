@@ -4641,3 +4641,181 @@ CPU/cycle/allocation/copy/synchronization/syscall accounting and native fault/
 slow/contended/recovery matrices. This prerequisite completes neither xrpc nor
 the four-product production goal. Integration with subsequent primary-checkout
 changes also remains a separate verified step.
+
+
+
+## P3: bounded asynchronous HTTP authorization (2026-11-01)
+
+HTTP and HTTPS servers now optionally authorize a validated immutable request-head
+snapshot on the existing bounded executor before 100 Continue, body processing or
+business dispatch. The callback receives the accepted transport peer, TLS mode,
+one child cancellation token and the original whole-request deadline. ALLOW
+copies bounded opaque identity bytes into each handler's existing Context->Data;
+a batch shares the document identity. Remote does not trust forwarded headers and
+TLS mode supplies no client identity. Borrowed callback/code/User lifetimes,
+concurrency and self-wait rejection are documented in http_authorization.md.
+
+401 includes the copied configured WWW-Authenticate challenge; 403, callback
+failure/cancellation 503, invalid callback results 500 and duplicate Authorization
+400 have explicit paths. Refusals close without reinterpreting queued bodies or
+subsequent authorized requests. The optional challenge is a valid field value up
+to 128 bytes; its RFC scheme semantics remain the application's responsibility.
+The HTTPS example reads runtime credential files, uses native constant-time
+equal-length comparison, provides a sample identity, and wipes its local token
+after physical destruction. This is an application policy callback, not a token
+database, credential-refresh service or automatic negotiation/retry/replay.
+
+Each authorization uses one flat allocation for the embedded executor node,
+snapshot descriptors/raw head/alignment/output capacity. It creates no Future,
+extra dispatch scratch or new shared runtime. MaxAuthorizations (default 128)
+includes queued/running snapshots and allowed snapshots retained during body
+wait; default identity capacity is 256 bytes. Snapshot bytes count against HTTP
+MaxBufferBytes, while pending auxiliary work shares executor operation/byte/queue
+limits. The logical ledgers overlap and are not additive RSS. Auxiliary credit
+returns before completion publication so a one-operation executor can accept its
+authorized document; Core drop/join and transport references cover actual tails.
+Document Accepted/Completed and AuxiliaryAccepted/Completed remain separate.
+
+Snapshots are wiped immediately before the actual free. Auth-enabled receive
+growth allocates/copies then wipes the old storage, reserving old plus new peak
+capacity; compaction and final retirement wipe removed/capacity bytes. Native
+TCP/TLS/system/caller/result copies are outside this erasure contract. Disabled
+authorization allocates no auth peer sidecar/snapshot/child/task, but owner layout,
+presence checks and accounting have real costs. This is not zero overhead or a
+claim of complete system-wide secret erasure. No Core source is changed.
+
+Validation includes constructor OOM and child-token quota sweeps, real pre-free
+snapshot observation, held/noncooperative callback drain, cancellation/deadline,
+queue/operation/snapshot bounds, identity/batch and persistent reuse. A final
+review found an omitted child-constructor rejection counter. Build controllers
+were stopped for this correction, the current compiler was allowed to finish,
+and its process tree was verified drained before edits. Initial Windows package
+checks passed; its size phase was interrupted and the initial WSL distribution
+had not begun. Superseded receipts are retained separately. All final matrices,
+probes and distribution packages were rebuilt/retested against the corrected
+inputs, rather than rebinding old hashes. A denied-pipeline peer test now appends
+a valid authorized request and verifies closure plus no extra dispatch.
+
+Both platforms pass 15 modular runtime binaries plus server/HTTP-server/TLS-server
+single binaries (36 total), and 17 examples each (34 total). WSL uses ASan/UBSan;
+qualified O2 TSan passes with its atomic-fence modeling warning retained. This is
+neither complete race freedom nor native Linux qualification. Full and minimal
+HTTPS static/shared consumers, declaration compilation, and plain/HTTPS single,
+static and shared size forms pass. Twelve independent Python HTTPS matrices
+(example/static/shared x Basic/Bearer x two platforms) pass 144 cases and 84
+accepted documents, including verified TLS 1.2/1.3, identity/batch/notification,
+large heads, Continue ordering, duplicate credentials and denied pipelines.
+
+### Layout and requested-storage costs
+
+Recompile consumers for the changed config/info and nested execution-info layout.
+Values are compiled bytes from archived predecessor/current sources and headers.
+
+| Platform | Object | Previous | Current |
+| --- | --- | --- | --- |
+| windows | server | 320 | 320 |
+| windows | job | 152 | 152 |
+| windows | quota | 152 | 176 |
+| windows | config | 280 | 280 |
+| windows | context | 32 | 32 |
+| windows | info | 104 | 128 |
+| windows | http_server | 936 | 1056 |
+| windows | http_config | 576 | 624 |
+| windows | http_info | 224 | 296 |
+| wsl | server | 320 | 320 |
+| wsl | job | 152 | 152 |
+| wsl | quota | 288 | 312 |
+| wsl | config | 280 | 280 |
+| wsl | context | 32 | 32 |
+| wsl | info | 104 | 128 |
+| wsl | http_server | 1072 | 1192 |
+| wsl | http_config | 576 | 624 |
+| wsl | http_info | 224 | 296 |
+
+Private auth allocation sizes and optional peer-sidecar bytes, where printed,
+exclude allocator metadata/rounding, child-token/native storage and input growth.
+The raw head/descriptor/output capacities and alignment padding are additional.
+
+windows: auth snapshot header 288 bytes, peer sidecar 32 bytes, embedded work node 56 bytes (already included in snapshot); base peer 400 bytes.
+
+wsl: auth snapshot header 288 bytes, peer sidecar 32 bytes, embedded work node 56 bytes (already included in snapshot); base peer 400 bytes.
+
+Single objects include Core; static/shared primary artifacts require separately
+reported Core dependencies and are not interchangeable total footprints.
+
+| Platform | Profile | Form | Primary file bytes | Core dependency file bytes |
+| --- | --- | --- | --- | --- |
+| windows | xrpc_http_server | single | 973687 | included |
+| windows | xrpc_http_server | static | 80672 | 963470 |
+| windows | xrpc_http_server | shared | 162545 | 866689 |
+| windows | xrpc_http_server_tls | single | 1557913 | included |
+| windows | xrpc_http_server_tls | static | 91310 | 1629948 |
+| windows | xrpc_http_server_tls | shared | 173929 | 1345456 |
+| wsl | xrpc_http_server | single | 1231456 | included |
+| wsl | xrpc_http_server | static | 105824 | 1219128 |
+| wsl | xrpc_http_server | shared | 87360 | 817392 |
+| wsl | xrpc_http_server_tls | single | 1982648 | included |
+| wsl | xrpc_http_server_tls | static | 119470 | 2099908 |
+| wsl | xrpc_http_server_tls | shared | 101296 | 1291304 |
+
+### Matched authorization observations
+
+The four profiles keep workers, payload, custom credential/trace headers, one
+warmed persistent connection and 1000 planned offers/s identical, varying TCP/TLS
+and authorization off/on. Each has one warmup and all five measured 1000-document
+samples. Every offer is admitted/completed with no failed/rejected samples.
+The authorizer returns no identity and sets its output capacity to zero; these
+profiles exclude the default 256-byte capacity and nonempty identity copy/erasure.
+Latency includes planned-arrival delay and uses terminal-watch observation;
+collector lag is separate. Process CPU includes all threads/load generation in
+the existing observation-to-collector window. Native retirement, auth erasure and
+mechanical shutdown can extend beyond it; these are not full-cleanup CPU costs,
+saturation capacity or an isolated authorization/native/TLS cost measurement.
+
+| Platform | Profile | Documents/s | Planned P50 us | Planned P99 us | Collector-window CPU us/offer |
+| --- | --- | --- | --- | --- | --- |
+| windows | xrpc_http_auth_tcp_0 | 1000.917 | 80.200 | 154.900 | 1046.875 |
+| windows | xrpc_http_auth_tcp_1 | 1000.906 | 109.000 | 173.200 | 1125.000 |
+| windows | xrpc_http_auth_tls_0 | 1000.861 | 97.300 | 182.100 | 1125.000 |
+| windows | xrpc_http_auth_tls_1 | 1000.880 | 109.100 | 182.100 | 1125.000 |
+| wsl | xrpc_http_auth_tcp_0 | 1000.839 | 177.319 | 289.604 | 1208.133 |
+| wsl | xrpc_http_auth_tcp_1 | 1000.805 | 226.094 | 333.391 | 1255.530 |
+| wsl | xrpc_http_auth_tls_0 | 1000.795 | 197.101 | 283.202 | 1228.646 |
+| wsl | xrpc_http_auth_tls_1 | 1000.791 | 230.600 | 329.601 | 1266.434 |
+
+The original 3% relative-MAD / 6% central-range noise limits are unchanged.
+All final samples and failed gates remain recorded; no favorable selection or
+stable pinned comparator is claimed. Performance/production acceptance remains
+unachieved.
+
+The first Windows measurement completed its runs but failed JSON export because
+a derived relative spread was infinite at zero median. Its log and executable
+hashes are retained under failed-performance-export; the exited process did not
+preserve raw sample values, so those values cannot be recovered and are not
+represented as retained evidence. After a separate reporting-only fix, the
+complete Windows 5+1 matrix was rerun and WSL ran for the first time. The
+serializer encodes only positive infinite derived relative ratios as the JSON
+string "inf". All gate math remains unchanged; raw nonfinite samples remain
+rejected. Thirteen tool tests pass on each platform. This required rerun does
+not select favorable timing samples or relax the original thresholds.
+
+windows: 46 failed noise checks; source `5cd3e325db84446e81a03bcd5f4f9372c19ff67f7d745efa08147ca15d10469c`, workload `8947cf0ccbcf5d4c488e5861639f136665e51b3ed17e4bb4ccc0fa3255bc975c`.
+
+wsl: 40 failed noise checks; source `5cd3e325db84446e81a03bcd5f4f9372c19ff67f7d745efa08147ca15d10469c`, workload `8947cf0ccbcf5d4c488e5861639f136665e51b3ed17e4bb4ccc0fa3255bc975c`.
+
+Evidence: `out/service-extensions/xrpc-http-auth/validation.json` binds final
+inputs, binaries, peer/script hashes, probes, packages, layouts/sizes and 5+1
+profiles. 754 predecessor source/artifact files are SHA-bound.
+The committed validator requires clean HEAD/tree. API coverage: 83 functions,
+161 constants/macros, 79 types, zero missing documentation. Normal maturity
+keeps 17 implemented modules and only aggregate xrpc developing; strict release
+therefore fails as expected.
+
+The full four-product goal remains active: xrpc typed transport metadata,
+mTLS/tickets, recovery/pooling, bidirectional/WebSocket/framed stdio, negotiation
+and deferred handlers; Redis HA/tracking/dedicated modes; complete MQTT 5.0/3.1.1
+client/session/store; Cron IANA/scheduler/durability. Pinned comparators, complete
+cold/hot CPU/cycle/allocation/copy/synchronization/syscall costs, slow/contended/
+fault/recovery matrices and native Windows/Linux >=72-hour mixed/fault runs remain
+required. WSL results do not satisfy native Linux acceptance. Integration with
+subsequent primary-checkout changes remains a separate verified step.

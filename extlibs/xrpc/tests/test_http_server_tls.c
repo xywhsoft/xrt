@@ -184,6 +184,24 @@ static void serviceTlsPeerOOM(void)
     }
     testRequire(Rejected && Passed,"peer OOM thresholds missed rejection/success");
 }
+static xrpchttpauthstatus tlsAuthorize(const xrpchttpauthrequest* R,bytes Out,size_t Cap,size_t* Used,ptr User)
+{
+    rpcTlsService* T=User;testRequire(R->Secure && !xrtNetEngineCurrent(T->Base.Engine) && R->Head->MethodCode==XHTTP_METHOD_POST,"TLS authorization worker/transport");
+    const xhttpfield* F=NULL;if(xrtHttpFieldGetUnique(R->Head->Fields,R->Head->FieldCount,XRT_STR_LITERAL("Authorization"),&F)!=XHTTP_NEXT_ITEM || F->Value.Size!=21 || memcmp(F->Value.Data,"Bearer public-fixture",21))return XRPC_HTTP_AUTH_UNAUTHORIZED;
+    testRequire(Cap>=4,"TLS identity capacity");memcpy(Out,"[42]",4);*Used=4;return XRPC_HTTP_AUTH_ALLOW;
+}
+static void serviceTlsAuthorization(void)
+{
+    rpcTlsService T;xrpchttpserverconfig H;xrpcHttpServerConfigInit(&H);H.Authorize=tlsAuthorize;H.AuthorizationUser=&T;H.WriteChunkBytes=3;H.MaxQueuedBytes=64;rpcTlsServiceStart(&T,&H,NULL,true);
+    xrpchttpconfig K;xrpcHttpConfigInit(&K);char Value[]="Bearer public-fixture";xhttpfield F={XRT_STR_LITERAL("Authorization"),{Value,sizeof(Value)-1}};K.RequestHeaders=&F;K.RequestHeaderCount=1;
+    xrpchttpclient* C=rpcTlsServiceClient(&T,&K);memset(Value,'x',sizeof(Value));xfuture* Retained=NULL;
+    for(unsigned N=0;N<16;++N){xfuture* Future=rpcServiceSubmit(C,"identity","[]",10000);const xrpccallresult* R=rpcServiceResult(Future);xrpcresponseinfo I={0};I.Size=sizeof(I);
+        bool OK=R->Status==XRPC_CALL_OK && xrpcResponsesInfo(R->Responses,&I) && I.Messages[0].Result.Raw.Size==4 && !memcmp(I.Messages[0].Result.Raw.Data,"[42]",4);
+        if(!OK){xrpchttpserverinfo Q={0};Q.Size=sizeof(Q);(void)xrpcHttpServerInfo(T.Base.Server,&Q);fprintf(stderr,"auth TLS n=%u status=%d delivery=%d cause=%d allowed=%llu errors=%llu business=%u context=%zu\n",N,(int)R->Status,(int)R->Delivery,xrtErrorCode(R->Cause),(unsigned long long)Q.AuthorizationAllowed,(unsigned long long)Q.AuthorizationErrors,xrtAtomic32Load(&T.Base.Calls,XMEMORY_RELAXED),Q.Execution.ContextBytes);}
+        testRequire(OK,"TLS authorized identity snapshot");if(N)xrtFutureDestroy(Future);else Retained=Future;}
+    rpcServiceClientClose(C);xrpchttpserverinfo Info={0};Info.Size=sizeof(Info);testRequire(xrpcHttpServerInfo(T.Base.Server,&Info) && Info.AuthorizationAllowed==16,"TLS authorization counter");
+    rpcTlsServiceStop(&T,true);testRequire(rpcServiceResult(Retained)->Status==XRPC_CALL_OK,"TLS authorized result retention");xrtFutureDestroy(Retained);
+}
 int main(void)
 {
     puts("[case] TLS traffic");fflush(stdout);serviceTlsTraffic();
@@ -193,5 +211,6 @@ int main(void)
     puts("[case] TLS factory");fflush(stdout);serviceTlsFactory();
     puts("[case] TLS raw protocol");fflush(stdout);serviceTlsRawProtocol();
     puts("[case] TLS worker OOM");fflush(stdout);serviceTlsPeerOOM();
+    puts("[case] TLS authorization");fflush(stdout);serviceTlsAuthorization();
     puts("[PASS] xrpc HTTP TLS server: traffic/shared-credit/snapshot/admission/timeout/reentry/trust/noncooperative-shutdown/factory-and-worker-OOM/expect/chunk/trailer/pipeline/ALPN/physical-close/retained");return 0;
 }
