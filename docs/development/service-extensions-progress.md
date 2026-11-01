@@ -5594,3 +5594,113 @@ The full xredis/xrpc/xmqtt/xcron scope, MQTT caller integration and performance
 comparison, pinned comparators and native Windows/Linux >=72h qualification
 remain required. WSL is not native Linux qualification. No primary-checkout merge
 or push occurred, and the goal remains active and incomplete.
+
+
+## 2026-11-02 — MQTT physical retirement notifications
+
+Adopted the separately committed, prototype-proven Core `net_tcp_retire` module
+in `xmqtt_client`. Client Wait/Destroy no longer use fixed Sleep(1) observations
+or an ownership graph Count operation as a concurrent operational wait. The
+Client owns an embedded mutex/condition dedicated to actual reference retirement.
+A load/CAS drop above two returns without subsequent Client access; terminal
+2->1 publication and notification share the wait lock. The admission Gate is
+never acquired under that lock, since post rollback can drop a reference while
+Gate is held. All primitives initialize/unwind/free with the Client, including
+factory failures. Existing producer/post/timer/request/native/event owners remain
+real obligations. After the caller-only Client state, the same remaining timeout
+budget feeds `xrtNetStreamWaitRetired` for the native callback tail. The native
+phase rounds that remaining budget to public milliseconds, rather than starting
+a fresh full timeout. Timeout preserves the caller owner.
+
+Multiple waiters borrow one stable caller owner; all borrowers and API entries
+must finish before Destroy. Engine workers remain rejected, including a CLOSED
+notification. Repeated Close on CLOSED returns without posting a new task.
+Application Close stays abortive; this change adds no normal MQTT DISCONNECT,
+protocol feature, worker, shared runtime, busy-spin or timer-resolution change.
+
+### Verification and real costs
+
+Windows O2 and WSL O2 ASan/UBSan passed the seven modular and seven selected
+single-header programs on each platform. New tests hold the actual CLOSED
+notification while two threads borrow the same Client: zero and finite waits
+must time out without consuming its owner, then every borrower must wake after
+release. Both protocol versions also run 16 wake races each, ready-wait and
+repeated-Close checks under a one-byte XRT allocation budget, and ambient error
+preservation. Existing fault/OOM, admission, cancellation, quota, first-error and
+retained result/message lifetime cases pass. The initial build integration
+attempt failed because the dependency substitution had not changed the manifest;
+that was corrected and a source/feature closure preflight was added before the
+successful complete runs.
+
+Independent stdlib wire peers pass 726 cases: (31 basic + 37 sender QoS1 +
+30 receiver QoS1 + 23 diagnostic DISCONNECT) across modular/static/shared on both
+platforms. Minimal/full static/shared consumers pass on both (eight consumers).
+Both documented offline examples run on each platform. Trim/declaration/layout/
+feature/amalgamation/reference checks pass. The build/package/API-reference/
+performance-tool subset reports 78 tests, OK. Two separate O2 1000-cycle runs
+assert every peer diagnostic and checksum 129000, one on each platform; these
+functional runs are not additional performance samples. Previously recorded Core
+TCP assertion/size-gate failures and global xhttp gates remain unresolved.
+
+The private Client sizeof probe compares the actual fc35b100 definition with the
+current definition under unchanged public layouts: Windows 1088 -> 1128 (+40),
+WSL 1160 -> 1336 (+176). Selecting Core retirement adds another 40/176 bytes per
+native Stream, including the fixture peer. Client bytes are charged to the
+private quota; Core storage is separate. Public config/info/ready/write/packet/
+codec/property stay 272/160/136/40/168/56/40 bytes with previous prefixes. Primitive
+initialization/cleanup, terminal locking/broadcasts and ordinary reference
+load/CAS work are real costs, not zero overhead. Native OS internals are outside
+the XRT allocation counters. Steady-message throughput and CPU parity are not
+established by this close workload.
+
+| Platform | Single object bytes | Extension static bytes | Extension shared bytes |
+| --- | --- | --- | --- |
+| Windows | 573732 | 119820 | 147927 |
+| WSL | 737400 | 158900 | 114864 |
+
+Single objects include Core; extension static/shared artifacts require the
+separately measured Core dependencies. Post-size relink/run and final packaged
+wire tests use the final artifacts; their source and binary hashes match.
+
+### Close-cycle observation — noise gates fail, no performance acceptance
+
+The benchmark and its observer source are byte-identical to the preserved
+fc35b100 baseline. All five measured samples and one configured/logged warmup
+remain, with unchanged 3% relative MAD / 6% central range and 5% throughput / 10%
+P99 regression limits. The collector does not retain numeric warmup values.
+Only the erroneous `publish/s` label for cycles_per_sec was corrected to
+`cycles/s`; configuration equivalence excluding those four labels was checked.
+The workload is still whole connection/error/physical-retirement cycles,
+including fixture scheduling/polls and destruction, not message throughput or
+an isolated close primitive. The baseline is a prior local revision, not a
+pinned independent broker comparator. Windows and WSL collectors ran serially
+after all functional builds; all raw samples are retained without favorable
+retries or relaxed thresholds.
+
+| Platform | Version | Instrumented | Old cycles/s | New cycles/s | Old P99 us | New P99 us | Noisy metric dimensions |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| windows | 5 | no | 32.055 | 139.619 | 16087.000 | 570.200 | 2 |
+| windows | 4 | no | 32.176 | 745.448 | 16045.100 | 363.100 | 4 |
+| windows | 5 | yes | 32.203 | 162.060 | 16096.100 | 463.300 | 3 |
+| windows | 4 | yes | 32.281 | 1079.508 | 16069.400 | 343.500 | 3 |
+| wsl | 5 | no | 424.625 | 1961.904 | 1340.100 | 318.000 | 1 |
+| wsl | 4 | no | 424.472 | 3484.017 | 1328.300 | 315.700 | 2 |
+| wsl | 5 | yes | 424.295 | 1687.775 | 1322.400 | 346.500 | 0 |
+| wsl | 4 | yes | 424.355 | 4332.756 | 1317.200 | 281.000 | 3 |
+
+Both platform collectors exit 1 on noise quality. The observed median P99 values
+are lower than the preserved polling baseline, but these runs establish neither
+performance qualification nor a stable comparator/regression verdict. Every
+failing metric, raw array, compiler/environment argument and benchmark/source
+fingerprint remains in `out/service-extensions/xmqtt-retirement/validation.json`
+and the indexed reports/logs. The 100-cycle samples and remaining fixture polling
+need a separate sustained measurement investigation; no passing retry was
+selected. WSL remains development evidence, not native Linux qualification.
+
+The full objective remains active and incomplete: normal application graceful
+DISCONNECT, MQTT QoS2/subscriptions/shared identifiers/session/expiry/alias/auth/
+recovery/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated, remaining RPC
+security/recovery/transports/deferred, Cron IANA/scheduler/durability, pinned
+comparators and full hot/cold CPU/synchronization/syscall accounting, accepted
+throughput/tail latency and native Windows/native Linux >=72h runs remain. No
+primary-checkout merge, push or production-complete claim is made.

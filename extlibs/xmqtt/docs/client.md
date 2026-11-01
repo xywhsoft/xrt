@@ -52,12 +52,35 @@ and can cause the server to publish the Will. It also interrupts an automatic
 error drain; bytes already accepted by TCP cannot be retracted. CLOSED is the
 logical terminal state.
 Wait additionally observes producer, event, post, timer, send-buffer and native
-stream retirement. It uses the original wait deadline; timeout preserves the
-caller owner. Destroy requests Close and waits off-worker before releasing it.
+stream retirement. It uses completion notifications without polling, waiter-node
+allocation or ownership graph inspection. The Client and native phases share the
+remaining budget from one original monotonic deadline; the native phase rounds
+that remainder to the public millisecond unit. Timeout preserves the caller
+owner. Multiple waiters borrow that same stable owner: stop all API entries and
+finish all borrowers before Destroy. Destroy requests Close and waits off-worker
+before releasing it. Repeated Close on CLOSED posts no additional work.
 Notifications run on the IO worker, outside the admission gate; they may Take,
 submit or Close, and must not block. Notify code/User live through Destroy.
 
+The client selects Core `net_tcp_retire` and owns a separate embedded mutex and
+condition for its actual reference retirement. The admission gate is never taken
+under that wait lock, since a failed post can drop its reference under the gate.
+Ordinary drops above two use a load/CAS loop; the terminal 2->1 publication locks
+and broadcasts before any waiting owner can release the Client. The native phase
+uses `xrtNetStreamWaitRetired`, including callback tails after logical CLOSED.
+The tests deliberately hold a CLOSED notification and borrow one owner from
+multiple threads; no waiter may return until that callback actually exits.
+
 ## Resource accounting
+
+Retirement synchronization adds 40 bytes to the private Client on tested native
+Windows x64 (1088 -> 1128) and 176 bytes on tested WSL x64 (1160 -> 1336). Selecting
+the Core module also adds 40/176 bytes per native Stream. Client storage is
+charged to MaxPrivateBytes; Core storage is accounted separately. Public
+config/info/ready/write/packet layouts stay 272/160/136/40/168 bytes. Mutex and
+condition initialization/destruction, terminal locking/broadcasts, and ordinary
+reference load/CAS work are real costs. These changes establish neither zero
+overhead nor steady-message throughput parity; those require measurements.
 
 Defaults: 128 physical requests / 4 MiB wire; 512 retained objects / 16 MiB;
 64 queued messages / 8 MiB; 4 MiB private bytes / 64 KiB startup wire;

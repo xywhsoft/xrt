@@ -3,8 +3,8 @@
 #include <xmqtt/negotiation.h>
 #include <xrt/tcp.h>
 #include <xrt/future.h>
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
-#error "MQTT client requires negotiation, TCP and Future"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP_RETIRE) || !defined(XRT_FEATURE_FUTURE))
+#error "MQTT client requires negotiation, TCP retirement waiting and Future"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 typedef struct xmqttclient xmqttclient;
@@ -119,7 +119,10 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
  * already accepted diagnostic bytes cannot be retracted. First error wins.
  * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
  * event-owner and native stream reference retirement. Timeout preserves owner.
- * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */
+ * Wait uses completion signals without polling or wait-node allocation, with one
+ * remaining timeout budget (native phase rounds to milliseconds). Concurrent
+ * waiters borrow the same stable caller owner; stop all API entries before Destroy.
+ * Wait/Destroy reject Engine workers. Repeated Close on CLOSED posts no new work. */
 XMQTT_API bool xmqttClientClose(xmqttclient* Client);
 XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* Client,int64 Timeout);
 XMQTT_API bool xmqttClientDestroy(xmqttclient* Client);

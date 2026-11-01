@@ -558,7 +558,7 @@
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
-              "unit": "publish/s"
+              "unit": "cycles/s"
             },
             "latency_p50_us": {
               "direction": "lower",
@@ -594,7 +594,7 @@
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
-              "unit": "publish/s"
+              "unit": "cycles/s"
             },
             "latency_p50_us": {
               "direction": "lower",
@@ -630,7 +630,7 @@
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
-              "unit": "publish/s"
+              "unit": "cycles/s"
             },
             "latency_p50_us": {
               "direction": "lower",
@@ -674,7 +674,7 @@
           "metrics": {
             "cycles_per_sec": {
               "direction": "higher",
-              "unit": "publish/s"
+              "unit": "cycles/s"
             },
             "latency_p50_us": {
               "direction": "lower",

@@ -708,6 +708,9 @@
 #if !defined(XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE 1
 #endif
+#if !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE 1
+#endif
 #if !defined(XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER 1
 #endif
@@ -1260,8 +1263,8 @@
 #if !defined(XRT_MODULE_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE 1
 #endif
-#if !defined(XRT_MODULE_NET_TCP)
-#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
+#if !defined(XRT_MODULE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
 #endif
 #if !defined(XRT_MODULE_UNICODE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE 1
@@ -1896,6 +1899,9 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_FEATURE_NET_TCP_FUTURE 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_FEATURE_NET_TCP_RETIRE 1
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_FEATURE_NET_TCP_SERVER 1
 #endif
@@ -2489,8 +2495,8 @@
 #ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
 #define XMQTT_MODULE_XMQTT_NEGOTIATION
 #endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
@@ -3199,8 +3205,8 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_CLIENT_H
 #define XMQTT_CLIENT_H
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
-#error "MQTT client requires negotiation, TCP and Future"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP_RETIRE) || !defined(XRT_FEATURE_FUTURE))
+#error "MQTT client requires negotiation, TCP retirement waiting and Future"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 typedef struct xmqttclient xmqttclient;
@@ -3315,7 +3321,10 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
  * already accepted diagnostic bytes cannot be retracted. First error wins.
  * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
  * event-owner and native stream reference retirement. Timeout preserves owner.
- * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */
+ * Wait uses completion signals without polling or wait-node allocation, with one
+ * remaining timeout budget (native phase rounds to milliseconds). Concurrent
+ * waiters borrow the same stable caller owner; stop all API entries before Destroy.
+ * Wait/Destroy reject Engine workers. Repeated Close on CLOSED posts no new work. */
 XMQTT_API bool xmqttClientClose(xmqttclient* Client);
 XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* Client,int64 Timeout);
 XMQTT_API bool xmqttClientDestroy(xmqttclient* Client);
@@ -4253,6 +4262,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#undef XRT_FEATURE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #undef XRT_FEATURE_NET_TCP_SERVER
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER
@@ -4989,9 +5002,9 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE
 #endif
-#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP)
-#undef XRT_MODULE_NET_TCP
-#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE)
+#undef XRT_MODULE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE)
 #undef XRT_MODULE_UNICODE
@@ -5045,8 +5058,8 @@ XRT_EXTERN_C_END
 #ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
 #define XMQTT_MODULE_XMQTT_NEGOTIATION
 #endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE

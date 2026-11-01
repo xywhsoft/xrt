@@ -92,8 +92,8 @@
 #ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
 #define XMQTT_MODULE_XMQTT_NEGOTIATION
 #endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
@@ -802,8 +802,8 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_CLIENT_H
 #define XMQTT_CLIENT_H
-#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
-#error "MQTT client requires negotiation, TCP and Future"
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT) && (!defined(XMQTT_FEATURE_XMQTT_NEGOTIATION) || !defined(XRT_FEATURE_NET_TCP_RETIRE) || !defined(XRT_FEATURE_FUTURE))
+#error "MQTT client requires negotiation, TCP retirement waiting and Future"
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 typedef struct xmqttclient xmqttclient;
@@ -918,7 +918,10 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
  * already accepted diagnostic bytes cannot be retracted. First error wins.
  * CLOSED is logical; Wait additionally observes real producer/post/timer/send/
  * event-owner and native stream reference retirement. Timeout preserves owner.
- * Stop concurrent API entries before Destroy. Wait/Destroy reject Engine workers. */
+ * Wait uses completion signals without polling or wait-node allocation, with one
+ * remaining timeout budget (native phase rounds to milliseconds). Concurrent
+ * waiters borrow the same stable caller owner; stop all API entries before Destroy.
+ * Wait/Destroy reject Engine workers. Repeated Close on CLOSED posts no new work. */
 XMQTT_API bool xmqttClientClose(xmqttclient* Client);
 XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* Client,int64 Timeout);
 XMQTT_API bool xmqttClientDestroy(xmqttclient* Client);
@@ -2865,6 +2868,7 @@ XMQTT_API xmqttnegotiationstatus xmqttNegotiatedPacketCheck(const xmqttnegotiate
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 #include <math.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
 
@@ -2909,6 +2913,7 @@ struct xmqttclient {
     xmqttnegotiated Peer;xerror* Cause;
     double SetupDeadline,NextPing,PingDeadline,TimerAt,DrainDeadline;
     uint64 Timer;unsigned PingOffset;bool PingOutstanding;
+    xmutex RetirementLock;xcond RetirementReady;
     xmqttproperty Scratch[];
 };
 static void xmqttClientWork(xnetworker* Worker,ptr Data);
@@ -2919,7 +2924,17 @@ static bool xmqttClientError(xerrkind Kind,cstr Message)
 static void xmqttClientRef(xmqttclient* C)
 {(void)xrtAtomic32FetchAdd(&C->Refs,1,XMEMORY_RELAXED);}
 static void xmqttClientDrop(const void* Data)
-{xmqttclient* C=(xmqttclient*)Data;(void)xrtAtomic32FetchSub(&C->Refs,1,XMEMORY_ACQ_REL);}
+{
+    xmqttclient* C=(xmqttclient*)Data;uint32 Count=xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE);
+    /* Above two, a successful CAS cannot publish the caller-only state. There
+     * is no Client access after it. Terminal publication shares the wait lock;
+     * Gate may already be held by a failed post, so it cannot be the wait lock. */
+    while(Count>2)if(xrtAtomic32CompareExchange(&C->Refs,&Count,Count-1,XMEMORY_ACQ_REL,XMEMORY_ACQUIRE))return;
+    if(!xrtMutexLock(&C->RetirementLock))abort();
+    uint32 Before=xrtAtomic32FetchSub(&C->Refs,1,XMEMORY_ACQ_REL);
+    if(Before<2 || (Before==2 && !xrtCondBroadcast(&C->RetirementReady)))abort();
+    if(!xrtMutexUnlock(&C->RetirementLock))abort();
+}
 /* RefCount is the actual first member of both private producer objects.
  * Their children are deliberately opaque to a foreign ownership collector. */
 static bool xmqttPrivateCount(const void* Data,size_t* Count)
@@ -3437,7 +3452,7 @@ static void xmqttClientFree(xmqttclient* C)
 {
     xmqttmessage* M=C->MessageHead;while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
-    xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtMutexUnit(&C->Gate);xrtFree(C);
+    xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
 {
@@ -3464,6 +3479,8 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
     if(!xrtNetEnginePin(Engine))return false;
     xmqttclient* C=xrtMalloc(ClientBytes);if(!C){xrtNetEngineUnpin(Engine);return false;}memset(C,0,ClientBytes);
     if(!xrtMutexInit(&C->Gate)){xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
+    if(!xrtMutexInit(&C->RetirementLock)){xrtMutexUnit(&C->Gate);xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
+    if(!xrtCondInit(&C->RetirementReady)){xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
     C->Engine=Engine;C->Config=K;C->ProblemInfo=ProblemInfo;C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));xrtAtomic32Init(&C->Refs,1);
     xrtAtomicPtrInit(&C->SendFlow,NULL);
     C->Info.Size=sizeof(C->Info);C->Info.State=XMQTT_CLIENT_CONNECTING;C->Info.PrivateBytes=ClientBytes+K.InitialInputBytes+StartupBytes;C->Info.StartupBytes=WireBytes;
@@ -3560,6 +3577,7 @@ XMQTT_API bool xmqttClientClose(xmqttclient* C)
 {
     if(!C)return xmqttClientError(XERR_ARGUMENT,"client is NULL");
     xrtMutexLock(&C->Gate);
+    if(C->Info.State==XMQTT_CLIENT_CLOSED){xrtMutexUnlock(&C->Gate);return true;}
     C->AbortRequested=true;
     if(C->Info.State<XMQTT_CLIENT_CLOSING){C->Info.State=XMQTT_CLIENT_CLOSING;C->Info.CloseStatus=XMQTT_STATUS_CLOSED;}
     bool OK=xmqttClientWakeLocked(C);xrtMutexUnlock(&C->Gate);return OK;
@@ -3569,11 +3587,24 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
     if(!C || Timeout<XRT_WAIT_FOREVER){xmqttClientError(XERR_ARGUMENT,"invalid client wait");return XWAIT_ERROR;}
     if(xrtNetEngineCurrent(C->Engine)){xmqttClientError(XERR_STATE,"cannot wait from an Engine worker");return XWAIT_ERROR;}
     double Deadline=xmqttClientDeadline(xrtTimer(),Timeout);
-    for(;;){xrtMutexLock(&C->Gate);bool Closed=C->Info.State==XMQTT_CLIENT_CLOSED && !C->Info.Requests && !C->Info.StartupBytes;xrtMutexUnlock(&C->Gate);
-        if(Closed && xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE)==1){xrtownershipref S=xrtNetStreamOwnership(C->Stream);size_t Count=0;if(S.Ops && S.Ops->Count(S.Data,&Count) && Count==1)return XWAIT_OK;}
-        if(xrtTimer()>=Deadline)return XWAIT_TIMEOUT;
-        xrtSleep(1);
+    if(!xrtMutexLock(&C->RetirementLock))return XWAIT_ERROR;
+    xwaitresult Result=XWAIT_OK;
+    while(xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE)!=1){
+        if(xrtTimer()>=Deadline){Result=XWAIT_TIMEOUT;break;}
+        Result=xrtCondWaitFor(&C->RetirementReady,&C->RetirementLock,xmqttClientRemaining(Deadline));
+        if(Result!=XWAIT_OK && Result!=XWAIT_TIMEOUT)break;
     }
+    bool Retired=xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE)==1;
+    if(!xrtMutexUnlock(&C->RetirementLock))return XWAIT_ERROR;
+    if(Result==XWAIT_ERROR)return Result;
+    if(!Retired)return XWAIT_TIMEOUT;
+    /* Never acquire Gate under RetirementLock: failed admission may drop its
+     * last asynchronous reference while Gate is held. Caller owner stays live. */
+    xrtMutexLock(&C->Gate);bool Closed=C->Info.State==XMQTT_CLIENT_CLOSED && !C->Info.Requests && !C->Info.StartupBytes;xrtMutexUnlock(&C->Gate);
+    if(!Closed){xmqttClientError(XERR_STATE,"client retired before logical close");return XWAIT_ERROR;}
+    /* Logical Client publication can precede the actual native callback tail.
+     * Carry only the original budget, rounded to the public millisecond unit. */
+    return xrtNetStreamWaitRetired(C->Stream,xrtTimer()>=Deadline?0:xmqttClientRemaining(Deadline));
 }
 XMQTT_API bool xmqttClientDestroy(xmqttclient* C)
 {

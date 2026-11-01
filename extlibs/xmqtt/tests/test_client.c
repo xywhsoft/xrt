@@ -419,5 +419,51 @@ static void testMqttErrorDisconnectAllocationFailure(void)
     }
     testRequire(TimerFailure && SendFailure && Success,"diagnostic timer/send allocation failure and success controls");
 }
+/* Waiters borrow one stable unique Client owner. A held CLOSED notification
+ * proves logical state is insufficient; no test reaches into private counters. */
+typedef struct mqttWaitGate {xmutex Lock;xcond Ready;bool Entered,Release;unsigned Started,Finished;xmqttclient* Client;} mqttWaitGate;
+typedef struct mqttWaitBorrower {mqttWaitGate* Gate;xwaitresult Result;} mqttWaitBorrower;
+static void mqttWaitNotify(xmqttclient* C,ptr Data)
+{
+    mqttWaitGate* G=Data;xmqttclientinfo I;xmqttClientInfo(C,&I);if(I.State!=XMQTT_CLIENT_CLOSED)return;
+    testRequire(xmqttClientWaitFor(C,0)==XWAIT_ERROR,"CLOSED callback still rejects worker wait");xrtClearError();
+    testRequire(xrtMutexLock(&G->Lock),"wait callback lock");G->Entered=true;xrtCondBroadcast(&G->Ready);
+    while(!G->Release)testRequire(xrtCondWaitFor(&G->Ready,&G->Lock,5000)==XWAIT_OK,"held logical CLOSED callback");
+    testRequire(xrtMutexUnlock(&G->Lock),"wait callback unlock");
+}
+static int32 mqttWaitThread(ptr Data)
+{
+    mqttWaitBorrower* W=Data;mqttWaitGate* G=W->Gate;xrtMutexLock(&G->Lock);++G->Started;xrtCondBroadcast(&G->Ready);xrtMutexUnlock(&G->Lock);
+    W->Result=xmqttClientWaitFor(G->Client,5000);
+    xrtMutexLock(&G->Lock);testRequire(G->Release,"wait cannot return while owned notification is held");++G->Finished;xrtCondBroadcast(&G->Ready);xrtMutexUnlock(&G->Lock);return 0;
+}
+static void mqttWaitCase(xmqttversion Version,bool Held)
+{
+    mqttTestPeer P;mqttTestStart(&P,Version,0);mqttWaitGate G={0};G.Release=!Held;
+    testRequire(xrtMutexInit(&G.Lock) && xrtCondInit(&G.Ready),"MQTT retirement test primitives");xmqttclientconfig K;xmqttClientConfigInit(&K);K.Notify=mqttWaitNotify;K.User=&G;
+    G.Client=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(G.Client);(void)mqttTestResult(Ready);
+    xrtSetErrorInfo(XERR_STATE,"mqtt.wait.ambient",7,"preserve");const xerror* Ambient=xrtGetError();
+    testRequire(xmqttClientWaitFor(G.Client,0)==XWAIT_TIMEOUT && xrtGetError()==Ambient,"open poll preserves owner and ambient error");xrtClearError();
+    testRequire(xmqttClientWaitFor(G.Client,-2)==XWAIT_ERROR,"invalid MQTT wait timeout");xrtClearError();
+    mqttWaitBorrower W[2]={{&G,XWAIT_ERROR},{&G,XWAIT_ERROR}};xthread* Threads[2];
+    for(unsigned J=0;J<2;++J){Threads[J]=xrtThreadCreate(mqttWaitThread,W+J,0);testRequire(Threads[J]!=NULL,"MQTT retirement borrower thread");}
+    xrtMutexLock(&G.Lock);while(G.Started!=2)testRequire(xrtCondWaitFor(&G.Ready,&G.Lock,5000)==XWAIT_OK,"MQTT borrowers start");xrtMutexUnlock(&G.Lock);
+    testRequire(xmqttClientClose(G.Client),"close with existing waiters");
+    if(Held){xrtMutexLock(&G.Lock);while(!G.Entered)testRequire(xrtCondWaitFor(&G.Ready,&G.Lock,5000)==XWAIT_OK,"logical CLOSED notification entered");xrtMutexUnlock(&G.Lock);
+        xmqttclientinfo I;xmqttClientInfo(G.Client,&I);testRequire(I.State==XMQTT_CLIENT_CLOSED && xmqttClientWaitFor(G.Client,0)==XWAIT_TIMEOUT && xmqttClientWaitFor(G.Client,10)==XWAIT_TIMEOUT,"logical CLOSED does not consume a timed-out physical owner");
+        xrtMutexLock(&G.Lock);testRequire(!G.Finished,"no borrower returns before physical callback release");G.Release=true;xrtCondBroadcast(&G.Ready);xrtMutexUnlock(&G.Lock);
+    }
+    for(unsigned J=0;J<2;++J){testRequire(xrtThreadWaitFor(Threads[J],5000)==XWAIT_OK && W[J].Result==XWAIT_OK,"all MQTT borrowers wake on real retirement");xrtThreadDestroy(Threads[J]);}
+    xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"ready MQTT wait budget");
+    testRequire(xmqttClientWaitFor(G.Client,0)==XWAIT_OK && xmqttClientClose(G.Client) && xmqttClientWaitFor(G.Client,0)==XWAIT_OK,"ready wait and repeated Close allocate/post nothing");testRequire(xrtAllocationBudgetLeave(&Scope),"ready MQTT budget leave");
+    xallocationbudgetinfo B={0};B.Size=sizeof(B);testRequire(xrtAllocationBudgetInfo(Budget,&B) && !B.LiveCount && !B.LiveBytes,"no MQTT waiter allocation debt");xrtAllocationBudgetFree(Budget);
+    mqttTestClose(G.Client);mqttTestStop(&P);xrtFutureDestroy(Ready);testRequire(xrtCondUnit(&G.Ready) && xrtMutexUnit(&G.Lock),"MQTT waiter test cleanup");
+}
+static void testMqttRetirementSignals(void)
+{
+    testRequire(xmqttClientWaitFor(NULL,0)==XWAIT_ERROR,"null MQTT waiter");xrtClearError();
+    for(unsigned V=4;V<=5;++V){mqttWaitCase((xmqttversion)V,true);for(unsigned J=0;J<16;++J)mqttWaitCase((xmqttversion)V,false);}
+    puts("[PASS] MQTT retirement: held CLOSED callback, 32 wake races, multiple borrowers, timeout ownership and allocation-free ready waits");
+}
 int main(void)
-{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
+{testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}

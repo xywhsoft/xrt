@@ -341,7 +341,7 @@
       "feature": "XMQTT_FEATURE_XMQTT_CLIENT",
       "depends": [
         "xmqtt_negotiation",
-        "net_tcp",
+        "net_tcp_retire",
         "future"
       ],
       "public_headers": [
