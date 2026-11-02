@@ -3,6 +3,11 @@
 
 #include "xrt_tls_session.h"
 
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include <xrt/tls_client_auth.h>
+typedef struct xtlsclientauthstate xtlsclientauthstate;
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT)
@@ -25,6 +30,9 @@ typedef enum xtlsclientstep {
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+
+#define XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE (XTLS_HANDSHAKE_HEADER_SIZE + 4u)
+#define XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE (XTLS_HANDSHAKE_HEADER_SIZE + 3u)
 
 /* 已验证对端证书只保留一份精确分配和指向该分配的解析视图。 */
 typedef struct xtlsclientpeer {
@@ -111,8 +119,13 @@ typedef struct xtlsclientstate {
 	bool ResumeOnly;
 	bool RetrySeen;
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		/* Use existing alignment padding before the shared-object pointers. */
+		bool CertificateRequested;
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;
+	#endif
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		xtlsclientauthstate* Auth;
 	#endif
 } xtlsclientstate;
 
@@ -178,6 +191,14 @@ bool __xrtTlsClientProtocolSelect(
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+
+/* Validate one initial CertificateRequest and commit its transcript once.
+ * No client identity is configured by the current public client factory. */
+xtlsresult __xrtTlsClientCertificateRequestCommit(
+	xtlssession* pSession,
+	xtlsclientstate* pState,
+	const xtlshandshake* pMessage
+);
 
 /* 验证并提交当前协商版本的服务端证书链。 */
 xtlsresult __xrtTlsClientCertificateCommit(

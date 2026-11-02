@@ -1,0 +1,366 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xcron/config/modules.json",
+  "defaults": {
+    "repeats": 5,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "baseline-unpinned",
+    "cflags": [
+      "-O2"
+    ],
+    "ldflags": [],
+    "max_relative_mad": 0.03,
+    "max_relative_central_range": 0.06,
+    "regression": {
+      "higher": 0.05,
+      "lower": 0.1
+    }
+  },
+  "profiles": [
+    {
+      "name": "xcron_expression",
+      "system": "expression",
+      "description": "Bounded caller-value expression compilation; no calendar, timezone or scheduler acceptance claim",
+      "benchmarks": [
+        {
+          "name": "xcron_expression",
+          "source": "extlibs/xcron/bench/bench_expression.c",
+          "suite": "xcron_expression,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "expressions_per_sec": {
+              "direction": "higher",
+              "unit": "expressions/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_calendar",
+      "system": "calendar",
+      "description": "Precompiled UTC dense/sparse/impossible Gregorian search with bounded complete cycle; no timezone/scheduler/latency acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_calendar",
+          "source": "extlibs/xcron/bench/bench_calendar.c",
+          "suite": "xcron_calendar",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_timezone",
+      "system": "timezone",
+      "description": "Immutable explicit POSIX rule state lookup; unpinned workload only, no IANA/scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_timezone",
+          "source": "extlibs/xcron/bench/bench_timezone.c",
+          "suite": "xcron_timezone",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_tzif",
+      "system": "timezone",
+      "description": "Predecoded 4096 effective historical transitions; unpinned lookup-only evidence, no IANA/scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_tzif",
+          "source": "extlibs/xcron/bench/bench_tzif.c",
+          "suite": "xcron_timezone",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_dense",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned dense search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_dense",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "1000000",
+            "dense"
+          ],
+          "smoke_args": [
+            "10000",
+            "dense"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_fold",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned fold search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_fold",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100000",
+            "fold"
+          ],
+          "smoke_args": [
+            "1000",
+            "fold"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cycle",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned cycle search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cycle",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100",
+            "cycle"
+          ],
+          "smoke_args": [
+            "2",
+            "cycle"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_1",
+      "system": "scheduler",
+      "description": "Preallocated explicit-clock pull kernel, 1 jobs per batch; no executor, timer or production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_1",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "200000",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_128",
+      "system": "scheduler",
+      "description": "Preallocated explicit-clock pull kernel, 128 jobs per batch; no executor, timer or production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_128",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "10000",
+            "128"
+          ],
+          "smoke_args": [
+            "20",
+            "128"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_1",
+      "system": "executor",
+      "description": "Borrowed XRT executor adapter, 1 workers and 64-lease batches; minimal counter baseline is not feature-equivalent; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_1",
+          "source": "extlibs/xcron/bench/bench_executor.c",
+          "suite": "xcron_executor",
+          "args": [
+            "1000",
+            "1"
+          ],
+          "smoke_args": [
+            "10",
+            "1"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "minimal_xrt_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "minimal_xrt_batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_4",
+      "system": "executor",
+      "description": "Borrowed XRT executor adapter, 4 workers and 64-lease batches; minimal counter baseline is not feature-equivalent; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_4",
+          "source": "extlibs/xcron/bench/bench_executor.c",
+          "suite": "xcron_executor",
+          "args": [
+            "1000",
+            "4"
+          ],
+          "smoke_args": [
+            "10",
+            "4"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "minimal_xrt_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "minimal_xrt_batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_256",
+      "system": "service",
+      "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_service_256",
+          "source": "extlibs/xcron/bench/bench_service.c",
+          "suite": "xcron_service",
+          "args": [
+            "8",
+            "256"
+          ],
+          "smoke_args": [
+            "1",
+            "32"
+          ],
+          "metrics": {
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

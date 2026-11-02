@@ -346,7 +346,7 @@ XRT_API xnetresult xrtWsStreamSendRef(
 	const xnetref* pRef
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true))return XNET_RESULT_ERROR;
  xnetresult result=__xrtWsStreamSendRefBody(pConnection,Opcode,pRef);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -383,7 +383,7 @@ static xnetresult __xrtWsStreamSendBytesBody(xwsstream* s,xwsopcode opcode,
 XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* s,xwsopcode opcode,
     xnetbytes* bytes,size_t offset,size_t size)
 {
-    bool owned=s&&s->OwnershipPolicy;
+    bool owned=__xrtWsStreamRangeValid(s)&&s->OwnershipPolicy;
     if(owned&&!__xrtWsStreamOwnershipEnter(s,true))return XNET_RESULT_ERROR;
     xnetresult result=__xrtWsStreamSendBytesBody(s,opcode,bytes,offset,size);
     if(owned)__xrtWsStreamOwnershipLeave(s);

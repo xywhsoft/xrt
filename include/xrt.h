@@ -57,6 +57,7 @@
 #include <xrt/wait.h>
 #include <xrt/thread.h>
 #include <xrt/sync.h>
+#include <xrt/event_waiter.h>
 #include <xrt/cancel.h>
 #include <xrt/channel.h>
 #include <xrt/channel_subscribe.h>
@@ -80,6 +81,7 @@
 #include <xrt/tls_session.h>
 #include <xrt/tls_client.h>
 #include <xrt/tls_identity.h>
+#include <xrt/tls_client_auth.h>
 #include <xrt/tls_server.h>
 #include <xrt/tcp.h>
 #include <xrt/tcp_server.h>

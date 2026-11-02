@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xmqtt/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xmqtt_wire",
+      "system": "wire",
+      "suite": "xmqtt_wire",
+      "description": "Only MQTT wire primitives/framing and required public Unicode closure"
+    },
+    {
+      "name": "xmqtt_properties",
+      "system": "properties",
+      "suite": "xmqtt_properties",
+      "description": "MQTT 5 property-section codec with its public wire/Unicode dependency closure"
+    },
+    {
+      "name": "xmqtt_packet",
+      "system": "packet",
+      "suite": "xmqtt_packet",
+      "description": "MQTT packet and required public dependency closure"
+    },
+    {
+      "name": "xmqtt_codec5",
+      "system": "codec5",
+      "suite": "xmqtt_codec5",
+      "description": "MQTT codec5 and required public dependency closure"
+    },
+    {
+      "name": "xmqtt_codec311",
+      "system": "codec311",
+      "suite": "xmqtt_codec311",
+      "forbid_symbols": [
+        "xmqttProperties",
+        "xmqttInternalProperties",
+        "xmqtt5",
+        "xmqttPacketRead5",
+        "xmqttPacketSize5",
+        "xmqttPacketWrite5",
+        "_xmqttProperties",
+        "_xmqttInternalProperties",
+        "_xmqtt5",
+        "_xmqttPacketRead5",
+        "_xmqttPacketSize5",
+        "_xmqttPacketWrite5"
+      ],
+      "description": "Full MQTT 3.1.1 packet codec and public packet/wire/Unicode closure, without MQTT 5 properties or codec"
+    },
+    {
+      "name": "xmqtt_negotiation",
+      "system": "negotiation",
+      "suite": "xmqtt_negotiation",
+      "description": "Validated dual-version CONNECT/CONNACK negotiation and per-packet client constraints; no transport/session storage"
+    },
+    {
+      "name": "xmqtt_client",
+      "system": "client",
+      "suite": "xmqtt_client",
+      "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately"
+    }
+  ]
+}

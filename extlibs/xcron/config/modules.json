@@ -1,0 +1,424 @@
+{
+  "schema": 1,
+  "product": "xcron",
+  "module_prefix": "XCRON_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XCRON_API",
+  "single_header": "single/extlibs/xcron.h",
+  "declaration_header": "single/extlibs/xcron_decl.h",
+  "implementation_macro": "XCRON_IMPLEMENTATION",
+  "implementation_once_macro": "XCRON_IMPLEMENTATION_ONCE",
+  "single_guard": "XCRON_SINGLE_HEADER_H",
+  "single_marker": "XCRON_SINGLE_HEADER",
+  "declaration_guard": "XCRON_DECLARATIONS_H",
+  "declaration_marker": "XCRON_DECLARATIONS",
+  "package_consumer": "extlibs/xcron/tests/package/test_consumer.c",
+  "product_root": "extlibs/xcron",
+  "performance_config": "extlibs/xcron/config/performance_profiles.json",
+  "size_config": "extlibs/xcron/config/size_profiles.json",
+  "scope": {
+    "product": "xcron",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "expression",
+        "state": "retained",
+        "source_roots": [
+          "expression"
+        ]
+      },
+      {
+        "name": "calendar",
+        "state": "retained",
+        "source_roots": [
+          "calendar"
+        ]
+      },
+      {
+        "name": "timezone",
+        "state": "retained",
+        "source_roots": [
+          "timezone"
+        ]
+      },
+      {
+        "name": "zoned",
+        "state": "retained",
+        "source_roots": [
+          "zoned"
+        ]
+      },
+      {
+        "name": "scheduler",
+        "state": "retained",
+        "source_roots": [
+          "scheduler"
+        ]
+      },
+      {
+        "name": "executor",
+        "state": "retained",
+        "source_roots": [
+          "executor"
+        ]
+      },
+      {
+        "name": "service",
+        "state": "retained",
+        "source_roots": [
+          "service"
+        ]
+      }
+    ]
+  },
+  "api_reference": {
+    "title": "xcron public API reference",
+    "function_prefix": "xcron",
+    "constant_prefix": "XCRON_",
+    "type_prefix": "xcron",
+    "guide": "../../README.md",
+    "output": "extlibs/xcron/docs/api/reference.md"
+  },
+  "features_guard": "XCRON_FEATURES_H",
+  "features_header": "extlibs/xcron/include/xcron/features.h",
+  "include_dirs": [
+    "extlibs/xcron/include"
+  ],
+  "header_roots": [
+    "extlibs/xcron/include"
+  ],
+  "umbrella_header": "xcron.h",
+  "modules": [
+    {
+      "name": "xcron",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON",
+      "depends": [
+        "xcron_expression",
+        "xcron_calendar",
+        "xcron_timezone",
+        "xcron_zoned",
+        "xcron_scheduler",
+        "xcron_executor",
+        "xcron_service"
+      ],
+      "collect_dependency_assets": [
+        "examples"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron.h",
+        "extlibs/xcron/include/xcron/features.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xcron/README.md"
+      ]
+    },
+    {
+      "name": "xcron_expression",
+      "state": "implemented",
+      "feature": "XCRON_FEATURE_XCRON_EXPRESSION",
+      "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/expression.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/expression/expression.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_expression.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_expression.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/expression/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_expression.c"
+      ],
+      "docs": [
+        "extlibs/xcron/README.md",
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/docs/coverage.md"
+      ]
+    },
+    {
+      "name": "xcron_calendar",
+      "state": "implemented",
+      "feature": "XCRON_FEATURE_XCRON_CALENDAR",
+      "depends": [
+        "xcron_expression",
+        "time"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/calendar.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/calendar/calendar_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/calendar/calendar.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_calendar.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_calendar.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/calendar/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_calendar.c"
+      ],
+      "docs": [
+        "extlibs/xcron/README.md",
+        "extlibs/xcron/docs/calendar.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_timezone",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_TIMEZONE",
+      "depends": [
+        "time",
+        "atomic"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/timezone.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/timezone/timezone_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/timezone/timezone.c",
+        "extlibs/xcron/src/timezone/tzif.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_timezone.c",
+        "extlibs/xcron/tests/test_tzif.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/timezone/main.c",
+        "extlibs/xcron/examples/tzif/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_timezone.c",
+        "extlibs/xcron/bench/bench_tzif.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/timezone.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_zoned",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_ZONED",
+      "depends": [
+        "xcron_calendar",
+        "xcron_timezone"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/zoned.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/zoned/zoned_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/zoned/zoned.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_zoned.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_zoned.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/zoned/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_zoned.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/calendar.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/zoned.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_scheduler",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_SCHEDULER",
+      "depends": [
+        "xcron_zoned"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/scheduler.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/scheduler/scheduler.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_scheduler.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/scheduler/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_scheduler.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/scheduler.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_executor",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_EXECUTOR",
+      "depends": [
+        "xcron_scheduler",
+        "executor"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/executor.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/executor/executor.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_executor.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_executor.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/executor/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_executor.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/executor.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_service",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_SERVICE",
+      "depends": [
+        "xcron_executor",
+        "cond",
+        "event"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/service.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/timezone/timezone_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/service/service.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_service.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_service.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/service/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_service.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/service.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/examples/service/README.md"
+      ]
+    },
+    {
+      "name": "xcron_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xcron",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xcron/tests/test_expression.c",
+        "extlibs/xcron/tests/test_calendar.c",
+        "extlibs/xcron/tests/test_timezone.c",
+        "extlibs/xcron/tests/test_tzif.c",
+        "extlibs/xcron/tests/test_zoned.c",
+        "extlibs/xcron/tests/test_scheduler.c",
+        "extlibs/xcron/tests/test_executor.c",
+        "extlibs/xcron/tests/test_service.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_expression.c",
+        "extlibs/xcron/tests/single/test_single_xcron_calendar.c",
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c",
+        "extlibs/xcron/tests/single/test_single_xcron_zoned.c",
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
+        "extlibs/xcron/tests/single/test_single_xcron_executor.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xcron/README.md"
+      ],
+      "single_test_owners": {
+        "extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression",
+        "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "xcron_calendar",
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "xcron_timezone",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c": "xcron_timezone",
+        "extlibs/xcron/tests/single/test_single_xcron_zoned.c": "xcron_zoned",
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler",
+        "extlibs/xcron/tests/single/test_single_xcron_executor.c": "xcron_executor",
+        "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service"
+      }
+    }
+  ]
+}

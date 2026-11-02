@@ -55,6 +55,16 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* event_waiter 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EVENT_WAITER)
+#ifndef XRT_FEATURE_EVENT_WAITER
+#define XRT_FEATURE_EVENT_WAITER
+#endif
+#ifndef XRT_MODULE_EVENT
+#define XRT_MODULE_EVENT
+#endif
+#endif
+
 /* regex 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
 #ifndef XRT_FEATURE_REGEX
@@ -1569,6 +1579,19 @@
 #endif
 #endif
 
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
 /* net_tcp_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_FUTURE)
 #ifndef XRT_FEATURE_NET_TCP_FUTURE
@@ -1645,6 +1668,28 @@
 #ifndef XRT_MODULE_NET_PORT_URING
 #define XRT_MODULE_NET_PORT_URING
 #endif
+#endif
+#endif
+
+/* tls_client_auth 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_CLIENT_AUTH)
+#ifndef XRT_FEATURE_TLS_CLIENT_AUTH
+#define XRT_FEATURE_TLS_CLIENT_AUTH
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY
+#define XRT_MODULE_TLS_IDENTITY
+#endif
+#ifndef XRT_MODULE_TLS_MESSAGES_WRITE
+#define XRT_MODULE_TLS_MESSAGES_WRITE
+#endif
+#ifndef XRT_MODULE_X509_PROFILE
+#define XRT_MODULE_X509_PROFILE
+#endif
+#ifndef XRT_MODULE_X509_NAME
+#define XRT_MODULE_X509_NAME
 #endif
 #endif
 
@@ -15585,6 +15630,17 @@ XRT_EXTERN_C_BEGIN
 /* 创建预分配作业槽、Worker 本地队列和工作窃取线程。 */
 XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig);
 
+/* Current native control context belongs to this live executor: a worker
+ * (including its body/drop/worker-exit tails), or queued-work cancellation
+ * cleanup on any calling thread. NULL/an unrelated executor returns false. Preserves
+ * ambient error and allocates no per-query storage after Core context setup.
+ * Does not retain/close/cancel/wait for work or authorize object destruction. Caller keeps
+ * the executor live; invoke outside ownership freeze like other native controls.
+ * Worker lookup uses the existing TLS/native-thread fallback; other callers use
+ * the existing synchronized callback registry. Not a wait-free graph query.
+ * Use before a blocking facade that depends on work/drop from that executor. */
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor);
+
 /* Success consumes ONE Data reference. Failure consumes none and invokes no
  * Exit/Drop, including partial native-thread creation rollback. Unlike plain
  * Create, Close+drain stops these workers; Wait includes every Exit tail.
@@ -25253,6 +25309,11 @@ XRT_EXTERN_C_END
 	#error "XRT TCP support requires network engine support"
 #endif
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND))
+	#error "XRT TCP retirement waiting requires TCP and condition variables"
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FILE))
 	#error "XRT TCP file support requires TCP and file support"
@@ -25689,6 +25750,17 @@ XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream);
 
 /* 释放 Stream 引用；空指针视为空操作。 */
 XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Wait for CLOSED and exactly the caller's one remaining strong Stream reference.
+ * Unlike WAIT_CLOSE this includes native/control/send/owned-event callback tails.
+ * Does not request close, retain the Stream or consume the caller owner. Keep that
+ * owner alive through all concurrent waits; stop other API/ref entries before
+ * treating success as final retirement or destroying it. Extra caller aliases
+ * also keep the result pending. Any worker of the same Engine is rejected.
+ * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+#endif
 
 
 
@@ -36199,6 +36271,69 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/tls_client_auth.h */
+/* ========================================================================== */
+
+#ifndef XRT_TLS_CLIENT_AUTH_H
+#define XRT_TLS_CLIENT_AUTH_H
+
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH) && \
+	(!defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || \
+	 !defined(XRT_FEATURE_TLS_IDENTITY) || \
+	 !defined(XRT_FEATURE_TLS_MESSAGES_WRITE) || \
+	 !defined(XRT_FEATURE_X509_PROFILE) || !defined(XRT_FEATURE_X509_NAME))
+	#error "XRT_FEATURE_TLS_CLIENT_AUTH requires verified client, identity, message writers and X.509 profile/name"
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+#define XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT 16u
+#define XTLS_CLIENT_AUTH_CERTIFICATES_MAX 256u
+#define XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT (64u * 1024u)
+#define XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT (1024u * 1024u)
+#define XTLS_CLIENT_AUTH_BYTES_MAX (16u * 1024u * 1024u)
+#define XTLS_CLIENT_AUTH_AUTHORITIES_MAX 256u
+#define XTLS_CLIENT_AUTH_OID_FILTERS_MAX 64u
+#define XTLS_CLIENT_AUTH_OID_VALUES_MAX 128u
+
+/* Borrowed for Create only. The session retains Identity and snapshots limits.
+ * RequireCertificate rejects absent/incompatible certificate requests instead
+ * of completing a handshake without the configured local identity. */
+typedef struct xtlsclientauthconfigv1 {
+	size_t Size;
+	const xtlsidentity* Identity;
+	size_t MaxCertificates;
+	size_t MaxCertificateBytes;
+	size_t MaxTranscriptBytes;
+	bool RequireCertificate;
+} xtlsclientauthconfigv1;
+
+XRT_EXTERN_C_BEGIN
+
+XRT_API void xrtTlsClientAuthConfigInitV1(xtlsclientauthconfigv1* pConfig);
+
+/* Full TLS 1.2/1.3 certificate handshakes. The old client config ABI is unchanged.
+ * This first auth contract rejects Resume/ResumeOnly and disables ticket
+ * retention until local-identity binding of resumed credentials is available.
+ * Signers run synchronously on the session owner and must not reenter/destroy
+ * that session. A NULL session config has the existing client defaults. */
+XRT_API xtlssession* xrtTlsClientCreateAuthV1(
+	const xtlsclientconfig* pSession,
+	const xtlsclientauthconfigv1* pAuth,
+	xnetbufpool* pPool
+);
+
+/* True after a nonempty local Certificate/proof flight is queued. This is not
+ * transport delivery or proof of the server's authentication decision. */
+XRT_API bool xrtTlsClientCertificateQueuedV1(const xtlssession* pSession);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/net_file.h */
 /* ========================================================================== */
 
@@ -38960,6 +39095,39 @@ typedef xjsonvisitaction (*xjsonvisitproc)(
 	ptr pUserData
 );
 
+/* Separate lexical event domain; existing decoded visitor enums stay stable. */
+typedef enum xjsonscantype {
+	XJSON_SCAN_NULL = 0,
+	XJSON_SCAN_BOOL,
+	XJSON_SCAN_NUMBER,
+	XJSON_SCAN_STRING,
+	XJSON_SCAN_ARRAY_BEGIN,
+	XJSON_SCAN_ARRAY_END,
+	XJSON_SCAN_OBJECT_BEGIN,
+	XJSON_SCAN_OBJECT_END
+} xjsonscantype;
+
+/* Lossless Scan event. All views point into the caller's input and remain
+ * valid as long as that input remains alive and unchanged. Name includes its
+ * JSON quotes/escapes; it is present for object children. Index identifies an
+ * array child. Raw includes the complete scalar lexeme; strings include their
+ * quotes. Container BEGIN Raw is its opening byte; END Raw is the complete
+ * container span, with the same parent Name/Index as BEGIN. Location is the
+ * token's first byte, except END where it is the closing byte. Numbers always
+ * use XJSON_SCAN_NUMBER; no int/double conversion or range narrowing occurs.
+ * No string/key is unescaped or copied; UTF-8/escape grammar is still checked. */
+typedef struct xjsonscanevent {
+	xjsonscantype Type;
+	xjsonlocation Location;
+	size_t Depth;
+	bool HasName;
+	xstrview Name;
+	size_t Index;
+	xstrview Raw;
+} xjsonscanevent;
+
+typedef xjsonvisitaction (*xjsonscanproc)(const xjsonscanevent* pEvent, ptr pUserData);
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -38994,6 +39162,26 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 	xstrview Text,
 	const xjsonreadconfig* pConfig,
 	xjsonvisitproc pVisitor,
+	ptr pUserData
+);
+
+/* Scan one complete bounded JSON document without heap allocation, payload
+ * copying or native numeric conversion on success (visitor costs are separate).
+ * Uses the existing read limits, including decoded-byte MaxStringBytes even
+ * though decoded strings are not materialized. Comments/trailing commas remain
+ * opt-in. Duplicate policy and BigInteger conversion policy are DOM/Visit
+ * concerns: Scan emits every member and every valid numeric lexeme. Callers
+ * enforce application-level duplicate rules from raw names. Config values
+ * must still be valid. All input must be a real readable, nonwrapping span.
+ * NEXT/STOP/FAIL have the same semantics as Visit. STOP does not validate the
+ * remaining document. Callbacks may precede trailing syntax failure; publish a
+ * complete result only after DONE. Success preserves the ambient error except
+ * for callback changes. Cold diagnostic allocation may fall back to XERR_MEMORY.
+ * The event object is callback-scoped; its raw views borrow the caller input. */
+XRT_API xjsonvisitresult xrtJsonScan(
+	xstrview Text,
+	const xjsonreadconfig* pConfig,
+	xjsonscanproc pVisitor,
 	ptr pUserData
 );
 
@@ -44656,6 +44844,64 @@ XRT_EXTERN_C_END
 
 #endif
 
+
+/* ========================================================================== */
+/* public: include/xrt/event_waiter.h */
+/* ========================================================================== */
+
+#ifndef XRT_EVENT_WAITER_H
+#define XRT_EVENT_WAITER_H
+#if defined(XRT_FEATURE_EVENT_WAITER) && !defined(XRT_FEATURE_EVENT)
+#error "XRT_FEATURE_EVENT_WAITER requires XRT_FEATURE_EVENT"
+#endif
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#if defined(_WIN32) || defined(_WIN64)
+#define XRT_EVENT_WAITER_STORAGE_SIZE 40u
+#else
+#define XRT_EVENT_WAITER_STORAGE_SIZE 32u
+#endif
+typedef union xeventwaiter {uint64 Alignment;uint8 Storage[XRT_EVENT_WAITER_STORAGE_SIZE];} xeventwaiter;
+typedef enum xeventwaiterbackend {
+    XEVENT_WAITER_PLATFORM=0,XEVENT_WAITER_WINDOWS_HIGH_RESOLUTION,
+    XEVENT_WAITER_WINDOWS_STANDARD,XEVENT_WAITER_POSIX_MONOTONIC
+} xeventwaiterbackend;
+#define XRT_EVENT_WAITER_REQUIRE_PRECISE UINT32_C(1)
+typedef struct xeventwaiterinfo {size_t StorageBytes;xeventwaiterbackend Backend;uint32 NativeTimers;} xeventwaiterinfo;
+XRT_EXTERN_C_BEGIN
+/* Caller-owned reusable deadline context borrowing one initialized event through
+ * Unit. Init succeeds only into uninitialized storage, which must not overlap the
+ * event. Failure preserves storage/borrowed event and releases all new resources.
+ * WaitFor belongs to the native Init thread; signals use ordinary EventSet from
+ * any thread. No new thread, callback, shared runtime or requested heap allocation.
+ * Windows owns one reusable nonperiodic timer, preferring a high-resolution timer
+ * without changing global/process timer resolution. Unsupported precise backends
+ * fall back only with Flags=0; REQUIRE_PRECISE rejects that fallback. POSIX reuses
+ * the event's monotonic condition where available. Inspect the actual backend;
+ * precision selection is not a bound on OS scheduling/wake latency.
+ * Other flag bits are invalid. Success/normal timeout preserve ambient error.
+ * Diagnostics can fall back to MEMORY under diagnostic OOM. Error domain is
+ * xrt.event_waiter (clock failures may retain xrt.time). No API grants concurrent
+ * Unit/reinitialization, destruction of the borrowed event or escaping its storage. */
+XRT_API bool xrtEventWaiterInit(xeventwaiter* Waiter,xevent* Event,uint32 Flags);
+/* Caller-exclusive, no live WaitFor. May run on another thread after a physical
+ * handoff/join. Releases only its timer/context, never the borrowed event. Owner
+ * error-handler reentry during a wait is BUSY. Successful Unit clears storage. */
+XRT_API bool xrtEventWaiterUnit(xeventwaiter* Waiter);
+/* Relative signed milliseconds, -1 forever, 0 poll. One original monotonic budget
+ * survives backend/spurious wakeups. Ready event wins over timeout, and automatic
+ * reset consumes exactly one signal. Windows timer signals never consume the
+ * borrowed event. Timers are rearmed/reset per finite wait and cancelled after an
+ * event wins. Invalid timeout/owner transfers no event signal. Backend errors may
+ * consume a ready signal; they are observable errors, not a successful timeout. */
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* Waiter,int64 Timeout);
+/* Immutable capability/layout metadata; output must be disjoint from both public
+ * storage objects. No concurrent Init/Unit; metadata can otherwise be inspected
+ * by another thread while the owner waits. */
+XRT_API bool xrtEventWaiterGet(const xeventwaiter* Waiter,xeventwaiterinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
+
 #endif
 
 #if defined(XRT_IMPLEMENTATION) && !defined(XRT_IMPLEMENTATION_ONCE)
@@ -44789,6 +45035,12 @@ XRT_EXTERN_C_END
 	#endif
 #endif
 
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Borrow only from the current native XRT thread after exact entry identity.
+ * Proc/Data are immutable throughout that thread body and its exit cleanup. */
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc);
+#endif
 
 /* A private body preserves its existing early-return/error contract while one
  * outer scope covers the COMPLETE edge/count transition, before any object
@@ -47840,6 +48092,123 @@ size_t __xrtQueueSequenceCount(
 
 
 /* ========================================================================== */
+/* internal: src/internal/xrt_net_iocp_timer.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NET_PORT_IOCP)
+#ifndef XRT_NET_IOCP_TIMER_H
+#define XRT_NET_IOCP_TIMER_H
+#if defined(XRT_FEATURE_NET_PORT_IOCP) && (defined(_WIN32) || defined(_WIN64))
+/* Documented ntdll entry points have no SDK import library/header. Keep the
+ * exact Windows ABI and resolve them dynamically; older systems retain GQCS.
+ * No APC, thread-pool callback, helper thread or process timer-resolution change.
+ * https://learn.microsoft.com/windows/win32/devnotes/ntassociatewaitcompletionpacket */
+struct _OBJECT_ATTRIBUTES;
+typedef HANDLE (WINAPI *__xrt_net_iocp_create_timer)(LPSECURITY_ATTRIBUTES, LPCWSTR, DWORD, DWORD);
+typedef LONG (NTAPI *__xrt_net_iocp_create_packet)(PHANDLE, ACCESS_MASK, struct _OBJECT_ATTRIBUTES*);
+typedef LONG (NTAPI *__xrt_net_iocp_associate_packet)(HANDLE, HANDLE, HANDLE, PVOID, PVOID, LONG, ULONG_PTR, PBOOLEAN);
+typedef LONG (NTAPI *__xrt_net_iocp_cancel_packet)(HANDLE, BOOLEAN);
+typedef struct __xrt_net_iocp_timer_api {
+    __xrt_net_iocp_create_timer CreateTimer;
+    __xrt_net_iocp_create_packet CreatePacket;
+    __xrt_net_iocp_associate_packet Associate;
+    __xrt_net_iocp_cancel_packet Cancel;
+} __xrt_net_iocp_timer_api;
+typedef struct __xrt_net_iocp_timer {
+    HANDLE Timer, Packet;
+    __xrt_net_iocp_associate_packet Associate;
+    __xrt_net_iocp_cancel_packet Cancel;
+    OVERLAPPED Wake;
+    double Deadline;
+    bool Enabled, Associated, Scheduled;
+} __xrt_net_iocp_timer;
+typedef char __xrt_net_iocp_timer_function_size[
+    sizeof(__xrt_net_iocp_create_timer) == sizeof(FARPROC) &&
+    sizeof(__xrt_net_iocp_create_packet) == sizeof(FARPROC) &&
+    sizeof(__xrt_net_iocp_associate_packet) == sizeof(FARPROC) &&
+    sizeof(__xrt_net_iocp_cancel_packet) == sizeof(FARPROC) ? 1 : -1];
+
+static bool __xrtNetIOCPTimerAPI(__xrt_net_iocp_timer_api* pAPI)
+{
+    HMODULE hKernel = GetModuleHandleW(L"kernel32.dll"), hNative = GetModuleHandleW(L"ntdll.dll");
+    FARPROC Proc;
+    memset(pAPI, 0, sizeof(*pAPI)); if (!hKernel || !hNative) return false;
+    Proc = GetProcAddress(hKernel, "CreateWaitableTimerExW"); memcpy(&pAPI->CreateTimer, &Proc, sizeof(Proc));
+    Proc = GetProcAddress(hNative, "NtCreateWaitCompletionPacket"); memcpy(&pAPI->CreatePacket, &Proc, sizeof(Proc));
+    Proc = GetProcAddress(hNative, "NtAssociateWaitCompletionPacket"); memcpy(&pAPI->Associate, &Proc, sizeof(Proc));
+    Proc = GetProcAddress(hNative, "NtCancelWaitCompletionPacket"); memcpy(&pAPI->Cancel, &Proc, sizeof(Proc));
+    return pAPI->CreateTimer && pAPI->CreatePacket && pAPI->Associate && pAPI->Cancel;
+}
+/* Private injectable constructor also lets tests exercise optional API/handle
+ * failures without new public hooks or a modified platform runtime. */
+static bool __xrtNetIOCPTimerCreate(__xrt_net_iocp_timer* pTimer, const __xrt_net_iocp_timer_api* pAPI)
+{
+    memset(pTimer, 0, sizeof(*pTimer));
+    if (!pAPI->CreateTimer || !pAPI->CreatePacket || !pAPI->Associate || !pAPI->Cancel) return false;
+    /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is supported since Windows 10 1803.
+     * Use the documented value even with SDKs which do not declare its name. */
+    pTimer->Timer = pAPI->CreateTimer(NULL, NULL, 0x00000002u, TIMER_MODIFY_STATE | SYNCHRONIZE);
+    if (!pTimer->Timer) return false;
+    if (pAPI->CreatePacket(&pTimer->Packet, MAXIMUM_ALLOWED, NULL) < 0 || !pTimer->Packet) {
+        CloseHandle(pTimer->Timer); pTimer->Timer = NULL; return false;
+    }
+    pTimer->Associate = pAPI->Associate; pTimer->Cancel = pAPI->Cancel; pTimer->Enabled = true; return true;
+}
+static void __xrtNetIOCPTimerInit(__xrt_net_iocp_timer* pTimer)
+{
+    __xrt_net_iocp_timer_api API;
+    memset(pTimer, 0, sizeof(*pTimer));
+    if (__xrtNetIOCPTimerAPI(&API)) (void)__xrtNetIOCPTimerCreate(pTimer, &API);
+}
+/* STATUS_PENDING explicitly forbids immediate packet reuse. Keep its fixed
+ * sentinel alive; a subsequent wait/cancel can retire it without spinning. */
+static bool __xrtNetIOCPTimerCancel(__xrt_net_iocp_timer* pTimer)
+{
+    if (pTimer->Scheduled) { CancelWaitableTimer(pTimer->Timer); pTimer->Scheduled = false; }
+    if (pTimer->Associated) {
+        LONG Status = pTimer->Cancel(pTimer->Packet, TRUE);
+        if (Status == 0 || (ULONG)Status == 0xc0000120u) pTimer->Associated = false; /* SUCCESS / CANCELLED */
+        else if (Status != 0x103) pTimer->Enabled = false; /* PENDING, or optional path failure. */
+    }
+    return !pTimer->Associated;
+}
+/* Port owner only. Retain an already scheduled EARLIER wake across I/O returns.
+ * This avoids arm/cancel syscalls per hot event. Private timer packets always
+ * mean an internal wake; the outer port loop checks its ORIGINAL deadline.
+ * Thus a former wait's earlier timer never produces an early public timeout. */
+static bool __xrtNetIOCPTimerEnsure(__xrt_net_iocp_timer* pTimer, HANDLE hPort, int64 iTimeout)
+{
+    if (!pTimer->Enabled || iTimeout <= 0) return false;
+    double Deadline = xrtTimer() + (double)iTimeout * 0.001;
+    if (pTimer->Associated && pTimer->Scheduled && pTimer->Deadline <= Deadline) return true;
+    if (!__xrtNetIOCPTimerCancel(pTimer)) return false;
+    LARGE_INTEGER Due;
+    Due.QuadPart = -(iTimeout > INT64_MAX / 10000 ? INT64_MAX : iTimeout * 10000);
+    /* Setting first resets any former signal. An expiry before association is
+     * still queued by the native API's already-signaled-object contract. */
+    if (!SetWaitableTimer(pTimer->Timer, &Due, 0, NULL, NULL, FALSE)) { pTimer->Enabled = false; return false; }
+    LONG Status = pTimer->Associate(pTimer->Packet, hPort, pTimer->Timer, NULL, &pTimer->Wake, 0, 0, NULL);
+    if (Status < 0) {
+        CancelWaitableTimer(pTimer->Timer); pTimer->Enabled = false; return false;
+    }
+    pTimer->Deadline = Deadline; pTimer->Associated = pTimer->Scheduled = true; return true;
+}
+static void __xrtNetIOCPTimerConsumed(__xrt_net_iocp_timer* pTimer)
+{ pTimer->Associated = pTimer->Scheduled = false; }
+static void __xrtNetIOCPTimerUnit(__xrt_net_iocp_timer* pTimer)
+{
+    (void)__xrtNetIOCPTimerCancel(pTimer);
+    if (pTimer->Packet) CloseHandle(pTimer->Packet);
+    if (pTimer->Timer) CloseHandle(pTimer->Timer);
+    pTimer->Packet = pTimer->Timer = NULL;
+    pTimer->Enabled = pTimer->Associated = pTimer->Scheduled = false;
+}
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_net_engine.h */
 /* ========================================================================== */
 
@@ -47851,6 +48220,11 @@ size_t __xrtQueueSequenceCount(
 
 
 #if defined(XRT_FEATURE_NET_ENGINE)
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Current thread only; never dereferences a possibly retired Engine address. */
+xnetworker* __xrtNetEngineCurrentThread(void);
+#endif
 
 #define XRT_NET_ENGINE_NODE_CLASS_COUNT 5u
 #define XRT_NET_ENGINE_NODE_SIZE_MAX 1024u
@@ -52817,6 +53191,7 @@ enum
 #if defined(XRT_FEATURE_NET_TCP) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	defined(XRT_FEATURE_NET_PROXY_DIAL) || \
+	defined(XRT_FEATURE_NET_TCP_RETIRE) || \
 	defined(XRT_FEATURE_NET_TCP_FILE)
 #ifndef XRT_INTERNAL_TCP_H
 #define XRT_INTERNAL_TCP_H
@@ -53059,6 +53434,10 @@ struct xnetstream {
 		bool WaitPosted;
 		bool WaitClosed;
 		bool ReadPush;
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
 	#endif
 };
 
@@ -54278,6 +54657,10 @@ bool __xrtTlsSessionSetState(xtlssession* pSession, xtlsstate State);
 /* 尽力排队与当前根错误匹配的 fatal Alert，再进入失败终态。 */
 xtlsresult __xrtTlsSessionFail(xtlssession* pSession);
 
+/* Role-specific protocol failures can require a more precise wire alert than
+ * the shared diagnostic category. Preserve the same root-error contract. */
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert);
+
 
 
 /* 设置状态机当前等待原因组合。 */
@@ -54564,10 +54947,15 @@ xtlsresult __xrtTlsSessionRecordAlert(
 
 #if defined(XRT_FEATURE_TLS_CLIENT) || \
 	defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || \
-	defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+	defined(XRT_FEATURE_TLS_CLIENT_RESUME) || \
+	defined(XRT_FEATURE_TLS_CLIENT_AUTH)
 #ifndef XRT_INTERNAL_TLS_CLIENT_H
 #define XRT_INTERNAL_TLS_CLIENT_H
 
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+typedef struct xtlsclientauthstate xtlsclientauthstate;
+#endif
 
 
 
@@ -54591,6 +54979,9 @@ typedef enum xtlsclientstep {
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+
+#define XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE (XTLS_HANDSHAKE_HEADER_SIZE + 4u)
+#define XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE (XTLS_HANDSHAKE_HEADER_SIZE + 3u)
 
 /* 已验证对端证书只保留一份精确分配和指向该分配的解析视图。 */
 typedef struct xtlsclientpeer {
@@ -54677,8 +55068,13 @@ typedef struct xtlsclientstate {
 	bool ResumeOnly;
 	bool RetrySeen;
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		/* Use existing alignment padding before the shared-object pointers. */
+		bool CertificateRequested;
 		xtlsverifier* Verifier;
 		xtlsclientpeer* Peer;
+	#endif
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		xtlsclientauthstate* Auth;
 	#endif
 } xtlsclientstate;
 
@@ -54744,6 +55140,14 @@ bool __xrtTlsClientProtocolSelect(
 
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+
+/* Validate one initial CertificateRequest and commit its transcript once.
+ * No client identity is configured by the current public client factory. */
+xtlsresult __xrtTlsClientCertificateRequestCommit(
+	xtlssession* pSession,
+	xtlsclientstate* pState,
+	const xtlshandshake* pMessage
+);
 
 /* 验证并提交当前协商版本的服务端证书链。 */
 xtlsresult __xrtTlsClientCertificateCommit(
@@ -60498,6 +60902,80 @@ xnetproxyhandshakestate __xrtNetProxyHttpStep(
 
 
 /* ========================================================================== */
+/* internal: src/internal/xrt_tls_client_auth.h */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#ifndef XRT_INTERNAL_TLS_CLIENT_AUTH_H
+#define XRT_INTERNAL_TLS_CLIENT_AUTH_H
+
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+typedef struct xtlsclientauthcertificate {
+	xbytesview Issuer;
+	uint16 Signature;
+	uint16 Alternate;
+	bool Anchor;
+} xtlsclientauthcertificate;
+
+struct xtlsclientauthstate {
+	xtlsidentity* Identity;
+	xtlscertificateentry* Entries;
+	xtlsclientauthcertificate* Certificates;
+	xtlsclientauthconfigv1 Config;
+	xx509cert Leaf;
+	size_t CertificateCount;
+	size_t Certificate12;
+	size_t Certificate13;
+	size_t SignatureCapacity;
+	bytes Transcript;
+	size_t TranscriptSize;
+	size_t TranscriptCapacity;
+	xtlssignature Signature;
+	bool Selected;
+	bool Queued;
+};
+
+void __xrtTlsClientAuthClear(xtlsclientauthstate* pAuth);
+const xtlsclientauthstate* __xrtTlsClientAuthStateOf(const xtlssession* pSession);
+xtlsresult __xrtTlsClientAuthFailure(xtlssession* pSession);
+bool __xrtTlsClientAuthOwnershipLeaf(const xtlsclientauthstate* pAuth);
+bool __xrtTlsClientAuthSelect12(xtlsclientstate* pState, const xtls12certificaterequest* pRequest);
+bool __xrtTlsClientAuthSelect13(xtlsclientstate* pState, const xtls13certificaterequest* pRequest);
+bool __xrtTlsClientAuthRequire(const xtlsclientstate* pState);
+bool __xrtTlsClientAuthTranscriptStart12(
+	xtlsclientstate* pState, xbytesview ServerHello
+);
+bool __xrtTlsClientAuthTranscriptAppend12(
+	xtlsclientstate* pState, xbytesview Message
+);
+bool __xrtTlsClientAuthTranscriptReserve12(xtlsclientauthstate* pAuth, size_t iSize);
+void __xrtTlsClientAuthTranscriptClear(xtlsclientauthstate* pAuth);
+size_t __xrtTlsClientAuthCertificateSize(const xtlsclientstate* pState);
+bool __xrtTlsClientAuthCertificateEncode(
+	const xtlsclientstate* pState, void* pOutput, size_t iCapacity
+);
+bool __xrtTlsClientAuthVerifyEncode(
+	const xtlsclientstate* pState, xbytesview Content,
+	void* pOutput, size_t iCapacity, size_t* pSize
+);
+bool __xrtTlsClientAuthRecordsSize13(
+	const xtlsrecordkey* pKey, size_t iPlain, size_t* pSize
+);
+xtlsresult __xrtTlsClientAuthQueue13(
+	xtlssession* pSession, xbytesview Plain
+);
+xtlsresult __xrtTlsClientAuth12Writable(xtlssession* pSession, const xtlsclientstate* pState);
+xtlsresult __xrtTlsClientAuth12Flight(xtlssession* pSession, xtlsclientstate* pState,
+	const xtlshandshake* pMessage);
+
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* internal: src/internal/xrt_net_file.h */
 /* ========================================================================== */
 
@@ -62877,7 +63355,8 @@ typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_SET_END,
 	XTEXT_VALUE_EVENT_OBJECT_BEGIN,
 	XTEXT_VALUE_EVENT_OBJECT_END,
-	XTEXT_VALUE_EVENT_UINT
+	XTEXT_VALUE_EVENT_UINT,
+	XTEXT_VALUE_EVENT_NUMBER
 } xtextvalueeventtype;
 
 
@@ -62940,6 +63419,8 @@ typedef struct xtextvaluereadconfig {
 	xtextvaluedialect Dialect;
 	uint32 Flags;
 	bool BigIntegerFloat;
+	/* JSON Scan only: validated borrowed lexemes, no numeric/string materialization. */
+	bool RawEvents;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;
@@ -81497,6 +81978,14 @@ XRT_API xthread* xrtThreadCurrent(void)
 	return __xrtThreadCurrentGet();
 }
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc)
+{
+	xthread* Thread=__xrtThreadCurrentGet();
+	return Thread && Thread->Proc==Proc ? Thread->Data : NULL;
+}
+#endif
+
 
 
 /* 主动让出当前线程的处理器时间片。 */
@@ -82583,6 +83072,7 @@ typedef struct __xrt_net_iocp_context {
 	HANDLE Port;
 	uint64 Owner;
 	OVERLAPPED Wake;
+	__xrt_net_iocp_timer Timer;
 	__xrt_net_iocp_operation* OperationHead;
 	__xrt_net_iocp_operation** OperationBuckets;
 	size_t OperationCount;
@@ -83595,6 +84085,7 @@ static bool __xrtNetIOCPInit(xnetport* pPort)
 		xrtFree(pContext);
 		return false;
 	}
+	__xrtNetIOCPTimerInit(&pContext->Timer);
 	pPort->Context = pContext;
 	return true;
 }
@@ -83936,6 +84427,10 @@ static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 		OVERLAPPED* pOverlapped = NULL;
 		DWORD iWait = (iCount == 0) ?
 			__xrtNetIOCPTimeout(iTimeout) : 0;
+		if ( (iCount == 0) && (iTimeout > 0) &&
+			__xrtNetIOCPTimerEnsure(&pContext->Timer, pContext->Port, iTimeout) ) {
+			iWait = INFINITE;
+		}
 		BOOL bSuccess = GetQueuedCompletionStatus(pContext->Port,
 			&iBytes, &iKey, &pOverlapped, iWait);
 		int iSystemCode = bSuccess ? 0 : (int)GetLastError();
@@ -83944,13 +84439,20 @@ static xnetresult __xrtNetIOCPWait(xnetport* pPort,
 		if ( pOverlapped == NULL ) {
 			if ( iSystemCode == WAIT_TIMEOUT ) {
 				*pCount = iCount;
-				return (iCount == 0) ?
-					(iTimeout == 0 ? XNET_RESULT_OK :
-					 XNET_RESULT_TIMEOUT) : XNET_RESULT_OK;
+				/* Coarse native timeouts can precede the QPC deadline. Only
+				 * the outer wait may decide that its original deadline expired. */
+				return XNET_RESULT_OK;
 			}
 			__xrtNetSetError(XERR_IO, XNET_ERROR_PORT_WAIT,
 				"wait", "waiting on IOCP failed", iSystemCode);
 			return XNET_RESULT_ERROR;
+		}
+		if ( pOverlapped == &pContext->Timer.Wake ) {
+			__xrtNetIOCPTimerConsumed(&pContext->Timer);
+			*pCount = iCount;
+			/* An earlier caller's timer can still be queued. The outer wait
+			 * checks its original monotonic deadline; never expose this packet. */
+			return XNET_RESULT_OK;
 		}
 		if ( pOverlapped == &pContext->Wake ) {
 			*pCount = iCount;
@@ -84024,6 +84526,7 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 	}
 
 	/* CancelIoEx 只发起取消；必须消费每个终态包后才能释放描述符。 */
+	(void)__xrtNetIOCPTimerCancel(&pContext->Timer);
 	while ( pContext->OperationCount != 0 ) {
 		DWORD iBytes = 0;
 		ULONG_PTR iKey = 0;
@@ -84034,6 +84537,10 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 
 		(void)iBytes;
 		(void)iKey;
+		if ( pOverlapped == &pContext->Timer.Wake ) {
+			__xrtNetIOCPTimerConsumed(&pContext->Timer);
+			continue;
+		}
 		if ( pOverlapped == &pContext->Wake ) {
 			continue;
 		}
@@ -84067,6 +84574,7 @@ static bool __xrtNetIOCPUnit(xnetport* pPort)
 		}
 	}
 
+	__xrtNetIOCPTimerUnit(&pContext->Timer);
 	if ( CloseHandle(pContext->Port) == 0 ) {
 		bResult = false;
 		if ( iSystemCode == 0 ) {
@@ -88095,6 +88603,13 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 	 * publish that state until this exit callback AND XRT TLS cleanup return. */
 	return Result;
 }
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+xnetworker* __xrtNetEngineCurrentThread(void)
+{
+	return __xrtThreadCurrentDataFor(__xrtNetEngineWorkerMain);
+}
+#endif
 
 /* 释放尚未进入 Worker 的命令；正常停止时队列已经排空。 */
 static void __xrtNetEngineCommandDiscard(ptr pItem, ptr pData)
@@ -120686,6 +121201,10 @@ static bool __xrtExecutorInCallback(xexecutor* pExecutor)
 	for (const xrt_executor_callback* pCallback = pExecutor->Callbacks; pCallback; pCallback = pCallback->Next)
 		if (pCallback->Thread == iThread) { bFound = true; break; }
 	__xrtExecutorOwnershipEnd(pExecutor, &Mutation); return bFound;
+}
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor)
+{
+	return pExecutor != NULL && __xrtExecutorInCallback((xexecutor*)pExecutor);
 }
 static void __xrtExecutorCallbackBegin(xexecutor* pExecutor, xrt_executor_callback* pCallback)
 {
@@ -160769,16 +161288,39 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		/* A successful CAS above two cannot publish the final caller-only state.
+		 * It therefore needs no wait lock or notification. Serialize 2->1 and
+		 * 1->0 through the same lock as waiters: no lost wake or freed notifier
+		 * tail may follow publication of retirement. No access follows fast CAS. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Observed = __xrtAtomicRefCompareExchange(&pStream->References,Count-1,Count);
+				if (Observed == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Observed;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		pStream->EventOwner || pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail ||
 		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 &&
+			!xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
 	}
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		__xrtSpinUnit(&pStream->WaitLock);
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
 	#endif
 	xrtErrorFree(pStream->Error);
 	__xrtNetStreamReleaseEngine(pStream);
@@ -162933,6 +163475,14 @@ static xnetstream* __xrtNetStreamCreate(
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {
+			xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+		if (!xrtCondInit(&pStream->RetirementReady)) {
+			xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+	#endif
 	pStream->References = 2;
 	xrtAtomic32Init(&pStream->EventDropPending, 0);
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
@@ -169505,7 +170055,7 @@ static void xrtWsStreamPauseBody(xwsstream* pConnection)
 }
 XRT_API void xrtWsStreamPause(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return;
  xrtWsStreamPauseBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -169552,7 +170102,7 @@ static bool xrtWsStreamResumeBody(xwsstream* pConnection)
 }
 XRT_API bool xrtWsStreamResume(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
  bool result=xrtWsStreamResumeBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -170517,7 +171067,7 @@ static xwsstream* __xrtWsStreamRefBody(xwsstream* pConnection)
 }
 XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
 {
- if(!pConnection||!pConnection->OwnershipPolicy)return __xrtWsStreamRefBody(pConnection);
+ if(!__xrtWsStreamRangeValid(pConnection)||!pConnection->OwnershipPolicy)return __xrtWsStreamRefBody(pConnection);
  xrtownershipscope Mutation={0};if(!xrtOwnershipMutationBegin(&Mutation))return NULL;
  xwsstream* result=NULL;
  if(xrtAtomic32Load(&pConnection->OwnershipState,XMEMORY_ACQUIRE)&__XRT_WS_OWN_CLEARED)
@@ -171287,7 +171837,7 @@ static xnetresult __xrtWsStreamSendMessage(
 	bool bCompressed
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=__xrtWsStreamSendMessageBody(pConnection, Opcode, Payload, bCompressed);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -171447,7 +171997,7 @@ XRT_API xnetresult xrtWsStreamPing(
 	xbytesview Payload
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamPingBody(pConnection, Payload);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -171473,7 +172023,7 @@ XRT_API xnetresult xrtWsStreamPong(
 	xbytesview Payload
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamPongBody(pConnection, Payload);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -171531,7 +172081,7 @@ XRT_API xnetresult xrtWsStreamClose(
 	xstrview Reason
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamCloseBody(pConnection, iCode, Reason);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -171599,7 +172149,7 @@ bool __xrtWsStreamAbortBody(xwsstream* pConnection)
 }
 XRT_API bool xrtWsStreamAbort(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
  bool result=__xrtWsStreamAbortBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -172330,7 +172880,7 @@ XRT_API xnetresult xrtWsStreamSendRef(
 	const xnetref* pRef
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true))return XNET_RESULT_ERROR;
  xnetresult result=__xrtWsStreamSendRefBody(pConnection,Opcode,pRef);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -172367,7 +172917,7 @@ static xnetresult __xrtWsStreamSendBytesBody(xwsstream* s,xwsopcode opcode,
 XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* s,xwsopcode opcode,
     xnetbytes* bytes,size_t offset,size_t size)
 {
-    bool owned=s&&s->OwnershipPolicy;
+    bool owned=__xrtWsStreamRangeValid(s)&&s->OwnershipPolicy;
     if(owned&&!__xrtWsStreamOwnershipEnter(s,true))return XNET_RESULT_ERROR;
     xnetresult result=__xrtWsStreamSendBytesBody(s,opcode,bytes,offset,size);
     if(owned)__xrtWsStreamOwnershipLeave(s);
@@ -181577,10 +182127,9 @@ static xtlsalert __xrtTlsSessionFailureAlert(const xerror* pError)
 
 
 /* 保留首个根错误，fatal Alert 编码或排队失败不得覆盖它。 */
-xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert)
 {
 	xerror* pRoot = xrtTakeError();
-	xtlsalert Alert = __xrtTlsSessionFailureAlert(pRoot);
 
 	if ( (pRoot == NULL) && (pSession != NULL) &&
 		(pSession->State != XTLS_STATE_FAILED) &&
@@ -181613,6 +182162,15 @@ xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
 		__xrtErrorSetOwned(pRoot);
 	}
 	return XTLS_ERROR;
+}
+
+
+
+xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+{
+	return __xrtTlsSessionFailAlert(
+		pSession, __xrtTlsSessionFailureAlert(xrtGetError())
+	);
 }
 
 
@@ -183517,6 +184075,8 @@ XRT_API xtlsresult xrtTlsHandshakeReaderRead(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TLS_CLIENT)
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#endif
 
 
 
@@ -184574,6 +185134,11 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 
 	(void)pSession;
 	if ( pState != NULL ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			xtlsclientauthstate* auth = pState->Auth;
+			pState->Auth = NULL;
+			__xrtTlsClientAuthClear(auth);
+		#endif
 		xrtTlsHandshakeReaderUnit(&pState->Reader);
 		__xrtTlsTranscriptClear(&pState->Transcript);
 		__xrtTlsRecordKeyClear(&pState->PendingReadKey);
@@ -184610,7 +185175,21 @@ bool __xrtTlsClientVerifierOwnershipTrace(
 	if (!pSession->Clean) return true;
 	if (pSession->Clean != __xrtTlsClientClean) return false;
 	const xtlsclientstate* pState = (const xtlsclientstate*)(pSession + 1);
-	return !pState->Verifier || pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext);
+	if (pState->Verifier && !pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext)) return false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		return __xrtTlsClientAuthOwnershipLeaf(pState->Auth);
+	#else
+		return true;
+	#endif
+}
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+const xtlsclientauthstate* __xrtTlsClientAuthStateOf(const xtlssession* pSession)
+{
+	if (!pSession || pSession->Role != XTLS_CLIENT || pSession->Clean != __xrtTlsClientClean ||
+		pSession->AllocationSize < sizeof(*pSession) + sizeof(xtlsclientstate)) return NULL;
+	return ((const xtlsclientstate*)(pSession + 1))->Auth;
 }
 #endif
 
@@ -184936,6 +185515,8 @@ XRT_API xtlssession* xrtTlsClientCreate(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TLS_CLIENT)
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#endif
 
 
 
@@ -184977,8 +185558,16 @@ typedef struct xtlsclientfinishedstate {
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		uint8 ResumptionMaster[XTLS_CLIENT_SECRET_MAX_SIZE];
 	#endif
-	uint8 Message[XTLS_HANDSHAKE_HEADER_SIZE + XTLS_CLIENT_SECRET_MAX_SIZE];
+	uint8 Message[XTLS_HANDSHAKE_HEADER_SIZE + XTLS_CLIENT_SECRET_MAX_SIZE
+		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+			+ XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE
+		#endif
+	];
 	size_t MessageSize;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		bytes AuthMessage;
+		size_t AuthCapacity;
+	#endif
 } xtlsclientfinishedstate;
 
 
@@ -185886,6 +186475,158 @@ static xtlsresult __xrtTlsClientEncryptedExtensionsCommit(
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 
+/* A missing mandatory signature_algorithms has its own TLS 1.3 alert.
+ * Inspect only structurally consistent fields, and preserve the codec error.
+ * This extra inspection runs on failed requests, not on successful handshakes. */
+static xtlsalert __xrtTlsClientRequestParseAlert(xbytesview Body)
+{
+	xerror* pRoot = xrtTakeError();
+	xtlsalert Alert = XTLS_ALERT_DECODE_ERROR;
+
+	if ( Body.Size >= 3u ) {
+		size_t iOffset = 1u + Body.Data[0];
+
+		if ( (iOffset <= Body.Size - 2u) &&
+			(__xrtTlsRead16(Body.Data + iOffset) == Body.Size - iOffset - 2u) ) {
+			xtlsextension Extension;
+
+			if ( xrtTlsExtensionsFind((xbytesview) {
+				Body.Data + iOffset + 2u, Body.Size - iOffset - 2u
+			}, XTLS_EXTENSION_SIGNATURE_ALGORITHMS, &Extension) == XTLS_ITEM_DONE ) {
+				Alert = XTLS_ALERT_MISSING_EXTENSION;
+			}
+		}
+	}
+	xrtErrorFree(xrtTakeError());
+	if ( pRoot != NULL ) {
+		__xrtErrorSetOwned(pRoot);
+	}
+	return Alert;
+}
+
+
+
+/* Unknown CertificateRequest extensions are ignored (RFC 8446 section 4.2).
+ * Known extensions confined to other handshake messages must still fail. */
+static bool __xrtTlsClientRequestExtensions(xbytesview Extensions)
+{
+	xtlsextensioncursor Cursor;
+	xtlsextension Extension;
+	xtlsitemresult Result;
+
+	if ( !xrtTlsExtensionsInit(&Cursor, Extensions) ) {
+		return false;
+	}
+	while ( (Result = xrtTlsExtensionsRead(
+		&Cursor, &Extension
+	)) == XTLS_ITEM_VALUE ) {
+		switch ( Extension.Type ) {
+			case XTLS_EXTENSION_SERVER_NAME:
+			case XTLS_EXTENSION_MAX_FRAGMENT_LENGTH:
+			case XTLS_EXTENSION_SUPPORTED_GROUPS:
+			case XTLS_EXTENSION_EC_POINT_FORMATS:
+			case XTLS_EXTENSION_USE_SRTP:
+			case XTLS_EXTENSION_HEARTBEAT:
+			case XTLS_EXTENSION_ALPN:
+			case XTLS_EXTENSION_CLIENT_CERTIFICATE_TYPE:
+			case XTLS_EXTENSION_SERVER_CERTIFICATE_TYPE:
+			case XTLS_EXTENSION_PADDING:
+			case XTLS_EXTENSION_ENCRYPT_THEN_MAC:
+			case XTLS_EXTENSION_EXTENDED_MASTER_SECRET:
+			case XTLS_EXTENSION_RECORD_SIZE_LIMIT:
+			case XTLS_EXTENSION_SESSION_TICKET:
+			case XTLS_EXTENSION_PRE_SHARED_KEY:
+			case XTLS_EXTENSION_EARLY_DATA:
+			case XTLS_EXTENSION_SUPPORTED_VERSIONS:
+			case XTLS_EXTENSION_COOKIE:
+			case XTLS_EXTENSION_PSK_KEY_EXCHANGE_MODES:
+			case XTLS_EXTENSION_POST_HANDSHAKE_AUTH:
+			case XTLS_EXTENSION_KEY_SHARE:
+			case XTLS_EXTENSION_RENEGOTIATION_INFO:
+				return __xrtTlsClientError(
+					XERR_PROTOCOL, XTLS_ERROR_EXTENSION,
+					"process-certificate-request",
+					"TLS CertificateRequest contains an extension not allowed here"
+				);
+			default:
+				break;
+		}
+	}
+	return Result == XTLS_ITEM_DONE;
+}
+
+
+
+/* A client without an identity sends an empty Certificate, not an alert.
+ * Keep only a flag: all request views belong to the handshake reader. */
+xtlsresult __xrtTlsClientCertificateRequestCommit(
+	xtlssession* pSession,
+	xtlsclientstate* pState,
+	const xtlshandshake* pMessage
+)
+{
+	xtlstranscript Next;
+	xbytesview Encoded;
+
+	if ( pState->CertificateRequested ) {
+		return __xrtTlsClientProtocol(
+			pSession, XTLS_ERROR_HANDSHAKE,
+			"process-certificate-request",
+			"TLS server sent a duplicate CertificateRequest"
+		);
+	}
+	if ( pState->Version == XTLS_VERSION_13 ) {
+		xtls13certificaterequest Request;
+
+		if ( !xrtTls13CertificateRequestParse(pMessage->Body, &Request) ) {
+			return __xrtTlsSessionFailAlert(pSession,
+				__xrtTlsClientRequestParseAlert(pMessage->Body));
+		}
+		if ( !__xrtTlsClientRequestExtensions(Request.Extensions) ) {
+			return __xrtTlsSessionFailAlert(pSession, XTLS_ALERT_ILLEGAL_PARAMETER);
+		}
+		if ( Request.RequestContext.Size != 0 ) {
+			(void)__xrtTlsClientError(
+				XERR_PROTOCOL, XTLS_ERROR_CERTIFICATE,
+				"process-certificate-request",
+				"TLS initial CertificateRequest context must be empty"
+			);
+			return __xrtTlsSessionFailAlert(pSession, XTLS_ALERT_ILLEGAL_PARAMETER);
+		}
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (!__xrtTlsClientAuthSelect13(pState, &Request))
+				return __xrtTlsClientAuthFailure(pSession);
+		#endif
+	} else {
+		xtls12certificaterequest Request;
+
+		if ( !xrtTls12CertificateRequestParse(pMessage->Body, &Request) ) {
+			return __xrtTlsSessionFailAlert(pSession, XTLS_ALERT_DECODE_ERROR);
+		}
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (!__xrtTlsClientAuthSelect12(pState, &Request))
+				return __xrtTlsClientAuthFailure(pSession);
+		#endif
+	}
+	Next = pState->Transcript;
+	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
+	Encoded.Size = pMessage->EncodedSize;
+	if ( !__xrtTlsTranscriptUpdate(&Next, Encoded)
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			|| !__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)
+		#endif
+	) {
+		__xrtTlsTranscriptClear(&Next);
+		return __xrtTlsClientFailed(pSession);
+	}
+	__xrtTlsTranscriptClear(&pState->Transcript);
+	pState->Transcript = Next;
+	pState->CertificateRequested = true;
+	return XTLS_OK;
+}
+
+
+
 /* 使用当前 X.509 错误作为原因设置 TLS 客户端认证错误。 */
 static bool __xrtTlsClientAuthCause(cstr sOperation, cstr sMessage)
 {
@@ -186151,6 +186892,13 @@ xtlsresult __xrtTlsClientCertificateCommit(
 		__xrtTlsTranscriptClear(&Next);
 		return __xrtTlsClientFailed(pSession);
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)) {
+			xrtFree(pPeer);
+			__xrtTlsTranscriptClear(&Next);
+			return __xrtTlsClientFailed(pSession);
+		}
+	#endif
 	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 		if ( !xrtSha256(
 			pPeer->Certificates[0].Raw.Data,
@@ -186239,9 +186987,19 @@ static xtlsresult __xrtTlsClientFinishedWritable(
 {
 	const xtlslimits* pLimits = xrtTlsContextLimits(pSession->Context);
 	size_t iMessage = xrtTlsHandshakeSize(pState->HashSize);
-	size_t iRecord = __xrtTlsRecordSealSize(
-		&pSession->WriteKey, iMessage, 0
-	);
+	size_t iRecord = 0;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth && pState->Auth->Selected) {
+			iMessage += __xrtTlsClientAuthCertificateSize(pState) + 8u + pState->Auth->SignatureCapacity;
+			if (!__xrtTlsClientAuthRecordsSize13(&pSession->WriteKey, iMessage, &iRecord)) return XTLS_ERROR;
+		} else
+	#endif
+	{
+		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+			if (pState->CertificateRequested) iMessage += XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE;
+		#endif
+		iRecord = __xrtTlsRecordSealSize(&pSession->WriteKey, iMessage, 0);
+	}
 	size_t iQueued = xrtTlsSessionSendSize(pSession);
 
 	if ( (pLimits == NULL) || (iMessage == 0) || (iRecord == 0) ) {
@@ -186293,6 +187051,9 @@ static bool __xrtTlsClientFinishedPrepare(
 	xbytesview Encoded;
 	xbytesview Empty = { NULL, 0 };
 	xcryptohash Hash;
+	size_t iCertificate = 0;
+	bytes message_data = pNext->Message;
+	size_t message_capacity = sizeof(pNext->Message);
 	bool bResult = false;
 
 	memset(pNext, 0, sizeof(*pNext));
@@ -186348,6 +187109,10 @@ static bool __xrtTlsClientFinishedPrepare(
 		goto cleanup;
 	}
 
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthRequire(pState)) goto cleanup;
+	#endif
+
 	/* 应用 traffic secret 绑定包含服务端 Finished 的 transcript。 */
 	pNext->Transcript = pState->Transcript;
 	Encoded.Data = pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE;
@@ -186382,7 +187147,59 @@ static bool __xrtTlsClientFinishedPrepare(
 		goto cleanup;
 	}
 
-	/* 客户端 Finished 仍使用握手 traffic secret 和握手写 epoch。 */
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth && pState->Auth->Selected) {
+			uint8 content[160];
+			size_t certificate = __xrtTlsClientAuthCertificateSize(pState);
+			pNext->AuthCapacity = certificate + 8u + pState->Auth->SignatureCapacity + xrtTlsHandshakeSize(pState->HashSize);
+			pNext->AuthMessage = (bytes)xrtMalloc(pNext->AuthCapacity);
+			if (!pNext->AuthMessage) {
+				(void)__xrtTlsClientCause("build-tls13-client-auth", "TLS client authentication plaintext allocation failed");
+				goto cleanup;
+			}
+			message_data = pNext->AuthMessage;
+			message_capacity = pNext->AuthCapacity;
+			if (!__xrtTlsClientAuthCertificateEncode(pState, message_data, message_capacity) ||
+				!__xrtTlsTranscriptUpdate(&pNext->Transcript, (xbytesview) { message_data, certificate }) ||
+				!__xrtTlsTranscriptDigest(&pNext->Transcript, ServerHash, pState->HashSize)) goto cleanup;
+			size_t content_size = xrtTls13CertificateVerifyContentSize(XTLS_CLIENT, pState->HashSize);
+			size_t proof;
+			if (!content_size || content_size > sizeof(content) ||
+				!xrtTls13CertificateVerifyContentEncode(XTLS_CLIENT,
+					(xbytesview) { ServerHash, pState->HashSize }, content, sizeof(content)) ||
+				!__xrtTlsClientAuthVerifyEncode(pState, (xbytesview) { content, content_size },
+					message_data + certificate, message_capacity - certificate, &proof)) {
+				xrtSecureZero(content, sizeof(content));
+				goto cleanup;
+			}
+			xrtSecureZero(content, sizeof(content));
+			if (!__xrtTlsTranscriptUpdate(&pNext->Transcript,
+				(xbytesview) { message_data + certificate, proof }) ||
+				!__xrtTlsTranscriptDigest(&pNext->Transcript, ServerHash, pState->HashSize)) goto cleanup;
+			iCertificate = certificate + proof;
+		} else
+	#endif
+	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		if ( pState->CertificateRequested ) {
+			static const uint8 EmptyCertificate[] = { 0, 0, 0, 0 };
+
+			iCertificate = XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE;
+			if ( !xrtTlsHandshakeEncode(
+				XTLS_HANDSHAKE_CERTIFICATE,
+				(xbytesview) { EmptyCertificate, sizeof(EmptyCertificate) },
+				message_data, message_capacity
+			) || !__xrtTlsTranscriptUpdate(
+				&pNext->Transcript,
+				(xbytesview) { message_data, iCertificate }
+			) || !__xrtTlsTranscriptDigest(
+				&pNext->Transcript, ServerHash, pState->HashSize
+			) ) {
+				goto cleanup;
+			}
+		}
+	#endif
+	/* Finished covers the local Certificate and optional proof. Application secrets above
+	 * remain bound to server Finished; the resumption secret below covers both. */
 	if ( !__xrtTls13ExpandLabel(
 		Hash,
 		(xbytesview) {
@@ -186396,11 +187213,11 @@ static bool __xrtTlsClientFinishedPrepare(
 	) || !xrtTlsHandshakeEncode(
 		XTLS_HANDSHAKE_FINISHED,
 		(xbytesview) { ClientVerify, pState->HashSize },
-		pNext->Message, sizeof(pNext->Message)
+		message_data + iCertificate, message_capacity - iCertificate
 	) ) {
 		goto cleanup;
 	}
-	pNext->MessageSize = xrtTlsHandshakeSize(pState->HashSize);
+	pNext->MessageSize = iCertificate + xrtTlsHandshakeSize(pState->HashSize);
 
 	/* 两向应用 record key 全部就绪后才允许排队客户端 Finished。 */
 	if ( !__xrtTls13RecordKey(
@@ -186413,7 +187230,9 @@ static bool __xrtTlsClientFinishedPrepare(
 		&pNext->WriteKey
 	) || !__xrtTlsTranscriptUpdate(
 		&pNext->Transcript,
-		(xbytesview) { pNext->Message, pNext->MessageSize }
+		(xbytesview) {
+			message_data + iCertificate, pNext->MessageSize - iCertificate
+		}
 	) ) {
 		goto cleanup;
 	}
@@ -186445,6 +187264,9 @@ cleanup:
 	xrtSecureZero(ServerHash, sizeof(ServerHash));
 	xrtSecureZero(BeforeHash, sizeof(BeforeHash));
 	if ( !bResult ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (pNext->AuthMessage) { xrtSecureZero(pNext->AuthMessage, pNext->AuthCapacity); xrtFree(pNext->AuthMessage); }
+		#endif
 		__xrtTlsRecordKeyClear(&pNext->WriteKey);
 		__xrtTlsRecordKeyClear(&pNext->ReadKey);
 		__xrtTlsTranscriptClear(&pNext->Transcript);
@@ -186468,21 +187290,43 @@ static xtlsresult __xrtTlsClientFinishedCommit(
 
 	memset(&Next, 0, sizeof(Next));
 	if ( !__xrtTlsClientFinishedPrepare(pState, pMessage, &Next) ) {
-		return __xrtTlsClientFailed(pSession);
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			return __xrtTlsClientAuthFailure(pSession);
+		#else
+			return __xrtTlsClientFailed(pSession);
+		#endif
 	}
-	Result = __xrtTlsSessionRecordProtect(
-		pSession, XTLS_RECORD_HANDSHAKE,
-		(xbytesview) { Next.Message, Next.MessageSize }, 0
-	);
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (Next.AuthMessage) Result = __xrtTlsClientAuthQueue13(pSession,
+			(xbytesview) { Next.AuthMessage, Next.MessageSize });
+		else
+	#endif
+	Result = __xrtTlsSessionRecordProtect(pSession, XTLS_RECORD_HANDSHAKE,
+		(xbytesview) { Next.Message, Next.MessageSize }, 0);
 	if ( Result != XTLS_OK ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			bool signed_flight = Next.AuthMessage != NULL;
+			if (Next.AuthMessage) { xrtSecureZero(Next.AuthMessage, Next.AuthCapacity); xrtFree(Next.AuthMessage); }
+		#endif
 		__xrtTlsRecordKeyClear(&Next.WriteKey);
 		__xrtTlsRecordKeyClear(&Next.ReadKey);
 		__xrtTlsTranscriptClear(&Next.Transcript);
 		xrtSecureZero(&Next, sizeof(Next));
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			if (signed_flight && Result == XTLS_AGAIN) {
+				(void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_STATE, "queue-tls13-client-auth",
+					"TLS client output capacity changed during signing");
+				return __xrtTlsClientAuthFailure(pSession);
+			}
+		#endif
 		return Result == XTLS_AGAIN ?
 			XTLS_AGAIN : __xrtTlsClientFailed(pSession);
 	}
 
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (Next.AuthMessage) { xrtSecureZero(Next.AuthMessage, Next.AuthCapacity); xrtFree(Next.AuthMessage); }
+		if (pState->Auth) pState->Auth->Queued = pState->Auth->Selected;
+	#endif
 	/* 上方成功后不再执行可能失败的密码操作。 */
 	__xrtTlsRecordKeyClear(&pSession->ReadKey);
 	__xrtTlsRecordKeyClear(&pSession->WriteKey);
@@ -186885,16 +187729,22 @@ static xtlsresult __xrtTlsClientHandshakeRecord(
 		);
 	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 	} else if ( pState->Step == XTLS_CLIENT_WAIT_CERTIFICATE ) {
-		if ( Message.Type != XTLS_HANDSHAKE_CERTIFICATE ) {
+		if ( (pState->Version == XTLS_VERSION_13) &&
+			(Message.Type == XTLS_HANDSHAKE_CERTIFICATE_REQUEST) ) {
+			Result = __xrtTlsClientCertificateRequestCommit(
+				pSession, pState, &Message
+			);
+		} else if ( Message.Type != XTLS_HANDSHAKE_CERTIFICATE ) {
 			return __xrtTlsClientProtocol(
 				pSession, XTLS_ERROR_HANDSHAKE,
 				"drive-tls-client",
 				"TLS client expected Certificate after EncryptedExtensions"
 			);
+		} else {
+			Result = __xrtTlsClientCertificateCommit(
+				pSession, pState, &Message
+			);
 		}
-		Result = __xrtTlsClientCertificateCommit(
-			pSession, pState, &Message
-		);
 	} else if ( pState->Step == XTLS_CLIENT_WAIT_CERTIFICATE_VERIFY ) {
 		if ( Message.Type != XTLS_HANDSHAKE_CERTIFICATE_VERIFY ) {
 			return __xrtTlsClientProtocol(
@@ -187166,7 +188016,11 @@ XRT_API xtlsresult xrtTlsClientDrive(xtlssession* pSession)
 					return bProgress ? XTLS_OK : XTLS_AGAIN;
 				}
 				if ( Result != XTLS_OK ) {
-					return __xrtTlsClientFailed(pSession);
+					#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+						return __xrtTlsClientAuthFailure(pSession);
+					#else
+						return __xrtTlsClientFailed(pSession);
+					#endif
 				}
 			}
 			#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY) && \
@@ -195362,6 +196216,7 @@ static bool __xrtTlsServerSelect(
 	xbytesview KeyShareData;
 	xbytesview ExtendedMasterSecret;
 	xtlsidentitytype IdentityType;
+	xerror* pBeforeChoice;
 	bool ChoiceAccepted = false;
 
 	memset(pSelection, 0, sizeof(*pSelection));
@@ -195429,6 +196284,7 @@ static bool __xrtTlsServerSelect(
 	}
 
 	/* 先提供确定性的静态默认值，再让真实扩展点执行动态路由。 */
+	pBeforeChoice = xrtTakeError();
 	Choice.Identity = pState->Identity;
 	Choice.Protocol = __xrtTlsServerProtocolDefault(
 		pState, pSelection->Protocols
@@ -195490,7 +196346,11 @@ choice_done:
 		}
 	}
 	if ( !ChoiceAccepted || (xrtGetError() != NULL) ) {
+		xrtErrorFree(pBeforeChoice);
 		return false;
+	}
+	if ( pBeforeChoice != NULL ) {
+		xrtSetErrorTake(pBeforeChoice);
 	}
 	IdentityType = xrtTlsIdentityType(pSelection->Identity);
 	Result = xrtTlsCipherSelect(
@@ -214641,6 +215501,8 @@ xrt_x509_decision __xrtX509VerifyEd25519(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#endif
 
 
 
@@ -214852,6 +215714,9 @@ xtlsresult __xrtTlsClient12ServerHello(
 		) ) {
 		goto cleanup;
 	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (!__xrtTlsClientAuthTranscriptStart12(pState, Encoded)) goto cleanup;
+	#endif
 
 	__xrtTlsTranscriptClear(&pState->Transcript);
 	pState->Transcript = Next;
@@ -214932,7 +215797,11 @@ static xtlsresult __xrtTlsClient12ServerKeyExchange(
 		Exchange.Group,
 		(xbytesview) { pState->PrivateKey, pGroup->PrivateSize },
 		Exchange.PublicKey, pState->Shared, sizeof(pState->Shared)
-	) || !__xrtTlsTranscriptUpdate(&Next, Encoded) ) {
+	) || !__xrtTlsTranscriptUpdate(&Next, Encoded)
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			|| !__xrtTlsClientAuthTranscriptAppend12(pState, Encoded)
+		#endif
+	) {
 		goto failed;
 	}
 
@@ -214979,6 +215848,9 @@ static bool __xrtTlsClient12FlightSize(
 		(xbytesview) { pState->PublicKey, pState->PublicKeySize }
 	);
 	iKeyExchange = xrtTlsHandshakeSize(iBody);
+	if ( pState->CertificateRequested ) {
+		iKeyExchange += XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE;
+	}
 	iKeyExchangeRecord = xrtTlsRecordSize(iKeyExchange);
 	iChangeCipherSpecRecord = xrtTlsRecordSize(1u);
 	iFinishedRecord = XTLS_RECORD_HEADER_SIZE + pCipher->ExplicitNonceSize +
@@ -214999,6 +215871,9 @@ xtlsresult __xrtTlsClient12FlightWritable(
 	const xtlsclientstate* pState
 )
 {
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth) return __xrtTlsClientAuth12Writable(pSession, pState);
+	#endif
 	const xtlslimits* pLimits = xrtTlsContextLimits(pSession->Context);
 	size_t iFlight;
 	size_t iQueued = xrtTlsSessionSendSize(pSession);
@@ -215031,11 +215906,15 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	const xtlshandshake* pMessage
 )
 {
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		if (pState->Auth) return __xrtTlsClientAuth12Flight(pSession, pState, pMessage);
+	#endif
 	xtls12keymaterial Material;
 	xtlsrecordkey WriteKey;
 	xtlsrecordkey ReadKey;
 	xtlstranscript Next = pState->Transcript;
-	uint8 KeyExchange[XTLS_CLIENT12_KEY_EXCHANGE_MAX_SIZE];
+	uint8 KeyExchange[XTLS_CLIENT12_KEY_EXCHANGE_MAX_SIZE +
+		XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE];
 	uint8 Finished[XTLS_CLIENT12_FINISHED_MESSAGE_SIZE];
 	uint8 SessionHash[XTLS_TRANSCRIPT_HASH_MAX_SIZE];
 	uint8 HandshakeHash[XTLS_TRANSCRIPT_HASH_MAX_SIZE];
@@ -215043,6 +215922,8 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	uint8 ChangeCipherSpec = 1u;
 	uint8* pOutput = NULL;
 	size_t iBody;
+	size_t iCertificate = pState->CertificateRequested ?
+		XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE : 0u;
 	size_t iKeyExchange;
 	size_t iKeyExchangeRecord;
 	size_t iChangeCipherSpecRecord;
@@ -215078,19 +215959,30 @@ static xtlsresult __xrtTlsClient12ServerHelloDone(
 	) ) {
 		goto cleanup;
 	}
+	if ( iCertificate != 0 ) {
+		static const uint8 EmptyCertificate[] = { 0, 0, 0 };
+
+		if ( !xrtTlsHandshakeEncode(
+			XTLS_HANDSHAKE_CERTIFICATE,
+			(xbytesview) { EmptyCertificate, sizeof(EmptyCertificate) },
+			KeyExchange, sizeof(KeyExchange)
+		) ) {
+			goto cleanup;
+		}
+	}
 	iBody = xrtTls12ClientKeyExchangeSize(
 		(xbytesview) { pState->PublicKey, pState->PublicKeySize }
 	);
-	iKeyExchange = xrtTlsHandshakeSize(iBody);
+	iKeyExchange = iCertificate + xrtTlsHandshakeSize(iBody);
 	if ( (iKeyExchange > sizeof(KeyExchange)) ||
 		!xrtTls12ClientKeyExchangeEncode(
 			(xbytesview) { pState->PublicKey, pState->PublicKeySize },
-			KeyExchange + XTLS_HANDSHAKE_HEADER_SIZE, iBody
+			KeyExchange + iCertificate + XTLS_HANDSHAKE_HEADER_SIZE, iBody
 		) || !xrtTlsHandshakeEncode(
 			XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE,
 			(xbytesview) {
-				KeyExchange + XTLS_HANDSHAKE_HEADER_SIZE, iBody
-			}, KeyExchange, sizeof(KeyExchange)
+				KeyExchange + iCertificate + XTLS_HANDSHAKE_HEADER_SIZE, iBody
+			}, KeyExchange + iCertificate, sizeof(KeyExchange) - iCertificate
 		) || !__xrtTlsTranscriptUpdate(
 			&Next, (xbytesview) { KeyExchange, iKeyExchange }
 		) || !__xrtTlsTranscriptDigest(
@@ -215284,6 +216176,11 @@ xtlsresult __xrtTlsClient12Handshake(
 		);
 	}
 	if ( pState->Step == XTLS_CLIENT_WAIT_SERVER_HELLO_DONE ) {
+		if ( pMessage->Type == XTLS_HANDSHAKE_CERTIFICATE_REQUEST ) {
+			return __xrtTlsClientCertificateRequestCommit(
+				pSession, pState, pMessage
+			);
+		}
 		return __xrtTlsClient12ServerHelloDone(
 			pSession, pState, pMessage
 		);
@@ -257817,6 +258714,813 @@ Cleanup:
 
 
 /* ========================================================================== */
+/* source: src/tls/client_auth.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+static bool __xrtTlsClientAuthError(xerrkind Kind, cstr Message)
+{
+	return __xrtTlsClientError(Kind, XTLS_ERROR_IDENTITY, "tls-client-auth", Message);
+}
+
+XRT_API void xrtTlsClientAuthConfigInitV1(xtlsclientauthconfigv1* pConfig)
+{
+	if (!pConfig) {
+		(void)__xrtTlsClientAuthError(XERR_ARGUMENT, "TLS client auth config is null");
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->Size = sizeof(*pConfig);
+	pConfig->MaxCertificates = XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT;
+	pConfig->MaxCertificateBytes = XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT;
+	pConfig->MaxTranscriptBytes = XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT;
+	pConfig->RequireCertificate = true;
+}
+
+void __xrtTlsClientAuthTranscriptClear(xtlsclientauthstate* pAuth)
+{
+	if (!pAuth) return;
+	if (pAuth->Transcript) {
+		xrtSecureZero(pAuth->Transcript, pAuth->TranscriptCapacity);
+		xrtFree(pAuth->Transcript);
+	}
+	pAuth->Transcript = NULL;
+	pAuth->TranscriptSize = pAuth->TranscriptCapacity = 0;
+}
+
+void __xrtTlsClientAuthClear(xtlsclientauthstate* pAuth)
+{
+	if (!pAuth) return;
+	__xrtTlsClientAuthTranscriptClear(pAuth);
+	xrtTlsIdentityRelease(pAuth->Identity);
+	xrtSecureZero(pAuth, sizeof(*pAuth));
+	xrtFree(pAuth);
+}
+
+bool __xrtTlsClientAuthOwnershipLeaf(const xtlsclientauthstate* pAuth)
+{
+	return !pAuth || __xrtTlsIdentityOwnershipLeaf(pAuth->Identity);
+}
+
+xtlsresult __xrtTlsClientAuthFailure(xtlssession* pSession)
+{
+	const xerror* error = xrtGetError();
+	return error && xrtErrorKind(error) == XERR_PERMISSION ?
+		__xrtTlsSessionFailAlert(pSession, XTLS_ALERT_HANDSHAKE_FAILURE) : __xrtTlsSessionFail(pSession);
+}
+
+bool __xrtTlsClientAuthTranscriptReserve12(xtlsclientauthstate* pAuth, size_t iSize)
+{
+	if (iSize > pAuth->Config.MaxTranscriptBytes)
+		return __xrtTlsClientAuthError(XERR_RANGE, "TLS 1.2 client signing transcript exceeds its limit");
+	if (iSize <= pAuth->TranscriptCapacity) return true;
+	size_t capacity = pAuth->TranscriptCapacity ? pAuth->TranscriptCapacity : 1024u;
+	if (capacity > pAuth->Config.MaxTranscriptBytes) capacity = pAuth->Config.MaxTranscriptBytes;
+	while (capacity < iSize) {
+		if (capacity > pAuth->Config.MaxTranscriptBytes / 2u) {
+			capacity = pAuth->Config.MaxTranscriptBytes;
+			break;
+		}
+		capacity *= 2u;
+	}
+	bytes data = (bytes)xrtRealloc(pAuth->Transcript, capacity);
+	if (!data) return __xrtTlsClientCause("tls-client-auth", "TLS client signing transcript allocation failed");
+	pAuth->Transcript = data;
+	pAuth->TranscriptCapacity = capacity;
+	return true;
+}
+
+bool __xrtTlsClientAuthTranscriptStart12(xtlsclientstate* pState, xbytesview ServerHello)
+{
+	xtlsclientauthstate* auth = pState->Auth;
+	if (!auth) return true;
+	if (ServerHello.Size > SIZE_MAX - pState->ClientHelloSize)
+		return __xrtTlsClientAuthError(XERR_RANGE, "TLS 1.2 client signing transcript size overflow");
+	if (!__xrtTlsClientAuthTranscriptReserve12(auth, pState->ClientHelloSize + ServerHello.Size)) return false;
+	memcpy(auth->Transcript, pState->ClientHello, pState->ClientHelloSize);
+	memcpy(auth->Transcript + pState->ClientHelloSize, ServerHello.Data, ServerHello.Size);
+	auth->TranscriptSize = pState->ClientHelloSize + ServerHello.Size;
+	return true;
+}
+
+bool __xrtTlsClientAuthTranscriptAppend12(xtlsclientstate* pState, xbytesview Message)
+{
+	xtlsclientauthstate* auth = pState->Auth;
+	if (!auth || pState->Version != XTLS_VERSION_12) return true;
+	if (Message.Size > SIZE_MAX - auth->TranscriptSize)
+		return __xrtTlsClientAuthError(XERR_RANGE, "TLS 1.2 client signing transcript size overflow");
+	if (!__xrtTlsClientAuthTranscriptReserve12(auth, auth->TranscriptSize + Message.Size)) return false;
+	memcpy(auth->Transcript + auth->TranscriptSize, Message.Data, Message.Size);
+	auth->TranscriptSize += Message.Size;
+	return true;
+}
+
+bool __xrtTlsClientAuthRequire(const xtlsclientstate* pState)
+{
+	return !pState->Auth || !pState->Auth->Config.RequireCertificate ||
+		(pState->CertificateRequested && pState->Auth->Selected) ||
+		__xrtTlsClientAuthError(XERR_PERMISSION, "TLS server did not request a compatible local certificate");
+}
+
+/* Certificate signature schemes are independent of CertificateVerify schemes.
+ * The second PSS form is resolved against an available issuer SPKI below. */
+static uint16 __xrtTlsClientAuthCertificateScheme(const xx509signature* signature)
+{
+	uint16 hash = signature->Hash == X509_HASH_SHA256 ? 4u :
+		signature->Hash == X509_HASH_SHA384 ? 5u : signature->Hash == X509_HASH_SHA512 ? 6u :
+		signature->Hash == X509_HASH_SHA1 ? 2u : 0u;
+	if (signature->Type == X509_SIGNATURE_ED25519) return XTLS_SIGNATURE_ED25519;
+	if (signature->Type == X509_SIGNATURE_ED448) return XTLS_SIGNATURE_ED448;
+	if (!hash) return 0;
+	if (signature->Type == X509_SIGNATURE_RSA_PKCS1) return (uint16)((hash << 8u) | 1u);
+	if (signature->Type == X509_SIGNATURE_ECDSA) return (uint16)((hash << 8u) | 3u);
+	if (signature->Type == X509_SIGNATURE_RSA_PSS && hash >= 4u &&
+		signature->MaskHash == signature->Hash && signature->Trailer == 1u &&
+		signature->SaltSize == (hash == 4u ? 32u : hash == 5u ? 48u : 64u)) return (uint16)(0x0804u + hash - 4u);
+	return 0;
+}
+
+static bool __xrtTlsClientAuthLeafUsage(const xx509cert* leaf)
+{
+	static const uint8 ClientAuth[] = { 0x2Bu, 6u, 1u, 5u, 5u, 7u, 3u, 2u };
+	static const uint8 AnyUsage[] = { 0x55u, 0x1Du, 0x25u, 0u };
+	uint16 usage;
+	xx509result result = xrtX509KeyUsage(leaf, &usage);
+	if (result == X509_ERROR) return false;
+	if (result == X509_VALUE && !(usage & X509_USAGE_DIGITAL_SIGNATURE))
+		return __xrtTlsClientAuthError(XERR_PERMISSION, "TLS client certificate does not permit signing");
+	xx509oidcursor cursor;
+	result = xrtX509ExtendedKeyUsage(leaf, &cursor);
+	if (result == X509_ERROR) return false;
+	if (result == X509_DONE) return true;
+	xbytesview oid;
+	bool allowed = false;
+	while ((result = xrtX509OidRead(&cursor, &oid)) == X509_VALUE) {
+		if ((oid.Size == sizeof(ClientAuth) && !memcmp(oid.Data, ClientAuth, oid.Size)) ||
+			(oid.Size == sizeof(AnyUsage) && !memcmp(oid.Data, AnyUsage, oid.Size))) allowed = true;
+	}
+	return result != X509_ERROR && (allowed ||
+		__xrtTlsClientAuthError(XERR_PERMISSION, "TLS client certificate does not permit client authentication"));
+}
+
+XRT_API xtlssession* xrtTlsClientCreateAuthV1(const xtlsclientconfig* pSession,
+	const xtlsclientauthconfigv1* pAuth, xnetbufpool* pPool)
+{
+	if (!pAuth || pAuth->Size != sizeof(*pAuth) || !pAuth->Identity ||
+		!pAuth->MaxCertificates || pAuth->MaxCertificates > XTLS_CLIENT_AUTH_CERTIFICATES_MAX ||
+		!pAuth->MaxCertificateBytes || pAuth->MaxCertificateBytes > XTLS_CLIENT_AUTH_BYTES_MAX ||
+		!pAuth->MaxTranscriptBytes || pAuth->MaxTranscriptBytes > XTLS_CLIENT_AUTH_BYTES_MAX) {
+		(void)__xrtTlsClientAuthError(XERR_ARGUMENT, "TLS client authentication config or limits are invalid");
+		return NULL;
+	}
+	xtlsclientconfig config;
+	if (pSession) config = *pSession; else xrtTlsClientConfigInit(&config);
+	if (config.Resume || config.ResumeOnly) {
+		(void)__xrtTlsClientAuthError(XERR_UNSUPPORTED, "TLS client auth requires a full certificate handshake");
+		return NULL;
+	}
+	/* Do not publish credentials which lose their local-identity binding. */
+	config.ResumeLimit = 0;
+	xtlssession* session = xrtTlsClientCreate(&config, pPool);
+	if (!session) return NULL;
+	xtlsclientstate* state = (xtlsclientstate*)__xrtTlsSessionRoleData(session);
+	size_t count = xrtTlsIdentityCertificateCount(pAuth->Identity);
+	if (!count || count > pAuth->MaxCertificates) {
+		(void)__xrtTlsClientAuthError(XERR_RANGE, "TLS client certificate count exceeds its limit");
+		goto failed;
+	}
+	size_t size = sizeof(xtlsclientauthstate) + count *
+		(sizeof(xtlscertificateentry) + sizeof(xtlsclientauthcertificate));
+	state->Auth = (xtlsclientauthstate*)xrtCalloc(1, size);
+	if (!state->Auth) {
+		(void)__xrtTlsClientCause("tls-client-auth", "TLS client authentication state allocation failed");
+		goto failed;
+	}
+	xtlsclientauthstate* auth = state->Auth;
+	auth->Config = *pAuth;
+	auth->Identity = xrtTlsIdentityRetain(pAuth->Identity);
+	if (!auth->Identity) goto failed;
+	auth->Config.Identity = auth->Identity;
+	auth->Entries = (xtlscertificateentry*)(auth + 1);
+	auth->Certificates = (xtlsclientauthcertificate*)(auth->Entries + count);
+	auth->CertificateCount = count;
+	size_t bytes = 0;
+	for (size_t i = 0; i < count; i++) {
+		xx509cert cert;
+		xx509signature signature;
+		if (!xrtTlsIdentityCertificate(auth->Identity, i, &auth->Entries[i].Data)) goto failed;
+		if (auth->Entries[i].Data.Size > pAuth->MaxCertificateBytes - bytes) {
+			(void)__xrtTlsClientAuthError(XERR_RANGE, "TLS client certificate bytes exceed their limit");
+			goto failed;
+		}
+		bytes += auth->Entries[i].Data.Size;
+		if (!xrtX509Parse(auth->Entries[i].Data.Data, auth->Entries[i].Data.Size, &cert)) goto failed;
+		if (!i) auth->Leaf = cert;
+		auth->Certificates[i].Issuer = cert.Issuer;
+		xx509result parsed = xrtX509SignatureParse(&cert.SignatureAlgorithm, &signature);
+		if (parsed == X509_ERROR) goto failed;
+		if (parsed == X509_VALUE) auth->Certificates[i].Signature = __xrtTlsClientAuthCertificateScheme(&signature);
+		if (parsed == X509_VALUE && signature.Type == X509_SIGNATURE_RSA_PSS) {
+			auth->Certificates[i].Alternate = auth->Certificates[i].Signature ?
+				(uint16)(auth->Certificates[i].Signature + 5u) : 0;
+			if (i + 1u < count) {
+				xbytesview issuer_der;
+				xx509cert issuer;
+				xx509pubkey key;
+				if (!xrtTlsIdentityCertificate(auth->Identity, i + 1u, &issuer_der) ||
+					!xrtX509Parse(issuer_der.Data, issuer_der.Size, &issuer) ||
+					!xrtX509PublicKey(&issuer, &key)) goto failed;
+				if (key.Type == X509_KEY_RSA_PSS) auth->Certificates[i].Signature = auth->Certificates[i].Alternate;
+				auth->Certificates[i].Alternate = 0;
+			}
+		}
+		/* Only an actually self-signed terminal anchor gets the TLS exemption. */
+		if (i + 1u == count) {
+			xx509result equal = xrtX509NameEqual(cert.Issuer, cert.Subject);
+			if (equal == X509_ERROR) goto failed;
+			if (equal == X509_VALUE) {
+				xerror* previous = xrtTakeError();
+				auth->Certificates[i].Anchor = xrtX509CertificateVerify(&cert, &cert);
+				if (!auth->Certificates[i].Anchor && xrtErrorIs(xrtGetError(), XERR_MEMORY)) {
+					xrtErrorFree(previous);
+					goto failed;
+				}
+				xrtClearError();
+				if (previous) __xrtErrorSetOwned(previous);
+			}
+		}
+	}
+	if (!__xrtTlsClientAuthLeafUsage(&auth->Leaf)) goto failed;
+	xx509pubkey key;
+	if (!xrtTlsIdentityPublicKey(auth->Identity, &key)) goto failed;
+	switch (key.Type) {
+		case X509_KEY_RSA: case X509_KEY_RSA_PSS: auth->SignatureCapacity = key.Modulus.Size; break;
+		case X509_KEY_ED25519: auth->SignatureCapacity = 64u; break;
+		case X509_KEY_ED448: auth->SignatureCapacity = 114u; break;
+		case X509_KEY_EC:
+			auth->SignatureCapacity = key.Curve == X509_CURVE_P256 ? 72u :
+				key.Curve == X509_CURVE_P384 ? 104u : key.Curve == X509_CURVE_P521 ? 141u : 0u;
+			break;
+		default: break;
+	}
+	if (!auth->SignatureCapacity || auth->SignatureCapacity > UINT16_MAX) {
+		(void)__xrtTlsClientAuthError(XERR_UNSUPPORTED, "TLS client signing key has no bounded signature encoding");
+		goto failed;
+	}
+	xbytesview empty = { NULL, 0 };
+	size_t body12 = xrtTlsCertificateSize(XTLS_VERSION_12, empty, auth->Entries, count);
+	size_t body13 = xrtTlsCertificateSize(XTLS_VERSION_13, empty, auth->Entries, count);
+	if (!body12 || !body13) goto failed;
+	auth->Certificate12 = xrtTlsHandshakeSize(body12);
+	auth->Certificate13 = xrtTlsHandshakeSize(body13);
+	const xtlslimits* limits = xrtTlsContextLimits(session->Context);
+	if (!auth->Certificate12 || !auth->Certificate13 ||
+		(state->Offer12 && auth->Certificate12 > limits->HandshakeLimit) ||
+		(state->Offer13 && auth->Certificate13 > limits->HandshakeLimit) ||
+		8u + auth->SignatureCapacity > limits->HandshakeLimit) {
+		(void)__xrtTlsClientAuthError(XERR_RANGE, "TLS client Certificate exceeds the handshake limit");
+		goto failed;
+	}
+	return session;
+failed:
+	{
+		xerror* primary = xrtTakeError();
+		xrtTlsSessionDestroy(session);
+		xrtClearError();
+		if (primary) __xrtErrorSetOwned(primary);
+	}
+	return NULL;
+}
+
+XRT_API bool xrtTlsClientCertificateQueuedV1(const xtlssession* pSession)
+{
+	const xtlsclientauthstate* auth = __xrtTlsClientAuthStateOf(pSession);
+	return auth && auth->Queued;
+}
+
+size_t __xrtTlsClientAuthCertificateSize(const xtlsclientstate* pState)
+{
+	if (!pState->CertificateRequested) return 0;
+	if (!pState->Auth || !pState->Auth->Selected) return pState->Version == XTLS_VERSION_13 ?
+		XTLS_CLIENT_EMPTY_CERTIFICATE13_SIZE : XTLS_CLIENT_EMPTY_CERTIFICATE12_SIZE;
+	return pState->Version == XTLS_VERSION_13 ? pState->Auth->Certificate13 : pState->Auth->Certificate12;
+}
+
+bool __xrtTlsClientAuthCertificateEncode(const xtlsclientstate* pState, void* pOutput, size_t iCapacity)
+{
+	const xtlsclientauthstate* auth = pState->Auth;
+	bool selected = auth && auth->Selected;
+	size_t size = __xrtTlsClientAuthCertificateSize(pState);
+	if (!size) return true;
+	xbytesview empty = { NULL, 0 };
+	return iCapacity >= size && xrtTlsCertificateEncode(pState->Version, empty,
+		selected ? auth->Entries : NULL, selected ? auth->CertificateCount : 0,
+		(bytes)pOutput + XTLS_HANDSHAKE_HEADER_SIZE, size - XTLS_HANDSHAKE_HEADER_SIZE) &&
+		xrtTlsHandshakeEncode(XTLS_HANDSHAKE_CERTIFICATE,
+			(xbytesview) { (bytes)pOutput + XTLS_HANDSHAKE_HEADER_SIZE, size - XTLS_HANDSHAKE_HEADER_SIZE },
+			pOutput, iCapacity);
+}
+
+bool __xrtTlsClientAuthVerifyEncode(const xtlsclientstate* pState, xbytesview Content,
+	void* pOutput, size_t iCapacity, size_t* pSize)
+{
+	const xtlsclientauthstate* auth = pState->Auth;
+	if (!auth || !auth->Selected || iCapacity < 8u + auth->SignatureCapacity)
+		return __xrtTlsClientAuthError(XERR_RANGE, "TLS client CertificateVerify output is too small");
+	size_t size;
+	xerror* previous = xrtTakeError();
+	bool signed_message = xrtTlsIdentitySign(auth->Identity, pState->Version, auth->Signature, Content,
+		(bytes)pOutput + 8u, auth->SignatureCapacity, &size);
+	xerror* failure = xrtTakeError();
+	if (!signed_message || failure) {
+		xrtErrorFree(previous);
+		if (failure) __xrtErrorSetOwned(failure);
+		else (void)__xrtTlsClientAuthError(XERR_INTERNAL, "TLS client signer failed without a diagnostic");
+		return false;
+	}
+	if (previous) __xrtErrorSetOwned(previous);
+	xtlscertificateverify verify = { (uint16)auth->Signature, { (bytes)pOutput + 8u, size } };
+	if (!xrtTlsCertificateVerifyEncode(&verify, (bytes)pOutput + 4u, iCapacity - 4u) ||
+		!xrtTlsHandshakeEncode(XTLS_HANDSHAKE_CERTIFICATE_VERIFY,
+			(xbytesview) { (bytes)pOutput + 4u, size + 4u }, pOutput, iCapacity)) return false;
+	*pSize = size + 8u;
+	return true;
+}
+
+bool __xrtTlsClientAuthRecordsSize13(const xtlsrecordkey* pKey, size_t iPlain, size_t* pSize)
+{
+	size_t size = 0;
+	while (iPlain) {
+		size_t chunk = iPlain < XTLS_RECORD_PLAINTEXT_MAX ? iPlain : XTLS_RECORD_PLAINTEXT_MAX;
+		size_t record = __xrtTlsRecordSealSize(pKey, chunk, 0);
+		if (!record) return false;
+		if (record > SIZE_MAX - size)
+			return __xrtTlsClientAuthError(XERR_RANGE, "TLS client authentication record size overflow");
+		size += record;
+		iPlain -= chunk;
+	}
+	*pSize = size;
+	return size != 0 || __xrtTlsClientAuthError(XERR_RANGE, "TLS client authentication flight is empty");
+}
+
+xtlsresult __xrtTlsClientAuthQueue13(xtlssession* pSession, xbytesview Plain)
+{
+	size_t size;
+	if (!__xrtTlsClientAuthRecordsSize13(&pSession->WriteKey, Plain.Size, &size)) return XTLS_ERROR;
+	bytes wire = (bytes)xrtMalloc(size);
+	if (!wire) {
+		(void)__xrtTlsClientCause("tls-client-auth", "TLS client authentication flight allocation failed");
+		return XTLS_ERROR;
+	}
+	xtlsrecordkey key = pSession->WriteKey;
+	size_t offset = 0, written = 0;
+	while (offset < Plain.Size) {
+		size_t chunk = Plain.Size - offset;
+		if (chunk > XTLS_RECORD_PLAINTEXT_MAX) chunk = XTLS_RECORD_PLAINTEXT_MAX;
+		size_t record;
+		if (!__xrtTlsRecordSeal(&key, XTLS_RECORD_HANDSHAKE,
+			(xbytesview) { Plain.Data + offset, chunk }, 0, wire + written, size - written, &record)) {
+			__xrtTlsRecordKeyClear(&key);
+			xrtSecureZero(wire, size);
+			xrtFree(wire);
+			return XTLS_ERROR;
+		}
+		offset += chunk;
+		written += record;
+	}
+	__xrtTlsRecordKeyClear(&key);
+	xtlsresult result = __xrtTlsSessionSendTake(pSession, wire, written);
+	if (result != XTLS_OK) {
+		xrtSecureZero(wire, size);
+		xrtFree(wire);
+	}
+	return result;
+}
+
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/tls/client_auth_select.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+static bool __xrtTlsClientAuthViewEqual(xbytesview Left, xbytesview Right)
+{
+	return Left.Size == Right.Size && (!Left.Size || !memcmp(Left.Data, Right.Data, Left.Size));
+}
+
+static bool __xrtTlsClientAuthSelectionError(cstr Message)
+{
+	const xerror* cause = xrtGetError();
+	xerrkind kind = cause && xrtErrorIs(cause, XERR_MEMORY) ? XERR_MEMORY : XERR_PROTOCOL;
+	__xrtTlsErrorCause(kind, XTLS_ERROR_EXTENSION, "select-client-certificate", Message, SIZE_MAX, cause);
+	return false;
+}
+
+static bool __xrtTlsClientAuthAuthorities(const xtlsclientauthstate* pAuth, xbytesview Data, bool* pMatch)
+{
+	*pMatch = true;
+	if (!Data.Size) return true;
+	xtlsauthoritycursor cursor;
+	if (!xrtTlsAuthorities(Data, &cursor)) return false;
+	if (!cursor.Data.Size) return true;
+	*pMatch = false;
+	size_t count = 0;
+	xbytesview name;
+	xtlsitemresult result;
+	while ((result = xrtTlsAuthoritiesRead(&cursor, &name)) == XTLS_ITEM_VALUE) {
+		if (++count > XTLS_CLIENT_AUTH_AUTHORITIES_MAX)
+			return __xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT, "select-client-certificate",
+				"TLS client certificate authority count exceeds its limit");
+		xx509namecursor check;
+		xx509nameattr attribute;
+		if (!xrtX509NameInit(name, &check)) return __xrtTlsClientAuthSelectionError("TLS certificate authority name is invalid");
+		xx509result valid;
+		while ((valid = xrtX509NameRead(&check, &attribute)) == X509_VALUE) {}
+		if (valid == X509_ERROR) return __xrtTlsClientAuthSelectionError("TLS certificate authority name is invalid");
+		if (!*pMatch) {
+			for (size_t i = 0; i < pAuth->CertificateCount; i++) {
+				xx509result equal = xrtX509NameEqual(pAuth->Certificates[i].Issuer, name);
+				if (equal == X509_ERROR) return __xrtTlsClientAuthSelectionError("TLS certificate authority comparison failed");
+				if (equal == X509_VALUE) { *pMatch = true; break; }
+			}
+		}
+	}
+	return result == XTLS_ITEM_DONE;
+}
+
+static bool __xrtTlsClientAuthUsageFilter(const xx509cert* pLeaf, xbytesview Values, bool* pMatch)
+{
+	uint16 have = 0, want = 0;
+	xx509result found = xrtX509KeyUsage(pLeaf, &have);
+	if (found == X509_ERROR) return false;
+	*pMatch = found == X509_VALUE;
+	if (!Values.Size) return true;
+	xdercursor cursor;
+	xdervalue value;
+	xbytesview bits;
+	uint8 unused;
+	if (!xrtDerInit(&cursor, Values.Data, Values.Size) ||
+		xrtDerRead(&cursor, &value) != XDER_VALUE || !xrtDerDone(&cursor) ||
+		!xrtDerBitString(&value, &bits, &unused) || !bits.Size || bits.Size > 2u ||
+		bits.Size * 8u - unused > 9u)
+		return __xrtTlsClientAuthSelectionError("TLS key-usage filter is not a valid KeyUsage value");
+	for (size_t i = 0; i < bits.Size * 8u - unused; i++)
+		if (bits.Data[i / 8u] & (uint8)(0x80u >> (i % 8u))) want |= (uint16)(1u << i);
+	if (!want) return __xrtTlsClientAuthSelectionError("TLS key-usage filter is empty");
+	*pMatch = *pMatch && (have & want) == want;
+	return true;
+}
+
+static bool __xrtTlsClientAuthPurposeFilter(const xx509cert* pLeaf, xbytesview Values, bool* pMatch)
+{
+	static const uint8 AnyUsage[] = { 0x55u, 0x1Du, 0x25u, 0u };
+	xx509oidcursor have;
+	xx509result found = xrtX509ExtendedKeyUsage(pLeaf, &have);
+	if (found == X509_ERROR) return false;
+	*pMatch = found == X509_VALUE;
+	if (!Values.Size) return true;
+	xx509oidcursor want;
+	if (!xrtX509OidInit(Values, &want))
+		return __xrtTlsClientAuthSelectionError("TLS extended-key-usage filter is invalid");
+	xbytesview oid;
+	xx509result result;
+	size_t count = 0;
+	while ((result = xrtX509OidRead(&want, &oid)) == X509_VALUE) {
+		if (++count > XTLS_CLIENT_AUTH_OID_VALUES_MAX)
+			return __xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT, "select-client-certificate",
+				"TLS extended-key-usage filter has too many values");
+		if (oid.Size == sizeof(AnyUsage) && !memcmp(oid.Data, AnyUsage, sizeof(AnyUsage)))
+			return __xrtTlsClientAuthSelectionError("TLS extended-key-usage filter contains anyExtendedKeyUsage");
+		if (*pMatch) {
+			xx509oidcursor candidate = have;
+			xbytesview value;
+			bool match = false;
+			xx509result item;
+			while ((item = xrtX509OidRead(&candidate, &value)) == X509_VALUE)
+				if (__xrtTlsClientAuthViewEqual(value, oid)) match = true;
+			if (item == X509_ERROR) return false;
+			if (!match) *pMatch = false;
+		}
+	}
+	return result != X509_ERROR;
+}
+
+/* Recognize the two RFC 8446 matching rules. Unknown OIDs are skipped, never
+ * treated as equality filters. All OIDs/framing/duplicates remain checked. */
+static bool __xrtTlsClientAuthFilters(const xtlsclientauthstate* pAuth, xbytesview Data, bool* pMatch)
+{
+	*pMatch = true;
+	if (!Data.Size) return true;
+	if (Data.Size < 2u || __xrtTlsRead16(Data.Data) != Data.Size - 2u)
+		return __xrtTlsClientAuthSelectionError("TLS OID filter vector length is invalid");
+	xbytesview seen[XTLS_CLIENT_AUTH_OID_FILTERS_MAX];
+	size_t count = 0, offset = 2u;
+	while (offset < Data.Size) {
+		if (count == XTLS_CLIENT_AUTH_OID_FILTERS_MAX)
+			return __xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT, "select-client-certificate",
+				"TLS OID filter count exceeds its limit");
+		size_t oid_size = Data.Data[offset++];
+		if (!oid_size || oid_size > Data.Size - offset)
+			return __xrtTlsClientAuthSelectionError("TLS OID filter identifier is truncated");
+		xdercursor cursor;
+		xdervalue value;
+		xbytesview oid;
+		if (!xrtDerInit(&cursor, Data.Data + offset, oid_size) ||
+			xrtDerRead(&cursor, &value) != XDER_VALUE || !xrtDerDone(&cursor) || !xrtDerOid(&value, &oid))
+			return __xrtTlsClientAuthSelectionError("TLS OID filter identifier is not one DER OID");
+		offset += oid_size;
+		for (size_t i = 0; i < count; i++)
+			if (__xrtTlsClientAuthViewEqual(oid, seen[i]))
+				return __xrtTlsClientAuthSelectionError("TLS OID filter identifier is repeated");
+		seen[count++] = oid;
+		if (Data.Size - offset < 2u)
+			return __xrtTlsClientAuthSelectionError("TLS OID filter values are truncated");
+		size_t size = __xrtTlsRead16(Data.Data + offset);
+		offset += 2u;
+		if (size > Data.Size - offset)
+			return __xrtTlsClientAuthSelectionError("TLS OID filter values are truncated");
+		xbytesview values = { Data.Data + offset, size };
+		bool match = true;
+		if (oid.Size == 3u && oid.Data[0] == 0x55u && oid.Data[1] == 0x1Du) {
+			if (oid.Data[2] == 15u && !__xrtTlsClientAuthUsageFilter(&pAuth->Leaf, values, &match)) return false;
+			if (oid.Data[2] == 37u && !__xrtTlsClientAuthPurposeFilter(&pAuth->Leaf, values, &match)) return false;
+		}
+		*pMatch = *pMatch && match;
+		offset += size;
+	}
+	return true;
+}
+
+static bool __xrtTlsClientAuthSelectCommon(xtlsclientstate* pState,
+	const xtlsids* pSchemes, const xtlsids* pCertificateSchemes, xbytesview Authorities,
+	xbytesview Filters, bool bType)
+{
+	xtlsclientauthstate* auth = pState->Auth;
+	if (!auth) return true;
+	xerror* previous = xrtTakeError();
+	bool authority, filters, chain = true;
+	bool result = false;
+	auth->Selected = false;
+	if (!__xrtTlsClientAuthAuthorities(auth, Authorities, &authority) ||
+		!__xrtTlsClientAuthFilters(auth, Filters, &filters)) goto done;
+	for (size_t i = 0; i < auth->CertificateCount; i++) {
+		const xtlsclientauthcertificate* cert = &auth->Certificates[i];
+		if (cert->Anchor) continue;
+		if ((!cert->Signature || !xrtTlsIdsContain(pCertificateSchemes, cert->Signature)) &&
+			(!cert->Alternate || !xrtTlsIdsContain(pCertificateSchemes, cert->Alternate))) chain = false;
+	}
+	if (bType && authority && filters && chain &&
+		(pState->Version != XTLS_VERSION_13 || auth->Leaf.Version == X509_VERSION_3)) {
+		for (size_t i = 0; i < pState->SignatureCount; i++) {
+			xtlssignature scheme = (xtlssignature)pState->Signatures[i];
+			if (!xrtTlsIdsContain(pSchemes, (uint16)scheme)) continue;
+			bool can = xrtTlsIdentityCanSign(auth->Identity, pState->Version, scheme);
+			if (xrtGetError()) goto done;
+			if (can) { auth->Signature = scheme; auth->Selected = true; break; }
+		}
+	}
+	result = auth->Selected || !auth->Config.RequireCertificate;
+	if (!result) (void)__xrtTlsClientError(XERR_PERMISSION, XTLS_ERROR_IDENTITY,
+		"select-client-certificate", "TLS certificate request has no compatible configured identity");
+ done:
+	if (result) {
+		xrtClearError();
+		if (previous) __xrtErrorSetOwned(previous);
+	} else xrtErrorFree(previous);
+	return result;
+}
+
+bool __xrtTlsClientAuthSelect12(xtlsclientstate* pState, const xtls12certificaterequest* pRequest)
+{
+	if (!pState->Auth) return true;
+	xtlsidentitytype type = xrtTlsIdentityType(pState->Auth->Identity);
+	uint8 wanted = type == XTLS_IDENTITY_RSA || type == XTLS_IDENTITY_RSA_PSS ?
+		XTLS_CERTIFICATE_RSA_SIGN : XTLS_CERTIFICATE_ECDSA_SIGN;
+	bool found = false;
+	for (size_t i = 0; i < pRequest->CertificateTypes.Size; i++)
+		if (pRequest->CertificateTypes.Data[i] == wanted) found = true;
+	return __xrtTlsClientAuthSelectCommon(pState, &pRequest->Signatures, &pRequest->Signatures,
+		pRequest->AuthorityData, (xbytesview) { NULL, 0 }, found);
+}
+
+bool __xrtTlsClientAuthSelect13(xtlsclientstate* pState, const xtls13certificaterequest* pRequest)
+{
+	if (!pState->Auth) return true;
+	xtlsextension extension;
+	xtlsitemresult found = xrtTlsExtensionsFind(pRequest->Extensions, XTLS_EXTENSION_OID_FILTERS, &extension);
+	if (found == XTLS_ITEM_ERROR) return false;
+	const xtlsids* certificates = pRequest->CertificateSignatures.Data.Size ?
+		&pRequest->CertificateSignatures : &pRequest->Signatures;
+	return __xrtTlsClientAuthSelectCommon(pState, &pRequest->Signatures, certificates,
+		pRequest->AuthorityData, found == XTLS_ITEM_VALUE ? extension.Data : (xbytesview) { NULL, 0 }, true);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/tls/client_auth12.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+static bool __xrtTlsClientAuth12PlainSize(size_t Size, size_t* pSize)
+{
+	size_t records = Size / XTLS_RECORD_PLAINTEXT_MAX + (Size % XTLS_RECORD_PLAINTEXT_MAX != 0);
+	if (!Size || records > (SIZE_MAX - Size) / XTLS_RECORD_HEADER_SIZE) return false;
+	*pSize = Size + records * XTLS_RECORD_HEADER_SIZE;
+	return true;
+}
+
+static bool __xrtTlsClientAuth12PayloadSize(const xtlsclientstate* pState, size_t* pSize)
+{
+	size_t exchange = xrtTls12ClientKeyExchangeSize((xbytesview) { pState->PublicKey, pState->PublicKeySize });
+	if (!exchange) return false;
+	*pSize = __xrtTlsClientAuthCertificateSize(pState) + xrtTlsHandshakeSize(exchange);
+	if (pState->Auth->Selected) *pSize += 8u + pState->Auth->SignatureCapacity;
+	return true;
+}
+
+xtlsresult __xrtTlsClientAuth12Writable(xtlssession* pSession, const xtlsclientstate* pState)
+{
+	const xtlslimits* limits = xrtTlsContextLimits(pSession->Context);
+	const xtlscipherinfo* cipher = xrtTlsCipherInfo(pState->Cipher);
+	size_t payload, flight;
+	if (!limits || !cipher || !__xrtTlsClientAuth12PayloadSize(pState, &payload) ||
+		!__xrtTlsClientAuth12PlainSize(payload, &flight)) return XTLS_ERROR;
+	flight += xrtTlsRecordSize(1u) + XTLS_RECORD_HEADER_SIZE + cipher->ExplicitNonceSize +
+		XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE + cipher->TagSize;
+	if (flight > limits->SendLimit) {
+		(void)__xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT, "queue-tls12-client-auth",
+			"TLS send limit cannot hold the bounded client authentication flight");
+		return XTLS_ERROR;
+	}
+	size_t queued = xrtTlsSessionSendSize(pSession);
+	return queued > limits->SendLimit || flight > limits->SendLimit - queued ? XTLS_AGAIN : XTLS_OK;
+}
+
+/* Prepare every record with local keys and queue the entire flight once. The
+ * signature capacity is admitted before any signer invocation. */
+xtlsresult __xrtTlsClientAuth12Flight(xtlssession* pSession, xtlsclientstate* pState,
+	const xtlshandshake* pMessage)
+{
+	if (pMessage->Type != XTLS_HANDSHAKE_SERVER_HELLO_DONE || pMessage->Body.Size)
+		return __xrtTlsClientProtocol(pSession, XTLS_ERROR_HANDSHAKE,
+			"process-tls12-server-hello-done", "TLS 1.2 client expected an empty ServerHelloDone");
+	xtlsresult writable = __xrtTlsClientAuth12Writable(pSession, pState);
+	if (writable == XTLS_AGAIN) return XTLS_AGAIN;
+	if (writable != XTLS_OK || !__xrtTlsClientAuthRequire(pState)) return __xrtTlsClientAuthFailure(pSession);
+
+	xtlsclientauthstate* auth = pState->Auth;
+	xtlstranscript next = pState->Transcript;
+	xtls12keymaterial material;
+	xtlsrecordkey write_key, read_key;
+	uint8 digest[XTLS_CLIENT_SECRET_MAX_SIZE];
+	uint8 verify[XTLS12_FINISHED_SIZE];
+	uint8 finished[XTLS_HANDSHAKE_HEADER_SIZE + XTLS12_FINISHED_SIZE];
+	bytes plain = NULL, wire = NULL;
+	size_t capacity = 0, plain_size = 0, wire_size = 0;
+	bool moved = false;
+	xtlsresult result = XTLS_ERROR;
+	memset(&material, 0, sizeof(material));
+	memset(&write_key, 0, sizeof(write_key));
+	memset(&read_key, 0, sizeof(read_key));
+	memset(digest, 0, sizeof(digest));
+	memset(verify, 0, sizeof(verify));
+	memset(finished, 0, sizeof(finished));
+
+	if (!__xrtTlsClientAuth12PayloadSize(pState, &capacity)) goto cleanup;
+	plain = (bytes)xrtMalloc(capacity);
+	if (!plain) {
+		(void)__xrtTlsClientCause("build-tls12-client-auth", "TLS client authentication plaintext allocation failed");
+		goto cleanup;
+	}
+	size_t certificate = __xrtTlsClientAuthCertificateSize(pState);
+	if (!__xrtTlsClientAuthCertificateEncode(pState, plain, capacity)) goto cleanup;
+	size_t exchange_body = xrtTls12ClientKeyExchangeSize((xbytesview) { pState->PublicKey, pState->PublicKeySize });
+	size_t exchange = xrtTlsHandshakeSize(exchange_body);
+	if (!xrtTls12ClientKeyExchangeEncode((xbytesview) { pState->PublicKey, pState->PublicKeySize },
+		plain + certificate + XTLS_HANDSHAKE_HEADER_SIZE, exchange_body) ||
+		!xrtTlsHandshakeEncode(XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE,
+			(xbytesview) { plain + certificate + XTLS_HANDSHAKE_HEADER_SIZE, exchange_body },
+			plain + certificate, capacity - certificate)) goto cleanup;
+	plain_size = certificate + exchange;
+	xbytesview done = { pMessage->Body.Data - XTLS_HANDSHAKE_HEADER_SIZE, pMessage->EncodedSize };
+	if (!__xrtTlsTranscriptUpdate(&next, done) ||
+		!__xrtTlsTranscriptUpdate(&next, (xbytesview) { plain, plain_size }) ||
+		!__xrtTlsTranscriptDigest(&next, digest, pState->HashSize) ||
+		!__xrtTls12KeyMaterial(pState->Cipher, (xbytesview) { pState->Shared, pState->SharedSize },
+			(xbytesview) { digest, pState->HashSize },
+			(xbytesview) { pState->Random, XTLS12_RANDOM_SIZE },
+			(xbytesview) { pState->ServerRandom, XTLS12_RANDOM_SIZE }, &material)) goto cleanup;
+	if (!__xrtTlsRecordKeyInit(&write_key, XTLS_VERSION_12, pState->Cipher,
+		(xbytesview) { material.ClientKey, material.KeySize }, (xbytesview) { material.ClientIv, material.IvSize }) ||
+		!__xrtTlsRecordKeyInit(&read_key, XTLS_VERSION_12, pState->Cipher,
+			(xbytesview) { material.ServerKey, material.KeySize }, (xbytesview) { material.ServerIv, material.IvSize })) goto cleanup;
+
+	if (auth->Selected) {
+		if (done.Size > auth->Config.MaxTranscriptBytes - auth->TranscriptSize ||
+			plain_size > auth->Config.MaxTranscriptBytes - auth->TranscriptSize - done.Size) {
+			(void)__xrtTlsClientError(XERR_RANGE, XTLS_ERROR_LIMIT, "build-tls12-client-auth",
+				"TLS 1.2 signing transcript exceeds its limit");
+			goto cleanup;
+		}
+		size_t size = auth->TranscriptSize + done.Size + plain_size;
+		if (!__xrtTlsClientAuthTranscriptReserve12(auth, size)) goto cleanup;
+		memcpy(auth->Transcript + auth->TranscriptSize, done.Data, done.Size);
+		memcpy(auth->Transcript + auth->TranscriptSize + done.Size, plain, plain_size);
+		size_t proof;
+		if (!__xrtTlsClientAuthVerifyEncode(pState, (xbytesview) { auth->Transcript, size },
+			plain + plain_size, capacity - plain_size, &proof) ||
+			!__xrtTlsTranscriptUpdate(&next, (xbytesview) { plain + plain_size, proof })) goto cleanup;
+		plain_size += proof;
+	}
+	if (!__xrtTlsTranscriptDigest(&next, digest, pState->HashSize) ||
+		!__xrtTls12Finished(material.Hash, (xbytesview) { material.Master, sizeof(material.Master) }, false,
+			(xbytesview) { digest, pState->HashSize }, verify, sizeof(verify)) ||
+		!xrtTlsHandshakeEncode(XTLS_HANDSHAKE_FINISHED, (xbytesview) { verify, sizeof(verify) },
+			finished, sizeof(finished)) ||
+		!__xrtTlsTranscriptUpdate(&next, (xbytesview) { finished, sizeof(finished) })) goto cleanup;
+
+	size_t plain_wire;
+	if (!__xrtTlsClientAuth12PlainSize(plain_size, &plain_wire)) goto cleanup;
+	size_t ccs = xrtTlsRecordSize(1u);
+	size_t protected_finished = __xrtTlsRecordSealSize(&write_key, sizeof(finished), 0);
+	wire_size = plain_wire + ccs + protected_finished;
+	wire = (bytes)xrtMalloc(wire_size);
+	if (!wire) {
+		(void)__xrtTlsClientCause("build-tls12-client-auth", "TLS client authentication flight allocation failed");
+		goto cleanup;
+	}
+	size_t offset = 0, encoded = 0;
+	while (offset < plain_size) {
+		size_t chunk = plain_size - offset;
+		if (chunk > XTLS_RECORD_PLAINTEXT_MAX) chunk = XTLS_RECORD_PLAINTEXT_MAX;
+		size_t record = xrtTlsRecordSize(chunk);
+		if (!xrtTlsRecordEncode(XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12,
+			(xbytesview) { plain + offset, chunk }, wire + encoded, record)) goto cleanup;
+		offset += chunk;
+		encoded += record;
+	}
+	uint8 change = 1u;
+	size_t written;
+	if (!xrtTlsRecordEncode(XTLS_RECORD_CHANGE_CIPHER_SPEC, XTLS_VERSION_12,
+		(xbytesview) { &change, 1u }, wire + encoded, ccs) ||
+		!__xrtTlsRecordSeal(&write_key, XTLS_RECORD_HANDSHAKE,
+			(xbytesview) { finished, sizeof(finished) }, 0,
+			wire + encoded + ccs, protected_finished, &written) || written != protected_finished) goto cleanup;
+	result = __xrtTlsSessionSendTake(pSession, wire, wire_size);
+	if (result != XTLS_OK) {
+		if (result == XTLS_AGAIN) (void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_STATE,
+			"queue-tls12-client-auth", "TLS client output capacity changed during signing");
+		goto cleanup;
+	}
+	moved = true;
+	__xrtTlsRecordKeyClear(&pSession->WriteKey);
+	pSession->WriteKey = write_key;
+	memset(&write_key, 0, sizeof(write_key));
+	__xrtTlsRecordKeyClear(&pState->PendingReadKey);
+	pState->PendingReadKey = read_key;
+	memset(&read_key, 0, sizeof(read_key));
+	__xrtTlsTranscriptClear(&pState->Transcript);
+	pState->Transcript = next;
+	memset(&next, 0, sizeof(next));
+	memcpy(pState->Master, material.Master, sizeof(pState->Master));
+	pState->Step = XTLS_CLIENT_WAIT_CHANGE_CIPHER_SPEC;
+	auth->Queued = auth->Selected;
+	__xrtTlsClientAuthTranscriptClear(auth);
+	xrtSecureZero(pState->PrivateKey, pState->PrivateKeyCapacity);
+	xrtSecureZero(pState->Shared, sizeof(pState->Shared));
+	result = __xrtTlsClientWait(pSession, true) ? XTLS_OK : XTLS_ERROR;
+
+cleanup:
+	if (!moved && wire) { xrtSecureZero(wire, wire_size); xrtFree(wire); }
+	if (plain) { xrtSecureZero(plain, capacity); xrtFree(plain); }
+	__xrtTlsRecordKeyClear(&write_key);
+	__xrtTlsRecordKeyClear(&read_key);
+	__xrtTlsTranscriptClear(&next);
+	xrtSecureZero(&material, sizeof(material));
+	xrtSecureZero(digest, sizeof(digest));
+	xrtSecureZero(verify, sizeof(verify));
+	xrtSecureZero(finished, sizeof(finished));
+	return result == XTLS_OK ? XTLS_OK : __xrtTlsClientAuthFailure(pSession);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* source: src/network/file.c */
 /* ========================================================================== */
 
@@ -260664,6 +262368,45 @@ bool __xrtNetListenerWaitOwnershipWalk(const xnetlistener* pListener, xrtownersh
 	return pTail == pListener->WaitTail && iCount == xrtAtomic32Load(&pListener->AcceptWaiters, XMEMORY_ACQUIRE);
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/network/tcp_retire.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+#if !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND)
+#error "TCP retirement waiting requires TCP and condition variables"
+#endif
+
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* Stream,int64 Timeout)
+{
+    if (!Stream || Timeout<XRT_WAIT_FOREVER) {
+        __xrtErrorSetInvalidArgument();return XWAIT_ERROR;
+    }
+    /* Inspect only this live thread's certified worker context. A Stream can
+     * outlive its Engine, including while real caller aliases remain. */
+    xnetworker* Current=__xrtNetEngineCurrentThread();
+    if (Current && Current->Engine==Stream->Engine) {
+        __xrtErrorSetInvalidState();return XWAIT_ERROR;
+    }
+    double Deadline=__xrtWaitAfter(Timeout);if(!__xrtWaitValid(Deadline))return XWAIT_ERROR;
+    if(!xrtMutexLock(&Stream->RetirementLock))return XWAIT_ERROR;
+    xwaitresult Result=XWAIT_OK;
+    while(xrtNetStreamState(Stream)!=XNET_STREAM_CLOSED || __xrtAtomicRefLoad(&Stream->References)!=1) {
+        if(__xrtWaitExpired(Deadline)){Result=XWAIT_TIMEOUT;break;}
+        Result=xrtCondWaitFor(&Stream->RetirementReady,&Stream->RetirementLock,__xrtWaitRemaining(Deadline));
+        if(Result!=XWAIT_OK && Result!=XWAIT_TIMEOUT)break;
+        /* Recheck even after a timeout/spurious wake under the predicate lock. */
+    }
+    if(Result!=XWAIT_ERROR && xrtNetStreamState(Stream)==XNET_STREAM_CLOSED && __xrtAtomicRefLoad(&Stream->References)==1)Result=XWAIT_OK;
+    if(!xrtMutexUnlock(&Stream->RetirementLock))return XWAIT_ERROR;
+    return Result;
+}
 #endif
 #endif
 
@@ -298364,6 +300107,7 @@ static bool __xrtTextValueReadConfigValid(
 
 	return
 		(pConfig != NULL) &&
+		(!pConfig->RawEvents || pConfig->Dialect == XTEXT_VALUE_JSON) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
 		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
@@ -298721,7 +300465,7 @@ static bool __xrtTextValueParserString(
 /* 向访问器提交事件并记录正常停止状态。 */
 static bool __xrtTextValueParserEmit(
 	xtextvalueparser* pParser,
-	const xtextvalueevent* pEvent
+	xtextvalueevent* pEvent
 )
 {
 	const xerror* pPrevious;
@@ -298730,6 +300474,10 @@ static bool __xrtTextValueParserEmit(
 
 	if ( pParser->Visitor == NULL ) {
 		return true;
+	}
+	if ( pParser->Config.RawEvents && pEvent->Raw.Data == NULL ) {
+		pEvent->Raw.Data = pParser->Text.Data + pEvent->Location.Offset;
+		pEvent->Raw.Size = pParser->Offset - pEvent->Location.Offset;
 	}
 	pPrevious = xrtGetError();
 	pHeld = xrtErrorRef(pPrevious);
@@ -298823,7 +300571,7 @@ static bool __xrtTextValueParserNumber(
 	size_t iStart = pParser->Offset;
 	bool bInteger = true;
 	bool bNegative = __xrtTextValueParserPeek(pParser) == (uint8)'-';
-	bool bFits = true;
+	bool bFits = !pParser->Config.RawEvents;
 	uint64 iMagnitude = 0;
 	double fValue = 0.0;
 
@@ -298918,6 +300666,10 @@ static bool __xrtTextValueParserNumber(
 	}
 	pEvent->Raw.Data = pParser->Text.Data + iStart;
 	pEvent->Raw.Size = pParser->Offset - iStart;
+	if ( pParser->Config.RawEvents ) {
+		pEvent->Type = XTEXT_VALUE_EVENT_NUMBER;
+		return true;
+	}
 	if ( bInteger && bFits ) {
 		if ( !bNegative && iMagnitude > (uint64)INT64_MAX ) {
 			pEvent->Type = XTEXT_VALUE_EVENT_UINT;
@@ -298981,6 +300733,27 @@ static bool __xrtTextValueParserValue(
 	const xvaluekey* pKey
 );
 
+/* END retains raw parent identity and the complete container span for Scan.
+ * Materialized visitors retain their existing closing-event contract. */
+static inline bool __xrtTextValueParserClose(
+	xtextvalueparser* pParser,
+	const xtextvalueevent* pBegin,
+	xtextvalueeventtype EndType
+)
+{
+	xtextvalueevent Event;
+	memset(&Event, 0, sizeof(Event));
+	Event.Type = EndType; Event.Depth = pBegin->Depth;
+	Event.Location = __xrtTextValueParserLocation(pParser);
+	if ( pParser->Config.RawEvents ) {
+		Event.Key = pBegin->Key;
+		Event.Raw.Data = pParser->Text.Data + pBegin->Location.Offset;
+		Event.Raw.Size = pParser->Offset - pBegin->Location.Offset + 1u;
+	}
+	__xrtTextValueParserAdvance(pParser);
+	return __xrtTextValueParserEmit(pParser, &Event);
+}
+
 
 
 /* 解析数组或集合，并直接发送开始、子项和结束事件。 */
@@ -299005,14 +300778,7 @@ static bool __xrtTextValueParserSequence(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)']')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -299091,16 +300857,7 @@ static bool __xrtTextValueParserSequence(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 
@@ -299127,14 +300884,7 @@ static bool __xrtTextValueParserMapping(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)'}')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -299171,6 +300921,7 @@ static bool __xrtTextValueParserMapping(
 			Key.Integer = KeyEvent.Value.Integer;
 		} else {
 			xstrview Name;
+			size_t iNameStart = pParser->Offset;
 
 			if ( !__xrtTextValueParserString(
 				pParser,
@@ -299182,6 +300933,10 @@ static bool __xrtTextValueParserMapping(
 			}
 			Key.Type = XVALUE_KEY_STRING;
 			Key.String = Name;
+			if ( pParser->Config.RawEvents ) {
+				Key.String.Data = pParser->Text.Data + iNameStart;
+				Key.String.Size = pParser->Offset - iNameStart;
+			}
 		}
 		if ( !__xrtTextValueParserSpace(pParser) ) {
 			return false;
@@ -299259,16 +301014,7 @@ static bool __xrtTextValueParserMapping(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 
@@ -300037,6 +301783,35 @@ static xtextvaluevisitaction __xrtJsonVisitAdapter(
 	return (xtextvaluevisitaction)Action;
 }
 
+typedef struct xjsonscanadapter {
+	xjsonscanproc Visitor;
+	ptr UserData;
+} xjsonscanadapter;
+
+static xtextvaluevisitaction __xrtJsonScanAdapter(const xtextvalueevent* Source, ptr UserData)
+{
+	xjsonscanadapter* Adapter = (xjsonscanadapter*)UserData;
+	xjsonscanevent Event;
+	memset(&Event, 0, sizeof(Event));
+	switch ( Source->Type ) {
+		case XTEXT_VALUE_EVENT_NULL: Event.Type = XJSON_SCAN_NULL; break;
+		case XTEXT_VALUE_EVENT_BOOL: Event.Type = XJSON_SCAN_BOOL; break;
+		case XTEXT_VALUE_EVENT_NUMBER: Event.Type = XJSON_SCAN_NUMBER; break;
+		case XTEXT_VALUE_EVENT_STRING: Event.Type = XJSON_SCAN_STRING; break;
+		case XTEXT_VALUE_EVENT_ARRAY_BEGIN: Event.Type = XJSON_SCAN_ARRAY_BEGIN; break;
+		case XTEXT_VALUE_EVENT_ARRAY_END: Event.Type = XJSON_SCAN_ARRAY_END; break;
+		case XTEXT_VALUE_EVENT_OBJECT_BEGIN: Event.Type = XJSON_SCAN_OBJECT_BEGIN; break;
+		case XTEXT_VALUE_EVENT_OBJECT_END: Event.Type = XJSON_SCAN_OBJECT_END; break;
+		default: return XTEXT_VALUE_VISIT_FAIL;
+	}
+	Event.Location = __xrtJsonLocation(&Source->Location);
+	Event.Depth = Source->Depth; Event.Raw = Source->Raw;
+	if ( Source->Key.Type == XVALUE_KEY_STRING ) {
+		Event.HasName = true; Event.Name = Source->Key.String;
+	} else if ( Source->Key.Type == XVALUE_KEY_INDEX ) Event.Index = Source->Key.Index;
+	return (xtextvaluevisitaction)Adapter->Visitor(&Event, Adapter->UserData);
+}
+
 
 
 /* 初始化严格且带安全资源预算的 JSON 读取配置。 */
@@ -300168,6 +301943,23 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 		true
 	);
 	return (xjsonvisitresult)Result;
+}
+
+XRT_API xjsonvisitresult xrtJsonScan(xstrview Text, const xjsonreadconfig* Config,
+	xjsonscanproc Visitor, ptr UserData)
+{
+	xjsonscanadapter Adapter;
+	xtextvaluereadconfig TextConfig;
+	if ( Visitor == NULL || !__xrtJsonReadConfigValid(Config) ||
+		(Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) ) {
+		if ( Visitor == NULL || (Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) )
+			__xrtErrorSetInvalidArgument();
+		return XJSON_VISIT_ERROR;
+	}
+	Adapter.Visitor = Visitor; Adapter.UserData = UserData;
+	TextConfig = __xrtJsonReadTextConfig(Config); TextConfig.RawEvents = true;
+	return (xjsonvisitresult)__xrtTextValueRead(Text, &TextConfig, __xrtJsonScanAdapter,
+		&Adapter, __xrtJsonReadError, NULL, false);
 }
 
 #endif
@@ -345758,6 +347550,126 @@ XRT_API xregexresult xrtRegexSetTest(
 	return Result;
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/concurrency/event_waiter.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#define XRT_EVENT_WAITER_MAGIC UINT32_C(0x58455731)
+typedef struct xrt_event_waiter_impl {
+    uint32 Magic;
+    xeventwaiterbackend Backend;
+    uint64 Owner;
+    xevent* Event;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE Timer;
+#endif
+    bool Active;
+} xrt_event_waiter_impl;
+typedef char xrt_event_waiter_storage_check[(sizeof(xrt_event_waiter_impl)<=XRT_EVENT_WAITER_STORAGE_SIZE)?1:-1];
+static bool __xrtEventWaiterFail(xerrkind Kind,cstr Operation,int32 SystemCode)
+{
+    xerrordesc D={.Kind=Kind,.Code=(int32)Kind,.SystemCode=SystemCode,.Domain="xrt.event_waiter",.Operation=Operation,.Message="event deadline waiter operation failed"};
+    xerror* E=xrtErrorBuild(&D);if(E)xrtSetErrorTake(E);else xrtSetErrorKind(XERR_MEMORY);return false;
+}
+static xrt_event_waiter_impl* __xrtEventWaiterRequire(const xeventwaiter* W,cstr Operation)
+{
+    if(!xrtMemRangeValid(W,sizeof(*W))){__xrtEventWaiterFail(XERR_ARGUMENT,Operation,0);return NULL;}
+    xrt_event_waiter_impl* I=(xrt_event_waiter_impl*)(uintptr_t)W;
+    if(I->Magic!=XRT_EVENT_WAITER_MAGIC){__xrtEventWaiterFail(XERR_STATE,Operation,0);return NULL;}
+    return I;
+}
+#if defined(_WIN32) || defined(_WIN64)
+typedef HANDLE (WINAPI *xrt_create_waitable_timer_proc)(LPSECURITY_ATTRIBUTES,LPCWSTR,DWORD,DWORD);
+static HANDLE __xrtEventWaiterTimer(uint32 Flags,xeventwaiterbackend* Backend)
+{
+    xrt_create_waitable_timer_proc Create=NULL;FARPROC Address=GetProcAddress(GetModuleHandleW(L"kernel32.dll"),"CreateWaitableTimerExW");
+    typedef char xrt_waiter_function_pointer_size[(sizeof(Create)==sizeof(Address))?1:-1];(void)sizeof(xrt_waiter_function_pointer_size);memcpy(&Create,&Address,sizeof(Create));
+    HANDLE Timer=Create?Create(NULL,NULL,2u,UINT32_C(0x00100002)):NULL; /* HIGH_RESOLUTION; SYNCHRONIZE | TIMER_MODIFY_STATE */
+    if(Timer){*Backend=XEVENT_WAITER_WINDOWS_HIGH_RESOLUTION;return Timer;}
+    DWORD Code=Create?GetLastError():ERROR_CALL_NOT_IMPLEMENTED;
+    if(Code!=ERROR_INVALID_PARAMETER && Code!=ERROR_NOT_SUPPORTED && Code!=ERROR_CALL_NOT_IMPLEMENTED){__xrtEventWaiterFail(XERR_IO,"init.timer",(int32)Code);return NULL;}
+    if(Flags&XRT_EVENT_WAITER_REQUIRE_PRECISE){__xrtEventWaiterFail(XERR_UNSUPPORTED,"init.precision",(int32)Code);return NULL;}
+    Timer=CreateWaitableTimerW(NULL,FALSE,NULL);
+    if(!Timer){__xrtEventWaiterFail(XERR_IO,"init.fallback",(int32)GetLastError());return NULL;}
+    *Backend=XEVENT_WAITER_WINDOWS_STANDARD;return Timer;
+}
+static xwaitresult __xrtEventWaiterWindows(xrt_event_waiter_impl* I,double Deadline)
+{
+    HANDLE Event=__xrtEventImpl(I->Event)->Handle;
+    for(;;){
+        DWORD Ready=WaitForSingleObject(Event,0);
+        if(Ready==WAIT_OBJECT_0)return XWAIT_OK;
+        if(Ready!=WAIT_TIMEOUT){__xrtEventWaiterFail(XERR_IO,"wait.poll",(int32)GetLastError());return XWAIT_ERROR;}
+        if(Deadline==INFINITY){DWORD R=WaitForSingleObject(Event,INFINITE);if(R==WAIT_OBJECT_0)return XWAIT_OK;__xrtEventWaiterFail(XERR_IO,"wait.forever",(int32)GetLastError());return XWAIT_ERROR;}
+        double Now=xrtTimer();if(!isfinite(Now))return XWAIT_ERROR;
+        if(Now>=Deadline){Ready=WaitForSingleObject(Event,0);if(Ready==WAIT_OBJECT_0)return XWAIT_OK;if(Ready==WAIT_TIMEOUT)return XWAIT_TIMEOUT;__xrtEventWaiterFail(XERR_IO,"wait.poll",(int32)GetLastError());return XWAIT_ERROR;}
+        /* Chunk very large durations before converting outward to signed 100ns.
+         * No signed overflow, periodic timer or change to global clock resolution. */
+        double Remaining=Deadline-Now;if(Remaining>4294967.0)Remaining=4294967.0;
+        LARGE_INTEGER Due;Due.QuadPart=-(LONGLONG)ceil(Remaining*1e7);if(Due.QuadPart==0)Due.QuadPart=-1;
+        if(!SetWaitableTimer(I->Timer,&Due,0,NULL,NULL,FALSE)){__xrtEventWaiterFail(XERR_IO,"wait.arm",(int32)GetLastError());return XWAIT_ERROR;}
+        HANDLE Handles[2]={Event,I->Timer};DWORD R=WaitForMultipleObjects(2,Handles,FALSE,INFINITE);
+        if(R==WAIT_OBJECT_0){if(!CancelWaitableTimer(I->Timer)){__xrtEventWaiterFail(XERR_IO,"wait.cancel",(int32)GetLastError());return XWAIT_ERROR;}return XWAIT_OK;}
+        if(R==WAIT_OBJECT_0+1)continue; /* Recheck original monotonic budget and ready event. */
+        DWORD Code=GetLastError();(void)CancelWaitableTimer(I->Timer);__xrtEventWaiterFail(XERR_IO,"wait.backend",(int32)Code);return XWAIT_ERROR;
+    }
+}
+#endif
+XRT_API bool xrtEventWaiterInit(xeventwaiter* W,xevent* Event,uint32 Flags)
+{
+    if(!xrtMemRangeValid(W,sizeof(*W)) || !xrtMemRangeValid(Event,sizeof(*Event)) || xrtMemRangesOverlap(W,sizeof(*W),Event,sizeof(*Event)) || (Flags&~XRT_EVENT_WAITER_REQUIRE_PRECISE))return __xrtEventWaiterFail(XERR_ARGUMENT,"init",0);
+    xrt_event_impl* E=__xrtEventImpl(Event);if(E->Magic!=XRT_EVENT_MAGIC)return __xrtEventWaiterFail(XERR_STATE,"init.event",0);
+    xrt_event_waiter_impl I;memset(&I,0,sizeof(I));I.Magic=XRT_EVENT_WAITER_MAGIC;I.Owner=__xrtCurrentThreadId();I.Event=Event;
+#if defined(_WIN32) || defined(_WIN64)
+    I.Timer=__xrtEventWaiterTimer(Flags,&I.Backend);if(!I.Timer)return false;
+#else
+    I.Backend=E->Monotonic?XEVENT_WAITER_POSIX_MONOTONIC:XEVENT_WAITER_PLATFORM;
+    if((Flags&XRT_EVENT_WAITER_REQUIRE_PRECISE) && !E->Monotonic)return __xrtEventWaiterFail(XERR_UNSUPPORTED,"init.precision",0);
+#endif
+    memset(W,0,sizeof(*W));memcpy(W,&I,sizeof(I));return true;
+}
+XRT_API bool xrtEventWaiterUnit(xeventwaiter* W)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"unit");if(!I)return false;
+    if(I->Active)return __xrtEventWaiterFail(XERR_STATE,"unit.active",0);
+#if defined(_WIN32) || defined(_WIN64)
+    if(!CloseHandle(I->Timer))return __xrtEventWaiterFail(XERR_IO,"unit.timer",(int32)GetLastError());
+#endif
+    memset(W,0,sizeof(*W));return true;
+}
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W,int64 Timeout)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"wait");if(!I)return XWAIT_ERROR;
+    if(Timeout<XRT_WAIT_FOREVER){__xrtEventWaiterFail(XERR_ARGUMENT,"wait.timeout",0);return XWAIT_ERROR;}
+    if(I->Owner!=__xrtCurrentThreadId() || I->Active){__xrtEventWaiterFail(XERR_STATE,"wait.owner",0);return XWAIT_ERROR;}
+    if(__xrtEventImpl(I->Event)->Magic!=XRT_EVENT_MAGIC){__xrtEventWaiterFail(XERR_STATE,"wait.event",0);return XWAIT_ERROR;}
+    double Deadline=__xrtWaitAfter(Timeout);if(isnan(Deadline))return XWAIT_ERROR;
+    I->Active=true;xwaitresult R;
+#if defined(_WIN32) || defined(_WIN64)
+    R=__xrtEventWaiterWindows(I,Deadline);
+#else
+    R=__xrtEventWaitUntil(I->Event,Deadline);
+#endif
+    I->Active=false;return R;
+}
+XRT_API bool xrtEventWaiterGet(const xeventwaiter* W,xeventwaiterinfo* Info)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"get");if(!I)return false;
+    if(!xrtMemRangeValid(Info,sizeof(*Info)) || xrtMemRangesOverlap(Info,sizeof(*Info),W,sizeof(*W)) || xrtMemRangesOverlap(Info,sizeof(*Info),I->Event,sizeof(*I->Event)))return __xrtEventWaiterFail(XERR_ARGUMENT,"get.output",0);
+    *Info=(xeventwaiterinfo){sizeof(*W),I->Backend,
+#if defined(_WIN32) || defined(_WIN64)
+        1
+#else
+        0
+#endif
+    };return true;
+}
 #endif
 #endif
 

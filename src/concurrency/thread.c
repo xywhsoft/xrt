@@ -708,6 +708,14 @@ XRT_API xthread* xrtThreadCurrent(void)
 	return __xrtThreadCurrentGet();
 }
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc)
+{
+	xthread* Thread=__xrtThreadCurrentGet();
+	return Thread && Thread->Proc==Proc ? Thread->Data : NULL;
+}
+#endif
+
 
 
 /* 主动让出当前线程的处理器时间片。 */

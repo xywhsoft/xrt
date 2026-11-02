@@ -584,6 +584,7 @@
 				"docs/api/task.md"
 			]
 		},
+
 		{
 			"name": "executor_ownership_tests",
 			"state": "implemented",
@@ -7173,13 +7174,16 @@
 				"src/concurrency/executor_ownership.c"
 			],
 			"tests": [
-				"tests/concurrency/test_executor.c"
+				"tests/concurrency/test_executor.c",
+				"tests/concurrency/test_executor_current.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_executor.c"
+				"tests/single/test_single_executor.c",
+				"tests/single/test_single_executor_current.c"
 			],
 			"examples": [
 				"examples/concurrency/executor/main.c",
+				"examples/concurrency/executor_current/main.c",
 				"examples/concurrency/executor_tour/main.c"
 			],
 			"benchmarks": [
@@ -8472,7 +8476,8 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_client.c",
-				"tests/single/test_single_tls_client_server_hello.c"
+				"tests/single/test_single_tls_client_server_hello.c",
+				"tests/single/test_single_tls_client_certificate_request.c"
 			],
 			"examples": [],
 			"docs": []
@@ -8761,6 +8766,34 @@
 			"docs": []
 		},
 		{
+			"name": "tls_client_auth",
+			"state": "developing",
+			"feature": "XRT_FEATURE_TLS_CLIENT_AUTH",
+			"depends": ["tls_client_verify", "tls_identity", "tls_messages_write", "x509_profile", "x509_name"],
+			"public_headers": ["include/xrt/tls_client_auth.h"],
+			"internal_headers": ["src/internal/xrt_tls_client.h", "src/internal/xrt_tls_client_auth.h"],
+			"sources": ["src/tls/client_auth.c", "src/tls/client_auth_select.c", "src/tls/client_auth12.c"],
+			"tests": [], "single_tests": [], "examples": [],
+			"docs": ["docs/api/tls.md", "docs/design/tls-session.md"]
+		},
+		{
+			"name": "tls_client_auth_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_client_auth", "tls_client_tests", "tls_server_tests", "tls_auth_messages_write", "memory_debug"],
+			"public_headers": [], "internal_headers": [], "sources": [],
+			"tests": ["tests/tls/test_tls_client_auth.c", "tests/tls/test_tls_client_auth12.c"],
+			"single_tests": ["tests/single/test_single_tls_client_auth.c", "tests/single/test_single_tls_client_auth12.c"],
+			"examples": [], "docs": []
+		},
+		{
+			"name": "tls_client_auth_examples",
+			"state": "implemented", "feature": null,
+			"depends": ["tls_client_auth", "tls_identity_builtin", "tls_key_exchange_x25519", "tls_record_aes", "tls_schedule_sha256"],
+			"public_headers": [], "internal_headers": [], "sources": [], "tests": [], "single_tests": [],
+			"examples": ["examples/tls/client_auth/main.c"], "docs": []
+		},
+		{
 			"name": "tls_server",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_TLS_SERVER",
@@ -8850,7 +8883,9 @@
 				"tests/tls/test_tls_server_oom.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_tls_server.c"
+				"tests/single/test_single_tls_server.c",
+				"tests/single/test_single_tls_server_choice_identity.c",
+				"tests/single/test_single_tls_client12_certificate_request.c"
 			],
 			"examples": [
 				"examples/tls/server/main.c"
@@ -9115,7 +9150,8 @@
 				"include/xrt/net.h"
 			],
 			"internal_headers": [
-				"src/internal/xrt_net_port.h"
+				"src/internal/xrt_net_port.h",
+				"src/internal/xrt_net_iocp_timer.h"
 			],
 			"sources": [
 				"src/network/port_iocp.c"
@@ -9124,10 +9160,13 @@
 				"tests/network/test_net_port_iocp.c",
 				"tests/network/test_net_port_threads.c",
 				"tests/network/test_net_port_iocp_oom.c",
+				"tests/network/test_net_port_iocp_timer.c",
 				"tests/network/test_net_port_iocp_stress.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_net_port_iocp.c"
+				"tests/single/test_single_net_port_iocp.c",
+				"tests/single/test_single_net_port_iocp_timer.c",
+				"tests/single/test_single_net_port_iocp_deadline.c"
 			],
 			"examples": [
 				"examples/network/port_iocp/main.c"
@@ -9195,6 +9234,7 @@
 			"single_tests": [
 				"tests/single/test_single_net_engine.c"
 			],
+			"benchmarks": ["dev/bench/network/bench_net_timer.c"],
 			"examples": [
 				"examples/network/engine/main.c",
 				"examples/network/engine_tour/main.c"
@@ -9407,6 +9447,35 @@
 				"tests/single/test_single_net_stream_events_ownership.c"
 			],
 			"examples": [],
+			"docs": [
+				"docs/api/tcp.md"
+			]
+		},
+		{
+			"name": "net_tcp_retire",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_TCP_RETIRE",
+			"depends": [
+				"net_tcp",
+				"cond"
+			],
+			"public_headers": [
+				"include/xrt/tcp.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_tcp.h"
+			],
+			"sources": [
+				"src/network/tcp_retire.c"
+			],
+			"tests": [
+				"tests/network/test_net_tcp_retire.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_net_tcp_retire.c"
+			],
+			"examples": [],
+			"benchmarks": [],
 			"docs": [
 				"docs/api/tcp.md"
 			]
@@ -13539,12 +13608,19 @@
 			],
 			"tests": [
 				"tests/json/test_json_read.c",
-				"tests/json/test_json_read_oom.c"
+				"tests/json/test_json_read_oom.c",
+				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
+				"tests/package/test_json_scan_consumer.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_json_read.c"
+				"tests/single/test_single_json_read.c",
+				"tests/single/test_single_json_scan.c"
 			],
 			"examples": [],
+			"benchmarks": [
+				"dev/bench/json/bench_json_scan.c"
+			],
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xlon.md"
@@ -13626,12 +13702,16 @@
 				"tests/json/test_json_read.c",
 				"tests/json/test_json_read_oom.c",
 				"tests/json/test_json_write.c",
+				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
+				"tests/package/test_json_scan_consumer.c",
 				"tests/json/test_json_write_oom.c",
 				"tests/json/test_json_file.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_json_read.c",
 				"tests/single/test_single_json_write.c",
+				"tests/single/test_single_json_scan.c",
 				"tests/single/test_single_json_file.c"
 			],
 			"examples": [
@@ -16033,7 +16113,79 @@
 			"tests": ["tests/tls/test_tls_verify_limits.c"],
 			"single_tests": ["tests/single/test_single_tls_verify_limits.c"],
 			"examples": [],
-			"docs": ["docs/api/tls.md"]
+			"docs": [
+				"docs/api/tls.md"
+			]
+		},
+		{
+			"name": "executor_current_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["executor", "memory_stats"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_executor_current.c"],
+			"single_tests": ["tests/single/test_single_executor_current.c"],
+			"examples": [],
+			"benchmarks": [],
+			"docs": ["docs/api/executor.md"]
+		},
+		{
+			"name": "event_waiter",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_EVENT_WAITER",
+			"depends": [
+				"event"
+			],
+			"public_headers": [
+				"include/xrt/event_waiter.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"src/concurrency/event_waiter.c"
+			],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"examples": [
+				"examples/concurrency/event_waiter/main.c"
+			],
+			"benchmarks": ["dev/bench/event_waiter/bench_event_waiter.c"],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
+		},
+		{
+			"name": "event_waiter_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"event_waiter",
+				"thread",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c",
+				"tests/whitebox/test_event_waiter_native.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"single_test_owners": {
+				"tests/single/test_single_event_waiter.c": "event_waiter"
+			},
+			"examples": [],
+			"benchmarks": [],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
 		}
 	]
 }

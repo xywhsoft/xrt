@@ -337,6 +337,17 @@
 			"description": "JSON DOM、事件流访问和序列化公共路径",
 			"benchmarks": [
 				{
+					"name": "json_scan",
+					"source": "dev/bench/json/bench_json_scan.c",
+					"suite": "json_read,time",
+					"args": ["100000"],
+					"smoke_args": ["1000"],
+					"metrics": {
+						"visits_per_sec": {"direction": "higher", "unit": "documents/s"},
+						"scans_per_sec": {"direction": "higher", "unit": "documents/s"}
+					}
+				},
+				{
 					"name": "json",
 					"source": "dev/bench/json/bench_json.c",
 					"suite": "json",
@@ -891,6 +902,207 @@
 							"direction": "higher",
 							"unit": "verifications/s",
 							"limit": 0.15
+						}
+					}
+				}
+			]
+		},
+		{
+		  "name": "net_timer_latency",
+		  "system": "network",
+		  "description": "Public 1ms port/AUTO/SELECT waits with no network; CPU and latency costs retained; unpinned diagnostic profile",
+		  "benchmarks": [
+		    {
+		      "name": "net_timer_port",
+		      "source": "dev/bench/network/bench_net_timer.c",
+		      "suite": "net_engine",
+		      "args": [
+		        "1000",
+		        "0"
+		      ],
+		      "smoke_args": [
+		        "25",
+		        "0"
+		      ],
+		      "metadata": [
+		        "workload"
+		      ],
+		      "metrics": {
+		        "timers_per_sec": {
+		          "direction": "higher",
+		          "unit": "timers/s",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p50_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p99_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "cpu_us_per_timer": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "completed": {
+		          "direction": "higher",
+		          "unit": "timers",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        }
+		      }
+		    },
+		    {
+		      "name": "net_timer_auto",
+		      "source": "dev/bench/network/bench_net_timer.c",
+		      "suite": "net_engine",
+		      "args": [
+		        "1000",
+		        "1"
+		      ],
+		      "smoke_args": [
+		        "25",
+		        "1"
+		      ],
+		      "metadata": [
+		        "workload"
+		      ],
+		      "metrics": {
+		        "timers_per_sec": {
+		          "direction": "higher",
+		          "unit": "timers/s",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p50_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p99_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "cpu_us_per_timer": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "completed": {
+		          "direction": "higher",
+		          "unit": "timers",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        }
+		      }
+		    },
+		    {
+		      "name": "net_timer_select",
+		      "source": "dev/bench/network/bench_net_timer.c",
+		      "suite": "net_engine",
+		      "args": [
+		        "1000",
+		        "2"
+		      ],
+		      "smoke_args": [
+		        "25",
+		        "2"
+		      ],
+		      "metadata": [
+		        "workload"
+		      ],
+		      "metrics": {
+		        "timers_per_sec": {
+		          "direction": "higher",
+		          "unit": "timers/s",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p50_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "latency_p99_us": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "cpu_us_per_timer": {
+		          "direction": "lower",
+		          "unit": "us",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        },
+		        "completed": {
+		          "direction": "higher",
+		          "unit": "timers",
+		          "max_relative_mad": 0.03,
+		          "max_relative_central_range": 0.06
+		        }
+		      }
+		    }
+		  ]
+		},
+		{
+			"name": "event_waiter",
+			"system": "concurrency",
+			"description": "Reusable precise event timeout versus ordinary event timeout; overshoot and process CPU, no scheduling SLA or performance acceptance",
+			"benchmarks": [
+				{
+					"name": "event_waiter",
+					"source": "dev/bench/event_waiter/bench_event_waiter.c",
+					"suite": "event_waiter",
+					"args": [
+						"256",
+						"1"
+					],
+					"smoke_args": [
+						"16",
+						"1"
+					],
+					"metrics": {
+						"event_overshoot_p99_ms": {
+							"direction": "lower",
+							"unit": "ms",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"waiter_overshoot_p99_ms": {
+							"direction": "lower",
+							"unit": "ms",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"event_cpu_us_per_wait": {
+							"direction": "lower",
+							"unit": "us",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"waiter_cpu_us_per_wait": {
+							"direction": "lower",
+							"unit": "us",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
 						}
 					}
 				}

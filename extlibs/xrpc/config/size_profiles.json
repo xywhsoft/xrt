@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xrpc/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xrpc_decode",
+      "system": "decode",
+      "suite": "xrpc_decode",
+      "description": "Only envelope decoding and its required public JSON closure"
+    },
+    {
+      "name": "xrpc_encode",
+      "system": "encode",
+      "suite": "xrpc_encode",
+      "description": "Only bounded envelope encoding and its required public JSON closure"
+    },
+    {
+      "name": "xrpc_dispatch",
+      "system": "dispatch",
+      "suite": "xrpc_dispatch",
+      "description": "Synchronous bounded dispatch with decode/encode closure; no engine or transport"
+    },
+    {
+      "name": "xrpc_methods",
+      "system": "methods",
+      "suite": "xrpc_methods",
+      "description": "Immutable name index and synchronous dispatch closure; no engine/transport"
+    },
+    {
+      "name": "xrpc_id",
+      "system": "id",
+      "suite": "xrpc_id",
+      "description": "Exact identifier key leaf; no dispatch/engine/transport"
+    },
+    {
+      "name": "xrpc_pending",
+      "system": "pending",
+      "suite": "xrpc_pending",
+      "description": "Bounded serialized pending calls with exact ID comparison tree and deadline heap; no transport"
+    },
+    {
+      "name": "xrpc_response",
+      "system": "response",
+      "suite": "xrpc_response",
+      "description": "response with its actual dependency closure; no async runtime/transport"
+    },
+    {
+      "name": "xrpc_receive",
+      "system": "receive",
+      "suite": "xrpc_receive",
+      "description": "receive with its actual dependency closure; no async runtime/transport"
+    },
+    {
+      "name": "xrpc_call",
+      "system": "call",
+      "suite": "xrpc_call",
+      "description": "Native typed call/Future lifetime and owned response closure; no transport/engine"
+    },
+    {
+      "name": "xrpc_http_client",
+      "system": "http_client",
+      "suite": "xrpc_http_client",
+      "description": "Bounded ordinary HTTP/TCP call runtime plus actual Core closure; no TLS/DNS or full client/server acceptance"
+    },
+    {
+      "name": "xrpc_server",
+      "system": "server",
+      "suite": "xrpc_server",
+      "description": "Bounded server executor/dispatch/quota/Future closure, no network transport"
+    },
+    {
+      "name": "xrpc_http_server",
+      "system": "http_server",
+      "suite": "xrpc_http_server",
+      "description": "Production HTTP listener/peer/parser/executor/Future closure; numeric plain TCP"
+    },
+    {
+      "name": "xrpc_result_quota",
+      "system": "result_quota",
+      "suite": "xrpc_result_quota",
+      "description": "Private allocation/retention quota ledger and actual response/mutex/atomic dependency closure"
+    },
+    {
+      "name": "xrpc_http_dial",
+      "system": "http_dial",
+      "suite": "xrpc_http_dial",
+      "description": "Asynchronous HTTP DNS/prepared-candidate connection source with actual client/resolver/dial closure"
+    },
+    {
+      "name": "xrpc_http_tls",
+      "system": "http_tls",
+      "suite": "xrpc_http_tls",
+      "description": "Verified HTTP TLS client and actual Core TLS/cipher/dial closure"
+    },
+    {
+      "name": "xrpc_http_server_tls",
+      "system": "http_server_tls",
+      "suite": "xrpc_http_server_tls",
+      "description": "Production HTTP TLS server/executor and actual Core identity/cipher dependency closure"
+    }
+  ]
+}

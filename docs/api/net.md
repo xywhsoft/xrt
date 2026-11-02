@@ -1,5 +1,31 @@
 # 网络地址基础 API
 
+## Windows IOCP 的短期限等待
+
+IOCP 在支持所需接口的 Windows 上，将一个高精度等待计时器通过
+[NtAssociateWaitCompletionPacket](https://learn.microsoft.com/en-us/windows/win32/devnotes/ntassociatewaitcompletionpacket)
+接入同一个完成端口。
+[高精度计时器标志](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerexw)
+要求 Windows 10 1803 或更新版本。接口不可用、资源不足或可选计时路径失败时，
+保留普通 IOCP 超时等待；select 等其他后端保持自己的平台等待机制。
+这项优化不保证实时调度，不调用 timeBeginPeriod 或 NtSetTimerResolution。
+
+每个端口增加固定的 80 字节 x64 私有状态、一个计时器句柄和一个等待完成包句柄，
+不增加线程、APC、线程池回调或逐次等待的 XRT 堆分配。仍然较早的唤醒可跨 I/O
+返回复用，避免在每个网络事件后重设/取消计时器；时钟读取、状态检查和必要的
+原生系统调用均有实际成本。计时包只表示内部唤醒，外层始终用调用者原来的单调
+截止时间检查超时，因此旧等待留下的较早计时包不会导致提前返回 TIMEOUT。
+普通 IOCP 回退路径收到原生超时后，也先复核同一个截止时间。
+
+取消返回 STATUS_PENDING 时不会立即复用等待包；后续取消/提取完成包后才重新关联。
+端口停止时取消关联、区分并消费私有计时包和实际 I/O 完成包，再关闭全部句柄。
+未完成的 I/O 缓冲仍遵循原有物理完成屏障。普通请求、公开配置及结果结构布局不变。
+
+`dev/bench/network/bench_net_timer.c` 分别测量无网络的端口等待、AUTO 和 select
+单 Worker 定时链。CPU 时间也保留，但 Windows 进程 CPU 计数粒度和主线程观察
+开销会影响这一诊断值。计时精度与进程调度延迟必须在实际部署上验收，不能把
+一次本地采样、WSL 或低负载结果当成生产尾延迟保证。
+
 ## 已编译端口后端的纯查询
 
 `xrtNetPortBackendInfo(backend, &info)` 读取当前产物中实际编入的驱动元数据。

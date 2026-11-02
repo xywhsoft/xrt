@@ -1,0 +1,361 @@
+/* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
+#ifndef XRPC_FEATURES_H
+#define XRPC_FEATURES_H
+
+/* xrpc 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC)
+#ifndef XRPC_FEATURE_XRPC
+#define XRPC_FEATURE_XRPC
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#ifndef XRPC_MODULE_XRPC_METHODS
+#define XRPC_MODULE_XRPC_METHODS
+#endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#ifndef XRPC_MODULE_XRPC_PENDING
+#define XRPC_MODULE_XRPC_PENDING
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_RECEIVE
+#define XRPC_MODULE_XRPC_RECEIVE
+#endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_TLS
+#define XRPC_MODULE_XRPC_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#define XRPC_MODULE_XRPC_HTTP_SERVER_TLS
+#endif
+#endif
+
+/* xrpc_http_server_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER_TLS)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#define XRPC_FEATURE_XRPC_HTTP_SERVER_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_SERVER
+#define XRPC_MODULE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_SERVER_RESUME
+#define XRT_MODULE_TLS_SERVER_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P384
+#define XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#endif
+#endif
+
+/* xrpc_http_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_TLS)
+#ifndef XRPC_FEATURE_XRPC_HTTP_TLS
+#define XRPC_FEATURE_XRPC_HTTP_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_DIAL
+#define XRPC_MODULE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#endif
+#endif
+
+/* xrpc_http_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_HTTP_DIAL
+#define XRPC_FEATURE_XRPC_HTTP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_HTTP_CLIENT
+#define XRPC_MODULE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
+#endif
+
+/* xrpc_http_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_SERVER)
+#ifndef XRPC_FEATURE_XRPC_HTTP_SERVER
+#define XRPC_FEATURE_XRPC_HTTP_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_EXPECT
+#define XRT_MODULE_HTTP_EXPECT
+#endif
+#ifndef XRT_MODULE_HTTP_TARGET
+#define XRT_MODULE_HTTP_TARGET
+#endif
+#ifndef XRT_MODULE_HTTP_PARAM
+#define XRT_MODULE_HTTP_PARAM
+#endif
+#ifndef XRT_MODULE_TIME_TEXT
+#define XRT_MODULE_TIME_TEXT
+#endif
+#endif
+
+/* xrpc_server 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_SERVER)
+#ifndef XRPC_FEATURE_XRPC_SERVER
+#define XRPC_FEATURE_XRPC_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#endif
+
+/* xrpc_http_client 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_HTTP_CLIENT)
+#ifndef XRPC_FEATURE_XRPC_HTTP_CLIENT
+#define XRPC_FEATURE_XRPC_HTTP_CLIENT
+#endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_HTTP1_BODY
+#define XRT_MODULE_HTTP1_BODY
+#endif
+#ifndef XRT_MODULE_HTTP_HOST
+#define XRT_MODULE_HTTP_HOST
+#endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
+#endif
+
+/* xrpc_call 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_CALL)
+#ifndef XRPC_FEATURE_XRPC_CALL
+#define XRPC_FEATURE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRT_MODULE_FUTURE
+#define XRT_MODULE_FUTURE
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
+/* xrpc_receive 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RECEIVE)
+#ifndef XRPC_FEATURE_XRPC_RECEIVE
+#define XRPC_FEATURE_XRPC_RECEIVE
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_PENDING
+#define XRPC_MODULE_XRPC_PENDING
+#endif
+#endif
+
+/* xrpc_pending 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_PENDING)
+#ifndef XRPC_FEATURE_XRPC_PENDING
+#define XRPC_FEATURE_XRPC_PENDING
+#endif
+#ifndef XRPC_MODULE_XRPC_ID
+#define XRPC_MODULE_XRPC_ID
+#endif
+#endif
+
+/* xrpc_id 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ID)
+#ifndef XRPC_FEATURE_XRPC_ID
+#define XRPC_FEATURE_XRPC_ID
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
+#endif
+
+/* xrpc_methods 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_METHODS)
+#ifndef XRPC_FEATURE_XRPC_METHODS
+#define XRPC_FEATURE_XRPC_METHODS
+#endif
+#ifndef XRPC_MODULE_XRPC_DISPATCH
+#define XRPC_MODULE_XRPC_DISPATCH
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_UNICODE
+#define XRT_MODULE_UNICODE
+#endif
+#endif
+
+/* xrpc_dispatch 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_DISPATCH)
+#ifndef XRPC_FEATURE_XRPC_DISPATCH
+#define XRPC_FEATURE_XRPC_DISPATCH
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#endif
+
+/* xrpc_encode 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_ENCODE)
+#ifndef XRPC_FEATURE_XRPC_ENCODE
+#define XRPC_FEATURE_XRPC_ENCODE
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#ifndef XRT_MODULE_JSON_ESCAPE
+#define XRT_MODULE_JSON_ESCAPE
+#endif
+#endif
+
+/* xrpc_result_quota 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESULT_QUOTA)
+#ifndef XRPC_FEATURE_XRPC_RESULT_QUOTA
+#define XRPC_FEATURE_XRPC_RESULT_QUOTA
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRPC_MODULE_XRPC_RESPONSE
+#define XRPC_MODULE_XRPC_RESPONSE
+#endif
+#endif
+
+/* xrpc_response 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_RESPONSE)
+#ifndef XRPC_FEATURE_XRPC_RESPONSE
+#define XRPC_FEATURE_XRPC_RESPONSE
+#endif
+#ifndef XRPC_MODULE_XRPC_DECODE
+#define XRPC_MODULE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
+/* xrpc_decode 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_DECODE)
+#ifndef XRPC_FEATURE_XRPC_DECODE
+#define XRPC_FEATURE_XRPC_DECODE
+#endif
+#ifndef XRT_MODULE_JSON_READ
+#define XRT_MODULE_JSON_READ
+#endif
+#endif
+
+#endif /* XRPC_FEATURES_H */

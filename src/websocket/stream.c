@@ -2429,7 +2429,7 @@ static void xrtWsStreamPauseBody(xwsstream* pConnection)
 }
 XRT_API void xrtWsStreamPause(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return;
  xrtWsStreamPauseBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -2476,7 +2476,7 @@ static bool xrtWsStreamResumeBody(xwsstream* pConnection)
 }
 XRT_API bool xrtWsStreamResume(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
  bool result=xrtWsStreamResumeBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -3441,7 +3441,7 @@ static xwsstream* __xrtWsStreamRefBody(xwsstream* pConnection)
 }
 XRT_API xwsstream* xrtWsStreamRef(xwsstream* pConnection)
 {
- if(!pConnection||!pConnection->OwnershipPolicy)return __xrtWsStreamRefBody(pConnection);
+ if(!__xrtWsStreamRangeValid(pConnection)||!pConnection->OwnershipPolicy)return __xrtWsStreamRefBody(pConnection);
  xrtownershipscope Mutation={0};if(!xrtOwnershipMutationBegin(&Mutation))return NULL;
  xwsstream* result=NULL;
  if(xrtAtomic32Load(&pConnection->OwnershipState,XMEMORY_ACQUIRE)&__XRT_WS_OWN_CLEARED)
@@ -4211,7 +4211,7 @@ static xnetresult __xrtWsStreamSendMessage(
 	bool bCompressed
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=__xrtWsStreamSendMessageBody(pConnection, Opcode, Payload, bCompressed);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -4371,7 +4371,7 @@ XRT_API xnetresult xrtWsStreamPing(
 	xbytesview Payload
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamPingBody(pConnection, Payload);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -4397,7 +4397,7 @@ XRT_API xnetresult xrtWsStreamPong(
 	xbytesview Payload
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamPongBody(pConnection, Payload);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -4455,7 +4455,7 @@ XRT_API xnetresult xrtWsStreamClose(
 	xstrview Reason
 )
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return XNET_RESULT_ERROR;
  xnetresult result=xrtWsStreamCloseBody(pConnection, iCode, Reason);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);
@@ -4523,7 +4523,7 @@ bool __xrtWsStreamAbortBody(xwsstream* pConnection)
 }
 XRT_API bool xrtWsStreamAbort(xwsstream* pConnection)
 {
- bool owned=pConnection && pConnection->OwnershipPolicy;
+ bool owned=__xrtWsStreamRangeValid(pConnection) && pConnection->OwnershipPolicy;
  if(owned && !__xrtWsStreamOwnershipEnter(pConnection,true)) return false;
  bool result=__xrtWsStreamAbortBody(pConnection);
  if(owned)__xrtWsStreamOwnershipLeave(pConnection);

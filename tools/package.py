@@ -457,6 +457,7 @@ def _verify_gnu(
 	product: str = "xrt",
 	dependencies: list[Path] | None = None,
 	shared_defines: list[str] | None = None,
+	feature_defines: list[str] | None = None,
 ) -> None:
 	"""真实链接并运行 GNU/TCC 发布库消费者。"""
 
@@ -483,6 +484,7 @@ def _verify_gnu(
 	command.extend(["-I", str(ROOT / "include")])
 	for directory in include_dirs or []:
 		command.extend(["-I", str(ROOT / directory)])
+	command.extend("-D" + item for item in feature_defines or [])
 	if kind == "shared":
 		command.append("-DXRT_USE_SHARED")
 		command.extend("-D" + item for item in shared_defines or [])
@@ -565,6 +567,7 @@ def _verify_msvc(
 	product: str = "xrt",
 	dependencies: list[Path] | None = None,
 	shared_defines: list[str] | None = None,
+	feature_defines: list[str] | None = None,
 ) -> None:
 	"""真实链接并运行 MSVC/clang-cl 发布库消费者。"""
 
@@ -584,6 +587,7 @@ def _verify_msvc(
 	if "clang" not in compiler:
 		command.append("/Zc:preprocessor")
 	command.extend(f"/I{ROOT / directory}" for directory in include_dirs or [])
+	command.extend("/D" + item for item in feature_defines or [])
 	if kind == "shared":
 		command.append("/DXRT_USE_SHARED")
 		command.extend("/D" + item for item in shared_defines or [])
@@ -722,10 +726,10 @@ def _separate_packages(
 		dependencies = [item[2] or item[1] for item in reversed(artifacts) if item is not selected]
 		if family == "msvc":
 			_verify_msvc(compiler, args.arch, args.kind, artifact, import_library, links,
-				consumer, include_dirs, product, dependencies, use_macros)
+				consumer, include_dirs, product, dependencies, use_macros, defines)
 		else:
 			_verify_gnu(compiler, args.arch, family, args.kind, artifact, import_library, links,
-				objects, consumer, include_dirs, product, dependencies, use_macros)
+				objects, consumer, include_dirs, product, dependencies, use_macros, defines)
 
 
 

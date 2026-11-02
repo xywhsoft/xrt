@@ -2,6 +2,57 @@
 
 JSON 提供严格 RFC 8259 解析、事件流访问与序列化；不构造中间 DOM 时可用 Visit 直达事件。
 
+## 原始词法扫描
+
+`xrtJsonScan(Text, Config, Visitor, User)` 复用同一严格解析器，以
+`xjsonscanproc` 回调发送 `xjsonscanevent`。与解码访问器不同，扫描不把数字
+转换为机器整数或浮点数，也不物化转义字符串；成功路径不分配堆内存或复制载荷。
+回调自身的分配、复制和同步由调用方单独计入成本。
+
+```c
+typedef enum xjsonscantype {
+    XJSON_SCAN_NULL = 0, XJSON_SCAN_BOOL, XJSON_SCAN_NUMBER, XJSON_SCAN_STRING,
+    XJSON_SCAN_ARRAY_BEGIN, XJSON_SCAN_ARRAY_END,
+    XJSON_SCAN_OBJECT_BEGIN, XJSON_SCAN_OBJECT_END
+} xjsonscantype;
+typedef struct xjsonscanevent {
+    xjsonscantype Type;
+    xjsonlocation Location;
+    size_t Depth;
+    bool HasName;
+    xstrview Name;
+    size_t Index;
+    xstrview Raw;
+} xjsonscanevent;
+typedef xjsonvisitaction (*xjsonscanproc)(const xjsonscanevent*, ptr);
+XRT_API xjsonvisitresult xrtJsonScan(xstrview Text,
+    const xjsonreadconfig* Config, xjsonscanproc Visitor, ptr User);
+```
+
+扫描使用独立的 `xjsonscantype`，不向既有解码访问器枚举增加分支。数字统一使用 `XJSON_SCAN_NUMBER`，`Raw` 保留原始数字文本，包括
+超出 int64/uint64/double 范围但语法合法的数字。字符串和对象成员名保留引号及
+转义；所有视图借用输入，在输入仍存活且未改变时有效，事件对象只在回调内有效。
+容器 BEGIN 的 Raw 是开括号；END 的 Raw 是整个容器，并保留 BEGIN 的父成员名/
+数组索引。Location 对普通事件指向 token 起点，对 END 指向闭括号。
+
+调用同步在调用线程发送回调，不保留配置、回调或 User；解析状态只存在于本次调用栈上。
+
+扫描仍验证 UTF-8、转义、代理项和完整语法，并执行输入、深度、值数、容器项数、
+字符串解码后字节数等资源上限。BigInteger 转换策略及 DOM 重复键策略不用于
+Scan；配置值仍须合法。扫描发送每个成员，协议层应从原始成员名实施自己的
+重复字段规则。注释和尾逗号仍须显式开启。已有 Read/Visit 的解码与数字策略不变。
+
+回调 NEXT/STOP/FAIL 沿用 Visit 三态语义。STOP 不验证剩余输入；即使收到根 END，
+后续仍可能有尾部语法错误。只在返回 DONE 后发布完整解析结果。成功保留环境错误
+（回调可以修改）；冷路径错误诊断分配失败时可回退为 XERR_MEMORY。
+输入必须是实际可读且地址不回绕的对象范围。
+
+验证见 `tests/json/test_json_scan.c`、独立单头入口
+`tests/single/test_single_json_scan.c`。`dev/bench/json/bench_json_scan.c` 分别记录
+原始扫描和解码 Visit 的负载吞吐，两种接口的输出语义不同，不能据此宣称外部库
+等价性能或端到端 RPC 性能。引入原因及实测证据见
+[扩展库进度](../development/service-extensions-progress.md)。
+
 ## 类型与常量
 
 ### `xjsonerror`

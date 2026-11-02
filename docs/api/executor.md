@@ -18,7 +18,7 @@
 上下文引用一次。Exit 自身不能销毁或等待所属执行器；此类调用返回 checked 错误。
 Exit 的语义错误由上下文记录，不能阻断物理 join／退休。统计仍只计原生作业。
 
-带活跃退出上下文时，旧 `xrtExecutorOwnershipAdapterV1` 拒绝准入；使用 V2，
+带活跃退出上下文时，旧 `xrtExecutorOwnershipAdapterV1` 拒绝准入；使用 `xrtExecutorOwnershipAdapterV2`，
 显式提供已知合同地址。相同字段的合同副本不是授权。身份匹配发生在 Count／Trace
 之前；错误或 BUSY 不修改输出。Trace 交付实际上下文引用，不虚构 Worker 引用。
 普通 `xrtExecutorCreate` 不安装退出合同，原有行为不变。
@@ -464,6 +464,51 @@ xwaitresult xrtExecutorWaitFor(xexecutor* pExecutor, int64 iTimeout);
 xrtExecutorWaitFor(pExecutor,
 			INT64_C(3000))
 ```
+### `xrtExecutorIsCurrent`
+
+查询当前原生控制上下文是否属于指定的活跃执行器。供独立扩展的阻塞门面在等待前
+拒绝自身工作依赖，避免单 Worker 把后续作业等住。不是运行数量或队列空闲判断。
+
+```c
+bool xrtExecutorIsCurrent(const xexecutor* pExecutor);
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pExecutor` | 输入 | 允许空；非空时调用者保证对象活跃 | 待判断的执行器 |
+
+#### 返回值
+
+| 返回 | 含义 | 状态 |
+|---|---|---|
+| `true` | 当前线程是其 Worker，或正执行它的排队取消析构 | 包括 Worker 中的 Proc、Drop、worker-exit 回调 |
+| `false` | 空参数、外部控制线程或无该执行器上下文 | 不改变受理、关闭、统计或所有权 |
+
+嵌套跨执行器取消时，当前线程可以同时属于多个执行器的控制上下文；查询逐个匹配，
+内部取消返回后其上下文即消失。全部 Worker join 后执行的退出上下文 Drop 不属于
+Worker／排队取消上下文。这个查询不提供对象引用，也不授权销毁或动态库卸载。
+
+#### 错误
+
+不设置或替换调用线程的现有错误。正常 Core 上下文建立后，每次查询不申请堆存储。
+Worker 使用已有 TLS／原生线程回退；其他调用者查询已有同步回调登记表，可能取得
+内部锁。和普通原生控制接口一样，不能在 ownership freeze 内调用；拥有图使用专门
+的 ownership adapters。本接口没有无锁、无等待或整个运行时零开销的承诺。
+
+#### 范例
+
+完整可运行示例：[executor_current](../../examples/concurrency/executor_current/main.c)。
+它只创建一个 Worker，提交依赖作业后检查上下文并返回，让该依赖获得执行机会。
+
+```c
+if (xrtExecutorIsCurrent(pool)) {
+    /* Return a local self-dependency error before a blocking facade waits. */
+    return false;
+}
+```
+
 ### `xrtExecutorGet`
 
 复制当前负载和累计统计快照。
