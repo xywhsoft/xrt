@@ -146,9 +146,9 @@ def main():
             assert [int(value) - XRT_EPOCH for value in fields[11:11 + count]] == sorted(candidates), (rule, stamp, line, candidates)
             index = bisect.bisect_right(changes, stamp)
             expected_next = changes[index] if index < len(changes) else None
-            assert int(fields[13]) == (1 if expected_next is not None else 0), (rule, stamp, line, changes)
+            assert int(fields[11 + count]) == (1 if expected_next is not None else 0), (rule, stamp, line, changes)
             if expected_next is not None:
-                assert int(fields[14]) - XRT_EPOCH == expected_next, (rule, stamp, line, expected_next)
+                assert int(fields[12 + count]) - XRT_EPOCH == expected_next, (rule, stamp, line, expected_next)
         total += len(cases)
         reports.append({"rule": rule, "fixture_sha256": hashlib.sha256(raw).hexdigest(), "cases": len(cases)})
     report = {"schema": 1, "oracle": args.oracle, "python": sys.version, "cases": total, "rules": reports}

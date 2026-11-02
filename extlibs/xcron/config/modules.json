@@ -167,21 +167,28 @@
         "extlibs/xcron/include/xcron/timezone.h",
         "extlibs/xcron/include/xcron/export.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xcron/src/timezone/timezone_internal.h"
+      ],
       "sources": [
-        "extlibs/xcron/src/timezone/timezone.c"
+        "extlibs/xcron/src/timezone/timezone.c",
+        "extlibs/xcron/src/timezone/tzif.c"
       ],
       "tests": [
-        "extlibs/xcron/tests/test_timezone.c"
+        "extlibs/xcron/tests/test_timezone.c",
+        "extlibs/xcron/tests/test_tzif.c"
       ],
       "single_tests": [
-        "extlibs/xcron/tests/single/test_single_xcron_timezone.c"
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c"
       ],
       "examples": [
-        "extlibs/xcron/examples/timezone/main.c"
+        "extlibs/xcron/examples/timezone/main.c",
+        "extlibs/xcron/examples/tzif/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_timezone.c"
+        "extlibs/xcron/bench/bench_timezone.c",
+        "extlibs/xcron/bench/bench_tzif.c"
       ],
       "docs": [
         "extlibs/xcron/docs/timezone.md",
@@ -204,12 +211,14 @@
       "tests": [
         "extlibs/xcron/tests/test_expression.c",
         "extlibs/xcron/tests/test_calendar.c",
-        "extlibs/xcron/tests/test_timezone.c"
+        "extlibs/xcron/tests/test_timezone.c",
+        "extlibs/xcron/tests/test_tzif.c"
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
         "extlibs/xcron/tests/single/test_single_xcron_calendar.c",
-        "extlibs/xcron/tests/single/test_single_xcron_timezone.c"
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -219,7 +228,8 @@
       "single_test_owners": {
         "extlibs/xcron/tests/single/test_single_xcron_expression.c": "xcron_expression",
         "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "xcron_calendar",
-        "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "xcron_timezone"
+        "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "xcron_timezone",
+        "extlibs/xcron/tests/single/test_single_xcron_tzif.c": "xcron_timezone"
       }
     }
   ]

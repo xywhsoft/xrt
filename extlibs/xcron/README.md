@@ -4,7 +4,9 @@ Independent pure-C scheduling extension using public XRT APIs.
 **Bounded expression compilation and UTC/civil Gregorian calendar search are
 implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
 transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
-IANA binary/historical loading, zoned cron search, live scheduling, executors, misfire/overlap and durable
+Owned non-leap TZif v1..4 binary history loading is implemented, including
+unknown/truncated coverage and more than two fold candidates. Named database
+lookup/reload, leap-aware conversion, zoned cron search, live scheduling, executors, misfire/overlap and durable
 recovery remain pending; production/performance acceptance is not claimed.
 
 Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly

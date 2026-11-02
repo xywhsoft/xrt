@@ -6535,3 +6535,89 @@ auth/transports, Redis HA/tracking/dedicated modes, remaining RPC security/
 recovery/transports/deferred work, Cron TZif/history/zoned scheduling/durability,
 native Linux and>=72h native mixed/fault qualification still remain. No primary
 merge or push occurred; the complete four-library goal remains active.
+
+## Owned Cron TZif histories (2026-11-02)
+
+Added independent `xcronZoneCreateTzif` for RFC9636 application/tzif v1..4 bytes.
+It performs no file/name lookup, host TZ access or upstream implementation
+embedding. Newer files skip the legacy block except for locating the authoritative
+64-bit block. Main counts/bounds, strictly ordered transition seconds, references,
+flags, offsets, name termination and footer consistency are validated. Native
+history accepts all legal int32 offsets and full int64 transition seconds,
+including values outside the XRT millisecond timeline. Out-of-timeline footer
+consistency uses a corresponding Gregorian cycle. Empty/suffix-shared names work;
+nonportable bytes produce an offset-derived numeric designation.
+
+Creation prefilters redundant state changes, builds native binary-search tables,
+descending unique offsets and unknown intervals, and owns copied names. It uses
+one history allocation plus an optional retained POSIX footer allocation. Native
+history lookup avoids civil decomposition; next-change lookup has no scan over
+redundant raw records. Resolution checks at most258 offsets and supports arbitrary
+multi-fold histories (a three-candidate independent fixture is included), with
+sorted complete candidates and unchanged buffers on capacity/error outcomes.
+Both parent and separately owned footer/unknown name aliases are protected.
+
+RFC coverage is explicit: type0 before the first record, footer on/after the last,
+unknown thereafter if it is absent, and type0 everywhere when there are no records
+or footer. The -00 designation also means unknown. At/Split fail atomically with
+typed UNKNOWN; NextTransition exposes coverage boundaries with the reserved
+impossible offset sentinel. Resolution rejects incomplete candidates when an
+unknown interval could map to the label under any legal int32 offset, instead of
+publishing a guessed gap. This intentionally includes some known local labels
+near truncated intervals. Leap-aware data receives structural/table checks and
+typed SCALE rejection; leap conversion/truncation/expiration handling remains
+pending. This stage does not claim application/tzif-leap completeness.
+
+The direct selected public header now maps its required XRT features, verified
+without including another extension header first. Public x64 state24/transition56/
+issue24 stay unchanged on Windows and WSL. Private owner32->40 adds one pointer;
+direct POSIX queries add a history-pointer branch. Further costs include cold
+parsing/decode/name copies and table allocation, unique-offset work and binary
+searches, and footer cycle reduction/public-call checks. The dedicated unpinned
+4096-effective-change lookup smoke and updated isolated size reports run on both
+systems. Other query paths, cold cost/CPU/allocations, contention, latency and
+scheduler/reference performance still need profiling. No acceptance claim follows
+from these short smoke samples; all measurement quality gates remain unchanged.
+
+Final validation passes native Windows GCC O2 and Linux WSL GCC O2
+ASan/UBSan/leak halt for modular/single/probes/examples, with plain O2 packages.
+There are16 modular/single programs, eight root offline examples, and12 package
+consumer executions. Four final consumers run the complete TZif adversarial/OOM
+test against freshly linked isolated static/shared libraries after size tooling
+rearchives them. Per new TZif unit program, tests include every fixture truncation
+prefix,7000 mutated/raw inputs, extreme offsets/seconds, name-only transitions,
+suffix/empty/numeric names, unknown and triple-fold results, malformed fields,
+source retirement, partial factory OOM cleanup,10000 zero-allocation/error-identity
+query cycles and four retained workers with12000 cycles each after creator release.
+Selected declarations/direct-header compilation, trim, generated files and26
+API-reference/extension-layout/header-coverage/single tool tests pass. Initial
+example/benchmark missing memory declarations were fixed before the final run;
+the known WSL orchestration/compiler tree was stopped and reaped before edits.
+
+An immutable compiled-data snapshot labelled IANA2026e from WSL zone.tab plus
+four fixed/unknown zones contains422 files. Its version and every file hash are
+pinned before testing; no source implementation or data is embedded in the
+extension. Python zoneinfo independently decodes the exact same bytes, with raw
+RFC coverage checked separately from its last-type extrapolation. All stored
+transitions in1800..2500 have exact before/at/after probes plus historical/future
+queries. The two systems execute266792 IANA queries:259130 complete state/civil/
+resolve/next comparisons,582 unknown mappings and7080 explicitly incomplete
+resolutions. Existing explicit-rule oracles add51516 complete comparisons, for
+318308 total outcomes. Unsupported behavior is never counted as a successful
+complete resolution. WSL remains a local functional environment, not native Linux
+or>=72h mixed/fault qualification.
+
+Portable corpus/per-file counts, binary/source hashes, layouts and smoke/size
+observations are committed in `extlibs/xcron/tests/results/tzif-history-20261102.json`.
+The exact47 receipts,682 frozen source/data inputs and150 artifacts are indexed
+by `out/service-extensions/xcron-tzif/validation.json`. Sixty-two final normal
+build outputs are archived into the stage to survive future output-path reuse.
+All C/H inputs stayed frozen during final compilers. Task-owned completed build
+directories were relocated with scoped path checks/junctions to preserve disk
+space; no concurrent work was deleted.
+
+Database/name lookup and reload, leap-aware conversion, zoned calendar ordering,
+live scheduling/misfires/overlap/executors/durable recovery remain. The earlier
+MQTT/Redis/RPC and native/performance/long-duration gaps remain unchanged. All four
+roots stay developing. No primary merge or push occurred; the full goal remains
+active and incomplete.

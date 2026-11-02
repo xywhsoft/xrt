@@ -1,14 +1,16 @@
 # Explicit timezone rule core (developing)
 
-The timezone leaf currently compiles POSIX TZ strings and TZif-v3 extended rule
-strings independently. It is the rule engine required by IANA TZif footers;
-IANA binary loading, historical transitions and zoned cron search are pending.
+The timezone leaf compiles POSIX TZ strings, TZif-v3 extended rule strings,
+and owned RFC9636 application/tzif v1..4 binary histories independently.
+Named database lookup/reload, leap-aware conversion and zoned cron search are pending.
 No host TZ environment, libc global timezone state or installed data is consulted.
 
-The immutable retained zone owns its names and an optional 400-year transition
-cache in one allocation. Queries return state, exact next effective transition,
+An immutable POSIX zone owns its names and optional 400-year transition cache
+in one allocation. Binary zones own decoded history and an optional separately
+retained footer zone. Queries return state, exact next effective transition,
 civil decomposition and all UTC candidates for a floating label. A gap has zero
-candidates; a fold returns both in order. No default choice hides these policies.
+candidates; a fold returns every candidate in order (binary history may have more
+than two). No default choice hides these policies.
 The API header specifies limits, allocation, aliases, normal capacity sizing and
 ownership. Timestamps use XRT's signed-int64 milliseconds from 0001-01-01,
 with `XRT_TIME_UNIX_EPOCH` identifying 1970-01-01; they do not include leap
@@ -16,10 +18,10 @@ corrections. Leap labels are
 outside this timescale. Diagnostics do not determine semantic status.
 
 Rules follow [RFC 9636](https://www.rfc-editor.org/rfc/rfc9636.html), section 3.3,
-and its POSIX TZ reference. Full TZif integration and production qualification
+and its POSIX TZ reference. Full database/time-scale integration and production qualification
 remain required by the four-library plan. This leaf stays developing.
 
-## Bounds and costs
+## Explicit rule bounds and costs
 
 Input is a bounded 4096-byte ASCII span; each owned designation has 3..255 bytes.
 Offsets are seconds east of UTC, parsed from POSIX's opposite sign convention.
@@ -57,3 +59,57 @@ year and measures precompiled state lookup only. Cold compilation, Split,
 Resolve, NextTransition, contention and end-to-end scheduler P99 remain to be
 profiled before performance acceptance. It makes no libc/IANA parity or
 zero-overhead claim.
+
+## Owned binary history
+
+`xcronZoneCreateTzif` takes an `xbytesview`, copies/decode its authoritative
+history and retains nothing from the input. The application chooses and pins
+the data source; the extension does no pathname lookup, IO or installed-database
+fallback. [The offline binary example](../examples/tzif/README.md) demonstrates
+input retirement and exact UTC resolution.
+
+The v1 block of newer files is used only to locate the 64-bit block. Main-block
+counts, file bounds, strictly ordered transition seconds, type references,
+offsets, flags, name termination and nonempty-footer consistency are checked.
+Suffix sharing and empty legacy names work. Unsafe designation bytes receive
+a numeric designation derived from the offset. Integer offsets span the whole
+legal int32 range except its minimum. Full int64 Unix transition seconds remain
+comparable without multiplying unrepresentable values into milliseconds; footer
+consistency outside the XRT timeline is evaluated in an equivalent Gregorian
+cycle. The header documents explicit input/count/name resource limits.
+
+Creation removes redundant state changes, decodes native int64 times and type
+indices, and builds sorted unique offsets and unknown-interval metadata in one
+allocation. A nonempty footer adds one POSIX owner allocation, released with the
+history's final reference. Main history/names and footer-name output aliases are
+both rejected. State and next-change lookup use binary search. Known-state
+resolution tries at most 258 unique offsets, validates candidates by actual
+history lookup, and emits sorted results without heap allocation. Normal At does
+not decompose civil time while it is inside stored history. Direct POSIX lookup
+adds one history-pointer branch; owner metadata grows by one pointer.
+
+Type0 governs the time before the first record. On/after the last record, the
+footer governs; without it the mapping is unspecified. With no records and no
+footer, type0 applies everywhere. `-00` explicitly denotes unspecified mapping.
+At/Split then return `UNKNOWN` without changing results. NextTransition exposes
+coverage boundaries using `XCRON_ZONE_OFFSET_UNKNOWN`, an impossible real offset.
+Those designation views are owned too. Resolution refuses an incomplete result
+when an unspecified interval could map to the label using any legal offset.
+That conservative full-domain completeness check can reject a known instant's
+local label near a truncated interval; it is not a DST gap. Unknown ranges use
+binary intersection; a footer with unspecified seasons additionally checks its
+recurring changes. No host heuristic supplies missing coverage.
+
+Leap-aware blocks receive structural/table checks and return `SCALE`; leap
+conversion, truncated leap tables and expiration-aware query semantics remain
+pending. They are never interpreted as ordinary Unix timestamps. This stage is
+an application/tzif reader, not claimed complete application/tzif-leap support.
+
+`test_tzif.c` includes triple folds, extreme offsets/transition seconds, owned
+input/footer/unknown names, all truncation prefixes, mutated data, partial OOM,
+allocation/error-preserving queries and concurrent retained owners. A frozen
+IANA 2026e corpus is compared independently with Python zoneinfo and explicit
+RFC coverage rules, including unknown and incomplete resolutions. Portable
+evidence is recorded in the progress ledger/results. The separate 4096-change
+benchmark measures decoded-history lookup only. Database reload, zoned calendar
+search, full scheduler workloads and performance/production acceptance remain.

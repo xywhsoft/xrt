@@ -2707,10 +2707,15 @@ XRT_EXTERN_C_END
 #if defined(XCRON_FEATURE_XCRON_TIMEZONE)
 #define XCRON_ZONE_TEXT_MAX 4096u
 #define XCRON_ZONE_NAME_MAX 255u
+#define XCRON_ZONE_TZIF_MAX 16777216u
+#define XCRON_ZONE_TRANSITIONS_MAX 1048576u
+/* RFC 9636 forbids INT32_MIN as a real offset. Used only in transitions
+ * entering/leaving an unspecified interval; its IsDST is false and name -00. */
+#define XCRON_ZONE_OFFSET_UNKNOWN INT32_MIN
 typedef struct xcronzone xcronzone;
 typedef enum xcronzonegrammar {XCRON_ZONE_POSIX=2,XCRON_ZONE_TZIF3=3} xcronzonegrammar;
 typedef enum xcronzonestatus {XCRON_ZONE_CAPACITY=-2,XCRON_ZONE_ERROR=-1,XCRON_ZONE_NONE=0,XCRON_ZONE_FOUND=1} xcronzonestatus;
-typedef enum xcronzoneerror {XCRON_ZONE_OK=0,XCRON_ZONE_ARGUMENT=2001,XCRON_ZONE_SYNTAX,XCRON_ZONE_LIMIT,XCRON_ZONE_DATE,XCRON_ZONE_MEMORY,XCRON_ZONE_RULES_REQUIRED} xcronzoneerror;
+typedef enum xcronzoneerror {XCRON_ZONE_OK=0,XCRON_ZONE_ARGUMENT=2001,XCRON_ZONE_SYNTAX,XCRON_ZONE_LIMIT,XCRON_ZONE_DATE,XCRON_ZONE_MEMORY,XCRON_ZONE_RULES_REQUIRED,XCRON_ZONE_TZIF,XCRON_ZONE_SCALE,XCRON_ZONE_UNKNOWN} xcronzoneerror;
 typedef struct xcronzoneissue {xcronzoneerror Code;size_t Offset;uint32 YearsExamined;} xcronzoneissue;
 /* Abbreviation borrows this immutable zone and requires a live retained owner. */
 typedef struct xcronzonestate {int32 Offset;bool IsDST;xstrview Abbreviation;} xcronzonestate;
@@ -2725,8 +2730,21 @@ XRT_EXTERN_C_BEGIN
  * Full parse precedes allocation; outputs change on success only. Value failures
  * publish Issue independently of diagnostic OOM; invalid spans/aliases leave
  * both outputs unchanged. Success preserves ambient error. No reference code or
- * timezone data is embedded. IANA/TZif loading is a separate pending capability. */
+ * timezone data is embedded. Use CreateTzif for owned binary history data. */
 XCRON_API bool xcronZoneCreatePosix(xstrview Text,xcronzonegrammar Grammar,xcronzone** Zone,xcronzoneissue* Issue);
+/* RFC 9636 application/tzif v1..4 bytes, not a pathname or host database name.
+ * Validate/decode an immutable owned snapshot, skipping the legacy v1 block in
+ * newer files. Full int32 offsets except INT32_MIN, suffix-shared/empty names,
+ * strict counts/order/flags/footer consistency and full int64 transition seconds.
+ * Unsafe/nonportable designation bytes use a derived numeric designation.
+ * Resource limits: 16MiB file, 1048576 transitions, 256 types, 65536 designation
+ * bytes, 4096 leap records, 255-byte normalized names and 4096-byte footer.
+ * Leap-aware files are structurally checked but currently return SCALE: XRT timestamps
+ * exclude leap corrections. Leap-aware conversion/expiry remains pending.
+ * No file IO, TZ state or retained input. One history allocation plus an
+ * optional independently owned footer rule allocation. Outputs/OOM follow the
+ * same atomic factory contract as CreatePosix; Issue.Offset is a file offset. */
+XCRON_API bool xcronZoneCreateTzif(xbytesview Data,xcronzone** Zone,xcronzoneissue* Issue);
 XCRON_API bool xcronZoneRetain(const xcronzone* Zone);
 XCRON_API void xcronZoneRelease(const xcronzone* Zone);
 /* Thread-safe immutable queries, full signed-int64 XRT millisecond timeline
@@ -2734,11 +2752,15 @@ XCRON_API void xcronZoneRelease(const xcronzone* Zone);
  * No allocation on normal success/NONE/CAPACITY, no TZ/global libc state.
  * Caller holds Zone throughout each call. Outputs/Issue must be disjoint from
  * owned Zone storage, civil input and one another. Invalid API args preserve all
- * outputs. Offset is seconds east of UTC; abbreviation scope is documented above. */
+ * outputs. Offset is seconds east of UTC; abbreviation scope is documented above.
+ * At/Split fail atomically with UNKNOWN for -00 or missing future rules. They
+ * never extrapolate the final table type beyond RFC's advertised validity. */
 XCRON_API bool xcronZoneAt(const xcronzone* Zone,xtime When,xcronzonestate* State,xcronzoneissue* Issue);
 /* First effective state change strictly after After, or NONE without changing
  * Transition. Coincident transitions are evaluated together; perpetual rules
- * return NONE. Gregorian completeness is bounded at 403 rule years. */
+ * return NONE. Gregorian footer completeness is bounded at 403 rule years.
+ * Unknown-interval boundaries are changes whose state Offset uses the reserved
+ * sentinel above. History is prefiltered to effective changes at creation. */
 XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
 /* Gregorian decomposition using the zone; offsets beyond 24h, int64 timestamp
  * endpoints and the no-civil-year-zero convention are supported independently
@@ -2749,7 +2771,10 @@ XCRON_API bool xcronZoneSplit(const xcronzone* Zone,xtime When,xdatetime* Date,x
  * A gap/out-of-timeline label returns NONE and Count=0. CAPACITY sets required
  * Count and Issue but leaves Candidates unchanged; NULL,0 is a sizing query.
  * FOUND writes Count and candidates. ERROR preserves Count/Candidates. Abnormal
- * value errors may allocate a diagnostic, never affect the typed Issue. */
+ * value errors may allocate a diagnostic, never affect the typed Issue.
+ * TZif may produce more than two candidates. Resolution fails UNKNOWN if an
+ * unspecified interval could map to the label under any legal int32 offset;
+ * it does not silently publish an incomplete list or misclassify it as a gap. */
 XCRON_API xcronzonestatus xcronZoneResolve(const xcronzone* Zone,const xdatetime* Local,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue);
 XRT_EXTERN_C_END
 #endif

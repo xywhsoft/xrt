@@ -21,6 +21,11 @@ int main(void)
 	if (!xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&Zone,&ZoneIssue) ||
 		xcronZoneResolve(Zone,&Fold,Candidates,2,&Count,&ZoneIssue)!=XCRON_ZONE_FOUND || Count!=2 || Candidates[1]-Candidates[0]!=XRT_TIME_HOUR) return 7;
 	xcronZoneRelease(Zone);
+	static const uint8 Tzif[54]={[0]='T',[1]='Z',[2]='i',[3]='f',[39]=1,[43]=4,[50]='U',[51]='T',[52]='C'};
+	xcronzonestate State;
+	if (!xcronZoneCreateTzif((xbytesview){Tzif,sizeof(Tzif)},&Zone,&ZoneIssue) ||
+		!xcronZoneAt(Zone,XRT_TIME_UNIX_EPOCH,&State,&ZoneIssue) || State.Offset!=0) return 8;
+	xcronZoneRelease(Zone);
 	if (xcronExpressionCompile(XRT_STR_LITERAL("60 * * * *"), XCRON_UNIX5, &Expression, &Issue)) return 3;
 	if (Issue.Code != XCRON_EXPRESSION_RANGE || xrtErrorKind(xrtGetError()) != XERR_RANGE ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.cron") != 0) return 4;

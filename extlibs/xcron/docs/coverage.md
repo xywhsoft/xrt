@@ -2,7 +2,8 @@
 
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
-provides explicit POSIX rules. IANA history, zoned cron search, waiting,
+provides explicit POSIX rules and owned non-leap TZif history. Database lookup/
+reload, leap-aware conversion, zoned cron search, waiting,
 dispatch and persistence are pending. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
@@ -79,5 +80,25 @@ direct-TZ behavior is not proleptic. Its direct parser also differs for the two
 RFC perpetual-footer fixtures, which remain covered by zoneinfo and exact C
 expectations. No oracle's unsupported behavior defines the production contract.
 
-These are rule-engine checks, not evidence for a TZif binary reader, historical
-IANA transitions, zoned calendar ordering, scheduler/durability or accepted P99.
+Those are rule-engine checks. Binary history has the additional evidence below;
+zoned calendar ordering, scheduler/durability and accepted P99 remain pending.
+
+## TZif binary history (developing)
+
+The dedicated modular/single `test_tzif.c` covers triple fold candidates, type0
+and footer handoff, redundant transition elimination, full int64 transition
+seconds, extreme legal int32 offsets, suffix/empty names, numeric fallback,
+unknown coverage, every truncated prefix, 7000 mutated/raw inputs, invalid
+counts/order/flags/indices/offsets, copied source bytes, owned footer/unknown
+aliases, footer consistency, typed leap-scale rejection, partial factory OOM
+rollback, 10000 allocation/error-preserving query cycles and four retained
+12000-cycle concurrent owners. The root package consumer invokes the new factory.
+
+`test_tzif_reference.py` reads the same frozen compiled IANA data independently
+through Python zoneinfo. Every stored transition in 1800..2500 is queried before,
+at and after its boundary, with additional historical/future random dates.
+Raw RFC coverage is checked separately because zoneinfo otherwise extends the
+last table type when a footer is missing. Unknown/partial outcomes are verified
+as such; they are not counted as successful complete resolutions. No upstream
+implementation source is read or embedded. Full database/time-scale/scheduler
+qualification remains pending.

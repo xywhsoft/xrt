@@ -1,11 +1,11 @@
 #include <xcron/timezone.h>
+#include "timezone_internal.h"
 #include <xrt/atomic.h>
 #include <xrt/error.h>
 #include <xrt/memory.h>
 #include <limits.h>
 #include <string.h>
 #if defined(XCRON_FEATURE_XCRON_TIMEZONE)
-#define XCRON_ZONE_MAGIC UINT32_C(0x58435a31)
 typedef struct xcronzonerule {unsigned Kind,A,B,C;
     int32 Time;
 } xcronzonerule;
@@ -14,21 +14,10 @@ typedef struct xcronzoneparser {xstrview Text;
     xcronzonegrammar Grammar;
     xcronzoneissue* Issue;
 } xcronzoneparser;
-struct xcronzone {
-    xatomic32 Refs;
-    uint32 Magic;
-    size_t Bytes;
-    int32 Offsets[2];
-    uint16 Names[2];
-    uint8 Mode,HasDST;
-    /* Start/end UTC seconds relative to January 1, for 2000..2399. Each
-     * entry fits int32 even with a 365th-day carry and signed 167h times. */
-    int32 Changes[];
-};
-static bool xcronZoneFail(xcronzoneerror Code,size_t Offset,xcronzoneissue* Issue)
+bool xcronZoneFail(xcronzoneerror Code,size_t Offset,xcronzoneissue* Issue)
 {
     if(Issue)*Issue=(xcronzoneissue){Code,Offset,0};
-    xrtSetErrorInfo(Code==XCRON_ZONE_ARGUMENT?XERR_ARGUMENT:Code==XCRON_ZONE_MEMORY?XERR_MEMORY:Code==XCRON_ZONE_LIMIT?XERR_RANGE:XERR_VALUE,"xrt.cron.zone",Code,
+    xrtSetErrorInfo(Code==XCRON_ZONE_ARGUMENT?XERR_ARGUMENT:Code==XCRON_ZONE_MEMORY?XERR_MEMORY:Code==XCRON_ZONE_LIMIT?XERR_RANGE:Code==XCRON_ZONE_UNKNOWN?XERR_STATE:XERR_VALUE,"xrt.cron.zone",Code,
     Code==XCRON_ZONE_RULES_REQUIRED?"explicit DST rules are required":"invalid cron timezone input or value");
     return false;
 }
@@ -132,7 +121,7 @@ static bool xcronZoneHandle(const xcronzone* Z)
 static bool xcronZoneOutputs(const xcronzone* Z,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count)
 {
     if(!xcronZoneHandle(Z) || (Input && !xrtMemRangeValid(Input,InputSize)))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
+    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || (Z->History && xcronZoneHistoryOverlap(Z,Outputs[I],Sizes[I])) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
         for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(Outputs[I],Sizes[I],Outputs[J],Sizes[J]))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
     }return true;
 }
@@ -200,6 +189,7 @@ XCRON_API bool xcronZoneRetain(const xcronzone* Zone)
 XCRON_API void xcronZoneRelease(const xcronzone* Zone)
 {xcronzone* Z=(xcronzone*)Zone;
     if(Z && xrtAtomic32FetchSub(&Z->Refs,1,XMEMORY_ACQ_REL)==1){Z->Magic=0;
+        if(Z->History)xcronZoneHistoryRelease(Z);
         xrtFree(Z);
 }}
 static bool xcronZoneLookup(const xcronzone* Z,xtime When)
@@ -233,8 +223,10 @@ XCRON_API bool xcronZoneAt(const xcronzone* Z,xtime When,xcronzonestate* State,x
     void* Outputs[]={State,Issue};
     size_t Sizes[]={State?sizeof(*State):0,Issue?sizeof(*Issue):0};
     if(!State || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    *State=xcronZoneState(Z,xcronZoneLookup(Z,When));
-    if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,Z->Mode==2?5:0};
+    xcronzonestate Value=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    if(Value.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
+    *State=Value;
+    if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
     return true;
 }
 static void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Out)
@@ -257,32 +249,26 @@ XCRON_API bool xcronZoneSplit(const xcronzone* Z,xtime When,xdatetime* Date,xcro
     void* Outputs[]={Date,Issue};
     size_t Sizes[]={Date?sizeof(*Date):0,Issue?sizeof(*Issue):0};
     if(!Date || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    bool DST=xcronZoneLookup(Z,When);
-    xcronZoneDecompose(When,Z->Offsets[DST?1:0],DST,Date);
-    if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,Z->Mode==2?5:0};
+    xcronzonestate State=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
+    xcronZoneDecompose(When,State.Offset,State.IsDST,Date);
+    if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
     return true;
 }
 static bool xcronZoneCivil(const xdatetime* D)
 {return D->Year && D->Month>=1 && D->Month<=12 && D->Day>=1 && D->Day<=xrtDaysInMonth(D->Year,D->Month) && D->Hour>=0 && D->Hour<=23 && D->Minute>=0 && D->Minute<=59 && D->Second>=0 && D->Second<=59 && D->Millisecond>=0 && D->Millisecond<=999;
 }
-static bool xcronZoneInstant(const xdatetime* D,int32 Offset,xtime* Out)
+bool xcronZoneCivilSeconds(const xdatetime* D,int64* Seconds)
 {
     if(D->Year<-400000000 || D->Year>400000000)return false;
     int64 Year=D->Year<0?D->Year+1:D->Year,Cycles=xcronZoneFloor(Year,400),SafeYear=2000+Year-Cycles*400;
     xtime Safe;
     (void)xrtDateTime(SafeYear,D->Month,D->Day,D->Hour,D->Minute,D->Second,0,&Safe);
-    int64 Seconds=Safe/1000+(Cycles-5)*INT64_C(12622780800)-Offset;
-    int64 Minimum=INT64_MIN/1000-1,Maximum=INT64_MAX/1000;
-    if(Seconds<Minimum || Seconds>Maximum)return false;
-    if(Seconds==Minimum){int Limit=(int)(1000+INT64_MIN%1000);
-        if(D->Millisecond<Limit)return false;
-        *Out=INT64_MIN+(D->Millisecond-Limit);
-        return true;
-    }
-    if(Seconds==Maximum && D->Millisecond>INT64_MAX%1000)return false;
-    *Out=Seconds*1000+D->Millisecond;
+    *Seconds=Safe/1000+(Cycles-5)*INT64_C(12622780800);
     return true;
 }
+static bool xcronZoneInstant(const xdatetime* D,int32 Offset,xtime* Out)
+{int64 Seconds;return xcronZoneCivilSeconds(D,&Seconds) && xcronZoneSecondValue(Seconds-Offset,D->Millisecond,Out);}
 XCRON_API xcronzonestatus xcronZoneResolve(const xcronzone* Z,const xdatetime* Local,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue)
 {
     void* Outputs[]={Candidates,Count,Issue};
@@ -293,6 +279,7 @@ XCRON_API xcronzonestatus xcronZoneResolve(const xcronzone* Z,const xdatetime* L
     if(!xcronZoneCivil(Local)){xcronZoneFail(XCRON_ZONE_DATE,0,Issue);
         return XCRON_ZONE_ERROR;
     }
+    if(Z->History)return xcronZoneHistoryResolve(Z,Local,Candidates,Capacity,Count,Issue);
     xtime Values[2];
     size_t N=0;
     for(unsigned K=0;K<(Z->HasDST?2u:1u);++K){xtime T;
@@ -316,6 +303,7 @@ XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Z,xtime After
         return XCRON_ZONE_ERROR;
     }
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,0};
+    if(Z->History)return xcronZoneHistoryNext(Z,After,Transition,Issue);
     if(Z->Mode!=2)return XCRON_ZONE_NONE;
     xdatetime D;
     (void)xrtTimeSplit(After,&D);

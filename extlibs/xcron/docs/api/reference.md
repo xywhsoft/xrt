@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `12` 个函数、`51` 个常量或宏、
+当前登记 `13` 个函数、`57` 个常量或宏、
 `15` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
@@ -92,17 +92,18 @@
 
 [查看带契约注释的公共头](../../include/xcron/timezone.h)
 
-### 函数 (7)
+### 函数 (8)
 
 - `xcronZoneAt`
 - `xcronZoneCreatePosix`
+- `xcronZoneCreateTzif`
 - `xcronZoneNextTransition`
 - `xcronZoneRelease`
 - `xcronZoneResolve`
 - `xcronZoneRetain`
 - `xcronZoneSplit`
 
-### 常量与宏 (16)
+### 常量与宏 (22)
 
 - `XCRON_FEATURE_XCRON_TIMEZONE`
 - `XCRON_ZONE_ARGUMENT`
@@ -114,12 +115,18 @@
 - `XCRON_ZONE_MEMORY`
 - `XCRON_ZONE_NAME_MAX`
 - `XCRON_ZONE_NONE`
+- `XCRON_ZONE_OFFSET_UNKNOWN`
 - `XCRON_ZONE_OK`
 - `XCRON_ZONE_POSIX`
 - `XCRON_ZONE_RULES_REQUIRED`
+- `XCRON_ZONE_SCALE`
 - `XCRON_ZONE_SYNTAX`
 - `XCRON_ZONE_TEXT_MAX`
+- `XCRON_ZONE_TRANSITIONS_MAX`
+- `XCRON_ZONE_TZIF`
 - `XCRON_ZONE_TZIF3`
+- `XCRON_ZONE_TZIF_MAX`
+- `XCRON_ZONE_UNKNOWN`
 
 ### 类型 (7)
 

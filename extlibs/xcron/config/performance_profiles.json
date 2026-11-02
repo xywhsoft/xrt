@@ -89,6 +89,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_tzif",
+      "system": "timezone",
+      "description": "Predecoded 4096 effective historical transitions; unpinned lookup-only evidence, no IANA/scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_tzif",
+          "source": "extlibs/xcron/bench/bench_tzif.c",
+          "suite": "xcron_timezone",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }
