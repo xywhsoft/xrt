@@ -3,8 +3,8 @@
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
 provides explicit POSIX rules and owned non-leap TZif history. Database lookup/
-reload, leap-aware conversion, nominal delivery policies, waiting,
-dispatch and persistence are pending. Expression syntax
+reload, leap-aware conversion, nominal delivery policies, live timer/executor
+integration and persistence are pending. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
 independently; no reference scheduler code is embedded.
@@ -126,3 +126,14 @@ Unknown coverage is verified over the actual window, including empty/fractional
 windows, rather than using global label resolution to invent a complete list.
 This is calculation evidence; configurable compensation/selection and runtime
 clock/misfire/executor/durable delivery policies remain later work.
+# Bounded pull scheduler stage
+
+The developing `xcron_scheduler` leaf has actual sources, direct modular header,
+selected single test, package consumers, example, size and performance profiles.
+It provides copied expressions/retained zones, bounded job/run slots and bytes,
+generation IDs, explicit paired clocks, catch-up/skip/coalesced misfires,
+wait/allow/skip overlap, round-robin ready dispatch, work budgets, per-job typed
+calculation faults, physical completion leases and cancellation/retirement receipts.
+It creates no timer/thread/executor and supplies no durable recovery. See
+[the complete contract and remaining gaps](scheduler.md). The root and leaf remain
+developing. Qualification evidence is recorded separately from implementation.

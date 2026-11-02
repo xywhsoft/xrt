@@ -6703,3 +6703,72 @@ delivery, live scheduling/clock jumps/misfire/overlap/executors/durable recovery
 remain. Earlier MQTT/Redis/RPC and native/performance/long-duration gaps remain.
 All four roots stay developing. No primary merge or push occurred; the complete
 four-library goal remains active and incomplete.
+
+## Bounded explicit-clock Cron scheduling kernel (2026-11-02)
+
+Added the developing `xcron_scheduler` leaf with eleven public operations for
+creation, admission, pull dispatch, completion, cancellation, job inspection,
+retirement receipts, close, wake projection, statistics and destruction. One
+preallocation bounds job/run slots, the due heap and intrusive queues within an
+explicit byte cap. Expressions are copied; zones are success-only retained; Data
+is borrowed through the retirement receipt. IDs use only the necessary low index
+bits and all remaining generation bits, with nonwrapping terminal retirement.
+A one-slot table uses all64 generation bits;128 slots retain57 bits. IDs are
+scoped to one live scheduler, not global capabilities.
+
+The owner supplies paired wall/monotonic millisecond samples. Monotonic rollback
+fails atomically; wall rollback delays future work without rewinding consumed
+cursors. Forward gaps use explicit catch-up/skip/coalesced misfires with a
+saturating grace cutoff. Wait/allow/skip overlap and global/per-job running caps
+include published leases and executor queue time. Alternating due promotion and
+FIFO ready dispatch prevent an old catch-up job monopolizing the heap. Each Poll
+has explicit work/output budgets. WorkLimit bounds actions, not CPU time inside
+one recurrence search, which can still traverse full history/a Gregorian cycle.
+The live adapter therefore still needs bounded/precomputed calculation work.
+
+Completion is exactly once and acknowledges the physical body and data-using
+tails. Success/failure/cancellation outcomes are counted without implicitly
+stopping future triggers. Cancel/Close stop future dispatch while retaining live
+leases. Only a terminal job with zero leases can return its Data receipt and
+release its zone. Busy destruction preserves the owner. There are no callbacks,
+threads, timers, executors or storage inside the kernel. Public XRT APIs suffice;
+no Core/runtime change was introduced. A product-private pure zoned value query
+records post-admission typed job faults without allocating/replacing ambient
+errors. Public zoned validation, results and typed failure semantics remain.
+
+Final native Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt validation passes24
+modular/single unit programs,12 offline root examples and12 static/shared package
+consumer executions. Four post-size leaf consumers run the complete scheduler
+adversarial/OOM unit against the actual rebuilt libraries. Each scheduler unit
+checks92160 independent finite-occurrence-list samples across576 policy traces,
+including all three execution outcomes; eight executions yield737280 samples.
+Additional cases cover arbitrary heap deletion/reuse and linear-minimum order,
+work=1 fairness, caps/grace/clock endpoints, actual folds, impossible calendars,
+initial/post-publication unknown TZif coverage, alias/overflow/value errors,
+close with an active scheduled lease, repeated generations and10000 zero-heap
+lifecycle cycles under a one-byte quota with allocation/error-identity checks.
+
+Both systems rerun563760 independent zoned Match/Next outcomes over the frozen
+422-zone IANA2026e-labelled binary-data snapshot after the pure-query refactor.
+Direct modular header, selected declarations, fixed public layout, trim,
+generated files and26 Python tool tests pass. The new issue32/config24/job-config112/
+job-info96/run64/poll24/wake24/receipt112/stats120 layouts agree on both x64 ABIs.
+New1/128-job pull dispatch/completion batch-P99 smoke, changed public zoned
+calculation smoke and isolated kernel size profiles pass with the original
+quality/regression gates. Single-sample unpinned smoke is workload evidence;
+there is no throughput, P99, native Linux or production acceptance claim.
+
+Portable complete source/data fingerprints, layouts, binary hashes and smoke/size
+observations are committed in `extlibs/xcron/tests/results/scheduler-kernel-20261102.json`.
+The final proof `out/service-extensions/xcron-scheduler/validation.json` indexes709
+frozen source/data inputs,160 artifacts and53 receipts;74 final default outputs
+are archived under the stage to survive path reuse. All final C/H inputs stayed
+frozen while compilers ran. The documented offline example demonstrates range
+coalescing and cancellation followed by physical retirement with full cleanup.
+
+Named database/reload, leap-aware conversion, configurable nominal DST delivery,
+NetEngine/Executor integration and rejection/cancellation hand-off, durable
+recovery, adversarial CPU/P99, native Linux and>=72h qualification remain. Earlier
+MQTT/Redis/RPC gaps remain. All four roots and the scheduler leaf stay developing;
+the complete goal remains active. The primary checkout remains separate: its77
+pre-existing-file checkpoint is `93347eb5`; no primary merge or push occurred.

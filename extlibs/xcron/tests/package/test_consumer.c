@@ -24,6 +24,14 @@ int main(void)
 	if (!xcronExpressionCompile(XRT_STR_LITERAL("30 1 * * *"),XCRON_UNIX5,&ZonedExpression,NULL) ||
 		!xcronZonedMatch(&ZonedExpression,Zone,Candidates[0],&Matches,&ZonedIssue) || !Matches ||
 		xcronZonedNext(&ZonedExpression,Zone,Candidates[0],Candidates[1],XCRON_SEARCH_EXCLUSIVE,&Next,&ZonedIssue)!=XCRON_ZONED_FOUND || Next!=Candidates[1]) return 9;
+	xcronscheduler* Scheduler=NULL; xcronschedulerconfig Config={1,2,32,0,65536};
+	xcronjobconfig Job={.Expression=ZonedExpression,.Zone=Zone,.Begin=Candidates[0],.End=Candidates[1],.Overlap=XCRON_OVERLAP_ALLOW,.RunningLimit=2};
+	xcronjobid JobId; xcronrun Runs[2]; xcronpoll Poll; xcronretired Receipt; bool Found=false;
+	if (!xcronSchedulerCreate(&Config,&Scheduler,NULL) || !xcronSchedulerAdd(Scheduler,&Job,&JobId,NULL) ||
+		!xcronSchedulerPoll(Scheduler,(xcronclock){Candidates[1],0},Runs,2,&Poll,NULL) || Poll.Count!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1] ||
+		!xcronSchedulerComplete(Scheduler,Runs[0].Id,XCRON_RUN_SUCCEEDED,NULL) || !xcronSchedulerComplete(Scheduler,Runs[1].Id,XCRON_RUN_SUCCEEDED,NULL) ||
+		!xcronSchedulerReap(Scheduler,&Receipt,&Found,NULL) || !Found || Receipt.Id!=JobId || Receipt.Info.State!=XCRON_JOB_EXHAUSTED ||
+		!xcronSchedulerDestroy(Scheduler,NULL)) return 10;
 	xcronZoneRelease(Zone);
 	static const uint8 Tzif[54]={[0]='T',[1]='Z',[2]='i',[3]='f',[39]=1,[43]=4,[50]='U',[51]='T',[52]='C'};
 	xcronzonestate State;

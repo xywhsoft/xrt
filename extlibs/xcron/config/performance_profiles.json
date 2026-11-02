@@ -191,6 +191,66 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_scheduler_1",
+      "system": "scheduler",
+      "description": "Preallocated explicit-clock pull kernel, 1 jobs per batch; no executor, timer or production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_1",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "200000",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_128",
+      "system": "scheduler",
+      "description": "Preallocated explicit-clock pull kernel, 128 jobs per batch; no executor, timer or production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_128",
+          "source": "extlibs/xcron/bench/bench_scheduler.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "10000",
+            "128"
+          ],
+          "smoke_args": [
+            "20",
+            "128"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

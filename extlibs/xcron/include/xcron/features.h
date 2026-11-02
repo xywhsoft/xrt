@@ -19,6 +19,19 @@
 #ifndef XCRON_MODULE_XCRON_ZONED
 #define XCRON_MODULE_XCRON_ZONED
 #endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#endif
+
+/* xcron_scheduler 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_SCHEDULER)
+#ifndef XCRON_FEATURE_XCRON_SCHEDULER
+#define XCRON_FEATURE_XCRON_SCHEDULER
+#endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
 #endif
 
 /* xcron_zoned 及其直接依赖。 */

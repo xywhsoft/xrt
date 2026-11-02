@@ -65,6 +65,24 @@
         "_xrtNetEngineCreate",
         "_xrtThreadCreate"
       ]
+    },
+    {
+      "name": "xcron_scheduler",
+      "system": "scheduler",
+      "suite": "xcron_scheduler",
+      "description": "Bounded pull scheduling and zoned calculation; no network, thread, timer, executor, ambient TZ or durable storage",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtNetEngineCreate",
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate"
+      ]
     }
   ]
 }

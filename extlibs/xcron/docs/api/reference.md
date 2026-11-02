@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `15` 个函数、`67` 个常量或宏、
-`18` 个公共类型。
+当前登记 `26` 个函数、`91` 个常量或宏、
+`36` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -88,6 +88,75 @@
 - `xcronexpressionerror`
 - `xcronexpressionissue`
 
+## `extlibs/xcron/include/xcron/scheduler.h`
+
+[查看带契约注释的公共头](../../include/xcron/scheduler.h)
+
+### 函数 (11)
+
+- `xcronSchedulerAdd`
+- `xcronSchedulerCancel`
+- `xcronSchedulerClose`
+- `xcronSchedulerComplete`
+- `xcronSchedulerCreate`
+- `xcronSchedulerDestroy`
+- `xcronSchedulerInspect`
+- `xcronSchedulerJob`
+- `xcronSchedulerPoll`
+- `xcronSchedulerReap`
+- `xcronSchedulerWake`
+
+### 常量与宏 (25)
+
+- `XCRON_FEATURE_XCRON_SCHEDULER`
+- `XCRON_FEATURE_XCRON_ZONED`
+- `XCRON_JOB_CANCELLED`
+- `XCRON_JOB_EXHAUSTED`
+- `XCRON_JOB_FAULTED`
+- `XCRON_JOB_SCHEDULED`
+- `XCRON_MISFIRE_CATCH_UP`
+- `XCRON_MISFIRE_COALESCE`
+- `XCRON_MISFIRE_SKIP`
+- `XCRON_OVERLAP_ALLOW`
+- `XCRON_OVERLAP_SKIP`
+- `XCRON_OVERLAP_WAIT`
+- `XCRON_RUN_CANCELLED`
+- `XCRON_RUN_COALESCED`
+- `XCRON_RUN_FAILED`
+- `XCRON_RUN_SUCCEEDED`
+- `XCRON_SCHEDULER_ARGUMENT`
+- `XCRON_SCHEDULER_BUSY`
+- `XCRON_SCHEDULER_CALCULATION`
+- `XCRON_SCHEDULER_CLOCK`
+- `XCRON_SCHEDULER_CLOSED`
+- `XCRON_SCHEDULER_LIMIT`
+- `XCRON_SCHEDULER_MEMORY`
+- `XCRON_SCHEDULER_OK`
+- `XCRON_SCHEDULER_STALE`
+
+### 类型 (20)
+
+- `xcronclock`
+- `xcronjobconfig`
+- `xcronjobid`
+- `xcronjobinfo`
+- `xcronjobstate`
+- `xcronmisfire`
+- `xcronoverlap`
+- `xcronpoll`
+- `xcronretired`
+- `xcronrun`
+- `xcronrunid`
+- `xcronrunresult`
+- `xcronscheduler`
+- `xcronschedulerconfig`
+- `xcronschedulererror`
+- `xcronschedulerissue`
+- `xcronschedulerstats`
+- `xcronwake`
+- `xcronzone`
+- `xcronzonedissue`
+
 ## `extlibs/xcron/include/xcron/timezone.h`
 
 [查看带契约注释的公共头](../../include/xcron/timezone.h)
@@ -128,9 +197,8 @@
 - `XCRON_ZONE_TZIF_MAX`
 - `XCRON_ZONE_UNKNOWN`
 
-### 类型 (7)
+### 类型 (6)
 
-- `xcronzone`
 - `xcronzoneerror`
 - `xcronzonegrammar`
 - `xcronzoneissue`
@@ -147,9 +215,8 @@
 - `xcronZonedMatch`
 - `xcronZonedNext`
 
-### 常量与宏 (10)
+### 常量与宏 (9)
 
-- `XCRON_FEATURE_XCRON_ZONED`
 - `XCRON_ZONED_ARGUMENT`
 - `XCRON_ZONED_ERROR`
 - `XCRON_ZONED_EXPRESSION`
@@ -160,8 +227,7 @@
 - `XCRON_ZONED_WINDOW`
 - `XCRON_ZONED_ZONE`
 
-### 类型 (3)
+### 类型 (2)
 
 - `xcronzonederror`
-- `xcronzonedissue`
 - `xcronzonedstatus`
