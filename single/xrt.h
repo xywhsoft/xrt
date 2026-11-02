@@ -55,6 +55,16 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* event_waiter 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EVENT_WAITER)
+#ifndef XRT_FEATURE_EVENT_WAITER
+#define XRT_FEATURE_EVENT_WAITER
+#endif
+#ifndef XRT_MODULE_EVENT
+#define XRT_MODULE_EVENT
+#endif
+#endif
+
 /* regex 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
 #ifndef XRT_FEATURE_REGEX
@@ -44725,6 +44735,64 @@ XRT_EXTERN_C_END
 
 #endif
 
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/event_waiter.h */
+/* ========================================================================== */
+
+#ifndef XRT_EVENT_WAITER_H
+#define XRT_EVENT_WAITER_H
+#if defined(XRT_FEATURE_EVENT_WAITER) && !defined(XRT_FEATURE_EVENT)
+#error "XRT_FEATURE_EVENT_WAITER requires XRT_FEATURE_EVENT"
+#endif
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#if defined(_WIN32) || defined(_WIN64)
+#define XRT_EVENT_WAITER_STORAGE_SIZE 40u
+#else
+#define XRT_EVENT_WAITER_STORAGE_SIZE 32u
+#endif
+typedef union xeventwaiter {uint64 Alignment;uint8 Storage[XRT_EVENT_WAITER_STORAGE_SIZE];} xeventwaiter;
+typedef enum xeventwaiterbackend {
+    XEVENT_WAITER_PLATFORM=0,XEVENT_WAITER_WINDOWS_HIGH_RESOLUTION,
+    XEVENT_WAITER_WINDOWS_STANDARD,XEVENT_WAITER_POSIX_MONOTONIC
+} xeventwaiterbackend;
+#define XRT_EVENT_WAITER_REQUIRE_PRECISE UINT32_C(1)
+typedef struct xeventwaiterinfo {size_t StorageBytes;xeventwaiterbackend Backend;uint32 NativeTimers;} xeventwaiterinfo;
+XRT_EXTERN_C_BEGIN
+/* Caller-owned reusable deadline context borrowing one initialized event through
+ * Unit. Init succeeds only into uninitialized storage, which must not overlap the
+ * event. Failure preserves storage/borrowed event and releases all new resources.
+ * WaitFor belongs to the native Init thread; signals use ordinary EventSet from
+ * any thread. No new thread, callback, shared runtime or requested heap allocation.
+ * Windows owns one reusable nonperiodic timer, preferring a high-resolution timer
+ * without changing global/process timer resolution. Unsupported precise backends
+ * fall back only with Flags=0; REQUIRE_PRECISE rejects that fallback. POSIX reuses
+ * the event's monotonic condition where available. Inspect the actual backend;
+ * precision selection is not a bound on OS scheduling/wake latency.
+ * Other flag bits are invalid. Success/normal timeout preserve ambient error.
+ * Diagnostics can fall back to MEMORY under diagnostic OOM. Error domain is
+ * xrt.event_waiter (clock failures may retain xrt.time). No API grants concurrent
+ * Unit/reinitialization, destruction of the borrowed event or escaping its storage. */
+XRT_API bool xrtEventWaiterInit(xeventwaiter* Waiter,xevent* Event,uint32 Flags);
+/* Caller-exclusive, no live WaitFor. May run on another thread after a physical
+ * handoff/join. Releases only its timer/context, never the borrowed event. Owner
+ * error-handler reentry during a wait is BUSY. Successful Unit clears storage. */
+XRT_API bool xrtEventWaiterUnit(xeventwaiter* Waiter);
+/* Relative signed milliseconds, -1 forever, 0 poll. One original monotonic budget
+ * survives backend/spurious wakeups. Ready event wins over timeout, and automatic
+ * reset consumes exactly one signal. Windows timer signals never consume the
+ * borrowed event. Timers are rearmed/reset per finite wait and cancelled after an
+ * event wins. Invalid timeout/owner transfers no event signal. Backend errors may
+ * consume a ready signal; they are observable errors, not a successful timeout. */
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* Waiter,int64 Timeout);
+/* Immutable capability/layout metadata; output must be disjoint from both public
+ * storage objects. No concurrent Init/Unit; metadata can otherwise be inspected
+ * by another thread while the owner waits. */
+XRT_API bool xrtEventWaiterGet(const xeventwaiter* Waiter,xeventwaiterinfo* Info);
+XRT_EXTERN_C_END
+#endif
 #endif
 
 #endif
@@ -346389,6 +346457,126 @@ XRT_API xregexresult xrtRegexSetTest(
 	return Result;
 }
 
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/concurrency/event_waiter.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#define XRT_EVENT_WAITER_MAGIC UINT32_C(0x58455731)
+typedef struct xrt_event_waiter_impl {
+    uint32 Magic;
+    xeventwaiterbackend Backend;
+    uint64 Owner;
+    xevent* Event;
+#if defined(_WIN32) || defined(_WIN64)
+    HANDLE Timer;
+#endif
+    bool Active;
+} xrt_event_waiter_impl;
+typedef char xrt_event_waiter_storage_check[(sizeof(xrt_event_waiter_impl)<=XRT_EVENT_WAITER_STORAGE_SIZE)?1:-1];
+static bool __xrtEventWaiterFail(xerrkind Kind,cstr Operation,int32 SystemCode)
+{
+    xerrordesc D={.Kind=Kind,.Code=(int32)Kind,.SystemCode=SystemCode,.Domain="xrt.event_waiter",.Operation=Operation,.Message="event deadline waiter operation failed"};
+    xerror* E=xrtErrorBuild(&D);if(E)xrtSetErrorTake(E);else xrtSetErrorKind(XERR_MEMORY);return false;
+}
+static xrt_event_waiter_impl* __xrtEventWaiterRequire(const xeventwaiter* W,cstr Operation)
+{
+    if(!xrtMemRangeValid(W,sizeof(*W))){__xrtEventWaiterFail(XERR_ARGUMENT,Operation,0);return NULL;}
+    xrt_event_waiter_impl* I=(xrt_event_waiter_impl*)(uintptr_t)W;
+    if(I->Magic!=XRT_EVENT_WAITER_MAGIC){__xrtEventWaiterFail(XERR_STATE,Operation,0);return NULL;}
+    return I;
+}
+#if defined(_WIN32) || defined(_WIN64)
+typedef HANDLE (WINAPI *xrt_create_waitable_timer_proc)(LPSECURITY_ATTRIBUTES,LPCWSTR,DWORD,DWORD);
+static HANDLE __xrtEventWaiterTimer(uint32 Flags,xeventwaiterbackend* Backend)
+{
+    xrt_create_waitable_timer_proc Create=NULL;FARPROC Address=GetProcAddress(GetModuleHandleW(L"kernel32.dll"),"CreateWaitableTimerExW");
+    typedef char xrt_waiter_function_pointer_size[(sizeof(Create)==sizeof(Address))?1:-1];(void)sizeof(xrt_waiter_function_pointer_size);memcpy(&Create,&Address,sizeof(Create));
+    HANDLE Timer=Create?Create(NULL,NULL,2u,UINT32_C(0x00100002)):NULL; /* HIGH_RESOLUTION; SYNCHRONIZE | TIMER_MODIFY_STATE */
+    if(Timer){*Backend=XEVENT_WAITER_WINDOWS_HIGH_RESOLUTION;return Timer;}
+    DWORD Code=Create?GetLastError():ERROR_CALL_NOT_IMPLEMENTED;
+    if(Code!=ERROR_INVALID_PARAMETER && Code!=ERROR_NOT_SUPPORTED && Code!=ERROR_CALL_NOT_IMPLEMENTED){__xrtEventWaiterFail(XERR_IO,"init.timer",(int32)Code);return NULL;}
+    if(Flags&XRT_EVENT_WAITER_REQUIRE_PRECISE){__xrtEventWaiterFail(XERR_UNSUPPORTED,"init.precision",(int32)Code);return NULL;}
+    Timer=CreateWaitableTimerW(NULL,FALSE,NULL);
+    if(!Timer){__xrtEventWaiterFail(XERR_IO,"init.fallback",(int32)GetLastError());return NULL;}
+    *Backend=XEVENT_WAITER_WINDOWS_STANDARD;return Timer;
+}
+static xwaitresult __xrtEventWaiterWindows(xrt_event_waiter_impl* I,double Deadline)
+{
+    HANDLE Event=__xrtEventImpl(I->Event)->Handle;
+    for(;;){
+        DWORD Ready=WaitForSingleObject(Event,0);
+        if(Ready==WAIT_OBJECT_0)return XWAIT_OK;
+        if(Ready!=WAIT_TIMEOUT){__xrtEventWaiterFail(XERR_IO,"wait.poll",(int32)GetLastError());return XWAIT_ERROR;}
+        if(Deadline==INFINITY){DWORD R=WaitForSingleObject(Event,INFINITE);if(R==WAIT_OBJECT_0)return XWAIT_OK;__xrtEventWaiterFail(XERR_IO,"wait.forever",(int32)GetLastError());return XWAIT_ERROR;}
+        double Now=xrtTimer();if(!isfinite(Now))return XWAIT_ERROR;
+        if(Now>=Deadline){Ready=WaitForSingleObject(Event,0);if(Ready==WAIT_OBJECT_0)return XWAIT_OK;if(Ready==WAIT_TIMEOUT)return XWAIT_TIMEOUT;__xrtEventWaiterFail(XERR_IO,"wait.poll",(int32)GetLastError());return XWAIT_ERROR;}
+        /* Chunk very large durations before converting outward to signed 100ns.
+         * No signed overflow, periodic timer or change to global clock resolution. */
+        double Remaining=Deadline-Now;if(Remaining>4294967.0)Remaining=4294967.0;
+        LARGE_INTEGER Due;Due.QuadPart=-(LONGLONG)ceil(Remaining*1e7);if(Due.QuadPart==0)Due.QuadPart=-1;
+        if(!SetWaitableTimer(I->Timer,&Due,0,NULL,NULL,FALSE)){__xrtEventWaiterFail(XERR_IO,"wait.arm",(int32)GetLastError());return XWAIT_ERROR;}
+        HANDLE Handles[2]={Event,I->Timer};DWORD R=WaitForMultipleObjects(2,Handles,FALSE,INFINITE);
+        if(R==WAIT_OBJECT_0){if(!CancelWaitableTimer(I->Timer)){__xrtEventWaiterFail(XERR_IO,"wait.cancel",(int32)GetLastError());return XWAIT_ERROR;}return XWAIT_OK;}
+        if(R==WAIT_OBJECT_0+1)continue; /* Recheck original monotonic budget and ready event. */
+        DWORD Code=GetLastError();(void)CancelWaitableTimer(I->Timer);__xrtEventWaiterFail(XERR_IO,"wait.backend",(int32)Code);return XWAIT_ERROR;
+    }
+}
+#endif
+XRT_API bool xrtEventWaiterInit(xeventwaiter* W,xevent* Event,uint32 Flags)
+{
+    if(!xrtMemRangeValid(W,sizeof(*W)) || !xrtMemRangeValid(Event,sizeof(*Event)) || xrtMemRangesOverlap(W,sizeof(*W),Event,sizeof(*Event)) || (Flags&~XRT_EVENT_WAITER_REQUIRE_PRECISE))return __xrtEventWaiterFail(XERR_ARGUMENT,"init",0);
+    xrt_event_impl* E=__xrtEventImpl(Event);if(E->Magic!=XRT_EVENT_MAGIC)return __xrtEventWaiterFail(XERR_STATE,"init.event",0);
+    xrt_event_waiter_impl I;memset(&I,0,sizeof(I));I.Magic=XRT_EVENT_WAITER_MAGIC;I.Owner=__xrtCurrentThreadId();I.Event=Event;
+#if defined(_WIN32) || defined(_WIN64)
+    I.Timer=__xrtEventWaiterTimer(Flags,&I.Backend);if(!I.Timer)return false;
+#else
+    I.Backend=E->Monotonic?XEVENT_WAITER_POSIX_MONOTONIC:XEVENT_WAITER_PLATFORM;
+    if((Flags&XRT_EVENT_WAITER_REQUIRE_PRECISE) && !E->Monotonic)return __xrtEventWaiterFail(XERR_UNSUPPORTED,"init.precision",0);
+#endif
+    memset(W,0,sizeof(*W));memcpy(W,&I,sizeof(I));return true;
+}
+XRT_API bool xrtEventWaiterUnit(xeventwaiter* W)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"unit");if(!I)return false;
+    if(I->Active)return __xrtEventWaiterFail(XERR_STATE,"unit.active",0);
+#if defined(_WIN32) || defined(_WIN64)
+    if(!CloseHandle(I->Timer))return __xrtEventWaiterFail(XERR_IO,"unit.timer",(int32)GetLastError());
+#endif
+    memset(W,0,sizeof(*W));return true;
+}
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* W,int64 Timeout)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"wait");if(!I)return XWAIT_ERROR;
+    if(Timeout<XRT_WAIT_FOREVER){__xrtEventWaiterFail(XERR_ARGUMENT,"wait.timeout",0);return XWAIT_ERROR;}
+    if(I->Owner!=__xrtCurrentThreadId() || I->Active){__xrtEventWaiterFail(XERR_STATE,"wait.owner",0);return XWAIT_ERROR;}
+    if(__xrtEventImpl(I->Event)->Magic!=XRT_EVENT_MAGIC){__xrtEventWaiterFail(XERR_STATE,"wait.event",0);return XWAIT_ERROR;}
+    double Deadline=__xrtWaitAfter(Timeout);if(isnan(Deadline))return XWAIT_ERROR;
+    I->Active=true;xwaitresult R;
+#if defined(_WIN32) || defined(_WIN64)
+    R=__xrtEventWaiterWindows(I,Deadline);
+#else
+    R=__xrtEventWaitUntil(I->Event,Deadline);
+#endif
+    I->Active=false;return R;
+}
+XRT_API bool xrtEventWaiterGet(const xeventwaiter* W,xeventwaiterinfo* Info)
+{
+    xrt_event_waiter_impl* I=__xrtEventWaiterRequire(W,"get");if(!I)return false;
+    if(!xrtMemRangeValid(Info,sizeof(*Info)) || xrtMemRangesOverlap(Info,sizeof(*Info),W,sizeof(*W)) || xrtMemRangesOverlap(Info,sizeof(*Info),I->Event,sizeof(*I->Event)))return __xrtEventWaiterFail(XERR_ARGUMENT,"get.output",0);
+    *Info=(xeventwaiterinfo){sizeof(*W),I->Backend,
+#if defined(_WIN32) || defined(_WIN64)
+        1
+#else
+        0
+#endif
+    };return true;
+}
 #endif
 #endif
 

@@ -1057,6 +1057,56 @@
 		      }
 		    }
 		  ]
+		},
+		{
+			"name": "event_waiter",
+			"system": "concurrency",
+			"description": "Reusable precise event timeout versus ordinary event timeout; overshoot and process CPU, no scheduling SLA or performance acceptance",
+			"benchmarks": [
+				{
+					"name": "event_waiter",
+					"source": "dev/bench/event_waiter/bench_event_waiter.c",
+					"suite": "event_waiter",
+					"args": [
+						"256",
+						"1"
+					],
+					"smoke_args": [
+						"16",
+						"1"
+					],
+					"metrics": {
+						"event_overshoot_p99_ms": {
+							"direction": "lower",
+							"unit": "ms",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"waiter_overshoot_p99_ms": {
+							"direction": "lower",
+							"unit": "ms",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"event_cpu_us_per_wait": {
+							"direction": "lower",
+							"unit": "us",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						},
+						"waiter_cpu_us_per_wait": {
+							"direction": "lower",
+							"unit": "us",
+							"max_relative_mad": 0.03,
+							"max_relative_central_range": 0.06,
+							"limit": 0.1
+						}
+					}
+				}
+			]
 		}
 	]
 }

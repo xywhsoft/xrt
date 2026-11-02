@@ -16169,6 +16169,62 @@
 			"examples": [],
 			"benchmarks": [],
 			"docs": ["docs/api/executor.md"]
+		},
+		{
+			"name": "event_waiter",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_EVENT_WAITER",
+			"depends": [
+				"event"
+			],
+			"public_headers": [
+				"include/xrt/event_waiter.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"src/concurrency/event_waiter.c"
+			],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"examples": [
+				"examples/concurrency/event_waiter/main.c"
+			],
+			"benchmarks": ["dev/bench/event_waiter/bench_event_waiter.c"],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
+		},
+		{
+			"name": "event_waiter_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"event_waiter",
+				"thread",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c",
+				"tests/whitebox/test_event_waiter_native.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"single_test_owners": {
+				"tests/single/test_single_event_waiter.c": "event_waiter"
+			},
+			"examples": [],
+			"benchmarks": [],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
 		}
 	]
 }

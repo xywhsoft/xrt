@@ -57,6 +57,7 @@
 #include <xrt/wait.h>
 #include <xrt/thread.h>
 #include <xrt/sync.h>
+#include <xrt/event_waiter.h>
 #include <xrt/cancel.h>
 #include <xrt/channel.h>
 #include <xrt/channel_subscribe.h>

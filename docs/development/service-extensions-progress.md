@@ -6997,3 +6997,84 @@ leap-aware conversion, nominal DST policies, durable recovery, recurrence CPU
 bounds, native Linux, pinned throughput/P99 and >=72h acceptance remain open,
 alongside the previously recorded MQTT/Redis/RPC gaps. The four-library goal stays
 active; this stage is not production completion, and no master merge/push occurred.
+
+## 2026-11-02 — reusable public event deadline waiter prerequisite
+
+Investigated the previous Windows live-service smoke's13ms start tail before
+changing generic XRT capabilities. A native child pinned to one permitted CPU
+compared ordinary XRT event waits, native event waits, standard waitable timers
+and high-resolution timers. Each predetermined mode/request group contains256
+waits at1ms or5ms, with no favorable rerun. At1ms, median additional wait was
+14.6729ms for XRT events,14.7175ms for native events,14.5962ms for standard timers,
+and0.9576ms for precise timers. This isolates a real ordinary Windows timeout
+granularity gap; it does not establish application P99 or a CPU/power guarantee.
+All observed Windows process-CPU deltas were below accounting resolution, not
+proof of zero CPU work. Raw source/binary/baseline-library/settings fingerprints
+are retained in the local proof and portable result.
+
+Added the actual Core `event_waiter` leaf with four public APIs:
+Init/Unit/WaitFor/Get. Caller-owned opaque context borrows an existing initialized
+event. Windows owns one reusable nonperiodic waitable timer and prefers the
+high-resolution backend without calling timer-resolution APIs; POSIX reuses the
+event's existing condition. No requested heap allocation, thread, callback or
+shared runtime is added. This is additive: existing EventWaitFor, event storage,
+other synchronization APIs and source behavior are unchanged. Production source
+closure has no thread creation, executor or network dependency.
+
+WaitFor is bound to the native Init thread; Get can inspect immutable metadata
+from another thread; caller-exclusive Unit can follow a physical handoff/join.
+Auto/manual reset and event-ready priority are preserved. One original signed-ms
+monotonic budget survives timer/spurious wakes, including huge finite/infinite
+waits; outward checked100ns conversion avoids overflow. Event-won waits cancel
+their timer; rearming resets old timer signals. Unsupported precise mechanisms
+have observable strict rejection or default fallback. Native resource errors
+never trigger silent degradation, and cancellation/close failures remain visible.
+Metadata states storage bytes/backend/native-timer count. Native clocks/kernel
+scheduling/interrupt energy costs are not made latency or power guarantees.
+
+Native Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt pass16 final modular/single
+programs,2 runnable examples and12 final static/shared consumer runs. Both selected
+modules and the all-module source closure contain the implementation. Existing
+event/sync-OOM regressions, direct/declaration headers, trim/size, both public
+constant namespaces and all26 API/layout/header-coverage/single tools pass. Public
+ABI: waiter40 bytes Windows/32 POSIX, info16 bytes, unchanged event24/176 bytes.
+Separate WSL GCC O1 TSan public-thread and actual realtime-condition fallback
+programs both pass. This closure emitted no atomic_thread_fence warning; only the
+diagnostic build retains the known -Wno-error=tsan allowance. No whole-Core/native
+Linux qualification is inferred.
+
+Final13 basic-unit executions cover auto/manual readiness, no-early deadlines,
+event interruption, large/infinite budgets, owner guard and physical cleanup
+handoff, span/flag rejection and full-byte context/event alias preservation. They
+run260000 ready cycles,416 real armed cycles and13000 Init/Unit cycles. Seven
+instrumented units assert zero requested-heap calls, including224 armed cycles
+and7000 context lifetimes. All6 Windows final units assert that1000 native timer
+lifetimes return process handle count to baseline. Native fault coverage includes
+unsupported/fallback/resource/diagnostic OOM/arm/wait/cancel/unit/reentry; POSIX
+fallback uses a real default-clock condition with strict/default selection.
+
+During final review, an alias assertion was found comparing an unrelated untouched
+buffer. It was strengthened to compare every context/event byte; all affected
+modular/single/package/TSan programs were rebuilt. The exact initial test source
+is archived by its recorded hash, and all other production/measurement inputs
+match. Existing measurements were retained. Early benchmark path/module-selection
+setup errors were corrected before any timing sample ran. Final C/H stayed frozen
+during compilers; no performance gate was relaxed.
+
+One16-sample public primitive smoke per mode/platform reports additional-wait
+P99: Windows event14.9949ms/waiter1.0086ms, WSL event0.0761ms/waiter0.0765ms.
+Windows CPU deltas are below accounting resolution; WSL process CPU averages are
+7.89375/7.70625us per wait. Samples are unpinned/nonqualifying; primitive waiting
+is distinct from fixed-arrival service lateness and maximum throughput. New
+profile metrics use MAD3%,central-range6%,lower regression10%; older Core defaults
+were preserved. Ready polling, clocks, timer arm/wait/cancel and a native handle
+are explicit costs, with no zero-overhead or system power claim.
+
+Portable evidence is `docs/development/results/event-waiter-20261102.json`;
+`out/service-extensions/xcron-precise/validation.json` indexes250 current frozen
+inputs,162 artifacts,76 receipts and27 archived outputs. This independently
+committed prerequisite is not yet selected by xcron service: its owner/startup/
+shutdown/backend accounting and fixed-arrival service remeasurement remain next.
+All original four-product protocol, persistence, zone/recovery, native performance
+and >=72h requirements remain open. The full goal stays active; no master merge
+or push occurred.
