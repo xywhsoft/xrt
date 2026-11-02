@@ -8,10 +8,10 @@ packet bodies. A separate negotiation leaf checks CONNECT/CONNACK relationships
 and client per-packet capabilities; its [contracts](negotiation.md) distinguish
 those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
-QoS-0/1/2 send/receive, bounded ACK flow, bounded automatic MQTT5 error
+QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
 Session/auth/alias/expiry/
-subscription state, reconnect, persistence and TLS/WebSocket remain pending.
+subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
 | Contract | Verification |
@@ -141,3 +141,26 @@ This is volatile current-connection local enqueue, not crash-safe session or
 business exactly-once processing. Persistence/reconnect/session/expiry/auth/
 alias/subscription/transports, dedicated QoS-2 load/CPU/copy/allocation accounting,
 pinned comparators, native Linux and >=72h production qualification remain.
+
+
+## Current-connection subscription control
+
+The developing client now admits immutable SUBSCRIBE/UNSUBSCRIBE snapshots,
+including before CONNACK. Controls and QoS1/2 publications share the bounded
+outgoing id bitmap/hash map and physical reservations, while controls bypass
+publish Receive Maximum credit. Typed per-filter results retain ordered reasons,
+properties and partial rejection counts; metadata exhaustion preserves scalar
+acknowledgement decisions. ACK kind/id/count/QoS relationships and Request
+Problem Information are validated against the actual sent request. Unsent
+cancel/zero deadline/Close and queued graceful abort have deterministic worker
+barriers; construction-budget failures refund physical reservations. The
+independent byte peer covers 107 version/case combinations, including hostile
+ACKs, reverse correlation, fragmented IO, caller snapshots, capabilities,
+quotas, concurrent publication, duplex receive and graceful drain. The offline
+subscription example documents commands/assertions/cleanup separately.
+
+This adds packet operations on one connection, without a resubscription registry
+or durable session. Subscription-specific load/CPU/copy/allocation measurements,
+pinned broker/client parity, native Linux and >=72h production qualification
+remain required. Existing QoS2 measurement observations remain unaccepted; this
+feature does not replace or weaken those gates.

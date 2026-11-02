@@ -6193,3 +6193,85 @@ mixed-load runs remain required. Other MQTT session/expiry/alias/auth/reconnect/
 store/transports, Redis HA/tracking/dedicated, remaining RPC security/recovery/
 transports/deferred and Cron IANA/scheduler/durability remain. No primary merge
 or push occurred. The complete four-library goal remains active and incomplete.
+
+
+## Bounded MQTT subscription operations (2026-11-02)
+
+Baseline `183ad3f223ea2d1495728818f7555d30c1710893`. The developing TCP client
+now implements asynchronous and blocking SUBSCRIBE/UNSUBSCRIBE for MQTT5 and
+3.1.1. They return `xmqttsubscriptionresult` Futures with ordered owned ACKs,
+requested/success/rejection counts, id, accepted prefix and typed local status.
+Any negative per-filter result returns REJECTED without claiming rollback of
+successful filters. MQTT311 UNSUBACK acknowledges removals without reason bytes.
+ACK kind, shared outgoing id, complete request, count, granted QoS versus the
+original requested QoS and Request Problem Information restrictions are checked.
+Scalar decisions precede metadata allocation; local LIMIT/MEMORY can preserve
+acknowledgement/counts with a null owned Ack. The message clone now rebases ACK
+reason views as well as existing publish/property views.
+
+Admission encodes a complete immutable snapshot and shares the existing finite
+request/wire/object quotas, monotonic deadline and outgoing id bitmap/hash table
+with publications. Physical reservations survive native request tails, without
+retaining Client/Engine in finished results. Queued controls wait for CONNACK;
+precomputed wildcard/shared/subscription-id requirements are checked before the
+first send, independently of publish credit. UNSUBSCRIBE remains possible with
+disabled subscription capabilities. Requested subscription QoS can exceed the
+peer's maximum publication QoS. Partial-frame ordering, timeout/cancel after
+accepted prefix, Close, graceful drain and same-Engine worker restrictions use
+the existing protocol owner and retirement duties. No shared runtime/Core API
+change, implicit retry, active subscription registry or recovery was added.
+
+The private request uses a tagged result pointer and a union for QoS2 release
+state versus subscription count. Existing publication allocations/result ABI
+and public config/info layouts are preserved; added request-type/capability
+branches are actual runtime costs. Subscribe admission scans filter bytes for
+capability requirements; ACK validation skips its immutable encoded filters and
+compares options without descriptor allocation. One result box and one owned
+ACK still allocate, plus existing request/wire/Promise/Future/cancel costs. No
+zero-overhead, optimization, broker parity or production claim follows.
+
+The new unit/fault header covers both versions, copied caller descriptors,
+one-byte output/read work, explicit-id reuse, result/ACK ownership beyond all
+connection owners, shared publish-id exclusion, typed timeout/cancel/Close,
+construction allocation budgets and reservation rollback. A protocol-worker
+barrier deterministically covers unsent cancel, zero timeout, Close and queued
+control plus graceful abort. The independent socket peer validates byte-exact
+requests, v5 options and multi-byte property lengths; all/partial rejections,
+wrong/unknown/duplicate ACKs, bad domains/counts/excess grants, reversed and auto
+ids, exhausted publish credit, duplex messages, metadata quotas, admission caps,
+negotiated capability restrictions, graceful drain and blocking-worker rejection.
+It has 107 distinct version/case pairs. The new offline subscriptions example
+includes prerequisites, commands, assertions and explicit owner cleanup.
+
+Local validation passes native Windows GCC O2 and Linux WSL x64 GCC O2 with
+ASan/UBSan/leak halt for modular/single programs and peers; static/shared
+packages and consumers use plain O2. The full current stage runs 2750 independent
+wire-case executions, including 856 new subscription executions (107 distinct
+version/case pairs in modular/single/static/shared on both systems), plus 28
+modular/single unit programs, eight package consumers and 12 offline examples.
+The 26 API-reference/extension-layout/header-coverage/single tool tests pass.
+Selected declaration/trim generation, feature/amalgamation/API-reference checks
+and package symbol/consumer checks pass. Compiler inputs were frozen throughout
+each final build. Both final orchestration handles exited 0.
+
+Measured x64 layouts retain config272/info160/ready136/write64/packet168/codec56/
+property40. Private Client stays 1152 bytes on Windows, 1360 on WSL; Request
+stays 104. The new subscription result is 64 bytes on both. Portable complete
+subscription observations, per-form executable hashes and LF-normalized changed
+source fingerprints are committed in
+`extlibs/xmqtt/tests/results/subscriptions-20261102.json`. Exact commands, raw
+reports, binary hashes and frozen-input evidence are indexed in
+`out/service-extensions/xmqtt-subscriptions/validation.json`.
+WSL is not native Linux qualification. These are local functional/ownership
+checks, with no subscription load/performance or final production acceptance.
+
+This completes current-connection subscription packet operations, not the
+planned MQTT product. Subscription-specific performance/CPU/copy/synchronization/
+syscall/allocation measurements, pinned broker/client comparisons, stable-load
+acceptance, native Linux and >=72h native mixed/fault qualification remain.
+Earlier failed QoS2 measurement quality gates are unchanged and unaccepted.
+MQTT sessions/store/reconnect/expiry/aliases/enhanced auth/DNS/TLS/WebSocket,
+Redis HA/tracking/dedicated paths, remaining RPC security/recovery/transports/
+deferred work and Cron IANA/scheduler/durability remain. Product manifests stay
+developing. No primary merge or push occurred; the complete four-library goal
+remains active and incomplete.

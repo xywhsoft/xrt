@@ -5,8 +5,8 @@ Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
 keep-alive, QoS-0/1/2 send/receive with retained acknowledgement metadata,
-bounded identifiers/flow credit, automatic MQTT5 diagnostic close, bounded application graceful DISCONNECT and physical shutdown.
-Subscriptions, enhanced authentication, aliases, reconnect, durable
+SUBSCRIBE/UNSUBSCRIBE with owned per-filter reasons, shared outgoing identifiers/flow credit, automatic MQTT5 diagnostic close, bounded application graceful DISCONNECT and physical shutdown.
+Enhanced authentication, aliases, reconnect, durable
 sessions and TLS/WebSocket remain pending.
 No broker or production/performance acceptance is claimed.
 

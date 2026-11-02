@@ -3,13 +3,12 @@
 `xmqtt_client` is developing. It implements one numeric-address TCP connection
 on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
-QoS-0/1/2 PUBLISH send/receive, correlated publishing ACK results,
+QoS-0/1/2 PUBLISH send/receive, SUBSCRIBE/UNSUBSCRIBE, correlated typed ACK results,
 server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. subscription and
-shared outgoing identifier state, aliases, enhanced authentication,
+This stage does **not** complete the planned client. Subscription recovery, aliases, enhanced authentication,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
 Enhanced authentication and positive receive Topic Alias Maximum are refused
 at creation. QoS-2 receives use the volatile current-connection contract below.
@@ -569,3 +568,94 @@ It includes the in-process peer and observer; it supplies measured process CPU,
 latency/throughput, connection setup/teardown and XRT heap traffic without claiming
 client-only cost or production acceptance. Its independent sequence checks and
 physical request/owner cleanup are validated separately from timing/noise gates.
+
+
+## Current-connection subscriptions
+
+`xmqttClientSubscribeAsync` / `xmqttClientUnsubscribeAsync` accept a codec
+SUBSCRIBE / UNSUBSCRIBE descriptor. Blocking `Subscribe` / `Unsubscribe`
+wrappers use the same deadline and reject every worker of the same Engine.
+They return a Future containing **xmqttsubscriptionresult**, not writeresult.
+The entire wire packet is validated, encoded and copied before admission
+returns; filters/options/properties need no later caller lifetime. Input vectors
+are limited by `Codec.MaxTopics` (default 1024), packet bytes and request/wire
+quotas. A zero identifier allocates one from the same outgoing bitmap/hash table
+as QoS1/2 publications. An explicit collision is normal OVERLOADED and leaves
+the output unchanged; its reservation lasts through actual native retirement.
+Retaining the completed Future does not keep an identifier or Client alive.
+
+Admission can precede CONNACK. Nothing is sent before accepted negotiation;
+packet size and MQTT5 wildcard/shared/subscription-identifier availability are
+checked before the first byte. UNSUBSCRIBE is allowed even if those subscription
+capabilities are disabled. Requested subscription QoS may exceed the peer's
+Maximum QoS for client publications. Subscription controls consume no publishing
+Receive Maximum credit, allowing them to proceed when publications are blocked.
+Partial frames still finish before another packet is inserted. There is no
+count-based batching delay, retry timer, automatic resubscription or registry of
+active filters in this stage. A subscription identifier on SUBSCRIBE is copied;
+incoming PUBLISH subscription-id properties are retained with each message.
+
+`Requested` counts input filters. `Acknowledged` requires the correct packet
+kind, reserved id, fully accepted request, exact reason count and grants no higher
+than each requested QoS. `Granted` counts successful filter outcomes (including
+MQTT5 UNSUBACK 0x11, no subscription existed); `Rejected` counts negative ones.
+Any rejection yields REJECTED, **including mixed success**: no rollback is
+implied. Reason bytes retain the input filter order. MQTT3.1.1 UNSUBACK has no
+reason payload and acknowledges all requested removals. With no acknowledgement,
+nonzero `AcceptedBytes` means broker effects are uncertain, including after
+cancellation, timeout or transport loss. Incoming publications may precede
+SUBACK or continue after UNSUBACK; these enter the ordinary bounded owned queue.
+
+`Ack` is an optional owned message with ordered `Body.Reasons` and the full
+Reason String/repeated User Properties. Its bytes are rebased into its immutable
+owned wire, surviving later input-buffer reuse, Client and Engine destruction.
+Use `xmqttMessageRetain` to retain it beyond its result Future. Scalar counts
+and acknowledgement are committed before metadata allocation; a local LIMIT or
+MEMORY result can therefore have a completed broker decision and `Ack == NULL`.
+Request Problem Information=0 prohibits diagnostic properties on these ACKs too.
+Wrong ids/kinds, excessive grants, bad domains/counts and unsolicited/duplicate
+subscription ACKs cause protocol close. No uncertain operation is replayed.
+
+Cancellation/timeout before any byte finishes only that request. After an
+accepted prefix it retires the connection, settling all other accepted requests
+without stale id reuse. Graceful application DISCONNECT waits for accepted
+subscription operations under its original finite deadline. Close remains
+abortive and every accepted control Future is settled before physical retirement.
+
+The shared private Request remains 104 bytes on tested x64 builds; a tagged
+union reuses the QoS2 inline-release storage for the filter count. Publish result
+and public Client config/info layouts are unchanged. Each control has one
+request-plus-wire allocation, one typed result box, and existing Promise/Future/
+cancel producer costs. ACK metadata allocates one owned message. The lazy shared
+id table retains its previous size/ownership. A subscribe capability scan reads
+filter bytes once at admission; ACK validation skips the immutable encoded filter
+bytes and reads each requested options byte with no extra descriptor allocation.
+These branches/scans and owned copies are real costs; no speedup or zero-overhead
+claim follows from the unchanged object sizes. Dedicated externally paced
+subscription benchmarks and reference-broker parity remain pending.
+
+See [the runnable offline example](../examples/subscriptions/README.md),
+`tests/client_subscriptions.h` for OOM/lifetime/terminal tests, and
+`tests/interop/run_subscription_wire.py` with `subscription_probe.c` for an
+independent byte peer (including fragmented/reordered ACKs and host-worker rules).
+Rules follow the [MQTT5 OASIS standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
+sections 2.2.1, 3.8-3.11 and the equivalent
+[MQTT3.1.1 sections](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
+Subscription/session recovery, durable state, expiry, aliases, enhanced auth,
+DNS/TLS/WebSocket and full performance/production qualification are incomplete.
+
+
+Reproduce the independent subscription peer from the root (Windows GCC):
+
+```powershell
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/single_subscription_probe.c -lws2_32 -o out/subscription_probe.exe
+python extlibs/xmqtt/tests/interop/run_subscription_wire.py --probe out/subscription_probe.exe --report out/subscription-wire.json
+```
+
+On Linux, replace `-lws2_32` with `-lm -pthread`, use an executable path without
+`.exe`, and optionally add `-fsanitize=address,undefined -fno-omit-frame-pointer`
+to compilation and `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1` /
+`UBSAN_OPTIONS=halt_on_error=1` at execution. `--case NAME` selects the same
+named case for applicable protocol versions. The full default run records 107
+cases. Outputs remain under ignored `out/`; normal process cleanup closes each
+loopback socket and joins the peer thread.

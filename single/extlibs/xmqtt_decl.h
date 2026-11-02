@@ -3243,6 +3243,17 @@ typedef struct xmqttwriteresult {
     uint16 Identifier;uint8 Reason;const xmqttmessage* Puback;
     const xmqttmessage *Pubrec,*Pubcomp;uint8 PubrecReason;bool PubrecReceived,PubcompReceived;
 } xmqttwriteresult;
+/* SUBACK/UNSUBACK is per filter, not an atomic operation. REJECTED can include
+ * successful filters. Ack owns the ordered reason bytes and properties; it can
+ * outlive Client/Engine and be separately retained. Without Acknowledged, any
+ * AcceptedBytes means effects at the broker are uncertain. Scalar counts and
+ * Acknowledged survive metadata LIMIT/MEMORY; Ack may then be NULL. MQTT 3.1.1
+ * UNSUBACK has no per-filter reasons: all requested removals are acknowledged. */
+typedef struct xmqttsubscriptionresult {
+    xmqttclientstatus Status;size_t AcceptedBytes;const xerror* Cause;
+    uint16 Identifier;bool Acknowledged;size_t Requested,Granted,Rejected;
+    const xmqttmessage* Ack;
+} xmqttsubscriptionresult;
 /* Connack and Negotiated views belong to this Future. The optional message
  * may be separately retained. No connection/engine reference survives in it. */
 typedef struct xmqttreadyresult {
@@ -3294,8 +3305,8 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * delivery, not durable/business exactly-once. Graceful shutdown also drains
  * accepted incoming QoS2 flows; its finite deadline still applies.
  * Enhanced auth and positive receive alias capacity are explicitly unsupported;
- * Subscriptions, reconnect,
- * durable sessions remain separate pending work.
+ * Subscriptions operate on this connection; automatic resubscription, reconnect
+ * and durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap.
  * After accepted MQTT5 negotiation, protocol failures attempt a final minimal
@@ -3325,8 +3336,29 @@ XMQTT_API xmqttclientadmission xmqttClientPublishAsync(xmqttclient* Client,
 /* Same operation/deadline; rejects ANY worker of the same Engine. */
 XMQTT_API xmqttclientadmission xmqttClientPublish(xmqttclient* Client,
     const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Immutable encoded SUBSCRIBE/UNSUBSCRIBE snapshot, with the same deadline,
+ * cancellation, admission and physical id-reservation rules as PublishAsync.
+ * Identifier=0 assigns a shared unused outgoing id. May queue before CONNACK;
+ * negotiated packet/wildcard/shared/subscription-id limits apply before send.
+ * Requested QoS may exceed MaximumQos. Controls do not consume publish credit.
+ * Packet/Codec.MaxTopics bound the vector; no subscription registry is kept.
+ * ACCEPTED returns an xmqttsubscriptionresult Future. A corresponding full ACK
+ * is required; malformed/mismatched counts or excessive granted QoS close the
+ * connection. Incoming publications can arrive before SUBACK or after UNSUBACK.
+ * Caller inputs are borrowed only during this function; Future changes only on
+ * ACCEPTED. No automatic replay or rollback of partially successful filters. */
+XMQTT_API xmqttclientadmission xmqttClientSubscribeAsync(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+XMQTT_API xmqttclientadmission xmqttClientUnsubscribeAsync(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+/* Blocking wrappers reject every worker of the same Engine. */
+XMQTT_API xmqttclientadmission xmqttClientSubscribe(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
+XMQTT_API xmqttclientadmission xmqttClientUnsubscribe(xmqttclient* Client,
+    const xmqttpacket* Packet,int64 Timeout,xfuture** Future);
 /* Stop new admissions after accepted CONNACK, drain all accepted publishes and
- * their QoS1 PUBACKs/QoS2 PUBCOMPs plus partial control frames, then send this final DISCONNECT
+ * subscription requests with their acknowledgements plus partial control frames,
+ * then send this final DISCONNECT
  * and gracefully close TCP. NULL Packet selects normal reason 0. Version 311
  * forbids properties/nonzero reason. Negotiated packet/expiry limits apply.
  * Snapshot/encode before return; one request and its wire use the existing

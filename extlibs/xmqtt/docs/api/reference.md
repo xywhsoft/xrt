@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `41` 个函数、`170` 个常量或宏、
-`46` 个公共类型。
+当前登记 `45` 个函数、`170` 个常量或宏、
+`47` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/client.h)
 
-### 函数 (15)
+### 函数 (19)
 
 - `xmqttClientClose`
 - `xmqttClientConfigInit`
@@ -23,7 +23,11 @@
 - `xmqttClientPublish`
 - `xmqttClientPublishAsync`
 - `xmqttClientReady`
+- `xmqttClientSubscribe`
+- `xmqttClientSubscribeAsync`
 - `xmqttClientTakeMessage`
+- `xmqttClientUnsubscribe`
+- `xmqttClientUnsubscribeAsync`
 - `xmqttClientWaitFor`
 - `xmqttMessagePacket`
 - `xmqttMessageRelease`
@@ -60,7 +64,7 @@
 - `XMQTT_STATUS_TRANSPORT`
 - `XMQTT_STATUS_UNSUPPORTED`
 
-### 类型 (15)
+### 类型 (16)
 
 - `xmqttclient`
 - `xmqttclientadmission`
@@ -75,6 +79,7 @@
 - `xmqttnegotiated`
 - `xmqttpacket`
 - `xmqttreadyresult`
+- `xmqttsubscriptionresult`
 - `xmqttversion`
 - `xmqttwriteresult`
 
