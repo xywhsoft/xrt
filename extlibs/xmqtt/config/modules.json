@@ -364,7 +364,8 @@
         "extlibs/xmqtt/examples/qos2_send/main.c",
         "extlibs/xmqtt/examples/qos2_receive/main.c",
         "extlibs/xmqtt/examples/subscriptions/main.c",
-        "extlibs/xmqtt/examples/receive_alias/main.c"
+        "extlibs/xmqtt/examples/receive_alias/main.c",
+        "extlibs/xmqtt/examples/send_alias/main.c"
       ],
       "benchmarks": [
         "extlibs/xmqtt/bench/bench_client_qos1.c",

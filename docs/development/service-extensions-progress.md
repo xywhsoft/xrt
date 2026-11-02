@@ -6366,3 +6366,101 @@ deferred work, Cron IANA/scheduler/durability, native Linux and >=72h native mix
 fault qualification remain required. All product manifests stay developing.
 No primary merge or push occurred. The complete four-library goal remains active
 and incomplete.
+
+
+## Bounded MQTT5 outgoing alias snapshots (2026-11-02)
+
+Baseline `165e202e57175ddff1f5d17ab76371b318277f71`. MQTT5 publishing now supports
+full-topic alias bindings and explicit empty references. Successful admission
+fixes each operation's logical topic, with a separately referenced latest-admitted
+intent. The worker compares it with actual TCP packet order before first output,
+compacting only a matching mapping. If an earlier unsent bind was cancelled,
+timed out, rejected locally or blocked by Receive Maximum, a later reference
+can safely carry its captured full topic. Delayed older publications also
+recheck the actual mapping; they cannot retarget newer snapshots or overwrite
+latest-admitted intent. No earlier publication is replayed. Peer alias limits
+and actual selected local/peer packet caps apply before sending. Unknown empty
+references and invalid aliases fail admission without changing the Future or
+cache intent. Failed/overloaded/closed admission cannot install a new intent.
+
+The existing 104-byte Request is unchanged. Aliased operations add one aligned
+48-byte tail plus 0..7 bytes of padding in their existing allocation, charged
+to private bytes through physical retirement. A lazy x64 2048-byte root and
+4096-byte pages provide direct slots up to id65535; immutable topics have a
+16-byte header plus their bytes. Planned, actual and request references use the
+existing Gate. Common same-topic/empty references reuse cached storage. Ordinary
+requests keep their original raw send loop without the gather stack/iteration.
+Actual changed mappings are installed after the complete PUBLISH is accepted
+into TCP; this is ordered stream state, not broker receipt or durable delivery.
+
+Raw matching full binds and explicit compact references use one original buffer.
+Compacting a full input gathers an inline prefix plus the copied original tail;
+repairing an empty reference gathers prefix, captured topic and tail through
+existing atomic XRT SendRefs. No Core API/shared runtime or second payload copy
+is added. Each nonempty native span owns a real Request reference; NativeRefs,
+physical id reservation and logical-topic lifetime include all release tails.
+Partial frame ordering and QoS1/2 ACK decisions use actual selected wire length.
+AcceptedBytes can therefore exceed or fall below retained descriptor encoding;
+OutgoingBytes still counts the bounded retained snapshot, while optional metadata
+and caches use MaxPrivateBytes and native bytes use Stream.WriteLimit.
+
+Admission rollback now also handles late private-cache overload after constructing
+the Promise/Future/result, and rechecks metadata room after cold identifier-table
+allocation. It refunds every physical reservation and producer reference while
+retaining only documented cold cache storage. OOM matrix and independent normal
+private-cap overload cases cover rollback, unchanged output and destruction.
+Queued cancel/zero timeout tests gate the protocol owner deterministically, and
+check later snapshot topics and compact/full choices with one-byte write work.
+
+The independent byte peer has 30 cases: normal and explicit compaction, mutable
+intent snapshots, remaps, cancelled/timed-out binds, blocked QoS1 reorder plus
+post-flow latest intent, actual peer rejection/local restriction, QoS1/2, ids and
+topics through65535, Remaining Length width transitions, local/peer compact frame
+caps, partial cancel/deadline/EOF, invalid/unknown aliases, private-cap overload,
+directional duplex and graceful drain. Every observed publication's byte length
+is compared independently with its Future's AcceptedBytes. Maximum topic data
+is saved as size/hash. The new offline send example checks 23/14-byte QoS1 results
+and cleanup after Client/Engine destruction.
+
+Final validation passes native Windows GCC O2 and Linux WSL x64 GCC O2
+ASan/UBSan/leak halt for modular/single programs/peers; static/shared packages
+and consumers use plain O2. Both final orchestration handles exit0 and all source
+inputs stay frozen while compilers run. The stage executes 3302 independent wire
+cases, including 240 new outgoing-alias executions (30 distinct cases in four
+forms on two systems), 312 incoming-alias, 856 subscription and 1894 prior cases.
+There are 28 modular/single unit programs, eight package consumers and 16 offline
+examples. The 26 API-reference/extension-layout/header-coverage/single tool tests,
+selected declaration/trim, generated features/amalgamation/reference and package
+checks pass. The normal private-overload peer case also reaches complete physical
+retirement with unchanged admission output.
+
+Public x64 config272/info160/ready136/write64/packet168/codec56/property40 and
+subscription result64 remain fixed. Request stays104; optional sender metadata
+is48 and topic header16. Private Client changes1160->1168 on Windows and
+1368->1376 on WSL. Portable complete sender observations, per-operation actual
+wire lengths, form-specific binary hashes and normalized changed-source hashes
+are committed in `extlibs/xmqtt/tests/results/send-alias-20261102.json`. Exact
+commands, raw reports and immutable input/artifact evidence are indexed by
+`out/service-extensions/xmqtt-alias-send/validation.json`. WSL is not native Linux
+qualification; these are local functional/ownership results.
+
+Costs include optional metadata/cache allocations, snapshot and topic copies,
+same-topic admission comparison, pointer/byte mapping comparison, short prefix
+encoding and extra native nodes/ref operations/release callbacks in two/three-
+span gather cases. Default admission and selected-wire tagging add instructions.
+No throughput, tail latency, zero-overhead or broker-reference parity claim is
+made; alias/subscription load/CPU/copy/synchronization/syscall/allocation profiles
+still need measurements. Earlier QoS2 failed quality gates remain unaccepted.
+
+Task-owned completed artifact files were moved from C to D with verified scoped
+paths and directory junctions retaining the original paths/content. File symbolic
+links were unavailable without OS privilege, so that attempted file move was
+rolled back before the directory-junction approach. New stage outputs live on D.
+This addresses actual disk exhaustion without changing sources or deleting other
+work. Artifact hashes remain content-based.
+
+Sessions/store/reconnect/expiry/enhanced auth/DNS/TLS/WebSocket, Redis HA/tracking/
+dedicated, remaining RPC security/recovery/transports/deferred, Cron IANA/
+scheduler/durability, native Linux and >=72h native mixed/fault qualification
+remain. Product manifests stay developing. No primary merge or push occurred;
+the complete four-library goal remains active and incomplete.

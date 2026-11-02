@@ -3311,8 +3311,8 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * topic to their existing allocation, charged to object/message bytes. Packet
  * Topic is logical/resolved; Wire preserves the original alias-bearing frame.
  * Rebinding/Destroy never changes retained messages. Aliases are connection-only,
- * including when QoS2 duplicate delivery is suppressed. Outgoing aliases and
- * enhanced auth are explicitly unsupported;
+ * including when QoS2 duplicate delivery is suppressed. Enhanced auth remains
+ * explicitly unsupported;
  * Subscriptions operate on this connection; automatic resubscription, reconnect
  * and durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
@@ -3327,7 +3327,23 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
  * Close; raw cancel-token requests are sampled on IO/deadline progress. */
 XMQTT_API xfuture* xmqttClientReady(xmqttclient* Client);
 /* Thread-safe finite admission, immutable preencoded copy. QoS-0/1/2 new PUBLISH
- * (DUP=0), with a nonempty topic and no topic alias. QoS-1/2 Identifier=0 assigns
+ * (DUP=0). MQTT5 Topic Alias opts into a logical-topic snapshot: a full topic
+ * updates the latest admitted intent; an empty topic captures that intent or
+ * fails admission if none exists. Cancellation/timeout of the earlier bind does
+ * not retarget a later snapshot. The owner emits a compact frame only when the
+ * actual wire mapping matches; otherwise it includes the captured full topic,
+ * including when flow credit reorders publications. No original message is
+ * replayed. Aliases must fit the server's negotiated maximum before sending.
+ * Local/peer packet caps apply to the selected actual frame; retained snapshot
+ * bytes use OutgoingBytes. Aligned alias-only request metadata, lazy 256-page
+ * mapping tables and immutable retained topics use MaxPrivateBytes through
+ * their actual lifetimes. Ordinary requests have no such tail/table allocation.
+ * Native gathers borrow existing owned segments without another payload copy;
+ * AcceptedBytes counts actual selected PUBLISH bytes (which may grow or shrink
+ * versus the caller's encoded snapshot). Full-topic repeated calls can compact;
+ * explicit empty references retain a single raw-buffer send when already bound.
+ * Mappings are connection-only and independent from receive aliases.
+ * QoS-1/2 Identifier=0 assigns
  * an unused id; nonzero reserves the explicit id, with normal OVERLOADED on
  * conflict. Its physical reservation lasts until real request retirement.
  * A bounded bitmap/hash table is allocated lazily on the first QoS-1/2 attempt,

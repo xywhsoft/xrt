@@ -10,7 +10,7 @@ those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
 QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
-Session/auth/outgoing-alias/expiry/
+Session/auth/expiry/
 subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
@@ -164,3 +164,17 @@ or durable session. Subscription-specific load/CPU/copy/allocation measurements,
 pinned broker/client parity, native Linux and >=72h production qualification
 remain required. Existing QoS2 measurement observations remain unaccepted; this
 feature does not replace or weaken those gates.
+
+
+## Outgoing alias snapshots
+
+Full-topic and explicit compact inputs snapshot the latest accepted logical
+intent, separately from actual TCP packet order. The sender chooses a compact
+frame only for a matching actual mapping; cancellation/timeout/flow reordering
+can safely require a captured full topic. Optional metadata, sparse pages and
+immutable topic owners have independent private-byte accounting and native
+segment reference duties. No admission failure changes planned state. The
+standalone byte peer covers 30 send cases and checks actual wire bytes against
+results, alongside deterministic cancel/deadline and allocator unit cases.
+This is current-connection functionality. Session/store/reconnect, detailed
+alias/subscription performance and native production qualification remain.

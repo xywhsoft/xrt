@@ -8,7 +8,7 @@ server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. Subscription recovery, outgoing aliases, enhanced authentication,
+This stage does **not** complete the planned client. Subscription recovery, enhanced authentication,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
 Enhanced authentication is refused at creation; positive receive Topic Alias
 Maximum enables bounded incoming aliases. QoS-2 receives use the volatile current-connection contract below.
@@ -641,7 +641,7 @@ independent byte peer (including fragmented/reordered ACKs and host-worker rules
 Rules follow the [MQTT5 OASIS standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
 sections 2.2.1, 3.8-3.11 and the equivalent
 [MQTT3.1.1 sections](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
-Subscription/session recovery, durable state, expiry, aliases, enhanced auth,
+Subscription/session recovery, durable state, expiry, enhanced auth,
 DNS/TLS/WebSocket and full performance/production qualification are incomplete.
 
 
@@ -689,7 +689,7 @@ in `MaxObjectBytes`, queued `MessageBytes` and `MaxMessageBytes`. Remapping,
 releasing the original bind message and destroying Client/Engine never invalidate
 any retained message. Re-decoding Wire naturally exposes its original empty
 topic. An outgoing encoder does not silently strip or reinterpret that view;
-outgoing alias admission remains explicitly unsupported in this stage.
+outgoing admission now follows the logical snapshot contract below.
 
 Alias processing occurs before active QoS2 duplicate suppression. A duplicate
 can therefore update a binding without a second application delivery. Normal
@@ -733,3 +733,90 @@ Linux replaces `-lws2_32` with `-lm -pthread`, optionally adding
 halt/leak options. The peer has 39 distinct cases and supports `--case NAME`;
 JSON/stdout/stderr stay under ignored out/. It closes local sockets and joins
 its thread each time. There are no external service or credential prerequisites.
+
+
+## MQTT5 outgoing Topic Alias
+
+A PUBLISH Topic Alias opts in. Both full-topic and explicit empty-topic inputs
+are supported. Admission fixes a logical topic: a full topic updates that alias's
+latest successfully admitted intent; an empty topic captures that intent, or
+returns ADMISSION_ERROR with unchanged Future if it has no admitted binding.
+Subsequent input changes, later rebinds, cancellation or timeout of an earlier
+operation cannot retarget an already admitted publication. Concurrent callers
+linearize when accepted into the submission queue, as for other publications.
+No cache intent is changed by failed/overloaded/closed admission.
+
+Before its first byte, the sole worker compares the captured topic with its
+actual outgoing wire mapping. A matching mapping allows an empty wire topic;
+otherwise the publication carries its captured full topic and establishes that
+binding. Thus a QoS0 reference can safely proceed while an earlier QoS1 binding
+is blocked by Receive Maximum, or after that unsent binding was cancelled. It
+cannot accidentally use an older broker topic. A delayed older publication also
+rechecks the mapping before sending. This changes the frame representation of
+the requested operation, without replaying an earlier operation. A complete
+packet accepted into TCP establishes ordered mapping state; it does not prove
+broker receipt or message acceptance. QoS1/2 confirmation rules are unchanged.
+
+The alias must fit the server's CONNACK maximum (absent/zero disables it),
+independently of incoming alias capacity. Packet caps apply to the **actual
+selected frame**: peer overflow returns RESTRICTED; local wire overflow returns
+LIMIT before sending and keeps the connection open. Snapshot encoding allows
+full-topic bytes above the local wire cap when a compact selected frame fits;
+payload/property/UTF-8/protocol limits and MaxOutgoingBytes still bound retained
+input. `AcceptedBytes` reports actual PUBLISH bytes and can be larger or smaller
+than the original descriptor encoding. `OutgoingBytes` charges that retained
+encoding, while the optional metadata/topic caches count in PrivateBytes. Native
+queued expanded bytes remain separately bounded by Stream.WriteLimit.
+
+Ordinary requests retain their 104-byte private shape and original raw send
+loop. Aliased requests add an aligned 48-byte tail (plus 0..7 alignment bytes),
+charged to MaxPrivateBytes until physical retirement, with no separate metadata
+allocation. A lazy 2048-byte x64 root and requested 4096-byte pages provide
+constant-time slots for ids through 65535. Each immutable topic has a 16-byte
+header plus its bytes. Planned, actual and in-flight requests hold explicit
+references under the existing Client Gate. Same-topic planned bindings reuse
+storage after an exact byte comparison; obsolete topics free when their last
+actual reference retires. Cached slots/intents remain charged through Destroy;
+Destroy scans allocated pages. The private Client gains one pointer. Public
+config/info/result and codec/packet/property layouts stay unchanged.
+
+Matching explicit empty references and first full-topic binds use their original
+single raw buffer. Compaction of full-topic input gathers an inline prefix and
+owned original tail; repairing an empty reference gathers prefix, captured topic
+and tail. XRT SendRefs accepts each bounded group atomically. Every nonempty
+native segment holds a real request reference and contributes to NativeRefs,
+so id, metadata and topic retirement cannot precede any release callback. Headers
+are immutable after the first accepted byte and partial frames preserve packet
+ordering. No extra payload copy or revalidation scan is added at send time.
+
+Costs are explicit: optional metadata, cold pages/topics, retained snapshot and
+cache copies, same-topic comparison at admission, mapping comparison/short header
+encoding, and up to three native spans per alias chunk. Gather cases can add
+native nodes, reference operations and release callbacks even with one API call;
+this is not a zero-overhead claim. Default raw requests avoid the gather stack
+and loops, but tagged wire-length/admission checks add instructions. Detailed
+throughput/tail/CPU/copy/allocation and pinned-reference measurements remain
+required; the earlier failed QoS2 quality gates are unchanged.
+
+The [offline send-alias example](../examples/send_alias/README.md) binds a topic,
+sends a compact QoS1 reference and checks actual 23/14-byte outcomes after owner
+destruction. `tests/client_send_aliases.h` adds deterministic queued cancellation/
+zero timeout, flow and allocation-budget rollback. The independent byte peer
+covers 30 cases, including logical snapshot repair, post-flow latest intent,
+peer rejection/restriction, QoS1/2, 65535 id/topic bounds, Remaining Length width
+changes, compressed local/peer limits, partial cancellation/deadline/EOF, normal
+private-cap overload, invalid/unknown aliases, duplex and graceful drain.
+
+```powershell
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/single_send_alias_probe.c -lws2_32 -o out/send_alias_probe.exe
+python extlibs/xmqtt/tests/interop/run_send_alias_wire.py --probe out/send_alias_probe.exe --report out/send-alias-wire.json
+```
+
+Linux replaces `-lws2_32` with `-lm -pthread` and can add ASan/UBSan/halt/leak
+options. `--case NAME` selects a case. JSON includes independently observed wire
+lengths checked against every corresponding result's AcceptedBytes; maximum
+topics are recorded by length/hash rather than repeated large strings. Local
+peer sockets/threads and library owners are closed each run. Mappings remain
+connection-local; session/reconnect/store/expiry/auth/transports and production
+qualification are still pending. Wire semantics follow
+[OASIS MQTT5 section 3.3.2.3.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html).

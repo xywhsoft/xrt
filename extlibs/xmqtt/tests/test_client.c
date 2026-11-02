@@ -7,12 +7,13 @@
 /* In-process protocol fixture. Independent wire/broker interoperability lives
  * separately; this fixture exercises ownership, limits and worker reentrancy. */
 enum {MQTT_TEST_HOLD=1,MQTT_TEST_REFUSE=2,MQTT_TEST_SESSION=4,MQTT_TEST_DUPLICATE=8,MQTT_TEST_NO_PONG=16,MQTT_TEST_KEEPALIVE=32,
-    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024,MQTT_TEST_GRACEFUL=2048,MQTT_TEST_HOLD_COMP=4096,MQTT_TEST_REJECT_REC=8192,MQTT_TEST_REJECT_COMP=16384};
+    MQTT_TEST_HOLD_PUBACK=64,MQTT_TEST_REJECT_PUBACK=128,MQTT_TEST_WINDOW_ONE=256,MQTT_TEST_MAX_QOS_ZERO=512,MQTT_TEST_UNCACHED_NODES=1024,MQTT_TEST_GRACEFUL=2048,MQTT_TEST_HOLD_COMP=4096,MQTT_TEST_REJECT_REC=8192,MQTT_TEST_REJECT_COMP=16384,MQTT_TEST_SEND_ALIAS=32768};
 typedef struct mqttTestPeer {
     xnetengine* Engine;xnetlistener* Listener;xatomicptr Stream;xnetaddr Address;
     xatomic32 Closed,ListenerClosed,Connects,Publishes,Pings,NotifyChecks;
     xatomicptr CallbackFuture,CallbackMessage;xatomic32 CallbackSubmit;
     xatomic32 LastIdentifier,QosZeroes,Acks,AckIdentifier,Disconnects,DisconnectReason,ReceiveRecs,ReceiveComps,CompReason,Subscriptions;
+    char SendAliases[16][64],PublishedTopics[16][64];xatomic32 CompactPublishes;
     unsigned Mode;xmqttversion Version;unsigned char Input[65536];size_t Used;
 } mqttTestPeer;
 static void mqttTestWait(xatomic32* A,uint32 N)
@@ -25,12 +26,13 @@ static void mqttTestAck(mqttTestPeer* P)
 {
     xmqttpacket A;xmqttPacketInit(XMQTT_PACKET_CONNACK,&A);A.SessionPresent=(P->Mode&MQTT_TEST_SESSION)!=0;
     A.Reason=(P->Mode&MQTT_TEST_REFUSE)?(P->Version==XMQTT_VERSION_5?0x87:5):0;
-    xmqttproperty Props[3]={{XMQTT_PROPERTY_SERVER_KEEP_ALIVE,XMQTT_PROPERTY_UINT16,{0}},
+    xmqttproperty Props[4]={{XMQTT_PROPERTY_SERVER_KEEP_ALIVE,XMQTT_PROPERTY_UINT16,{0}},
         {XMQTT_PROPERTY_RECEIVE_MAXIMUM,XMQTT_PROPERTY_UINT16,{0}},
         {XMQTT_PROPERTY_MAXIMUM_QOS,XMQTT_PROPERTY_BYTE,{0}}};size_t Count=0;
     if(P->Mode&MQTT_TEST_KEEPALIVE){Props[Count]=Props[0];Props[Count++].Value.Number=1;}
     if(P->Mode&MQTT_TEST_WINDOW_ONE){Props[Count]=(xmqttproperty){XMQTT_PROPERTY_RECEIVE_MAXIMUM,XMQTT_PROPERTY_UINT16,{0}};Props[Count++].Value.Number=1;}
     if(P->Mode&MQTT_TEST_MAX_QOS_ZERO)Props[Count++]=(xmqttproperty){XMQTT_PROPERTY_MAXIMUM_QOS,XMQTT_PROPERTY_BYTE,{0}};
+    if(P->Mode&MQTT_TEST_SEND_ALIAS){Props[Count]=(xmqttproperty){XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM,XMQTT_PROPERTY_UINT16,{0}};Props[Count++].Value.Number=16;}
     if(P->Version==XMQTT_VERSION_5)A.Properties=(xmqttpropertylist){Props,Count};
     unsigned char Wire[64];size_t N=0;
     testRequire(P->Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&N):xmqttPacketWrite311(Wire,sizeof(Wire),&A,XMQTT_SERVER_TO_CLIENT,NULL,&N),"fixture CONNACK encode");
@@ -61,7 +63,15 @@ static void mqttTestRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
             testRequire(Status!=XMQTT_WIRE_ERROR,"fixture received malformed framing");if(Status==XMQTT_WIRE_MORE)break;
             if(F.Header.Type==XMQTT_PACKET_CONNECT){xrtAtomic32FetchAdd(&P->Connects,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_TEST_HOLD))mqttTestAck(P);}
             else if(F.Header.Type==XMQTT_PACKET_PUBLISH){
-                if((F.Header.Flags>>1)&3u){xmqttpacket Pub;xmqttproperty Props[8];xmqttcodecbuffers B={Props,8,NULL,0};
+                if(P->Mode&MQTT_TEST_SEND_ALIAS){xmqttpacket Pub;xmqttproperty Props[8];xmqttcodecbuffers B={Props,8,NULL,0};testRequire(xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL)==XMQTT_CODEC_DONE,"outgoing alias fixture decode");
+                    uint16 Alias=0;for(size_t I=0;I<Pub.Properties.Count;++I)if(Props[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)Alias=(uint16)Props[I].Value.Number;
+                    testRequire(Alias && Alias<=16,"fixture outgoing alias limit");xstrview Topic=Pub.Body.Publish.Topic;
+                    if(Topic.Size){testRequire(Topic.Size<64,"fixture topic cap");memcpy(P->SendAliases[Alias-1],Topic.Data,Topic.Size);P->SendAliases[Alias-1][Topic.Size]=0;}
+                    else {testRequire(P->SendAliases[Alias-1][0],"no unresolved alias on wire");xrtAtomic32FetchAdd(&P->CompactPublishes,1,XMEMORY_RELEASE);}
+                    uint32 N=xrtAtomic32Load(&P->Publishes,XMEMORY_RELAXED);testRequire(N<16,"fixture publish log");strcpy(P->PublishedTopics[N],P->SendAliases[Alias-1]);
+                    if(((Pub.Flags>>1)&3u)==1 && !(P->Mode&MQTT_TEST_HOLD_PUBACK))mqttTestPuback(P,Pub.Identifier);
+                    if(((Pub.Flags>>1)&3u)==2)mqttTestQosTwoAck(P,XMQTT_PACKET_PUBREC,Pub.Identifier);
+                }else if((F.Header.Flags>>1)&3u){xmqttpacket Pub;xmqttproperty Props[8];xmqttcodecbuffers B={Props,8,NULL,0};
                     testRequire((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Pub,NULL))==XMQTT_CODEC_DONE,"fixture QoS1 publish decode");
                     xrtAtomic32Store(&P->LastIdentifier,Pub.Identifier,XMEMORY_RELEASE);
                     if(!(P->Mode&MQTT_TEST_HOLD_PUBACK)){if(((Pub.Flags>>1)&3u)==2)mqttTestQosTwoAck(P,XMQTT_PACKET_PUBREC,Pub.Identifier);else mqttTestPuback(P,Pub.Identifier);}
@@ -106,7 +116,7 @@ static void mqttTestStart(mqttTestPeer* P,xmqttversion Version,unsigned Mode)
     memset(P,0,sizeof(*P));P->Version=Version;P->Mode=Mode;xrtAtomicPtrInit(&P->Stream,NULL);
     xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Connects,0);xrtAtomic32Init(&P->Publishes,0);xrtAtomic32Init(&P->Pings,0);xrtAtomic32Init(&P->NotifyChecks,0);
     xrtAtomicPtrInit(&P->CallbackFuture,NULL);xrtAtomicPtrInit(&P->CallbackMessage,NULL);xrtAtomic32Init(&P->CallbackSubmit,0);
-    xrtAtomic32Init(&P->LastIdentifier,0);xrtAtomic32Init(&P->QosZeroes,0);xrtAtomic32Init(&P->Acks,0);xrtAtomic32Init(&P->AckIdentifier,0);xrtAtomic32Init(&P->Disconnects,0);xrtAtomic32Init(&P->DisconnectReason,0);
+    xrtAtomic32Init(&P->CompactPublishes,0);xrtAtomic32Init(&P->LastIdentifier,0);xrtAtomic32Init(&P->QosZeroes,0);xrtAtomic32Init(&P->Acks,0);xrtAtomic32Init(&P->AckIdentifier,0);xrtAtomic32Init(&P->Disconnects,0);xrtAtomic32Init(&P->DisconnectReason,0);
     xrtAtomic32Init(&P->ReceiveRecs,0);xrtAtomic32Init(&P->ReceiveComps,0);xrtAtomic32Init(&P->CompReason,0);xrtAtomic32Init(&P->Subscriptions,0);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;if(Mode&MQTT_TEST_UNCACHED_NODES)E.NodeCacheBytes=0;P->Engine=xrtNetEngineCreate(&E);testRequire(P->Engine && xrtNetEngineStart(P->Engine),"MQTT fixture engine");
     xnetlistenconfig K;xrtNetListenConfigInit(&K);xrtNetAddrParse(&K.Address,"127.0.0.1",0);K.Distribution=XNET_ACCEPT_LOCAL;
@@ -669,5 +679,6 @@ static void testMqttGracefulQueuedClose(void)
 }
 #include "client_subscriptions.h"
 #include "client_aliases.h"
+#include "client_send_aliases.h"
 int main(void)
-{testMqttAliasOwnership();testMqttAliasQosTwo();testMqttAliasAllocation();testMqttSubscriptions();testMqttSubscriptionFailures();testMqttSubscriptionAllocation();testMqttSubscriptionUnsent();testMqttGracefulQueuedClose();testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();testMqttQosTwoSender();testMqttQosTwoWindowAndDuplicates();testMqttQosTwoTerminalAndDrain();testMqttReceiveTwoOwnership();testMqttReceiveTwoWindow();testMqttReceiveTwoGraceful();testMqttReceiveTwoAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
+{testMqttSendAliases();testMqttSendAliasAllocation();testMqttAliasOwnership();testMqttAliasQosTwo();testMqttAliasAllocation();testMqttSubscriptions();testMqttSubscriptionFailures();testMqttSubscriptionAllocation();testMqttSubscriptionUnsent();testMqttGracefulQueuedClose();testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();testMqttQosTwoSender();testMqttQosTwoWindowAndDuplicates();testMqttQosTwoTerminalAndDrain();testMqttReceiveTwoOwnership();testMqttReceiveTwoWindow();testMqttReceiveTwoGraceful();testMqttReceiveTwoAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
