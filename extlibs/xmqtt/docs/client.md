@@ -8,10 +8,10 @@ server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. Subscription recovery, aliases, enhanced authentication,
+This stage does **not** complete the planned client. Subscription recovery, outgoing aliases, enhanced authentication,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
-Enhanced authentication and positive receive Topic Alias Maximum are refused
-at creation. QoS-2 receives use the volatile current-connection contract below.
+Enhanced authentication is refused at creation; positive receive Topic Alias
+Maximum enables bounded incoming aliases. QoS-2 receives use the volatile current-connection contract below.
 SessionPresent with no local
 session closes with SESSION, also for the explicit 3.1.1 mode.
 
@@ -659,3 +659,77 @@ to compilation and `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1` /
 named case for applicable protocol versions. The full default run records 107
 cases. Outputs remain under ignored `out/`; normal process cleanup closes each
 loopback socket and joins the peer thread.
+
+
+## MQTT5 incoming Topic Alias
+
+CONNECT `Topic Alias Maximum` opts in; absent/zero retains the no-alias default.
+The client accepts every id 1..advertised maximum, including 65535. The server's
+CONNACK alias maximum describes the opposite direction and cannot change this
+receive limit. A full-topic PUBLISH binds/replaces that id, and a subsequent
+empty-topic PUBLISH resolves it. Unaliased full topics do not create or replace
+mappings. The table belongs only to one Client/connection and is not carried to
+another connection, even with the same ClientId or retained messages.
+
+Only the host protocol worker reads/updates the table; lookup adds no mutex.
+The first valid full-topic alias lazily allocates a direct pointer table of
+`ReceiveAliasMaximum * sizeof(pointer)` bytes. Each bound id owns an entry with
+two size fields plus the exact initial topic bytes. Same/shorter remaps reuse
+that capacity; larger remaps charge both old and new entries until the new copy
+is installed, then free/refund the old one. These capacities count in
+`Info.PrivateBytes` / `MaxPrivateBytes`, remain cached through Destroy and are
+separate from owned-message quotas. Destroy scans all advertised pointer slots
+and frees their entries. No table is allocated for disabled or unused aliases. The private Client gains one pointer; public config/info,
+result, packet, codec and property layouts do not change.
+
+For compact packets, `xmqttMessagePacket(M)->Body.Publish.Topic` is an owned
+**logical resolved topic**, while `Wire` preserves the actual empty-topic frame.
+The resolved bytes are appended to the message's existing allocation, counted
+in `MaxObjectBytes`, queued `MessageBytes` and `MaxMessageBytes`. Remapping,
+releasing the original bind message and destroying Client/Engine never invalidate
+any retained message. Re-decoding Wire naturally exposes its original empty
+topic. An outgoing encoder does not silently strip or reinterpret that view;
+outgoing alias admission remains explicitly unsupported in this stage.
+
+Alias processing occurs before active QoS2 duplicate suppression. A duplicate
+can therefore update a binding without a second application delivery. Normal
+QoS1/2 ACK credit/order, duplex publication and graceful incoming-flow drain
+remain in force. Queued aliases/message limits fail with typed local LIMIT;
+allocation failure closes with MEMORY without publishing a partial message.
+A longer rebind can fail at its documented temporary old/new peak. Close and
+physical retirement do not release caller-held message objects.
+
+The decoder now preserves allocation-independent alias zero/repetition context
+through the existing private properties boundary. New appended codec error
+constants distinguish zero (`XMQTT_CODEC_TOPIC_ALIAS`) and repeated properties
+(`XMQTT_CODEC_TOPIC_ALIAS_REPEAT`). Public property statuses/outputs and existing
+codec enum values are unchanged. Runtime attempts DISCONNECT 0x94 for zero or
+above-maximum aliases, 0x82 for unbound compact references or repeated aliases;
+the existing finite diagnostic/abort fallback still applies. Other malformed
+fields keep their prior diagnostics. See [OASIS MQTT5 sections 3.3.2.3.4 and 3.3.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html).
+
+Costs are explicit: first-use table/entry allocation, cache copies on full-topic
+bind/remap, a direct lookup on compact references, and a resolved-topic copy in
+one existing message allocation. Compact wire saves topic bytes; it does not
+eliminate retained-topic storage or copying. The property reader's internal
+context and clone's optional resolved-view branch are additional instructions;
+no zero-overhead or performance acceptance is claimed. Subscription/alias
+workloads, pinned reference/broker comparisons, native Linux and >=72h native
+production qualification remain required.
+
+The [offline example](../examples/receive_alias/README.md),
+`tests/client_aliases.h`, alias codec diagnostic-OOM tests and the independent
+`tests/interop/run_alias_wire.py` / `alias_probe.c` cover mapping lifetimes,
+remaps, max ids/topics, QoS1/2, duplicate updates, raw/logical views, directional
+limits, exact error reasons, bounds, OOM and destruction. Reproduce the peer:
+
+```powershell
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/single_alias_probe.c -lws2_32 -o out/alias_probe.exe
+python extlibs/xmqtt/tests/interop/run_alias_wire.py --probe out/alias_probe.exe --report out/alias-wire.json
+```
+
+Linux replaces `-lws2_32` with `-lm -pthread`, optionally adding
+`-fsanitize=address,undefined -fno-omit-frame-pointer` and the usual ASan/UBSan
+halt/leak options. The peer has 39 distinct cases and supports `--case NAME`;
+JSON/stdout/stderr stay under ignored out/. It closes local sockets and joins
+its thread each time. There are no external service or credential prerequisites.

@@ -146,9 +146,10 @@ Invalid:
 	xmqttPropertiesFail(XMQTT_PROPERTIES_LOCAL_ERROR,XMQTT_PROPERTY_ARGUMENT,"invalid MQTT property input/output spans or overlap"); return false;
 }
 
-XMQTT_API xmqttpropertystatus xmqttPropertiesRead(xbytesview Input, xmqttpropertyscope Scope,
-	xmqttdirection Direction, const xmqttpropertyconfig* Config, xmqttproperty* Properties, size_t Capacity, xmqttpropertydocument* Document)
+XMQTT_INTERNAL xmqttpropertystatus xmqttInternalPropertiesRead(xbytesview Input, xmqttpropertyscope Scope,
+	xmqttdirection Direction, const xmqttpropertyconfig* Config, xmqttproperty* Properties, size_t Capacity, xmqttpropertydocument* Document,uint8* AliasReason)
 {
+	if(AliasReason)*AliasReason=0;
 	xmqttpropertyconfig Limits;
 	if (!xmqttPropertiesSettings(Scope,Direction,Config,&Limits) || !xmqttPropertiesReadArgs(Input,Config,Properties,Capacity,Document)) return XMQTT_PROPERTIES_LOCAL_ERROR;
 	uint32 Length; size_t Prefix;
@@ -173,7 +174,7 @@ XMQTT_API xmqttpropertystatus xmqttPropertiesRead(xbytesview Input, xmqttpropert
 		if (Spec == NULL) return xmqttPropertiesFail(XMQTT_PROPERTIES_MALFORMED,XMQTT_PROPERTY_MALFORMED,"unknown MQTT property identifier");
 		Property.Type = Spec->Type;
 		xmqttpropertystatus Status = xmqttPropertiesRule(&Property,Spec,Scope,Direction,&Seen);
-		if (Status != XMQTT_PROPERTIES_DONE) return Status;
+		if (Status != XMQTT_PROPERTIES_DONE) {if(AliasReason && Property.Id==XMQTT_PROPERTY_TOPIC_ALIAS && Scope==XMQTT_PROPERTIES_PUBLISH)*AliasReason=0x82;return Status;}
 		if (Property.Type >= XMQTT_PROPERTY_STRING) {
 			Status = xmqttPropertiesField((xbytesview){Input.Data+Position,Total-Position},Limits.Utf8Flags,&Property,&Read);
 			if (Status != XMQTT_PROPERTIES_DONE) return Status;
@@ -187,12 +188,16 @@ XMQTT_API xmqttpropertystatus xmqttPropertiesRead(xbytesview Input, xmqttpropert
 			for (size_t Index = 0; Index < Read; ++Index) Property.Value.Number = (Property.Value.Number << 8) | Input.Data[Position+Index];
 		}
 		Position += Read;
-		Status = xmqttPropertiesValue(&Property); if (Status != XMQTT_PROPERTIES_DONE) return Status;
+		Status = xmqttPropertiesValue(&Property); if (Status != XMQTT_PROPERTIES_DONE) {if(AliasReason && Property.Id==XMQTT_PROPERTY_TOPIC_ALIAS)*AliasReason=0x94;return Status;}
 		Properties[Count++] = Property;
 	}
 	xmqttpropertystatus Status = xmqttPropertiesFinal(Scope,Seen); if (Status != XMQTT_PROPERTIES_DONE) return Status;
 	*Document = (xmqttpropertydocument){Count,Total,{Input.Data,Total}}; return XMQTT_PROPERTIES_DONE;
 }
+
+XMQTT_API xmqttpropertystatus xmqttPropertiesRead(xbytesview Input,xmqttpropertyscope Scope,
+    xmqttdirection Direction,const xmqttpropertyconfig* Config,xmqttproperty* Properties,size_t Capacity,xmqttpropertydocument* Document)
+{return xmqttInternalPropertiesRead(Input,Scope,Direction,Config,Properties,Capacity,Document,NULL);}
 
 static size_t xmqttPropertiesVbiSize(uint32 Number)
 {

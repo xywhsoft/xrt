@@ -102,7 +102,15 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * duplicate ACKs coalesce while queued. This is volatile current-connection
  * delivery, not durable/business exactly-once. Graceful shutdown also drains
  * accepted incoming QoS2 flows; its finite deadline still applies.
- * Enhanced auth and positive receive alias capacity are explicitly unsupported;
+ * MQTT5 CONNECT Topic Alias Maximum opts into incoming aliases (default 0).
+ * A lazy direct-index table plus topic caches use MaxPrivateBytes through Destroy;
+ * shorter/same-length rebindings reuse cache capacity, larger ones temporarily
+ * charge both old/new entries. Empty-topic messages append an owned resolved
+ * topic to their existing allocation, charged to object/message bytes. Packet
+ * Topic is logical/resolved; Wire preserves the original alias-bearing frame.
+ * Rebinding/Destroy never changes retained messages. Aliases are connection-only,
+ * including when QoS2 duplicate delivery is suppressed. Outgoing aliases and
+ * enhanced auth are explicitly unsupported;
  * Subscriptions operate on this connection; automatic resubscription, reconnect
  * and durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.

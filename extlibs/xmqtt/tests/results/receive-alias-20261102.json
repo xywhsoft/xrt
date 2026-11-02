@@ -1,0 +1,1313 @@
+{
+  "stage": "MQTT5 incoming Topic Alias",
+  "baseline": "665e191476b3e98731505c8aa5a982610cc7f3a4",
+  "functional_cases_verified": true,
+  "source_sha256_lf_normalized": {
+    "extlibs/xmqtt/examples/receive_alias/main.c": "3cab75b22751e36fb68e43722779d71a67db47f6790ba5f2eea880d1425ca15e",
+    "extlibs/xmqtt/include/xmqtt/client.h": "54d97dc7eb92eabe49c142cdf4bcdde35ceae08fa96059b2a18a64ec2a38ce22",
+    "extlibs/xmqtt/include/xmqtt/packet.h": "7da2afe7d5fa54da5da03c0583c08b9033978a475363d7b866631910361cffc2",
+    "extlibs/xmqtt/src/client/client.c": "c6eca3563f8d3b1f75da49d972190b6f1f35ad7c108ddda09afcb74f86b5f51e",
+    "extlibs/xmqtt/src/codec5/decode.c": "dbf5d4d3d0dfd1658142e8cb7b29020bc27a7a1f551c8b34d51c8777286bfd13",
+    "extlibs/xmqtt/src/internal/xmqtt_internal.h": "712f2f844eba2683ae86a029a4828aa7cef4b464af23373d0583dd102e4c9af3",
+    "extlibs/xmqtt/src/properties/properties.c": "408627470697eba6d1ecf71fab8420231aa97cdf1415446a875e655651dd1465",
+    "extlibs/xmqtt/tests/client_aliases.h": "c7077afdccd2b16d3c4c3c93d0d9df31197488b5b0b39b7f2622ae3bb8d81a82",
+    "extlibs/xmqtt/tests/interop/alias_probe.c": "d1f2fe7a5bc4db9843f8a60389d9385cdf957c578150fc6dd3c72b3f772b2418",
+    "extlibs/xmqtt/tests/interop/run_alias_wire.py": "0265c720f2799906c575c930d989ca9042e6d674b8cc6b29982b07844b572da6",
+    "extlibs/xmqtt/tests/interop/single_alias_probe.c": "eb8cd0a211e04618970e18a62a3bb96a99c02eef64eec07c5d0053d5f2402099",
+    "extlibs/xmqtt/tests/test_client.c": "401a203f91dfd44d7b046b7ac00463351e9a4066309313f9d4c515109d56b0d5",
+    "extlibs/xmqtt/tests/test_codec5.c": "343dfc828b3f997774870ec78af4ad52657aac229e83e49c30b0c02b9b921703",
+    "single/extlibs/xmqtt.h": "d35288923b7270ea80db36b103b215a073e6ad8297fd36f7c880ea4c2b75ae0b",
+    "single/extlibs/xmqtt_decl.h": "044690cbef713baa11e4129c2dd481bf046150495cabdf3731c05053b3d22f7f"
+  },
+  "forms": {
+    "windows-modular": {
+      "probe_sha256": "57c2684f2e510c7bf65854df071a8759b5d8e5b2ada9a82482c84ffc3690cf3a",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "windows-single": {
+      "probe_sha256": "15ab0972995828a678ec17ed78b66232d32e31d112f8c6ded4346ca62f47de8e",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "windows-static": {
+      "probe_sha256": "44b481dd4924b56f39f6681eb103b84c3d9c105c9da46c45197addc7d6fece10",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "windows-shared": {
+      "probe_sha256": "793f4cd25d060dcb6201ea818c2ef1c3f90da2423bc2b2493d5c84ec1757ee35",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "wsl-modular": {
+      "probe_sha256": "7546600d6e0c41fb5613000878442de6d68e571b7a6613fee0f9e31f025b6deb",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "wsl-single": {
+      "probe_sha256": "064ca87e41aae6e0dae6f9a7e58627e0c6ba070c5198d7a9e1163f4cf9353d80",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "wsl-static": {
+      "probe_sha256": "b7fe2e36117d82a8649bdc0ff5c3364c678b86891a9246bf45b602f2a0ba203f",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    },
+    "wsl-shared": {
+      "probe_sha256": "d813931a27b499b4a929a2d29488e0f9062f4c8d97f430010a6e07422e22e2d7",
+      "cases": [
+        {
+          "case": "basic",
+          "received": 2
+        },
+        {
+          "case": "coalesced",
+          "received": 2
+        },
+        {
+          "case": "fragmented",
+          "received": 2
+        },
+        {
+          "case": "remap_short",
+          "received": 4
+        },
+        {
+          "case": "remap_same",
+          "received": 4
+        },
+        {
+          "case": "remap_long",
+          "received": 4
+        },
+        {
+          "case": "independent",
+          "received": 4
+        },
+        {
+          "case": "max_id",
+          "received": 2
+        },
+        {
+          "case": "qos1",
+          "received": 2
+        },
+        {
+          "case": "qos2",
+          "received": 2
+        },
+        {
+          "case": "duplicate2_rebind",
+          "received": 2
+        },
+        {
+          "case": "unknown",
+          "received": 0
+        },
+        {
+          "case": "zero",
+          "received": 0
+        },
+        {
+          "case": "zero_after_user",
+          "received": 0
+        },
+        {
+          "case": "over_max",
+          "received": 0
+        },
+        {
+          "case": "default_none",
+          "received": 0
+        },
+        {
+          "case": "explicit_zero",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias",
+          "received": 0
+        },
+        {
+          "case": "duplicate_alias_after_user",
+          "received": 0
+        },
+        {
+          "case": "empty_no_alias",
+          "received": 0
+        },
+        {
+          "case": "invalid_topic",
+          "received": 0
+        },
+        {
+          "case": "long_topic",
+          "received": 2
+        },
+        {
+          "case": "truncated",
+          "received": 0
+        },
+        {
+          "case": "metadata_limit",
+          "received": 1
+        },
+        {
+          "case": "message_bytes",
+          "received": 0
+        },
+        {
+          "case": "queue_limit",
+          "received": 1
+        },
+        {
+          "case": "private_table",
+          "received": 0
+        },
+        {
+          "case": "private_entry",
+          "received": 0
+        },
+        {
+          "case": "private_replace",
+          "received": 1
+        },
+        {
+          "case": "resolved_bytes",
+          "received": 1
+        },
+        {
+          "case": "cache_same_capacity",
+          "received": 3
+        },
+        {
+          "case": "duplex",
+          "received": 2
+        },
+        {
+          "case": "graceful",
+          "received": 2
+        },
+        {
+          "case": "close_callback",
+          "received": 1
+        },
+        {
+          "case": "per_connection",
+          "received": 2
+        },
+        {
+          "case": "server_caps",
+          "received": 2
+        },
+        {
+          "case": "properties",
+          "received": 2
+        },
+        {
+          "case": "no_alias_mapping",
+          "received": 1
+        },
+        {
+          "case": "plain_does_not_rebind",
+          "received": 3
+        }
+      ]
+    }
+  },
+  "qualification": "Local functional and ownership evidence only. Windows O2; WSL O2 plus ASan/UBSan/leak halt for modular/single, plain O2 static/shared. WSL is not native Linux. No alias/subscription performance, pinned reference/broker parity or production acceptance. Full four-library goal incomplete."
+}

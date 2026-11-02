@@ -18,6 +18,11 @@ XMQTT_INTERNAL xmqttwirestatus xmqttInternalHeader(xbytesview Input,
 
 #if defined(XMQTT_FEATURE_XMQTT_PROPERTIES)
 #include <xmqtt/properties.h>
+/* Optional allocation-independent reason for alias zero/repetition. Other
+ * errors leave it zero. Public property read statuses/outputs stay unchanged. */
+XMQTT_INTERNAL xmqttpropertystatus xmqttInternalPropertiesRead(xbytesview Input,
+    xmqttpropertyscope Scope,xmqttdirection Direction,const xmqttpropertyconfig* Config,
+    xmqttproperty* Properties,size_t Capacity,xmqttpropertydocument* Document,uint8* AliasReason);
 /* A packet encoder prepares each property section exactly once, checks global
  * aliases, then emits the prepared immutable vector without another text scan. */
 XMQTT_INTERNAL bool xmqttInternalPropertiesPrepare(const xmqttproperty* Properties,

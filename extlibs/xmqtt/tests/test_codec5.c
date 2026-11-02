@@ -456,8 +456,22 @@ static void testCodecAllocation(void)
 	testRequire(xrtAllocationBudgetInfo(Budget,&Info) && Info.LiveBytes==0 && Info.Rejections!=0,"codec cold diagnostic quota leak"); xrtClearError(); xrtAllocationBudgetFree(Budget);
 }
 
+static void testCodecAliasErrors(void)
+{
+    const unsigned char Zero[]={0x30,14,0,1,'t',10,0x26,0,1,'k',0,1,'v',0x23,0,0};
+    const unsigned char Repeat[]={0x30,10,0,1,'t',6,0x23,0,1,0x23,0,1};
+    for(unsigned Oom=0;Oom<2;++Oom){xallocationbudget* Budget=NULL;xallocationscope Scope={0};
+        if(Oom)testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"alias error diagnostic quota");
+        for(unsigned I=0;I<2;++I){xmqttproperty Props[4];xmqttcodecbuffers B={Props,4,NULL,0};xmqttpacket P,Before;memset(&P,0xa5,sizeof(P));Before=P;xmqttcodecissue Issue;
+            testRequire(xmqttPacketRead5((xbytesview){I?Repeat:Zero,I?sizeof(Repeat):sizeof(Zero)},XMQTT_SERVER_TO_CLIENT,NULL,&B,&P,&Issue)==XMQTT_CODEC_PROTOCOL_ERROR && Issue.Error==(I?XMQTT_CODEC_TOPIC_ALIAS_REPEAT:XMQTT_CODEC_TOPIC_ALIAS) && !memcmp(&P,&Before,sizeof(P)),"alias zero/repetition context and output atomicity independent of diagnostic OOM");
+            if(Oom){testRequire(xrtErrorKind(xrtGetError())==XERR_MEMORY,"alias diagnostic OOM observed");}xrtClearError();
+        }
+        if(Oom){testRequire(xrtAllocationBudgetLeave(&Scope),"alias diagnostic quota leave");xallocationbudgetinfo Info={0};Info.Size=sizeof(Info);testRequire(xrtAllocationBudgetInfo(Budget,&Info) && !Info.LiveBytes && !Info.LiveCount,"alias diagnostic lifetime");xrtAllocationBudgetFree(Budget);}
+    }
+}
+
 int main(void)
 {
-	testCodecFixtures(); testCodecRolesAndPacketBoundary(); testCodecReasons(); testCodecConnectFlags(); testCodecTopicOptions(); testCodecInvalid(); testCodecLimits(); testCodecBoundaries(); testCodecApiAliases(); testCodecMutations(); testCodecAllocation();
+	testCodecAliasErrors(); testCodecFixtures(); testCodecRolesAndPacketBoundary(); testCodecReasons(); testCodecConnectFlags(); testCodecTopicOptions(); testCodecInvalid(); testCodecLimits(); testCodecBoundaries(); testCodecApiAliases(); testCodecMutations(); testCodecAllocation();
 	printf("[PASS] xmqtt codec5: all15/directions/reasons/flags/topics/options/properties/PFI/limits/aliases/prefixes/atomicity/mutations/zero-heap/OOM\n"); return 0;
 }

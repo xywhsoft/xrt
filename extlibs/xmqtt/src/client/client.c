@@ -36,6 +36,7 @@ typedef struct xmqttreceivetwo {
     unsigned char State[65536];xmqttreceiveack Acks[];
 } xmqttreceivetwo;
 typedef struct xmqttstartup {xatomic32 Refs;xmqttclient* Client;size_t Bytes;unsigned char Data[];} xmqttstartup;
+typedef struct xmqttalias {size_t Size,Capacity;char Topic[];} xmqttalias;
 struct xmqttmessage {xatomic32 Refs;xmqttbox Box;xmqttpacket Packet;xmqttmessage* Next;xmqttproperty Props[];};
 struct xmqttrequest {
     xatomic32 Refs,NativeRefs;
@@ -56,7 +57,7 @@ struct xmqttclient {
     unsigned char* Input;size_t InputBytes,InputCapacity;
     xmqttrequest *SubmitHead,*SubmitTail,*Requests,*RequestTail,*Partial;
     xatomicptr SendFlow;uint32 SendInflight;
-    xmqttreceiveflow* ReceiveFlow;xmqttreceivetwo* ReceiveTwo;
+    xmqttreceiveflow* ReceiveFlow;xmqttreceivetwo* ReceiveTwo;xmqttalias** ReceiveAliases;
     xmqttmessage *MessageHead,*MessageTail;
     xmqttnegotiated Peer;xerror* Cause;
     double SetupDeadline,NextPing,PingDeadline,TimerAt,DrainDeadline;
@@ -133,12 +134,13 @@ static xstrview xmqttRebaseText(xstrview V,const unsigned char* Old,const unsign
 {if(V.Data)V.Data=(const char*)(New+((const unsigned char*)V.Data-Old));return V;}
 static xbytesview xmqttRebaseBytes(xbytesview V,const unsigned char* Old,const unsigned char* New)
 {if(V.Data)V.Data=New+((const unsigned char*)V.Data-Old);return V;}
-static xmqttmessage* xmqttMessageCopy(xmqttclient* C,const xmqttpacket* P,xmqttclientstatus* Failure)
+static xmqttmessage* xmqttMessageCopy(xmqttclient* C,const xmqttpacket* P,xmqttclientstatus* Failure,const xstrview* Resolved)
 {
     size_t Count=P->Properties.Count;
     if(Count>(SIZE_MAX-sizeof(xmqttmessage))/sizeof(xmqttproperty) ||
        P->Wire.Size>SIZE_MAX-sizeof(xmqttmessage)-Count*sizeof(xmqttproperty)){*Failure=XMQTT_STATUS_LIMIT;return NULL;}
     size_t Bytes=sizeof(xmqttmessage)+Count*sizeof(xmqttproperty)+P->Wire.Size;
+    if(Resolved){if(Resolved->Size>SIZE_MAX-Bytes){*Failure=XMQTT_STATUS_LIMIT;return NULL;}Bytes+=Resolved->Size;}
     xmqttmessage* M=xmqttBoxAllocate(C->Quota,Bytes,Failure);if(!M)return NULL;
     M->Box=(xmqttbox){C->Quota,Bytes};xrtAtomic32Init(&M->Refs,1);M->Packet=*P;
     unsigned char* Wire=(unsigned char*)(M->Props+Count);memcpy(Wire,P->Wire.Data,P->Wire.Size);
@@ -150,7 +152,11 @@ static xmqttmessage* xmqttMessageCopy(xmqttclient* C,const xmqttpacket* P,xmqttc
         else if(V->Type==XMQTT_PROPERTY_STRING_PAIR){V->Value.Pair.Name=xmqttRebaseText(V->Value.Pair.Name,P->Wire.Data,Wire);V->Value.Pair.Value=xmqttRebaseText(V->Value.Pair.Value,P->Wire.Data,Wire);}
     }
     if(P->Type==XMQTT_PACKET_SUBACK || P->Type==XMQTT_PACKET_UNSUBACK)M->Packet.Body.Reasons=xmqttRebaseBytes(P->Body.Reasons,P->Wire.Data,Wire);
-    if(P->Type==XMQTT_PACKET_PUBLISH){M->Packet.Body.Publish.Topic=xmqttRebaseText(P->Body.Publish.Topic,P->Wire.Data,Wire);M->Packet.Body.Publish.Payload=xmqttRebaseBytes(P->Body.Publish.Payload,P->Wire.Data,Wire);}
+    if(P->Type==XMQTT_PACKET_PUBLISH){
+        if(Resolved){char* Topic=(char*)(Wire+P->Wire.Size);memcpy(Topic,Resolved->Data,Resolved->Size);M->Packet.Body.Publish.Topic=(xstrview){Topic,Resolved->Size};}
+        else M->Packet.Body.Publish.Topic=xmqttRebaseText(P->Body.Publish.Topic,P->Wire.Data,Wire);
+        M->Packet.Body.Publish.Payload=xmqttRebaseBytes(P->Body.Publish.Payload,P->Wire.Data,Wire);
+    }
     return M;
 }
 XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* M)
@@ -339,6 +345,37 @@ static bool xmqttClientGrow(xmqttclient* C,size_t Capacity)
     xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=C->InputCapacity;xrtMutexUnlock(&C->Gate);
     C->Input=P;C->InputCapacity=Capacity;return true;
 }
+static void* xmqttAliasAllocate(xmqttclient* C,size_t Bytes,bool Zero)
+{
+    xrtMutexLock(&C->Gate);
+    if(Bytes>C->Config.MaxPrivateBytes-C->Info.PrivateBytes){xrtMutexUnlock(&C->Gate);xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);return NULL;}
+    C->Info.PrivateBytes+=Bytes;xrtMutexUnlock(&C->Gate);
+    void* Data=Zero?xrtCalloc(1,Bytes):xrtMalloc(Bytes);
+    if(!Data){xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=Bytes;xrtMutexUnlock(&C->Gate);xmqttClientFail(C,XMQTT_STATUS_MEMORY,xrtGetError());}
+    return Data;
+}
+/* Called once per accepted PUBLISH, including active QoS2 duplicates. Only the
+ * owner accesses this table. Messages never retain an entry or its Client. */
+static bool xmqttReceiveAlias(xmqttclient* C,const xmqttpacket* P,xstrview* Resolved)
+{
+    uint16 Id=0;
+    for(size_t I=0;I<P->Properties.Count;++I)if(P->Properties.Data[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS){Id=(uint16)P->Properties.Data[I].Value.Number;break;}
+    if(!Id)return true; /* The codec rejects zero/duplicate alias properties. */
+    if(Id>C->Peer.ReceiveAliasMaximum){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x94);return false;}
+    xstrview Topic=P->Body.Publish.Topic;
+    if(!Topic.Size){
+        xmqttalias* A=C->ReceiveAliases?C->ReceiveAliases[Id-1]:NULL;
+        if(!A){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x82);return false;}
+        *Resolved=(xstrview){A->Topic,A->Size};return true;
+    }
+    if(!C->ReceiveAliases){C->ReceiveAliases=xmqttAliasAllocate(C,(size_t)C->Peer.ReceiveAliasMaximum*sizeof(*C->ReceiveAliases),true);if(!C->ReceiveAliases)return false;}
+    xmqttalias* Old=C->ReceiveAliases[Id-1];
+    if(Old && Topic.Size<=Old->Capacity){memcpy(Old->Topic,Topic.Data,Topic.Size);Old->Size=Topic.Size;return true;}
+    xmqttalias* A=xmqttAliasAllocate(C,sizeof(*A)+Topic.Size,false);if(!A)return false;
+    A->Size=A->Capacity=Topic.Size;memcpy(A->Topic,Topic.Data,Topic.Size);C->ReceiveAliases[Id-1]=A;
+    if(Old){size_t Bytes=sizeof(*Old)+Old->Capacity;xrtFree(Old);xrtMutexLock(&C->Gate);C->Info.PrivateBytes-=Bytes;xrtMutexUnlock(&C->Gate);}
+    return true;
+}
 static bool xmqttReceivePrepare(xmqttclient* C)
 {
     if(C->ReceiveFlow)return true;
@@ -405,7 +442,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
     xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
     if(!C->Info.Ready){
         if(P->Type!=XMQTT_PACKET_CONNACK || !C->Startup || C->SetupOffset!=C->Startup->Bytes){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
-        xmqttmessage* M=xmqttMessageCopy(C,P,&Failure);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
+        xmqttmessage* M=xmqttMessageCopy(C,P,&Failure,NULL);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
         xmqttnegotiationconfig K;xmqttNegotiationConfigInit(&K);K.Version=C->Config.Version;K.Codec=C->Config.Codec;
         xmqttnegotiated N;xmqttnegotiationissue Issue;
         xmqttnegotiationstatus S=xmqttNegotiate(&C->SetupPacket,&M->Packet,&K,&N,&Issue);
@@ -439,7 +476,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
         }
         xmqttsubscriptionresult* V=&R->Result.Subscription->Value;
         V->Acknowledged=true;V->Granted=Count-Rejected;V->Rejected=Rejected;
-        V->Ack=xmqttMessageCopy(C,P,&Failure);
+        V->Ack=xmqttMessageCopy(C,P,&Failure,NULL);
         if(!V->Ack){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
         xmqttrequest** Link=R->Previous?&R->Previous->Next:&C->Requests;
         xmqttRequestFinish(C,Link,Rejected?XMQTT_STATUS_REJECTED:XMQTT_STATUS_OK);return true;
@@ -450,7 +487,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
         xmqttrequest* R=xmqttRequestFind(C,P->Identifier);
         if(!R || R->Type!=XMQTT_PACKET_PUBLISH || R->Qos!=1 || !R->Credit || R->Offset!=R->Bytes){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
         R->Acknowledged=true;R->Result.Write->Value.Reason=P->Reason;
-        R->Result.Write->Value.Puback=xmqttMessageCopy(C,P,&Failure);
+        R->Result.Write->Value.Puback=xmqttMessageCopy(C,P,&Failure,NULL);
         if(!R->Result.Write->Value.Puback){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
         xmqttrequest** Link=R->Previous?&R->Previous->Next:&C->Requests;
         xmqttRequestFinish(C,Link,P->Reason<0x80?XMQTT_STATUS_OK:XMQTT_STATUS_REJECTED);return true;
@@ -470,7 +507,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
                 V->PubrecReceived=true;V->PubrecReason=P->Reason;V->Reason=P->Reason;
                 if(P->Reason>=0x80)R->Acknowledged=true;
                 xmqttMessageRelease(V->Pubrec);V->Pubrec=NULL;
-                xmqttmessage* M=xmqttMessageCopy(C,P,&Failure);
+                xmqttmessage* M=xmqttMessageCopy(C,P,&Failure,NULL);
                 if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
                 V->Pubrec=M;
             }
@@ -483,7 +520,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
         }else {
             if(V->PubcompReceived)return true;
             V->PubcompReceived=true;V->Reason=P->Reason;R->Acknowledged=true;
-            V->Pubcomp=xmqttMessageCopy(C,P,&Failure);
+            V->Pubcomp=xmqttMessageCopy(C,P,&Failure,NULL);
             if(!V->Pubcomp){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
         }
         if(R->Qos==2 && R->State.Release.Offset && R->State.Release.Offset<4)return true;
@@ -499,11 +536,11 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
     }
     if(P->Type==XMQTT_PACKET_DISCONNECT){xrtMutexLock(&C->Gate);C->Info.ServerReason=P->Reason;xrtMutexUnlock(&C->Gate);xmqttClientFail(C,XMQTT_STATUS_SERVER_DISCONNECT,NULL);return false;}
     if(P->Type!=XMQTT_PACKET_PUBLISH){xmqttClientFail(C,XMQTT_STATUS_PROTOCOL,NULL);return false;}
-    for(size_t I=0;I<P->Properties.Count;++I)if(P->Properties.Data[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS){xmqttClientFailReason(C,XMQTT_STATUS_PROTOCOL,NULL,0x94);return false;}
+    xstrview Resolved={0};if(!xmqttReceiveAlias(C,P,&Resolved))return false;
     unsigned Qos=(P->Flags>>1)&3u;
     if(Qos==2 && (C->ReceiveTwo->State[P->Identifier]&XMQTT_RX_ACTIVE)){xmqttReceiveTwoQueue(C,P->Identifier,0x50,false);return true;}
     if(Qos==1 && !xmqttReceivePrepare(C))return false;
-    xmqttmessage* M=xmqttMessageCopy(C,P,&Failure);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
+    xmqttmessage* M=xmqttMessageCopy(C,P,&Failure,Resolved.Size?&Resolved:NULL);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
     xrtMutexLock(&C->Gate);
     bool Full=C->Info.Messages==C->Config.MaxMessages || M->Box.Bytes>C->Config.MaxMessageBytes-C->Info.MessageBytes;
     if(!Full){if(C->MessageTail)C->MessageTail->Next=M;else C->MessageHead=M;C->MessageTail=M;++C->Info.Messages;C->Info.MessageBytes+=M->Box.Bytes;++C->Info.Received;}
@@ -526,7 +563,7 @@ static void xmqttClientReadPump(xmqttclient* C)
             Needed=H.PacketBytes;
             if(C->InputBytes>=Needed){xmqttpacket P;xmqttcodecissue Issue;xmqttcodecbuffers B={C->Props,C->Config.Codec.MaxProperties,NULL,0};
                 xmqttcodecstatus S=C->Config.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){C->Input,Needed},XMQTT_SERVER_TO_CLIENT,&C->Config.Codec,&B,&P,&Issue):xmqttPacketRead311((xbytesview){C->Input,Needed},XMQTT_SERVER_TO_CLIENT,&C->Config.Codec,&B,&P,&Issue);
-                if(S!=XMQTT_CODEC_DONE){xmqttClientFailReason(C,S==XMQTT_CODEC_LOCAL_ERROR?XMQTT_STATUS_LIMIT:XMQTT_STATUS_PROTOCOL,xrtGetError(),S==XMQTT_CODEC_LOCAL_ERROR?0:0x81);return;}
+                if(S!=XMQTT_CODEC_DONE){xmqttClientFailReason(C,S==XMQTT_CODEC_LOCAL_ERROR?XMQTT_STATUS_LIMIT:XMQTT_STATUS_PROTOCOL,xrtGetError(),S==XMQTT_CODEC_LOCAL_ERROR?0:Issue.Error==XMQTT_CODEC_TOPIC_ALIAS?0x94:Issue.Error==XMQTT_CODEC_TOPIC_ALIAS_REPEAT?0x82:0x81);return;}
                 if(!xmqttReceiveRoom(C,&P))return;
                 if(!xmqttClientFrame(C,&P))return;
                 C->InputBytes-=Needed;if(C->InputBytes)memmove(C->Input,C->Input+Needed,C->InputBytes);++Packets;continue;
@@ -847,6 +884,7 @@ static void xmqttClientFree(xmqttclient* C)
 {
     xmqttmessage* M=C->MessageHead;while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
+    if(C->ReceiveAliases){for(size_t I=0;I<C->Peer.ReceiveAliasMaximum;++I)xrtFree(C->ReceiveAliases[I]);xrtFree(C->ReceiveAliases);}
     xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
@@ -863,7 +901,7 @@ XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint
     if(!Valid)return false;
     uint32 ReceiveBytes=XMQTT_PACKET_MAX_BYTES;bool ProblemInfo=true;
     for(size_t I=0;I<Connect->Properties.Count;++I){const xmqttproperty* P=Connect->Properties.Data+I;
-        if(P->Id==XMQTT_PROPERTY_AUTH_METHOD || (P->Id==XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM && P->Value.Number))return xmqttClientError(XERR_STATE,"enhanced authentication/receive aliases not implemented");
+        if(P->Id==XMQTT_PROPERTY_AUTH_METHOD)return xmqttClientError(XERR_STATE,"enhanced authentication not implemented");
         if(P->Id==XMQTT_PROPERTY_REQUEST_PROBLEM_INFO)ProblemInfo=P->Value.Number!=0;
         if(P->Id==XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE){ReceiveBytes=P->Value.Number;if(ReceiveBytes>K.Codec.MaxPacketBytes)return xmqttClientError(XERR_ARGUMENT,"advertised receive packet size exceeds local codec limit");}
     }

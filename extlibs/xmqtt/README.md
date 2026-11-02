@@ -6,7 +6,9 @@ packet codecs and negotiated connection constraints are implemented.** A develop
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
 keep-alive, QoS-0/1/2 send/receive with retained acknowledgement metadata,
 SUBSCRIBE/UNSUBSCRIBE with owned per-filter reasons, shared outgoing identifiers/flow credit, automatic MQTT5 diagnostic close, bounded application graceful DISCONNECT and physical shutdown.
-Enhanced authentication, aliases, reconnect, durable
+MQTT5 incoming Topic Aliases are opt-in through CONNECT; see the
+[local receive-alias example](examples/receive_alias/README.md).
+Enhanced authentication, outgoing aliases, reconnect, durable
 sessions and TLS/WebSocket remain pending.
 No broker or production/performance acceptance is claimed.
 

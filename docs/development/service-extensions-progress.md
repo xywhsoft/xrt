@@ -6275,3 +6275,94 @@ Redis HA/tracking/dedicated paths, remaining RPC security/recovery/transports/
 deferred work and Cron IANA/scheduler/durability remain. Product manifests stay
 developing. No primary merge or push occurred; the complete four-library goal
 remains active and incomplete.
+
+
+## Bounded MQTT5 incoming Topic Alias (2026-11-02)
+
+Baseline `665e191476b3e98731505c8aa5a982610cc7f3a4`. Positive MQTT5 CONNECT
+Topic Alias Maximum now opts into bounded incoming aliases. Absent/zero retains
+the disabled default. A lazy direct table accepts all advertised ids through
+65535; full-topic packets bind/remap, compact packets resolve, and unaliased
+publications do not alter mappings. CONNACK's opposite-direction alias limit is
+independent. The protocol worker alone accesses the table. Active duplicate
+QoS2 PUBLISH still updates its alias before duplicate delivery is suppressed.
+The existing receive ACK/credit, duplex, graceful-drain and retirement rules
+continue to apply. No shared runtime/Core API or implicit replay was introduced.
+
+Mapping table/entry capacity is charged to MaxPrivateBytes through Destroy.
+Shorter/same-length remaps reuse capacity; a longer one temporarily charges both
+entries before installing the replacement and refunding the old one. Messages
+never borrow an alias entry. Compact messages append a resolved-topic copy to
+their existing owned allocation, charged to object and queued-message byte
+budgets. Their logical descriptor has the resolved topic; Wire retains the
+actual empty-topic packet. Old messages survive remapping and all connection/
+Engine destruction. A fresh connection, even with the same ClientId, has no
+mapping. Dense-table footprint is explicit (maximum 65535 pointer slots), not
+an unbounded cache or a claim of minimal memory for sparse aliases.
+
+The existing private property/codec boundary now preserves alias zero/repetition
+context independently of diagnostic allocation. Two appended codec error enum
+values select DISCONNECT 0x94 for zero or above-maximum alias and 0x82 for repeated
+properties; an unbound compact reference also uses 0x82. Public property statuses
+and existing enum values remain unchanged. Diagnostic OOM tests assert the
+specific codec context with unchanged packet output. Other malformed packets
+retain their prior reason mapping and bounded diagnostic/abort policy.
+
+The new unit header exercises max id, raw versus logical ownership, repeated
+same/shorter/larger rebinds, duplicate QoS2 mapping updates, and cold table/topic/
+message, compact copy and larger-replacement OOM budgets. Initial WSL fault
+injection used a second network arrival under the worker allocation scope; an
+isolated diagnostic reproduced TRANSPORT before any alias allocation at budget
+1. The fixture now buffers the marker/bind and tested packet in one input batch,
+matching the existing receive OOM methodology and isolating alias allocation
+from native socket read allocation. It retains strict MEMORY/no-partial-delivery
+assertions and verifies zero live budget owners after destruction; the native
+failure was not reclassified or counted as an alias failure.
+
+The independent byte peer has 39 distinct cases: bindings and unbound references,
+all remap sizes, independent ids, 65535 id/topic boundaries, fragmented/coalesced
+input, QoS1/2, duplicate updates, exact zero/duplicate/over-limit reasons (including
+a preceding User Property), default/explicit zero capacity, direction separation,
+plain-topic independence, retained User/subscription-id metadata, local object/
+message/private/expanded-topic quotas, duplex flow, callback Close, graceful
+incoming QoS2 drain and fresh-connection isolation. A separate offline alias
+example documents commands, expected resolved messages and explicit cleanup.
+
+Final validation passes native Windows GCC O2 and Linux WSL x64 GCC O2 with
+ASan/UBSan/leak halt for modular/single programs/peers; static/shared packages
+and consumers use plain O2. Both final orchestration handles exited 0 with frozen
+C/header inputs. There are 3062 independent wire-case executions: 312 new alias
+cases (39 in each of four forms on two systems), 856 subscription executions and
+1894 prior functional cases. The stage also runs 28 modular/single unit programs,
+eight package consumers and 14 offline examples. The 26 API-reference/extension-
+layout/header-coverage/single tool tests pass; declaration/trim/features/
+amalgamation/reference and package verification pass.
+
+Public x64 config272/info160/ready136/write64/packet168/codec56/property40 and
+subscription result64 remain unchanged. Private Client changes 1152->1160 bytes
+on Windows and 1360->1368 on WSL; Request stays104. Alias entries have two
+size fields and owned topic bytes. Destroy scans the advertised pointer slots.
+Portable complete alias observations, form-specific binary hashes and normalized
+changed-source fingerprints are committed in
+`extlibs/xmqtt/tests/results/receive-alias-20261102.json`. Exact commands, raw
+reports, the isolated initial native-failure diagnostic and immutable source/
+artifact evidence are indexed in
+`out/service-extensions/xmqtt-alias-receive/validation.json`.
+These are local functional/ownership results; WSL is not native Linux and no
+alias/subscription load or production acceptance is claimed.
+
+Costs remain explicit: one private Client pointer, cold direct table/entry
+allocations, binding copies, compact lookup and an appended topic copy in an
+existing message allocation. Default alias scans existed previously as rejection
+checks; optional clone/context branches add instructions. No mutex is added to
+lookup, but allocation accounting uses the existing Client Gate. Compact wire
+savings are not a claim of eliminating retained-topic storage/copies. No
+subscription/alias benchmark, reference/broker parity or production acceptance
+is inferred. Earlier QoS2 performance-quality failures stay unaccepted.
+
+Outgoing aliases, session/store/reconnect/expiry/enhanced auth/DNS/TLS/WebSocket,
+Redis HA/tracking/dedicated paths, remaining RPC security/recovery/transports/
+deferred work, Cron IANA/scheduler/durability, native Linux and >=72h native mixed/
+fault qualification remain required. All product manifests stay developing.
+No primary merge or push occurred. The complete four-library goal remains active
+and incomplete.

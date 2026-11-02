@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `45` 个函数、`170` 个常量或宏、
+当前登记 `45` 个函数、`172` 个常量或宏、
 `47` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -180,7 +180,7 @@
 - `xmqttCodecConfigInit`
 - `xmqttPacketInit`
 
-### 常量与宏 (22)
+### 常量与宏 (24)
 
 - `XMQTT_CODEC_ARGUMENT`
 - `XMQTT_CODEC_CAPACITY`
@@ -197,6 +197,8 @@
 - `XMQTT_CODEC_PROTOCOL`
 - `XMQTT_CODEC_PROTOCOL_ERROR`
 - `XMQTT_CODEC_TOPIC`
+- `XMQTT_CODEC_TOPIC_ALIAS`
+- `XMQTT_CODEC_TOPIC_ALIAS_REPEAT`
 - `XMQTT_CODEC_UNSUPPORTED`
 - `XMQTT_CODEC_VERSION`
 - `XMQTT_FEATURE_XMQTT_WIRE`

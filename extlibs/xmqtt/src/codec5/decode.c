@@ -85,13 +85,14 @@ static bool xmqtt5ReadProperties(xmqtt5reader* Reader, xmqttpropertyscope Scope,
 	xmqttpropertyconfig Config={sizeof(Config),Reader->Config.MaxPropertyBytes-Reader->PropertyBytes,
 		Reader->Config.MaxProperties-Reader->PropertiesUsed,Reader->Config.Utf8Flags};
 	xmqttproperty* Output=Reader->Buffers.Properties==NULL ? NULL : Reader->Buffers.Properties+Reader->PropertiesUsed;
-	xmqttpropertydocument Doc;
-	xmqttpropertystatus Status=xmqttPropertiesRead((xbytesview){Reader->Input.Data+Reader->Position,Reader->End-Reader->Position},Scope,Reader->Direction,
-		&Config,Output,Reader->Buffers.PropertyCapacity-Reader->PropertiesUsed,&Doc);
+	xmqttpropertydocument Doc;uint8 AliasReason=0;
+	xmqttpropertystatus Status=xmqttInternalPropertiesRead((xbytesview){Reader->Input.Data+Reader->Position,Reader->End-Reader->Position},Scope,Reader->Direction,
+		&Config,Output,Reader->Buffers.PropertyCapacity-Reader->PropertiesUsed,&Doc,&AliasReason);
 	if (Status!=XMQTT_PROPERTIES_DONE) {
 		if (Status==XMQTT_PROPERTIES_MORE) return xmqtt5ReadFail(Reader,XMQTT_CODEC_MALFORMED,XMQTT_CODEC_FORMAT,Reader->Position,"MQTT property section crosses packet boundary");
 		return xmqtt5ReadMark(Reader,Status==XMQTT_PROPERTIES_LOCAL_ERROR ? XMQTT_CODEC_LOCAL_ERROR :
 			Status==XMQTT_PROPERTIES_PROTOCOL_ERROR ? XMQTT_CODEC_PROTOCOL_ERROR : XMQTT_CODEC_MALFORMED,
+			AliasReason==0x94 ? XMQTT_CODEC_TOPIC_ALIAS : AliasReason==0x82 ? XMQTT_CODEC_TOPIC_ALIAS_REPEAT :
 			Status==XMQTT_PROPERTIES_LOCAL_ERROR ? XMQTT_CODEC_LIMIT : Status==XMQTT_PROPERTIES_PROTOCOL_ERROR ? XMQTT_CODEC_PROTOCOL : XMQTT_CODEC_FORMAT,Reader->Position);
 	}
 	*Values=(xmqttpropertylist){Doc.Count ? Output : NULL,Doc.Count};

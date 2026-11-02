@@ -10,7 +10,7 @@ those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
 QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
-Session/auth/alias/expiry/
+Session/auth/outgoing-alias/expiry/
 subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
