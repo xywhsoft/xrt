@@ -78,13 +78,21 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * unique Client; Close/Wait/Destroy it before destroying Engine. Output changes
  * only on success. Startup wire is wiped after handshake/stops AND its final
  * native reference. Caller/native/system copies are outside that contract.
- * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0/1
- * receives, QoS-0/1/2 sends and server DISCONNECT. Incoming QoS-1 is acknowledged only after
+ * This vertical slice supports basic CONNECT auth, CONNACK, keep-alive, QoS-0/1/2
+ * receives/sends and server DISCONNECT. Incoming QoS-1 is acknowledged only after
  * an owned message enters the bounded local queue, independent of application
  * Take/Release. PUBACKs are ordered, bounded by min(MaxMessages, ReceiveMaximum),
  * lazily charged to private bytes, and never interleave a partial outgoing frame.
+ * QoS2 enqueues once before PUBREC, retaining incoming id/credit through PUBCOMP
+ * output. Active duplicate PUBLISH repeats PUBREC without delivery; repeated or
+ * unknown PUBREL receives PUBCOMP (v5 reason 0x92 when unknown). Application Take
+ * does not return protocol credit. A separate lazy 64 KiB id-state table and
+ * 2*min(MaxMessages,ReceiveMaximum) four-byte ACK slots use MaxPrivateBytes;
+ * duplicate ACKs coalesce while queued. This is volatile current-connection
+ * delivery, not durable/business exactly-once. Graceful shutdown also drains
+ * accepted incoming QoS2 flows; its finite deadline still applies.
  * Enhanced auth and positive receive alias capacity are explicitly unsupported;
- * Receiver QoS 2, subscriptions, reconnect,
+ * Subscriptions, reconnect,
  * durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.
  * Explicit Maximum Packet Size must not exceed the local codec packet cap.

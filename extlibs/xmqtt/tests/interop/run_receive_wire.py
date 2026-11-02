@@ -72,6 +72,8 @@ def serve(listener, version, case, errors):
                     ack(s, 9)
                     s.sendall(publish(version, 9, duplicate=True))
                     ack(s, 9)
+                elif case == 'qos2':
+                    s.sendall(publish(version,9,qos=2));assert read_packet(s)==(0x50,b'\0\x09');s.sendall(packet(0x62,b'\0\x09'));assert read_packet(s)==(0x70,b'\0\x09');s.sendall(publish(version,qos=0))
                 elif case == 'queue_limit':
                     s.sendall(publish(version, 1))
                     ack(s, 1)
@@ -103,7 +105,7 @@ def main():
     common = [('ordered', 4, 4), ('tiny', 4, 4), ('partial_ack', 4, 4), ('backpressure', 4, 4),
               ('duplicate', 4, 3), ('duplex', 4, 2), ('partial_outgoing', 4, 2),
               ('queue_limit', 7, 1), ('object_limit', 7, 0), ('private_limit', 7, 0),
-              ('zero_id', 6, 0), ('qos2', 9, 0), ('reentrant', 4, 1), ('close_partial_ack', 5, 1)]
+              ('zero_id', 6, 0), ('qos2', 4, 2), ('reentrant', 4, 1), ('close_partial_ack', 5, 1)]
     rows = []
     for version in (4, 5):
         for case, close, received in common + ([('receive_window', 6, 1), ('restricted', 13, 1)] if version == 5 else []):

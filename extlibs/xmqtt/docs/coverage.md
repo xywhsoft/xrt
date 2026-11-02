@@ -8,9 +8,9 @@ packet bodies. A separate negotiation leaf checks CONNECT/CONNACK relationships
 and client per-packet capabilities; its [contracts](negotiation.md) distinguish
 those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
-QoS-0/1 send/receive, ordered PUBACK flow, bounded automatic MQTT5 error
+QoS-0/1/2 send/receive, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
-QoS 2, session/auth/alias/expiry/
+Session/auth/alias/expiry/
 subscription state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
@@ -98,7 +98,7 @@ normal native close is distinct from any broker acknowledgement. Modular/single
 fault suites and the separate stdlib peer verify reasons/expiry/caps, input
 snapshot lifetime, final-frame order, fragmented ACK/data/disconnect, peer EOF,
 first protocol failure, timeout/cancel/abort, admission OOM and retained results.
-The developing session/store/QoS2-receiver scope and pinned broker/production/performance
+The developing session/store scope and pinned broker/production/performance
 qualification remain required; this row does not establish those capabilities.
 
 
@@ -114,6 +114,30 @@ repeated frame before graceful close. Unit/single tests and an independent
 stdlib socket peer cover windows, negative/duplicate/late/premature/wrong-kind
 ACKs, byte writes, phase timeout/cancel/abort, graceful ordering, quotas and
 metadata lifetime beyond Client/Engine. A separate offline sender example is
-part of the client suite. Incoming QoS 2, subscriptions/shared subscription ids,
+part of the client suite. Subscriptions/shared subscription ids,
 session persistence/recovery and pinned broker/native Linux/72h/performance
 qualification remain required. This row does not establish those capabilities.
+
+
+## Volatile QoS-2 receiver
+
+The developing TCP client enqueues one owned message before PUBREC, tracks the
+incoming id independently of application Take/Release and outgoing ids, and
+returns shared receive credit only after complete PUBCOMP output. Direct-index
+state suppresses duplicate PUBLISH delivery regardless of DUP; queued duplicate
+ACKs coalesce, unknown/repeated PUBREL is completed without delivery and a new
+PUBLISH may reuse an id after completion. A bounded control queue, native copied
+output and frame-boundary rules preserve partial packet ordering and physical
+retirement. Graceful shutdown also drains accepted incoming flows or reaches
+its existing finite deadline/cancellation. The example and separate stdlib peer
+cover both protocol versions, 66 wire cases, limits/windows, fragmented/control
+and duplex traffic, metadata lifetime, reentrancy and interrupted drain. Unit
+allocation-budget cases cover state allocation, message allocation and a success
+control with no remaining live budget owners after destruction. The old error-
+diagnostic fixture now waits for the peer observation before inspecting its
+reason; local physical close cannot prove a different worker already ran.
+
+This is volatile current-connection local enqueue, not crash-safe session or
+business exactly-once processing. Persistence/reconnect/session/expiry/auth/
+alias/subscription/transports, dedicated QoS-2 load/CPU/copy/allocation accounting,
+pinned comparators, native Linux and >=72h production qualification remain.

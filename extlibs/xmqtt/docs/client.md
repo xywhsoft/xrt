@@ -3,17 +3,17 @@
 `xmqtt_client` is developing. It implements one numeric-address TCP connection
 on a running XRT Engine, MQTT 5.0 (default) or explicit 3.1.1, copied CONNECT
 including basic username/password/Will fields, validated CONNACK negotiation,
-QoS-0/1 PUBLISH receive, QoS-0/1/2 send, correlated publishing ACK results,
+QoS-0/1/2 PUBLISH send/receive, correlated publishing ACK results,
 server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. QoS-2 receiver, subscription and
+This stage does **not** complete the planned client. subscription and
 shared outgoing identifier state, aliases, enhanced authentication,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
 Enhanced authentication and positive receive Topic Alias Maximum are refused
-at creation. Receiving QoS 2 currently closes with UNSUPPORTED; it never
-pretends to acknowledge or deliver that flow. SessionPresent with no local
+at creation. QoS-2 receives use the volatile current-connection contract below.
+SessionPresent with no local
 session closes with SESSION, also for the explicit 3.1.1 mode.
 
 ## Ownership and results
@@ -133,13 +133,15 @@ Retirement synchronization adds 40 bytes to the private Client on tested native
 Windows x64 (1088 -> 1128) and 176 bytes on tested WSL x64 (1160 -> 1336). Selecting
 the Core module also adds 40/176 bytes per native Stream. Client storage is
 charged to MaxPrivateBytes; Core storage is accounted separately. Public
-config/info/ready/write/packet layouts stay 272/160/136/40/168 bytes. Mutex and
+config/info/ready/packet layouts stay 272/160/136/168 bytes; the sender stage
+expanded write results to 64 bytes. Mutex and
 condition initialization/destruction, terminal locking/broadcasts, and ordinary
 reference load/CAS work are real costs. These changes establish neither zero
 overhead nor steady-message throughput parity; those require measurements.
 
 Application shutdown adds one private pointer and four flags (16 bytes on tested
-Windows/WSL x64): Client sizeof is now 1144/1352, charged to MaxPrivateBytes.
+Windows/WSL x64): Client sizeof became 1144/1352, charged to MaxPrivateBytes.
+The QoS-2 receiver adds another private pointer (current Client 1152/1360).
 The request metadata is reused, without another runtime or per-message object.
 Each admitted shutdown still allocates its owned request/wire, Future/token and
 quota result, and uses existing Core timer/send nodes. Ordinary workloads also
@@ -253,7 +255,7 @@ PUBREC terminates with REJECTED and sends no new PUBREL. A negative PUBCOMP also
 returns REJECTED: id-not-found (0x92) describes a protocol/state mismatch and
 cannot prove the message was never delivered. PEER_ACCEPTED denotes final
 protocol success, not subscriber processing, durable storage or recovery after
-crashes. Incoming QoS 2 and durable/reconnected sessions remain unsupported.
+crashes. Durable/reconnected sessions remain unsupported.
 
 Duplicate successful PUBREC coalesces while PUBREL is unsent/partial; after a
 complete PUBREL it schedules the same immutable frame again. It never replays
@@ -323,7 +325,7 @@ failure before their ACK could reach the peer. Such messages may be redelivered.
 A lazy private ring stores at most min(MaxMessages, CONNECT Receive Maximum)
 identifiers (3.1.1 uses the default 65535). Its requested bytes are one header
 plus two bytes per entry, charged to MaxPrivateBytes through Destroy, including
-cached empty storage. No receive-id bitmap or per-ACK library object is allocated.
+cached empty storage. The QoS-1 ring allocates no receive-id bitmap or per-ACK library object.
 QoS-0 receive creates no ring. The native bounded copied-send queue separately
 owns accepted ACK chunks; it obeys Stream write limits and physical retirement.
 
@@ -332,8 +334,7 @@ its bytes are not discarded or acknowledged. ACK progress wakes parsing without
 a busy repost while native writes are blocked. Exceeding the advertised MQTT 5
 receive credit closes with PROTOCOL. The credit is returned only once all four
 PUBACK bytes are accepted into the ordered native stream. MQTT5 protocol errors after accepted negotiation now follow the bounded
-diagnostic-close contract below, including Receive Maximum reason 0x93. Normal
-application DISCONNECT and application-controlled/durable acknowledgements remain
+diagnostic-close contract below, including Receive Maximum reason 0x93. Application-controlled/durable acknowledgements remain
 pending; full client/production acceptance is not claimed.
 
 A partial outgoing PUBLISH, PING or PUBACK is finished before another packet can
@@ -353,6 +354,93 @@ the corresponding incoming message; throughput additionally waits for the peer
 to observe every receiver PUBACK. It includes polling, scheduling and fixture
 costs. Instrumented variants include client AND peer XRT block traffic, not all
 system allocations or RSS. It is not a receiver-only benchmark or broker parity.
+
+## QoS-2 receiver on the current connection
+
+A new incoming QoS-2 PUBLISH is copied into one owned message and enters the
+bounded local queue before success PUBREC is queued. This accepts volatile
+ownership: Notify/Take may expose it before PUBREL, independent of application
+processing. Its incoming id stays active through the complete PUBCOMP frame
+being accepted into ordered native output. Application Take/Release does not
+return that protocol credit. QoS-1 pending PUBACKs and active QoS-2 ids share
+CONNECT Receive Maximum. Exceeding it closes with PROTOCOL/reason 0x93. Incoming
+and outgoing identifier sets are independent, including identical active ids.
+
+While that id awaits PUBREL, a duplicate PUBLISH repeats/coalesces PUBREC without
+another message allocation, queue insertion or Received increment. DUP=0 versus
+DUP=1 does not determine duplicate suppression. The original owned packet keeps
+its flags/payload/properties. A valid PUBREL queues PUBCOMP behind earlier ACKs;
+even an early release cannot interleave or discard a pending PUBREC. No second
+message is delivered at PUBREL. Queued duplicate ACKs coalesce. Repeated/unknown
+PUBREL receives PUBCOMP with reason 0x92 in MQTT 5, or minimal success in 3.1.1,
+without any application delivery or extra receive credit. A known id releases
+normally even if PUBREL carries reason 0x92; an already exposed volatile message
+cannot be retracted. Forbidden PUBREL properties under Request Problem
+Information=0 close with PROTOCOL.
+
+Once PUBCOMP is fully accepted, a subsequent PUBLISH with that id is a new
+exchange, including DUP=1. Reusing an active QoS-2 id for QoS 1, or submitting
+another PUBLISH after its PUBREL but before completion, closes with PROTOCOL.
+No session restoration is attempted. These rules establish one local enqueue
+per accepted QoS-2 exchange on this connection. They do not establish durable
+or business exactly-once effects, delivery across crashes or deduplication across
+connections. Retained messages still survive Client/Engine destruction.
+
+The first QoS-2 PUBLISH or unknown PUBREL lazily allocates a private table. It
+contains a 65536-byte direct-index state array, fixed bookkeeping and
+2*min(MaxMessages,ReceiveMaximum) four-byte ACK slots. Requested bytes on tested
+x64 are 65576 + 8*min(MaxMessages,ReceiveMaximum), charged to MaxPrivateBytes
+and retained through Destroy, even when empty. A small private quota can reject
+this first use with LIMIT. There are no per-id state/message references in this
+table: incoming flow count is bounded by Receive Maximum (at most 65535), while
+the application queue and retained objects keep their existing independent
+count/byte limits. Therefore taking messages can allow more active exchanges
+than MaxMessages, without unbounded payload retention by the flow state.
+
+State lookup and duplicate coalescing use direct id indexing. A new QoS-2 id
+also scans the bounded pending QoS-1 ACK ring to reject a cross-QoS id collision.
+At complete frame boundaries, ready QoS-1 and QoS-2 ACK classes alternate;
+a replenished QoS-1 ring cannot monopolize a small write budget. Control queue
+exhaustion pauses at the buffered packet and resumes on ACK progress; it never waits for an application Take to release protocol credit.
+PUBREC/PUBCOMP copies into the existing native bounded send queue, which may
+allocate buffers; duplicate handling is not a claim of allocation-free native
+IO. Byte/chunk/packet work budgets bound each turn. All partial PUBLISH/PUBREL/
+PING/PUBACK/PUBREC/PUBCOMP frames finish before another frame starts. Partial
+receive ACKs also prevent appending a diagnostic inside a packet.
+
+Accepted application DISCONNECT waits for currently accepted incoming exchanges
+to reach PUBCOMP and for queued control frames, with the same finite overall
+shutdown deadline. Missing PUBREL can time out that shutdown; cancel/Close aborts
+it. The failure path collects already accepted submissions again before retiring
+the shutdown request, including submissions made during the current worker
+turn. A gated concurrency test verifies their Futures cannot be stranded.
+This does not impose a retransmission timer or silently drop live flow state
+while the connection remains open. Messages accepted before an interrupted ACK
+remain available, so reconnect redelivery is still possible in future session
+modes. Persistence and application-controlled ACK policies remain separate work.
+
+The [offline receiver example](../examples/qos2_receive/main.c) runs with the
+ordinary client suite. It verifies an owned incoming message, the peer's PUBCOMP
+observation, graceful EOF, physical cleanup and retained payload validity. The
+separate independent wire peer covers 66 cases across both protocol versions,
+including direct-id boundaries, duplicates/reuse, early/unknown/negative release,
+shared windows, control backpressure, partial/duplex traffic, limits, reentrant
+Close and graceful interruption. Unit tests additionally inject real allocation
+failures before state allocation and between state/message allocation. Run the
+single implementation on Windows GCC (substitute `-lm -pthread` on Linux):
+
+```text
+gcc -std=c11 -O2 -Wall -Wextra -Werror -Iinclude -Iextlibs/xmqtt/include extlibs/xmqtt/tests/interop/qos2_receive_single_probe.c -lws2_32 -o out/qos2_receive_probe.exe
+python extlibs/xmqtt/tests/interop/run_qos2_receive_wire.py --probe out/qos2_receive_probe.exe --report out/qos2-receive-wire.json
+```
+
+Create `out/` if absent. No broker/credentials are required; ephemeral loopback
+sockets and threads are closed/joined. A successful report has `complete=true`.
+Generated binary/report files can be removed after inspection. Functional cases
+and struct sizes do not establish throughput/P99, pinned-broker interoperability,
+native Linux qualification or >=72h fault/mixed-load acceptance.
+The protocol basis is OASIS MQTT 5.0/3.1.1 section 4.3.3, MQTT 5.0 sections 3.7,
+4.6 and 4.9, and their Packet Identifier/Request Problem Information rules.
 
 ## Automatic MQTT5 diagnostic close
 

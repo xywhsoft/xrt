@@ -37,10 +37,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
   grammar and negotiated connection constraints. The developing numeric TCP
-  client supports CONNECT/CONNACK, keep-alive, QoS-0/1 receive, QoS-0/1/2 send,
+  client supports CONNECT/CONNACK, keep-alive, QoS-0/1/2 send/receive,
   bounded identifiers/credit, retained ACK/message ownership, diagnostic and
-  application graceful DISCONNECT, and physical retirement. QoS-2 receive,
-  subscriptions, session/auth/alias/reconnect/store, richer transports and full
+  application graceful DISCONNECT, and physical retirement. Subscriptions, session/auth/alias/reconnect/store, richer transports and full
   performance/production qualification remain pending.
 - Primary checkout changes remain outside this branch.
 
@@ -5924,3 +5923,102 @@ store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated, remaining RPC security/
 recovery/transports/deferred handlers and Cron IANA/scheduler/durability remain
 required. There was no primary-checkout merge or push. The complete four-library
 objective remains active and incomplete.
+
+
+## MQTT volatile QoS-2 receiver (2026-11-02)
+
+Baseline: `3e749c88c83aba39043b6f76ca660ec0fe0f9544`. The developing client
+now accepts incoming MQTT 5.0/3.1.1 QoS-2 exchanges: one owned message enters
+the bounded application queue before PUBREC; the incoming id remains active
+through complete PUBCOMP acceptance into ordered native output. Application
+Take/Release does not return protocol credit. QoS-1 pending PUBACKs and active
+QoS-2 ids share CONNECT Receive Maximum; incoming/outgoing ids are independent.
+
+Active duplicate PUBLISH repeats/coalesces PUBREC without another local enqueue,
+message copy or Received increment, regardless of DUP. PUBREL completes the
+sequence without another delivery, including an early release queued behind its
+PUBREC. Unknown/repeated PUBREL receives minimal PUBCOMP (unknown reason 0x92 in
+v5); it creates no application message or credit. After PUBCOMP, PUBLISH may
+reuse the id even with DUP=1. Forbidden properties, cross-QoS active-id reuse,
+peer packet caps and receive-window violations retain typed failure semantics.
+This is volatile local enqueue on the current connection, not crash-safe or
+business exactly-once delivery. Session/persistence/reconnect remain required.
+
+A private direct-index state table is lazy on the first QoS-2 PUBLISH or unknown
+PUBREL. Its fixed x64 header/state size is 65576 bytes, plus four bytes for each
+of 2*min(MaxMessages,ReceiveMaximum) ACK slots: 66088 requested bytes at default
+settings, 65584 with Receive Maximum=1. It is charged to MaxPrivateBytes and
+cached through Destroy. It stores no message reference and has at most 65535
+active ids. Application queue/retained-object count and byte limits remain
+independent. Private Client adds one pointer: Windows 1144 -> 1152; WSL 1352 ->
+1360. Request remains 104; public config/info/ready/write/packet/codec/property
+remain 272/160/136/64/168/56/40. Struct sizes do not establish allocator/RSS or
+throughput/tail cost.
+
+The finite control queue coalesces queued duplicates and uses native copied
+output; native buffers may still allocate. Complete ACK frames alternate
+between ready QoS-1 and QoS-2 classes, preventing a replenished QoS-1 ring from
+monopolizing small write budgets. Partial frames keep priority, with byte/chunk/
+packet work bounds. New QoS-2 ids also scan the bounded pending QoS-1 ring to
+reject cross-QoS collisions. There is no claim of zero overhead for inactive
+paths, duplicate traffic, cold allocation or control scheduling. Graceful
+shutdown drains accepted incoming flows and ACKs within its original finite
+deadline; timeout/cancel/Close aborts without fabricating completion. Queued
+messages remain available independently of transport failure.
+
+Two negative controls are retained. The pre-fix receiver fails the deterministic
+ACK-fairness socket case (a buffered QoS-1 backlog delays PUBREC). Separately, a
+test-only readiness barrier proves that accepted submissions arriving after a
+worker's initial collection could be stranded if graceful Close failed in that
+same turn. The failure path now recollects accepted submissions before settling
+the disconnect request. The gated test verifies both typed Futures and balanced
+physical accounting. Logs are `windows-before-ack-fairness.json/.log` and
+`windows-before-queued-close-fix.log`; the previously observed WSL single graceful
+abort failure is retained in `before-final-boundaries-wsl-single-graceful-wire.log`.
+An existing diagnostic fixture now waits for the peer callback before asserting
+its final reason; local physical close alone cannot prove that observation. A
+local verification-helper output-path typo was also corrected, without changing
+library behavior. All final runs below use the corrected inputs.
+
+Verification: native Windows GCC O2 and WSL GCC O2, with ASan/UBSan/leak halt for
+modular and single programs. All 7 modular + 7 single programs per OS, minimal/
+full static/shared consumers, five offline client examples per OS, declaration-
+only/prefix layouts, trim and generated feature/single/reference checks pass.
+The separate stdlib receiver peer now has 66 cases on modular/single/static/
+shared for each OS (528 new cases). Existing basic/QoS1/receive/error cases
+remain 121 x 6; graceful cases 43 x 8; sender cases 37 x 8: 1894 total independent
+wire cases, 28 modular/single programs, 8 package consumers, 10 example executions.
+The old receive peer's two unsupported-QoS2 expectations now verify the real
+handshake and peer-observed barrier. The 78 build/package/API-reference/
+performance-tool regression tests also pass.
+
+Cases cover duplicate/late/reused/early/unknown/negative release, id boundaries,
+shared windows, queue/object/byte/private limits, ACK fairness and backpressure,
+fragmented and partial mixed ACKs, duplex ids, interrupted graceful drain and
+retained topic/payload/properties after Client/Engine destruction. Unit allocation
+budgets cover failure before state allocation, between state/message allocation,
+a success control and zero live budget owners after teardown. No Core or new
+shared runtime changes were required. `examples/qos2_receive/main.c` and the
+single-wire reproduction command are documented in `extlibs/xmqtt/docs/client.md`.
+
+Final rebuilt file bytes (single includes Core; extension static/shared require
+separately recorded Core artifacts):
+
+| Platform | single object | extension static | extension shared |
+| --- | --- | --- | --- |
+| windows | 584019 | 128206 | 155000 |
+| wsl | 747096 | 167814 | 123352 |
+
+Exact compiler commands, source identities, final artifact hashes and per-case
+outputs are indexed by `out/service-extensions/xmqtt-qos2-receive/validation.json`.
+Post-size consumers and wire runs use the final libraries.
+
+Dedicated QoS-2 throughput/P99/load/CPU work and complete hot/cold allocation/
+copy/synchronization/syscall accounting remain required. Existing performance
+noise failures remain unaccepted, with frozen thresholds unchanged. Pinned
+broker/comparators, native Linux and native >=72h fault/mixed-load qualification
+remain; WSL is development evidence. MQTT subscriptions/shared ids/session/
+expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated,
+remaining RPC security/recovery/transports/deferred handlers and Cron IANA/
+scheduler/durability remain required. No primary-checkout merge or push occurred.
+The complete four-library objective remains active and incomplete.

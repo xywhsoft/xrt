@@ -4,9 +4,9 @@ Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
-keep-alive, QoS-0/1 receive, QoS-0/1/2 send with retained acknowledgement metadata,
+keep-alive, QoS-0/1/2 send/receive with retained acknowledgement metadata,
 bounded identifiers/flow credit, automatic MQTT5 diagnostic close, bounded application graceful DISCONNECT and physical shutdown.
-QoS-2 receive, subscriptions, enhanced authentication, aliases, reconnect, durable
+Subscriptions, enhanced authentication, aliases, reconnect, durable
 sessions and TLS/WebSocket remain pending.
 No broker or production/performance acceptance is claimed.
 
@@ -19,7 +19,10 @@ Client/Engine destruction. The same suite also runs an
 [graceful shutdown example](examples/graceful/main.c) drains QoS-1, sends the final
 normal DISCONNECT and observes peer EOF and physical ownership retirement. The
 [QoS-2 sender example](examples/qos2_send/main.c) verifies both PUBREC/PUBCOMP
-results, then graceful shutdown and physical ownership retirement.
+results, then graceful shutdown and physical ownership retirement. The
+[QoS-2 receiver example](examples/qos2_receive/main.c) takes an owned incoming
+message, waits for the peer to observe PUBCOMP and verifies retained payload
+validity after physical shutdown.
 
 The independent implementation follows the OASIS
 [MQTT 5.0](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html) and
