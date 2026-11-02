@@ -97,6 +97,20 @@
         "_xrtTimeLocal",
         "_xrtTimeFromLocal"
       ]
+    },
+    {
+      "name": "xcron_service",
+      "system": "service",
+      "suite": "xcron_service",
+      "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
     }
   ]
 }

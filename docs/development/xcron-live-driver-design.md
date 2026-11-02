@@ -1,10 +1,12 @@
-# xcron live driver: implementation contract, not delivered functionality
+# xcron live driver: implementation contract and qualification boundaries
 
 The current expression/calendar/zone/actual-occurrence, scheduling kernel and
-borrowed-executor adapter are real implemented stages. This document preserves
-the next required live-driver work; it does not register a placeholder module or
-claim a functioning timer service. The four-library objective and final native,
-performance, recovery and long-run gates remain unchanged.
+borrowed-executor adapter are real implemented stages. The developing
+`xcron_service` now implements this live-driver contract; its public behavior and
+cost accounting are in `extlibs/xcron/docs/service.md`, with actual verification
+evidence recorded in the progress ledger. This design is not production acceptance.
+The four-library objective and final native, performance, recovery and long-run
+gates remain unchanged.
 
 ## Owner and waiting
 

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `35` 个函数、`105` 个常量或宏、
-`45` 个公共类型。
+当前登记 `49` 个函数、`132` 个常量或宏、
+`57` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -201,6 +201,72 @@
 - `xcronwake`
 - `xcronzone`
 - `xcronzonedissue`
+
+## `extlibs/xcron/include/xcron/service.h`
+
+[查看带契约注释的公共头](../../include/xcron/service.h)
+
+### 函数 (14)
+
+- `xcronServiceAddAsync`
+- `xcronServiceCancelAsync`
+- `xcronServiceClose`
+- `xcronServiceCollect`
+- `xcronServiceCreate`
+- `xcronServiceDestroy`
+- `xcronServiceDrain`
+- `xcronServiceFailure`
+- `xcronServiceInfoAsync`
+- `xcronServiceInspect`
+- `xcronServiceReapAsync`
+- `xcronServiceReapStopped`
+- `xcronServiceWaitFor`
+- `xcronServiceWake`
+
+### 常量与宏 (27)
+
+- `XCRON_COMPLETION_CANCELLED`
+- `XCRON_COMPLETION_EXPIRED`
+- `XCRON_COMPLETION_INTERNAL`
+- `XCRON_COMPLETION_NORMAL`
+- `XCRON_COMPLETION_REJECTED`
+- `XCRON_FEATURE_XCRON_SERVICE`
+- `XCRON_REQUEST_ADD`
+- `XCRON_REQUEST_CANCEL`
+- `XCRON_REQUEST_INFO`
+- `XCRON_REQUEST_REAP`
+- `XCRON_SERVICE_ARGUMENT`
+- `XCRON_SERVICE_BUSY`
+- `XCRON_SERVICE_CLOCK`
+- `XCRON_SERVICE_CLOSED`
+- `XCRON_SERVICE_EXECUTOR`
+- `XCRON_SERVICE_FAILED`
+- `XCRON_SERVICE_KERNEL`
+- `XCRON_SERVICE_LIMIT`
+- `XCRON_SERVICE_MEMORY`
+- `XCRON_SERVICE_OK`
+- `XCRON_SERVICE_RUNNING`
+- `XCRON_SERVICE_STALE`
+- `XCRON_SERVICE_STARTING`
+- `XCRON_SERVICE_STOPPED`
+- `XCRON_SERVICE_STOPPING`
+- `XCRON_SERVICE_SYSTEM`
+- `XCRON_SERVICE_THREAD`
+
+### 类型 (12)
+
+- `xcronclockproc`
+- `xcronreply`
+- `xcronrequestid`
+- `xcronrequestkind`
+- `xcronservice`
+- `xcronservicecompletion`
+- `xcronservicecompletioncode`
+- `xcronserviceconfig`
+- `xcronserviceerror`
+- `xcronserviceissue`
+- `xcronservicestate`
+- `xcronservicestats`
 
 ## `extlibs/xcron/include/xcron/timezone.h`
 

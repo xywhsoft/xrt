@@ -3,8 +3,8 @@
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
 provides explicit POSIX rules and owned non-leap TZif history. Database lookup/
-reload, leap-aware conversion, nominal delivery policies, live timer/executor
-integration and persistence are pending. Expression syntax
+reload, leap-aware conversion, nominal delivery policies and persistence are
+pending. Live service and executor stages are described below. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
 independently; no reference scheduler code is embedded.
@@ -27,8 +27,8 @@ Verified environments and reproducible commands are recorded in the
 [progress ledger](../../../docs/development/service-extensions-progress.md).
 The compilation benchmark changes input steps and observes compiled masks;
 it measures only this leaf. The calendar leaf has its own search workload.
-Timezone/scheduler behavior, concurrent runtime operation, durable recovery and
-native server performance remain later work.
+The later zone/kernel/executor/service sections cover implemented runtime stages;
+durable recovery and native server performance qualification remain open.
 
 ## Gregorian calendar contracts
 
@@ -147,3 +147,24 @@ thread/reentry checks and separate notification-tail protection. It owns no
 executor/thread/timer. Direct header/single/package/example, many-worker lifetime
 and zero-heap tests plus minimal-XRT/adapter smoke and size profiles are registered.
 See [contracts, cost accounting and remaining qualification](executor.md).
+
+# Actual live service stage
+
+The developing `xcron_service` leaf adds a dedicated public-XRT owner and paired
+system/custom clocks. Commands/replies and completion reservations are bounded;
+full output stops new dispatch without losing results or blocking final close.
+Original Data returns only through a failed Add reply or physical retirement;
+ready metadata contains no borrowed Data pointer. Positive blocking waits reject
+the owner and unrelated callbacks on the same borrowed Executor. Retry is limited
+to no-effect native overload, with one original monotonic deadline and explicit
+attempt/expiry results. Clock failure/regression triggers typed controlled close.
+
+Tests include real UTC firing, actual fold instants, forward/backward wall jumps,
+catch-up/skip/coalesce, held-owner queued Add/close, ticket reuse/racing collectors,
+512 concurrent Info requests per full unit, eight four-producer Add/Close races,
+physical cancellation/results, attempt/elapsed retry bounds and safe retry success,
+join before output consumption, observed cold allocation prefixes, alias/overflow
+rejection and 2048 warmed zero-requested-heap cycles. Separate module/single,
+root/leaf static/shared consumers and runnable example are registered. Fixed UTC
+arrival start-lateness and owner-to-worker measurements use millisecond clocks;
+smoke has no production/throughput/P99 acceptance. See [full service contract](service.md).

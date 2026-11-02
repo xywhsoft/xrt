@@ -6921,3 +6921,79 @@ contract, not a delivered service or manifest stub. Actual live driving, bounded
 recurrence CPU work, persistence, nominal DST/named database and all earlier
 MQTT/Redis/RPC gaps remain. The full four-library goal stays active; no primary
 checkout merge or push occurred.
+
+## 2026-11-02 — bounded live xcron service
+
+Implemented the actual `xcron_service` developing leaf, selected by the xcron
+root. Fourteen public APIs cover creation, bounded Add/Cancel/Info/Reap commands,
+finite collection, result metadata drain, close/join, post-stop retirement,
+inspection/fatal diagnostic/wake and caller-exclusive destruction. A dedicated
+public-XRT thread owns the existing kernel and borrowed-executor adapter; no new
+shared runtime, private Core API or borrowed-pool ownership was introduced.
+
+The preallocated arena holds command/reply generation tickets, completion
+reservations, active run mapping, retry heap and batches. Every kernel lease
+reserves its final output first. Full output stops dispatch, while all final
+physical completions and close still have space. Completion records carry no
+Data pointer: original Data returns only via failed Add replies or terminal,
+zero-running retirement receipts. Join can precede collection/drain/reaping;
+Destroy never silently discards those duties. Queued unprocessed Adds close with
+their original Data, while successful racing admission retains its Job receipt.
+Native submission retries only no-effect AGAIN, with original monotonic deadline,
+bounded attempts and explicit rejection/expiry/cancellation results. Native owner
+and unrelated borrowed-pool callbacks cannot block waiting on the service.
+
+Clock=NULL drives real UTC/monotonic deadlines; custom paired clocks support
+deterministic jumps. Clock read failure/regression records typed first failure and
+controlled close. Event delivery preserves ambient errors and counts failures;
+bounded resampling backs up notifications. Adapter physical/Notify tails end
+before owner stop/handoff. Component stats are owner-turn snapshots; the final
+snapshot retains adapter layout bytes after release, as documented, and is not a
+live heap/RSS counter. Explicit caps reserve arena plus both component byte caps;
+optional InitializationBudget covers direct creator and owner component startup.
+
+Native Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt pass 36 modular/single
+programs,16 runnable examples and12 root/leaf static/shared consumer runs. Packages
+are final plain O2 artifacts and are exercised after size measurement. A separate
+complete WSL GCC O1 TSan service unit also passes. The existing GCC unsupported
+atomic_thread_fence warning is retained with diagnostic-only -Wno-error=tsan;
+this does not qualify fence-only synchronization, whole Core or native Linux.
+All26 API-reference/layout/header-coverage/single tools pass. Service x64 ABI sizes
+match on both platforms: config136,reply296,completion80,issue8,stats320 bytes.
+
+Thirteen complete service-unit executions include real UTC firing, actual DST
+fold instances, forward/backward wall jumps and catch-up/skip/coalesce; physical
+success/failure/error transfer/invalid results/cooperative cancellation; bounded
+commands and output credits; timed-out requests retaining Data; generation reuse
+and racing collectors; held-owner close; no-effect retry success, elapsed and
+attempt expiry; clock faults; owner/unrelated-pool self waits; alias/overflow
+rejection; observed cold creator-thread/kernel/adapter allocation-prefix failures.
+They total6656 concurrent Info commands,104 four-producer Add/Close races and26624
+warmed dispatch cycles. Zero-requested-heap assertions run in seven instrumented
+units,14336 cycles; uninstrumented package units are not counted as heap proofs.
+Root scheduler regressions add368640 independent model samples.
+
+Added an actual fixed-UTC-arrival start-lateness benchmark, not a closed-loop
+completion-only throughput proxy. Its one32-arrival smoke tick reports Windows
+start P99/max13ms and owner-sample-to-worker P990.587ms; WSL start P99/max0ms at
+millisecond resolution and owner-to-worker P990.808ms. Zero means below reporting
+resolution. Owner-to-worker includes owner work and is not isolated native-pool
+queue delay. Arrival rate is an input, not maximum throughput. These unpinned
+single samples qualify neither performance nor P99; no favorable timing retries
+were made and all existing gates remain unchanged. Windows deadline/wake tail
+latency, fixed environmental baselines and bounded recurrence CPU need further work.
+
+The initial final Windows unit consumer lacked explicit Core selection because
+the reused test harness includes Core before extension features. Correcting only
+the validation build to supply the actual leaf closure fixed it. Already-passing
+measurement/tool steps were reused; production header/example/package consumers
+use public module selection directly. Final C/H remained frozen during compilers.
+
+Portable source/layout/artifact fingerprints, measurement details and scope limits
+are in `extlibs/xcron/tests/results/live-service-20261102.json`. The exact local
+proof `out/service-extensions/xcron-service/validation.json` indexes305 frozen
+inputs,229 artifacts,77 receipts and84 archived outputs. Named-zone database/reload,
+leap-aware conversion, nominal DST policies, durable recovery, recurrence CPU
+bounds, native Linux, pinned throughput/P99 and >=72h acceptance remain open,
+alongside the previously recorded MQTT/Redis/RPC gaps. The four-library goal stays
+active; this stage is not production completion, and no master merge/push occurred.

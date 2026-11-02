@@ -61,6 +61,13 @@
         "source_roots": [
           "executor"
         ]
+      },
+      {
+        "name": "service",
+        "state": "retained",
+        "source_roots": [
+          "service"
+        ]
       }
     ]
   },
@@ -92,7 +99,8 @@
         "xcron_timezone",
         "xcron_zoned",
         "xcron_scheduler",
-        "xcron_executor"
+        "xcron_executor",
+        "xcron_service"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -327,6 +335,44 @@
       ]
     },
     {
+      "name": "xcron_service",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_SERVICE",
+      "depends": [
+        "xcron_executor",
+        "cond",
+        "event"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/service.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/timezone/timezone_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/service/service.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_service.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_service.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/service/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_service.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/service.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/examples/service/README.md"
+      ]
+    },
+    {
       "name": "xcron_tests",
       "state": "implemented",
       "feature": null,
@@ -345,7 +391,8 @@
         "extlibs/xcron/tests/test_tzif.c",
         "extlibs/xcron/tests/test_zoned.c",
         "extlibs/xcron/tests/test_scheduler.c",
-        "extlibs/xcron/tests/test_executor.c"
+        "extlibs/xcron/tests/test_executor.c",
+        "extlibs/xcron/tests/test_service.c"
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
@@ -354,7 +401,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_tzif.c",
         "extlibs/xcron/tests/single/test_single_xcron_zoned.c",
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
-        "extlibs/xcron/tests/single/test_single_xcron_executor.c"
+        "extlibs/xcron/tests/single/test_single_xcron_executor.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -368,7 +416,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_tzif.c": "xcron_timezone",
         "extlibs/xcron/tests/single/test_single_xcron_zoned.c": "xcron_zoned",
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler",
-        "extlibs/xcron/tests/single/test_single_xcron_executor.c": "xcron_executor"
+        "extlibs/xcron/tests/single/test_single_xcron_executor.c": "xcron_executor",
+        "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service"
       }
     }
   ]

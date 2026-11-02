@@ -327,6 +327,40 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_256",
+      "system": "service",
+      "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_service_256",
+          "source": "extlibs/xcron/bench/bench_service.c",
+          "suite": "xcron_service",
+          "args": [
+            "8",
+            "256"
+          ],
+          "smoke_args": [
+            "1",
+            "32"
+          ],
+          "metrics": {
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
     }
   ]
 }

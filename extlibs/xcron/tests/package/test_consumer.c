@@ -5,6 +5,22 @@
 
 static xcronrunresult consumerExecute(const xcronrun* Run,const xcronexecution* Token,ptr Context)
 {(void)Run;(void)Context;return xcronExecutionCancelled(Token)?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED;}
+static bool consumerClock(xcronclock* Clock,ptr Context)
+{(void)Context;*Clock=(xcronclock){XRT_TIME_UNIX_EPOCH,1};return true;}
+static bool consumerService(void)
+{
+    xexecutorconfig P={1,4,0};xexecutor* Pool=xrtExecutorCreate(&P);if(!Pool)return false;
+    xcronserviceconfig C={.Scheduler={1,1,8,0,65536},.Executor=Pool,.Proc=consumerExecute,.Clock=consumerClock,.CommandLimit=2,.CompletionLimit=2,.BatchLimit=1,.CommandWorkLimit=2,.ResampleMilliseconds=5,.RetryIntervalMilliseconds=5,.RetryAttempts=1,.BytesLimit=262144,.AdapterBytesLimit=65536};
+    xcronservice* S=NULL;xcronzone* Z=NULL;xcronexpression E;
+    if(!xcronServiceCreate(&C,&S,NULL) || !xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&E,NULL))return false;
+    xcronjobconfig J={.Expression=E,.Zone=Z,.Begin=XRT_TIME_UNIX_EPOCH,.End=XRT_TIME_UNIX_EPOCH,.RunningLimit=1};xcronrequestid Q;xcronreply R;
+    if(!xcronServiceAddAsync(S,&J,&Q,NULL) || xcronServiceCollect(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || R.Error)return false;
+    xcronZoneRelease(Z);size_t N=0;xcronservicecompletion D;double Limit=xrtTimer()+10;
+    while(!N){if(!xcronServiceDrain(S,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
+    if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || D.Job!=R.Job || !xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;
+    xcronretired Retired;bool Found=false;
+    return xcronServiceReapStopped(S,&Retired,&Found,NULL) && Found && Retired.Id==R.Job && xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
+}
 
 int main(void)
 {
@@ -56,5 +72,6 @@ int main(void)
 	if (Issue.Code != XCRON_EXPRESSION_RANGE || xrtErrorKind(xrtGetError()) != XERR_RANGE ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.cron") != 0) return 4;
 	xrtClearError();
+	if (!consumerService()) return 20;
 	return 0;
 }

@@ -33,4 +33,9 @@
 #endif
 #include <xcron/executor.h>
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_SERVICE)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_SERVICE"
+#endif
+#include <xcron/service.h>
+
 #endif
