@@ -6022,3 +6022,112 @@ expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis HA/tracking/dedicated
 remaining RPC security/recovery/transports/deferred handlers and Cron IANA/
 scheduler/durability remain required. No primary-checkout merge or push occurred.
 The complete four-library objective remains active and incomplete.
+
+
+## QoS-2 complete-exchange CPU/heap/timing workload (2026-11-02)
+
+Runtime baseline remains `77036057cdc6ca6577cf2056b54b5e119cbd3f89`. No product
+C/header or generated-runtime changes were made in this stage. The new pure-C
+`bench/bench_client_qos2.c` and two performance profiles cover complete sender and
+duplex echo exchanges on one healthy loopback connection. They support MQTT
+5.0/3.1.1, QoS 1/2, windows 1..64, separately instrumented heap traffic and cold/
+internal-warm state. This supplies a workload and local observations, not a
+pinned comparator or accepted release baseline.
+
+Sender latency ends at observer-visible final ACK; duplex additionally requires
+the retained echo and peer-observed final receiver ACK. Taking a message does
+not finish the measurement. Phase wall/CPU additionally includes observation
+release and physical client-request retirement; copied native ACK tails can
+remain until recorded connection teardown. Sequence stamps, separate request/
+echo id spaces, phase checksums, owned data/ACK results and terminal counters
+prevent a fast result from skipping either handshake. The peer decodes requests,
+re-encodes/copies echoes and ACKs; its costs and observer polling are included.
+
+Frozen profiles: 32-slot/32-byte closed-loop traffic; hot uninstrumented counts
+200000 after 4096 internal warmup operations; cold/hot instrumented counts 20000
+with 0/4096 internal warmup. Instrumented and uninstrumented binaries select
+memory stats independently and publish that fact. The existing five measured
+repeats / one process warmup, relative MAD 3%, central range 6%, and 5% throughput/
+10% P99 regression limits were preserved. No regression comparison was run
+against a pinned baseline. Process CPU uses GetProcessTimes on Windows and
+CLOCK_PROCESS_CPUTIME_ID in WSL, for observer plus IO/fixture threads. Logical
+MQTT wire is 4 frames/60 bytes for v5 sender and 8/120 for duplex (v4: 59/118),
+excluding handshake and TCP/IP/kernel framing. Full scope/cost/cleanup commands
+are in `extlibs/xmqtt/bench/README.md`.
+
+Validation: 168 executions per OS across modular/single/static/shared forms
+(336 total), including eight >65535-operation identifier-wrap cases per OS,
+QoS1/2, version4/5, windows1/64, cold/warm and instrumentation modes. Windows uses
+GCC O2; WSL modular/single use O2 ASan/UBSan/leak halt; reused package libraries
+are the previously verified uninstrumented O2 artifacts. Runtime sources and
+package hashes were checked against the baseline; the manifest runtime graph is
+unchanged, with only a benchmark asset added. All instrumented connection
+lifetimes balance XRT block counts/bytes after teardown. Selected malloc/calloc/
+backing counters and separate setup/warmup/measurement/teardown/lifecycle wall/
+CPU, fixture/observer storage and overload attempts are retained. The 24 profile
+smoke executions, generated feature/single/reference checks on both OSes and 78
+build/package/API-reference/performance-tool regression tests pass.
+
+Windows and WSL formal collectors ran serially. Every platform completes 12
+variants, one process warmup plus five measured runs each: 144 full outputs,
+including all 120 measured samples. Raw stdout also retains diagnostics not used
+as gate metrics. This is 9.6 million measured exchanges (plus explicit warmups),
+not 120 independent production qualifications. Each platform's collector exits
+1 on the unchanged noise gate: Windows has 15 failing metric series (3 throughput,
+5 P99, 7 process-CPU); WSL has 12 (2 throughput, 8 P99, 1 P50, 1 process-CPU).
+All such samples remain in the record; there was no favorable retry or threshold
+relaxation. Windows process-CPU deltas in this experiment are multiples of
+15625000 ns, making the 20000-operation CPU values step in 781.25 ns/exchange.
+That observed quantization partly explains CPU quality failures; throughput/P99
+also fail and are not excused by it. Short smoke CPU zeros are accounting
+resolution, not a zero-cost result. Longer CPU measurement remains necessary.
+
+Uninstrumented hot medians, **unaccepted local observations** (P99 in us, process
+CPU ns/exchange; these include fixture and observer and must not be interpreted
+as native Windows-vs-Linux platform parity):
+
+| Environment | Version | Workload | exchanges/s | P99 us | process CPU ns/exchange |
+| --- | --- | --- | --- | --- | --- |
+| windows | 5 | sender | 236083 | 196.8 | 11484 |
+| windows | 4 | sender | 239329 | 203.6 | 11172 |
+| windows | 5 | duplex echo | 166332 | 326.6 | 16562 |
+| windows | 4 | duplex echo | 164649 | 343.0 | 16719 |
+| wsl | 5 | sender | 63006 | 772.6 | 45162 |
+| wsl | 4 | sender | 64177 | 763.5 | 44318 |
+| wsl | 5 | duplex echo | 34044 | 1556.5 | 85733 |
+| wsl | 4 | duplex echo | 34524 | 1502.1 | 84336 |
+
+Windows hot instrumented requested XRT block traffic observes 8 blocks and
+1072/1071 bytes per v5/v4 sender exchange, and 9 blocks and 1320/1318 bytes per
+duplex exchange. These are logical XRT block requests for client plus fixture,
+not eight/nine OS allocator calls, RSS, all copies or syscall counts. Cold
+allocation and full lifecycle values are retained separately. Timing from those
+instrumented modes is not uninstrumented throughput. There is no zero-overhead
+or broker/reference parity claim.
+
+WSL's initial preflight could not resolve the Windows-form gitdir before any
+measurement launched. The baseline manifest was exported with Windows Git,
+checked against the prior proof (including line endings) and then read as data
+on both platforms. WSL's unavailable Git revision/dirty fields remain null in
+the raw report; runtime/code file hashes still verify against the known baseline
+and frozen workload. Only preflight access changed; Windows samples were not
+rerun. The deterministic environment error is recorded in `wsl-git-preflight.log`.
+
+Portable complete measured arrays/diagnostics, environment and source/tool
+fingerprints are committed in `extlibs/xmqtt/bench/results/qos2-local-20261102.json`.
+All warmup/measured stdout, exact commands, binary hashes, four-form execution
+receipts and the source proof are indexed by
+`out/service-extensions/xmqtt-qos2-performance/validation.json`. The collectors'
+actual exit codes are preserved, not replaced by the orchestration exit code.
+
+These numbers remain unaccepted: shared host/power/affinity state is unpinned;
+closed-loop single-connection load does not establish externally paced load or
+production overload/tail distributions. System-wide interrupt/DPC/softirq CPU,
+detailed synchronization/copy/syscall tracing, pinned minimal-C/reference-client
+and broker comparisons, native Linux and >=72h native mixed/fault runs remain.
+The next measurement work must address CPU timing resolution and stable load
+before claiming regressions/parity. Protocol scope still requires MQTT
+subscriptions/session/expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis
+HA/tracking/dedicated, remaining RPC security/recovery/transports/deferred and
+Cron IANA/scheduler/durability. No primary merge or push occurred. The complete
+four-library goal remains active and incomplete.

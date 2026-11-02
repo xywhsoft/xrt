@@ -559,3 +559,13 @@ The fixture binds only an ephemeral loopback port, starts one client per case,
 checks exact final frames and EOF, joins its threads and closes every socket.
 The successful report has `complete=true`; stdout lists the passing cases.
 The generated executable/report under `out/` may be removed after inspection.
+
+
+## QoS-2 performance workload
+
+The separate [QoS workload](../bench/README.md) measures complete sender and
+duplex echo exchanges with exact completion/cold/hot/instrumentation facts.
+It includes the in-process peer and observer; it supplies measured process CPU,
+latency/throughput, connection setup/teardown and XRT heap traffic without claiming
+client-only cost or production acceptance. Its independent sequence checks and
+physical request/owner cleanup are validated separately from timing/noise gates.
