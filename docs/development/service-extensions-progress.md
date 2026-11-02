@@ -6853,3 +6853,71 @@ database/reload, leap-aware conversion, nominal DST delivery and durable recover
 remain. Earlier MQTT/Redis/RPC gaps and pinned/native Linux/>=72h acceptance remain.
 All roots and the new leaf stay developing; the complete goal remains active.
 There is no primary checkout merge or push.
+
+## Proven minimum Core gap for live Cron waits (2026-11-02)
+
+While designing the actual live driver, reproduced a required public-API gap:
+a single borrowed Executor worker cannot block waiting for its queued child.
+The same condition-variable prototype with two workers completes normally.
+Existing public ExecutorWaitFor reports the same STATE for an external caller
+of an open executor and a self-worker call, so it cannot be used as an identity
+query. Before-change Core libraries, source, binaries and one/two-worker outputs
+are archived under `out/service-extensions/xcron-current/baseline` for both systems.
+
+Added exactly the public `xrtExecutorIsCurrent(const xexecutor*)` observation,
+delegating to the existing native worker/cancellation callback predicate. No
+runtime, per-job state, ownership model or public structure field changes.
+It matches worker bodies, drops, worker-exit callbacks and queued cancellation
+cleanup on any caller, including nested cross-executor cancellations. An unrelated
+executor/NULL is false; successful queries preserve ambient error. Normal Core
+context setup is separate from allocation-free repeated queries. Existing TLS/
+native-thread fallback and synchronized callback registry remain; this is not a
+wait-free ownership-freeze query and does not retain or authorize destruction.
+Post-join exit-context Drop is outside the documented worker/queued-cleanup scope.
+
+The new registered public example rejects a single-worker dependent wait before
+blocking, then lets the queued child run and closes/drains/destroys its pool. A
+registered selected-single/current-context diagnostic suite tests positive/negative
+identity, body/drop/exit/post-join scope, native external cancellation, nested
+A-worker/B-cleanup/C-cleanup scopes and exact restoration after each return.
+All foreign worker contexts are warmed before global allocation snapshots.
+The existing abbreviated documentation reference to OwnershipAdapterV2 is expanded
+to its full symbol; the complete Executor symbol-inventory check now finds19
+functions,2 constants and8 types. This is an inventory check, not production proof.
+
+Final native Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt pass16 modular/
+single programs across the current-context, ordinary Executor and ownership suites,
+two forced native-thread-fallback programs, six actual examples and eight package
+consumer runs. Four static/shared consumers execute the complete new unit against
+real rebuilt Core libraries. Direct feature/header and selected declaration probes,
+trim, generated features/amalgamations and20 focused API/declaration tool tests
+pass. Config24/item32/stats88/data-policy32/exit-policy32 layouts agree on both x64
+ABIs. The fallback wrapper selects the existing no-compiler-TLS branch only in
+executor.c; it does not certify an entire TinyCC/non-TLS toolchain.
+
+Separate complete WSL GCC O1 TSan TLS and forced-fallback units both pass without
+a reported race. GCC's existing atomic_thread_fence instrumentation warning is
+retained; only these diagnostic builds use -Wno-error=tsan. Fence-only/whole-Core
+synchronization and native Linux qualification are not implied. Sixteen complete
+new-unit executions in all forms repeat1280000 warmed groups (5120000 predicate
+calls) under one-byte quotas with error identity and allocation checks. Owned exit,
+external and nested cancellation lifetimes remain real native tests, not mock IDs.
+
+The broader25-test release-tool invocation still reports five expected failing
+subtests: four service products remain developing, and Core still lacks selected
+single closure for net_file_future. A separate current-state maturity observation
+records exactly these gaps; no gate is reduced or declared green. Portable source,
+ABI, binary and before-change fingerprints and explicit maturity/sanitizer scope
+are in `docs/development/results/executor-current-context-20261102.json`.
+The exact proof `out/service-extensions/xcron-current/validation.json` indexes253
+frozen inputs,150 artifacts and66 receipts;31 final default outputs are archived.
+All final C/H inputs stayed frozen during compilers. No pinned throughput/P99,
+native Linux, production or>=72h acceptance is claimed.
+
+The live driver's bounded-command/completion-reservation, safe post-stop reaping,
+retry/deadline, wake and physical shutdown contract is preserved in
+`docs/development/xcron-live-driver-design.md`. It is explicitly an implementation
+contract, not a delivered service or manifest stub. Actual live driving, bounded
+recurrence CPU work, persistence, nominal DST/named database and all earlier
+MQTT/Redis/RPC gaps remain. The full four-library goal stays active; no primary
+checkout merge or push occurred.

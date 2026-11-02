@@ -15613,6 +15613,17 @@ XRT_EXTERN_C_BEGIN
 /* 创建预分配作业槽、Worker 本地队列和工作窃取线程。 */
 XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig);
 
+/* Current native control context belongs to this live executor: a worker
+ * (including its body/drop/worker-exit tails), or queued-work cancellation
+ * cleanup on any calling thread. NULL/an unrelated executor returns false. Preserves
+ * ambient error and allocates no per-query storage after Core context setup.
+ * Does not retain/close/cancel/wait for work or authorize object destruction. Caller keeps
+ * the executor live; invoke outside ownership freeze like other native controls.
+ * Worker lookup uses the existing TLS/native-thread fallback; other callers use
+ * the existing synchronized callback registry. Not a wait-free graph query.
+ * Use before a blocking facade that depends on work/drop from that executor. */
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor);
+
 /* Success consumes ONE Data reference. Failure consumes none and invokes no
  * Exit/Drop, including partial native-thread creation rollback. Unlike plain
  * Create, Close+drain stops these workers; Wait includes every Exit tail.
@@ -120967,6 +120978,10 @@ static bool __xrtExecutorInCallback(xexecutor* pExecutor)
 	for (const xrt_executor_callback* pCallback = pExecutor->Callbacks; pCallback; pCallback = pCallback->Next)
 		if (pCallback->Thread == iThread) { bFound = true; break; }
 	__xrtExecutorOwnershipEnd(pExecutor, &Mutation); return bFound;
+}
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor)
+{
+	return pExecutor != NULL && __xrtExecutorInCallback((xexecutor*)pExecutor);
 }
 static void __xrtExecutorCallbackBegin(xexecutor* pExecutor, xrt_executor_callback* pCallback)
 {

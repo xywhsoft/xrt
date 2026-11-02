@@ -584,6 +584,7 @@
 				"docs/api/task.md"
 			]
 		},
+
 		{
 			"name": "executor_ownership_tests",
 			"state": "implemented",
@@ -7168,13 +7169,16 @@
 				"src/concurrency/executor_ownership.c"
 			],
 			"tests": [
-				"tests/concurrency/test_executor.c"
+				"tests/concurrency/test_executor.c",
+				"tests/concurrency/test_executor_current.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_executor.c"
+				"tests/single/test_single_executor.c",
+				"tests/single/test_single_executor_current.c"
 			],
 			"examples": [
 				"examples/concurrency/executor/main.c",
+				"examples/concurrency/executor_current/main.c",
 				"examples/concurrency/executor_tour/main.c"
 			],
 			"benchmarks": [
@@ -16151,6 +16155,20 @@
 			"docs": [
 				"docs/api/tls.md"
 			]
+		},
+		{
+			"name": "executor_current_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["executor", "memory_stats"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_executor_current.c"],
+			"single_tests": ["tests/single/test_single_executor_current.c"],
+			"examples": [],
+			"benchmarks": [],
+			"docs": ["docs/api/executor.md"]
 		}
 	]
 }

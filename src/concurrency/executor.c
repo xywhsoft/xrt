@@ -766,6 +766,10 @@ static bool __xrtExecutorInCallback(xexecutor* pExecutor)
 		if (pCallback->Thread == iThread) { bFound = true; break; }
 	__xrtExecutorOwnershipEnd(pExecutor, &Mutation); return bFound;
 }
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor)
+{
+	return pExecutor != NULL && __xrtExecutorInCallback((xexecutor*)pExecutor);
+}
 static void __xrtExecutorCallbackBegin(xexecutor* pExecutor, xrt_executor_callback* pCallback)
 {
 	xrtownershipscope Mutation = {0}; pCallback->Thread = xrtThreadCurrentId();
