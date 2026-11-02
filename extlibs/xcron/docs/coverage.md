@@ -3,7 +3,7 @@
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
 provides explicit POSIX rules and owned non-leap TZif history. Database lookup/
-reload, leap-aware conversion, zoned cron search, waiting,
+reload, leap-aware conversion, nominal delivery policies, waiting,
 dispatch and persistence are pending. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
@@ -81,7 +81,8 @@ RFC perpetual-footer fixtures, which remain covered by zoneinfo and exact C
 expectations. No oracle's unsupported behavior defines the production contract.
 
 Those are rule-engine checks. Binary history has the additional evidence below;
-zoned calendar ordering, scheduler/durability and accepted P99 remain pending.
+the actual zoned search has the additional checks below. Scheduler/durability
+and accepted P99 remain pending.
 
 ## TZif binary history (developing)
 
@@ -102,3 +103,26 @@ last table type when a footer is missing. Unknown/partial outcomes are verified
 as such; they are not counted as successful complete resolutions. No upstream
 implementation source is read or embedded. Full database/time-scale/scheduler
 qualification remains pending.
+
+## Ordered actual zoned occurrences (developing)
+
+`test_zoned.c` verifies later folds after the local label moves backwards,
+half-hour and negative DST, missing labels, all three synthetic fold instances,
+fractional/negative rounding, full int64 endpoints and second-level offsets.
+It compares 160 bounded searches with independent second stepping and 1000
+full-range UTC specializations with the original calendar entrypoint. An annual
+always-missing label proves NONE over a complete periodic cycle; a 500-year
+history followed by a different footer proves the search cannot use a cutoff
+from Begin. Unknown intervals inside/outside the query, aliases/flags/windows,
+diagnostic OOM, typed output atomicity, 10000 warm error/allocation-preserving
+cycles and four 12000-cycle retained concurrent owners are included.
+
+`test_zoned_reference.py` enumerates independently specified local labels, maps
+both zoneinfo folds, checks roundtrips, and sorts UTC candidates for earliest
+search. This is independent of the library's ordered-segment algorithm. Nine
+profiles cover Unix5/seconds6, DOM/DOW OR and star-step AND behavior, weekday
+hours, leap/impossible dates and sparse seconds around frozen IANA transitions.
+Unknown coverage is verified over the actual window, including empty/fractional
+windows, rather than using global label resolution to invent a complete list.
+This is calculation evidence; configurable compensation/selection and runtime
+clock/misfire/executor/durable delivery policies remain later work.

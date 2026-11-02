@@ -20,6 +20,10 @@ int main(void)
 	xdatetime Fold={.Year=2024,.Month=11,.Day=3,.Hour=1,.Minute=30};
 	if (!xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&Zone,&ZoneIssue) ||
 		xcronZoneResolve(Zone,&Fold,Candidates,2,&Count,&ZoneIssue)!=XCRON_ZONE_FOUND || Count!=2 || Candidates[1]-Candidates[0]!=XRT_TIME_HOUR) return 7;
+	xcronexpression ZonedExpression; xcronzonedissue ZonedIssue;
+	if (!xcronExpressionCompile(XRT_STR_LITERAL("30 1 * * *"),XCRON_UNIX5,&ZonedExpression,NULL) ||
+		!xcronZonedMatch(&ZonedExpression,Zone,Candidates[0],&Matches,&ZonedIssue) || !Matches ||
+		xcronZonedNext(&ZonedExpression,Zone,Candidates[0],Candidates[1],XCRON_SEARCH_EXCLUSIVE,&Next,&ZonedIssue)!=XCRON_ZONED_FOUND || Next!=Candidates[1]) return 9;
 	xcronZoneRelease(Zone);
 	static const uint8 Tzif[54]={[0]='T',[1]='Z',[2]='i',[3]='f',[39]=1,[43]=4,[50]='U',[51]='T',[52]='C'};
 	xcronzonestate State;

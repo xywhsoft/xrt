@@ -113,6 +113,84 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_zoned_dense",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned dense search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_dense",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "1000000",
+            "dense"
+          ],
+          "smoke_args": [
+            "10000",
+            "dense"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_fold",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned fold search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_fold",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100000",
+            "fold"
+          ],
+          "smoke_args": [
+            "1000",
+            "fold"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cycle",
+      "system": "zoned",
+      "description": "Precompiled actual-instant zoned cycle search; unpinned workload, no scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cycle",
+          "source": "extlibs/xcron/bench/bench_zoned.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100",
+            "cycle"
+          ],
+          "smoke_args": [
+            "2",
+            "cycle"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

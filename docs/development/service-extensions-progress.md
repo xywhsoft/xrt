@@ -6621,3 +6621,85 @@ live scheduling/misfires/overlap/executors/durable recovery remain. The earlier
 MQTT/Redis/RPC and native/performance/long-duration gaps remain unchanged. All four
 roots stay developing. No primary merge or push occurred; the full goal remains
 active and incomplete.
+
+## Ordered actual Cron occurrences in zones (2026-11-02)
+
+Added the developing `xcron_zoned` leaf with `xcronZonedMatch` and `xcronZonedNext`.
+It depends on calendar/timezone and performs exact actual-instant calculation:
+missing labels have no occurrence, all repeated instants are eligible, and the
+earliest result is in the explicit inclusive/exclusive UTC window. Nominal gap
+compensation, fold selection, misfires, waiting/execution and durable delivery
+remain scheduler work. No incomplete policy API or new shared runtime was added.
+The original UTC calendar leaf keeps its dependency set.
+
+Search walks ordered effective UTC transition segments, projects each with its
+fixed offset, searches calendar masks and maps a result back with overflow-safe
+arithmetic. It does not assume local labels increase across rollback, or assume
+only two fold instances. A match at the rounded start returns before calculating
+the next transition/end date. Whole-second granularity applies locally too:
+Unix5 with offset+17 has occurrences at UTC second43. Fractions/negative rounding,
+second-level offsets and the full int64 XRT domain are supported.
+
+Only a proven periodic suffix permits a complete400-year search bound. POSIX/
+fixed zones repeat throughout; a TZif footer starts periodicity after its raw
+historical boundary, even when that boundary is a redundant state change. The
+history is searched first. Tests prove an always-missing annual label has no
+actual occurrence over a full cycle, and a500-year history of annual gaps finds
+the first occurrence in2500 after a fixed footer. An arbitrary Begin+400 cutoff
+would miss that result. A complete constant-offset civil cycle can independently
+prove the calendar predicate impossible. Unknown coverage before proving a
+result is a typed ZONE/UNKNOWN error; it is not silently skipped. A bounded known
+window does not require globally resolving its labels across unknown intervals.
+
+All queries retain/mutate nothing and allocate nothing on normal FOUND/NONE or
+Match, including complete-cycle NONE under a one-byte quota. Output/Issue aliases
+with expressions and parent/footer/name allocations are rejected atomically.
+Typed value issues survive diagnostic OOM. Product-private pure expression/span
+validation, calendar search and zone value operations are shared between the
+leaves; no private XRT implementation is used. Nested duplicate invalid-zone
+diagnostics are removed while preserving public codes/messages/ownership. The
+new issue is24 bytes on both x64 systems; existing expression56/calendar-issue12/
+state24/transition56/zone-issue24/private-owner40 remain unchanged.
+
+Final Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt validation passes20
+modular/single programs, ten root offline examples and12 package consumer runs.
+Four final consumers execute the complete zoned adversarial/OOM unit program
+against freshly linked isolated static/shared packages after size rearchives.
+The new unit covers NY later folds, half-hour/negative DST, triple folds, gaps,
+periodic/historical completeness,160 independent second-stepping searches,1000
+full-range UTC/calendar specializations, endpoints, second offsets, unknown
+windows, aliases/flags/value errors, OOM publication and10000 warm cycles plus
+complete-cycle NONE with allocation/error checks. Four retained concurrent owners
+each run12000 Match/Next cycles after the creator releases its zone reference.
+Selected direct header/declarations/layout, trim, generated files and26 tool tests
+also pass. These are functional concurrency checks, not TSan/native soak evidence.
+
+The independent oracle enumerates local labels from nine manually specified
+profiles, maps zoneinfo folds, validates roundtrips and sorts UTC candidates. It
+does not use the library matcher or its segment algorithm. It checks the same
+frozen422-zone compiled-data snapshot labelled IANA2026e, including DOM/DOW OR,
+star-step AND, weekday hours, sparse seconds, leap/impossible dates and known/
+unknown coverage. Both systems together execute437400 Match and126360 Next
+queries:57266 searches find a result,68400 are NONE and1360 total Match/Next
+outcomes report the expected zone error. There are563760 new zoned outcomes;
+the prior rule/history oracles add318308, yielding882068 independent outcomes.
+Unknown/incomplete results remain separately classified in portable reports.
+
+Dedicated dense/fold/full-period smoke and isolated-size profiles run with the
+original quality/regression gates. They exercise precompiled calculation only;
+one-sample unpinned smoke has no performance/P99 acceptance significance. Cold
+costs, broader CPU/copy/allocation/synchronization profiles, adversarial latency,
+native Linux and>=72h mixed/fault qualification remain pending. Portable complete
+counts/data hashes, form-specific binaries, layouts/source hashes and smoke/size
+observations are in `extlibs/xcron/tests/results/zoned-occurrences-20261102.json`.
+Exact51 receipts,692 frozen source/data inputs and158 artifacts are indexed by
+`out/service-extensions/xcron-zoned/validation.json`. Sixty-eight final default
+outputs are archived under the stage. All final C/H inputs stayed frozen during
+compilers; the typed output/assertions and all final hashes were checked before
+commit.
+
+Database lookup/reload, leap-aware conversion, configurable nominal gap/fold
+delivery, live scheduling/clock jumps/misfire/overlap/executors/durable recovery
+remain. Earlier MQTT/Redis/RPC and native/performance/long-duration gaps remain.
+All four roots stay developing. No primary merge or push occurred; the complete
+four-library goal remains active and incomplete.

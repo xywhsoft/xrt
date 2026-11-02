@@ -1,4 +1,5 @@
 #include <xcron/calendar.h>
+#include "calendar_internal.h"
 #include <xrt/memory.h>
 #include <string.h>
 
@@ -27,17 +28,24 @@ Invalid:
 	return xcronCalendarReport(XCRON_CALENDAR_ARGUMENT,XCRON_FIELD_NONE,NULL,"invalid cron calendar arguments, spans or output aliases");
 }
 
-static bool xcronCalendarExpression(const xcronexpression* Expression, xcroncalendarissue* Issue)
+bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* BadField)
 {
+	*BadField=XCRON_FIELD_NONE;
 	static const uint64 Allowed[]={UINT64_C(0x0fffffffffffffff),UINT64_C(0x0fffffffffffffff),UINT64_C(0xffffff),
 		UINT64_C(0xfffffffe),UINT64_C(0x1ffe),UINT64_C(0x7f)};
 	if ((Expression->Dialect!=XCRON_UNIX5 && Expression->Dialect!=XCRON_SECONDS6) || (Expression->Flags&~(XCRON_DAY_MONTH_STAR|XCRON_DAY_WEEK_STAR)))
-		return xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,XCRON_FIELD_NONE,Issue,"invalid compiled cron dialect/day flags");
+		return false;
 	for (unsigned Field=0; Field<XCRON_FIELD_COUNT; ++Field)
 		if (!Expression->Fields[Field] || (Expression->Fields[Field]&~Allowed[Field]) ||
 			(Field==XCRON_FIELD_SECOND && Expression->Dialect==XCRON_UNIX5 && Expression->Fields[Field]!=1))
-			return xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,(xcronfield)Field,Issue,"invalid compiled cron field bitmap");
+			{ *BadField=(xcronfield)Field; return false; }
 	return true;
+}
+static bool xcronCalendarExpression(const xcronexpression* Expression,xcroncalendarissue* Issue)
+{
+	xcronfield Field;
+	return xcronCalendarValidateExpression(Expression,&Field) || xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,Field,Issue,
+		Field==XCRON_FIELD_NONE?"invalid compiled cron dialect/day flags":"invalid compiled cron field bitmap");
 }
 
 static bool xcronCalendarCivil(const xdatetime* Date, xdatetime* Value, xcroncalendarissue* Issue)
@@ -53,7 +61,7 @@ static bool xcronCalendarCivil(const xdatetime* Date, xdatetime* Value, xcroncal
 	return true;
 }
 
-static bool xcronCalendarPartsMatch(const xcronexpression* Expression, const xdatetime* Date)
+bool xcronCalendarPartsMatch(const xcronexpression* Expression, const xdatetime* Date)
 {
 	if (Date->Millisecond || !(Expression->Fields[XCRON_FIELD_MONTH]&((uint64)1u<<Date->Month)) ||
 		!(Expression->Fields[XCRON_FIELD_HOUR]&((uint64)1u<<Date->Hour)) || !(Expression->Fields[XCRON_FIELD_MINUTE]&((uint64)1u<<Date->Minute)) ||
@@ -123,7 +131,7 @@ static bool xcronCalendarTick(xdatetime* Date)
 	return true;
 }
 
-static xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const xdatetime* Begin, const xdatetime* End,
+xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const xdatetime* Begin, const xdatetime* End,
 	uint32 Flags, xdatetime* Next, xcroncalendarissue* Issue)
 {
 	if (xcronCalendarCompare(Begin,End)>0) { xcronCalendarReport(XCRON_CALENDAR_WINDOW,XCRON_FIELD_NONE,Issue,"cron search window is reversed"); return XCRON_CALENDAR_ERROR; }

@@ -73,6 +73,22 @@
 #ifndef XCRON_MODULE_XCRON_TIMEZONE
 #define XCRON_MODULE_XCRON_TIMEZONE
 #endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
+#endif
+
+/* xcron_zoned 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_ZONED)
+#ifndef XCRON_FEATURE_XCRON_ZONED
+#define XCRON_FEATURE_XCRON_ZONED
+#endif
+#ifndef XCRON_MODULE_XCRON_CALENDAR
+#define XCRON_MODULE_XCRON_CALENDAR
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
 #endif
 
 /* xcron_timezone 及其直接依赖。 */
@@ -406,6 +422,56 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/zoned.h */
+/* ========================================================================== */
+
+#ifndef XCRON_ZONED_H
+#define XCRON_ZONED_H
+#if defined(XCRON_FEATURE_XCRON_ZONED) && (!defined(XCRON_FEATURE_XCRON_CALENDAR) || !defined(XCRON_FEATURE_XCRON_TIMEZONE))
+#error "zoned cron requires calendar and timezone"
+#endif
+#if defined(XCRON_FEATURE_XCRON_ZONED)
+typedef enum xcronzonedstatus {XCRON_ZONED_ERROR=-1,XCRON_ZONED_NONE=0,XCRON_ZONED_FOUND=1} xcronzonedstatus;
+typedef enum xcronzonederror {XCRON_ZONED_OK=0,XCRON_ZONED_ARGUMENT=3001,XCRON_ZONED_EXPRESSION,XCRON_ZONED_WINDOW,XCRON_ZONED_ZONE,XCRON_ZONED_RANGE} xcronzonederror;
+typedef struct xcronzonedissue {
+    xcronzonederror Code;
+    xcronfield Field;
+    xcronzoneerror Zone;
+    uint32 SegmentsExamined;
+    uint64 MonthsExamined;
+} xcronzonedissue;
+XRT_EXTERN_C_BEGIN
+/* Actual-instant predicate, not nominal-time compensation. Local labels absent
+ * from the zone have no occurrence; all repeated instants match independently,
+ * including histories with more than two folds. Fractional instants never match.
+ * Unknown mapping at a whole-second instant is a ZONE/UNKNOWN error; a fractional
+ * instant is false without needing an offset. Caller owns live Zone and keeps
+ * both inputs immutable throughout. No input is retained or mutated. Outputs
+ * and Issue must be disjoint from Expression, all owned Zone/footer storage,
+ * and each other. Invalid arguments/spans/aliases preserve both outputs.
+ * Value failures publish typed Issue even if diagnostic allocation fails;
+ * Matches changes on success only. Normal success preserves error/allocates none. */
+XCRON_API bool xcronZonedMatch(const xcronexpression* Expression,const xcronzone* Zone,xtime When,bool* Matches,xcronzonedissue* Issue);
+/* Earliest actual whole-second occurrence in inclusive [Begin,End], or
+ * (Begin,End] with XCRON_SEARCH_EXCLUSIVE. Fractional/negative endpoints and the
+ * entire int64 XRT timeline are supported. NONE/ERROR leave Next unchanged.
+ * Ordered UTC fixed-offset segments prevent a later fold from being missed.
+ * Search completes history first; only a proven periodic suffix permits a full
+ * 400-year recurrence bound. There is no arbitrary lookahead cutoff. Reaching
+ * unknown coverage before proving the earliest result is ZONE/UNKNOWN, never a
+ * guessed NONE. Empty rounded windows need no mapping. Normal FOUND/NONE allocate
+ * nothing and preserve ambient error; no clock, waiting, executor or storage.
+ * Remapped gap runs, fold selection, misfires and delivery policies belong to
+ * the scheduler layer and remain separate from this actual-occurrence primitive.
+ * Issue counters include visited UTC segments/calendar month work; Field applies
+ * to EXPRESSION errors, Zone to ZONE errors. Error domain is xrt.cron.zoned. */
+XCRON_API xcronzonedstatus xcronZonedNext(const xcronexpression* Expression,const xcronzone* Zone,xtime Begin,xtime End,uint32 Flags,xtime* Next,xcronzonedissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -425,12 +491,34 @@ XRT_EXTERN_C_END
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_TIMEZONE"
 #endif
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_ZONED)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_ZONED"
+#endif
+
 #endif
 
 #endif
 
 #if defined(XCRON_IMPLEMENTATION) && !defined(XCRON_IMPLEMENTATION_ONCE)
 #define XCRON_IMPLEMENTATION_ONCE 1
+
+
+/* ========================================================================== */
+/* internal: extlibs/xcron/src/calendar/calendar_internal.h */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_CALENDAR)
+#ifndef XCRON_CALENDAR_INTERNAL_H
+#define XCRON_CALENDAR_INTERNAL_H
+#if defined(XCRON_FEATURE_XCRON_CALENDAR)
+/* Product-private validated calendar operations; no XRT-private API dependency. */
+bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* Field);
+bool xcronCalendarPartsMatch(const xcronexpression* Expression,const xdatetime* Date);
+xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression,const xdatetime* Begin,const xdatetime* End,
+    uint32 Flags,xdatetime* Next,xcroncalendarissue* Issue);
+#endif
+#endif
+#endif
 
 
 /* ========================================================================== */
@@ -457,6 +545,15 @@ struct xcronzone {
 };
 bool xcronZoneFail(xcronzoneerror Code,size_t Offset,xcronzoneissue* Issue);
 bool xcronZoneCivilSeconds(const xdatetime* Date,int64* Seconds);
+/* Pure span/owner/alias checks; callers publish their own single diagnostic. */
+bool xcronZoneOutputs(const xcronzone* Zone,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count);
+xcronzonestate xcronZoneStateValue(const xcronzone* Zone,xtime When);
+void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Date);
+xcronzonestatus xcronZoneNextValue(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
+/* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
+ * False means no proven periodic suffix inside the xtime domain. */
+bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
+bool xcronZoneHistoryRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
 xcronzonestate xcronZoneHistoryAt(const xcronzone* Zone,xtime When);
 xcronzonestatus xcronZoneHistoryNext(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
 xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Zone,const xdatetime* Date,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue);
@@ -730,17 +827,24 @@ Invalid:
 	return xcronCalendarReport(XCRON_CALENDAR_ARGUMENT,XCRON_FIELD_NONE,NULL,"invalid cron calendar arguments, spans or output aliases");
 }
 
-static bool xcronCalendarExpression(const xcronexpression* Expression, xcroncalendarissue* Issue)
+bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* BadField)
 {
+	*BadField=XCRON_FIELD_NONE;
 	static const uint64 Allowed[]={UINT64_C(0x0fffffffffffffff),UINT64_C(0x0fffffffffffffff),UINT64_C(0xffffff),
 		UINT64_C(0xfffffffe),UINT64_C(0x1ffe),UINT64_C(0x7f)};
 	if ((Expression->Dialect!=XCRON_UNIX5 && Expression->Dialect!=XCRON_SECONDS6) || (Expression->Flags&~(XCRON_DAY_MONTH_STAR|XCRON_DAY_WEEK_STAR)))
-		return xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,XCRON_FIELD_NONE,Issue,"invalid compiled cron dialect/day flags");
+		return false;
 	for (unsigned Field=0; Field<XCRON_FIELD_COUNT; ++Field)
 		if (!Expression->Fields[Field] || (Expression->Fields[Field]&~Allowed[Field]) ||
 			(Field==XCRON_FIELD_SECOND && Expression->Dialect==XCRON_UNIX5 && Expression->Fields[Field]!=1))
-			return xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,(xcronfield)Field,Issue,"invalid compiled cron field bitmap");
+			{ *BadField=(xcronfield)Field; return false; }
 	return true;
+}
+static bool xcronCalendarExpression(const xcronexpression* Expression,xcroncalendarissue* Issue)
+{
+	xcronfield Field;
+	return xcronCalendarValidateExpression(Expression,&Field) || xcronCalendarReport(XCRON_CALENDAR_EXPRESSION,Field,Issue,
+		Field==XCRON_FIELD_NONE?"invalid compiled cron dialect/day flags":"invalid compiled cron field bitmap");
 }
 
 static bool xcronCalendarCivil(const xdatetime* Date, xdatetime* Value, xcroncalendarissue* Issue)
@@ -756,7 +860,7 @@ static bool xcronCalendarCivil(const xdatetime* Date, xdatetime* Value, xcroncal
 	return true;
 }
 
-static bool xcronCalendarPartsMatch(const xcronexpression* Expression, const xdatetime* Date)
+bool xcronCalendarPartsMatch(const xcronexpression* Expression, const xdatetime* Date)
 {
 	if (Date->Millisecond || !(Expression->Fields[XCRON_FIELD_MONTH]&((uint64)1u<<Date->Month)) ||
 		!(Expression->Fields[XCRON_FIELD_HOUR]&((uint64)1u<<Date->Hour)) || !(Expression->Fields[XCRON_FIELD_MINUTE]&((uint64)1u<<Date->Minute)) ||
@@ -826,7 +930,7 @@ static bool xcronCalendarTick(xdatetime* Date)
 	return true;
 }
 
-static xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const xdatetime* Begin, const xdatetime* End,
+xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const xdatetime* Begin, const xdatetime* End,
 	uint32 Flags, xdatetime* Next, xcroncalendarissue* Issue)
 {
 	if (xcronCalendarCompare(Begin,End)>0) { xcronCalendarReport(XCRON_CALENDAR_WINDOW,XCRON_FIELD_NONE,Issue,"cron search window is reversed"); return XCRON_CALENDAR_ERROR; }
@@ -1029,11 +1133,11 @@ static int32 xcronZoneRuleSecond(unsigned Cycle,const xcronzonerule* R,int32 Bef
 static bool xcronZoneHandle(const xcronzone* Z)
 {return Z && xrtMemRangeValid(Z,sizeof(*Z)) && Z->Magic==XCRON_ZONE_MAGIC;
 }
-static bool xcronZoneOutputs(const xcronzone* Z,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count)
+bool xcronZoneOutputs(const xcronzone* Z,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count)
 {
-    if(!xcronZoneHandle(Z) || (Input && !xrtMemRangeValid(Input,InputSize)))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || (Z->History && xcronZoneHistoryOverlap(Z,Outputs[I],Sizes[I])) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-        for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(Outputs[I],Sizes[I],Outputs[J],Sizes[J]))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
+    if(!xcronZoneHandle(Z) || (Input && !xrtMemRangeValid(Input,InputSize)))return false;
+    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || (Z->History && xcronZoneHistoryOverlap(Z,Outputs[I],Sizes[I])) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return false;
+        for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(Outputs[I],Sizes[I],Outputs[J],Sizes[J]))return false;
     }return true;
 }
 XCRON_API bool xcronZoneCreatePosix(xstrview Text,xcronzonegrammar Grammar,xcronzone** Out,xcronzoneissue* Issue)
@@ -1129,18 +1233,22 @@ static xcronzonestate xcronZoneState(const xcronzone* Z,bool DST)
 {const char* Names=(const char*)(Z->Changes+(Z->HasDST?800:0));
     return (xcronzonestate){Z->Offsets[DST?1:0],DST,{Names+(DST?Z->Names[0]+1:0),Z->Names[DST?1:0]}};
 }
+xcronzonestate xcronZoneStateValue(const xcronzone* Z,xtime When)
+{return Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));}
+bool xcronZoneRepeat(const xcronzone* Z,xtime Begin,xtime* First)
+{if(Z->History)return xcronZoneHistoryRepeat(Z,Begin,First);*First=Begin;return true;}
 XCRON_API bool xcronZoneAt(const xcronzone* Z,xtime When,xcronzonestate* State,xcronzoneissue* Issue)
 {
     void* Outputs[]={State,Issue};
     size_t Sizes[]={State?sizeof(*State):0,Issue?sizeof(*Issue):0};
     if(!State || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    xcronzonestate Value=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    xcronzonestate Value=xcronZoneStateValue(Z,When);
     if(Value.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
     *State=Value;
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
     return true;
 }
-static void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Out)
+void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Out)
 {
     int64 Seconds=xcronZoneFloor(When,1000),Milli=When%1000;
     if(Milli<0)Milli+=1000;
@@ -1160,7 +1268,7 @@ XCRON_API bool xcronZoneSplit(const xcronzone* Z,xtime When,xdatetime* Date,xcro
     void* Outputs[]={Date,Issue};
     size_t Sizes[]={Date?sizeof(*Date):0,Issue?sizeof(*Issue):0};
     if(!Date || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    xcronzonestate State=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    xcronzonestate State=xcronZoneStateValue(Z,When);
     if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
     xcronZoneDecompose(When,State.Offset,State.IsDST,Date);
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
@@ -1213,6 +1321,10 @@ XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Z,xtime After
         xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
         return XCRON_ZONE_ERROR;
     }
+    return xcronZoneNextValue(Z,After,Transition,Issue);
+}
+xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
+{
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,0};
     if(Z->History)return xcronZoneHistoryNext(Z,After,Transition,Issue);
     if(Z->Mode!=2)return XCRON_ZONE_NONE;
@@ -1484,6 +1596,13 @@ bool xcronZoneHistoryOverlap(const xcronzone* Z,const void* Output,size_t Size)
 {const xcronzone* F=Z->History->Footer;return F && xrtMemRangesOverlap(Output,Size,F,F->Bytes);}
 void xcronZoneHistoryRelease(const xcronzone* Z)
 {xcronZoneRelease(Z->History->Footer);}
+bool xcronZoneHistoryRepeat(const xcronzone* Z,xtime Begin,xtime* First)
+{
+    const xcronzonehistory* H=Z->History;
+    if((!H->Footer && !H->Count) || H->AllFooter || (H->Footer && xcronTzifUnix(Begin)>=H->Last)){*First=Begin;return true;}
+    if(!H->Footer || H->Last>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS)return false;
+    return xcronZoneSecondValue(H->Last+XCRON_TZIF_EPOCH_SECONDS,0,First);
+}
 xcronzonestatus xcronZoneHistoryNext(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
 {
     const xcronzonehistory* H=Z->History;int64 Second=xcronTzifUnix(After);uint32 I=xcronTzifUpper(H->Times,H->Count,Second);
@@ -1540,6 +1659,84 @@ xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Z,const xdatetime* D,xt
     if(N>Capacity)return XCRON_ZONE_CAPACITY;
     if(N)memcpy(Candidates,Values,N*sizeof(*Candidates));
     return N?XCRON_ZONE_FOUND:XCRON_ZONE_NONE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/zoned/zoned.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_ZONED)
+#if defined(XCRON_FEATURE_XCRON_ZONED)
+#define XCRON_ZONED_CYCLE_MS INT64_C(12622780800000)
+static bool xcronZonedFail(xcronzonederror Code,xcronfield Field,xcronzoneerror Zone,xcronzonedissue* Work,xcronzonedissue* Issue,cstr Message)
+{
+    Work->Code=Code;Work->Field=Field;Work->Zone=Zone;if(Issue)*Issue=*Work;
+    xrtSetErrorInfo(Code==XCRON_ZONED_ARGUMENT?XERR_ARGUMENT:Code==XCRON_ZONED_EXPRESSION?XERR_VALUE:Code==XCRON_ZONED_ZONE?XERR_STATE:XERR_RANGE,
+        "xrt.cron.zoned",Code,Message);return false;
+}
+static bool xcronZonedArgs(const xcronexpression* E,const xcronzone* Z,uint32 Flags,void* Result,size_t ResultSize,xcronzonedissue* Issue)
+{
+    void* Outputs[]={Result,Issue};size_t Sizes[]={ResultSize,Issue?sizeof(*Issue):0};
+    return E && Result && !(Flags&~XCRON_SEARCH_EXCLUSIVE) && xcronZoneOutputs(Z,E,sizeof(*E),Outputs,Sizes,2);
+}
+static bool xcronZonedValidate(const xcronexpression* E,xcronzonedissue* Work,xcronzonedissue* Issue)
+{
+    xcronfield Field;if(xcronCalendarValidateExpression(E,&Field))return true;
+    return xcronZonedFail(XCRON_ZONED_EXPRESSION,Field,XCRON_ZONE_OK,Work,Issue,"invalid compiled cron expression");
+}
+XCRON_API bool xcronZonedMatch(const xcronexpression* E,const xcronzone* Z,xtime When,bool* Matches,xcronzonedissue* Issue)
+{
+    xcronzonedissue Work={XCRON_ZONED_OK,XCRON_FIELD_NONE,XCRON_ZONE_OK,0,0};
+    if(!xcronZonedArgs(E,Z,0,Matches,sizeof(*Matches),Issue))return xcronZonedFail(XCRON_ZONED_ARGUMENT,XCRON_FIELD_NONE,XCRON_ZONE_OK,&Work,NULL,"invalid zoned cron arguments/spans/output aliases");
+    if(!xcronZonedValidate(E,&Work,Issue))return false;
+    bool Value=false;
+    if(!(When%1000)){
+        ++Work.SegmentsExamined;xcronzonestate State=xcronZoneStateValue(Z,When);
+        if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZonedFail(XCRON_ZONED_ZONE,XCRON_FIELD_NONE,XCRON_ZONE_UNKNOWN,&Work,Issue,"cron instant has unknown zone coverage");
+        xdatetime Date;xcronZoneDecompose(When,State.Offset,State.IsDST,&Date);Value=xcronCalendarPartsMatch(E,&Date);
+    }
+    *Matches=Value;if(Issue)*Issue=Work;return true;
+}
+XCRON_API xcronzonedstatus xcronZonedNext(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xtime* Next,xcronzonedissue* Issue)
+{
+    xcronzonedissue Work={XCRON_ZONED_OK,XCRON_FIELD_NONE,XCRON_ZONE_OK,0,0};
+    if(!xcronZonedArgs(E,Z,Flags,Next,sizeof(*Next),Issue)){xcronZonedFail(XCRON_ZONED_ARGUMENT,XCRON_FIELD_NONE,XCRON_ZONE_OK,&Work,NULL,"invalid zoned cron arguments/spans/output aliases");return XCRON_ZONED_ERROR;}
+    if(!xcronZonedValidate(E,&Work,Issue))return XCRON_ZONED_ERROR;
+    if(Begin>End){xcronZonedFail(XCRON_ZONED_WINDOW,XCRON_FIELD_NONE,XCRON_ZONE_OK,&Work,Issue,"zoned cron window is reversed");return XCRON_ZONED_ERROR;}
+    int64 Remainder=Begin%1000,Delta=Remainder?(Remainder>0?1000-Remainder:-Remainder):((Flags&XCRON_SEARCH_EXCLUSIVE)?1000:0);
+    if(Begin>INT64_MAX-Delta || Begin+Delta>End){if(Issue)*Issue=Work;return XCRON_ZONED_NONE;}
+    xtime First=Begin+Delta,Limit=End,Repeat;
+    if(xcronZoneRepeat(Z,First,&Repeat) && Repeat<=End && Repeat<=INT64_MAX-(XCRON_ZONED_CYCLE_MS-1000)){
+        xtime ProofEnd=Repeat+(XCRON_ZONED_CYCLE_MS-1000);if(ProofEnd<Limit)Limit=ProofEnd;
+    }
+    for(;;){
+        ++Work.SegmentsExamined;xcronzonestate State=xcronZoneStateValue(Z,First);
+        if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN){xcronZonedFail(XCRON_ZONED_ZONE,XCRON_FIELD_NONE,XCRON_ZONE_UNKNOWN,&Work,Issue,"cron search reached unknown zone coverage");return XCRON_ZONED_ERROR;}
+        xdatetime LocalBegin;xcronZoneDecompose(First,State.Offset,State.IsDST,&LocalBegin);
+        if(xcronCalendarPartsMatch(E,&LocalBegin)){++Work.MonthsExamined;*Next=First;if(Issue)*Issue=Work;return XCRON_ZONED_FOUND;}
+        xcronzonetransition Transition;xcronzoneissue ZI;
+        xcronzonestatus ZS=xcronZoneNextValue(Z,First,&Transition,&ZI);
+        if(ZS==XCRON_ZONE_ERROR){xcronZonedFail(XCRON_ZONED_ZONE,XCRON_FIELD_NONE,ZI.Code,&Work,Issue,"cron transition search failed");return XCRON_ZONED_ERROR;}
+        xtime SegmentEnd=Limit;if(ZS==XCRON_ZONE_FOUND && Transition.When<=Limit)SegmentEnd=Transition.When-1;
+        xdatetime LocalEnd,Value;xcronZoneDecompose(SegmentEnd,State.Offset,State.IsDST,&LocalEnd);
+        xcroncalendarissue CI;xcroncalendarstatus CS=xcronCalendarSearch(E,&LocalBegin,&LocalEnd,0,&Value,&CI);Work.MonthsExamined+=CI.MonthsExamined;
+        if(CS==XCRON_CALENDAR_FOUND){int64 Seconds;xtime Result;
+            if(!xcronZoneCivilSeconds(&Value,&Seconds) || !xcronZoneSecondValue(Seconds-State.Offset,0,&Result) || Result<First || Result>SegmentEnd){
+                xcronZonedFail(XCRON_ZONED_RANGE,XCRON_FIELD_NONE,XCRON_ZONE_OK,&Work,Issue,"zoned candidate exceeds its UTC segment");return XCRON_ZONED_ERROR;
+            }
+            *Next=Result;if(Issue)*Issue=Work;return XCRON_ZONED_FOUND;
+        }
+        if(CS==XCRON_CALENDAR_ERROR){xcronZonedFail(XCRON_ZONED_RANGE,XCRON_FIELD_NONE,XCRON_ZONE_OK,&Work,Issue,"invalid derived zoned civil window");return XCRON_ZONED_ERROR;}
+        /* A complete civil cycle without a label proves global impossibility,
+         * independently of all later offsets (including unknown coverage). */
+        if((First<=INT64_MAX-(XCRON_ZONED_CYCLE_MS-1000) && SegmentEnd>=First+(XCRON_ZONED_CYCLE_MS-1000)) || ZS==XCRON_ZONE_NONE || Transition.When>Limit)break;
+        First=Transition.When;
+    }
+    if(Issue)*Issue=Work;
+    return XCRON_ZONED_NONE;
 }
 #endif
 #endif

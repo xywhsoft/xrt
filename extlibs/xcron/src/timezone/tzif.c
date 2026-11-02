@@ -233,6 +233,13 @@ bool xcronZoneHistoryOverlap(const xcronzone* Z,const void* Output,size_t Size)
 {const xcronzone* F=Z->History->Footer;return F && xrtMemRangesOverlap(Output,Size,F,F->Bytes);}
 void xcronZoneHistoryRelease(const xcronzone* Z)
 {xcronZoneRelease(Z->History->Footer);}
+bool xcronZoneHistoryRepeat(const xcronzone* Z,xtime Begin,xtime* First)
+{
+    const xcronzonehistory* H=Z->History;
+    if((!H->Footer && !H->Count) || H->AllFooter || (H->Footer && xcronTzifUnix(Begin)>=H->Last)){*First=Begin;return true;}
+    if(!H->Footer || H->Last>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS)return false;
+    return xcronZoneSecondValue(H->Last+XCRON_TZIF_EPOCH_SECONDS,0,First);
+}
 xcronzonestatus xcronZoneHistoryNext(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
 {
     const xcronzonehistory* H=Z->History;int64 Second=xcronTzifUnix(After);uint32 I=xcronTzifUpper(H->Times,H->Count,Second);

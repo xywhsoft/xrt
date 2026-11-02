@@ -6,8 +6,15 @@ implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
 transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
 Owned non-leap TZif v1..4 binary history loading is implemented, including
 unknown/truncated coverage and more than two fold candidates. Named database
-lookup/reload, leap-aware conversion, zoned cron search, live scheduling, executors, misfire/overlap and durable
+lookup/reload, leap-aware conversion, live scheduling, executors, misfire/overlap and durable
 recovery remain pending; production/performance acceptance is not claimed.
+
+`XCRON_MODULE_XCRON_ZONED` adds exact local-field matching and earliest actual
+occurrence in a UTC window. It searches ordered fixed-offset segments, returns
+every actual fold instance and skips nonexistent labels; typed unknown coverage
+prevents guessed results. History is completed before using a periodic suffix's
+400-year completeness bound. See [zoned contracts/examples/costs](docs/zoned.md).
+Nominal gap compensation, fold selection and execution remain scheduler policies.
 
 Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly
 choose `XCRON_UNIX5` (minute/hour/day/month/weekday, second zero) or

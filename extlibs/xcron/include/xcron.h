@@ -18,4 +18,9 @@
 #endif
 #include <xcron/timezone.h>
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_ZONED)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_ZONED"
+#endif
+#include <xcron/zoned.h>
+
 #endif

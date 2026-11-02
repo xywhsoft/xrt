@@ -101,8 +101,9 @@ stops at 4801 months. It needs no service, clock or cleanup. Tests use a complet
 int64/BCE endpoints, atomicity and allocation/OOM checks. The workload measures
 only dense/sparse/impossible local calendar search over precompiled expressions.
 
-IANA/DST remains required. A timezone adapter must search ordered UTC transition
-segments with fixed offsets and map civil results with explicit gap/fold policy.
+The separate [zoned leaf](zoned.md) searches ordered UTC transition
+segments with fixed offsets and maps civil results with documented actual-time
+gap/fold semantics.
 Simply searching forward from the current local label misses a later fold whose
 label has moved backwards. This leaf does not choose a DST policy or treat civil
 labels as monotonic elapsed time. Misfires, overlap, execution, clock jumps and

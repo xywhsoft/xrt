@@ -49,6 +49,22 @@
         "_xcronCalendarNext",
         "_xcronExpressionCompile"
       ]
+    },
+    {
+      "name": "xcron_zoned",
+      "system": "zoned",
+      "suite": "xcron_zoned",
+      "description": "Actual-instant zoned Gregorian search with explicit rule/history dependencies; no host TZ/network/wait/scheduler",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtNetEngineCreate",
+        "xrtThreadCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtThreadCreate"
+      ]
     }
   ]
 }

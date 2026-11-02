@@ -2,7 +2,8 @@
 
 The timezone leaf compiles POSIX TZ strings, TZif-v3 extended rule strings,
 and owned RFC9636 application/tzif v1..4 binary histories independently.
-Named database lookup/reload, leap-aware conversion and zoned cron search are pending.
+Named database lookup/reload and leap-aware conversion are pending. The separate
+[zoned leaf](zoned.md) provides actual-occurrence cron search.
 No host TZ environment, libc global timezone state or installed data is consulted.
 
 An immutable POSIX zone owns its names and optional 400-year transition cache
@@ -111,5 +112,5 @@ allocation/error-preserving queries and concurrent retained owners. A frozen
 IANA 2026e corpus is compared independently with Python zoneinfo and explicit
 RFC coverage rules, including unknown and incomplete resolutions. Portable
 evidence is recorded in the progress ledger/results. The separate 4096-change
-benchmark measures decoded-history lookup only. Database reload, zoned calendar
-search, full scheduler workloads and performance/production acceptance remain.
+benchmark measures decoded-history lookup only. Database reload, nominal delivery
+policies, full scheduler workloads and performance/production acceptance remain.

@@ -19,6 +19,15 @@ struct xcronzone {
 };
 bool xcronZoneFail(xcronzoneerror Code,size_t Offset,xcronzoneissue* Issue);
 bool xcronZoneCivilSeconds(const xdatetime* Date,int64* Seconds);
+/* Pure span/owner/alias checks; callers publish their own single diagnostic. */
+bool xcronZoneOutputs(const xcronzone* Zone,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count);
+xcronzonestate xcronZoneStateValue(const xcronzone* Zone,xtime When);
+void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Date);
+xcronzonestatus xcronZoneNextValue(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
+/* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
+ * False means no proven periodic suffix inside the xtime domain. */
+bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
+bool xcronZoneHistoryRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
 xcronzonestate xcronZoneHistoryAt(const xcronzone* Zone,xtime When);
 xcronzonestatus xcronZoneHistoryNext(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
 xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Zone,const xdatetime* Date,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue);

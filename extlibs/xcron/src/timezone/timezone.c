@@ -118,11 +118,11 @@ static int32 xcronZoneRuleSecond(unsigned Cycle,const xcronzonerule* R,int32 Bef
 static bool xcronZoneHandle(const xcronzone* Z)
 {return Z && xrtMemRangeValid(Z,sizeof(*Z)) && Z->Magic==XCRON_ZONE_MAGIC;
 }
-static bool xcronZoneOutputs(const xcronzone* Z,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count)
+bool xcronZoneOutputs(const xcronzone* Z,const void* Input,size_t InputSize,void* const* Outputs,const size_t* Sizes,size_t Count)
 {
-    if(!xcronZoneHandle(Z) || (Input && !xrtMemRangeValid(Input,InputSize)))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || (Z->History && xcronZoneHistoryOverlap(Z,Outputs[I],Sizes[I])) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-        for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(Outputs[I],Sizes[I],Outputs[J],Sizes[J]))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
+    if(!xcronZoneHandle(Z) || (Input && !xrtMemRangeValid(Input,InputSize)))return false;
+    for(size_t I=0;I<Count;++I){if(!xrtMemRangeValid(Outputs[I],Sizes[I]) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Z,Z->Bytes) || (Z->History && xcronZoneHistoryOverlap(Z,Outputs[I],Sizes[I])) || xrtMemRangesOverlap(Outputs[I],Sizes[I],Input,InputSize))return false;
+        for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(Outputs[I],Sizes[I],Outputs[J],Sizes[J]))return false;
     }return true;
 }
 XCRON_API bool xcronZoneCreatePosix(xstrview Text,xcronzonegrammar Grammar,xcronzone** Out,xcronzoneissue* Issue)
@@ -218,18 +218,22 @@ static xcronzonestate xcronZoneState(const xcronzone* Z,bool DST)
 {const char* Names=(const char*)(Z->Changes+(Z->HasDST?800:0));
     return (xcronzonestate){Z->Offsets[DST?1:0],DST,{Names+(DST?Z->Names[0]+1:0),Z->Names[DST?1:0]}};
 }
+xcronzonestate xcronZoneStateValue(const xcronzone* Z,xtime When)
+{return Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));}
+bool xcronZoneRepeat(const xcronzone* Z,xtime Begin,xtime* First)
+{if(Z->History)return xcronZoneHistoryRepeat(Z,Begin,First);*First=Begin;return true;}
 XCRON_API bool xcronZoneAt(const xcronzone* Z,xtime When,xcronzonestate* State,xcronzoneissue* Issue)
 {
     void* Outputs[]={State,Issue};
     size_t Sizes[]={State?sizeof(*State):0,Issue?sizeof(*Issue):0};
     if(!State || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    xcronzonestate Value=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    xcronzonestate Value=xcronZoneStateValue(Z,When);
     if(Value.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
     *State=Value;
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
     return true;
 }
-static void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Out)
+void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Out)
 {
     int64 Seconds=xcronZoneFloor(When,1000),Milli=When%1000;
     if(Milli<0)Milli+=1000;
@@ -249,7 +253,7 @@ XCRON_API bool xcronZoneSplit(const xcronzone* Z,xtime When,xdatetime* Date,xcro
     void* Outputs[]={Date,Issue};
     size_t Sizes[]={Date?sizeof(*Date):0,Issue?sizeof(*Issue):0};
     if(!Date || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,2))return xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
-    xcronzonestate State=Z->History?xcronZoneHistoryAt(Z,When):xcronZoneState(Z,xcronZoneLookup(Z,When));
+    xcronzonestate State=xcronZoneStateValue(Z,When);
     if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZoneFail(XCRON_ZONE_UNKNOWN,0,Issue);
     xcronZoneDecompose(When,State.Offset,State.IsDST,Date);
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,!Z->History && Z->Mode==2?5:0};
@@ -302,6 +306,10 @@ XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Z,xtime After
         xcronZoneFail(XCRON_ZONE_ARGUMENT,0,NULL);
         return XCRON_ZONE_ERROR;
     }
+    return xcronZoneNextValue(Z,After,Transition,Issue);
+}
+xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
+{
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,0};
     if(Z->History)return xcronZoneHistoryNext(Z,After,Transition,Issue);
     if(Z->Mode!=2)return XCRON_ZONE_NONE;
