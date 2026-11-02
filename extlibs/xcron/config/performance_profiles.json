@@ -251,6 +251,82 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_executor_1",
+      "system": "executor",
+      "description": "Borrowed XRT executor adapter, 1 workers and 64-lease batches; minimal counter baseline is not feature-equivalent; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_1",
+          "source": "extlibs/xcron/bench/bench_executor.c",
+          "suite": "xcron_executor",
+          "args": [
+            "1000",
+            "1"
+          ],
+          "smoke_args": [
+            "10",
+            "1"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "minimal_xrt_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "minimal_xrt_batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_4",
+      "system": "executor",
+      "description": "Borrowed XRT executor adapter, 4 workers and 64-lease batches; minimal counter baseline is not feature-equivalent; no production/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_4",
+          "source": "extlibs/xcron/bench/bench_executor.c",
+          "suite": "xcron_executor",
+          "args": [
+            "1000",
+            "4"
+          ],
+          "smoke_args": [
+            "10",
+            "4"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "minimal_xrt_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "minimal_xrt_batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -22,6 +22,22 @@
 #ifndef XCRON_MODULE_XCRON_SCHEDULER
 #define XCRON_MODULE_XCRON_SCHEDULER
 #endif
+#ifndef XCRON_MODULE_XCRON_EXECUTOR
+#define XCRON_MODULE_XCRON_EXECUTOR
+#endif
+#endif
+
+/* xcron_executor 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_EXECUTOR)
+#ifndef XCRON_FEATURE_XCRON_EXECUTOR
+#define XCRON_FEATURE_XCRON_EXECUTOR
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
+#endif
 #endif
 
 /* xcron_scheduler 及其直接依赖。 */

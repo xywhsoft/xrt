@@ -28,4 +28,9 @@
 #endif
 #include <xcron/scheduler.h>
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_EXECUTOR)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_EXECUTOR"
+#endif
+#include <xcron/executor.h>
+
 #endif

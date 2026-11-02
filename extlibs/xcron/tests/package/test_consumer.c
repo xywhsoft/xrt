@@ -1,6 +1,10 @@
 #define XCRON_MODULE_XCRON
 #include <xcron.h>
 #include <string.h>
+#include <xrt/thread.h>
+
+static xcronrunresult consumerExecute(const xcronrun* Run,const xcronexecution* Token,ptr Context)
+{(void)Run;(void)Context;return xcronExecutionCancelled(Token)?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED;}
 
 int main(void)
 {
@@ -28,8 +32,18 @@ int main(void)
 	xcronjobconfig Job={.Expression=ZonedExpression,.Zone=Zone,.Begin=Candidates[0],.End=Candidates[1],.Overlap=XCRON_OVERLAP_ALLOW,.RunningLimit=2};
 	xcronjobid JobId; xcronrun Runs[2]; xcronpoll Poll; xcronretired Receipt; bool Found=false;
 	if (!xcronSchedulerCreate(&Config,&Scheduler,NULL) || !xcronSchedulerAdd(Scheduler,&Job,&JobId,NULL) ||
-		!xcronSchedulerPoll(Scheduler,(xcronclock){Candidates[1],0},Runs,2,&Poll,NULL) || Poll.Count!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1] ||
-		!xcronSchedulerComplete(Scheduler,Runs[0].Id,XCRON_RUN_SUCCEEDED,NULL) || !xcronSchedulerComplete(Scheduler,Runs[1].Id,XCRON_RUN_SUCCEEDED,NULL) ||
+		!xcronSchedulerPoll(Scheduler,(xcronclock){Candidates[1],0},Runs,2,&Poll,NULL) || Poll.Count!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1]) return 10;
+	xexecutorconfig PoolConfig={1,4,0}; xexecutor* Pool=xrtExecutorCreate(&PoolConfig); xcronexecutor* Adapter=NULL;
+	xcronexecutorconfig ExecutionConfig={Pool,consumerExecute,NULL,NULL,NULL,2,0,65536};
+	if (!Pool || !xcronExecutorCreate(&ExecutionConfig,&Adapter,NULL) || !xcronExecutorSubmit(Adapter,&Runs[0],NULL) || !xcronExecutorSubmit(Adapter,&Runs[1],NULL)) return 11;
+	unsigned Returned=0; double Limit=xrtTimer()+10;
+	while (Returned<2) {xcroncompletion Completion; size_t N;
+		if (!xcronExecutorDrain(Adapter,&Completion,1,&N,NULL) || xrtTimer()>Limit) return 12;
+		if (!N) {xrtThreadYield();continue;}
+		if (Completion.Result!=XCRON_RUN_SUCCEEDED || Completion.Error || !xcronSchedulerComplete(Scheduler,Completion.Run.Id,Completion.Result,NULL)) return 13;
+		++Returned;
+	}
+	if (!xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xcronExecutorDestroy(Adapter,NULL) || !xrtExecutorDestroy(Pool) ||
 		!xcronSchedulerReap(Scheduler,&Receipt,&Found,NULL) || !Found || Receipt.Id!=JobId || Receipt.Info.State!=XCRON_JOB_EXHAUSTED ||
 		!xcronSchedulerDestroy(Scheduler,NULL)) return 10;
 	xcronZoneRelease(Zone);

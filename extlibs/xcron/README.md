@@ -6,14 +6,21 @@ implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
 transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
 Owned non-leap TZif v1..4 binary history loading is implemented, including
 unknown/truncated coverage and more than two fold candidates. Named database
-lookup/reload, leap-aware conversion, live timer/executor integration and durable
+lookup/reload, leap-aware conversion, live timer integration and durable
 recovery remain pending; production/performance acceptance is not claimed.
 
 `XCRON_MODULE_XCRON_SCHEDULER` adds a bounded explicit-clock pull kernel with
 catch-up/skip/coalesced misfires, wait/allow/skip overlap, fair work budgets,
 generation IDs and physical run leases. Cancellation/close preserve active data
 until completion and a retirement receipt. It creates no threads/timers; the live
-adapter and durable recovery remain pending. See [scheduler contracts and example](docs/scheduler.md).
+timer driver and durable recovery remain pending. See [scheduler contracts and example](docs/scheduler.md).
+
+`XCRON_MODULE_XCRON_EXECUTOR` dispatches actual leases through a borrowed XRT
+Executor, with preallocated slots, cooperative cancellation, owned worker-error
+receipts and protected publication/notification tails. The owner drains results,
+completes kernel leases and reaps jobs before releasing Data. See
+[execution contracts and runnable example](docs/executor.md). Timer/engine
+integration, nominal DST delivery and durable recovery still remain pending.
 
 `XCRON_MODULE_XCRON_ZONED` adds exact local-field matching and earliest actual
 occurrence in a UTC window. It searches ordered fixed-offset segments, returns

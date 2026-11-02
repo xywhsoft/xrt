@@ -36,6 +36,9 @@
 #if !defined(XCRON_FEATURE_XCRON_CALENDAR)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CALENDAR 1
 #endif
+#if !defined(XCRON_FEATURE_XCRON_EXECUTOR)
+#define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_EXECUTOR 1
+#endif
 #if !defined(XCRON_FEATURE_XCRON_EXPRESSION)
 #define XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_EXPRESSION 1
 #endif
@@ -56,6 +59,9 @@
 #endif
 #if !defined(XCRON_MODULE_XCRON_CALENDAR)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR 1
+#endif
+#if !defined(XCRON_MODULE_XCRON_EXECUTOR)
+#define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_EXECUTOR 1
 #endif
 #if !defined(XCRON_MODULE_XCRON_EXPRESSION)
 #define XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_EXPRESSION 1
@@ -1250,6 +1256,9 @@
 #endif
 #if !defined(XRT_MODULE_ATOMIC)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC 1
+#endif
+#if !defined(XRT_MODULE_EXECUTOR)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR 1
 #endif
 #if !defined(XRT_MODULE_TIME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME 1
@@ -2467,6 +2476,22 @@
 #ifndef XCRON_MODULE_XCRON_SCHEDULER
 #define XCRON_MODULE_XCRON_SCHEDULER
 #endif
+#ifndef XCRON_MODULE_XCRON_EXECUTOR
+#define XCRON_MODULE_XCRON_EXECUTOR
+#endif
+#endif
+
+/* xcron_executor 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_EXECUTOR)
+#ifndef XCRON_FEATURE_XCRON_EXECUTOR
+#define XCRON_FEATURE_XCRON_EXECUTOR
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
+#endif
 #endif
 
 /* xcron_scheduler 及其直接依赖。 */
@@ -3015,6 +3040,109 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/executor.h */
+/* ========================================================================== */
+
+#ifndef XCRON_EXECUTOR_H
+#define XCRON_EXECUTOR_H
+#if defined(XCRON_FEATURE_XCRON_EXECUTOR) && (!defined(XCRON_FEATURE_XCRON_SCHEDULER) || !defined(XRT_FEATURE_EXECUTOR))
+#error "cron executor adapter requires scheduler and public XRT executor"
+#endif
+#if defined(XCRON_FEATURE_XCRON_EXECUTOR)
+typedef struct xcronexecutor xcronexecutor;
+typedef struct xcronexecution xcronexecution;
+typedef xcronrunresult (*xcronexecuteproc)(const xcronrun* Run,const xcronexecution* Execution,ptr Context);
+typedef void (*xcronexecutornotify)(ptr Context);
+typedef enum xcronexecutorerror {
+    XCRON_EXECUTOR_OK=0,XCRON_EXECUTOR_ARGUMENT=5001,XCRON_EXECUTOR_LIMIT,
+    XCRON_EXECUTOR_MEMORY,XCRON_EXECUTOR_CLOSED,XCRON_EXECUTOR_STALE,
+    XCRON_EXECUTOR_BUSY,XCRON_EXECUTOR_THREAD,XCRON_EXECUTOR_REENTRY,
+    XCRON_EXECUTOR_DUPLICATE,XCRON_EXECUTOR_REJECTED,XCRON_EXECUTOR_RESULT,
+    XCRON_EXECUTOR_OWNER_CONFLICT
+} xcronexecutorerror;
+typedef struct xcronexecutorissue {xcronexecutorerror Code;xerrkind Cause;} xcronexecutorissue;
+typedef struct xcronexecutorconfig {
+    xexecutor* Executor;
+    xcronexecuteproc Proc;
+    ptr Context;
+    xcronexecutornotify Notify;
+    ptr NotifyContext;
+    uint32 RunLimit,Reserved;
+    size_t BytesLimit;
+} xcronexecutorconfig;
+typedef struct xcroncompletion {
+    xcronrun Run;
+    xcronrunresult Result;
+    xcronexecutorerror Code;
+    xerror* Error;
+} xcroncompletion;
+typedef struct xcronexecutorstats {
+    size_t Bytes;
+    uint32 Limit,Active,Peak,Producers;
+    bool Closed;
+    uint64 Submitted,Rejected,Drained,CancelRequests;
+} xcronexecutorstats;
+XRT_EXTERN_C_BEGIN
+/* A preallocated execution adapter for leases from ONE originating scheduler.
+ * This thread owns all adapter operations except ExecutionCancelled. Executor,
+ * callback code and both contexts are borrowed through successful Destroy.
+ * Executor must remain live and eventually run/drop every accepted submission;
+ * adapter Close does not close a shared executor. One allocation bounds slots,
+ * the lease-ID hash and completion queues within BytesLimit (not borrowed data,
+ * executor storage or callback/diagnostic allocations). Limits positive,
+ * Reserved zero. No normal steady allocation. No timer, thread or runtime is
+ * created. Invalid arguments/spans/output aliases preserve all outputs. Other
+ * failures publish typed Issue despite diagnostic OOM. Success preserves error.
+ * Outputs must be disjoint from owned adapter storage, inputs and each other;
+ * caller also keeps them disjoint from borrowed contexts/job data/scheduler.
+ * Error domain xrt.cron.executor; rejected XRT submissions preserve their cause. */
+XCRON_API bool xcronExecutorCreate(const xcronexecutorconfig* Config,xcronexecutor** Adapter,xcronexecutorissue* Issue);
+/* Success transfers the duty to return this exact lease in Drain; caller must
+ * not Complete it or release its job Data earlier. Failure transfers nothing,
+ * invokes no Proc and leaves the caller responsible for Complete/retry. Active
+ * duplicate IDs fail; IDs are scoped to the originating scheduler, not global.
+ * Proc borrows copied Run/Execution only during its call, on an XRT worker.
+ * Callback must finish ALL its data-using tails before returning. FAILED takes
+ * that worker's ambient error into the receipt; no owner-thread ambient error
+ * supplies another run's cause. Invalid return enums become FAILED/RESULT.
+ * A callback selected on the adapter's owner thread is refused with a typed
+ * OWNER_CONFLICT completion, preventing owner-state reentry. Callback code stays
+ * resident through executor drain/join before unloading the extension library. */
+XCRON_API bool xcronExecutorSubmit(xcronexecutor* Adapter,const xcronrun* Run,xcronexecutorissue* Issue);
+/* Cooperative request. A queued callback observes it before Proc; running Proc
+ * decides when to stop and which result to return. A late request never changes
+ * an already completed outcome. Repeated requests while the ID exists succeed.
+ * These do not cancel the scheduler job; coordinate SchedulerCancel separately. */
+XCRON_API bool xcronExecutorCancel(xcronexecutor* Adapter,xcronrunid Id,xcronexecutorissue* Issue);
+XCRON_API bool xcronExecutorCancelJob(xcronexecutor* Adapter,xcronjobid Id,uint32* Requested,xcronexecutorissue* Issue);
+/* Capacity positive. Nonblocking bounded pull of at most Capacity completions.
+ * Each receipt transfers Error ownership (possibly NULL); caller frees it with
+ * xrtErrorFree. Call SchedulerComplete exactly once after receiving the receipt,
+ * then a terminal job can be reaped. No order between concurrent completions is
+ * promised. Detached finite batches drain before newer batches; no starvation.
+ * This releases adapter capacity, not the scheduler's lease. Data is borrowed
+ * through SchedulerReap, never owned by this copied receipt. */
+XCRON_API bool xcronExecutorDrain(xcronexecutor* Adapter,xcroncompletion* Completed,size_t Capacity,size_t* Count,xcronexecutorissue* Issue);
+/* Idempotent, stops Submit. CancelRuns=true also requests all existing tokens.
+ * Notify is optional, runs after publication on the executor's completion/drop
+ * thread (possibly this owner when that thread cancels queued XRT work). It must
+ * not block or enter adapter operations. Owner reentry and other-thread access
+ * are rejected. It may signal a caller-owned event/post a wake; that resource
+ * lives through Destroy. Notifications may coalesce/be stale: Drain is authority.
+ * The owner must resample with a bounded wait to handle wake-delivery failures. */
+XCRON_API bool xcronExecutorClose(xcronexecutor* Adapter,bool CancelRuns,xcronexecutorissue* Issue);
+XCRON_API bool xcronExecutorInspect(const xcronexecutor* Adapter,xcronexecutorstats* Stats,xcronexecutorissue* Issue);
+/* BUSY until every accepted receipt is drained AND all publication/Notify tails
+ * have left adapter memory. Does not join/destroy the borrowed executor. */
+XCRON_API bool xcronExecutorDestroy(xcronexecutor* Adapter,xcronexecutorissue* Issue);
+/* Any callback thread; NULL means false. Execution cannot escape Proc's scope. */
+XCRON_API bool xcronExecutionCancelled(const xcronexecution* Execution);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -3042,6 +3170,10 @@ XRT_EXTERN_C_END
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_SCHEDULER"
 #endif
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_EXECUTOR)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_EXECUTOR"
+#endif
+
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON)
 #undef XCRON_FEATURE_XCRON
@@ -3050,6 +3182,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CALENDAR)
 #undef XCRON_FEATURE_XCRON_CALENDAR
 #undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_CALENDAR
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_EXECUTOR)
+#undef XCRON_FEATURE_XCRON_EXECUTOR
+#undef XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_EXECUTOR
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_FEATURE_XCRON_EXPRESSION)
 #undef XCRON_FEATURE_XCRON_EXPRESSION
@@ -3078,6 +3214,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR)
 #undef XCRON_MODULE_XCRON_CALENDAR
 #undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_CALENDAR
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_EXECUTOR)
+#undef XCRON_MODULE_XCRON_EXECUTOR
+#undef XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_EXECUTOR
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XCRON_MODULE_XCRON_EXPRESSION)
 #undef XCRON_MODULE_XCRON_EXPRESSION
@@ -4671,6 +4811,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_ATOMIC
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_ATOMIC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR)
+#undef XRT_MODULE_EXECUTOR
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME)
 #undef XRT_MODULE_TIME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TIME
@@ -4709,6 +4853,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XCRON_MODULE_XCRON_SCHEDULER
 #define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XCRON_MODULE_XCRON_EXECUTOR
+#define XCRON_MODULE_XCRON_EXECUTOR
+#endif
+#endif
+
+/* xcron_executor 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_EXECUTOR)
+#ifndef XCRON_FEATURE_XCRON_EXECUTOR
+#define XCRON_FEATURE_XCRON_EXECUTOR
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
 #endif
 #endif
 

@@ -83,6 +83,20 @@
         "_xrtThreadCreate",
         "_xrtExecutorCreate"
       ]
+    },
+    {
+      "name": "xcron_executor",
+      "system": "executor",
+      "suite": "xcron_executor",
+      "description": "Cron lease adapter and public XRT Executor closure, no network or host timezone",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
     }
   ]
 }

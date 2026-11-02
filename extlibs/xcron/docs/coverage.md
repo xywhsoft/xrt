@@ -137,3 +137,13 @@ calculation faults, physical completion leases and cancellation/retirement recei
 It creates no timer/thread/executor and supplies no durable recovery. See
 [the complete contract and remaining gaps](scheduler.md). The root and leaf remain
 developing. Qualification evidence is recorded separately from implementation.
+
+# Actual executor adapter stage
+
+The developing `xcron_executor` leaf adds real public-XRT worker execution,
+bounded preallocation/ID lookup/completion publication, cooperative cancellation,
+shared queue rejection with success-only transfer, worker-error ownership, owner
+thread/reentry checks and separate notification-tail protection. It owns no
+executor/thread/timer. Direct header/single/package/example, many-worker lifetime
+and zero-heap tests plus minimal-XRT/adapter smoke and size profiles are registered.
+See [contracts, cost accounting and remaining qualification](executor.md).

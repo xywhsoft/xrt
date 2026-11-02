@@ -6772,3 +6772,84 @@ recovery, adversarial CPU/P99, native Linux and>=72h qualification remain. Earli
 MQTT/Redis/RPC gaps remain. All four roots and the scheduler leaf stay developing;
 the complete goal remains active. The primary checkout remains separate: its77
 pre-existing-file checkpoint is `93347eb5`; no primary merge or push occurred.
+
+## Actual XRT executor adapter for Cron leases (2026-11-02)
+
+Added the developing `xcron_executor` leaf with nine public operations/types for
+actual worker execution, cancellation, per-job cancellation, owned completion
+receipts, close/inspection/destruction and a scoped cancellation query. It borrows
+an existing public XRT Executor and creates no runtime, worker, timer or executor.
+The creating native thread owns control/drain operations. A preallocated slot
+array, <=50%-loaded lease-ID hash with backward-shift deletion and MPSC completion
+publication bound all local storage within BytesLimit. Active IDs are scoped to
+one originating scheduler. Successful admission transfers only the completion
+return duty; rejection invokes no body and leaves the lease with its caller.
+
+Callbacks borrow the copied64-byte Run/token and must finish data-using tails.
+FAILED transfers that worker's ambient error into an owned receipt; invalid return
+enums normalize to FAILED/RESULT without stealing another task's error. Queued
+cancellation skips the body; running cancellation is cooperative and never
+rewrites an already produced outcome. Close does not close a borrowed shared
+executor. Drain copies an80-byte receipt and returns adapter capacity; the owner
+then completes the kernel lease and eventually reaps Data. This is not an
+exactly-once business-effect guarantee or a global lease capability.
+
+The completion producer never accesses its slot/Data/Error after publication,
+so a drained slot can be reused before its previous notification ends. A separate
+producer reference protects adapter/notification context through that tail;
+Destroy remains BUSY until receipts and producers are zero. Owner-notification
+reentry and cross-thread control calls fail explicitly. Selecting a user body on
+its adapter's owner thread returns typed OWNER_CONFLICT instead of entering owner
+state. Optional Notify can signal a host event/post a wake; bounded resampling
+must recover from failed wake delivery. No blocking adapter wait or new shared
+runtime/Core API is introduced. Native thread-ID checks, hashing, copies, CAS
+contention and public Executor bookkeeping remain explicit measured costs.
+
+Final native Windows GCC O2 and WSL GCC O2 ASan/UBSan/leak-halt pass28 modular/
+single programs,14 offline examples,12 static/shared package consumers and26
+Python tool tests. Root static/shared consumers now execute real worker callbacks
+for both actual-fold leases, drain them on the owner and return them to the
+scheduler before retirement. Four post-size leaf consumers run the complete
+executor adversarial/OOM unit against actual rebuilt libraries. Direct header,
+selected declarations, trim, generated files, public layout and isolated size
+pass; new config56/issue8/completion80/stats64 layouts agree on both x64 ABIs.
+
+The complete WSL GCC O1 TSan-instrumented executor unit also runs without a
+reported race. GCC's existing atomic_thread_fence instrumentation warning first
+fails strict -Werror compilation, then is retained with -Wno-error=tsan only for
+this isolated diagnostic build. The original failed compile log/receipt and the
+successful build/run are both preserved. This does not prove fence-only
+synchronization, the whole XRT runtime or native Linux qualification.
+
+Nine complete executor unit executions (four modular/single, four post-size
+consumers and one TSan) cover290304 randomized many-worker receipts and90000
+warmed zero-heap cycles. Tests include real shared-queue rejection, original
+AGAIN cause preservation despite diagnostic OOM, native queued cancellation,
+owned worker errors/invalid results, owner-conflict and Notify reentry, close,
+explicitly blocked notification tails, one-slot reuse before an old tail exits,
+real scheduler/Data retirement, hashed-ID churn, caps/aliases/overflow/OOM and
+ambient-error identity. Four transitive scheduler units additionally repeat
+368640 independent finite-list policy samples. These remain finite functional/
+sanitizer checks, not mixed-load production qualification.
+
+New1/4-worker64-lease batch throughput/P99 smoke and isolated size profiles pass
+with the original quality/regression gates. A separately labelled minimal-XRT
+submit/counter reference omits lease copies, cancellation, hash/receipt metadata
+and error transfer; it is not a feature-equivalent competitor. Single-sample
+unpinned smoke has no accepted throughput/P99 significance. CPU, fixed-arrival
+queue wait, slow bodies, contention, adversarial tails and cold costs remain to
+qualify with the actual live scheduling path.
+
+Portable source/layout/binary hashes, sanitizer scope and smoke/size observations
+are in `extlibs/xcron/tests/results/executor-adapter-20261102.json`. The final proof
+`out/service-extensions/xcron-executor/validation.json` indexes299 frozen inputs,
+210 artifacts and74 receipts (including the expected initial TSan compiler-warning
+failure);80 default outputs are archived under the stage. All final C/H inputs
+stayed frozen while compilers ran. The dedicated documented example exercises
+real execution, owner completion, retirement and complete pool/adapter cleanup.
+
+Live timer/engine driving, bounded/precomputed recurrence calculation, named zone
+database/reload, leap-aware conversion, nominal DST delivery and durable recovery
+remain. Earlier MQTT/Redis/RPC gaps and pinned/native Linux/>=72h acceptance remain.
+All roots and the new leaf stay developing; the complete goal remains active.
+There is no primary checkout merge or push.

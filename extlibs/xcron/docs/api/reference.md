@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `26` 个函数、`91` 个常量或宏、
-`36` 个公共类型。
+当前登记 `35` 个函数、`105` 个常量或宏、
+`45` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -41,6 +41,56 @@
 - `xcroncalendarstatus`
 - `xcronexpression`
 - `xcronfield`
+
+## `extlibs/xcron/include/xcron/executor.h`
+
+[查看带契约注释的公共头](../../include/xcron/executor.h)
+
+### 函数 (9)
+
+- `xcronExecutionCancelled`
+- `xcronExecutorCancel`
+- `xcronExecutorCancelJob`
+- `xcronExecutorClose`
+- `xcronExecutorCreate`
+- `xcronExecutorDestroy`
+- `xcronExecutorDrain`
+- `xcronExecutorInspect`
+- `xcronExecutorSubmit`
+
+### 常量与宏 (15)
+
+- `XCRON_EXECUTOR_ARGUMENT`
+- `XCRON_EXECUTOR_BUSY`
+- `XCRON_EXECUTOR_CLOSED`
+- `XCRON_EXECUTOR_DUPLICATE`
+- `XCRON_EXECUTOR_LIMIT`
+- `XCRON_EXECUTOR_MEMORY`
+- `XCRON_EXECUTOR_OK`
+- `XCRON_EXECUTOR_OWNER_CONFLICT`
+- `XCRON_EXECUTOR_REENTRY`
+- `XCRON_EXECUTOR_REJECTED`
+- `XCRON_EXECUTOR_RESULT`
+- `XCRON_EXECUTOR_STALE`
+- `XCRON_EXECUTOR_THREAD`
+- `XCRON_FEATURE_XCRON_EXECUTOR`
+- `XCRON_FEATURE_XCRON_SCHEDULER`
+
+### 类型 (13)
+
+- `xcroncompletion`
+- `xcronexecuteproc`
+- `xcronexecution`
+- `xcronexecutor`
+- `xcronexecutorconfig`
+- `xcronexecutorerror`
+- `xcronexecutorissue`
+- `xcronexecutornotify`
+- `xcronexecutorstats`
+- `xcronjobid`
+- `xcronrun`
+- `xcronrunid`
+- `xcronrunresult`
 
 ## `extlibs/xcron/include/xcron/export.h`
 
@@ -106,9 +156,8 @@
 - `xcronSchedulerReap`
 - `xcronSchedulerWake`
 
-### 常量与宏 (25)
+### 常量与宏 (24)
 
-- `XCRON_FEATURE_XCRON_SCHEDULER`
 - `XCRON_FEATURE_XCRON_ZONED`
 - `XCRON_JOB_CANCELLED`
 - `XCRON_JOB_EXHAUSTED`
@@ -134,20 +183,16 @@
 - `XCRON_SCHEDULER_OK`
 - `XCRON_SCHEDULER_STALE`
 
-### 类型 (20)
+### 类型 (16)
 
 - `xcronclock`
 - `xcronjobconfig`
-- `xcronjobid`
 - `xcronjobinfo`
 - `xcronjobstate`
 - `xcronmisfire`
 - `xcronoverlap`
 - `xcronpoll`
 - `xcronretired`
-- `xcronrun`
-- `xcronrunid`
-- `xcronrunresult`
 - `xcronscheduler`
 - `xcronschedulerconfig`
 - `xcronschedulererror`
