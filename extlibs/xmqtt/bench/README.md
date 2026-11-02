@@ -105,3 +105,31 @@ an experimental observation, not an accepted performance baseline. WSL Git
 revision/dirty fields were unavailable; runtime and workload hashes are retained.
 The worktree progress ledger records exact validation and the Windows CPU
 quantization seen in those runs.
+
+
+## Longer instrumented measurement
+
+`xmqtt_qos2_resolution` adds eight instrumented variants with 200000 operations,
+10x the original 20000. The original profiles remain unchanged. The workload
+source, runtime, window, payload, warmup, heap instrumentation and gate thresholds
+are identical; only the operation count and variant name differ. The
+[predeclared plan](results/qos2-long-plan-20261102.json) was frozen before the
+single serial Windows/WSL collection. Reproduce with:
+
+```text
+python tools/measure_performance.py --compiler gcc --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_qos2_resolution --report out/qos2-long.json
+```
+
+The [long observations](results/qos2-long-20261102.json) retain all measured
+samples/diagnostics beside the original observations. Windows' observed CPU
+counter step amortizes from 781.25 to 78.125 ns/exchange. Corresponding CPU series
+failing noise quality fall from 6/8 to 2/8 there, and remain 1/8 in WSL. Both
+complete collectors still fail their unchanged gates. This improves a precision
+limitation without establishing stable performance, source optimization or
+release acceptance. No series was retried to seek a favorable result.
+
+More operations also amortize first-use allocations, enlarge the observer's
+latency array and cross more automatic-id wraps. Cold per-operation heap changes
+are not an allocator improvement; raw lifecycle costs remain separate. Run
+duration/host load can affect CPU/latency, so observed differences cannot all be
+attributed to clock quantization. Full production qualification remains pending.

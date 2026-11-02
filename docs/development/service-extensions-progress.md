@@ -6131,3 +6131,65 @@ subscriptions/session/expiry/alias/auth/reconnect/store/TLS/WebSocket/DNS, Redis
 HA/tracking/dedicated, remaining RPC security/recovery/transports/deferred and
 Cron IANA/scheduler/durability. No primary merge or push occurred. The complete
 four-library goal remains active and incomplete.
+
+
+## Predeclared longer CPU-statistics measurement (2026-11-02)
+
+Baseline `d418f4ce11f0407e76bce52102a23955eb85e523`. Runtime remains the verified
+`77036057` implementation. The workload C source, runtime C/headers, selected
+module graph and existing 336 four-form validations are unchanged by byte hash.
+The prior profiles and `qos2-local-20261102.json` observation are unchanged. A
+new `xmqtt_qos2_resolution` profile copies only the eight instrumented variants,
+renames them with `_long` and increases operation count from 20000 to 200000.
+Every other argument, fact, metric and default/gate is identical, verified
+against the saved original configuration before collection.
+
+The predeclared `bench/results/qos2-long-plan-20261102.json` records the hashes,
+change, hypothesis and no-retry policy. Longer samples reduce the previously
+observed Windows 15625000 ns process-CPU accounting step per exchange by 10x
+(781.25 -> 78.125 ns). Five measured repeats and one process warmup remain;
+relative MAD 3%, central range 6%, throughput regression 5% and P99 regression
+10% are unchanged. Each OS runs exactly one collection, Windows then WSL. Raw
+outputs, failures and original short observations are retained. The new method
+is a precision experiment, not a product speedup or replacement accepted baseline.
+
+Both collections finish all eight variants: 80 measured samples and 16 process
+warmups total, 16 million measured exchanges plus warmups. Every output passes
+phase/sequence checksums, final ACK/echo completion, request retirement and XRT
+lifecycle block/byte balance. All five measured arrays per variant are checked
+against raw stdout and binary hashes. The workload executable and library hashes
+are tied to the prior source proof; no runtime rebuild or ABI change was needed.
+The 13 performance-tool regression tests pass. WSL Git metadata limitations stay
+explicit, with baseline/runtime content hashes verified as in the previous stage.
+
+| Environment | CPU series failing at 20k (of matching 8) | CPU series failing at 200k | All metric series failing at 200k | Collector exit |
+| --- | --- | --- | --- | --- |
+| windows | 6 | 2 | 12 | 1 |
+| wsl | 1 | 1 | 6 | 1 |
+
+Windows phase CPU deltas still have observed GCD 15625000 ns, confirming the
+per-exchange quantization step is now 78.125 ns. The matching Windows CPU series have four fewer failures overall: five
+formerly failing series now pass, one still fails and one formerly passing
+series now fails. Two CPU series and other throughput/latency series still fail. WSL retains one failing CPU series and five
+failing P99 series. No global performance acceptance is inferred. Longer duration
+also changes id-wrap count, allocation amortization and observer latency-array
+size, and host/power/affinity load is unpinned. Differences in throughput/P99 or
+cold bytes per exchange are not evidence of product optimization.
+
+All measured arrays, diagnostics, matching short/long CPU quality and source/
+environment fingerprints are committed in `bench/results/qos2-long-20261102.json`.
+Exact commands, 96 complete warmup/measured stdout records, binary hashes and
+frozen-input proof are indexed by
+`out/service-extensions/xmqtt-qos2-resolution/validation.json`. No favorable
+recollection or threshold relaxation occurred; both quality exits remain 1.
+
+This completes the precision correction being tested, not stable-load or
+production qualification. Residual observer/host/scheduling and P99 effects need
+separate profiling/isolation; repeatedly increasing counts is not evidence of a
+runtime fix. Product implementation proceeds next with MQTT subscribe/unsubscribe
+and shared id/ACK/lifetime state. Stable load, complete CPU/copy/synchronization/
+syscall accounting, pinned references/broker, native Linux and >=72h native fault/
+mixed-load runs remain required. Other MQTT session/expiry/alias/auth/reconnect/
+store/transports, Redis HA/tracking/dedicated, remaining RPC security/recovery/
+transports/deferred and Cron IANA/scheduler/durability remain. No primary merge
+or push occurred. The complete four-library goal remains active and incomplete.
