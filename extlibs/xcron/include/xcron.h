@@ -13,4 +13,9 @@
 #endif
 #include <xcron/calendar.h>
 
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_TIMEZONE)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_TIMEZONE"
+#endif
+#include <xcron/timezone.h>
+
 #endif

@@ -13,6 +13,22 @@
 #ifndef XCRON_MODULE_XCRON_CALENDAR
 #define XCRON_MODULE_XCRON_CALENDAR
 #endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#endif
+
+/* xcron_timezone 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TIMEZONE)
+#ifndef XCRON_FEATURE_XCRON_TIMEZONE
+#define XCRON_FEATURE_XCRON_TIMEZONE
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
 #endif
 
 /* xcron_calendar 及其直接依赖。 */

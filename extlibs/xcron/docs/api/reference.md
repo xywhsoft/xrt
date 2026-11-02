@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `5` 个函数、`35` 个常量或宏、
-`8` 个公共类型。
+当前登记 `12` 个函数、`51` 个常量或宏、
+`15` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -87,3 +87,46 @@
 - `xcrondialect`
 - `xcronexpressionerror`
 - `xcronexpressionissue`
+
+## `extlibs/xcron/include/xcron/timezone.h`
+
+[查看带契约注释的公共头](../../include/xcron/timezone.h)
+
+### 函数 (7)
+
+- `xcronZoneAt`
+- `xcronZoneCreatePosix`
+- `xcronZoneNextTransition`
+- `xcronZoneRelease`
+- `xcronZoneResolve`
+- `xcronZoneRetain`
+- `xcronZoneSplit`
+
+### 常量与宏 (16)
+
+- `XCRON_FEATURE_XCRON_TIMEZONE`
+- `XCRON_ZONE_ARGUMENT`
+- `XCRON_ZONE_CAPACITY`
+- `XCRON_ZONE_DATE`
+- `XCRON_ZONE_ERROR`
+- `XCRON_ZONE_FOUND`
+- `XCRON_ZONE_LIMIT`
+- `XCRON_ZONE_MEMORY`
+- `XCRON_ZONE_NAME_MAX`
+- `XCRON_ZONE_NONE`
+- `XCRON_ZONE_OK`
+- `XCRON_ZONE_POSIX`
+- `XCRON_ZONE_RULES_REQUIRED`
+- `XCRON_ZONE_SYNTAX`
+- `XCRON_ZONE_TEXT_MAX`
+- `XCRON_ZONE_TZIF3`
+
+### 类型 (7)
+
+- `xcronzone`
+- `xcronzoneerror`
+- `xcronzonegrammar`
+- `xcronzoneissue`
+- `xcronzonestate`
+- `xcronzonestatus`
+- `xcronzonetransition`

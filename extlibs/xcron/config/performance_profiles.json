@@ -65,6 +65,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_timezone",
+      "system": "timezone",
+      "description": "Immutable explicit POSIX rule state lookup; unpinned workload only, no IANA/scheduler/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_timezone",
+          "source": "extlibs/xcron/bench/bench_timezone.c",
+          "suite": "xcron_timezone",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            }
+          }
+        }
+      ]
     }
   ]
 }

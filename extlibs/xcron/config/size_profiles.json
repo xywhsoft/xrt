@@ -33,6 +33,22 @@
         "_xrtDateTimeWrite",
         "_xrtDateTimeParse"
       ]
+    },
+    {
+      "name": "xcron_timezone",
+      "system": "timezone",
+      "suite": "xcron_timezone",
+      "description": "Explicit rule core and time/atomic closure; no ambient local timezone, calendar, network or scheduler",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronCalendarNext",
+        "xcronExpressionCompile",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronCalendarNext",
+        "_xcronExpressionCompile"
+      ]
     }
   ]
 }

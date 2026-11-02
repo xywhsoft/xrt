@@ -2,7 +2,9 @@
 
 Independent pure-C scheduling extension using public XRT APIs.
 **Bounded expression compilation and UTC/civil Gregorian calendar search are
-implemented.** IANA zones/DST, live scheduling, executors, misfire/overlap and durable
+implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
+transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
+IANA binary/historical loading, zoned cron search, live scheduling, executors, misfire/overlap and durable
 recovery remain pending; production/performance acceptance is not claimed.
 
 Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly

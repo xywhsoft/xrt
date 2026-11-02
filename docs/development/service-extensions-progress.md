@@ -6464,3 +6464,74 @@ dedicated, remaining RPC security/recovery/transports/deferred, Cron IANA/
 scheduler/durability, native Linux and >=72h native mixed/fault qualification
 remain. Product manifests stay developing. No primary merge or push occurred;
 the complete four-library goal remains active and incomplete.
+
+## Explicit Cron timezone rule core (2026-11-02)
+
+Added a developing `xcron_timezone` leaf, selected by the developing root, using
+only public XRT time/memory/error/atomic APIs. It independently compiles explicit
+POSIX TZ strings and RFC9636 TZif3 extended footer rules. There is no embedded
+reference implementation, installed database, host TZ lookup or libc global
+timezone dependency. Binary TZif loading, historical IANA transitions and zoned
+calendar search remain pending; this is their required recurrence-rule engine.
+
+The retained immutable owner makes one allocation for metadata, copied names
+and (for DST) 800 cached int32 transition offsets over the 400 Gregorian years
+2000..2399. Names are bounded at255 bytes and input at4096. It supports Jn/n/M
+rules, default/explicit wall times, signed extended times, southern/negative/
+zero-delta DST and perpetual/empty seasons. Missing DST rules return a typed
+error instead of consulting ambient defaults. Queries expose exact state and
+next effective change, full signed-int64 XRT civil decomposition, and all sorted
+UTC candidates for a label. Gap=zero, fold=two; capacity discovery leaves the
+candidate buffer intact. ERROR preserves candidate/Count outputs. Normal
+queries/NONE/CAPACITY preserve ambient errors and allocate nothing.
+
+XRT timestamps retain their 0001-01-01 epoch. The Unix oracle bridge explicitly
+uses `XRT_TIME_UNIX_EPOCH`; exact epoch fixtures and core fixed-offset agreement
+prevent a self-consistent roundtrip from masking a scale/calendar mistake.
+Offset conversion avoids whole-timestamp overflow at either int64 endpoint.
+Next search checks coalesced actual state changes and a complete403-rule-year
+bound; a leap-only fixture crosses2096->2104 over the non-leap2100 century.
+
+Native Windows GCC O2 and Linux WSL GCC O2 ASan/UBSan/leak-halt pass all three
+modular and three selected single-header programs (12 programs total), six root
+offline examples, root/isolated static and shared consumers, and four additional
+post-size consumers (12 consumer executions total). Size measurement rearchives
+the isolated packages, so final artifacts were independently linked/executed
+again; original operation receipts and final hashes are both retained. Selected
+declaration-only compilation, trim, generated features/amalgamation/reference
+checks and26 API-reference/extension-layout/header-coverage/single tool tests pass.
+
+Per timezone unit program, tests include15000 full-range roundtrips (BCE, both
+endpoints and offsets beyond24h),3000 raw parser inputs, strict grammar, capacity/
+gap/fold behavior, mutable-input ownership, output aliases, factory/diagnostic
+OOM with zero live quota bytes,10000 allocation/error-preserving warm cycles,
+and four concurrent retained workers each doing12000 query/ref cycles after
+the creator releases its owner. These are concurrency functional tests, not
+TSan or long-duration native qualification.
+
+The independent public probe compares state/civil/resolve/next against Python
+zoneinfo reading synthetic TZif3 (14 rules,18396 cases on each system), plus
+direct Linux libc (13 rules,14724 cases), totaling51516 comparisons. CPython3.12
+zoneinfo's observed one-based unprefixed-n behavior is excluded from that oracle
+only; libc and fixed C cases still verify the exact zero-based rule. Direct libc
+is tested from1971 because its rule era is not proleptic; it also differs for
+two RFC perpetual-footer fixtures, covered by zoneinfo and fixed C expectations.
+No implementation was changed to match either oracle's unsupported behavior.
+
+The dedicated unpinned lookup smoke and isolated single/static/shared size
+profiles run on both systems and exclude ambient local-time/calendar symbols.
+Their results are workload/harness evidence only: cold creation, other query
+paths, contention, latency, pinned repeatability and end-to-end scheduler costs
+still require profiling. No performance, native Linux or production acceptance
+is claimed. Portable observations/source/binary hashes are committed in
+`extlibs/xcron/tests/results/timezone-rules-20261102.json`; exact commands, raw
+logs and the frozen252-input/126-artifact/45-receipt proof are indexed by
+`out/service-extensions/xcron-zone-rules/validation.json`. All C/H inputs stayed
+frozen during compilers. Stage/build artifacts use scoped D-drive junctions to
+preserve disk space without deleting concurrent work.
+
+All four product roots remain developing. MQTT sessions/store/reconnect/expiry/
+auth/transports, Redis HA/tracking/dedicated modes, remaining RPC security/
+recovery/transports/deferred work, Cron TZif/history/zoned scheduling/durability,
+native Linux and>=72h native mixed/fault qualification still remain. No primary
+merge or push occurred; the complete four-library goal remains active.

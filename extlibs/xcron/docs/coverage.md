@@ -1,7 +1,8 @@
 # Expression compiler evidence
 
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
-implements Gregorian UTC/civil matching/search; timezone resolution, waiting,
+implements Gregorian UTC/civil matching/search; a developing timezone leaf
+provides explicit POSIX rules. IANA history, zoned cron search, waiting,
 dispatch and persistence are pending. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
@@ -54,3 +55,29 @@ responsibilities. Tests include:
 
 These are calendar calculations using public XRT time APIs. No IANA/DST mapping,
 timer/executor, runtime race/clock-jump or durable recovery acceptance is implied.
+
+## Explicit timezone rules (developing)
+
+`test_timezone.c` covers named northern/southern rules, half-hour folds, negative
+and zero-delta DST, Jn/n leap differences, leap-only seasons across a non-leap
+century, signed extended transition times, perpetual/empty seasons, sorted
+folds/gaps/capacity, owned names, diagnostic/factory OOM, aliases and error
+atomicity. Fifteen thousand split/resolve roundtrips include BCE and both int64
+endpoints with offsets beyond 24 hours. Ten thousand warm cycles check ambient
+error identity and allocation counters. Four concurrent retained owners each
+run 12,000 split/state/resolve cycles while acquiring/releasing extra references.
+
+The independent `test_timezone_reference.py` compares state, civil labels, all
+resolution candidates and exact next changes against Python `zoneinfo` reading
+synthetic TZif v3 footers, plus a separate Linux libc `tzset` pass. The production
+library never changes `TZ` or calls libc timezone functions. CPython 3.12's
+observed unprefixed-n one-based behavior is excluded from that oracle only;
+the exact zero-based rule is still checked by libc and fixed C expectations.
+The probe explicitly bridges XRT's 0001 epoch to the oracle's Unix epoch.
+The zoneinfo run covers years 1000..9000; libc is checked from 1971 because its
+direct-TZ behavior is not proleptic. Its direct parser also differs for the two
+RFC perpetual-footer fixtures, which remain covered by zoneinfo and exact C
+expectations. No oracle's unsupported behavior defines the production contract.
+
+These are rule-engine checks, not evidence for a TZif binary reader, historical
+IANA transitions, zoned calendar ordering, scheduler/durability or accepted P99.
