@@ -99,3 +99,69 @@ an isolated-size profile excluding ambient local-time/network/thread symbols.
 They do not establish production throughput, P99, cold costs, native Linux or
 long-duration acceptance. Database reload, leap-aware conversion and the complete
 scheduler/executor/persistence/policy layers remain pending.
+
+## Resumable ordered search
+
+`xcronZonedCursorInit` snapshots the expression/window and records the identity of
+an existing zone. It rounds the start and derives the periodic suffix bound, but
+performs no segment, calendar or transition-year traversal. The caller holds the
+same immutable zone alive and passes it to every `xcronZonedCursorStep`, including
+terminal reads and serialized handoff to another thread. The cursor does not
+retain the zone, copy its data or require Unit. Its512-byte caller storage must
+stay at one address; copying/relocation is rejected. Exclusive Init can reset it.
+This explicitly borrowed lifetime is intended to compose with a scheduler job's
+already held zone owner; a cursor is not an independent lifetime reference.
+
+```c
+xcronzonedcursor cursor;
+xcronzonedcursorissue issue;
+if (!xcronZonedCursorInit(&cursor, &expression, zone, begin, end, 0, &issue))
+    return false;
+xcronzonedstatus status;
+do {
+    /* Host does other work between calls; retain zone throughout. */
+    status = xcronZonedCursorStep(&cursor, zone,
+        (xcronzonedbudget){1, 16, 2}, &next, &issue);
+} while (status == XCRON_ZONED_PENDING);
+/* FOUND alone publishes next. No cursor cleanup; release the caller's zone
+ * only after its final use, including any later terminal reads. */
+```
+
+Each budget field must be positive. Segments bounds new ordered UTC segment
+starts; each start includes capped logarithmic TZif lookup, constant state lookup
+and a ready-match check. Months bounds calendar visits, or one ready match.
+RuleYears independently bounds POSIX/footer next-transition rule years. The
+fixed state lookup evaluates at most five surrounding years; it is bounded
+segment overhead, not a transition-year visit. This distinction prevents a
+nominal one-segment budget from hiding the403-year transition-search fallback.
+Rule-year and calendar engines resume inside their loops. Directory searches
+are logarithmic in the capped transition table, not linear scans of history.
+
+The new32-byte cursor issue adds a cumulative RuleYearsExamined counter. The
+existing24-byte synchronous issue/layout/signatures are preserved. Each counter
+increases by at most its budget in a Step. PENDING preserves Next; terminal
+FOUND/NONE/mapping-error results and counters can be read repeatedly without
+traversal. Normal PENDING/FOUND/NONE preserve ambient error. Diagnostics on errors
+may allocate, with typed issues retained under OOM. Span/alias failures preserve
+all outputs; argument/state failures preserve cursor progress. Every call checks
+outputs against Cursor and all owned zone/footer storage. Init also checks the
+expression. Passing a different zone, even one with identical rules, is STATE.
+
+The public wrapper decodes/encodes its private state using memcpy (at most512
+bytes each way), validates spans/identity/budgets, and publishes a32-byte optional
+issue. Init copies the expression/dates and initializes context bytes. These
+explicit call/copy/validation costs are amortized by larger budgets. The typed
+product-private engine avoids opaque wrapper copies for later kernel integration.
+The synchronous loops stay specialized, sharing calendar/event/tie rules with
+the resumable engines; parity/oracle tests constrain duplicated control flow.
+There is no zero-overhead, elapsed CPU or OS scheduling guarantee.
+
+Tests run existing fold/gap/brute/UTC endpoint cases through budgeted queries,
+including the500-year history before footer periodicity. They cover rare leap-
+only rules across2100,403 actual fallback yields, unknown-prefix and resumed
+unknown-boundary errors, copies/identity/aliases, snapshots, explicit owner
+handoff and diagnostic OOM. The frozen IANA label-enumeration oracle also drives
+the real cursor with varied budgets. Dedicated dense/fold/full-cycle cursor
+profiles at budgets1 and16 include Init, every Step and result inspection.
+They measure query work; live scheduler admission/advancement still needs this
+incremental engine integrated with command fairness and cancellation.

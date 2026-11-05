@@ -52,6 +52,10 @@ int main(void)
 	if (!xcronExpressionCompile(XRT_STR_LITERAL("30 1 * * *"),XCRON_UNIX5,&ZonedExpression,NULL) ||
 		!xcronZonedMatch(&ZonedExpression,Zone,Candidates[0],&Matches,&ZonedIssue) || !Matches ||
 		xcronZonedNext(&ZonedExpression,Zone,Candidates[0],Candidates[1],XCRON_SEARCH_EXCLUSIVE,&Next,&ZonedIssue)!=XCRON_ZONED_FOUND || Next!=Candidates[1]) return 9;
+    xcronzonedcursor ZonedCursor;xcronzonedcursorissue ZonedWork;xcronzonedstatus ZonedStatus;
+    if(!xcronZonedCursorInit(&ZonedCursor,&ZonedExpression,Zone,Candidates[0],Candidates[1],XCRON_SEARCH_EXCLUSIVE,&ZonedWork))return 26;
+    do{ZonedStatus=xcronZonedCursorStep(&ZonedCursor,Zone,(xcronzonedbudget){1,1,1},&Stepped,&ZonedWork);}while(ZonedStatus==XCRON_ZONED_PENDING);
+    if(ZonedStatus!=XCRON_ZONED_FOUND || Stepped!=Candidates[1])return 27;
 	xcronscheduler* Scheduler=NULL; xcronschedulerconfig Config={1,2,32,0,65536};
 	xcronjobconfig Job={.Expression=ZonedExpression,.Zone=Zone,.Begin=Candidates[0],.End=Candidates[1],.Overlap=XCRON_OVERLAP_ALLOW,.RunningLimit=2};
 	xcronjobid JobId; xcronrun Runs[2]; xcronpoll Poll; xcronretired Receipt; bool Found=false;

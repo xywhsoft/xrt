@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `53` 个函数、`135` 个常量或宏、
-`58` 个公共类型。
+当前登记 `55` 个函数、`138` 个常量或宏、
+`61` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -329,24 +329,32 @@
 
 [查看带契约注释的公共头](../../include/xcron/zoned.h)
 
-### 函数 (2)
+### 函数 (4)
 
+- `xcronZonedCursorInit`
+- `xcronZonedCursorStep`
 - `xcronZonedMatch`
 - `xcronZonedNext`
 
-### 常量与宏 (9)
+### 常量与宏 (12)
 
 - `XCRON_ZONED_ARGUMENT`
+- `XCRON_ZONED_CURSOR_BYTES`
 - `XCRON_ZONED_ERROR`
 - `XCRON_ZONED_EXPRESSION`
 - `XCRON_ZONED_FOUND`
 - `XCRON_ZONED_NONE`
 - `XCRON_ZONED_OK`
+- `XCRON_ZONED_PENDING`
 - `XCRON_ZONED_RANGE`
+- `XCRON_ZONED_STATE`
 - `XCRON_ZONED_WINDOW`
 - `XCRON_ZONED_ZONE`
 
-### 类型 (2)
+### 类型 (5)
 
+- `xcronzonedbudget`
+- `xcronzonedcursor`
+- `xcronzonedcursorissue`
 - `xcronzonederror`
 - `xcronzonedstatus`

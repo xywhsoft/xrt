@@ -308,6 +308,53 @@ XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Z,xtime After
     }
     return xcronZoneNextValue(Z,After,Transition,Issue);
 }
+#if defined(_MSC_VER)
+#define XCRON_ZONE_INLINE static __forceinline
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define XCRON_ZONE_INLINE static inline __attribute__((always_inline))
+#else
+#define XCRON_ZONE_INLINE static inline
+#endif
+/* Shared event/tie rules, specialized synchronous and resumable control loops. */
+XCRON_ZONE_INLINE void xcronZoneCandidates(const xcronzone* Z,int64 Year,int64 Day,int64 Second,
+    int64* Best,bool* Before,bool* Next)
+{
+    unsigned C=xcronZoneCycle(Year);
+    for(unsigned K=0;K<2;++K){int64 T=Day*86400+Z->Changes[C*2+K];
+        if(T<=Second || T>=*Best || T>INT64_MAX/1000)continue;
+        bool A=xcronZoneLookup(Z,T*1000),B=xcronZoneLookup(Z,T*1000-1);
+        if(A!=B){*Best=T;*Before=B;*Next=A;}
+    }
+}
+void xcronZoneWalkInit(const xcronzone* Z,xtime After,xcronzonewalk* W)
+{
+    memset(W,0,sizeof(*W));W->Rules=Z;W->Status=XCRON_ZONE_NONE;
+    if(Z->History){xcronZoneHistoryWalkInit(Z,After,W);return;}
+    if(Z->Mode!=2)return;
+    xdatetime D;(void)xrtTimeSplit(After,&D);
+    W->Year=xcronZoneYearStep(D.Year,-1);
+    W->Day=xcronZoneFloor(After,XRT_TIME_DAY)-(D.YearDay-1)-xrtDaysInYear(W->Year);
+    W->Second=xcronZoneFloor(After,1000);W->Best=INT64_MAX;W->Status=XCRON_ZONE_WALK_PENDING;
+}
+xcronzonestatus xcronZoneWalkStep(xcronzonewalk* W,uint32 Budget)
+{
+    if(W->Status!=XCRON_ZONE_WALK_PENDING)return W->Status;
+    uint32 End=403;if(Budget<End-W->Years)End=W->Years+Budget;
+    while(W->Years<End){
+        xcronZoneCandidates(W->Rules,W->Year,W->Day,W->Second,&W->Best,&W->Before,&W->After);
+        ++W->Years;W->Day+=xrtDaysInYear(W->Year);W->Year=xcronZoneYearStep(W->Year,1);
+        if((W->Best!=INT64_MAX && W->Day*86400-700000>W->Best) ||
+            W->Day*86400-700000>INT64_MAX/1000 || W->Years==403){
+            W->Status=W->Best==INT64_MAX?XCRON_ZONE_NONE:XCRON_ZONE_FOUND;
+            if(W->Status==XCRON_ZONE_FOUND){
+                W->Result=(xcronzonetransition){W->Best*1000,xcronZoneState(W->Rules,W->Before),xcronZoneState(W->Rules,W->After)};
+                if(W->History)xcronZoneHistoryWalkResult(W->History,W);
+            }
+            break;
+        }
+    }
+    return W->Status;
+}
 xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
 {
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,0};
@@ -322,14 +369,7 @@ xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetrans
      * cross-year carry. 700000s exceeds 167:59:59 + the largest offset (93599).
      * Compare actual states across ties before reporting an effective change. */
     for(unsigned Y=0;Y<403;++Y){if(Issue)Issue->YearsExamined=Y+1;
-        unsigned C=xcronZoneCycle(Year);
-        for(unsigned K=0;K<2;++K){int64 T=Day*86400+Z->Changes[C*2+K];
-            if(T<=Second || T>=Best || T>INT64_MAX/1000)continue;
-            bool A=xcronZoneLookup(Z,T*1000),B=xcronZoneLookup(Z,T*1000-1);
-            if(A!=B){Best=T;
-                Before=B;
-                Next=A;
-        }}
+        xcronZoneCandidates(Z,Year,Day,Second,&Best,&Before,&Next);
         Day+=xrtDaysInYear(Year);
         Year=xcronZoneYearStep(Year,1);
         if(Best!=INT64_MAX && Day*86400-700000>Best)break;

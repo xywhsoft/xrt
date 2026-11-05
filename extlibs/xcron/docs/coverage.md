@@ -117,6 +117,16 @@ qualification remains pending.
 
 ## Ordered actual zoned occurrences (developing)
 
+The resumable cursor runs the golden fold/gap cases,160 brute windows and1000
+full-int64 UTC-specialization comparisons with varied segment/month/rule-year
+budgets. Both the400-year periodic absence and500-year historical prefix are
+completed across resumptions. Rare leap-only rules yield within transition
+search; the raw general engine separately exhausts403 actual one-year turns.
+Snapshot/identity/alias/wrapped-span, zero budgets, repeated terminals, unknown
+coverage after a known prefix, diagnostic OOM,1024 zero-heap resets and serialized
+explicit-owner handoff are covered. The native single fixture runs the same
+cases. The frozen IANA oracle's cursor probe checks all three budget deltas.
+
 `test_zoned.c` verifies later folds after the local label moves backwards,
 half-hour and negative DST, missing labels, all three synthetic fold instances,
 fractional/negative rounding, full int64 endpoints and second-level offsets.

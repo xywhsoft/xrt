@@ -193,6 +193,174 @@
       ]
     },
     {
+      "name": "xcron_zoned_cursor_dense_1",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; dense with each budget=1; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_dense_1",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "1000000",
+            "dense",
+            "1"
+          ],
+          "smoke_args": [
+            "10000",
+            "dense",
+            "1"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cursor_dense_16",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; dense with each budget=16; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_dense_16",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "1000000",
+            "dense",
+            "16"
+          ],
+          "smoke_args": [
+            "10000",
+            "dense",
+            "16"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cursor_fold_1",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; fold with each budget=1; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_fold_1",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100000",
+            "fold",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "fold",
+            "1"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cursor_fold_16",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; fold with each budget=16; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_fold_16",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100000",
+            "fold",
+            "16"
+          ],
+          "smoke_args": [
+            "1000",
+            "fold",
+            "16"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cursor_cycle_1",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; cycle with each budget=1; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_cycle_1",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100",
+            "cycle",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "cycle",
+            "1"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_zoned_cursor_cycle_16",
+      "system": "zoned",
+      "description": "Public resumable occurrence search including Init/Step copies and validation; cycle with each budget=16; unpinned, no live-owner/P99 acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_zoned_cursor_cycle_16",
+          "source": "extlibs/xcron/bench/bench_zoned_cursor.c",
+          "suite": "xcron_zoned",
+          "args": [
+            "100",
+            "cycle",
+            "16"
+          ],
+          "smoke_args": [
+            "2",
+            "cycle",
+            "16"
+          ],
+          "metrics": {
+            "searches_per_sec": {
+              "direction": "higher",
+              "unit": "searches/s"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xcron_scheduler_1",
       "system": "scheduler",
       "description": "Preallocated explicit-clock pull kernel, 1 jobs per batch; no executor, timer or production/performance acceptance",

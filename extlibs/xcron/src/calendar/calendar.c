@@ -192,6 +192,8 @@ xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* E,xcroncalenda
     if(V->Status!=XCRON_CALENDAR_PENDING || !Budget)return V->Status;
     V->Status=xcronCalendarMonths(E,&V->First,&V->End,&V->Date,&V->Months,&V->FirstWeekday,Budget);return V->Status;
 }
+void xcronCalendarValueBegin(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
+{xcronCalendarValueInit(V,First,End,xcronCalendarMayExist(E)?XCRON_CALENDAR_PENDING:XCRON_CALENDAR_NONE);}
 /* Keep the legacy synchronous control loop specialized: measured cursor-state
  * setup/copy overhead is material for a single-month search. Date/bitmap rules
  * are shared; independent oracles cover both control paths. */

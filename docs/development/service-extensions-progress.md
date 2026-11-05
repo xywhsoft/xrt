@@ -7271,3 +7271,72 @@ This primitive does not yet bound ordered zone traversal, synchronous admission
 or scheduler advancement. Incremental zone search and scheduler/service fairness
 integration are next. All four libraries remain in development; native Linux,
 protocol/recovery, production performance and >=72h acceptance remain open.
+
+## 2026-11-05 - zoned queries yield inside every traversal layer
+
+Previous goal turn was progress: calendar cursor commit f49b186d was validated
+and synchronized to master. Both worktrees start this stage clean at that parent.
+The live scheduler still calls synchronous recurrence search. This stage builds
+its next prerequisite: real ordered zoned Init/Step queries with three independent
+budgets, including the403-rule-year next-transition fallback hidden inside a
+nominal single segment. No Core change or new shared runtime is introduced.
+
+Init copies the expression/window and records zone identity, rounds the start
+and calculates the periodic suffix bound without traversing. Each Step bounds
+new UTC segment starts, calendar month visits and transition rule years; the
+actual month/year loops resume internally. Capped logarithmic history lookup
+and a fixed five-year state lookup are bounded segment overhead. All folds,
+gaps, unknown coverage and history-before-periodicity semantics remain. Only
+FOUND writes Next; PENDING preserves it, and terminal results/counters repeat
+without traversal. Typed value errors survive diagnostic OOM; failed reset,
+argument/state and structural aliases preserve their documented outputs.
+
+The512-byte address-bound context borrows the same live immutable zone explicitly
+passed at every call. It copies expression/bounds, retains no reference, requests
+no heap and has no Unit duty. Serialized handoff requires the caller's zone owner
+to remain alive. New issue32 and budget12 leave the legacy issue24 and existing
+declarations/layouts/enum values intact. Both x64 direct/declaration probes pass.
+The typed value is416 bytes and private transition walk120. Public Step copies
+private state in/out (at most512 bytes each way), validates spans/identity/budgets
+and optionally publishes32 issue bytes. Init avoids duplicate whole-context
+clearing. The typed engine is available for later kernel integration without
+opaque wrapper copies. No zero-overhead or elapsed CPU guarantee is claimed.
+
+Golden folds/gaps,160 brute windows and1000 full-int64 UTC-specialization cases
+also execute varied cursor budgets. Complete400-year absence and a500-year
+history prefix before the first2500 footer result survive resumptions.600 private
+transition comparisons cover rare leap/zero-delta/extreme rules; an exclusive
+general-engine fixture retains403 exact fallback yields normally pruned at
+creation. Tests exercise century rule-year yields,1024 zero-heap resets,
+snapshots/identity/aliases, wrapped spans, each zero budget, repeated terminals,
+unknown boundaries under OOM and explicit-owner thread handoff.
+
+Frozen422-zone2026e input bytes match every prior corpus digest and version.
+The unchanged independent zoneinfo label-enumeration/UTC-sorting oracle validates
+63180 actual cursor Next queries on each platform, including347 unknown errors;
+218700 additional Match queries still test legacy Match. All three budget deltas
+are checked by the actual compiled cursor probe. Windows/WSL each pass19 full
+modular/single programs, the updated offline example and static/shared consumers
+executing both new symbols. WSL uses O2 ASan/UBSan/leak-halt plus two separate O1
+TSan units. Windows79 tool tests and feature/single/reference/docs checks pass.
+The final2472 protected inputs match on both platforms and remain unchanged.
+
+Six new public-cursor profiles include Init, every Step and result inspection,
+at budgets1/16 over dense/fold/full-cycle queries. Adding these profiles changes
+the global benchmark fingerprint; original reports are preserved, never forcibly
+paired. Separately archived baseline binaries and unchanged legacy workloads use
+five alternating before/after repetitions. Ratios are Windows1.0528/1.0887/1.0070
+and WSL0.9915/0.9944/0.9787 for dense/fold/cycle. Every median stays within the
+original5% regression limit, but several MAD3%/central-range6% quality gates fail.
+There is no qualified no-regression or speedup claim. Full-cycle cursor budgets
+1/16 require6801/350 host turns for the same801 segments,5600 months and2002 rule
+years, with equal checksums. Dense setup and frequent wrapper calls have material
+cost; all measured samples and controlled-pair warmups are retained.
+
+Evidence: extlibs/xcron/tests/results/zoned-cursor-20261105.json and local
+`out/service-extensions/xcron-zoned-cursor/`. Existing dangling cache junctions
+are preserved; new aliases and explicit WSL Git paths avoid them. Next integrate
+typed work into actual scheduler admission/advancement and owner-turn global
+budgets with fairness/cancellation/reserved-output tests. Named database/reload,
+nominal delivery, durable recovery, original Redis/RPC/MQTT scope and native/
+performance/>=72h production acceptance remain active across all four libraries.

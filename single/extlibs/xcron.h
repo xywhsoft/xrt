@@ -509,8 +509,8 @@ XRT_EXTERN_C_END
 #error "zoned cron requires calendar and timezone"
 #endif
 #if defined(XCRON_FEATURE_XCRON_ZONED)
-typedef enum xcronzonedstatus {XCRON_ZONED_ERROR=-1,XCRON_ZONED_NONE=0,XCRON_ZONED_FOUND=1} xcronzonedstatus;
-typedef enum xcronzonederror {XCRON_ZONED_OK=0,XCRON_ZONED_ARGUMENT=3001,XCRON_ZONED_EXPRESSION,XCRON_ZONED_WINDOW,XCRON_ZONED_ZONE,XCRON_ZONED_RANGE} xcronzonederror;
+typedef enum xcronzonedstatus {XCRON_ZONED_ERROR=-1,XCRON_ZONED_NONE=0,XCRON_ZONED_FOUND=1,XCRON_ZONED_PENDING=2} xcronzonedstatus;
+typedef enum xcronzonederror {XCRON_ZONED_OK=0,XCRON_ZONED_ARGUMENT=3001,XCRON_ZONED_EXPRESSION,XCRON_ZONED_WINDOW,XCRON_ZONED_ZONE,XCRON_ZONED_RANGE,XCRON_ZONED_STATE} xcronzonederror;
 typedef struct xcronzonedissue {
     xcronzonederror Code;
     xcronfield Field;
@@ -518,6 +518,21 @@ typedef struct xcronzonedissue {
     uint32 SegmentsExamined;
     uint64 MonthsExamined;
 } xcronzonedissue;
+/* Independent positive per-Step budgets. A segment start includes bounded
+ * state/directory lookup and a ready-match check. RuleYears counts footer/POSIX
+ * transition-search years, not the fixed five-year state lookup. Months counts
+ * calendar visits (or one for an immediate match). Counters are cumulative. */
+typedef struct xcronzonedbudget {uint32 Segments,Months,RuleYears;} xcronzonedbudget;
+/* Separate type preserves the existing synchronous Issue ABI. */
+typedef struct xcronzonedcursorissue {
+    xcronzonederror Code;
+    xcronfield Field;
+    xcronzoneerror Zone;
+    uint32 SegmentsExamined;
+    uint64 MonthsExamined,RuleYearsExamined;
+} xcronzonedcursorissue;
+#define XCRON_ZONED_CURSOR_BYTES 512u
+typedef union xcronzonedcursor {uint64 Alignment;uint8 Storage[XCRON_ZONED_CURSOR_BYTES];} xcronzonedcursor;
 XRT_EXTERN_C_BEGIN
 /* Actual-instant predicate, not nominal-time compensation. Local labels absent
  * from the zone have no occurrence; all repeated instants match independently,
@@ -544,6 +559,29 @@ XCRON_API bool xcronZonedMatch(const xcronexpression* Expression,const xcronzone
  * Issue counters include visited UTC segments/calendar month work; Field applies
  * to EXPRESSION errors, Zone to ZONE errors. Error domain is xrt.cron.zoned. */
 XCRON_API xcronzonedstatus xcronZonedNext(const xcronexpression* Expression,const xcronzone* Zone,xtime Begin,xtime End,uint32 Flags,xtime* Next,xcronzonedissue* Issue);
+/* Resumable earliest actual occurrence with the same gap/fold/unknown/history
+ * semantics as Next. Init copies Expression and bounds, records Zone identity,
+ * rounds bounds and calculates the periodic suffix limit; no segment, rule-year
+ * or calendar search is performed. No allocation, retention, lock or Unit duty.
+ * Keep Cursor at a stable address; copying/relocation/modification is invalid.
+ * Init may reset exclusive storage. Expression storage may subsequently change.
+ * Cursor BORROWS Zone: caller keeps that exact immutable owner alive and passes
+ * it to every Step, including terminal reads and serialized thread handoff.
+ * Valid outputs/Issue must avoid Cursor, all owned zone/footer storage, each
+ * other, and (for Init) Expression. Structural errors preserve all outputs;
+ * value errors publish typed Issue even under diagnostic OOM. Init failure
+ * preserves Cursor. Existing synchronous functions never return PENDING. */
+XCRON_API bool xcronZonedCursorInit(xcronzonedcursor* Cursor,const xcronexpression* Expression,const xcronzone* Zone,
+    xtime Begin,xtime End,uint32 Flags,xcronzonedcursorissue* Issue);
+/* Every budget field must be positive. Each cumulative counter increases by at
+ * most its budget per call. PENDING leaves Next unchanged; FOUND alone writes
+ * the earliest result. Terminal results/issues are repeatable without more work.
+ * Argument/state failures do not advance Cursor. Normal PENDING/FOUND/NONE
+ * preserve ambient error and request no heap. Other errors may allocate a
+ * diagnostic. Work units bound algorithmic traversal, not elapsed CPU or OS
+ * scheduling; this primitive alone does not bound live scheduler admission. */
+XCRON_API xcronzonedstatus xcronZonedCursorStep(xcronzonedcursor* Cursor,const xcronzone* Zone,xcronzonedbudget Budget,
+    xtime* Next,xcronzonedcursorissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -1017,6 +1055,8 @@ typedef struct xcroncalendarvalue {
     xcroncalendarstatus Status;
 } xcroncalendarvalue;
 void xcronCalendarValueInit(xcroncalendarvalue* Value,const xdatetime* First,const xdatetime* End,xcroncalendarstatus Status);
+/* Valid canonical ordered civil bounds; constant impossibility proof only. */
+void xcronCalendarValueBegin(const xcronexpression* Expression,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* Value);
 xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* Expression,xcroncalendarvalue* Value,uint32 MonthBudget);
 /* Product-private validated calendar operations; no XRT-private API dependency. */
 bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* Field);
@@ -1058,6 +1098,23 @@ bool xcronZoneOutputs(const xcronzone* Zone,const void* Input,size_t InputSize,v
 xcronzonestate xcronZoneStateValue(const xcronzone* Zone,xtime When);
 void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Date);
 xcronzonestatus xcronZoneNextValue(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
+/* Product-private, borrowed-owner transition walk. Init does bounded history
+ * lookup/constant setup; Step charges at most YearBudget additional rule years.
+ * History directory lookup is logarithmic in the capped transition count.
+ * PENDING is private: public synchronous zone APIs never return it. */
+#define XCRON_ZONE_WALK_PENDING ((xcronzonestatus)2)
+typedef struct xcronzonewalk {
+    const xcronzone *Rules,*History;
+    int64 Year,Day,Second,Best;
+    uint32 Years;
+    xcronzonestatus Status;
+    bool Before,After;
+    xcronzonetransition Result;
+} xcronzonewalk;
+void xcronZoneWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
+xcronzonestatus xcronZoneWalkStep(xcronzonewalk* Walk,uint32 YearBudget);
+void xcronZoneHistoryWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
+void xcronZoneHistoryWalkResult(const xcronzone* Zone,xcronzonewalk* Walk);
 /* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
  * False means no proven periodic suffix inside the xtime domain. */
 bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
@@ -1095,6 +1152,19 @@ static inline bool xcronZoneSecondValue(int64 Seconds,int Milli,xtime* Out)
 /* Valid immutable expression/live zone, ordered window and disjoint valid
  * outputs are preconditions. Pure typed result; no ambient error or allocation. */
 xcronzonedstatus xcronZonedNextValue(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xtime* Next,xcronzonedissue* Issue);
+typedef struct xcronzonedvalue {
+    xcronexpression Expression;
+    xcroncalendarvalue Calendar;
+    xcronzonewalk Transition;
+    xcronzonedcursorissue Work;
+    xtime First,Limit,SegmentEnd,Result;
+    int32 Offset;
+    uint32 Phase;
+    xcronzonedstatus Status;
+} xcronzonedvalue;
+/* Valid immutable inputs, ordered window. No diagnostics, retention or heap. */
+void xcronZonedValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V);
+xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcronzonedbudget Budget);
 #endif
 #endif
 #endif
@@ -1515,6 +1585,8 @@ xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* E,xcroncalenda
     if(V->Status!=XCRON_CALENDAR_PENDING || !Budget)return V->Status;
     V->Status=xcronCalendarMonths(E,&V->First,&V->End,&V->Date,&V->Months,&V->FirstWeekday,Budget);return V->Status;
 }
+void xcronCalendarValueBegin(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
+{xcronCalendarValueInit(V,First,End,xcronCalendarMayExist(E)?XCRON_CALENDAR_PENDING:XCRON_CALENDAR_NONE);}
 /* Keep the legacy synchronous control loop specialized: measured cursor-state
  * setup/copy overhead is material for a single-month search. Date/bitmap rules
  * are shared; independent oracles cover both control paths. */
@@ -1972,6 +2044,53 @@ XCRON_API xcronzonestatus xcronZoneNextTransition(const xcronzone* Z,xtime After
     }
     return xcronZoneNextValue(Z,After,Transition,Issue);
 }
+#if defined(_MSC_VER)
+#define XCRON_ZONE_INLINE static __forceinline
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define XCRON_ZONE_INLINE static inline __attribute__((always_inline))
+#else
+#define XCRON_ZONE_INLINE static inline
+#endif
+/* Shared event/tie rules, specialized synchronous and resumable control loops. */
+XCRON_ZONE_INLINE void xcronZoneCandidates(const xcronzone* Z,int64 Year,int64 Day,int64 Second,
+    int64* Best,bool* Before,bool* Next)
+{
+    unsigned C=xcronZoneCycle(Year);
+    for(unsigned K=0;K<2;++K){int64 T=Day*86400+Z->Changes[C*2+K];
+        if(T<=Second || T>=*Best || T>INT64_MAX/1000)continue;
+        bool A=xcronZoneLookup(Z,T*1000),B=xcronZoneLookup(Z,T*1000-1);
+        if(A!=B){*Best=T;*Before=B;*Next=A;}
+    }
+}
+void xcronZoneWalkInit(const xcronzone* Z,xtime After,xcronzonewalk* W)
+{
+    memset(W,0,sizeof(*W));W->Rules=Z;W->Status=XCRON_ZONE_NONE;
+    if(Z->History){xcronZoneHistoryWalkInit(Z,After,W);return;}
+    if(Z->Mode!=2)return;
+    xdatetime D;(void)xrtTimeSplit(After,&D);
+    W->Year=xcronZoneYearStep(D.Year,-1);
+    W->Day=xcronZoneFloor(After,XRT_TIME_DAY)-(D.YearDay-1)-xrtDaysInYear(W->Year);
+    W->Second=xcronZoneFloor(After,1000);W->Best=INT64_MAX;W->Status=XCRON_ZONE_WALK_PENDING;
+}
+xcronzonestatus xcronZoneWalkStep(xcronzonewalk* W,uint32 Budget)
+{
+    if(W->Status!=XCRON_ZONE_WALK_PENDING)return W->Status;
+    uint32 End=403;if(Budget<End-W->Years)End=W->Years+Budget;
+    while(W->Years<End){
+        xcronZoneCandidates(W->Rules,W->Year,W->Day,W->Second,&W->Best,&W->Before,&W->After);
+        ++W->Years;W->Day+=xrtDaysInYear(W->Year);W->Year=xcronZoneYearStep(W->Year,1);
+        if((W->Best!=INT64_MAX && W->Day*86400-700000>W->Best) ||
+            W->Day*86400-700000>INT64_MAX/1000 || W->Years==403){
+            W->Status=W->Best==INT64_MAX?XCRON_ZONE_NONE:XCRON_ZONE_FOUND;
+            if(W->Status==XCRON_ZONE_FOUND){
+                W->Result=(xcronzonetransition){W->Best*1000,xcronZoneState(W->Rules,W->Before),xcronZoneState(W->Rules,W->After)};
+                if(W->History)xcronZoneHistoryWalkResult(W->History,W);
+            }
+            break;
+        }
+    }
+    return W->Status;
+}
 xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue)
 {
     if(Issue)*Issue=(xcronzoneissue){XCRON_ZONE_OK,0,0};
@@ -1986,14 +2105,7 @@ xcronzonestatus xcronZoneNextValue(const xcronzone* Z,xtime After,xcronzonetrans
      * cross-year carry. 700000s exceeds 167:59:59 + the largest offset (93599).
      * Compare actual states across ties before reporting an effective change. */
     for(unsigned Y=0;Y<403;++Y){if(Issue)Issue->YearsExamined=Y+1;
-        unsigned C=xcronZoneCycle(Year);
-        for(unsigned K=0;K<2;++K){int64 T=Day*86400+Z->Changes[C*2+K];
-            if(T<=Second || T>=Best || T>INT64_MAX/1000)continue;
-            bool A=xcronZoneLookup(Z,T*1000),B=xcronZoneLookup(Z,T*1000-1);
-            if(A!=B){Best=T;
-                Before=B;
-                Next=A;
-        }}
+        xcronZoneCandidates(Z,Year,Day,Second,&Best,&Before,&Next);
         Day+=xrtDaysInYear(Year);
         Year=xcronZoneYearStep(Year,1);
         if(Best!=INT64_MAX && Day*86400-700000>Best)break;
@@ -2274,6 +2386,27 @@ xcronzonestatus xcronZoneHistoryNext(const xcronzone* Z,xtime After,xcronzonetra
     }
     return Status;
 }
+void xcronZoneHistoryWalkInit(const xcronzone* Z,xtime After,xcronzonewalk* W)
+{
+    const xcronzonehistory* H=Z->History;int64 Second=xcronTzifUnix(After);
+    uint32 I=xcronTzifUpper(H->Times,H->Count,Second);
+    if(I<H->Count){int64 S=H->Times[I];xtime T;
+        if(S>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS || !xcronZoneSecondValue(S+XCRON_TZIF_EPOCH_SECONDS,0,&T))return;
+        W->Result=(xcronzonetransition){T,xcronTzifAt(H,S-1),xcronTzifAt(H,S)};W->Status=XCRON_ZONE_FOUND;return;
+    }
+    if(!H->Footer)return;
+    xtime Start=After;
+    if(!H->AllFooter && Second<H->Last &&
+        (H->Last>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS || !xcronZoneSecondValue(H->Last+XCRON_TZIF_EPOCH_SECONDS,0,&Start)))return;
+    xcronZoneWalkInit(H->Footer,Start,W);W->History=Z;
+}
+void xcronZoneHistoryWalkResult(const xcronzone* Z,xcronzonewalk* W)
+{
+    const xcronzonehistory* H=Z->History;
+    if(!xcronTzifNameKnown(W->Result.Before.Abbreviation))W->Result.Before=xcronTzifUnknown(H);
+    if(!xcronTzifNameKnown(W->Result.After.Abbreviation))W->Result.After=xcronTzifUnknown(H);
+    if(xcronTzifStateEqual(&W->Result.Before,&W->Result.After))W->Status=XCRON_ZONE_NONE;
+}
 static bool xcronTzifUncertain(const xcronzonehistory* H,int64 Low,int64 High,int Milli)
 {
     uint32 A=0,B=H->RangesCount;
@@ -2318,12 +2451,14 @@ xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Z,const xdatetime* D,xt
 /* ========================================================================== */
 
 #if defined(XCRON_FEATURE_XCRON_ZONED)
+#include <string.h>
+#include <stddef.h>
 #if defined(XCRON_FEATURE_XCRON_ZONED)
 #define XCRON_ZONED_CYCLE_MS INT64_C(12622780800000)
 static bool xcronZonedFail(xcronzonederror Code,xcronfield Field,xcronzoneerror Zone,xcronzonedissue* Work,xcronzonedissue* Issue,cstr Message)
 {
     Work->Code=Code;Work->Field=Field;Work->Zone=Zone;if(Issue)*Issue=*Work;
-    xrtSetErrorInfo(Code==XCRON_ZONED_ARGUMENT?XERR_ARGUMENT:Code==XCRON_ZONED_EXPRESSION?XERR_VALUE:Code==XCRON_ZONED_ZONE?XERR_STATE:XERR_RANGE,
+    xrtSetErrorInfo(Code==XCRON_ZONED_ARGUMENT?XERR_ARGUMENT:Code==XCRON_ZONED_EXPRESSION?XERR_VALUE:(Code==XCRON_ZONED_ZONE || Code==XCRON_ZONED_STATE)?XERR_STATE:XERR_RANGE,
         "xrt.cron.zoned",Code,Message);return false;
 }
 static bool xcronZonedArgs(const xcronexpression* E,const xcronzone* Z,uint32 Flags,void* Result,size_t ResultSize,xcronzonedissue* Issue)
@@ -2397,6 +2532,108 @@ XCRON_API xcronzonedstatus xcronZonedNext(const xcronexpression* E,const xcronzo
         Work.Code==XCRON_ZONED_ZONE?(Work.Zone==XCRON_ZONE_UNKNOWN?"cron search reached unknown zone coverage":"cron transition search failed"):
         "invalid derived zoned civil window or candidate");
     if(Issue)*Issue=Work;
+    return Status;
+}
+void xcronZonedValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V)
+{
+    memset(V,0,sizeof(*V));V->Expression=*E;V->Work.Field=XCRON_FIELD_NONE;V->Status=XCRON_ZONED_NONE;
+    int64 R=Begin%1000,Delta=R?(R>0?1000-R:-R):((Flags&XCRON_SEARCH_EXCLUSIVE)?1000:0);
+    if(Begin>INT64_MAX-Delta || Begin+Delta>End)return;
+    V->First=Begin+Delta;V->Limit=End;xtime Repeat;
+    if(xcronZoneRepeat(Z,V->First,&Repeat) && Repeat<=End && Repeat<=INT64_MAX-(XCRON_ZONED_CYCLE_MS-1000)){
+        xtime ProofEnd=Repeat+(XCRON_ZONED_CYCLE_MS-1000);if(ProofEnd<V->Limit)V->Limit=ProofEnd;
+    }
+    V->Status=XCRON_ZONED_PENDING;
+}
+static xcronzonedstatus xcronZonedValueError(xcronzonedvalue* V,xcronzonederror Code,xcronzoneerror Zone)
+{V->Work.Code=Code;V->Work.Zone=Zone;return V->Status=XCRON_ZONED_ERROR;}
+xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcronzonedbudget B)
+{
+    while(V->Status==XCRON_ZONED_PENDING){
+        if(V->Phase==0){
+            if(!B.Segments || !B.Months)return V->Status;
+            --B.Segments;++V->Work.SegmentsExamined;
+            xcronzonestate State=xcronZoneStateValue(Z,V->First);
+            if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZonedValueError(V,XCRON_ZONED_ZONE,XCRON_ZONE_UNKNOWN);
+            V->Offset=State.Offset;xcronZoneDecompose(V->First,State.Offset,State.IsDST,&V->Calendar.First);
+            if(xcronCalendarPartsMatch(&V->Expression,&V->Calendar.First)){
+                ++V->Work.MonthsExamined;V->Result=V->First;return V->Status=XCRON_ZONED_FOUND;
+            }
+            xcronZoneWalkInit(Z,V->First,&V->Transition);V->Phase=1;
+        }
+        if(V->Phase==1){
+            uint32 Before=V->Transition.Years;
+            xcronzonestatus Status=xcronZoneWalkStep(&V->Transition,B.RuleYears);
+            uint32 Used=V->Transition.Years-Before;B.RuleYears-=Used;V->Work.RuleYearsExamined+=Used;
+            if(Status==XCRON_ZONE_WALK_PENDING)return V->Status;
+            V->SegmentEnd=V->Limit;
+            if(Status==XCRON_ZONE_FOUND && V->Transition.Result.When<=V->Limit)V->SegmentEnd=V->Transition.Result.When-1;
+            xdatetime End,First=V->Calendar.First;xcronZoneDecompose(V->SegmentEnd,V->Offset,false,&End);
+            xcronCalendarValueBegin(&V->Expression,&First,&End,&V->Calendar);V->Phase=2;
+        }
+        if(V->Phase==2){
+            uint32 Before=V->Calendar.Months;
+            xcroncalendarstatus Status=xcronCalendarValueStep(&V->Expression,&V->Calendar,B.Months);
+            uint32 Used=V->Calendar.Months-Before;B.Months-=Used;V->Work.MonthsExamined+=Used;
+            if(Status==XCRON_CALENDAR_PENDING)return V->Status;
+            if(Status==XCRON_CALENDAR_FOUND){int64 Seconds;xtime Result;
+                if(!xcronZoneCivilSeconds(&V->Calendar.Date,&Seconds) || !xcronZoneSecondValue(Seconds-V->Offset,0,&Result) || Result<V->First || Result>V->SegmentEnd)
+                    return xcronZonedValueError(V,XCRON_ZONED_RANGE,XCRON_ZONE_OK);
+                V->Result=Result;return V->Status=XCRON_ZONED_FOUND;
+            }
+            if((V->First<=INT64_MAX-(XCRON_ZONED_CYCLE_MS-1000) && V->SegmentEnd>=V->First+(XCRON_ZONED_CYCLE_MS-1000)) ||
+                V->Transition.Status==XCRON_ZONE_NONE || V->Transition.Result.When>V->Limit)return V->Status=XCRON_ZONED_NONE;
+            V->First=V->Transition.Result.When;V->Phase=0;
+        }
+    }
+    return V->Status;
+}
+#define XCRON_ZONED_CURSOR_MAGIC UINT32_C(0x585a4331)
+typedef struct xcronzonedimpl {
+    uint32 Magic;
+    uintptr_t Address,Zone;
+    xcronzonedvalue Value;
+} xcronzonedimpl;
+typedef char xcron_zoned_cursor_size_check[(sizeof(xcronzonedimpl)<=sizeof(xcronzonedcursor))?1:-1];
+static void xcronZonedCursorReport(xcronzonedcursorissue* Issue,xcronzonederror Code,xcronfield Field,cstr Message)
+{
+    if(Issue)*Issue=(xcronzonedcursorissue){Code,Field,XCRON_ZONE_OK,0,0,0};
+    xcronzonedissue Work={0};xcronZonedFail(Code,Field,XCRON_ZONE_OK,&Work,NULL,Message);
+}
+XCRON_API bool xcronZonedCursorInit(xcronzonedcursor* C,const xcronexpression* E,const xcronzone* Z,
+    xtime Begin,xtime End,uint32 Flags,xcronzonedcursorissue* Issue)
+{
+    void* Outputs[]={C,Issue};size_t Sizes[]={sizeof(*C),Issue?sizeof(*Issue):0};
+    if(!C || !E || (Flags&~XCRON_SEARCH_EXCLUSIVE) || !xcronZoneOutputs(Z,E,sizeof(*E),Outputs,Sizes,2)){
+        xcronZonedCursorReport(NULL,XCRON_ZONED_ARGUMENT,XCRON_FIELD_NONE,"invalid zoned cursor init spans/aliases/flags");return false;
+    }
+    xcronfield Field;
+    if(!xcronCalendarValidateExpression(E,&Field)){xcronZonedCursorReport(Issue,XCRON_ZONED_EXPRESSION,Field,"invalid zoned cursor expression");return false;}
+    if(Begin>End){xcronZonedCursorReport(Issue,XCRON_ZONED_WINDOW,XCRON_FIELD_NONE,"zoned cursor window is reversed");return false;}
+    xcronzonedimpl I;memset(&I,0,offsetof(xcronzonedimpl,Value));I.Magic=XCRON_ZONED_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Zone=(uintptr_t)Z;
+    xcronZonedValueInit(E,Z,Begin,End,Flags,&I.Value);
+    memcpy(C,&I,sizeof(I));memset(C->Storage+sizeof(I),0,sizeof(*C)-sizeof(I));if(Issue)*Issue=I.Value.Work;return true;
+}
+XCRON_API xcronzonedstatus xcronZonedCursorStep(xcronzonedcursor* C,const xcronzone* Z,xcronzonedbudget Budget,
+    xtime* Next,xcronzonedcursorissue* Issue)
+{
+    void* Outputs[]={C,Next,Issue};size_t Sizes[]={sizeof(*C),sizeof(*Next),Issue?sizeof(*Issue):0};
+    if(!C || !Next || !xcronZoneOutputs(Z,NULL,0,Outputs,Sizes,3)){
+        xcronZonedCursorReport(NULL,XCRON_ZONED_ARGUMENT,XCRON_FIELD_NONE,"invalid zoned cursor step spans/aliases");return XCRON_ZONED_ERROR;
+    }
+    if(!Budget.Segments || !Budget.Months || !Budget.RuleYears){
+        xcronZonedCursorReport(Issue,XCRON_ZONED_ARGUMENT,XCRON_FIELD_NONE,"zoned cursor budgets must be positive");return XCRON_ZONED_ERROR;
+    }
+    xcronzonedimpl I;memcpy(&I,C,sizeof(I));
+    if(I.Magic!=XCRON_ZONED_CURSOR_MAGIC || I.Address!=(uintptr_t)C || I.Zone!=(uintptr_t)Z || I.Value.Phase>2 ||
+        (I.Value.Status!=XCRON_ZONED_PENDING && I.Value.Status!=XCRON_ZONED_FOUND && I.Value.Status!=XCRON_ZONED_NONE && I.Value.Status!=XCRON_ZONED_ERROR)){
+        xcronZonedCursorReport(Issue,XCRON_ZONED_STATE,XCRON_FIELD_NONE,"uninitialized/copied cursor or wrong live zone");return XCRON_ZONED_ERROR;
+    }
+    xcronzonedstatus Status=xcronZonedValueStep(&I.Value,Z,Budget);
+    memcpy(C,&I,sizeof(I));if(Status==XCRON_ZONED_FOUND)*Next=I.Value.Result;if(Issue)*Issue=I.Value.Work;
+    if(Status==XCRON_ZONED_ERROR){xcronzonedissue Work={0};
+        xcronZonedFail(I.Value.Work.Code,I.Value.Work.Field,I.Value.Work.Zone,&Work,NULL,"zoned cursor reached unknown coverage or an invalid derived candidate");
+    }
     return Status;
 }
 #endif

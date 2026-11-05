@@ -37,6 +37,11 @@ prevents guessed results. History is completed before using a periodic suffix's
 400-year completeness bound. See [zoned contracts/examples/costs](docs/zoned.md).
 Nominal gap compensation, fold selection and execution remain scheduler policies.
 
+Zoned Init/Step cursors bound segment starts, calendar months and transition-rule
+years independently. They borrow an explicitly supplied live zone and copy the
+expression/window into stable caller storage. See [budget/lifetime/cost details](docs/zoned.md).
+Live scheduler admission/advancement remains synchronous pending integration.
+
 Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly
 choose `XCRON_UNIX5` (minute/hour/day/month/weekday, second zero) or
 `XCRON_SECONDS6` (second followed by the same five fields). Compile into a

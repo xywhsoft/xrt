@@ -24,6 +24,23 @@ bool xcronZoneOutputs(const xcronzone* Zone,const void* Input,size_t InputSize,v
 xcronzonestate xcronZoneStateValue(const xcronzone* Zone,xtime When);
 void xcronZoneDecompose(xtime When,int32 Offset,bool DST,xdatetime* Date);
 xcronzonestatus xcronZoneNextValue(const xcronzone* Zone,xtime After,xcronzonetransition* Transition,xcronzoneissue* Issue);
+/* Product-private, borrowed-owner transition walk. Init does bounded history
+ * lookup/constant setup; Step charges at most YearBudget additional rule years.
+ * History directory lookup is logarithmic in the capped transition count.
+ * PENDING is private: public synchronous zone APIs never return it. */
+#define XCRON_ZONE_WALK_PENDING ((xcronzonestatus)2)
+typedef struct xcronzonewalk {
+    const xcronzone *Rules,*History;
+    int64 Year,Day,Second,Best;
+    uint32 Years;
+    xcronzonestatus Status;
+    bool Before,After;
+    xcronzonetransition Result;
+} xcronzonewalk;
+void xcronZoneWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
+xcronzonestatus xcronZoneWalkStep(xcronzonewalk* Walk,uint32 YearBudget);
+void xcronZoneHistoryWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
+void xcronZoneHistoryWalkResult(const xcronzone* Zone,xcronzonewalk* Walk);
 /* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
  * False means no proven periodic suffix inside the xtime domain. */
 bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);

@@ -262,6 +262,27 @@ xcronzonestatus xcronZoneHistoryNext(const xcronzone* Z,xtime After,xcronzonetra
     }
     return Status;
 }
+void xcronZoneHistoryWalkInit(const xcronzone* Z,xtime After,xcronzonewalk* W)
+{
+    const xcronzonehistory* H=Z->History;int64 Second=xcronTzifUnix(After);
+    uint32 I=xcronTzifUpper(H->Times,H->Count,Second);
+    if(I<H->Count){int64 S=H->Times[I];xtime T;
+        if(S>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS || !xcronZoneSecondValue(S+XCRON_TZIF_EPOCH_SECONDS,0,&T))return;
+        W->Result=(xcronzonetransition){T,xcronTzifAt(H,S-1),xcronTzifAt(H,S)};W->Status=XCRON_ZONE_FOUND;return;
+    }
+    if(!H->Footer)return;
+    xtime Start=After;
+    if(!H->AllFooter && Second<H->Last &&
+        (H->Last>INT64_MAX/1000-XCRON_TZIF_EPOCH_SECONDS || !xcronZoneSecondValue(H->Last+XCRON_TZIF_EPOCH_SECONDS,0,&Start)))return;
+    xcronZoneWalkInit(H->Footer,Start,W);W->History=Z;
+}
+void xcronZoneHistoryWalkResult(const xcronzone* Z,xcronzonewalk* W)
+{
+    const xcronzonehistory* H=Z->History;
+    if(!xcronTzifNameKnown(W->Result.Before.Abbreviation))W->Result.Before=xcronTzifUnknown(H);
+    if(!xcronTzifNameKnown(W->Result.After.Abbreviation))W->Result.After=xcronTzifUnknown(H);
+    if(xcronTzifStateEqual(&W->Result.Before,&W->Result.After))W->Status=XCRON_ZONE_NONE;
+}
 static bool xcronTzifUncertain(const xcronzonehistory* H,int64 Low,int64 High,int Milli)
 {
     uint32 A=0,B=H->RangesCount;

@@ -258,7 +258,8 @@
         "extlibs/xcron/examples/zoned/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_zoned.c"
+        "extlibs/xcron/bench/bench_zoned.c",
+        "extlibs/xcron/bench/bench_zoned_cursor.c"
       ],
       "docs": [
         "extlibs/xcron/docs/calendar.md",

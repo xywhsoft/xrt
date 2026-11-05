@@ -29,7 +29,19 @@ int main(int Argc,char** Argv)
             bool Value=true;bool OK=xcronZonedMatch(&E,Z,Begin,&Value,&I);Status=OK?1:-1;Next=Value?1:0;
         }else if(Line[0]=='N'){
             if(sscanf(Line+1,"%" SCNd64 " %" SCNd64 " %u",&Begin,&End,&Flags)!=3){xcronZoneRelease(Z);return 5;}
+#if defined(XCRON_PROBE_CURSOR)
+            xcronzonedcursor C;xcronzonedcursorissue CI={.Code=XCRON_ZONED_RANGE,.Field=XCRON_FIELD_NONE};unsigned Calls=0;
+            if(!xcronZonedCursorInit(&C,&E,Z,Begin,End,Flags,&CI))Status=XCRON_ZONED_ERROR;
+            else do{
+                xcronzonedcursorissue Previous=CI;xcronzonedbudget B={1+Calls%3,1+Calls%7,1+Calls%2};
+                Status=xcronZonedCursorStep(&C,Z,B,&Next,&CI);++Calls;
+                if(Calls>100000 || CI.SegmentsExamined-Previous.SegmentsExamined>B.Segments ||
+                    CI.MonthsExamined-Previous.MonthsExamined>B.Months || CI.RuleYearsExamined-Previous.RuleYearsExamined>B.RuleYears){xcronZoneRelease(Z);return 6;}
+            }while(Status==XCRON_ZONED_PENDING);
+            I=(xcronzonedissue){CI.Code,CI.Field,CI.Zone,CI.SegmentsExamined,CI.MonthsExamined};
+#else
             Status=xcronZonedNext(&E,Z,Begin,End,Flags,&Next,&I);
+#endif
         }else {xcronZoneRelease(Z);return 5;}
         printf("%d %" PRId64 " %d %d %d %u %" PRIu64 "\n",Status,Next,I.Code,I.Field,I.Zone,I.SegmentsExamined,I.MonthsExamined);xrtClearError();
     }

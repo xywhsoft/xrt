@@ -13,8 +13,9 @@ static xcronzone* zonedZone(cstr Rule)
 {xcronzone* Z=NULL;testRequire(xcronZoneCreatePosix((xstrview){Rule,strlen(Rule)},XCRON_ZONE_TZIF3,&Z,NULL),"zoned rule fixture");return Z;}
 static xcronzone* zonedBinary(const tzifblob* B)
 {xcronzone* Z=NULL;testRequire(xcronZoneCreateTzif((xbytesview){B->Data,B->Size},&Z,NULL),"zoned binary fixture");return Z;}
+#include "zoned_cursor_cases.h"
 static void zonedExpect(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedstatus Expected,xtime Value)
-{xtime Next=777;xcronzonedissue I;testRequire(xcronZonedNext(E,Z,Begin,End,Flags,&Next,&I)==Expected && I.Code==XCRON_ZONED_OK && I.Field==XCRON_FIELD_NONE && I.Zone==XCRON_ZONE_OK && Next==(Expected==XCRON_ZONED_FOUND?Value:777),"zoned earliest/status/output atomicity");}
+{xtime Next=777;xcronzonedissue I;testRequire(xcronZonedNext(E,Z,Begin,End,Flags,&Next,&I)==Expected && I.Code==XCRON_ZONED_OK && I.Field==XCRON_FIELD_NONE && I.Zone==XCRON_ZONE_OK && Next==(Expected==XCRON_ZONED_FOUND?Value:777),"zoned earliest/status/output atomicity");zonedCursorExpect(E,Z,Begin,End,Flags,Expected,Value);}
 static void testZonedKnown(void)
 {
     xcronzone* Z=zonedZone("EST5EDT,M3.2.0,M11.1.0");xcronexpression E=zonedExpr("30 1 * * *",XCRON_UNIX5);
@@ -40,13 +41,15 @@ static void testZonedKnown(void)
 static void testZonedCompleteness(void)
 {
     xcronexpression E=zonedExpr("30 2 1 MAR *",XCRON_UNIX5);xcronzone* Z=zonedZone("STD0DST,J60/2,J300/2");xtime Next=777;xcronzonedissue I;
-    testRequire(xcronZonedNext(&E,Z,zonedTime(2000,1,1,0,0,0,0),INT64_MAX,0,&Next,&I)==XCRON_ZONED_NONE && Next==777 && I.SegmentsExamined<=803 && I.SegmentsExamined>=799,"entire periodic cycle proves always-gap NONE");xcronZoneRelease(Z);
+    testRequire(xcronZonedNext(&E,Z,zonedTime(2000,1,1,0,0,0,0),INT64_MAX,0,&Next,&I)==XCRON_ZONED_NONE && Next==777 && I.SegmentsExamined<=803 && I.SegmentsExamined>=799,"entire periodic cycle proves always-gap NONE");
+    zonedCursorExpect(&E,Z,zonedTime(2000,1,1,0,0,0,0),INT64_MAX,0,XCRON_ZONED_NONE,0);xcronZoneRelease(Z);
     /* 500 years of historical yearly gaps precede a different fixed footer.
      * A global Begin+400-year cutoff would miss the first 2500 occurrence. */
     tzifblob Blob;int64 Times[1000];uint8 Indices[1000];const tzifkind Types[]={{0,false,"STD"},{3600,true,"DST"}};
     for(unsigned Y=0;Y<500;++Y){Times[Y*2]=(zonedTime(2000+Y,3,1,2,0,0,0)-XRT_TIME_UNIX_EPOCH)/1000;Times[Y*2+1]=(zonedTime(2000+Y,10,1,1,0,0,0)-XRT_TIME_UNIX_EPOCH)/1000;Indices[Y*2]=1;Indices[Y*2+1]=0;}
     tzifBuild(&Blob,'3',Times,Indices,1000,Types,2,"STD0");Z=zonedBinary(&Blob);
-    testRequire(xcronZonedNext(&E,Z,zonedTime(2000,1,1,0,0,0,0),zonedTime(2600,1,1,0,0,0,0),0,&Next,&I)==XCRON_ZONED_FOUND && Next==zonedTime(2500,3,1,2,30,0,0) && I.SegmentsExamined==1001,"history is completed before applying footer periodicity");xcronZoneRelease(Z);
+    testRequire(xcronZonedNext(&E,Z,zonedTime(2000,1,1,0,0,0,0),zonedTime(2600,1,1,0,0,0,0),0,&Next,&I)==XCRON_ZONED_FOUND && Next==zonedTime(2500,3,1,2,30,0,0) && I.SegmentsExamined==1001,"history is completed before applying footer periodicity");
+    zonedCursorExpect(&E,Z,zonedTime(2000,1,1,0,0,0,0),zonedTime(2600,1,1,0,0,0,0),0,XCRON_ZONED_FOUND,Next);xcronZoneRelease(Z);
 }
 static uint64 ZonedRandom=UINT64_C(0x7c19ad42cfff9013);
 static uint64 zonedRandom(void){ZonedRandom^=ZonedRandom<<13;ZonedRandom^=ZonedRandom>>7;ZonedRandom^=ZonedRandom<<17;return ZonedRandom;}
@@ -69,7 +72,8 @@ static void testZonedOraclesAndEnds(void)
         }xcronZoneRelease(Z);}
     xcronzone* UTC=zonedZone("UTC0");const cstr Texts[]={"* * * * * *","13,37 */17 * * * *","0 0 0 29 FEB *","0 0 0 30 FEB *"};
     for(unsigned J=0;J<1000;++J){xcronexpression E=zonedExpr(Texts[J%4],XCRON_SECONDS6);xtime Begin=(xtime)zonedRandom(),Span=(xtime)(zonedRandom()%(60*XRT_TIME_DAY)),End=Begin>INT64_MAX-Span?INT64_MAX:Begin+Span,A=11,B=22;uint32 Flags=J%2;
-        xcroncalendarstatus C=xcronCalendarNext(&E,Begin,End,Flags,&A,NULL);xcronzonedstatus Z=xcronZonedNext(&E,UTC,Begin,End,Flags,&B,NULL);testRequire((int)C==(int)Z && (C==XCRON_CALENDAR_FOUND?A==B:B==22),"full-range UTC specialization agrees with independent calendar entrypoint");}
+        xcroncalendarstatus C=xcronCalendarNext(&E,Begin,End,Flags,&A,NULL);xcronzonedstatus Z=xcronZonedNext(&E,UTC,Begin,End,Flags,&B,NULL);testRequire((int)C==(int)Z && (C==XCRON_CALENDAR_FOUND?A==B:B==22),"full-range UTC specialization agrees with independent calendar entrypoint");
+        zonedCursorExpect(&E,UTC,Begin,End,Flags,(xcronzonedstatus)C,A);}
     xcronZoneRelease(UTC);
     tzifblob Blob;const tzifkind Huge[]={{INT32_MAX,false,""}};tzifBuild(&Blob,0,NULL,NULL,0,Huge,1,"");xcronzone* Z=zonedBinary(&Blob);xcronexpression E=zonedExpr("* * * * * *",XCRON_SECONDS6);
     zonedExpect(&E,Z,INT64_MIN,INT64_MAX,0,XCRON_ZONED_FOUND,INT64_MIN-INT64_MIN%1000);
@@ -130,8 +134,8 @@ static void testZonedThreads(void)
     for(unsigned J=0;J<4;++J){testRequire(xrtThreadWait(T[J])==XWAIT_OK && !xrtThreadExitCode(T[J]),"shared immutable expression/zone lifetime");xrtThreadDestroy(T[J]);}
 }
 #endif
-int main(void){testZonedKnown();testZonedCompleteness();testZonedOraclesAndEnds();testZonedUnknownAndErrors();testZonedWarm();
+int main(void){testZonedKnown();testZonedCompleteness();testZonedOraclesAndEnds();testZonedUnknownAndErrors();testZonedWarm();testZonedRuleWalk();testZonedCursorErrors();testZonedCursorWarm();testZonedCursorUnknown();
 #if defined(XRT_FEATURE_THREAD)
-testZonedThreads();
+testZonedThreads();testZonedCursorHandoff();
 #endif
 puts("[PASS] zoned cron: ordered folds/gaps/history/periodic proof/UTC oracles/endpoints/OOM/zero-heap");return 0;}

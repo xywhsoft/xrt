@@ -12,6 +12,13 @@ It also asserts that 2024-03-10 has no actual 02:30 occurrence. NONE preserves
 the previous output. The expected `[PASS]` line states both assertions and owner
 release. No host timezone/database, clock, network or service is needed.
 
+The same later-fold query also runs through the real Init/Step cursor with all
+three budgets set to1. It prints `bounded later-fold query` with host-turn and
+cumulative segment/month/rule-year counts before the existing PASS line. Each
+PENDING turn permits other host work. The cursor copies the expression and
+borrows the same zone held by this example; storage remains at one address and
+the owner is released after the final query. It needs no cursor Unit.
+
 All actual repeated instants are eligible, and missing labels have no occurrence.
 Nominal gap compensation, fold selection and delivery policy are separate
 scheduler work. An owned TZif zone can replace the explicit rules without
