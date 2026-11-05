@@ -1006,7 +1006,11 @@
 				"extlibs/xws/tests/single/test_single_websocket_connection_future.c",
 				"extlibs/xws/tests/single/test_single_websocket_connection_ref_future.c",
 				"extlibs/xws/tests/single/test_single_websocket_connection_tls.c",
-				"extlibs/xws/tests/single/test_single_xws.c"
+				"extlibs/xws/tests/single/test_single_xws.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_invalid.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_sync.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_future_ref.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_deflate.c"
 			],
 			"examples": [],
 			"docs": [
@@ -1019,7 +1023,11 @@
 				"extlibs/xws/tests/single/test_single_websocket_connection_future.c": "websocket_connection_future",
 				"extlibs/xws/tests/single/test_single_websocket_connection_ref_future.c": "websocket_connection_ref_future",
 				"extlibs/xws/tests/single/test_single_websocket_connection_tls.c": "websocket_connection_tls_tests",
-				"extlibs/xws/tests/single/test_single_xws.c": "xws"
+				"extlibs/xws/tests/single/test_single_xws.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_invalid.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_sync.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_future_ref.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_deflate.c": "xws"
 			},
 			"collect_dependency_assets": [
 				"examples"

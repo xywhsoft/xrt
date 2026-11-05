@@ -1322,7 +1322,10 @@ static void testWsFutureReferences(
 )
 {
 	static const uint8 InvalidText[] = { UINT8_C(0xC0) };
-	uint8 RefStorage[sizeof(xnetref) + 2u];
+	union {
+		xnetref Alignment;
+		uint8 Bytes[sizeof(xnetref) + 2u];
+	} RefStorage;
 	xatomic32 BoundaryRelease;
 	xnetref Ref;
 	xfuture* pFuture;
@@ -1465,11 +1468,11 @@ static void testWsFutureReferences(
 		testWsFutureRefRelease,
 		pTest
 	};
-	memset(RefStorage, 0xA5, sizeof(RefStorage));
-	memcpy(RefStorage + 1u, &Ref, sizeof(Ref));
+	memset(RefStorage.Bytes, 0xA5, sizeof(RefStorage.Bytes));
+	memcpy(RefStorage.Bytes + 1u, &Ref, sizeof(Ref));
 	pFuture = xrtWsConnBinaryRefAsync(
 		pServer,
-		(const xnetref*)(const void*)(RefStorage + 1u)
+		(const xnetref*)(const void*)(RefStorage.Bytes + 1u)
 	);
 	testWsFutureState(
 		pFuture,
@@ -1483,8 +1486,8 @@ static void testWsFutureReferences(
 		"WebSocket unaligned Ref Future payload was not released"
 	);
 	testRequire(
-		(RefStorage[0] == UINT8_C(0xA5)) &&
-		(RefStorage[sizeof(RefStorage) - 1u] == UINT8_C(0xA5)),
+		(RefStorage.Bytes[0] == UINT8_C(0xA5)) &&
+		(RefStorage.Bytes[sizeof(RefStorage.Bytes) - 1u] == UINT8_C(0xA5)),
 		"WebSocket unaligned Ref Future changed guard bytes"
 	);
 
@@ -1801,7 +1804,10 @@ static xwsconn* testWsFutureAttach(
 	xwsconnevents Events;
 	xwsconn* pConnection;
 	#if defined(TEST_WS_FUTURE_DEFLATE)
-		uint8 DeflateStorage[sizeof(xwsdeflate) + 2u];
+		union {
+			xwsdeflate Alignment;
+			uint8 Bytes[sizeof(xwsdeflate) + 2u];
+		} DeflateStorage;
 		xwsdeflate Deflate;
 	#endif
 
@@ -1893,24 +1899,24 @@ static xwsconn* testWsFutureAttach(
 	#if defined(TEST_WS_FUTURE_DEFLATE)
 		if ( pConnection != NULL ) {
 			memset(
-				DeflateStorage,
+				DeflateStorage.Bytes,
 				0xA5,
-				sizeof(DeflateStorage)
+				sizeof(DeflateStorage.Bytes)
 			);
 			testRequire(
 				xrtWsConnDeflate(
 					pConnection,
-					(xwsdeflate*)(void*)(DeflateStorage + 1u)
+					(xwsdeflate*)(void*)(DeflateStorage.Bytes + 1u)
 				) &&
-				(DeflateStorage[0] == 0xA5) &&
-				(DeflateStorage[
-					sizeof(DeflateStorage) - 1u
+				(DeflateStorage.Bytes[0] == 0xA5) &&
+				(DeflateStorage.Bytes[
+					sizeof(DeflateStorage.Bytes) - 1u
 				 ] == 0xA5),
 				"WebSocket Deflate query rejected unaligned output"
 			);
 			memcpy(
 				&Deflate,
-				DeflateStorage + 1u,
+				DeflateStorage.Bytes + 1u,
 				sizeof(Deflate)
 			);
 			testRequire(
@@ -2423,7 +2429,10 @@ static void testWsFutureGroupOperation(
 	xwsgroupop* Operations[TEST_WS_GROUP_OPERATION_STRESS];
 	xwsgroupopresult Result;
 	uint8 ResultStorage[sizeof(xwsgroupopresult) + 2u];
-	uint8 RefStorage[sizeof(xnetref) + 2u];
+	union {
+		xnetref Alignment;
+		uint8 Bytes[sizeof(xnetref) + 2u];
+	} RefStorage;
 	xfuture* pFuture;
 	xfuture* pFirst;
 	xfuture* pSecond;
@@ -2781,11 +2790,11 @@ static void testWsFutureGroupOperation(
 		testWsFutureGroupRefRelease,
 		&Released
 	};
-	memset(RefStorage, 0xA5, sizeof(RefStorage));
-	memcpy(RefStorage + 1u, &Ref, sizeof(Ref));
+	memset(RefStorage.Bytes, 0xA5, sizeof(RefStorage.Bytes));
+	memcpy(RefStorage.Bytes + 1u, &Ref, sizeof(Ref));
 	pOperation = xrtWsGroupBinaryRefAsync(
 		pGroup,
-		(const xnetref*)(const void*)(RefStorage + 1u)
+		(const xnetref*)(const void*)(RefStorage.Bytes + 1u)
 	);
 	testRequire(
 		(pOperation != NULL) &&
@@ -2793,8 +2802,8 @@ static void testWsFutureGroupOperation(
 			pOperation,
 			INT64_C(10000)
 		 ) == XWAIT_OK) &&
-		(RefStorage[0] == 0xA5) &&
-		(RefStorage[sizeof(RefStorage) - 1u] == 0xA5),
+		(RefStorage.Bytes[0] == 0xA5) &&
+		(RefStorage.Bytes[sizeof(RefStorage.Bytes) - 1u] == 0xA5),
 		"WebSocket group rejected or modified an unaligned Ref"
 	);
 	testWsFutureWaitAtomic(

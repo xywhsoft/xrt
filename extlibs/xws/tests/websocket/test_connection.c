@@ -573,8 +573,14 @@ static xwsconn* testWsConnAttach(
 	test_ws_endpoint* pEndpoint
 )
 {
-	uint8 ConfigStorage[sizeof(xwsconnconfig) + 2u];
-	uint8 EventsStorage[sizeof(xwsconnevents) + 2u];
+	union {
+		xwsconnconfig Alignment;
+		uint8 Bytes[sizeof(xwsconnconfig) + 2u];
+	} ConfigStorage;
+	union {
+		xwsconnevents Alignment;
+		uint8 Bytes[sizeof(xwsconnevents) + 2u];
+	} EventsStorage;
 	xwsconnconfig Config;
 	xwsconnevents Events;
 	xwsconn* pConnection;
@@ -598,14 +604,14 @@ static xwsconn* testWsConnAttach(
 		Config.AutoPong = false;
 	}
 	Events = pEndpoint->Test->Events;
-	memset(ConfigStorage, 0xA5, sizeof(ConfigStorage));
-	memset(EventsStorage, 0xA5, sizeof(EventsStorage));
-	memcpy(ConfigStorage + 1u, &Config, sizeof(Config));
-	memcpy(EventsStorage + 1u, &Events, sizeof(Events));
+	memset(ConfigStorage.Bytes, 0xA5, sizeof(ConfigStorage.Bytes));
+	memset(EventsStorage.Bytes, 0xA5, sizeof(EventsStorage.Bytes));
+	memcpy(ConfigStorage.Bytes + 1u, &Config, sizeof(Config));
+	memcpy(EventsStorage.Bytes + 1u, &Events, sizeof(Events));
 	pConnection = xrtWsConnAttach(
 		pStream,
-		(const xwsconnconfig*)(const void*)(ConfigStorage + 1u),
-		(const xwsconnevents*)(const void*)(EventsStorage + 1u),
+		(const xwsconnconfig*)(const void*)(ConfigStorage.Bytes + 1u),
+		(const xwsconnevents*)(const void*)(EventsStorage.Bytes + 1u),
 		pEndpoint
 	);
 	if ( pConnection != NULL ) {
@@ -634,13 +640,13 @@ static xwsconn* testWsConnAttach(
 		xrtClearError();
 	}
 	memset(Protocol, 'x', sizeof(Protocol) - 1u);
-	memset(ConfigStorage + 1u, 0, sizeof(Config));
-	memset(EventsStorage + 1u, 0, sizeof(Events));
+	memset(ConfigStorage.Bytes + 1u, 0, sizeof(Config));
+	memset(EventsStorage.Bytes + 1u, 0, sizeof(Events));
 	testRequire(
-		(ConfigStorage[0] == 0xA5) &&
-		(ConfigStorage[sizeof(ConfigStorage) - 1u] == 0xA5) &&
-		(EventsStorage[0] == 0xA5) &&
-		(EventsStorage[sizeof(EventsStorage) - 1u] == 0xA5),
+		(ConfigStorage.Bytes[0] == 0xA5) &&
+		(ConfigStorage.Bytes[sizeof(ConfigStorage.Bytes) - 1u] == 0xA5) &&
+		(EventsStorage.Bytes[0] == 0xA5) &&
+		(EventsStorage.Bytes[sizeof(EventsStorage.Bytes) - 1u] == 0xA5),
 		"WebSocket attach wrote outside unaligned input storage"
 	);
 	return pConnection;
@@ -1356,7 +1362,10 @@ static void testWsConnClientRef(
 	static const uint8 InvalidUtf8[] = {
 		UINT8_C(0xC3), UINT8_C(0x28)
 	};
-	uint8 RefStorage[sizeof(xnetref) + 2u];
+	union {
+		xnetref Alignment;
+		uint8 Bytes[sizeof(xnetref) + 2u];
+	} RefStorage;
 	xatomic32 BoundaryRelease;
 	xatomic32 UnalignedRelease;
 	xnetref Invalid;
@@ -1422,11 +1431,11 @@ static void testWsConnClientRef(
 		testWsConnRefRelease,
 		&UnalignedRelease
 	};
-	memset(RefStorage, 0xA5, sizeof(RefStorage));
-	memcpy(RefStorage + 1u, &Ref, sizeof(Ref));
+	memset(RefStorage.Bytes, 0xA5, sizeof(RefStorage.Bytes));
+	memcpy(RefStorage.Bytes + 1u, &Ref, sizeof(Ref));
 	Result = xrtWsConnBinaryRef(
 		pConnection,
-		(const xnetref*)(const void*)(RefStorage + 1u)
+		(const xnetref*)(const void*)(RefStorage.Bytes + 1u)
 	);
 	testRequire(
 		(Result == XNET_RESULT_OK) &&
@@ -1434,8 +1443,8 @@ static void testWsConnClientRef(
 			&UnalignedRelease,
 			XMEMORY_ACQUIRE
 		 ) == 1) &&
-		(RefStorage[0] == UINT8_C(0xA5)) &&
-		(RefStorage[sizeof(RefStorage) - 1u] == UINT8_C(0xA5)),
+		(RefStorage.Bytes[0] == UINT8_C(0xA5)) &&
+		(RefStorage.Bytes[sizeof(RefStorage.Bytes) - 1u] == UINT8_C(0xA5)),
 		"WebSocket unaligned reference snapshot failed"
 	);
 
@@ -2201,7 +2210,10 @@ static void testWsConnClientWriter(
 		);
 		{
 			bytes pPayload = (bytes)xrtMalloc(9);
-			uint8 RefStorage[sizeof(xnetref) + 2u];
+			union {
+				xnetref Alignment;
+				uint8 Bytes[sizeof(xnetref) + 2u];
+			} RefStorage;
 			test_ws_writer_release Release;
 			xnetref Invalid;
 			xnetref Ref;
@@ -2248,11 +2260,11 @@ static void testWsConnClientWriter(
 				testWsConnWriterReentrantRelease,
 				&Release
 			};
-			memset(RefStorage, 0xA5, sizeof(RefStorage));
-			memcpy(RefStorage + 1u, &Ref, sizeof(Ref));
+			memset(RefStorage.Bytes, 0xA5, sizeof(RefStorage.Bytes));
+			memcpy(RefStorage.Bytes + 1u, &Ref, sizeof(Ref));
 			Result = xrtWsWriterFinishRef(
 				pWriter,
-				(const xnetref*)(const void*)(RefStorage + 1u)
+				(const xnetref*)(const void*)(RefStorage.Bytes + 1u)
 			);
 			if ( Result != XNET_RESULT_OK ) {
 				xrtFree(pPayload);
@@ -2260,8 +2272,8 @@ static void testWsConnClientWriter(
 			}
 			testRequire(
 				(Result == XNET_RESULT_OK) &&
-				(RefStorage[0] == UINT8_C(0xA5)) &&
-				(RefStorage[sizeof(RefStorage) - 1u] == UINT8_C(0xA5)) &&
+				(RefStorage.Bytes[0] == UINT8_C(0xA5)) &&
+				(RefStorage.Bytes[sizeof(RefStorage.Bytes) - 1u] == UINT8_C(0xA5)) &&
 				(xrtAtomic32Load(
 					&pTest->WriterReentrantRelease,
 					XMEMORY_ACQUIRE
@@ -2626,7 +2638,10 @@ static void testWsConnCloseTask(
 int main(void)
 {
 	test_ws_connection Test;
-	uint8 CloseStorage[sizeof(xwsconnclose) + 2u];
+	union {
+		xwsconnclose Alignment;
+		uint8 Bytes[sizeof(xwsconnclose) + 2u];
+	} CloseStorage;
 	xallocator Allocator;
 	xnetengineconfig EngineConfig;
 	xnetlistenconfig ListenConfig;
@@ -2825,19 +2840,19 @@ int main(void)
 	xrtClearError();
 	pClientTransport = xrtWsConnTcpRef(pClient);
 	pServerTransport = xrtWsConnTcpRef(pServer);
-	memset(CloseStorage, 0xA5, sizeof(CloseStorage));
+	memset(CloseStorage.Bytes, 0xA5, sizeof(CloseStorage.Bytes));
 	testRequire(
 		(pClientTransport != NULL) &&
 		(pServerTransport != NULL) &&
 		xrtWsConnCloseInfo(
 			pClient,
-			(xwsconnclose*)(void*)(CloseStorage + 1u)
+			(xwsconnclose*)(void*)(CloseStorage.Bytes + 1u)
 		) &&
-		(CloseStorage[0] == 0xA5) &&
-		(CloseStorage[sizeof(CloseStorage) - 1u] == 0xA5),
+		(CloseStorage.Bytes[0] == 0xA5) &&
+		(CloseStorage.Bytes[sizeof(CloseStorage.Bytes) - 1u] == 0xA5),
 		"WebSocket Close query rejected unaligned output"
 	);
-	memcpy(&OpenClose, CloseStorage + 1u, sizeof(OpenClose));
+	memcpy(&OpenClose, CloseStorage.Bytes + 1u, sizeof(OpenClose));
 	testRequire(
 		(OpenClose.Flags == 0) &&
 		(OpenClose.Transport == XNET_RESULT_OK),

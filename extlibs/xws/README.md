@@ -45,4 +45,6 @@ python tools/package.py --manifest extlibs/xws/config/modules.json --suite xws -
 
 事件在所属网络 Worker 上执行。消息视图仅在回调期间借用；Copy 复制数据，Ref 保留引用，Take 按原契约转移所有权。发送预算和异步队列有硬上限，控制帧预留、取消、失败清理与关闭顺序保持原行为。
 
+公开结构体参数中明确允许未对齐存储的配置、事件、Ref、Deflate 和 CloseInfo 按字节复制；调用方仍须提供完整有效范围，并遵守对应接口的重叠与所有权约束。`xws_tests` 的单头回归测试复用模块化的真实回环、失败不发布和引用释放检查。
+
 详细接口见 [API 参考](docs/api/reference.md)，整体边界见 [WebSocket 拆分说明](docs/design/websocket-runtime.md)。

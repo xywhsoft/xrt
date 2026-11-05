@@ -55,7 +55,7 @@
 | xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
-| xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
+| xws | 10 | 5 | 22 | 6 | 7 | 五个 C/六十八 API 有界复核、未对齐复制修复及四环境回归/交付通过，待真实应用示例与本批 CI |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 已完成本轮：五个 C/十四 API、四环境完整选择与示例、双平台交付/profile 及 73/73 CI |
@@ -1802,3 +1802,44 @@ xpop3-contract-{size,performance}-{windows,linux}.json、
 xpop3-independent-tls-{win32,linux}-execution.json、xpop3-size-raw-input-differences.json、
 xpop3-contract-round-{checks,input-audit,selected-assets}.json、
 xpop3-session-final-{source-review,validation}.json。
+
+
+### 第四十八批：xws 公开结构体未对齐复制
+
+- 原始源码的严格 Clang ASan/UBSan/float-cast-overflow 检查分别在 ConfigInit、
+  Attach 配置快照和 Ref Future 预检处失败，三份独立日志保留了未对齐读/写位置。
+  三者均使用既有测试传入公开接口明确允许的未对齐完整存储，未构造伪连接。
+- 复核五个自有 C、一个内部头和六十八项公开函数，覆盖配置/接管、TCP/TLS 保持、
+  硬预算与控制帧优先级、帧/UTF-8/压缩状态、关闭定时器、Ref/Take/Writer 事务及
+  Future 的预算、取消、队列和终态清理。沿同一公开契约修正九处结构体 memcpy：
+  在未对齐端显式转为 void 字节视图，保留范围/重叠预检与失败不发布语义。
+  没有改变公开 ABI、所有权时点、分配策略或关闭协议；生成实现单头同步。
+- 既有未对齐用例改用含对应结构体的 union 确保缓冲起点对齐，再偏移一个字节。
+  新增四个单头入口，复用模块化配置、真实 TCP/Writer/Ref/Close、Ref Future 和
+  Deflate Future 回归；static/shared 消费者也检查未对齐初始化/校验及两端哨兵。
+- Windows GCC 与 Linux GCC/Clang/TCC 的二十四次模块/单头定向回归全部通过；
+  四次完整选择分别为 38/31/31/31 个程序，各含七个选中示例。随后只增加一个
+  Deflate 单头入口，旧程序集合、源码/特性/链接/示例选择保持不变，新入口四环境
+  另行通过；最终完整覆盖取两阶段并集，不描述成最终 39/32 个程序的一次性调用。
+  双平台九种最小根另有二十八程序通过，本批普通运行合计 187 次。
+- Clang 全程保持严格 sanitizer 和泄漏检查。双平台四个 static/shared 消费者、
+  两个裁剪检查、每平台六十八 API 导出及 single/static/shared 十二个体积产物的
+  全类型禁止符号检查通过。新增单头后 Linux profile 指纹重新刷新，Windows 体积
+  检查本就在新清单之后；两份报告各自对应实际原始输入，不要求跨主机原始指纹相同。
+  五项元数据门禁和八项工具回归通过，1744 项 Windows/实际 WSL 输入归一化一致。
+- 原七个示例已编译执行，但大部分 main 只输出 ready，并未调用其中的应用函数；
+  Channel 示例也未接入真实网络消息。因此这些结果只证明片段可构建/启动，不作为
+  完整应用示例验收，后续需补实。配置性能 smoke 不代表线路吞吐、性能回归或零开销。
+  尚缺本批不可变 head 的远端 CI；本地未覆盖 macOS/BSD/Android/MSVC/clang-cl/x86、
+  TSan、长稳和外部 WebSocket 对端。xws 暂不计入完成。
+- 635e5fe4 的 POP3 CI 此时 71 项成功、两项仍运行且无失败；其 1693 项已记录的
+  Windows/WSL 构建输入逐项绑定至不可变 Git blob，自有输入亦未改变。该快照不认证
+  后续 xws 改动，POP3 仍等待完整 CI 终态。累计保持 5/21，不合并或发布。
+
+证据：xws-review-before-provenance.json、xws-review-before-inputs/、
+xws-review-before-clang-*.log、xws-byte-before-summary.json；
+xws-byte-source-review.json、xws-byte-contract-{windows,linux}.json、
+xws-byte-round-{windows,linux}.json、xws-byte-deflate-selection-proof.json、
+xws-byte-deflate-single-{windows,linux}.json、xws-byte-final-linux.json、
+xws-byte-delivery-{windows,linux}.json、xws-byte-{size,performance}-{windows,linux}.json、
+xws-byte-final-{checks,input-audit,validation}.json、xpop3-ci-635e5fe4-input-bindings.json。
