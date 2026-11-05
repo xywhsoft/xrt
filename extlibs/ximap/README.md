@@ -167,3 +167,17 @@ LOGIN 取消的 EOF 错误保真及未完成取消、非 initial-response 凭据
 并覆盖成功的精确 PLAIN 载荷、完成的拒绝/取消、IR 超限、非法等待、明文安全门、
 未声明能力及两个凭据分配点的 OOM。可恢复路径继续实际 NOOP/LOGOUT；终态路径在
 显式 Abort 前观察 peer EOF 并 join，最后检查 Engine 退役和逻辑内存释放。
+
+
+## 邮箱数值与摘要边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_mailbox_numbers_tests --no-examples
+```
+
+模块化与单头共享四十三场景：已知 UID/计数/序号的零值和 uint32 边界、额外参数、
+更新拒绝时的摘要与标记位保留，并有未知扩展、完整 uint64 泛型数字/MODSEQ 和
+STATUS UNSEEN 零计数控制。九个真实 TCP/public Open 会话检查 SELECT/EXAMINE 的
+非法数值终态、合法最大值和空邮箱、服务器拒绝后的复用，以及本地非法邮箱、线路
+超限和引号 OOM 不清空输出、不消耗命令。终态先观察 peer EOF 并 join，再显式清理；
+全部场景后核对 Engine 资源计数和逻辑内存释放。

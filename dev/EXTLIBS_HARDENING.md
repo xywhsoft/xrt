@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证边界修复本地通过，数值域与最终 CI 继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证及已知数值/摘要边界本地通过，借用重叠与最终 CI 继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -2235,3 +2235,52 @@ ximap-auth-{final,round}-{windows,linux}.json、ximap-auth-checks.json、
 ximap-auth-independent-{tls,compress}-{windows,linux}.json、
 ximap-auth-{external-metadata-change,final-input-audit,final-validation}.json、
 ci-48d3d47c-{http,metadata}-job.json、ximap-numeric-next-batch-plan.json。
+
+
+### 第六十一批：IMAP 已知数值域、额外数据与摘要输出
+
+- 0076d96e 的九十五项 IMAP 原始输入逐一匹配 Git 和实际 native 文件；生产实现
+  未改时加入正式仪器，Windows/Linux GCC 模块化、单头四个最终四十三场景程序均为
+  19 FAIL/24 PASS。初期仅四十场景的 Windows 版本单独归档，不混作最终基线。
+- MailboxInfoUpdate 先验证已知字段再写摘要。UIDNEXT、UIDVALIDITY、UNSEEN 响应码
+  要求 1..UINT32_MAX；EXISTS/RECENT 允许零，EXPUNGE 序号不允许零。三种数值响应
+  拒绝多余数据；零序号及额外数据为 PROTOCOL，超出已知数值域为 RANGE，邮件协议
+  错误 domain/code 保持。拒绝时整个摘要、Present 位和原响应对象均不变。
+- 不改泛型 number、未知扩展、公开 uint64 字段和既有完整 uint64 MODSEQ。控制明确
+  区分 UNSEEN 响应码的非零序号与 STATUS UNSEEN 的可为零计数。既有 APPENDUID 的
+  非零 uint32 检查和 data 层的专门数值范围保持，未扩大为全局整数宽度限制。
+- SELECT/EXAMINE 把输出初始化移到成功开始命令之后。非法邮箱、线路超限及引号
+  分配 OOM 不再清空调用方快照，也不消耗命令；随后实际 NOOP/LOGOUT 成功。命令
+  开始后的错误仍可保留此前合法响应形成的部分摘要，明确写入文档，不把它当作成功
+  选择结果。真实连接验证非法 untagged/tagged 数值会终止会话，包括 NULL 输出调用；
+  终态在显式 Abort 前观察 peer EOF 并 join，最近完整响应及有效控制保持。
+- 三十四个纯解析/摘要场景加九个真实 TCP/public Open 会话组成共享四十三场景。
+  最终 Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/泄漏检查、
+  TCC 各完整四十六程序通过，另八个最小定向程序各四十三场景全通过。完整根仅各追加
+  一项，为 27 模块化、19 单头；原源码、示例、定义、链接及原测试顺序保持。
+- 本批实际计入 234 次程序/消费者运行：完整选择 184、定向 8、示例 10、最小模块
+  程序 28、静态/共享消费者 4。两次 host-client 只打印无参数用法；两个最小 TLS
+  no-single 选择没有模块资产，不计程序。本批不另算显式模块 TLS 消费者或独立
+  Clang 压缩矩阵。两端 TLS/STARTTLS 共二十四场景、压缩互通共 180 场景通过，
+  实际二进制哈希核对；全部 Engine 资源计数和逻辑内存清理检查通过。
+- 每端 101 个公开导出、十二个 size 产物符号约束、trim、五项元数据及完整 137 项
+  工具测试通过。只改一个自有 C，十二个已安装头的非注释 token 与 0076d96e 相同；
+  1926 项最终 Windows/native 规范化输入全程冻结并一致，另绑定最终提交 Git 内容。
+  正常成功路径不新增分配或拷贝；拒绝沿用可分配的错误对象构造及其 OOM 行为，不
+  宣称所有路径零分配、吞吐等价或零开销。
+- 48d3d47c 和 0076d96e 的主 CI 均已完成七十三项全成功，独立邮件均成功。前者
+  列表曾滞后，用 immutable run 与直接查询 Windows 终态补齐；后者保存 immutable
+  attempt1 的完整七十三任务。本批自身新提交仍须单独运行 CI，历史绿色不替代本批。
+- 额外只读 public-API 探针记录：有效摘要对象与借用响应文本仅重叠一字节时，更新
+  返回 ITEM 并覆盖输入；分离存储控制通过，精确库/探针哈希保留。摘要是无借用字符串
+  的标量结果，下一批仍须明确输入/输出分离契约并补正式重叠及相邻合法存储回归，
+  不直接把孤立探针当作交付修复。保留其余逐 API 所有权、错误和命令状态复核。
+  IMAP 未完成本轮验收，累计 8/21；长期任务继续，不合并或发布。
+
+证据：ximap-numbers-before-{provenance,native-inputs,windows,linux}.json、
+ximap-numbers-{selection-proof,source-review,api-source-map,input-audit}.json、
+ximap-numbers-{final,round}-{windows,linux}.json、ximap-numbers-checks.json、
+ximap-numbers-independent-{tls,compress}-{windows,linux}.json、
+ximap-numbers-{final-input-audit,final-validation}.json、
+ci-48d3d47c-terminal-proof.json、ximap-auth-exact-head-ci-proof.json、
+ximap-mailbox-alias-candidate.json、ximap-mailbox-alias-next-plan.json。

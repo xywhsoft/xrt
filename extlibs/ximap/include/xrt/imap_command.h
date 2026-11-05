@@ -59,7 +59,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 把一条 SELECT、EXAMINE 或未请求更新合并到邮箱摘要。 */
+/* 合并一条邮箱更新。已知 UID/序号/计数按 uint32 数值域校验；拒绝时摘要不变。
+ * 泛型数字与既有 MODSEQ 的 uint64 支持不受影响。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo
@@ -76,7 +77,7 @@ XRT_API bool xrtImapClientNoop(
 
 
 
-/* 选择可写邮箱，并返回零分配状态摘要。 */
+/* 选择可写邮箱并返回零分配摘要。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -87,7 +88,7 @@ XRT_API bool xrtImapClientSelect(
 
 
 
-/* 以只读方式选择邮箱，并返回零分配状态摘要。 */
+/* 以只读方式选择邮箱。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,

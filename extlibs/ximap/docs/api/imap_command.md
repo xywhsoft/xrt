@@ -11,6 +11,23 @@
 模式。`xrtImapMailboxInfoUpdate` 也可以把后续未请求 EXISTS、RECENT 和响应码合并到同一
 摘要。
 
+已知 UIDNEXT、UIDVALIDITY 和 UNSEEN 响应码接受 1..UINT32_MAX；UNSEEN 响应码是首个
+未读消息的序号，与 STATUS UNSEEN 的可为零计数不同。EXISTS、RECENT 接受
+0..UINT32_MAX，EXPUNGE 序号接受 1..UINT32_MAX；这三种响应不接受额外数据。
+`xrtImapMailboxInfoUpdate` 在拒绝一条已知更新时保持整个摘要及 Present 位不变；
+零序号或额外数据返回 PROTOCOL，超出已知数值域返回 RANGE，错误域/code 保持邮件协议
+分类。未知扩展继续交给调用方处理，泛型数字和既有 MODSEQ 仍支持完整 uint64，
+不把它们统一收紧为上述字段的范围。
+
+SELECT/EXAMINE 在成功开始命令后才初始化输出摘要。本地非法邮箱、线路超限或引号
+分配失败等开始命令失败不会清空调用方输出，并可继续复用会话。命令开始后的远程错误
+可以留下此前合法响应形成的部分摘要；它不是成功选择结果，调用方必须先判断返回值
+和 Client 状态。已知非法数值使正在消费的选择命令返回协议错误并进入 FAILED，
+包括未请求返回摘要的调用；原始完整响应仍可通过 LastResponse 查询。
+
+数值域依据 [RFC 3501 第 9 节](https://www.rfc-editor.org/rfc/rfc3501.html#section-9)
+与 [RFC 9051 第 9 节](https://www.rfc-editor.org/rfc/rfc9051.html#section-9) 的已知字段。
+
 CREATE、DELETE、RENAME、SUBSCRIBE、UNSUBSCRIBE、CHECK、UNSELECT 与 CLOSE 是完整消费
 响应的同步命令。输入邮箱名会按 IMAP string 规则校验和引用，不能通过 CRLF 注入额外命令。
 

@@ -654,7 +654,8 @@
 				"imap_tls_upgrade_lifetime_tests",
 				"imap_deadline_runtime_tests",
 				"imap_boundary_runtime_tests",
-				"imap_auth_runtime_tests"
+				"imap_auth_runtime_tests",
+				"imap_mailbox_numbers_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -736,6 +737,29 @@
 			"examples": [],
 			"docs": [
 				"extlibs/ximap/docs/api/imap_auth.md"
+			]
+		},
+		{
+			"name": "imap_mailbox_numbers_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"imap_data",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_mailbox_numbers.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_mailbox_numbers.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_command.md"
 			]
 		}
 	]
