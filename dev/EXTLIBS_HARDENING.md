@@ -57,7 +57,7 @@
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
-| xws-group | 3 | 3 | 4 | 3 | 2 | 三个自有 C/API/所有权复核、四环境完整测试与双平台交付通过，待本批 CI |
+| xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 
 ## 执行记录
@@ -1425,3 +1425,19 @@ xws-group-selected-assets.json、xws-group-checks.json、xws-group-size-{windows
 xws-group-performance-{windows,linux}.json、xws-group-profile-*.json、
 xws-group-broad-input-audit.json、xws-group-final-input-audit.json、xws-group-final-validation.json；
 ci-eccd5638-acme-{windows,linux}-coverage{,-provenance}.json 及原始 zip。
+
+
+### 第三十九批验收补记：连接组本轮完成
+
+- 精确 head dd5a57c7 的 PR CI 41333917222 已完成，73/73 个 job 成功；独立 mail
+  41333912214 成功，两个重复工作流及已被替代的 74e183e6 CI 均确认取消。
+- 本地复核、四环境各 9 个完整程序、双平台 static/shared、裁剪、六种体积产物及
+  元数据证据见第三十九批；本次另核对自有实现/头、生成头及共享 group 回归夹具
+  的 Git blob，当前内容与该成功 head 一致。未把后续 xws-client 工作套入本次证据。
+- xws-group 计入有界首轮完成，累计 xjwt / xoauth2 / xws-group，3/21。平台与
+  性能限制保持第三十九批的记录；整轮工作仍继续，未合并或发布。
+- 上一 ACME head eccd5638 的 PR CI 41330775664 同样最终 73/73 成功，
+  其两平台 coverage 的源码绑定与比例见第三十九批；不等于 ACME 整库验收完成。
+
+证据：xws-group-first-round-acceptance.json、xws-group-final-validation.json、
+ci-dd5a57c7-{run,jobs}.json、ci-dd5a57c7-run-disposition.json、ci-eccd5638-{run,jobs}.json。
