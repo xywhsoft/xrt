@@ -61,7 +61,7 @@ static __ximapauthnext __xrtImapAuthNext(
 				XERR_PROTOCOL,
 				"unexpected IMAP literal during authentication"
 			);
-			(void)__xrtImapClientAuthFail(pClient);
+			(void)__xrtImapClientFailPreserveError(pClient);
 			return __XIMAP_AUTH_ERROR;
 		}
 		if ( (Event.Kind == XIMAP_EVENT_RESPONSE) &&
@@ -197,7 +197,7 @@ static bool __xrtImapAuthLogin(
 				XERR_PROTOCOL,
 				"incomplete IMAP LOGIN cancellation"
 			);
-			return __xrtImapClientAuthFail(pClient);
+			return __xrtImapClientFailPreserveError(pClient);
 		}
 		return __xrtImapAuthError(
 			XERR_PROTOCOL,

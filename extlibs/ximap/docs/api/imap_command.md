@@ -11,6 +11,12 @@
 模式。`xrtImapMailboxInfoUpdate` 也可以把后续未请求 EXISTS、RECENT 和响应码合并到同一
 摘要。
 
+摘要输出须与响应对象、Source 和 Text 的非空借用范围分离，即使 Source/Text 位于
+不同存储。非法范围或任意一字节重叠均在解析和写入前拒绝，返回 ARGUMENT 并保留
+摘要与输入；相邻但不重叠的范围仍合法，零长度 Source 可为空指针。这个输入/输出
+分离约定也适用于未处理的未知扩展，不把未请求的标量原地覆盖视为隐含接口保证。
+通常拒绝会构造错误对象；诊断分配失败时返回 MEMORY，输出仍不改变。
+
 已知 UIDNEXT、UIDVALIDITY 和 UNSEEN 响应码接受 1..UINT32_MAX；UNSEEN 响应码是首个
 未读消息的序号，与 STATUS UNSEEN 的可为零计数不同。EXISTS、RECENT 接受
 0..UINT32_MAX，EXPUNGE 序号接受 1..UINT32_MAX；这三种响应不接受额外数据。
@@ -23,7 +29,9 @@ SELECT/EXAMINE 在成功开始命令后才初始化输出摘要。本地非法�
 分配失败等开始命令失败不会清空调用方输出，并可继续复用会话。命令开始后的远程错误
 可以留下此前合法响应形成的部分摘要；它不是成功选择结果，调用方必须先判断返回值
 和 Client 状态。已知非法数值使正在消费的选择命令返回协议错误并进入 FAILED，
-包括未请求返回摘要的调用；原始完整响应仍可通过 LastResponse 查询。
+包括未请求返回摘要的调用。若诊断构造已报告 MEMORY，命令层保留该主错误并中止
+会话，不再覆盖成通用 PROTOCOL。LastResponse 保留最近已成功保存的完整响应；
+untagged 更新失败不会把尚未完成的 exchange 发布为新的完整响应。
 
 数值域依据 [RFC 3501 第 9 节](https://www.rfc-editor.org/rfc/rfc3501.html#section-9)
 与 [RFC 9051 第 9 节](https://www.rfc-editor.org/rfc/rfc9051.html#section-9) 的已知字段。

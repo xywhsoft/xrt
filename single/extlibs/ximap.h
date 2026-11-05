@@ -1318,8 +1318,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 合并一条邮箱更新。已知 UID/序号/计数按 uint32 数值域校验；拒绝时摘要不变。
- * 泛型数字与既有 MODSEQ 的 uint64 支持不受影响。 */
+/* 合并一条邮箱更新。摘要须与响应对象及 Source/Text 借用范围分离；拒绝时摘要不变。
+ * 已知 UID/序号/计数按 uint32 数值域校验，泛型数字和 MODSEQ 保留 uint64。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo
@@ -2318,8 +2318,8 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH)
-bool __xrtImapClientAuthFail(ximapclient* pClient);
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+bool __xrtImapClientFailPreserveError(ximapclient* pClient);
 #endif
 
 
@@ -6453,9 +6453,9 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH)
-/* 认证层已设置主错误；只终止会话，保留认证错误的 domain/code。 */
-bool __xrtImapClientAuthFail(ximapclient* pClient)
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+/* 上层已设置主错误；只终止会话，保留原错误的 domain/code。 */
+bool __xrtImapClientFailPreserveError(ximapclient* pClient)
 {
 	return __xrtImapClientFailed(pClient);
 }
@@ -6877,7 +6877,7 @@ static __ximapauthnext __xrtImapAuthNext(
 				XERR_PROTOCOL,
 				"unexpected IMAP literal during authentication"
 			);
-			(void)__xrtImapClientAuthFail(pClient);
+			(void)__xrtImapClientFailPreserveError(pClient);
 			return __XIMAP_AUTH_ERROR;
 		}
 		if ( (Event.Kind == XIMAP_EVENT_RESPONSE) &&
@@ -7013,7 +7013,7 @@ static bool __xrtImapAuthLogin(
 				XERR_PROTOCOL,
 				"incomplete IMAP LOGIN cancellation"
 			);
-			return __xrtImapClientAuthFail(pClient);
+			return __xrtImapClientFailPreserveError(pClient);
 		}
 		return __xrtImapAuthError(
 			XERR_PROTOCOL,
@@ -7662,6 +7662,9 @@ static bool __xrtImapCommandFinish(
 			if ( (pInfo != NULL) &&
 				(xrtImapMailboxInfoUpdate(&Final, pInfo) ==
 				 XMAIL_NEXT_ERROR) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP mailbox response code"
@@ -7686,6 +7689,9 @@ static bool __xrtImapCommandFinish(
 			(Event.Kind == XIMAP_EVENT_RESPONSE) &&
 			(xrtImapMailboxInfoUpdate(&Event.Response, pInfo) ==
 			 XMAIL_NEXT_ERROR) ) {
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				return __xrtImapClientFailPreserveError(pClient);
+			}
 			return __xrtImapClientProtocolFail(
 				pClient,
 				"invalid IMAP mailbox status response"
@@ -7774,6 +7780,12 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 			sizeof(*pResponse),
 			pInfo,
 			sizeof(*pInfo)
+		) || !xrtMemRangeValid(pResponse->Source.Data, pResponse->Source.Size) ||
+		!xrtMemRangeValid(pResponse->Text.Data, pResponse->Text.Size) ||
+		xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Source.Data, pResponse->Source.Size
+		) || xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Text.Data, pResponse->Text.Size
 		) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;

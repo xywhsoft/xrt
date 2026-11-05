@@ -59,8 +59,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 合并一条邮箱更新。已知 UID/序号/计数按 uint32 数值域校验；拒绝时摘要不变。
- * 泛型数字与既有 MODSEQ 的 uint64 支持不受影响。 */
+/* 合并一条邮箱更新。摘要须与响应对象及 Source/Text 借用范围分离；拒绝时摘要不变。
+ * 已知 UID/序号/计数按 uint32 数值域校验，泛型数字和 MODSEQ 保留 uint64。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo

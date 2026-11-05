@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证及已知数值/摘要边界本地通过，借用重叠与最终 CI 继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证、数值与借用范围本地通过，APPEND/BODY 主错误保真与最终 CI 继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -2284,3 +2284,62 @@ ximap-numbers-independent-{tls,compress}-{windows,linux}.json、
 ximap-numbers-{final-input-audit,final-validation}.json、
 ci-48d3d47c-terminal-proof.json、ximap-auth-exact-head-ci-proof.json、
 ximap-mailbox-alias-candidate.json、ximap-mailbox-alias-next-plan.json。
+
+
+### 第六十二批：IMAP 借用范围分离与主诊断 OOM
+
+- 360a0735 的九十七项 IMAP 原始输入绑定 Git 和实际 native 文件；生产实现未改时，
+  四个 Windows/Linux GCC 模块化、单头正式程序各二十四项结果均为 10 FAIL/14 PASS。
+  最初二十纯场景的四个 8 FAIL/12 PASS 程序单独归档；测试初稿的一次未定义 byte
+  转换类型编译错误也保留原日志，不计为产品缺陷或正式基线。
+- 邮箱摘要输出明确与响应对象、Source/Text 非空借用范围分离。标量结果不携带借用
+  字符串，因此这是公开写明的输入/输出分离约定，不把全部重叠原先都描述为既有契约
+  违规。实现先校验范围几何并拒绝任意一字节重叠，再解析或写摘要；即使 Source/Text
+  分别来自相同内容的两个真实公开解析结果、或未知扩展也执行同一约定。相邻合法范围、
+  NULL/零长度 Source、分离存储的已知更新和未知扩展控制保持；不声称验证任意地址映射。
+- 独立公开错误通知探针在真实 Open/SELECT 流程确认：原实现分配故障位置四已先报告
+  MEMORY，后续通用协议诊断却覆盖主错误。线程局部、一次性 fail injection 的实现和
+  error handler 通知语义已复核；另区分已报告 PROTOCOL 后才发生的次级诊断/清理 OOM，
+  不把这些当成相同缺陷。原 native 库对象、探针及二进制哈希保留。
+- CommandFinish 的 untagged、tagged 两处分支在 MailboxInfoUpdate 返回 ERROR 且当前
+  为 MEMORY 时走既有保留错误的失败路径。原 AuthFail 私有助手重命名为
+  FailPreserveError，编译条件扩为 AUTH 或 COMMAND，失败实现和认证行为保持；正常
+  非法远程响应仍归类 PROTOCOL。只改 Auth/Client/Command 三个自有 C，无新增公共 API。
+- 共享二十四项结果由二十个纯场景、两个正常真实会话控制、两个 0..31 故障位置扫描
+  组成；每个程序共创建六十六个公开 Open 客户端。观察器按不可变所属线程过滤通知，
+  验证主 MEMORY 不被覆盖；tagged 路径核对已保存的非法完整响应。FAILED 场景在显式
+  Abort 前等待 peer EOF/错误及 native join，最后验证 Engine 五零计数和逻辑内存清理。
+  未触发的配置位置只算控制，不称六十四次实际 OOM，也不称穷尽分配器或调度空间。
+- 完整选择仅各追加一项，为 28 模块化加 20 单头；原源码、示例、定义、链接及旧测试
+  顺序不变。Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/泄漏
+  检查、TCC 四套各四十八程序通过，另八个最小定向程序各二十四项全通过。
+- 本批计入 242 次选中程序/消费者运行：完整选择 192、定向 8、示例 10、最小模块
+  程序 28、静态/共享消费者 4。两次 host-client 只打印无参数用法；两个没有模块资产
+  的最小 TLS 选择不计程序。不另算显式模块 TLS 消费者或独立 Clang 压缩矩阵。两端
+  TLS/STARTTLS 二十四场景、压缩互通 180 场景及实际二进制哈希核对通过。
+- 每端 101 个公开导出、十二个 size 产物符号约束、trim、五项元数据及 137 项工具测试
+  通过。工具首轮报告 137 OK 后，忽略目录中的汇总守卫错把后续正常 stdout 判失败；
+  保留原日志，修正守卫后重新捕获实际 exit0，不把两轮相同工具测试累加为覆盖量。
+  十二个已安装头非注释 token 与 360a0735 相同；1928 项最终 Windows/native 输入
+  全程冻结并一致，另绑定最终提交 Git 内容。有效路径只增加范围比较，不分配或拷贝；
+  拒绝的错误对象构造仍可分配，主 MEMORY 路径省掉次级诊断；无全路径零开销声明。
+- 数值批 360a0735 的 immutable attempt1 为 72/73 成功，独立邮件成功；唯一失败为
+  Windows ACME 的 bounded chunk-extension memory 夹具触发 3000ms 正文截止时间，
+  日志的内存增长低于 4MiB 上限。保存失败原始日志、完整任务列表和 PR 实际状态，
+  单独隔离验证，不称整轮全绿或用历史 0076d96e/48d3d47c 的七十三全绿替代本批 CI。
+- 追加两个小型真实公开会话探针，分别在 APPEND、BODY 的故障位置三确认主 MEMORY
+  被通用 PROTOCOL 覆盖；APPEND 已保存非法 tagged APPENDUID，BODY 已收到非法 FETCH
+  literal。绑定当前 1928 项冻结输入和 169 个原库对象；这是本批 WIP 物理源码 epoch
+  的后续线索，不冒充下一批已提交 head 的正式四程序基线，也不称本批已修复这两处。
+  后续须补正式有效控制、模块化/单头和交付验证。逐 API 复核与本批新提交 CI 继续；
+  IMAP 尚未验收，累计 8/21。
+  保留其他平台、TSan、长稳、外部账号和性能限制，不合并或发布。
+
+证据：ximap-alias-before-{provenance,native-inputs,windows,linux}.json、
+ximap-diagnostic-oom-before-linux.json、ximap-alias-{selection-proof,source-review,api-source-map}.json、
+ximap-alias-{final,round}-{windows,linux}.json、ximap-alias-checks.json、
+ximap-alias-independent-{tls,compress}-{windows,linux}.json、
+ximap-alias-{input-audit,final-input-audit,final-validation}.json、ximap-alias-tooling-process.json、
+ximap-numbers-exact-head-ci-proof.json、ci-360a0735-final-{run,jobs,mail}.json、
+ci-360a0735-acme-windows-raw.log、ximap-post-alias-review.json、
+ximap-{append,body}-diagnostic-candidate-linux.json。

@@ -181,3 +181,18 @@ STATUS UNSEEN 零计数控制。九个真实 TCP/public Open 会话检查 SELECT
 非法数值终态、合法最大值和空邮箱、服务器拒绝后的复用，以及本地非法邮箱、线路
 超限和引号 OOM 不清空输出、不消耗命令。终态先观察 peer EOF 并 join，再显式清理；
 全部场景后核对 Engine 资源计数和逻辑内存释放。
+
+
+## 邮箱借用范围与诊断 OOM 回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_mailbox_alias_tests --no-examples
+```
+
+模块化与单头共享二十四项结果：响应对象、Source/Text 的分离约定，单字节或分离
+存储的重叠拒绝，NULL/回绕范围，相邻合法存储、未知扩展和成功调用保留原错误。
+拒绝诊断 OOM 检查输入与输出完整字节不变；两个真实 TCP/public Open 选择场景
+分别覆盖 untagged/tagged 非法响应的正常协议诊断及 0..31 个主线程分配故障位置。
+公开错误通知器只观察所属线程，区分已存在的协议错误之后的清理 OOM，验证主 MEMORY
+不被后续报告覆盖；失败终态先观察 peer EOF 并 join，再显式 Abort。最后核对 Engine
+资源计数和逻辑内存释放。

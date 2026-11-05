@@ -50,8 +50,8 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH)
-bool __xrtImapClientAuthFail(ximapclient* pClient);
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+bool __xrtImapClientFailPreserveError(ximapclient* pClient);
 #endif
 
 

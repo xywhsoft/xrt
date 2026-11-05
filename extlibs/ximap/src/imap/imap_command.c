@@ -315,6 +315,9 @@ static bool __xrtImapCommandFinish(
 			if ( (pInfo != NULL) &&
 				(xrtImapMailboxInfoUpdate(&Final, pInfo) ==
 				 XMAIL_NEXT_ERROR) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP mailbox response code"
@@ -339,6 +342,9 @@ static bool __xrtImapCommandFinish(
 			(Event.Kind == XIMAP_EVENT_RESPONSE) &&
 			(xrtImapMailboxInfoUpdate(&Event.Response, pInfo) ==
 			 XMAIL_NEXT_ERROR) ) {
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				return __xrtImapClientFailPreserveError(pClient);
+			}
 			return __xrtImapClientProtocolFail(
 				pClient,
 				"invalid IMAP mailbox status response"
@@ -427,6 +433,12 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 			sizeof(*pResponse),
 			pInfo,
 			sizeof(*pInfo)
+		) || !xrtMemRangeValid(pResponse->Source.Data, pResponse->Source.Size) ||
+		!xrtMemRangeValid(pResponse->Text.Data, pResponse->Text.Size) ||
+		xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Source.Data, pResponse->Source.Size
+		) || xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Text.Data, pResponse->Text.Size
 		) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
