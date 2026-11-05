@@ -7180,3 +7180,35 @@ WSL Git metadata uses explicit Linux paths. Next audit stopped component-byte
 snapshots against physical adapter destruction, then improve measurement precision
 and bounded recurrence work. All four products and the complete goal remain in
 development; durable scheduling and protocol/performance/long-run gates remain.
+
+## 2026-11-05 - retained service component-byte snapshots
+
+Previous goal turn was progress: precise waiters were implemented, validated and
+committed in7dcc8d36. Both worktrees are clean at that parent before this stage.
+An audit confirms that the prior guide intentionally described sampled/provisioned
+bytes. The developing semantic contract now reports retained component allocations
+consistently, with no layout/signature changes (config136, stats344). This is an
+observability contract change; the previous adapter was already physically freed.
+
+The new regression holds the first clock callback. The old implementation reports
+5704 bytes (arena only, kernel0/adapter0) despite8688 budget-charged bytes and fails
+the new invariant. Complete metadata is now published before Create exposes the
+service. On Windows it reports8584 component bytes, then7960 after stopping;
+actual charged bytes fall8688 to8064, exactly the624-byte adapter. Remaining
+thread/bootstrap charges are explicitly outside component totals. Both
+AdapterBytes and Executor.Bytes become0 under the mutex before stop publication;
+other executor counters/limit remain historical. Waiter-release failure also
+retains correct component totals. Final Destroy returns all charged allocations.
+
+Windows and WSL modular/single service/primitive/memory regressions, examples and
+static/shared consumers pass. WSL uses O2 ASan/UBSan/leak-halt and two separate O1
+TSan units. The66 tools and feature/single/reference/docs checks pass. No new
+allocation, thread or storage is introduced; cost is one constant startup snapshot
+and one constant stop update. The ordinary owner snapshot still takes one mutex
+critical section. No fresh performance or native Linux qualification is inferred.
+
+Evidence: extlibs/xcron/tests/results/service-resources-20261105.json and
+out/service-extensions/xcron-accounting/. Next implement resumable calendar work
+as a prerequisite for truly bounded zone/scheduler/command processing. Existing
+recurrence CPU, persistence/zone/DST, protocol and performance/long-run requirements
+remain active.

@@ -102,13 +102,17 @@ One arena preallocates commands/replies, completion reservations, mapping/retry
 heap and batches. All counts are positive; BatchLimit cannot exceed RunLimit or
 CompletionLimit; reserved fields are zero. Checked arithmetic reserves
 `arena + Scheduler.BytesLimit + AdapterBytesLimit <= BytesLimit` before allocation.
-Stats.Bytes reports the provisioned requested arena/kernel/adapter footprint. The
-kernel/adapter, clock and attempt/retry counters are owner-turn snapshots: they
-can lag ready replies/results, and initially show only the arena until the first
-turn publishes its snapshot. The stopped snapshot retains the final adapter
-layout bytes after the owner has released that adapter. Reservation/reply counters
-are read under the service mutex; these footprint fields are not a live-heap/RSS
-measurement. Borrowed zones,
+Stats.Bytes reports the currently retained requested arena/kernel/adapter bytes.
+The initial complete allocation snapshot is published before Create exposes the
+service, independently of whether the first Clock callback has returned. After
+physical adapter destruction, AdapterBytes and Stats.Executor.Bytes become zero,
+and Bytes equals ArenaBytes + KernelBytes before stop is published. Other executor
+fields retain their final lifetime counters and configured limit. Kernel job/clock
+and attempt/retry fields remain owner-turn snapshots and may lag ready outputs.
+All component fields are published together under the service mutex; their sum is
+consistent in every snapshot. This replaces the earlier provisioned/sampled byte
+semantics without changing layouts or signatures. These are component requested
+bytes, not total allocation-budget charge, live process heap or RSS. Borrowed zones,
 Data, pool, diagnostics, callbacks and native/Core bootstrap are outside this cap.
 Optional InitializationBudget charges the direct creator allocations and explicit
 owner kernel/adapter startup; its pointer is borrowed only during Create. Blocks

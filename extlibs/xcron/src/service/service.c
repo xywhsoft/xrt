@@ -213,14 +213,18 @@ static void xcronServiceCommand(xcronservice* S,uint32 I)
     if(!OK)R.Error=xrtTakeError();else xrtClearError();
     xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_READY;--S->Stats.PendingRequests;++S->Stats.ReadyReplies;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);
 }
+static void xcronServiceStatsSet(xcronservice* S,const xcronschedulerstats* K,const xcronexecutorstats* E)
+{
+    xrtMutexLock(&S->Mutex);S->Stats.Kernel=*K;S->Stats.Executor=*E;S->Stats.KernelBytes=K->Bytes;S->Stats.AdapterBytes=E->Bytes;
+    S->Stats.Bytes=S->ArenaBytes+K->Bytes+E->Bytes;S->Stats.LastClock=S->Now;S->Stats.Unsent=S->RetryCount;
+    S->Stats.SubmitAttempts=S->SubmitAttempts;S->Stats.RejectedSubmissions=S->RejectedSubmissions;S->Stats.Retries=S->Retries;S->Stats.AdmissionExpired=S->AdmissionExpired;
+    xrtMutexUnlock(&S->Mutex);
+}
 static bool xcronServicePublishStats(xcronservice* S,xcronschedulerstats* K,xcronexecutorstats* E)
 {
     if(!xcronSchedulerInspect(S->Kernel,K,NULL)){xcronServiceFault(S,XCRON_SERVICE_KERNEL);return false;}
     if(!xcronExecutorInspect(S->Bridge,E,NULL)){xcronServiceFault(S,XCRON_SERVICE_EXECUTOR);return false;}
-    xrtMutexLock(&S->Mutex);S->Stats.Kernel=*K;S->Stats.Executor=*E;S->Stats.KernelBytes=K->Bytes;S->Stats.AdapterBytes=E->Bytes;
-    S->Stats.Bytes=S->ArenaBytes+K->Bytes+E->Bytes;S->Stats.LastClock=S->Now;S->Stats.Unsent=S->RetryCount;
-    S->Stats.SubmitAttempts=S->SubmitAttempts;S->Stats.RejectedSubmissions=S->RejectedSubmissions;S->Stats.Retries=S->Retries;S->Stats.AdmissionExpired=S->AdmissionExpired;
-    xrtMutexUnlock(&S->Mutex);return true;
+    xcronServiceStatsSet(S,K,E);return true;
 }
 /* Owner during stop, or an exclusive caller after native join on retry. */
 static bool xcronServiceWaiterRelease(xcronservice* S)
@@ -239,6 +243,12 @@ static int32 xcronServiceOwner(ptr Raw)
     if(OK && !xcronSchedulerCreate(&S->Config.Scheduler,&S->Kernel,NULL)){OK=false;Code=xrtErrorKind(xrtGetError())==XERR_MEMORY?XCRON_SERVICE_MEMORY:XCRON_SERVICE_KERNEL;}
     xcronexecutorconfig B={.Executor=S->Config.Executor,.Proc=S->Config.Proc,.Context=S->Config.Context,.Notify=xcronServiceSignal,.NotifyContext=S,.RunLimit=S->Config.Scheduler.RunLimit,.BytesLimit=S->Config.AdapterBytesLimit};
     if(OK && !xcronExecutorCreate(&B,&S->Bridge,NULL)){OK=false;Code=xrtErrorKind(xrtGetError())==XERR_MEMORY?XCRON_SERVICE_MEMORY:XCRON_SERVICE_EXECUTOR;}
+    if(OK){
+        xcronschedulerstats K;xcronexecutorstats E;
+        if(!xcronSchedulerInspect(S->Kernel,&K,NULL)){OK=false;Code=XCRON_SERVICE_KERNEL;}
+        else if(!xcronExecutorInspect(S->Bridge,&E,NULL)){OK=false;Code=XCRON_SERVICE_EXECUTOR;}
+        else xcronServiceStatsSet(S,&K,&E);
+    }
     /* Last fallible startup resource: Init failure owns no native timer. The
      * owner, not the creator, binds the reusable wait context to its thread. */
     if(OK && !xrtEventWaiterInit(&S->Waiter,&S->Wake,0)){OK=false;Code=XCRON_SERVICE_SYSTEM;}
@@ -303,6 +313,10 @@ static int32 xcronServiceOwner(ptr Raw)
         xrtMutexUnlock(&S->Mutex);
         if(Stop){
             if(!xcronExecutorDestroy(S->Bridge,NULL)){xcronServiceFault(S,XCRON_SERVICE_EXECUTOR);continue;}S->Bridge=NULL;
+            /* Publish actual retained allocations. Other executor fields remain
+             * the final lifetime counters/configuration, not a live object. */
+            xrtMutexLock(&S->Mutex);S->Stats.AdapterBytes=0;S->Stats.Executor.Bytes=0;
+            S->Stats.Bytes=S->ArenaBytes+S->Stats.KernelBytes;xrtMutexUnlock(&S->Mutex);
             if(!xcronServiceWaiterRelease(S))xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
             xrtMutexLock(&S->Mutex);S->Stopped=true;S->Stats.State=S->Stats.Failure.Code==XCRON_SERVICE_OK?XCRON_SERVICE_STOPPED:XCRON_SERVICE_FAILED;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);return 0;
         }

@@ -60,6 +60,9 @@ typedef struct xcronservicecompletion {
     xerror* Error;
 } xcronservicecompletion;
 typedef struct xcronservicestats {
+    /* Requested retained component allocations: complete before publication,
+     * AdapterBytes/Executor.Bytes become zero on physical adapter destruction.
+     * Other executor fields retain their final counters/configuration at stop. */
     size_t Bytes,ArenaBytes,KernelBytes,AdapterBytes;
     xcronservicestate State;
     uint32 PendingRequests,ReadyReplies,ReservedCompletions,ReadyCompletions,Unsent;

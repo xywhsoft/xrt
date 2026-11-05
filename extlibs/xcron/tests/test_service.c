@@ -64,6 +64,24 @@ static void serviceClear(servicefixture* F)
     xcronretired R;bool Found;do{testRequire(xcronServiceReapStopped(F->Service,&R,&Found,NULL),"post-stop retirement");if(Found)testRequire(R.Data==F,"returned original data");}while(Found);
     testRequire(xcronServiceDestroy(F->Service,NULL),"destroy duty-free service");F->Service=NULL;
 }
+static void testServiceResourceBytes(void)
+{
+    servicefixture F=serviceFixture();xrtAtomic32Store(&F.HoldClock,1,XMEMORY_RELEASE);
+    xexecutor* E=servicePool(1,8);xcronserviceconfig C=serviceConfig(E,&F);
+    xallocationbudget* B=NULL;testRequire(xrtAllocationBudgetCreate(SIZE_MAX,&B),"resource snapshot allocation budget");C.InitializationBudget=B;serviceStart(&F,&C);
+    serviceUntil(&F.ClockEntered,1,"owner held before first clock sample");
+    xcronservicestats T=serviceStats(F.Service);xallocationbudgetinfo Before={.Size=sizeof(Before)},After={.Size=sizeof(After)};
+    testRequire(xrtAllocationBudgetInfo(B,&Before),"physical startup charge");
+    printf("[resource] before-clock bytes=%zu arena=%zu kernel=%zu adapter=%zu charged=%zu\n",T.Bytes,T.ArenaBytes,T.KernelBytes,T.AdapterBytes,Before.LiveBytes);
+    testRequire(T.KernelBytes && T.AdapterBytes && T.Executor.Bytes==T.AdapterBytes && T.Bytes==T.ArenaBytes+T.KernelBytes+T.AdapterBytes && Before.LiveBytes>=T.Bytes,"all allocated components visible before the first clock callback returns");
+    size_t Adapter=T.AdapterBytes,Arena=T.ArenaBytes,Kernel=T.KernelBytes;
+    xrtAtomic32Store(&F.HoldClock,0,XMEMORY_RELEASE);serviceStop(&F);T=serviceStats(F.Service);
+    testRequire(xrtAllocationBudgetInfo(B,&After),"physical stopped charge");
+    printf("[resource] stopped bytes=%zu adapter=%zu charged=%zu dropped=%zu\n",T.Bytes,T.AdapterBytes,After.LiveBytes,Before.LiveBytes-After.LiveBytes);
+    testRequire(!T.AdapterBytes && !T.Executor.Bytes && T.Bytes==Arena+Kernel && !T.Executor.Active && !T.Executor.Producers && T.Executor.Closed,"stopped snapshot excludes physically freed adapter and retains closed history");
+    testRequire(Before.LiveBytes>=After.LiveBytes && Before.LiveBytes-After.LiveBytes>=Adapter && After.LiveBytes>=T.Bytes,"public byte counters agree with physical allocation-budget release");
+    serviceClear(&F);testRequire(xrtAllocationBudgetInfo(B,&After) && !After.LiveBytes && !After.LiveCount,"destroy returns arena, kernel and native thread charges");xrtAllocationBudgetFree(B);servicePoolEnd(E);
+}
 static void testServiceCredits(void)
 {
     servicefixture F=serviceFixture();xexecutor* E=servicePool(1,8);xcronserviceconfig C=serviceConfig(E,&F);C.CompletionLimit=C.BatchLimit=1;serviceStart(&F,&C);
@@ -229,6 +247,6 @@ static void testServiceFold(void)
 }
 int main(void)
 {
-    testServiceCredits();testServiceCommands();testServiceRetries();testServiceReentryAndClock();testServicePhysicalResults();testServiceConcurrency();testServiceBudgetAndWarm();testServiceRealClock();testServiceWallJumps();testServiceArguments();testServiceCloseRace();testServiceFold();
+    testServiceResourceBytes();testServiceCredits();testServiceCommands();testServiceRetries();testServiceReentryAndClock();testServicePhysicalResults();testServiceConcurrency();testServiceBudgetAndWarm();testServiceRealClock();testServiceWallJumps();testServiceArguments();testServiceCloseRace();testServiceFold();
     puts("[PASS] live cron service: reserved outputs/commands/data duties/retry bounds/self-wait/clock failure/physical cancellation/512 concurrent commands/OOM/2048 zero-heap cycles/real clock");return 0;
 }

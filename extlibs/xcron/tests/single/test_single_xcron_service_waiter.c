@@ -82,7 +82,7 @@ static void testWaiterFaults(void)
         if(Mode)testRequire(xcronServiceClose(F.Service,false,NULL),"close before injected release failure");
         testRequire(xcronServiceWaitFor(F.Service,10000,NULL)==XWAIT_OK,"native waiter failure still physically joins owner");
         xcronservicestats T=serviceStats(F.Service);
-        testRequire(T.State==XCRON_SERVICE_FAILED && T.Failure.Code==XCRON_SERVICE_SYSTEM && T.Failure.Cause==XERR_IO,"wait/release failure remains observable");
+        testRequire(!T.AdapterBytes && !T.Executor.Bytes && T.Bytes==T.ArenaBytes+T.KernelBytes && T.State==XCRON_SERVICE_FAILED && T.Failure.Code==XCRON_SERVICE_SYSTEM && T.Failure.Cause==XERR_IO,"wait/release failure remains observable");
         xerror* Error=NULL;testRequire(xcronServiceFailure(F.Service,&Error,NULL) && Error,"first waiter failure is owned");xrtErrorFree(Error);
         testRequire(T.ActiveNativeTimers==(Mode?T.Waiter.NativeTimers:0) && xrtAtomic32Load(&LiveWaiters,XMEMORY_ACQUIRE)==Mode,"failed release retains resource; successful stop releases before join");
         if(Mode){
