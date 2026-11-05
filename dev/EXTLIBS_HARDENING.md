@@ -1992,3 +1992,28 @@ xsmtp-auth-{before,final}-{windows,linux}.json、xsmtp-auth-selection-proof.json
 xsmtp-auth-round-{windows,linux}.json、xsmtp-auth-{size,performance}-{windows,linux}.json、
 xsmtp-auth-final-{exports,symbols}-{windows,linux}.json、xsmtp-auth-independent-tls-{windows,linux}.json、
 xsmtp-auth-{checks,input-audit,source-review,final-validation}.json。
+
+
+### 第五十四批：xsmtp 首轮验收
+
+- 不可变 head bf87f2c3 的 PR CI 42053767577 已成功，七十三个不同门禁均完成且成功；
+  同一 head 的独立邮件 42053754221 亦成功。PR 保持 OPEN draft，base 仍为
+  codex/fix-actions，当前 base 是该 head 的祖先。
+- 已记录的 1826 项历史 Windows/实际 WSL 输入重新逐一核对 Git blob 内容。当前 SMTP、
+  xmail、Core 和构建工具保持一致。IMAP 后续工作不在该证书内，不把广义支持文件的
+  当前快照说成与历史 BF 全部相同。观察期间旧的 run URL 曾返回 queued，与实时 job
+  列表不一致；最终证明使用带新观察参数的 run、七十三 job 终态与独立邮件记录。
+- 结合五十一、五十三批四个自有 C/四十三公开 API 的有界复核，非法等待、DATA 范围与
+  未完成 SASL 交换修复，十九程序四环境完整套件、八个九场景定向程序、最终 106 次
+  选中程序/消费者运行、二十四个独立 TLS 场景、每端四十三 API 导出和十二个符号约束
+  产物，计入 xsmtp 本轮完成。生产根 162 降至 157 源码的准确边界与原 Core TLS
+  client/server 依赖保持原证据口径。
+- 新 SASL 回归没有逐一强制每个凭据分配 OOM 位置；既有协议 OOM、TLS 上传及升级
+  生命周期回归保留。其他本地平台、TSan、长稳、外部账号和线路性能限制继续保留，
+  smoke 不作吞吐或零开销结论。
+- 累计 xjwt、xoauth2、xws-group、xws-client、xws-server、xpop3、xws、xsmtp，8/21。
+  IMAP 尚在压实和源码复核，不计入完成；长期任务继续，不合并或发布。
+
+证据：ci-bf87f2c3-{run,jobs,mail}-final.json、pr-5-smtp-acceptance-state.json、
+xsmtp-auth-{source-review,final-validation,commit-input-bindings}.json、
+xsmtp-bf87f2c3-{reverification,final-source-review}.json、xsmtp-first-round-acceptance.json。
