@@ -18,7 +18,33 @@ typedef struct testdialfutureoom {
 	xatomic32 Entered;
 	xatomic32 Gate;
 	xatomic64 Allocations;
+	xatomic32 ListenerError;
+	xatomic32 ListenerReady;
+	xnetlistener* Listener;
 } testdialfutureoom;
+
+static void testDialFutureOomListenerError(xnetlistener* pListener,
+	const xerror* pError, ptr pData)
+{
+	testdialfutureoom* pContext = (testdialfutureoom*)pData;
+	(void)pListener;
+	xrtAtomic32Store(&pContext->ListenerError,
+		(uint32)xrtErrorKind(pError), XMEMORY_RELEASE);
+}
+
+/* Listen binds synchronously but arms accepts on its Worker. This task uses
+ * the same FIFO as that startup task, before backing-allocation failure begins. */
+static void testDialFutureOomListenerReady(xnetworker* pWorker, ptr pData)
+{
+	testdialfutureoom* pContext = (testdialfutureoom*)pData;
+	xnetlistenerstats Stats;
+	(void)pWorker;
+	testRequire(xrtNetListenerStats(pContext->Listener, &Stats) &&
+		(Stats.State == XNET_LISTENER_OPEN) && (Stats.ActiveAccepts != 0) &&
+		(xrtAtomic32Load(&pContext->ListenerError, XMEMORY_ACQUIRE) == XERR_NONE),
+		"dial Future OOM listener did not finish startup");
+	xrtAtomic32Store(&pContext->ListenerReady, 1, XMEMORY_RELEASE);
+}
 
 
 
@@ -162,6 +188,7 @@ int main(void)
 	xnetengineconfig EngineConfig;
 	xnetresolverconfig ResolverConfig;
 	xnetlistenconfig ListenConfig;
+	xnetlistenerevents ListenEvents = {0};
 	xnetdialconfig DialConfig;
 	xnetengine* pEngine;
 	xnetresolver* pResolver;
@@ -210,16 +237,23 @@ int main(void)
 		XNET_FAMILY_IPV4,
 		0
 	), "dial Future OOM listener address failed");
+	ListenEvents.Error = testDialFutureOomListenerError;
 	pListener = xrtNetListen(
 		pEngine,
 		&ListenConfig,
+		&ListenEvents,
 		NULL,
-		NULL,
-		NULL
+		&Context
 	);
 	testRequire((pListener != NULL) &&
 		xrtNetListenerLocal(pListener, &Address),
 		"dial Future OOM listener create failed");
+	Context.Listener = pListener;
+	testRequire(xrtNetEnginePost(pEngine, ListenConfig.Affinity,
+		testDialFutureOomListenerReady, &Context),
+		"dial Future OOM listener startup fence failed");
+	testDialFutureOomWait(&Context.ListenerReady, 1,
+		"dial Future OOM listener startup fence timed out");
 	xrtNetDialConfigInit(&DialConfig);
 	DialConfig.Family = XNET_FAMILY_IPV4;
 	DialConfig.Timeout = 0;
@@ -281,7 +315,22 @@ int main(void)
 			"dial Future OOM pending terminal mismatch");
 		xrtFutureDestroy(pPending[i]);
 	}
-	testRequire(xrtNetEngineStats(pEngine, &EngineStats) &&
+	bool HaveStats = xrtNetEngineStats(pEngine, &EngineStats);
+	bool ListenerHealthy = (xrtNetListenerState(pListener) == XNET_LISTENER_OPEN) &&
+		(xrtAtomic32Load(&Context.ListenerError, XMEMORY_ACQUIRE) == XERR_NONE);
+	if ( !HaveStats || !ListenerHealthy || (EngineStats.LiveObjects != 1) ||
+		(EngineStats.ActiveTimers != 0) ) {
+		fprintf(stderr,
+			"dial Future OOM terminal snapshot: valid=%u pending=%zu "
+			"live=%zu timers=%zu commands=%zu listener=%u listener_error=%u\n",
+			(unsigned)HaveStats, iPending,
+			HaveStats ? EngineStats.LiveObjects : 0u,
+			HaveStats ? EngineStats.ActiveTimers : 0u,
+			HaveStats ? EngineStats.PendingCommands : 0u,
+			(unsigned)xrtNetListenerState(pListener),
+			(unsigned)xrtAtomic32Load(&Context.ListenerError, XMEMORY_ACQUIRE));
+	}
+	testRequire(HaveStats && ListenerHealthy &&
 		(EngineStats.LiveObjects == 1) &&
 		(EngineStats.ActiveTimers == 0),
 		"dial Future terminal retained a Dial Engine resource");

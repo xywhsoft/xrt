@@ -1488,3 +1488,47 @@ xws-client-accept-{windows,linux}.json、xws-client-setup-final-{windows,linux}.
 xws-client-selected-assets-final.json、xws-client-checks.json、xws-client-extra-linux.json、
 xws-client-{size,performance}-linux.json、xws-client-final-input-audit.json、
 xws-client-final-validation.json。暂停中断的构建日志另存 *-paused-20261105.log。
+
+
+### 第四十批测量补记
+
+- Windows 的 client/future/deflate 三个最小根实际编译运行通过；两个体积 profile 的
+  single/static/shared 六种产物和 request construction smoke 均已完成并通过。
+  Linux 对应部分同样完成。smoke 仅执行 50 次请求构造，不作为吞吐/回归结论。
+- 最终证据绑定 b8df81f5 的 30 项自有源码/头/测试/配置输入，详见
+  xws-client-final-validation.json、xws-client-extra-{windows,linux}.json、
+  xws-client-{size,performance}-{windows,linux}.json。该提交的 CI 出现下述独立 Core 夹具失败，
+  不能将此前本地通过或独立 mail 成功冒称本批完整远端 CI 成功。
+
+### 第四十一批：Dial Future OOM 的 Listener 启动隔离
+
+- b8df81f5 的 PR CI 41980100890 中，macOS Apple Clang job 127087975024 在 Core
+  test_net_tcp_dial_future_oom 失败，发生在 WebSocket 扩展步骤之前；原日志保留。
+  gh 的 run 日志命令拒绝未结束 run，job 日志又含终端控制符；最终使用 job API 下载原始
+  日志，并剥离控制符供分析，原始文件保留，不改变 CI 门禁。
+- 原断言只打印“终态保留 Dial Engine 资源”，本地第 21 次复现后补充计数，实际是
+  LiveObjects=0 / timers=0 / commands=0，含 7 个 pending Future。加入 Listener 错误
+  记录后第 39 次再次复现，Listener=CLOSED，错误类别 MEMORY。并非该本地失败
+  多保留了一个 Dial；所有网络/并发生产实现的 Git 输入与 b8df81f5 一致。
+- Listener 同步绑定地址但异步向 Worker 投递启动，原夹具等待的是另一 Resolver 线程，
+  可能在接受观察尚未启动时开启全局 backing allocator 故障，从而关闭作为恢复对端的
+  Listener。现先在同一 Worker、同一 FIFO 投递启动检查，确认 OPEN 且接受已挂起后
+  再注入原 OOM；原 4096 个上限、全局 backing 拒绝、MEMORY、Future 取消/终态、
+  LiveObjects==1 / timers==0 以及恢复连接断言全部保留。另检查 Listener 仍健康，
+  失败时输出准确资源/Listener 快照。不用 sleep、提高超时或容许零/额外占用换取通过。
+- 最终夹具仅去掉该启动等待的对照，第 3 次重新出现 CLOSED/MEMORY/LiveObjects=0；
+  对照源码和二进制留在忽略证据目录。带等待的 Windows GCC select 500 次、IOCP
+  200 次，Linux GCC all 1000 次、Clang ASan/UBSan/float-cast-overflow+leaks 100 次、
+  TCC 100 次，合计 1900 次重复全通过。
+- 相关完整 Dial Future 套件额外执行 Windows GCC 6 程序，Linux GCC / Clang sanitizer /
+  TCC 各 4 程序，全部通过；Linux io_uring 包含入口仅编译通过，未在受限内核运行。
+  Core 单头生成检查通过。本批只修改共享测试夹具，生产实现及公开 API 不变。
+- macOS 原日志未记录计数，因此上述 Listener 路径是本地确认的同断言失败原因，
+  不宣称已经证明远端原失败的唯一原因；新提交仍须重新运行 macOS CI 验证。
+  下一步继续 HTTP/WebSocket Future 对应路径及其余产品验收，整轮保持 3/21。
+
+证据：ci-b8df81f5-job-127087975024-{raw,clean}.log、dial-oom-ci-before-provenance.json、
+dial-oom-ci-before-linux-gcc-repeat.json、dial-oom-listener-before-linux-gcc-repeat.json、
+dial-oom-*-before-fixture.c、dial-oom-ready-without-fence.{c,json} 及对应构建/重复日志；
+dial-oom-ready-{windows,linux}.json、dial-oom-ready-full-{windows,linux}.json、
+dial-oom-ready-linux-uring-compile.log、dial-oom-ready-final-validation.json。
