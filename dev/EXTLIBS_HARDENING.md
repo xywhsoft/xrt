@@ -2067,3 +2067,27 @@ ximap-tcc-final-initializer-proof.json、ximap-minimal-tls-consumer-{windows,lin
 ximap-deadline-independent-{tls,compress}-{windows,linux}.json、
 ximap-deadline-independent-compress-linux-clang.json、
 ximap-deadline-{checks,input-audit,api-source-map,source-review,final-validation}.json。
+
+
+### 第五十六批：Windows CI 的 Pebble 双协议端口预留
+
+- e4465100 的独立邮件已成功；主 CI 的 Windows ACME coverage 任务 127397737713
+  在真实 TCP/UDP DNS 预留测试失败，最后原因为 WinError 10013，六十四次后耗尽。
+  原日志未记录每次候选端口，不能据此声称每次端口都相同；源码确实每次重新 bind(0)，
+  无法保证 UDP 拒绝后会探测另一个端口。确定性模拟始终返回同一 TCP 候选、UDP 禁止
+  该端口，新增回归在原分配器稳定复现同一 RuntimeError。
+- 第一次仍使用系统临时端口；后续六十三次在非特权端口区间均匀探测不同候选。只有所有
+  请求协议均绑定成功才把句柄交给外层 ExitStack，失败候选完整释放；保持排他绑定，
+  无关 socket 错误直接传播，耗尽仍保留六十四次上限及最后原因。
+- 原重试测试改为验证新的候选与失败端口不同、TCP/UDP 绑定相同端口，不依赖某个固定
+  算法结果。新增重复内核候选回归，强化耗尽时六十四个绑定请求互异且后续全部处于
+  1024..65535；真实预留、两类权限/占用错误、句柄生命周期和无关资源错误控制保留。
+  Windows 和实际 Linux 各五项定向测试通过，无跳过；这些测试使用真实双协议预留及
+  确定性故障，不依赖重新运行碰巧避开问题。
+- 只修改两个 ACME 工具文件及本台账，未修改 workflow。两文件均不在正在验证的 IMAP
+  1922 项源码/构建依赖中，该快照保持不变。外部 Pebble 端到端没有在这次定向验证中
+  重跑，当前修复提交仍须后续 CI 验证。累计仍为 8/21，IMAP 未验收；不合并或发布。
+
+证据：ci-e4465100-acme-windows-job.log、
+acme-port-repeated-candidate-before-windows.log、acme-port-final-{windows,linux}.log、
+acme-port-repeated-candidate-validation.json。

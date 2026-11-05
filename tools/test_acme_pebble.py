@@ -35,18 +35,27 @@ def port(reserved: ExitStack, kinds: tuple[int, ...] = (socket.SOCK_STREAM,)) ->
 
     Windows TCP and UDP excluded ranges can differ. A port assigned to one
     transport is only a candidate for the other; retain both binds on success.
+    After rejection, probe distinct ports across the unprivileged range: a
+    released bind(0) candidate can otherwise be returned on every retry.
     """
     last = None
-    for _ in range(64):
+    attempts = 64
+    first = 1024
+    count = 65536 - first
+    stride = count // attempts
+    origin = first
+    for attempt in range(attempts):
         with ExitStack() as candidate:
-            number = 0
+            number = 0 if attempt == 0 else first + (origin - first + attempt * stride) % count
             try:
                 for kind in kinds:
                     handle = candidate.enter_context(socket.socket(socket.AF_INET, kind))
                     if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
                         handle.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
                     handle.bind(("127.0.0.1", number))
-                    number = handle.getsockname()[1]
+                    if number == 0:
+                        number = handle.getsockname()[1]
+                        origin = number
             except OSError as error:
                 if error.errno not in (errno.EACCES, errno.EADDRINUSE, 10013, 10048):
                     raise

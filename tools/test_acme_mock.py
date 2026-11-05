@@ -474,14 +474,56 @@ class PebblePortTests(unittest.TestCase):
 					handle.getsockname.return_value = ("127.0.0.1", 42000 + index // 2)
 				handles[1].bind.side_effect = OSError(reason, "unavailable for UDP")
 				with patch.object(pebble.socket, "socket", side_effect=handles), ExitStack() as reserved:
-					self.assertEqual(pebble.port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM)), 42001)
+					number = pebble.port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM))
+					self.assertNotEqual(number, 42000)
+					self.assertGreaterEqual(number, 1024)
+					self.assertLessEqual(number, 65535)
 					for handle in handles[:2]:
 						handle.__exit__.assert_called_once()
 					for handle in handles[2:]:
 						handle.__exit__.assert_not_called()
-					self.assertEqual(handles[3].bind.call_args.args, (("127.0.0.1", 42001),))
+					for handle in handles[2:]:
+						self.assertEqual(handle.bind.call_args.args, (("127.0.0.1", number),))
 				for handle in handles:
 					handle.__exit__.assert_called_once()
+
+	def test_dns_retry_does_not_repeat_kernel_candidate(self):
+		"""Closing TCP after UDP rejection may make bind(0) repeat that port."""
+		from contextlib import ExitStack
+		import errno
+		import socket
+		from unittest.mock import MagicMock, patch
+		from tools import test_acme_pebble as pebble
+		handles = []
+
+		def create_handle(family, kind):
+			self.assertEqual(family, socket.AF_INET)
+			handle = MagicMock()
+			handle.__enter__.return_value = handle
+			handle.getsockname.return_value = ("127.0.0.1", 42000)
+
+			def bind(address):
+				if kind == socket.SOCK_DGRAM and address[1] == 42000:
+					raise OSError(errno.EACCES, "TCP candidate excluded for UDP")
+
+			handle.bind.side_effect = bind
+			handles.append(handle)
+			return handle
+
+		with patch.object(pebble.socket, "socket", side_effect=create_handle), ExitStack() as reserved:
+			number = pebble.port(reserved, (socket.SOCK_STREAM, socket.SOCK_DGRAM))
+			self.assertNotEqual(number, 42000)
+			self.assertGreaterEqual(number, 1024)
+			self.assertLessEqual(number, 65535)
+			self.assertEqual(len(handles), 4)
+			self.assertEqual(handles[0].bind.call_args.args, (("127.0.0.1", 0),))
+			for handle in handles[:2]:
+				handle.__exit__.assert_called_once()
+			for handle in handles[2:]:
+				self.assertEqual(handle.bind.call_args.args, (("127.0.0.1", number),))
+				handle.__exit__.assert_not_called()
+		for handle in handles:
+			handle.__exit__.assert_called_once()
 
 	def test_unrelated_socket_failure_is_not_retried(self):
 		from contextlib import ExitStack
@@ -512,6 +554,10 @@ class PebblePortTests(unittest.TestCase):
 			self.assertIsInstance(failure.exception.__cause__, OSError)
 			self.assertEqual(factory.call_count, 64)
 			self.assertEqual(handle.__exit__.call_count, 64)
+			candidates = [call.args[0][1] for call in handle.bind.call_args_list]
+			self.assertEqual(candidates[0], 0)
+			self.assertEqual(len(set(candidates)), 64)
+			self.assertTrue(all(1024 <= number <= 65535 for number in candidates[1:]))
 
 
 if __name__ == "__main__":
