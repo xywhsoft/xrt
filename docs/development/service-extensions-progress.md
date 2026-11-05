@@ -7437,3 +7437,84 @@ pre-empty-shortcut snapshots. Next resolve the Windows performance differences
 with qualified native measurements; named database/reload, nominal DST delivery,
 durable recovery and the original Redis/RPC/MQTT scopes remain active. None of
 the four libraries has completed the native/performance/>=72h production gates.
+
+## 2026-11-05 - budgeted scheduler control-path measurement and refinement
+
+Previous goal turn was progress: f64a1bad delivered transactional live admission
+and global recurrence budgets and was synchronized to master. Both worktrees
+start clean there. This stage addresses the recorded control-path overhead;
+it does not close the original performance or product acceptance gates.
+
+Each action formerly built a three-entry availability array and performed a
+modulo/index loop. Direct ordered branches now implement the exact same cyclic
+orders0/1/2,1/2/0,2/0/1 with the same turn update. Eager query results replace the
+complete LastIssue/HasNext value directly, avoiding an immediately overwritten
+clear; every empty/error/deferred path still initializes its complete result.
+No public/private layout, ABI, budget, action cap, query credit, ownership,
+allocation, lock or error contract changes. Generated single code is updated.
+
+GCC static disassembly confirms removal of the modulo3 selection and16 fewer
+prologue stack-reservation bytes on both x64 platforms (Windows408 to392,
+WSL360 to344, excluding pushes/callees). Full-function static instruction counts
+are700 to693 and673 to679 respectively: this is not a claim that every path has
+fewer executed instructions or a guarantee of speedup. Existing query416/job,
+hot slot240, validation/issue/output/LastPoll copies, calendar/zone/queue work,
+startup reserve and cold scans retain their real costs. No Core/runtime change.
+
+Final2478 protected inputs agree on Windows/WSL and remain unchanged through
+every accepted check. Both pass19 modular/single programs, updated scheduler
+example and static/shared real consumers. The184320 independent policy-model
+samples per scheduler program, actual clock-boundary owner tests, global budget/
+output-credit/admission/physical-lease/OOM/zero-heap cases and cross-call starvation
+regression remain intact. WSL O2 ASan/UBSan/leak-halt and four O1 TSan units pass;
+Windows79 tool tests and feature/single/reference/docs checks pass. No extra
+implementation-mirroring test substitutes for those behavioral checks.
+
+The four existing profiles, source workload, flags and5% throughput/10% P99 plus
+MAD3%/central-range6% gates are unchanged. Official current/baseline fingerprints
+match naturally; neither report is rewritten or force paired. Both formal
+reports still fail noise gates. Their raw median comparisons also breach original
+limits, including budgeted1-job throughput (Windows4.632M versus5.497M/s and
+WSL5.026M versus6.981M/s), WSL budgeted128-job P99 (23.8 versus20.1us) and
+several unchanged synchronous controls. These remain unresolved failed samples,
+not a qualified no-regression result. Further five alternating samples retain archived
+ee3a125a pre-budget, f64a1bad synchronous/budgeted and current synchronous/budgeted
+executables, every warmup, stdout/checksum and binary hash. Default probes retain
+200K/10K1/128-job batches. Separate own-process CPU4 affinity probes use1M/100K
+batches; they never replace the original qualification path.
+
+Windows pinned budgeted/before ratios are1.06178/1.04498 throughput and
+1.00000/0.96059 batch P99 for1/128 jobs. Versus the same-window pre-budget control,
+current ratios are1.11920/0.99535 throughput and1.00000/1.00000 P99. Unpinned
+budgeted/before ratios are0.99895/1.01595 throughput and0.66667/1.03382 P99.
+These observations do not close noise/native/production gates or erase the
+previous stage's failures. Actual Windows QPC frequency is10MHz (nominal0.1us
+tick);0.2/0.3us single-job P99 still obeys the original threshold without a
+quantization waiver.
+
+WSL exposes conflicting original/bulk results. Unpinned budgeted/before
+throughput0.94125/1.05060 and P99 1.00000/1.10965 exceed the original1-job
+throughput and128-job P99 limits. Pinned throughput0.92797/1.03603 also breaches
+the1-job5% limit; P99 is1.00000/0.96569. A targeted three-binary1M single-job
+isolation then gives class-only1.00098 and both-edits1.02222 versus before,
+with equal P99. It does not reproduce the suspected second-edit slowdown, but
+does not identify the root cause or excuse/remove any failed sample.
+
+The separate bulk diagnostic removes per-batch timer reads AND sample-array
+allocation/writes, retaining actual kernel Poll/advance/Complete and reporting
+no latency or worker/body execution. Windows records thread cycles; Linux records
+thread CPU nanoseconds, incomparable across platforms. Pinned budgeted CPU-unit
+ratios are Windows0.90984/0.96133 and WSL0.95317/0.96300 for1/128 jobs. Unchanged
+synchronous controls and all raw trials are retained to expose environment/code-
+placement variation; the differences cannot be attributed to timers alone.
+Local unrelated work was observed compiling on both systems and was preserved.
+No qualified general speedup/no-regression or production P99 claim follows.
+
+Portable evidence: extlibs/xcron/tests/results/budget-hotpath-20261105.json.
+Local raw recipes, assembly, before/class-only/current sources and binaries,
+setup-failure logs, full validation and original/CPU/isolation samples remain in
+`out/service-extensions/xcron-budget-hotpath/`. Native deployment isolation and
+the unresolved original performance gates remain required. Continue named-zone
+database/reload, nominal DST delivery, durability and the full Redis/RPC/MQTT
+scopes; all four libraries remain developing with native/performance/>=72h gates
+open. No recurring benchmark rerun is treated as new product completion.

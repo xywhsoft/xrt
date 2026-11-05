@@ -2931,8 +2931,8 @@ static void xcronSchedulerSearchStep(xcronscheduler* S,uint32 I,xcronzonedbudget
 XCRON_SCHEDULER_INLINE void xcronSchedulerSeek(xcronscheduler* S,uint32 I,xtime Begin,uint32 Flags,xcronpoll* Poll,xcronzonedbudget* Remaining,xcronzonedbudget* Used)
 {
     if(!Remaining){xcronSchedulerSearch(S,I,Begin,Flags,Poll);return;}
-    xcronjobslot* J=&S->Jobs[I];J->Info.HasNext=false;J->Info.LastIssue=(xcronzonedissue){.Field=XCRON_FIELD_NONE};
-    if(Begin>J->Config.End){J->Info.State=XCRON_JOB_EXHAUSTED;return;}
+    xcronjobslot* J=&S->Jobs[I];
+    if(Begin>J->Config.End){J->Info.HasNext=false;J->Info.LastIssue=(xcronzonedissue){.Field=XCRON_FIELD_NONE};J->Info.State=XCRON_JOB_EXHAUSTED;return;}
     /* Ready probes cannot spend the last segment/month credit ahead of an
      * already queued query. With Capacity=1 that otherwise repeats forever
      * across fresh polls, despite individually correct global counters. */
@@ -2942,12 +2942,14 @@ XCRON_SCHEDULER_INLINE void xcronSchedulerSeek(xcronscheduler* S,uint32 I,xtime 
         Remaining->Segments-=Work.SegmentsExamined;Remaining->Months-=(uint32)Work.MonthsExamined;
         Used->Segments+=Work.SegmentsExamined;Used->Months+=(uint32)Work.MonthsExamined;
         J->Info.LastIssue=(xcronzonedissue){Work.Code,Work.Field,Work.Zone,Work.SegmentsExamined,Work.MonthsExamined};
-        if(Status==XCRON_ZONED_FOUND){J->Info.State=XCRON_JOB_SCHEDULED;J->Info.HasNext=true;J->Info.Next=First;return;}
+        J->Info.HasNext=Status==XCRON_ZONED_FOUND;
+        if(Status==XCRON_ZONED_FOUND){J->Info.State=XCRON_JOB_SCHEDULED;J->Info.Next=First;return;}
         if(Status==XCRON_ZONED_NONE){J->Info.State=XCRON_JOB_EXHAUSTED;return;}
         if(Status==XCRON_ZONED_ERROR){J->Info.State=XCRON_JOB_FAULTED;xcronSchedulerIncrement(&S->Stats.Faults);if(Poll)++Poll->Faults;return;}
         xcronzonedvalue* V=&S->Searches[I];xcronZonedValueRestart(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,V);
         V->Work=Work;V->Calendar.First=Local;V->Offset=Offset;xcronZoneWalkInit(J->Config.Zone,First,&V->Transition);V->Phase=1;
-    }else xcronZonedValueRestart(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,&S->Searches[I]);
+    }else {J->Info.HasNext=false;J->Info.LastIssue=(xcronzonedissue){.Field=XCRON_FIELD_NONE};
+        xcronZonedValueRestart(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,&S->Searches[I]);}
     J->Info.State=S->Searches[I].Status==XCRON_ZONED_NONE?XCRON_JOB_EXHAUSTED:XCRON_JOB_SEARCHING;
 }
 static void xcronSchedulerSkip(xcronscheduler* S,uint32 I,xtime Begin,uint32 Flags,xcronpoll* Poll,xcronzonedbudget* Remaining,xcronzonedbudget* Used)
@@ -3098,13 +3100,19 @@ XCRON_API bool xcronSchedulerPollBudgeted(xcronscheduler* S,xcronclock Now,xcron
         /* After filling output, only pending calculations need more actions.
          * Avoid a full class scan (and gratuitous heap promotions) otherwise. */
         if(Q.Poll.Count>=Capacity && !S->Searching)break;
-        bool Available[3]={S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall,
-            S->Stats.Ready && !GlobalBlocked && Q.Poll.Count<Capacity,
-            S->Searching && Stalled<S->Searching && (Remaining.Segments || Remaining.Months || Remaining.RuleYears)};
-        if(!Available[0] && !Available[1] && !Available[2])break;
-        uint32 Class=3;for(uint32 NClass=0;NClass<3;++NClass){uint32 C=(S->Turn+NClass)%3;if(Available[C]){Class=C;break;}}
-        if(Class==3)break;
-        S->Turn=(uint8)((Class+1)%3);++Q.Poll.Work;
+        bool Due=S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall;
+        bool Ready=S->Stats.Ready && !GlobalBlocked && Q.Poll.Count<Capacity;
+        bool Search=S->Searching && Stalled<S->Searching && (Remaining.Segments || Remaining.Months || Remaining.RuleYears);
+        /* The three cyclic orders are 0/1/2,1/2/0,2/0/1. Select directly
+         * without a per-action temporary array or modulo/index loop. */
+        uint32 Class;
+        if(S->Turn==0 && Due)Class=0;
+        else if(S->Turn<=1 && Ready)Class=1;
+        else if(Search)Class=2;
+        else if(Due)Class=0;
+        else if(Ready)Class=1;
+        else break;
+        S->Turn=Class==2?0:(uint8)(Class+1);++Q.Poll.Work;
         if(Class==0){uint32 I=S->Heap[0];xcronSchedulerHeapRemove(S,I);xcronSchedulerQueueAdd(S,I,false);}
         else if(Class==1){uint32 Before=S->Searching;xcronSchedulerReady(S,Now,Runs,&Q.Poll,&GlobalBlocked,&Remaining,&Q.Used);if(S->Searching>Before)Stalled=0;}
         else {uint32 I=S->SearchHead;xcronzonedbudget Before=Q.Used;xcronSchedulerSearchRemove(S,I);xcronSchedulerSearchStep(S,I,&Remaining,&Q.Used,&Q.Poll,false);xcronSchedulerPlace(S,I);

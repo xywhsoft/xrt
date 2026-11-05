@@ -203,3 +203,22 @@ admission IDs, rollback/typed OOM, future faults with live leases and128 sparse
 lifecycles with more than10000 actual yields under a one-byte quota. Separate
 dense1/128-job budgeted profiles include recurrence and physical Complete with
 whole-batch P99. They are measurements, not production qualification.
+
+## Control-path measurement
+
+Budgeted class selection implements the same three cyclic orders with direct
+branches, avoiding the per-action availability array and modulo-index scan.
+Ready-query results also replace LastIssue directly instead of clearing it
+immediately before overwriting it. Global limits, reserved query credit and
+cross-call fairness are unchanged; no new state or ABI is introduced.
+
+The [hot-path evidence](../tests/results/budget-hotpath-20261105.json) retains
+original benchmark comparisons, archived pre-budget/budgeted binaries, class-only
+prototypes and a separate bulk CPU diagnostic. The latter omits per-batch timer
+reads AND sample-array writes/allocation, and reports no latency/P99. It still
+executes real kernel Poll/advancement/Complete, with no executor or body work.
+Its CPU observations cannot replace the original wall-clock performance gate.
+Windows QPC reports10MHz here; coarse single-job P99 and failed noise gates
+remain limitations, never exceptions to unchanged acceptance thresholds. Some
+WSL original-benchmark samples exceed regression limits even when CPU diagnostics
+improve. Qualified native performance and full service tail latency remain open.
