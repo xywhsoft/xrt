@@ -659,9 +659,11 @@ XRT_API bool __xrtSmtpClientReceive(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
 		return false;
 	}
 	return __xrtSmtpClientReceiveMode(
@@ -886,6 +888,10 @@ XRT_API bool __xrtSmtpClientDataWrite(
 		__xrtSmtpClientError(XERR_STATE, "SMTP DATA write requires DATA state");
 		return false;
 	}
+	if ( !xrtMemRangeValid(Data.Data, Data.Size) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
 	Sink.Client = pClient;
 	Sink.Deadline = iDeadline;
 	Sink.Cancel = pCancel;
@@ -1035,11 +1041,13 @@ XRT_API bool __xrtSmtpClientBdatWrite(
 	xcancel* pCancel
 )
 {
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
+
 	if ( !__xrtSmtpClientUsable(pClient) ||
 		(pClient->State != XSMTP_CLIENT_CHUNK) ||
 		!pClient->ChunkActive ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
-
 		__xrtSmtpClientError(XERR_STATE, "SMTP BDAT write requires a block");
 		return false;
 	}
@@ -1234,9 +1242,11 @@ XRT_API bool __xrtSmtpClientClose(
 	double iDeadline
 )
 {
-	if ( !__xrtSmtpClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientUsable(pClient) ) {
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

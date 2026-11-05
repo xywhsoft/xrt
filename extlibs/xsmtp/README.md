@@ -41,6 +41,27 @@ python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.jso
 以及提交完成后缺失 TLS `close_notify` 时单独报告关闭警告，
 同时检查 POP3 和 IMAP 范例；已接入 Linux CI，IPv6 回环不可用时跳过对应场景。
 
+## 生产与验证入口
+
+`xsmtp` 只聚合协议、Client、TLS Client、Submit 和 Auth 五个功能根，并保留协议 smoke。
+`xsmtp_tests` 承载完整回归及夹具依赖；独立示例通过各自的 example 根构建。
+生产闭包不携带 TLS 测试夹具的 RSA 私钥运算、签名和 RSA 身份构造模块。
+Core `tls_stream` 现有的 TLS client/server 依赖仍保留。
+
+## 非法超时与会话恢复回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.json --suite smtp_deadline_runtime_tests --no-examples
+```
+
+该入口以公开 Open 创建真实回环 Client，在模块化与单头构建中复用十二个场景。
+它检查 Receive、非空/空 BDAT Write、Close 对小于 `-1` 的超时均拒绝，保持最近响应、
+调用方输出和事务阶段，并通过后续完整 BDAT、NOOP 或 QUIT 证明会话仍可复用。
+整块 BDAT 与两个 Submit 入口作为已有正确委托路径的对照，另有合法收发、关闭和
+无限等待对照。全部对端完成退出后核对 Engine 退休和内存调试器，`xsmtp_tests` 包含本组回归。
+
+其中 DATA 写入覆盖空指针非零长度和地址范围溢出；参数错误后继续写入并完成消息，验证会话可以恢复。
+
 ## TLS 上传故障回归
 
 在仓库根目录执行下列离线回环测试，可验证 DATA 与 BDAT 两条发送路径。

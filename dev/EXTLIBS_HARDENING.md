@@ -1906,3 +1906,35 @@ xws-loopback-repeat-{windows-gcc,linux-gcc,linux-clang,linux-tcc}.json 及源码
 xws-loopback-*-resource-pressure.*、xws-loopback-boundary-{windows,linux}.json、
 xws-loopback-{size,performance,delivery}-{windows,linux}.json、xws-loopback-checks.json、
 xws-loopback-input-audit.json、xws-runtime-final-{source-review,validation}.json。
+
+
+### 第五十一批：SMTP 等待和 DATA 参数预检
+
+- 真实公开 Open 回环客户端证明 Receive、BDAT Write、Close 的非法超时检查过晚：
+  原 Windows/Linux 模块与单头四个程序各四项失败、六项对照成功。三个等待检查
+  移到入口；整块 BDAT、Submit 和 SubmitEnvelope 的已有正确委托路径保持不变。
+- 再补两个 DATA 地址范围用例。此阶段三个等待修复已存在，但 DATA 实现仍与 c8fbe2eb
+  相同；四个程序均十项通过、两项失败。无效地址尚未发送即导致 FAILED，现由 DATA
+  入口预检拒绝，保留事务和最后响应，之后可以完成消息。传输/协议失败仍中止会话。
+- 十二个场景复用模块和单头入口，包含正常收发、无限等待和关闭对照，并在真实对端
+  退出后检查 Engine 退休与内存清理。生产 xsmtp 根剥离示例和 TLS 夹具依赖，源码
+  162 降至 157；完整测试选择的源码、特性、链接及既有程序顺序不变，仍为十模块、
+  七单头程序。移出四个私钥/签名源码和 RSA 身份构造，保留 Core tls_stream 现有依赖。
+- Windows GCC、Linux GCC/严格 Clang sanitizer/TCC 全部完整套件通过，另八个定向
+  程序各十二场景通过。含四个示例、五种最小功能根和 static/shared 消费者，两端合计
+  98 次选中程序/消费者运行；另二十四个独立 TLS/STARTTLS 场景通过。每端四十三 API
+  导出、六个体积产物全类型符号约束、裁剪、五项元数据与八项工具测试通过。
+  1824 个实际 Windows/WSL 输入归一化一致且验证期间未变；两端 profile 绑定各自输入。
+- 有界源码审查又发现 SASL 交换未完成时的恢复缺口：两个 LOGIN 长字段和三个重复
+  challenge 场景仍可能留下 READY。忽略目录九场景诊断原实现五失败/四通过，隔离草案
+  九通过；正式共享回归、源码修复及交付验证留待下一批。SMTP 尚不计入首轮验收。
+- c8fbe2eb 的 CI 七十二成功，最后的 Linux 认证作业在 OpenSSL 对照工具构建时达到
+  九十分钟上限而取消；该作业此前认证/消毒检查成功，已仅重跑该作业。xws 仍等待
+  不可变 head 的完整终态，累计保持 6/21。不合并或发布；协议 smoke 不证明吞吐或零开销。
+
+证据：xsmtp-deadline-before-{provenance,summary}.json、xsmtp-input-before-provenance.json、
+xsmtp-input-{before,final}-{windows,linux}.json、xsmtp-production-boundary-proof.json、
+xsmtp-final-round-{windows,linux}.json、xsmtp-contract-final-{exports,symbols}-{windows,linux}.json、
+xsmtp-deadline-{size,performance}-{windows,linux}.json、xsmtp-final-{checks,input-audit,source-review}.json、
+xsmtp-deadline-final-validation.json、xsmtp-auth-next-candidate.json、
+ci-c8fbe2eb-auth-job-first-attempt-annotations.json、ci-c8fbe2eb-rerun-request.json。

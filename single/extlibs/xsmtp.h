@@ -416,7 +416,10 @@ XRT_API bool xrtSmtpClientAuthLine(
 
 
 
-/* 读取并验证一条完整单行或多行响应。 */
+/*
+	读取并验证一条完整单行或多行响应。
+	小于 -1 的超时在读取前拒绝，保持会话、最近响应与调用方输出不变。
+*/
 XRT_API bool xrtSmtpClientReceive(
 	xsmtpclient* pClient,
 	xsmtpreply* pReply,
@@ -469,7 +472,7 @@ XRT_API bool xrtSmtpClientDataBegin(
 
 
 
-/* 发送任意分块边界的消息片段，并跨片段执行 dot transparency。 */
+/* 发送任意分块边界的消息片段，并跨片段执行 dot transparency。 无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。 */
 XRT_API bool xrtSmtpClientDataWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
@@ -509,7 +512,10 @@ XRT_API bool xrtSmtpClientBdatBegin(
 
 
 
-/* 写入当前 BDAT 块的任意片段；不扫描、不转义且不追加线路分隔符。 */
+/*
+	写入当前 BDAT 块的任意片段；不扫描、不转义且不追加线路分隔符。
+	小于 -1 的超时在写入前拒绝，空片段也适用，已声明块仍可继续写入。
+*/
 XRT_API bool xrtSmtpClientBdatWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
@@ -566,7 +572,10 @@ XRT_API bool xrtSmtpClientQuit(
 
 
 
-/* 不发送 QUIT，直接正常关闭传输。 */
+/*
+	不发送 QUIT，直接正常关闭传输。
+	小于 -1 的超时只报告参数错误，保持会话和最近响应不变。
+*/
 XRT_API bool xrtSmtpClientClose(
 	xsmtpclient* pClient,
 	int64 iTimeout
@@ -2290,9 +2299,11 @@ XRT_API bool __xrtSmtpClientReceive(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
 		return false;
 	}
 	return __xrtSmtpClientReceiveMode(
@@ -2517,6 +2528,10 @@ XRT_API bool __xrtSmtpClientDataWrite(
 		__xrtSmtpClientError(XERR_STATE, "SMTP DATA write requires DATA state");
 		return false;
 	}
+	if ( !xrtMemRangeValid(Data.Data, Data.Size) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
 	Sink.Client = pClient;
 	Sink.Deadline = iDeadline;
 	Sink.Cancel = pCancel;
@@ -2666,11 +2681,13 @@ XRT_API bool __xrtSmtpClientBdatWrite(
 	xcancel* pCancel
 )
 {
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
+
 	if ( !__xrtSmtpClientUsable(pClient) ||
 		(pClient->State != XSMTP_CLIENT_CHUNK) ||
 		!pClient->ChunkActive ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
-
 		__xrtSmtpClientError(XERR_STATE, "SMTP BDAT write requires a block");
 		return false;
 	}
@@ -2865,9 +2882,11 @@ XRT_API bool __xrtSmtpClientClose(
 	double iDeadline
 )
 {
-	if ( !__xrtSmtpClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientUsable(pClient) ) {
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

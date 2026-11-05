@@ -6,13 +6,27 @@
 			"name": "smtp_protocol",
 			"system": "smtp_protocol",
 			"suite": "smtp",
-			"description": "SMTP 协议纯解析与写出"
+			"description": "SMTP 协议纯解析与写出",
+			"forbid_symbols": [
+				"xrtSmtpClient",
+				"xrtMailNet",
+				"xrtMailTree",
+				"xrtNet",
+				"xrtTls"
+			]
 		},
 		{
 			"name": "xsmtp",
 			"system": "smtp_protocol",
 			"suite": "xsmtp",
-			"description": "xsmtp 当前完整扩展闭包"
+			"description": "xsmtp 当前完整扩展闭包",
+			"forbid_symbols": [
+				"xrtPop3",
+				"xrtImap",
+				"xrtAcme",
+				"xrtWs",
+				"xrtTlsIdentityRsa"
+			]
 		}
 	],
 	"default_growth": {
