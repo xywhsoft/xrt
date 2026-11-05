@@ -53,6 +53,17 @@ responsibilities. Tests include:
   issues and leaves no live quota bytes.
 - Modular/single tests, deterministic offline example, root examples/trim,
   external static/shared consumers, dedicated workload and isolated-size profile.
+- All 1500 independent earliest-match oracles also exercise the resumable UTC
+  cursor with varying month budgets; known cases use one-month steps.
+- An independent full-cycle day table checks 5208 month/day/weekday conjunction
+  and disjunction existence cases. Constant February30/other impossible-day
+  proofs preserve OR semantics; the raw resumable engine separately exhausts
+  all 4801 fallback months under one-month budgets.
+- UTC/civil cursors copy inputs, reject relocation/wrong modes, preserve outputs
+  across pending and invalid spans/aliases, repeat terminal results and support
+  serialized same-address thread handoff. A 94-month finite sparse absence query
+  checks every yield, unchanged ambient error and zero requested heap. Typed
+  init/state issues remain available under diagnostic OOM.
 
 These are calendar calculations using public XRT time APIs. No IANA/DST mapping,
 timer/executor, runtime race/clock-jump or durable recovery acceptance is implied.

@@ -316,16 +316,18 @@ XRT_EXTERN_C_END
 #define XCRON_CALENDAR_MAX_MONTHS 4801u
 
 typedef enum xcroncalendarstatus {
-	XCRON_CALENDAR_ERROR=-1, XCRON_CALENDAR_NONE=0, XCRON_CALENDAR_FOUND=1
+	XCRON_CALENDAR_ERROR=-1, XCRON_CALENDAR_NONE=0, XCRON_CALENDAR_FOUND=1,
+	XCRON_CALENDAR_PENDING=2
 } xcroncalendarstatus;
 
 typedef enum xcroncalendarerror {
 	XCRON_CALENDAR_OK=0, XCRON_CALENDAR_ARGUMENT=1001, XCRON_CALENDAR_EXPRESSION,
-	XCRON_CALENDAR_DATE, XCRON_CALENDAR_RANGE, XCRON_CALENDAR_WINDOW
+	XCRON_CALENDAR_DATE, XCRON_CALENDAR_RANGE, XCRON_CALENDAR_WINDOW, XCRON_CALENDAR_STATE
 } xcroncalendarerror;
 
 /* Field identifies a bad expression bitmap, otherwise NONE. MonthsExamined is
- * 0 for Match/value errors/empty rounded windows and <=MAX_MONTHS for search, including skipped
+ * 0 for Match/value errors/empty rounded windows/constant absence proofs, and
+ * <=MAX_MONTHS for search, including skipped
  * months. NONE is a normal result with OK, not a diagnostic/error allocation. */
 typedef struct xcroncalendarissue {
 	xcroncalendarerror Code;
@@ -377,6 +379,34 @@ XCRON_API bool xcronCalendarMatchCivil(const xcronexpression* Expression,
 XCRON_API xcroncalendarstatus xcronCalendarNextCivil(const xcronexpression* Expression,
 	const xdatetime* Begin, const xdatetime* End, uint32 Flags,
 	xdatetime* Next, xcroncalendarissue* Issue);
+
+/* Allocation-free, address-bound resumable single-result search. Init snapshots
+ * expression/bounds and performs only validation/rounding/a constant ready-match
+ * check/constant absence proof; input storage may then change/disappear. No borrowed pointers, clock,
+ * thread, zone or heap. Init may reset an existing cursor under exclusive access.
+ * Keep this initialized context at a stable address; do not copy/modify its bytes.
+ * A serialized thread handoff of the same live context is allowed. No Unit duty. */
+#define XCRON_CALENDAR_CURSOR_BYTES 256u
+typedef union xcroncalendarcursor {uint64 Alignment;uint8 Storage[XCRON_CALENDAR_CURSOR_BYTES];} xcroncalendarcursor;
+XCRON_API bool xcronCalendarCursorInit(xcroncalendarcursor* Cursor,
+    const xcronexpression* Expression,xtime Begin,xtime End,uint32 Flags,xcroncalendarissue* Issue);
+XCRON_API bool xcronCalendarCursorInitCivil(xcroncalendarcursor* Cursor,
+    const xcronexpression* Expression,const xdatetime* Begin,const xdatetime* End,uint32 Flags,xcroncalendarissue* Issue);
+/* Step must match the init mode. MonthBudget>0 bounds additional month visits in
+ * this call; Init's ready-match check may already count one month. Each visit uses
+ * bounded bitmap/calendar arithmetic. No elapsed CPU/OS-scheduling guarantee.
+ * PENDING yields with Next unchanged. FOUND alone writes Next; terminal results
+ * are repeatable without more work. Issue.MonthsExamined is cumulative, at most
+ * MAX_MONTHS. Normal results preserve ambient error. Argument/state errors do not
+ * advance the cursor; diagnostic OOM does not erase the typed Issue. Structural
+ * span/alias errors preserve all outputs. Init failures preserve Cursor. Outputs
+ * must be disjoint from Cursor/each other; init also rejects aliases with inputs.
+ * The existing synchronous Next functions never return PENDING. This calendar
+ * primitive alone does not bound zone traversal or live scheduler owner work. */
+XCRON_API xcroncalendarstatus xcronCalendarCursorStep(xcroncalendarcursor* Cursor,
+    uint32 MonthBudget,xtime* Next,xcroncalendarissue* Issue);
+XCRON_API xcroncalendarstatus xcronCalendarCursorStepCivil(xcroncalendarcursor* Cursor,
+    uint32 MonthBudget,xdatetime* Next,xcroncalendarissue* Issue);
 
 XRT_EXTERN_C_END
 #endif
@@ -979,6 +1009,15 @@ XRT_EXTERN_C_END
 #ifndef XCRON_CALENDAR_INTERNAL_H
 #define XCRON_CALENDAR_INTERNAL_H
 #if defined(XCRON_FEATURE_XCRON_CALENDAR)
+/* Typed product-private engine; caller supplies its immutable expression. */
+typedef struct xcroncalendarvalue {
+    xdatetime First,End,Date;
+    uint32 Months;
+    int FirstWeekday;
+    xcroncalendarstatus Status;
+} xcroncalendarvalue;
+void xcronCalendarValueInit(xcroncalendarvalue* Value,const xdatetime* First,const xdatetime* End,xcroncalendarstatus Status);
+xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* Expression,xcroncalendarvalue* Value,uint32 MonthBudget);
 /* Product-private validated calendar operations; no XRT-private API dependency. */
 bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* Field);
 bool xcronCalendarPartsMatch(const xcronexpression* Expression,const xdatetime* Date);
@@ -1293,7 +1332,7 @@ static bool xcronCalendarReport(xcroncalendarerror Code, xcronfield Field,
 	xcroncalendarissue* Issue, cstr Message)
 {
 	if (Issue!=NULL) *Issue=(xcroncalendarissue){Code,Field,0};
-	xrtSetErrorInfo(Code==XCRON_CALENDAR_ARGUMENT ? XERR_ARGUMENT : Code==XCRON_CALENDAR_EXPRESSION ? XERR_VALUE : XERR_RANGE,
+	xrtSetErrorInfo(Code==XCRON_CALENDAR_STATE ? XERR_STATE : Code==XCRON_CALENDAR_ARGUMENT ? XERR_ARGUMENT : Code==XCRON_CALENDAR_EXPRESSION ? XERR_VALUE : XERR_RANGE,
 		"xrt.cron",(int32)Code,Message); return false;
 }
 
@@ -1415,6 +1454,70 @@ static bool xcronCalendarTick(xdatetime* Date)
 	return true;
 }
 
+/* Keep the shared loop/start in the synchronous fast path on optimizing targets. */
+#if defined(_MSC_VER)
+#define XCRON_CALENDAR_INLINE static __forceinline
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define XCRON_CALENDAR_INLINE static inline __attribute__((always_inline))
+#else
+#define XCRON_CALENDAR_INLINE static inline
+#endif
+static bool xcronCalendarMayExist(const xcronexpression* E)
+{
+    uint64 Months=E->Fields[XCRON_FIELD_MONTH];
+    if((Months&UINT64_C(0x15aa)) || !(E->Flags&(XCRON_DAY_MONTH_STAR|XCRON_DAY_WEEK_STAR)) || (E->Fields[XCRON_FIELD_DAY]&2u))return true;
+    uint64 Allowed=(Months&UINT64_C(0x0a50))?UINT64_C(0x7ffffffe):UINT64_C(0x3ffffffe);
+    return (E->Fields[XCRON_FIELD_DAY]&Allowed)!=0;
+}
+XCRON_CALENDAR_INLINE xcroncalendarstatus xcronCalendarSearchStart(const xcronexpression* E,const xdatetime* Begin,const xdatetime* End,
+    uint32 Flags,xdatetime* First,xcroncalendarissue* Issue)
+{
+    if(xcronCalendarCompare(Begin,End)>0){xcronCalendarReport(XCRON_CALENDAR_WINDOW,XCRON_FIELD_NONE,Issue,"cron search window is reversed");return XCRON_CALENDAR_ERROR;}
+    if(Issue)*Issue=(xcroncalendarissue){XCRON_CALENDAR_OK,XCRON_FIELD_NONE,0};
+    *First=*Begin;
+    if((First->Millisecond || (Flags&XCRON_SEARCH_EXCLUSIVE)) && !xcronCalendarTick(First))return XCRON_CALENDAR_NONE;
+    if(xcronCalendarCompare(First,End)>0)return XCRON_CALENDAR_NONE;
+    if(xcronCalendarPartsMatch(E,First)){if(Issue)Issue->MonthsExamined=1;return XCRON_CALENDAR_FOUND;}
+    if(!xcronCalendarMayExist(E))return XCRON_CALENDAR_NONE;
+    return XCRON_CALENDAR_PENDING;
+}
+void xcronCalendarValueInit(xcroncalendarvalue* V,const xdatetime* First,const xdatetime* End,xcroncalendarstatus Status)
+{
+    V->First=V->Date=*First;V->End=*End;V->Status=Status;V->Months=Status==XCRON_CALENDAR_FOUND?1:0;
+    V->FirstWeekday=Status==XCRON_CALENDAR_PENDING?(First->Weekday+7-((First->Day-1)%7))%7:0;
+}
+XCRON_CALENDAR_INLINE xcroncalendarstatus xcronCalendarMonths(const xcronexpression* E,const xdatetime* First,
+    const xdatetime* End,xdatetime* InOutDate,uint32* InOutMonths,int* InOutWeekday,uint32 Budget)
+{
+    xdatetime D=*InOutDate;uint32 Months=*InOutMonths;int Weekday=*InOutWeekday;
+    const uint64 MonthMask=E->Fields[XCRON_FIELD_MONTH];xcroncalendarstatus Status=XCRON_CALENDAR_PENDING;
+    uint32 Limit=XCRON_CALENDAR_MAX_MONTHS;if(Budget<Limit-Months)Limit=Months+Budget;
+    for(;Months<Limit;++Months){
+        if(D.Year>End->Year || (D.Year==End->Year && D.Month>End->Month)){Status=XCRON_CALENDAR_NONE;break;}
+        int Days=xrtDaysInMonth(D.Year,D.Month);
+        if(MonthMask&((uint64)1u<<D.Month)){
+            uint64 Mask=xcronCalendarDays(E,Days,Weekday);
+            for(int Day=xcronCalendarFind(Mask,Months==0?First->Day:1);Day>=0;Day=xcronCalendarFind(Mask,Day+1)){
+                D.Day=Day;bool Same=Months==0 && Day==First->Day;
+                if(!xcronCalendarTime(E,Same?First->Hour:0,Same?First->Minute:0,Same?First->Second:0,&D))continue;
+                ++Months;Status=xcronCalendarCompare(&D,End)>0?XCRON_CALENDAR_NONE:XCRON_CALENDAR_FOUND;goto Done;
+            }
+        }
+        Weekday=(Weekday+Days)%7;
+        if(++D.Month>12){D.Month=1;if(D.Year==INT64_MAX){++Months;Status=XCRON_CALENDAR_NONE;goto Done;}if(++D.Year==0)D.Year=1;}
+    }
+    if(Months==XCRON_CALENDAR_MAX_MONTHS || D.Year>End->Year || (D.Year==End->Year && D.Month>End->Month))Status=XCRON_CALENDAR_NONE;
+Done:
+    *InOutDate=D;*InOutMonths=Months;*InOutWeekday=Weekday;return Status;
+}
+xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* E,xcroncalendarvalue* V,uint32 Budget)
+{
+    if(V->Status!=XCRON_CALENDAR_PENDING || !Budget)return V->Status;
+    V->Status=xcronCalendarMonths(E,&V->First,&V->End,&V->Date,&V->Months,&V->FirstWeekday,Budget);return V->Status;
+}
+/* Keep the legacy synchronous control loop specialized: measured cursor-state
+ * setup/copy overhead is material for a single-month search. Date/bitmap rules
+ * are shared; independent oracles cover both control paths. */
 xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const xdatetime* Begin, const xdatetime* End,
 	uint32 Flags, xdatetime* Next, xcroncalendarissue* Issue)
 {
@@ -1426,6 +1529,7 @@ xcroncalendarstatus xcronCalendarSearch(const xcronexpression* Expression, const
 	if (xcronCalendarPartsMatch(Expression,&First)) {
 		*Next=First; if (Issue!=NULL) Issue->MonthsExamined=1; return XCRON_CALENDAR_FOUND;
 	}
+	if (!xcronCalendarMayExist(Expression)) return XCRON_CALENDAR_NONE;
 	xdatetime Date=First;
 	int FirstWeekday=(First.Weekday+7-((First.Day-1)%7))%7;
 	for (uint32 Month=0; Month<XCRON_CALENDAR_MAX_MONTHS; ++Month) {
@@ -1494,6 +1598,66 @@ XCRON_API xcroncalendarstatus xcronCalendarNextCivil(const xcronexpression* Expr
 	if (Status==XCRON_CALENDAR_FOUND) (void)xcronCalendarCivil(&Value,Next,NULL);
 	return Status;
 }
+
+#define XCRON_CALENDAR_CURSOR_MAGIC UINT32_C(0x58434331)
+typedef struct xcroncalendarimpl {
+    uint32 Magic,Civil;
+    uintptr_t Address;
+    xcronexpression Expression;
+    xcroncalendarvalue Search;
+} xcroncalendarimpl;
+typedef char xcron_calendar_cursor_size_check[(sizeof(xcroncalendarimpl)<=sizeof(xcroncalendarcursor))?1:-1];
+/* Encode/decode through memcpy: no private-struct lvalue aliases opaque bytes. */
+static bool xcronCalendarCursorInitValue(xcroncalendarcursor* C,const xcronexpression* E,
+    const xdatetime* First,const xdatetime* Last,uint32 Flags,uint32 Civil,xcroncalendarissue* Issue)
+{
+    xcroncalendarimpl I;memset(&I,0,sizeof(I));I.Magic=XCRON_CALENDAR_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Civil=Civil;I.Expression=*E;
+    xdatetime Rounded;xcroncalendarissue Work;xcroncalendarstatus Status=xcronCalendarSearchStart(&I.Expression,First,Last,Flags,&Rounded,&Work);
+    if(Status==XCRON_CALENDAR_ERROR){if(Issue)*Issue=Work;return false;}
+    xcronCalendarValueInit(&I.Search,&Rounded,Last,Status);memset(C,0,sizeof(*C));memcpy(C,&I,sizeof(I));if(Issue)*Issue=Work;return true;
+}
+XCRON_API bool xcronCalendarCursorInit(xcroncalendarcursor* C,const xcronexpression* E,xtime Begin,xtime End,uint32 Flags,xcroncalendarissue* Issue)
+{
+    if(!xcronCalendarArgs(E,NULL,NULL,Flags,C,sizeof(*C),Issue) || !xcronCalendarExpression(E,Issue))return false;
+    xdatetime First,Last;(void)xrtTimeSplit(Begin,&First);(void)xrtTimeSplit(End,&Last);
+    return xcronCalendarCursorInitValue(C,E,&First,&Last,Flags,0,Issue);
+}
+XCRON_API bool xcronCalendarCursorInitCivil(xcroncalendarcursor* C,const xcronexpression* E,const xdatetime* Begin,const xdatetime* End,uint32 Flags,xcroncalendarissue* Issue)
+{
+    if(!Begin || !End)return xcronCalendarReport(XCRON_CALENDAR_ARGUMENT,XCRON_FIELD_NONE,NULL,"NULL cursor civil window");
+    if(!xcronCalendarArgs(E,Begin,End,Flags,C,sizeof(*C),Issue) || !xcronCalendarExpression(E,Issue))return false;
+    xdatetime First,Last;if(!xcronCalendarCivil(Begin,&First,Issue) || !xcronCalendarCivil(End,&Last,Issue))return false;
+    return xcronCalendarCursorInitValue(C,E,&First,&Last,Flags,1,Issue);
+}
+static xcroncalendarstatus xcronCalendarCursorStepValue(xcroncalendarcursor* C,uint32 Budget,void* Next,uint32 Civil,xcroncalendarissue* Issue)
+{
+    size_t Bytes=Civil?sizeof(xdatetime):sizeof(xtime);
+    if(!C || !Next || !xrtMemRangeValid(C,sizeof(*C)) || !xrtMemRangeValid(Next,Bytes) ||
+        (Issue && !xrtMemRangeValid(Issue,sizeof(*Issue))) || xrtMemRangesOverlap(C,sizeof(*C),Next,Bytes) ||
+        (Issue && (xrtMemRangesOverlap(Issue,sizeof(*Issue),C,sizeof(*C)) || xrtMemRangesOverlap(Issue,sizeof(*Issue),Next,Bytes)))){
+        xcronCalendarReport(XCRON_CALENDAR_ARGUMENT,XCRON_FIELD_NONE,NULL,"invalid cursor spans/output aliases");return XCRON_CALENDAR_ERROR;
+    }
+    if(!Budget){xcronCalendarReport(XCRON_CALENDAR_ARGUMENT,XCRON_FIELD_NONE,Issue,"cursor month budget must be positive");return XCRON_CALENDAR_ERROR;}
+    xcroncalendarimpl I;memcpy(&I,C,sizeof(I));
+    if(I.Magic!=XCRON_CALENDAR_CURSOR_MAGIC || I.Address!=(uintptr_t)C || I.Civil!=Civil || I.Search.Months>XCRON_CALENDAR_MAX_MONTHS ||
+        (I.Search.Status!=XCRON_CALENDAR_PENDING && I.Search.Status!=XCRON_CALENDAR_FOUND && I.Search.Status!=XCRON_CALENDAR_NONE)){
+        xcronCalendarReport(XCRON_CALENDAR_STATE,XCRON_FIELD_NONE,Issue,"uninitialized/copied cursor or wrong step mode");return XCRON_CALENDAR_ERROR;
+    }
+    xcroncalendarstatus Status=xcronCalendarValueStep(&I.Expression,&I.Search,Budget);xdatetime Canonical;xtime Time=0;
+    if(Status==XCRON_CALENDAR_FOUND){
+        if(Civil){if(!xcronCalendarCivil(&I.Search.Date,&Canonical,Issue))return XCRON_CALENDAR_ERROR;}
+        else if(!xrtDateTime(I.Search.Date.Year,I.Search.Date.Month,I.Search.Date.Day,I.Search.Date.Hour,I.Search.Date.Minute,I.Search.Date.Second,0,&Time)){
+            xcronCalendarReport(XCRON_CALENDAR_RANGE,XCRON_FIELD_NONE,Issue,"cursor candidate exceeds timestamp range");return XCRON_CALENDAR_ERROR;
+        }
+    }
+    memcpy(C,&I,sizeof(I));if(Status==XCRON_CALENDAR_FOUND){if(Civil)memcpy(Next,&Canonical,sizeof(Canonical));else memcpy(Next,&Time,sizeof(Time));}
+    if(Issue)*Issue=(xcroncalendarissue){XCRON_CALENDAR_OK,XCRON_FIELD_NONE,I.Search.Months};
+    return Status;
+}
+XCRON_API xcroncalendarstatus xcronCalendarCursorStep(xcroncalendarcursor* C,uint32 Budget,xtime* Next,xcroncalendarissue* Issue)
+{return xcronCalendarCursorStepValue(C,Budget,Next,0,Issue);}
+XCRON_API xcroncalendarstatus xcronCalendarCursorStepCivil(xcroncalendarcursor* C,uint32 Budget,xdatetime* Next,xcroncalendarissue* Issue)
+{return xcronCalendarCursorStepValue(C,Budget,Next,1,Issue);}
 #endif
 #endif
 

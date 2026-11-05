@@ -96,7 +96,7 @@ python tools/measure_performance.py --config extlibs/xcron/config/performance_pr
 
 `examples/calendar/main.c` deterministically finds Monday 2024-03-04 09:00 UTC
 after a Friday fractional firing and proves an impossible February 30 search
-stops at 4801 months. It needs no service, clock or cleanup. Tests use a complete
+without visiting any months. It needs no service, clock or cleanup. Tests use a complete
 400-year independent calendar/weekday oracle, brute earliest-time searches,
 int64/BCE endpoints, atomicity and allocation/OOM checks. The workload measures
 only dense/sparse/impossible local calendar search over precompiled expressions.
@@ -109,3 +109,60 @@ label has moved backwards. This leaf does not choose a DST policy or treat civil
 labels as monotonic elapsed time. Misfires, overlap, execution, clock jumps and
 durable recovery remain separate scheduler responsibilities. Current evidence is
 in the [progress ledger](../../../docs/development/service-extensions-progress.md).
+
+## Resumable single-result searches
+
+`xcronCalendarCursorInit` snapshots an expression and UTC window into a 256-byte
+caller-owned cursor. `CursorInitCivil` accepts the full civil-year range instead.
+Only validation, rounding, a constant ready-match check and a constant absence
+proof occur at initialization.
+Inputs may subsequently change or leave scope. There is no heap, borrowed input,
+thread, timer or Unit duty. Initialization can reset exclusive storage at any time.
+Keep an initialized cursor at the same address; bytewise relocation is rejected.
+Serialize access when handing the same context to another thread.
+
+`CursorStep` or `CursorStepCivil`, matching the init mode, accepts a positive
+month budget. A call visits at most that many additional months. PENDING means
+resume later and leaves Next unchanged; FOUND alone publishes the earliest result.
+NONE proves exhaustion of the inclusive window or a complete Gregorian cycle.
+Terminal results can be read again without advancing. Issue.MonthsExamined is
+cumulative, including Init's one-month ready match when applicable, and is bounded
+by MAX_MONTHS. Normal pending/found/none results preserve ambient error. Invalid
+spans/aliases preserve outputs; argument/state failures preserve the cursor.
+Typed errors remain available if diagnostic allocation fails.
+
+```c
+xcroncalendarcursor cursor;
+xcroncalendarissue issue;
+/* expression, begin and end have already been validated/compiled. */
+if (!xcronCalendarCursorInit(&cursor, &expression, begin, end, 0, &issue)) {
+    /* handle typed issue and optional ambient error */
+    return false;
+}
+xcroncalendarstatus result;
+do {
+    /* Host performs its other work between calls. */
+    result = xcronCalendarCursorStep(&cursor, 16, &next, &issue);
+} while (result == XCRON_CALENDAR_PENDING);
+/* Only FOUND changes next. */
+```
+
+Synchronous Next/NextCivil keep their specialized control loop and continue to
+return complete FOUND/NONE/ERROR results, never PENDING. Both control paths share
+date/bitmap rules and the same constant impossibility proof. This deliberate
+control-flow duplication avoids measured cursor-state setup overhead in ordinary
+synchronous calls; independent cycle/earliest-match oracles constrain parity. The opaque public API
+copies its private state in and out using memcpy (at most 256 bytes each way),
+snapshots the expression, and validates context/mode/spans on each call. Month
+visits use bounded bitmap/calendar arithmetic. These are explicit costs; no
+zero-overhead or elapsed CPU/scheduling guarantee is claimed. Larger budgets
+amortize call/copy costs at the expense of longer host turns.
+
+The example demonstrates a 16-month budget while finding the next leap-day
+Sunday. Obvious impossible month/day conjunctions (such as February30 with
+weekday-star/AND semantics) are proven without visiting any month; disjunctive
+weekday semantics are preserved. Other absence proofs retain the complete-cycle
+upper bound. This UTC/civil primitive does not yet bound
+transition lookup/traversal, synchronous job admission or scheduler advancement.
+Those layers still require incremental integration and fairness tests before the
+live service can claim a bounded recurrence-work turn.

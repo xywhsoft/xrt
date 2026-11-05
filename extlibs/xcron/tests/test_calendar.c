@@ -1,5 +1,9 @@
 #include "test.h"
 #include <limits.h>
+#include "../src/calendar/calendar_internal.h"
+#if defined(XRT_FEATURE_THREAD)
+#include <xrt/thread.h>
+#endif
 
 static xcronexpression calendarCompile(cstr Text, xcrondialect Dialect)
 {
@@ -17,12 +21,24 @@ static bool calendarSame(const xdatetime* A, const xdatetime* B)
 		A->Millisecond==B->Millisecond && A->Weekday==B->Weekday && A->YearDay==B->YearDay && A->Offset==B->Offset && A->IsDST==B->IsDST;
 }
 
+static xcroncalendarstatus calendarCursorUtc(const xcronexpression* E,xtime Begin,xtime End,uint32 Flags,uint32 Budget,xtime* Next)
+{
+    xcroncalendarcursor C;xcroncalendarissue I;testRequire(xcronCalendarCursorInit(&C,E,Begin,End,Flags,&I),"cursor snapshots valid UTC search");
+    uint32 Previous=I.MonthsExamined;xtime Sentinel=*Next;xcroncalendarstatus Status;unsigned Calls=0;
+    do{Status=xcronCalendarCursorStep(&C,Budget,Next,&I);testRequire(++Calls<=XCRON_CALENDAR_MAX_MONTHS+1 && I.Code==XCRON_CALENDAR_OK && I.MonthsExamined>=Previous && I.MonthsExamined-Previous<=Budget && I.MonthsExamined<=XCRON_CALENDAR_MAX_MONTHS,"each cursor step consumes at most its month budget");Previous=I.MonthsExamined;
+        if(Status!=XCRON_CALENDAR_FOUND)testRequire(*Next==Sentinel,"pending/none preserves timestamp");
+    }while(Status==XCRON_CALENDAR_PENDING);
+    xcroncalendarcursor Before=C;xtime Result=*Next;
+    testRequire(xcronCalendarCursorStep(&C,1,Next,&I)==Status && *Next==Result && I.MonthsExamined==Previous && !memcmp(&C,&Before,sizeof(C)),"terminal cursor reads are repeatable without progress");return Status;
+}
+
 static void calendarExpect(cstr Text, xcrondialect Dialect, xtime Begin, xtime End, uint32 Flags, xtime Expected, xcroncalendarstatus Status)
 {
 	xcronexpression Expression=calendarCompile(Text,Dialect); xtime Next=777; xcroncalendarissue Issue;
 	testRequire(xcronCalendarNext(&Expression,Begin,End,Flags,&Next,&Issue)==Status && Issue.Code==XCRON_CALENDAR_OK &&
 		Issue.Field==XCRON_FIELD_NONE && Issue.MonthsExamined<=XCRON_CALENDAR_MAX_MONTHS,"calendar known result/status/work");
 	testRequire(Next==(Status==XCRON_CALENDAR_FOUND ? Expected : 777),"calendar earliest timestamp/atomic NONE");
+	xtime Stepped=777;testRequire(calendarCursorUtc(&Expression,Begin,End,Flags,1,&Stepped)==Status && Stepped==Next,"budget-one cursor agrees with known exact result");
 	if (Status==XCRON_CALENDAR_FOUND) {
 		bool Match=false; testRequire(xcronCalendarMatch(&Expression,Next,&Match,NULL) && Match,"found UTC calendar candidate does not match");
 		xdatetime First, Last, Civil, Canonical; xrtTimeSplit(Begin,&First); xrtTimeSplit(End,&Last); xrtTimeSplit(Expected,&Canonical);
@@ -55,7 +71,7 @@ static void testCalendarKnown(void)
 	calendarExpect("* * * * * *",XCRON_SECONDS6,Jan+1,Jan+999,0,0,XCRON_CALENDAR_NONE);
 	xcronexpression Impossible=calendarCompile("0 0 30 FEB *",XCRON_UNIX5); xtime Next=777; xcroncalendarissue Issue;
 	testRequire(xcronCalendarNext(&Impossible,INT64_MIN,INT64_MAX,0,&Next,&Issue)==XCRON_CALENDAR_NONE && Next==777 &&
-		Issue.Code==XCRON_CALENDAR_OK && Issue.MonthsExamined==XCRON_CALENDAR_MAX_MONTHS,"400-year complete-cycle no-match bound");
+		Issue.Code==XCRON_CALENDAR_OK && Issue.MonthsExamined==0,"impossible conjunction is proven without month visits");
 }
 
 /* Independent Gregorian oracle: literal month table and one-second/day stepping,
@@ -129,6 +145,7 @@ static void testCalendarSearchOracle(void)
 		xtime Actual=777; xcroncalendarissue Issue;
 		testRequire(xcronCalendarNext(&Expression,Begin,End,Flags,&Actual,&Issue)==(Found ? XCRON_CALENDAR_FOUND : XCRON_CALENDAR_NONE) &&
 			Actual==(Found ? Candidate : 777) && Issue.Code==0 && Issue.MonthsExamined<=2,"500 earliest-match brute-second interval oracles");
+		xtime Stepped=777;testRequire(calendarCursorUtc(&Expression,Begin,End,Flags,1+Trial%7,&Stepped)==(Found?XCRON_CALENDAR_FOUND:XCRON_CALENDAR_NONE) && Stepped==(Found?Candidate:777),"500 resumable brute-second oracles");
 	}
 	/* Whole-day enumeration independently checks sparse century/leap searches. */
 	for (unsigned Trial=0; Trial<1000; ++Trial) {
@@ -140,6 +157,7 @@ static void testCalendarSearchOracle(void)
 		for (; Candidate<=End; Candidate+=XRT_TIME_DAY) { if (calendarOracleMatch(&Expression,&Reference)) { Found=true; break; } calendarOracleDay(&Reference); }
 		xtime Actual=777; testRequire(xcronCalendarNext(&Expression,Begin,End,0,&Actual,NULL)==(Found ? XCRON_CALENDAR_FOUND : XCRON_CALENDAR_NONE) &&
 			Actual==(Found ? Candidate : 777),"1000 sparse Gregorian brute-day search oracles");
+		xtime Stepped=777;testRequire(calendarCursorUtc(&Expression,Begin,End,0,1+Trial%13,&Stepped)==(Found?XCRON_CALENDAR_FOUND:XCRON_CALENDAR_NONE) && Stepped==(Found?Candidate:777),"1000 resumable sparse brute-day oracles");
 	}
 }
 
@@ -170,7 +188,7 @@ static void testCalendarEdgesAndCivil(void)
 		Result.Weekday==1 && Result.YearDay==1,"civil BCE/CE transition skipped/introduced year zero");
 	xcronexpression Impossible=calendarCompile("0 0 30 FEB *",XCRON_UNIX5);
 	Start.Year=INT64_MIN; Start.Month=1; Start.Day=1; Start.Hour=Start.Minute=Start.Second=Start.Millisecond=0; End.Year=INT64_MAX; End.Month=12; End.Day=31;
-	testRequire(xcronCalendarNextCivil(&Impossible,&Start,&End,0,&Result,&Issue)==XCRON_CALENDAR_NONE && Issue.MonthsExamined==4801,"civil complete-cycle bound at extreme years");
+	testRequire(xcronCalendarNextCivil(&Impossible,&Start,&End,0,&Result,&Issue)==XCRON_CALENDAR_NONE && Issue.MonthsExamined==0,"civil impossibility proof at extreme years");
 }
 
 static void testCalendarFailures(void)
@@ -237,8 +255,94 @@ static void testCalendarAllocation(void)
 	testRequire(xrtAllocationBudgetInfo(Budget,&Info) && Info.LiveBytes==0 && Info.Rejections>0,"calendar quota leak"); xrtClearError(); xrtAllocationBudgetFree(Budget);
 }
 
+#if defined(XRT_FEATURE_THREAD)
+typedef struct calendarhandoff {xcroncalendarcursor* Cursor;xtime Next;xcroncalendarstatus Status;} calendarhandoff;
+static int32 calendarCursorHandoff(ptr Raw)
+{calendarhandoff* H=Raw;H->Status=xcronCalendarCursorStep(H->Cursor,1,&H->Next,NULL);return 0;}
+#endif
+static void testCalendarPruneAndCycle(void)
+{
+    uint8 Possible[13][32]={{0}};xdatetime Day={.Year=2000,.Month=1,.Day=1,.Weekday=6};
+    for(unsigned N=0;N<146097;++N){Possible[Day.Month][Day.Day]|=(uint8)(1u<<Day.Weekday);calendarOracleDay(&Day);}
+    xcronexpression E=calendarCompile("0 0 0 * * *",XCRON_SECONDS6);xtime Begin=calendarStamp(2000,1,1,0,0,0,0),End=calendarStamp(2399,12,31,23,59,59,999);
+    for(unsigned Month=1;Month<=12;++Month)for(unsigned Date=1;Date<=31;++Date)for(unsigned Week=0;Week<7;++Week)for(unsigned And=0;And<2;++And){
+        E.Fields[XCRON_FIELD_MONTH]=(uint64)1u<<Month;E.Fields[XCRON_FIELD_DAY]=(uint64)1u<<Date;E.Fields[XCRON_FIELD_WEEKDAY]=(uint64)1u<<Week;E.Flags=And?XCRON_DAY_WEEK_STAR:0;
+        bool Expected=!And || (Possible[Month][Date]&(1u<<Week));xtime Next=777;xcroncalendarissue I;
+        xcroncalendarstatus Status=xcronCalendarNext(&E,Begin,End,0,&Next,&I);
+        testRequire(Status==(Expected?XCRON_CALENDAR_FOUND:XCRON_CALENDAR_NONE),"5208 month/day/weekday conjunction/disjunction existence checks against an independent full cycle");
+        if(Expected){xdatetime Found;xrtTimeSplit(Next,&Found);testRequire(calendarOracleMatch(&E,&Found),"pruning preserves independent matching semantics");}
+        else testRequire(Next==777 && !I.MonthsExamined,"only mathematically impossible conjunctions prune without visits");
+    }
+    /* Exercise the shared engine's complete-cycle fallback directly, independently
+     * of the public constant impossibility proof. */
+    E=calendarCompile("0 0 0 30 FEB *",XCRON_SECONDS6);xdatetime First,Last;xrtTimeSplit(Begin,&First);xrtTimeSplit(INT64_MAX,&Last);
+    xcroncalendarvalue V;xcronCalendarValueInit(&V,&First,&Last,XCRON_CALENDAR_PENDING);xcroncalendarstatus Status;unsigned Calls=0;
+    do{uint32 Before=V.Months;Status=xcronCalendarValueStep(&E,&V,1);testRequire(V.Months-Before<=1 && ++Calls<=XCRON_CALENDAR_MAX_MONTHS,"raw engine month-one fallback bound");}while(Status==XCRON_CALENDAR_PENDING);
+    testRequire(Status==XCRON_CALENDAR_NONE && V.Months==XCRON_CALENDAR_MAX_MONTHS,"complete-cycle fallback still proves exhaustion at exact cap");
+}
+static void testCalendarCursor(void)
+{
+    xcronexpression E=calendarCompile("0 0 0 29 FEB *",XCRON_SECONDS6);
+    xtime Begin=calendarStamp(2024,3,1,0,0,0,0),End=calendarStamp(2040,1,1,0,0,0,0),Expected=calendarStamp(2028,2,29,0,0,0,0),Next=777;
+    xcroncalendarcursor C,Before,Copy;xcroncalendarissue I={0};
+    testRequire(sizeof(C)==XCRON_CALENDAR_CURSOR_BYTES && xcronCalendarCursorInit(&C,&E,Begin,End,0,&I),"fixed caller-owned cursor");
+    memset(&E,0,sizeof(E));Before=C;Copy=C;xdatetime Civil;
+    testRequire(xcronCalendarCursorStepCivil(&C,1,&Civil,&I)==XCRON_CALENDAR_ERROR && I.Code==XCRON_CALENDAR_STATE && !memcmp(&C,&Before,sizeof(C)),"wrong mode cannot mutate UTC search");xrtClearError();
+    testRequire(xcronCalendarCursorStep(&Copy,1,&Next,&I)==XCRON_CALENDAR_ERROR && I.Code==XCRON_CALENDAR_STATE && Next==777,"copied context is not a valid relocated cursor");xrtClearError();
+    testRequire(xcronCalendarCursorStep(&C,0,&Next,&I)==XCRON_CALENDAR_ERROR && I.Code==XCRON_CALENDAR_ARGUMENT && !memcmp(&C,&Before,sizeof(C)),"zero work budget rejected without progress");xrtClearError();
+    xcroncalendarstatus Status;uint32 Previous=0;unsigned Calls=0;
+    do{Status=xcronCalendarCursorStep(&C,1,&Next,&I);testRequire(++Calls<=XCRON_CALENDAR_MAX_MONTHS && I.MonthsExamined-Previous<=1,"budget-one yields a bounded continuation");Previous=I.MonthsExamined;if(Status==XCRON_CALENDAR_PENDING)testRequire(Next==777,"no partial candidate published");}while(Status==XCRON_CALENDAR_PENDING);
+    testRequire(Status==XCRON_CALENDAR_FOUND && Next==Expected && Calls>1,"snapshot survives destruction/mutation of original expression");
+    Before=C;I=(xcroncalendarissue){XCRON_CALENDAR_WINDOW,XCRON_FIELD_DAY,99};xcroncalendarissue Old=I;
+    testRequire(xcronCalendarCursorStep(&C,1,(xtime*)(void*)&C,&I)==XCRON_CALENDAR_ERROR && !memcmp(&C,&Before,sizeof(C)) && !memcmp(&I,&Old,sizeof(I)),"cursor/output overlap preserves all outputs");xrtClearError();
+    testRequire(xcronCalendarCursorStep(&C,1,(xtime*)(uintptr_t)(UINTPTR_MAX-1),&I)==XCRON_CALENDAR_ERROR && !memcmp(&C,&Before,sizeof(C)) && !memcmp(&I,&Old,sizeof(I)),"wrapping output preserves state and issue");xrtClearError();
+    E=calendarCompile("* * * * * *",XCRON_SECONDS6);
+    testRequire(!xcronCalendarCursorInit(&C,(const xcronexpression*)(const void*)&C,Begin,End,0,&I) && !memcmp(&C,&Before,sizeof(C)) && !memcmp(&I,&Old,sizeof(I)),"init aliases rejected before reading input");xrtClearError();
+    testRequire(!xcronCalendarCursorInit(&C,&E,End,Begin,0,&I) && I.Code==XCRON_CALENDAR_WINDOW && !memcmp(&C,&Before,sizeof(C)),"failed reinitialization preserves prior context");xrtClearError();
+    memset(&Copy,0,sizeof(Copy));testRequire(xcronCalendarCursorStep(&Copy,1,&Next,&I)==XCRON_CALENDAR_ERROR && I.Code==XCRON_CALENDAR_STATE,"uninitialized cursor rejected");xrtClearError();
+    const xtime Values[]={INT64_MIN,INT64_MIN+808,-1001,-1,0,1,INT64_MAX-807,INT64_MAX};
+    for(size_t N=0;N<sizeof(Values)/sizeof(*Values);++N)for(uint32 Flags=0;Flags<2;++Flags){
+        xtime A=777,B=777;xcroncalendarstatus S=xcronCalendarNext(&E,Values[N],INT64_MAX,Flags,&A,NULL);
+        testRequire(calendarCursorUtc(&E,Values[N],INT64_MAX,Flags,1,&B)==S && A==B,"cursor full timestamp endpoints and negative rounding");
+    }
+    xdatetime FirstCivil,LastCivil,ExpectedCivil;xrtTimeSplit(Begin,&FirstCivil);xrtTimeSplit(End,&LastCivil);xrtTimeSplit(Expected,&ExpectedCivil);
+    E=calendarCompile("0 0 0 29 FEB *",XCRON_SECONDS6);
+    testRequire(xcronCalendarCursorInitCivil(&C,&E,&FirstCivil,&LastCivil,0,NULL),"sparse civil resumable init");
+    FirstCivil.Year=LastCivil.Year=0;memset(&Civil,0xa5,sizeof(Civil));xdatetime CivilSentinel=Civil;
+    do{Status=xcronCalendarCursorStepCivil(&C,3,&Civil,&I);if(Status==XCRON_CALENDAR_PENDING)testRequire(!memcmp(&Civil,&CivilSentinel,sizeof(Civil)),"civil pending preserves entire output");}while(Status==XCRON_CALENDAR_PENDING);
+    testRequire(Status==XCRON_CALENDAR_FOUND && calendarSame(&Civil,&ExpectedCivil),"civil slow path uses copied bounds and canonical derived metadata");
+#if defined(XRT_FEATURE_THREAD)
+    testRequire(xcronCalendarCursorInit(&C,&E,Begin,End,0,NULL),"serialized handoff init");calendarhandoff H={.Cursor=&C,.Next=777};xthread* Thread=xrtThreadCreate(calendarCursorHandoff,&H,0);
+    testRequire(Thread && xrtThreadWaitFor(Thread,10000)==XWAIT_OK,"handoff worker physically joined");xrtThreadDestroy(Thread);
+    testRequire(H.Status==XCRON_CALENDAR_PENDING && H.Next==777,"same-address cursor can be stepped by another serialized thread");
+    do{Status=xcronCalendarCursorStep(&C,7,&Next,NULL);}while(Status==XCRON_CALENDAR_PENDING);
+    testRequire(Status==XCRON_CALENDAR_FOUND && Next==Expected,"creator resumes handed-back state");
+#endif
+    E=calendarCompile("* * * * * *",XCRON_SECONDS6);
+    xdatetime B={.Year=INT64_MIN,.Month=1,.Day=1,.Offset=999,.Weekday=-7},Last=B,Result;
+    testRequire(xcronCalendarCursorInitCivil(&C,&E,&B,&Last,0,NULL),"full civil-year cursor init");B.Year=0;Last.Year=0;
+    testRequire(xcronCalendarCursorStepCivil(&C,1,&Result,&I)==XCRON_CALENDAR_FOUND && Result.Year==INT64_MIN && Result.Offset==0 && Result.IsDST==-1,"civil snapshot canonicalizes metadata outside timestamp domain");
+    B=(xdatetime){.Year=INT64_MAX,.Month=12,.Day=31,.Hour=23,.Minute=59,.Second=59,.Millisecond=999};Last=B;memset(&Civil,0xa5,sizeof(Civil));Result=Civil;
+    testRequire(xcronCalendarCursorInitCivil(&C,&E,&B,&Last,XCRON_SEARCH_EXCLUSIVE,NULL) && xcronCalendarCursorStepCivil(&C,1,&Civil,&I)==XCRON_CALENDAR_NONE && !I.MonthsExamined && !memcmp(&Civil,&Result,sizeof(Civil)),"civil overflow produces repeatable empty rounded window");
+    E=calendarCompile("0 0 0 30 FEB *",XCRON_SECONDS6);testRequire(xcronCalendarCursorInit(&C,&E,INT64_MIN,INT64_MAX,0,NULL) && xcronCalendarCursorStep(&C,1,&Next,&I)==XCRON_CALENDAR_NONE && !I.MonthsExamined,"impossible conjunction proven without visiting months");
+    E=calendarCompile("0 0 0 29 FEB */7",XCRON_SECONDS6);End=calendarStamp(2031,12,31,23,59,59,999);testRequire(xcronCalendarCursorInit(&C,&E,Begin,End,0,NULL),"finite sparse no-match cursor");
+    xrtSetErrorInfo(XERR_VALUE,"test.cursor",8,"ambient");const xerror* Ambient=xrtGetError();
+#if defined(XRT_FEATURE_MEMORY_STATS)
+    xmemstats M1,M2;xrtMemStatsEnable(true);xrtMemStatsGet(&M1);
+#endif
+    Previous=0;Calls=0;Next=777;do{Status=xcronCalendarCursorStep(&C,1,&Next,&I);testRequire(I.MonthsExamined-Previous<=1 && xrtGetError()==Ambient,"one visit and unchanged ambient per pending/none call");Previous=I.MonthsExamined;++Calls;}while(Status==XCRON_CALENDAR_PENDING);
+    testRequire(Status==XCRON_CALENDAR_NONE && Next==777 && Previous==94 && Calls==94,"all 94 months in the sparse finite window searched across resumptions");
+#if defined(XRT_FEATURE_MEMORY_STATS)
+    xrtMemStatsGet(&M2);xrtMemStatsEnable(false);testRequire(M1.MallocCalls==M2.MallocCalls && M1.CallocCalls==M2.CallocCalls && M1.ReallocCalls==M2.ReallocCalls && M1.BlockAllocCalls==M2.BlockAllocCalls,"resumable impossible cycle requests no heap");
+#endif
+    xrtClearError();xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"cursor diagnostic OOM scope");Before=C;E.Fields[0]=0;
+    testRequire(!xcronCalendarCursorInit(&C,&E,Begin,End,0,&I) && I.Code==XCRON_CALENDAR_EXPRESSION && I.Field==XCRON_FIELD_SECOND && !memcmp(&C,&Before,sizeof(C)) && xrtErrorKind(xrtGetError())==XERR_MEMORY,"typed cursor init issue survives diagnostic OOM");
+    testRequire(xcronCalendarCursorStepCivil(&C,1,&Civil,&I)==XCRON_CALENDAR_ERROR && I.Code==XCRON_CALENDAR_STATE && xrtErrorKind(xrtGetError())==XERR_MEMORY,"typed state error survives diagnostic OOM");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"cursor scope leave");xrtClearError();xrtAllocationBudgetFree(Budget);
+}
+
 int main(void)
 {
-	testCalendarKnown(); testCalendarGregorianCycle(); testCalendarSearchOracle(); testCalendarEdgesAndCivil(); testCalendarFailures(); testCalendarAllocation();
+	testCalendarKnown(); testCalendarGregorianCycle(); testCalendarSearchOracle(); testCalendarEdgesAndCivil(); testCalendarFailures(); testCalendarAllocation(); testCalendarPruneAndCycle(); testCalendarCursor();
 	printf("[PASS] xcron calendar: 400-year/146097 days/DOM-DOW/1500 brute oracles/UTC-civil/full-int64/bounds/atomicity/zero-heap/OOM\n"); return 0;
 }

@@ -4,23 +4,28 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `49` 个函数、`132` 个常量或宏、
-`57` 个公共类型。
+当前登记 `53` 个函数、`135` 个常量或宏、
+`58` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
 [查看带契约注释的公共头](../../include/xcron/calendar.h)
 
-### 函数 (4)
+### 函数 (8)
 
+- `xcronCalendarCursorInit`
+- `xcronCalendarCursorInitCivil`
+- `xcronCalendarCursorStep`
+- `xcronCalendarCursorStepCivil`
 - `xcronCalendarMatch`
 - `xcronCalendarMatchCivil`
 - `xcronCalendarNext`
 - `xcronCalendarNextCivil`
 
-### 常量与宏 (13)
+### 常量与宏 (16)
 
 - `XCRON_CALENDAR_ARGUMENT`
+- `XCRON_CALENDAR_CURSOR_BYTES`
 - `XCRON_CALENDAR_DATE`
 - `XCRON_CALENDAR_ERROR`
 - `XCRON_CALENDAR_EXPRESSION`
@@ -28,14 +33,17 @@
 - `XCRON_CALENDAR_MAX_MONTHS`
 - `XCRON_CALENDAR_NONE`
 - `XCRON_CALENDAR_OK`
+- `XCRON_CALENDAR_PENDING`
 - `XCRON_CALENDAR_RANGE`
+- `XCRON_CALENDAR_STATE`
 - `XCRON_CALENDAR_WINDOW`
 - `XCRON_FEATURE_XCRON_CALENDAR`
 - `XCRON_FEATURE_XCRON_EXPRESSION`
 - `XCRON_SEARCH_EXCLUSIVE`
 
-### 类型 (5)
+### 类型 (6)
 
+- `xcroncalendarcursor`
 - `xcroncalendarerror`
 - `xcroncalendarissue`
 - `xcroncalendarstatus`

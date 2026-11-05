@@ -14,5 +14,16 @@ int main(void)
 	bool Matches; if (!xcronCalendarMatch(&Expression,Next,&Matches,NULL) || !Matches) return 2;
 	if (!xcronExpressionCompile(XRT_STR_LITERAL("0 0 30 FEB *"),XCRON_UNIX5,&Expression,NULL) ||
 		xcronCalendarNext(&Expression,INT64_MIN,INT64_MAX,0,&Next,&Issue)!=XCRON_CALENDAR_NONE || Issue.MonthsExamined>XCRON_CALENDAR_MAX_MONTHS) return 3;
-	printf("impossible February 30: months=%u\n",(unsigned)Issue.MonthsExamined); return 0;
+	printf("impossible February 30: months=%u\n",(unsigned)Issue.MonthsExamined);
+    if(!xcronExpressionCompile(XRT_STR_LITERAL("0 0 29 FEB */7"),XCRON_UNIX5,&Expression,NULL) || !xrtDate(2040,1,1,&End))return 4;
+    xcroncalendarcursor Cursor;if(!xcronCalendarCursorInit(&Cursor,&Expression,Begin,End,0,&Issue))return 4;
+    uint32 HostTurns=0,Previous=Issue.MonthsExamined;xcroncalendarstatus Status;
+    do{
+        /* A host can do other work here; each call visits at most 16 months. */
+        Status=xcronCalendarCursorStep(&Cursor,16,&Next,&Issue);++HostTurns;
+        if(Issue.MonthsExamined-Previous>16)return 5;
+        Previous=Issue.MonthsExamined;
+    }while(Status==XCRON_CALENDAR_PENDING);
+    if(Status!=XCRON_CALENDAR_FOUND || !xrtTimeSplit(Next,&Date) || Date.Year!=2032 || Date.Month!=2 || Date.Day!=29)return 6;
+    printf("resumed leap-Sunday search: host-turns=%u months=%u\n",HostTurns,Issue.MonthsExamined);return 0;
 }

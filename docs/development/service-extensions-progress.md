@@ -7212,3 +7212,62 @@ out/service-extensions/xcron-accounting/. Next implement resumable calendar work
 as a prerequisite for truly bounded zone/scheduler/command processing. Existing
 recurrence CPU, persistence/zone/DST, protocol and performance/long-run requirements
 remain active.
+
+## 2026-11-05 - resumable UTC/civil calendar queries
+
+After resource accounting commit d3cb9318, this stage adds four public calendar
+cursor APIs: UTC/civil Init and Step. A256-byte,8-byte-aligned stable caller
+context snapshots expression/bounds; serialized same-address handoff is supported.
+Positive month budgets bound additional visits per call, PENDING preserves Next,
+only FOUND publishes a result, and terminal reads are repeatable. Failed init,
+argument/state failures and structural aliases preserve the documented outputs.
+Typed issues survive diagnostic OOM. Existing declarations/layouts/enum values
+remain; PENDING and STATE are appended. Synchronous Next never returns PENDING.
+
+An analytic month/day impossibility proof now avoids all4801 visits for impossible
+February30-style conjunctions while preserving restricted-day OR semantics.
+MonthsExamined becomes0 for this proof; the guide documents that observability
+change. Independent146097-day tables cover5208 conjunction/disjunction existence
+cases. All1500 brute earliest-match oracles also exercise varied cursor budgets.
+The raw typed engine separately exhausts the4801 fallback cap at budget1. Tests
+also cover94 actual yields, unchanged pending results/error identity, copied
+inputs, UTC/civil int64 extremes, aliases, relocation/mode errors, handoff and OOM.
+
+The first full Windows native service run exposed a natural executor physical-
+join deadlock. Captures show Shutdown=1 with a parked idle worker; that failed
+run and the earlier passing WSL run are archived, not reused as final receipts.
+Cold lifecycle broadcasts now rendezvous through SleepLock in separate Core
+commit8cd1155f. Both platforms pass9 executor/ownership/memory programs, plus two
+WSL TSan units and16 repeated Windows native service runs. The1024-round bounded
+retirement stress is not a deterministic reproducer: eight old-version runs
+passed. See docs/development/executor-stop-wake-20261105.md and its portable JSON.
+
+Concurrent master commits3b6dfc20/88bfa0de are preserved through merge5675a16c;
+all uncommitted cursor-file hashes remain identical through that merge. Final
+Windows/WSL source maps match on2469 protected inputs after the Core fix. Each
+platform passes19 full modular/single programs, runnable calendar example and
+static/shared consumers executing all four new symbols. WSL uses O2 ASan/UBSan/
+leak-halt and two separate O1 TSan units. Windows66 tools, generated headers,
+reference/docs and both direct/declaration ABI probes pass.
+
+Public Step copies private state in/out (at most256 bytes each way), validates
+identity/mode/spans and does bounded date/bitmap work. Init also copies expression/
+dates and clears/encodes the context. No heap/thread/lock/dependency is added.
+Shared synchronous control-flow prototypes regressed common queries by5-13%, so
+the final synchronous loop remains specialized, sharing matching/pruning helpers;
+control-flow duplication is an explicit maintenance cost. Five alternating Windows
+before/after per-case medians give ratios1.0218 dense,0.9639 quarter,0.9583 leap and
+221.5 impossible. The latter dominates the mixed workload improvement. All raw
+samples, including prototype regressions, are retained. Original before and final
+after reports fail unchanged MAD3%/central-range6% quality gates on both systems;
+there is no qualified no-regression claim. A separate public API probe retains
+equal checksums at budgets1/16/64 and demonstrates extra call/copy cost at budget1.
+
+Portable evidence: extlibs/xcron/tests/results/calendar-cursor-20261105.json.
+Local commands/source maps/binaries/logs:
+`out/service-extensions/xcron-calendar-cursor/`. The runnable calendar example
+and consumer use the real new APIs.
+This primitive does not yet bound ordered zone traversal, synchronous admission
+or scheduler advancement. Incremental zone search and scheduler/service fairness
+integration are next. All four libraries remain in development; native Linux,
+protocol/recovery, production performance and >=72h acceptance remain open.

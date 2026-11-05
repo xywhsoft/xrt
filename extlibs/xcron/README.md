@@ -71,6 +71,13 @@ matching/search allocates nothing and retains no input. See [calendar contracts,
 costs and examples](docs/calendar.md), including the remaining zone-transition
 segment/gap/fold work. Root `XCRON_MODULE_XCRON` selects all current leaves.
 
+UTC and civil `xcronCalendarCursorInit`/`Step` counterparts add resumable
+single-result queries with a positive per-call month budget. A 256-byte stable
+caller context snapshots the input; PENDING yields without changing the result.
+Obvious impossible month/day conjunctions are proven in constant work. The
+[calendar guide](docs/calendar.md) covers copies, handoff, costs and limits.
+Zone traversal and live scheduler work still need incremental integration.
+
 The input is bounded at 4096 bytes. Success allocates nothing and preserves the
 ambient XRT error. Failure preserves the compiled output. An optional local
 issue records the field and byte offset, even if allocating the `xrt.cron`

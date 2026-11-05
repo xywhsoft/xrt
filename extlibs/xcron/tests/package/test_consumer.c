@@ -33,10 +33,17 @@ int main(void)
 	if (!xrtDateTime(2024,1,1,9,0,0,123,&Begin) || !xrtDate(2024,1,2,&End) ||
 		xcronCalendarNext(&Expression,Begin,End,0,&Next,&CalendarIssue)!=XCRON_CALENDAR_FOUND || Next!=Begin-123+30*XRT_TIME_MINUTE ||
 		!xcronCalendarMatch(&Expression,Next,&Matches,NULL) || !Matches) return 5;
+    xcroncalendarcursor Cursor;xtime Stepped=777;xcroncalendarissue CursorIssue;
+    if(!xcronCalendarCursorInit(&Cursor,&Expression,Begin,End,0,&CursorIssue))return 21;
+    xcroncalendarstatus CursorStatus;do{uint32 Previous=CursorIssue.MonthsExamined;CursorStatus=xcronCalendarCursorStep(&Cursor,1,&Stepped,&CursorIssue);if(CursorIssue.MonthsExamined-Previous>1)return 22;}while(CursorStatus==XCRON_CALENDAR_PENDING);
+    if(CursorStatus!=XCRON_CALENDAR_FOUND || Stepped!=Next)return 23;
 	xdatetime First, Last, Civil, Canonical; xrtTimeSplit(Begin,&First); xrtTimeSplit(End,&Last); xrtTimeSplit(Next,&Canonical); First.Offset=3600; First.Weekday=-1;
 	if (xcronCalendarNextCivil(&Expression,&First,&Last,0,&Civil,&CalendarIssue)!=XCRON_CALENDAR_FOUND || Civil.Year!=2024 || Civil.Day!=1 ||
 		Civil.Hour!=9 || Civil.Minute!=30 || Civil.Weekday!=1 || Civil.Offset!=0 || Civil.YearDay!=1 ||
 		!xcronCalendarMatchCivil(&Expression,&Civil,&Matches,NULL) || !Matches || Civil.Second!=Canonical.Second) return 6;
+    if(!xcronCalendarCursorInitCivil(&Cursor,&Expression,&First,&Last,0,&CursorIssue))return 24;
+    do{CursorStatus=xcronCalendarCursorStepCivil(&Cursor,1,&Civil,&CursorIssue);}while(CursorStatus==XCRON_CALENDAR_PENDING);
+    if(CursorStatus!=XCRON_CALENDAR_FOUND || Civil.Year!=Canonical.Year || Civil.Month!=Canonical.Month || Civil.Day!=Canonical.Day || Civil.Hour!=Canonical.Hour || Civil.Minute!=Canonical.Minute || Civil.Weekday!=Canonical.Weekday)return 25;
 	xcronzone* Zone=NULL; xcronzoneissue ZoneIssue; xtime Candidates[2]; size_t Count;
 	xdatetime Fold={.Year=2024,.Month=11,.Day=3,.Hour=1,.Minute=30};
 	if (!xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&Zone,&ZoneIssue) ||
