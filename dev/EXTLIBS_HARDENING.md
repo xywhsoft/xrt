@@ -2343,3 +2343,41 @@ ximap-alias-{input-audit,final-input-audit,final-validation}.json、ximap-alias-
 ximap-numbers-exact-head-ci-proof.json、ci-360a0735-final-{run,jobs,mail}.json、
 ci-360a0735-acme-windows-raw.log、ximap-post-alias-review.json、
 ximap-{append,body}-diagnostic-candidate-linux.json。
+
+
+### 第六十三批：ACME 覆盖率大负载夹具的独立执行预算
+
+- 360a0735 主 CI 的 Windows ACME 覆盖率任务，在 bounded chunk-extension memory
+  场景触发正文截止时间，elapsed=3.001s、budget=3000ms；其内存增长 138430 字节，
+  低于原 4MiB 上限。保留 immutable attempt1 的失败日志与全部七十三任务终态，
+  不通过重跑把失败基线改称成功。
+- 在已提交 005641a5 的未修改 C 探针上保留同一覆盖率二进制：默认 3 秒与原有 CLI
+  显式 15 秒各跑一次完全相同的 8394938 字节线路负载，均通过，用时约 2.906/2.750s。
+  本机默认预算未复现失败，明确保留这一事实；CI 失败与本机临近门槛的结果支持执行
+  余量不足的夹具判断，不声称吞吐退化或与 CI 编译器、宿主负载完全等价。两个 head
+  的 C 探针、负载生成器和 TLS 夹具源码相同，哈希另行核对。
+- 只调整测试 C 的 chunked 模式默认等待为有限 15000ms；原显式超时参数仍在其后
+  覆盖默认值。成功内存诊断追加实际 elapsed/budget，便于后续 CI 复核。8MiB 扩展
+  输入、2048 字节正文、复制响应头、4MiB 内存上限及释放断言保持，生产代码和共享
+  TLS 夹具不改。独立 exchange/operation 的 1000/2500ms 超时、重试及不确定写入
+  断言保持，不把内存负载测试作为三秒性能门禁。
+- Windows GCC、Linux GCC 均使用 -O0/--coverage/-fprofile-update=atomic；Linux Clang
+  使用既有 ASan/UBSan 并启用泄漏和错误即停。三种构建各通过同一内存负载及十二项
+  独立预算控制，共三十九场景，保留实际覆盖率与 Clang 消毒器二进制及哈希。本批
+  只声称定向夹具验证，不声称完成整个 ACME 覆盖率报告或全部产品验收。
+- 2030 项 Windows/native 规范化输入冻结并一致，另绑定本批最终 Git 内容；上一批
+  1928 项 IMAP 输入全未改变。编译和互通检查顺序执行，未改受保护工作区或 native
+  独立 Core 测试。源码差异仅一个测试 C 与台账，不重跑未受影响的 IMAP 全矩阵。
+- 005641a5 自身主 CI 与独立邮件继续运行，重复 push CI/PR mail 均已核对为
+  completed/cancelled；此前的七十三全绿和 SMTP 证书仍属于各自历史 head。本批新
+  提交须运行自己的 CI，不据本地定向结果宣称 GitHub 失败已经闭环。已确认的
+  APPEND/BODY 主错误覆盖将按下一批计划补正式前后基线和有效控制；累计仍为 8/21，
+  IMAP、ACME 均未新增整库验收，不合并或发布。
+
+证据：acme-chunked-budget-before-windows.{json,log}、
+acme-chunked-budget-final-{windows,linux}.json、
+acme-chunked-budget-final-windows-gcc-coverage.log、
+acme-chunked-budget-final-linux-{gcc-coverage,clang-sanitized}.log、
+acme-chunked-budget-final-inputs.json、acme-chunked-budget-native-binaries.json、
+acme-chunked-budget-final-validation.json、ci-005641a5-initial-runs.json、
+ximap-alias-{final-validation,commit-input-bindings}.json、ci-005641a5-duplicates-terminal.json。

@@ -428,6 +428,9 @@ int main(int argc, char** argv)
 	expected = strcmp(argv[3], "success") == 0 || bounded || large_body || headers || link_fields || request_max || (budget_mode && !budget_timeout);
 	if(!expected && !send_failure && !head_failure && !body_failure && !header_oom && !url_failure && !budget_mode &&
 		strcmp(argv[3], "failure") != 0) return 2;
+	/* The 8 MiB extension workload checks memory bounds, including -O0 coverage.
+	 * Keep its budget finite and separate from the deadline cases below. */
+	if(bounded) timeout_ms = 15000;
 	if(argc == 5) {
 		char* end;
 		unsigned long long parsed;
@@ -506,7 +509,8 @@ int main(int argc, char** argv)
 		xrtErrorCode(xrtErrorCause(error)) == XACME_HTTP_ERROR_SEND;
 	if(bounded) {
 		xrtMemDebugSnapshot(&memory);
-		fprintf(stderr, "TLS chunked memory: before=%zu peak=%zu\n", before.PeakBytes, memory.PeakBytes);
+		fprintf(stderr, "TLS chunked memory: before=%zu peak=%zu elapsed=%.3f budget_ms=%lld\n",
+			before.PeakBytes, memory.PeakBytes, xrtTimer() - exchange_started, (long long)timeout_ms);
 		result = result && memory.PeakBytes >= before.PeakBytes &&
 			memory.PeakBytes - before.PeakBytes <= 4u * 1024u * 1024u;
 	}
