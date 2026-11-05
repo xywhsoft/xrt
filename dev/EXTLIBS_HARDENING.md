@@ -49,7 +49,7 @@
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 已完成本轮：源码、本地、双平台认证 CI、Hydra 及交付验收 |
-| xpop3 | 6 | 4 | 10 | 6 | 4 | 三组会话/错误候选与生产依赖修复、本地完整选择/示例/独立 TLS/交付通过，待本批 CI |
+| xpop3 | 6 | 4 | 10 | 6 | 4 | 已完成本轮：四个 C/四十七 API、四环境回归、示例/独立 TLS/交付及 73/73 CI |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
 | xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
@@ -1843,3 +1843,23 @@ xws-byte-round-{windows,linux}.json、xws-byte-deflate-selection-proof.json、
 xws-byte-deflate-single-{windows,linux}.json、xws-byte-final-linux.json、
 xws-byte-delivery-{windows,linux}.json、xws-byte-{size,performance}-{windows,linux}.json、
 xws-byte-final-{checks,input-audit,validation}.json、xpop3-ci-635e5fe4-input-bindings.json。
+
+
+### 第四十九批：xpop3 首轮验收
+
+- 不可变 head 635e5fe4 的 PR CI 42023183791 已完成，七十三个不同 job 均成功；
+  同一 head 的独立邮件 42023178139 亦成功。PR 基线仍为 codex/fix-actions，且其
+  当前 base 是该 CI head 的祖先；没有把后续 xws 提交套用到本次 CI。
+- 已记录的 Windows/实际 WSL 共 1693 项构建及支持输入逐项绑定到该 head 的 Git blob。
+  当前 xpop3 自有实现、头、测试、包与 profile 输入均保持一致；唯一变化是进度台账。
+  结合第四十七批四个自有 C/四十七 API 的有界复核、108 次普通程序、二十四个独立
+  TLS/STLS 场景、四个示例、双平台消费者/裁剪/符号及十二个体积产物，将 xpop3
+  计入本轮完成。完整十九程序及清理后 umbrella 刷新的准确分阶段口径仍按原证据保留。
+- 不把配置/协议 smoke 当作吞吐或零开销证明。本地 POP3 macOS/BSD/Android、
+  MSVC/clang-cl/x86、TSan、长稳与外部服务限制继续保留。
+- 累计 xjwt、xoauth2、xws-group、xws-client、xws-server、xpop3，6/21。
+  xws 新改动须等待新提交自己的 CI；长期任务继续，不合并或发布。
+
+证据：ci-635e5fe4-run-final.json、ci-635e5fe4-mail-final.json、
+xpop3-ci-635e5fe4-input-bindings.json、xpop3-current-owned-56942e53.json、
+xpop3-session-final-{source-review,validation}.json、xpop3-first-round-acceptance.json。
