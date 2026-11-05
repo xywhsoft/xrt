@@ -26,7 +26,11 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 流式读取完整邮件并恢复每一行的 CRLF；零预算使用默认上限。 */
+/*
+	流式读取完整邮件并恢复每一行的 CRLF；零预算使用默认上限。
+	sink 在空的当前错误上下文中调用；失败保留本次设置的错误，
+	未设置错误时报告 XMAIL_ERROR_CALLBACK。成功且未设置新错误时恢复先前错误。
+*/
 XRT_API bool xrtPop3ClientRetrWrite(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -40,7 +44,7 @@ XRT_API bool xrtPop3ClientRetrWrite(
 
 
 
-/* 流式读取字段和指定数量正文行，并恢复每一行的 CRLF。 */
+/* 流式读取字段和指定数量正文行，恢复 CRLF；sink 错误规则与 RetrWrite 相同。 */
 XRT_API bool xrtPop3ClientTopWrite(
 	xpop3client* pClient,
 	uint64 iMessage,

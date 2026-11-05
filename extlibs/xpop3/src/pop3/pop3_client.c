@@ -476,9 +476,9 @@ XRT_API bool __xrtPop3ClientAuthLine(
 	xcancel* pCancel
 )
 {
-	if ( pClient == NULL ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( pClient == NULL ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -507,9 +507,9 @@ XRT_API bool __xrtPop3ClientLine(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtPop3ClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( !__xrtPop3ClientUsable(pClient) ) {
 		return false;
 	}
 	if ( pClient->State == XPOP3_CLIENT_MULTILINE ) {
@@ -802,6 +802,7 @@ XRT_API bool __xrtPop3ClientList(
 
 	char sNumber[21];
 	xpop3reply Reply;
+	xpop3listview Item;
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
 		return false;
@@ -823,9 +824,23 @@ XRT_API bool __xrtPop3ClientList(
 	if ( !Reply.Ok ) {
 		return __xrtPop3ClientRejected();
 	}
-	if ( !xrtPop3ListParse(Reply.Text, pItem) ) {
+	/* Preserve the parser's output/input overlap rejection before publishing. */
+	if ( xrtMemRangesOverlap(pItem, sizeof(*pItem), Reply.Text.Data,
+		Reply.Text.Size) ) {
+		(void)xrtPop3ListParse(Reply.Text, pItem);
 		return __xrtPop3ClientFail(pClient);
 	}
+	if ( !xrtPop3ListParse(Reply.Text, &Item) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	if ( Item.Message != iMessage ) {
+		(void)__xrtPop3ClientError(
+			XERR_PROTOCOL,
+			"POP3 LIST response message number does not match the request"
+		);
+		return __xrtPop3ClientFail(pClient);
+	}
+	*pItem = Item;
 	return true;
 }
 
@@ -864,6 +879,7 @@ XRT_API bool __xrtPop3ClientUidl(
 
 	char sNumber[21];
 	xpop3reply Reply;
+	xpop3uidlview Item;
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
 		return false;
@@ -885,9 +901,23 @@ XRT_API bool __xrtPop3ClientUidl(
 	if ( !Reply.Ok ) {
 		return __xrtPop3ClientRejected();
 	}
-	if ( !xrtPop3UidlParse(Reply.Text, pItem) ) {
+	/* Preserve the parser's output/input overlap rejection before publishing. */
+	if ( xrtMemRangesOverlap(pItem, sizeof(*pItem), Reply.Text.Data,
+		Reply.Text.Size) ) {
+		(void)xrtPop3UidlParse(Reply.Text, pItem);
 		return __xrtPop3ClientFail(pClient);
 	}
+	if ( !xrtPop3UidlParse(Reply.Text, &Item) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	if ( Item.Message != iMessage ) {
+		(void)__xrtPop3ClientError(
+			XERR_PROTOCOL,
+			"POP3 UIDL response message number does not match the request"
+		);
+		return __xrtPop3ClientFail(pClient);
+	}
+	*pItem = Item;
 	return true;
 }
 
@@ -1085,9 +1115,9 @@ XRT_API bool __xrtPop3ClientClose(
 	double iDeadline
 )
 {
-	if ( !__xrtPop3ClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( !__xrtPop3ClientUsable(pClient) ) {
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

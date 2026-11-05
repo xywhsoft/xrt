@@ -49,7 +49,7 @@
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 已完成本轮：源码、本地、双平台认证 CI、Hydra 及交付验收 |
-| xpop3 | 6 | 4 | 10 | 6 | 4 | UIDL 长度修复、四环境完整选择及双平台交付/profile 通过，其余协议/生命周期候选继续 |
+| xpop3 | 6 | 4 | 10 | 6 | 4 | 三组会话/错误候选与生产依赖修复、本地完整选择/示例/独立 TLS/交付通过，待本批 CI |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
 | xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
@@ -58,7 +58,7 @@
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
-| xws-server | 6 | 5 | 25 | 13 | 4 | 五个 C/十四 API 复核、握手策略修复、四环境完整选择及双平台交付/profile 本地通过，待本批 CI |
+| xws-server | 6 | 5 | 25 | 13 | 4 | 已完成本轮：五个 C/十四 API、四环境完整选择与示例、双平台交付/profile 及 73/73 CI |
 
 ## 执行记录
 
@@ -1724,3 +1724,81 @@ xpop3-round-{windows,linux,checks,input-audit,selected-assets}.json、
 xpop3-{size,performance}-{windows,linux}.json、xpop3-protocol-final-validation.json、
 xpop3-source-review-in-progress.json；xws-server-round-input-audit-canonical.json、
 acme-identity-{windows,linux}-probe.json、acme-identity-{windows,linux}-diagnostic-control.json。
+
+
+### 第四十六批：xws-server 首轮验收
+
+- 4e768fc7 的 PR CI 42012180391 已完成，同一 head 的 73 个 job 全部成功，包含
+  实际 macOS WebSocket runtime gates；独立邮件 42012168899 同一 head 成功。
+  先前 Windows ACME localhost TLS 超时本次未重现，不能据此证明原失败的唯一原因。
+- 从不可变 CI head 逐项读取 Git blob，核对 1537 项构建/支持输入及 76 项本库自有、
+  交付和基准输入与当前工作树相同，再分别读取 WSL 中独立物理副本核对 LF 归一化
+  SHA256。服务端五个自有 C、三个内部头、十四个公开函数的复核输入亦保持一致。
+- 结合第四十四/四十五批四环境完整选择、四个示例、真实错误/OOM/退休回归、双平台
+  消费/裁剪/符号、十八个体积产物和有限回环证据，将 xws-server 计入有界首轮完成。
+  并未将 smoke 当作吞吐或性能回归结论；未覆盖的长稳、TSan、外部服务等边界保留。
+- 累计 xjwt、xoauth2、xws-group、xws-client、xws-server，5/21。当前 xpop3 改动
+  不由旧 head 的成功结果代为认证；不合并或发布。
+
+证据：ci-4e768fc7-run-final.json、ci-4e768fc7-mail-final.json、
+xws-server-ci-4e768fc7-input-bindings.json、xws-server-first-round-acceptance.json。
+
+
+### 第四十七批：POP3 会话、消息错误归属和生产依赖
+
+- 用公开 Open/Login 取得的真实 Client 和真实回环对端验证上一批三个候选。旧实现
+  Windows/Linux GCC 模块/单头各七项失败、四项正常对照通过；不是零填充对象或
+  替换 transport 的 producer。原源码、夹具和四个失败二进制/日志均保留。
+- AuthLine、Line、Close 的 deadline 检查原来嵌套在无效对象分支，合法会话的无效
+  超时可触碰传输、错误归类为超时或使会话 FAILED，且无法完成健康 NOOP 恢复。
+  现先拒绝无效 deadline，再检查对象/状态；回归通过实际后续 NOOP 核对会话仍可用。
+  Windows 模块化旧 AuthLine 的失败发生在恢复/对端 transcript 阶段，日志没有证实
+  该次失败也进入 FAILED，因此不把所有平台/入口的旧失败路径都描述成同一状态变化。
+- 已成功输出的片段可留下旧线程错误，原消息预算超限和后续无错误 sink 拒绝会错误
+  沿用它。预算算术溢出与硬上限分开处理，超限明确设置 RANGE/LIMIT；每次 sink 调用
+  临时取走之前的错误，仅失败时传播本次错误或生成 IO/CALLBACK。成功没有新错误时
+  恢复之前错误，成功回调自己设置的新错误仍保留。特定 sink MEMORY 错误身份、
+  失败不发布长度、关闭部分响应以及正常完整读取/复用的控制全部保留。
+  源码层每片段增加一次 TakeError，冷路径处理之前错误的所有权；不声称零开销。
+- 单项 LIST/UIDL 原来接受请求 1 却回复 2 的成功行。现先解析到局部结果，核对序号
+  再发布；错配返回协议错误、保留调用方输出和完整 LastReply，并使会话失败/中止。
+  保留既有解析器对输出/输入重叠的拒绝语义；正常匹配仍能继续 NOOP。公开声明与
+  指南补充这些状态/错误规则，同步生成实现和声明单头，公开 ABI 不变。
+- 共用十一场景回归注册在 feature=null 的独立契约根，模块化和新增单头入口复用
+  同一真实网络夹具；最终最小根八程序全部通过。每次场景后退休真实 peer/Client，
+  最终 Engine TryStop/join 后检查 LiveObjects==0、WaitErrors==0 和 allocator 归零。
+- 生产 xpop3 根原来显式依赖回环测试和范例，带入 RSA 身份/私钥签名与 String。
+  现只依赖五个自有功能根，保留原协议 smoke 与产品单头，完整回归留在 xpop3_tests。
+  两平台生产源集合均从 159 减至 152；已有完整测试的 source/features/links 及十九
+  程序集合逐项证明不变，未删除有效测试。产品单头新增相应裁剪断言并在四环境刷新。
+  TLS_SERVER 同时来自 Core tls_stream 的既有 client/server 依赖，本批没有移除它，
+  也不以放宽断言或更改 Core 模块设计来声称已移除。
+- 完整选择 Windows GCC / Linux GCC / Clang ASan+UBSan+float-cast-overflow+leaks /
+  TCC 各十九程序通过；双平台另跑四个显式范例根，均通过，无账号或外部 POP3 服务。
+  五最小根各六程序、最终契约根八程序及产品根裁剪后的四个单头刷新，总计 108 次
+  普通程序运行。不是一次在生产根清理后重新执行十九程序；使用不变闭包证明和受影响
+  产品入口刷新补齐证据。已有 TLS/STLS、OOM、取消和退休断言保留。
+- 双平台 static/shared 四个消费者新增借用 Reply、owned 命令跨库释放和同一 Core
+  错误通道检查；各核对全部四十七个公开导出。两 profile 的三种产物共十二个体积
+  产物通过，新增可复用符号禁止规则并额外核对全部产物。生产依赖清理后重新刷新
+  包、裁剪、体积和有限协议 smoke；不据协议 smoke 声称流式吞吐没有回退。
+- 双平台另运行 GCC 独立 Python TLS 对端，每平台十二个 POP3 TLS/STLS 场景，共
+  二十四场景，包括 DNS/SNI、IPv4/IPv6、身份拒绝、正文截断及缺少 close_notify；
+  工具整体成功，保留每次真实客户端执行与二进制指纹，不把预期失败场景算成成功取信。
+- 五项元数据门禁与八项 layout/single 工具测试通过；最终 1693 项构建/支持输入
+  Windows/WSL 归一化一致。体积工具绑定原始字节，故两平台原始指纹不同；逐项核对
+  它的 707 项物理输入，只有 features.h 行尾不同，LF 归一化后相同。各报告保留实际
+  原始指纹，未借用另一平台指纹重新标注旧产物。既存无关 Core 测试差异继续保留两份。
+- 本地四个自有 C 和四十七 API 的有界复核候选已处理，仍须本批不可变提交的远端 CI
+  才能计入完成。未本地认证 POP3 macOS/BSD/Android/MSVC/clang-cl/x86、TSan、长稳或
+  外部服务；整轮保持 5/21，不自动合并或发布。
+
+证据：xpop3-contract-before-{provenance,windows,linux}.json、
+xpop3-contract-before-{inputs,fixtures}/ 及原二进制/日志；
+xpop3-contract-{final,round}-{windows,linux}.json、xpop3-boundary-{windows,linux}.json、
+xpop3-production-{root-before,boundary-proof}.json、
+xpop3-contract-final-{package,exports,symbols}-{windows,linux}.json、
+xpop3-contract-{size,performance}-{windows,linux}.json、
+xpop3-independent-tls-{win32,linux}-execution.json、xpop3-size-raw-input-differences.json、
+xpop3-contract-round-{checks,input-audit,selected-assets}.json、
+xpop3-session-final-{source-review,validation}.json。

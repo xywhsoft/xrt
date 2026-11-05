@@ -355,11 +355,7 @@
 				"pop3_client",
 				"pop3_client_tls",
 				"pop3_auth",
-				"pop3_client_example",
-				"pop3_offline_example",
-				"pop3_message",
-				"pop3_message_runtime_tests",
-				"pop3_client_tls_runtime_tests"
+				"pop3_message"
 			],
 			"public_headers": [
 				"extlibs/xpop3/include/xpop3/features.h",
@@ -368,16 +364,7 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"extlibs/xpop3/tests/test_pop3.c",
-				"extlibs/xpop3/tests/test_pop3_client.c",
-				"extlibs/xpop3/tests/test_pop3_client_tls.c",
-				"extlibs/xpop3/tests/test_pop3_auth.c",
-				"extlibs/xpop3/tests/test_pop3_sasl.c",
-				"extlibs/xpop3/tests/test_pop3_message.c",
-				"extlibs/xpop3/tests/test_pop3_message_runtime.c",
-				"extlibs/xpop3/tests/test_pop3_client_stls_runtime.c",
-				"extlibs/xpop3/tests/test_xpop3_protocol_oom.c",
-				"extlibs/xpop3/tests/test_pop3_read_tls_fault_runtime.c"
+				"extlibs/xpop3/tests/test_pop3.c"
 			],
 			"single_tests": [
 				"extlibs/xpop3/tests/single/test_single_xpop3.c"
@@ -411,6 +398,31 @@
 			"legacy": []
 		},
 		{
+			"name": "pop3_contract_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"pop3_message",
+				"pop3_auth",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xpop3/tests/test_pop3_contract_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xpop3/tests/single/test_single_pop3_contract_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xpop3/docs/api/pop3_client.md",
+				"extlibs/xpop3/docs/api/pop3_message.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "xpop3_tests",
 			"state": "implemented",
 			"feature": null,
@@ -425,7 +437,8 @@
 				"pop3_protocol_oom_tests",
 				"xpop3",
 				"pop3_read_tls_fault_runtime_tests",
-				"pop3_tls_upgrade_lifetime_tests"
+				"pop3_tls_upgrade_lifetime_tests",
+				"pop3_contract_runtime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],

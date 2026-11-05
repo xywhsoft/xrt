@@ -396,7 +396,7 @@ XRT_API bool xrtPop3ClientSend(
 
 
 
-/* 发送可超过普通命令上限的 SASL 响应或取消行。 */
+/* 发送可超过普通命令上限的 SASL 响应或取消行；无效超时在传输前拒绝并保留会话。 */
 XRT_API bool xrtPop3ClientAuthLine(
 	xpop3client* pClient,
 	xstrview Line,
@@ -406,7 +406,7 @@ XRT_API bool xrtPop3ClientAuthLine(
 
 
 
-/* 读取一条不含 CRLF 的原始线路，用于 SASL continuation 等扩展。 */
+/* 读取一条不含 CRLF 的原始线路，用于 SASL continuation 等扩展；无效超时保留会话。 */
 XRT_API bool xrtPop3ClientLine(
 	xpop3client* pClient,
 	xstrview* pLine,
@@ -469,7 +469,7 @@ XRT_API bool xrtPop3ClientStat(
 
 
 
-/* 查询一条消息的 LIST 大小。 */
+/* 查询一条消息的 LIST 大小；响应序号必须匹配请求，失败不改写结果。 */
 XRT_API bool xrtPop3ClientList(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -489,7 +489,7 @@ XRT_API bool xrtPop3ClientListAll(
 
 
 
-/* 查询一条消息的 UIDL。 */
+/* 查询一条消息的 UIDL；响应序号必须匹配请求，失败不改写结果。 */
 XRT_API bool xrtPop3ClientUidl(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -567,7 +567,7 @@ XRT_API bool xrtPop3ClientQuit(
 
 
 
-/* 不发送 QUIT，直接正常关闭传输。 */
+/* 不发送 QUIT，直接正常关闭传输。无效超时在关闭前拒绝并保留会话。 */
 XRT_API bool xrtPop3ClientClose(
 	xpop3client* pClient,
 	int64 iTimeout
@@ -704,7 +704,11 @@ XRT_EXTERN_C_BEGIN
 
 
 
-/* 流式读取完整邮件并恢复每一行的 CRLF；零预算使用默认上限。 */
+/*
+	流式读取完整邮件并恢复每一行的 CRLF；零预算使用默认上限。
+	sink 在空的当前错误上下文中调用；失败保留本次设置的错误，
+	未设置错误时报告 XMAIL_ERROR_CALLBACK。成功且未设置新错误时恢复先前错误。
+*/
 XRT_API bool xrtPop3ClientRetrWrite(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -718,7 +722,7 @@ XRT_API bool xrtPop3ClientRetrWrite(
 
 
 
-/* 流式读取字段和指定数量正文行，并恢复每一行的 CRLF。 */
+/* 流式读取字段和指定数量正文行，恢复 CRLF；sink 错误规则与 RetrWrite 相同。 */
 XRT_API bool xrtPop3ClientTopWrite(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -2171,9 +2175,9 @@ XRT_API bool __xrtPop3ClientAuthLine(
 	xcancel* pCancel
 )
 {
-	if ( pClient == NULL ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( pClient == NULL ) {
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
@@ -2202,9 +2206,9 @@ XRT_API bool __xrtPop3ClientLine(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtPop3ClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( !__xrtPop3ClientUsable(pClient) ) {
 		return false;
 	}
 	if ( pClient->State == XPOP3_CLIENT_MULTILINE ) {
@@ -2497,6 +2501,7 @@ XRT_API bool __xrtPop3ClientList(
 
 	char sNumber[21];
 	xpop3reply Reply;
+	xpop3listview Item;
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
 		return false;
@@ -2518,9 +2523,23 @@ XRT_API bool __xrtPop3ClientList(
 	if ( !Reply.Ok ) {
 		return __xrtPop3ClientRejected();
 	}
-	if ( !xrtPop3ListParse(Reply.Text, pItem) ) {
+	/* Preserve the parser's output/input overlap rejection before publishing. */
+	if ( xrtMemRangesOverlap(pItem, sizeof(*pItem), Reply.Text.Data,
+		Reply.Text.Size) ) {
+		(void)xrtPop3ListParse(Reply.Text, pItem);
 		return __xrtPop3ClientFail(pClient);
 	}
+	if ( !xrtPop3ListParse(Reply.Text, &Item) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	if ( Item.Message != iMessage ) {
+		(void)__xrtPop3ClientError(
+			XERR_PROTOCOL,
+			"POP3 LIST response message number does not match the request"
+		);
+		return __xrtPop3ClientFail(pClient);
+	}
+	*pItem = Item;
 	return true;
 }
 
@@ -2559,6 +2578,7 @@ XRT_API bool __xrtPop3ClientUidl(
 
 	char sNumber[21];
 	xpop3reply Reply;
+	xpop3uidlview Item;
 
 	if ( !__xrtPop3ClientTransaction(pClient) ) {
 		return false;
@@ -2580,9 +2600,23 @@ XRT_API bool __xrtPop3ClientUidl(
 	if ( !Reply.Ok ) {
 		return __xrtPop3ClientRejected();
 	}
-	if ( !xrtPop3UidlParse(Reply.Text, pItem) ) {
+	/* Preserve the parser's output/input overlap rejection before publishing. */
+	if ( xrtMemRangesOverlap(pItem, sizeof(*pItem), Reply.Text.Data,
+		Reply.Text.Size) ) {
+		(void)xrtPop3UidlParse(Reply.Text, pItem);
 		return __xrtPop3ClientFail(pClient);
 	}
+	if ( !xrtPop3UidlParse(Reply.Text, &Item) ) {
+		return __xrtPop3ClientFail(pClient);
+	}
+	if ( Item.Message != iMessage ) {
+		(void)__xrtPop3ClientError(
+			XERR_PROTOCOL,
+			"POP3 UIDL response message number does not match the request"
+		);
+		return __xrtPop3ClientFail(pClient);
+	}
+	*pItem = Item;
 	return true;
 }
 
@@ -2780,9 +2814,9 @@ XRT_API bool __xrtPop3ClientClose(
 	double iDeadline
 )
 {
-	if ( !__xrtPop3ClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
+	if ( !__xrtPop3ClientUsable(pClient) ) {
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {
@@ -3661,9 +3695,21 @@ static bool __xrtPop3MessageOutput(
 	xbytesview Data
 )
 {
+	xerror* pPrevious = xrtTakeError();
+
+	/* Only an error produced by this invocation can explain its failure.
+	 * Successful callbacks keep their new error, or restore the prior one. */
 	if ( pWrite(Data, pUserData) ) {
+		if ( pPrevious != NULL ) {
+			if ( xrtGetError() == NULL ) {
+				xrtSetErrorTake(pPrevious);
+			} else {
+				xrtErrorFree(pPrevious);
+			}
+		}
 		return true;
 	}
+	xrtErrorFree(pPrevious);
 	if ( xrtGetError() == NULL ) {
 		__xrtMailError(
 			XERR_IO,
@@ -3741,15 +3787,15 @@ static bool __xrtPop3MessageWrite(
 			return __xrtPop3MessageRecover(pClient);
 		}
 		if ( !__xrtMailSizeAdd(Line.Size, 2u, &iNext) ||
-			 !__xrtMailSizeAdd(iWritten, iNext, &iNext) ||
-			 ((iMaxBytes != SIZE_MAX) && (iNext > iMaxBytes)) ) {
-			if ( xrtGetError() == NULL ) {
-				__xrtMailError(
-					XERR_RANGE,
-					XMAIL_ERROR_LIMIT,
-					"POP3 message exceeds the byte limit"
-				);
-			}
+			 !__xrtMailSizeAdd(iWritten, iNext, &iNext) ) {
+			return __xrtPop3MessageRecover(pClient);
+		}
+		if ( (iMaxBytes != SIZE_MAX) && (iNext > iMaxBytes) ) {
+			__xrtMailError(
+				XERR_RANGE,
+				XMAIL_ERROR_LIMIT,
+				"POP3 message exceeds the byte limit"
+			);
 			return __xrtPop3MessageRecover(pClient);
 		}
 		if ( ((Line.Size != 0) && !__xrtPop3MessageOutput(

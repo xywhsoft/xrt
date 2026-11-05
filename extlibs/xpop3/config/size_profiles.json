@@ -6,13 +6,27 @@
 			"name": "pop3_protocol",
 			"system": "pop3_protocol",
 			"suite": "pop3",
-			"description": "POP3 协议纯解析与写出"
+			"description": "POP3 协议纯解析与写出",
+			"forbid_symbols": [
+				"xrtPop3Client",
+				"xrtMailNet",
+				"xrtMailTree",
+				"xrtNet",
+				"xrtTls"
+			]
 		},
 		{
 			"name": "xpop3",
 			"system": "pop3_protocol",
 			"suite": "xpop3",
-			"description": "xpop3 当前完整扩展闭包"
+			"description": "xpop3 当前完整扩展闭包",
+			"forbid_symbols": [
+				"xrtSmtp",
+				"xrtImap",
+				"xrtAcme",
+				"xrtWs",
+				"xrtTlsIdentityRsa"
+			]
 		}
 	],
 	"default_growth": {

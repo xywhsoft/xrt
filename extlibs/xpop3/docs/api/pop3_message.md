@@ -10,6 +10,11 @@
 存储。`iMaxBytes` 是恢复 CRLF 后的硬上限，零值使用 `XPOP3_MESSAGE_BYTES_DEFAULT`，
 `SIZE_MAX` 明确取消限制。
 
+每次 sink 调用都以空的当前错误开始。返回失败时，只传播本次 sink 设置的错误；
+本次没有设置错误则生成 `XERR_IO / XMAIL_ERROR_CALLBACK`。返回成功且未设置
+新错误时恢复进入 sink 前的错误；成功回调自己设置的新错误仍保留。预算超限
+始终报告 `XERR_RANGE / XMAIL_ERROR_LIMIT`，不会被先前成功片段的旧错误遮蔽。
+
 ## 连续字节与 MIME 树
 
 `xrtPop3ClientRetrBytes` 和 `xrtPop3ClientTopBytes` 返回由 `xrtFree` 释放的连续字节，并附加
@@ -27,4 +32,4 @@ TOP 可能只包含 MIME 实体前缀，因此不提供强制树解析便利入�
 
 ## 示例
 
-见 `examples/pop3/message/main.c`。
+见 `extlibs/xpop3/examples/message/main.c`。
