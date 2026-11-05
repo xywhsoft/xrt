@@ -596,22 +596,25 @@ bool xllmSessionAddToolResultWithImage(xllm_session* pSession, uint64_t uTurn,
     const unsigned char* pImageBytes, size_t iImageSize, const char* sImageMime)
 {
     xllm_message tMessage;
-    xllm_part tPart;
+    xllm_part tPart, tText;
     bool bOk;
     if ( !pSession || !sToolCallId || !sToolCallId[0] ||
          !pImageBytes || !iImageSize || !sImageMime ) { return false; }
     xllmMessageInit(&tMessage, XLLM_ROLE_TOOL);
     memset(&tPart, 0, sizeof(tPart));
+    xllmPartInit(&tText, XLLM_PART_TEXT);
     if ( !xllmPartSetImageData(&tPart, pImageBytes, iImageSize, sImageMime) ) {
         xllmPartUnit(&tPart);
         xllmMessageUnit(&tMessage);
         return false;
     }
     bOk = xllmMessageSetToolCallId(&tMessage, sToolCallId) &&
-        xllmMessageSetContent(&tMessage, sContent ? sContent : "") &&
+        xllmPartSetText(&tText, sContent ? sContent : "") &&
+        xllmMessageAddPart(&tMessage, &tText) &&
         xllmMessageAddPart(&tMessage, &tPart) &&
         xllmSessionAddMessage(pSession, uTurn, &tMessage, 0u);
     xllmPartUnit(&tPart);
+    xllmPartUnit(&tText);
     xllmMessageUnit(&tMessage);
     return bOk;
 }

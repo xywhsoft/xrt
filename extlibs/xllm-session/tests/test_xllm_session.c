@@ -1912,10 +1912,45 @@ cleanup:
     xllmClientDestroy(pClient);
 }
 
+static void test_tool_image_text(void)
+{
+    static const unsigned char bytes[] = {0u, 255u, 65u, 0u};
+    xllm_error error;
+    xllm_session* session = xllmSessionCreate(NULL, &error);
+    xllm_request request;
+    xllm_response response = {0};
+    xllm_tool_call call = {0};
+    uint64_t turn;
+    xllmRequestInit(&request);
+    SESSION_CHECK(session != NULL, "tool image session creates");
+    if (!session) return;
+    turn = xllmSessionBeginTurn(session);
+    call.sId = "image-call"; call.sName = "read";
+    call.sArgumentsJson = "{}";
+    response.pToolCalls = &call; response.iToolCallCount = 1u;
+    SESSION_CHECK(xllmSessionAddAssistantResponse(session, turn, &response) &&
+        xllmSessionAddToolResultWithImage(session, turn, call.sId,
+            "read: source/image.png", bytes, sizeof(bytes), "image/png") &&
+        xllmSessionBuildRequest(session, &request, &error), "image result renders");
+    if (request.iMessageCount) {
+        const xllm_message* message = &request.pMessages[request.iMessageCount-1u];
+        SESSION_CHECK(message->eRole == XLLM_ROLE_TOOL && message->iPartCount == 2u &&
+            message->pParts[0].eKind == XLLM_PART_TEXT &&
+            strcmp(message->pParts[0].sText, "read: source/image.png") == 0 &&
+            message->pParts[1].eKind == XLLM_PART_IMAGE &&
+            message->pParts[1].iDataSize == sizeof(bytes) &&
+            memcmp(message->pParts[1].pData, bytes, sizeof(bytes)) == 0,
+            "image result retains text and exact binary bytes");
+    }
+    xllmRequestUnit(&request);
+    xllmSessionDestroy(session);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
     printf("xllm-session v3 tests\n");
+    test_tool_image_text();
     test_default_profile();
     test_compaction_user_bridge();
     test_add_reference();
