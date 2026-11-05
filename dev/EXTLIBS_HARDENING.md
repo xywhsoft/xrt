@@ -2168,3 +2168,22 @@ ximap-auth-terminal-candidate.json、acme-port-exact-head-ci-proof.json。
 证据：ci-ce3cb859-xhttp-client-failed.log、https-pool-selection-proof.json、
 https-pool-original-clang-before.log、https-pool-final-{windows,linux}.json、
 https-pool-checks.json、https-pool-input-audit.json。
+
+
+### 第五十九批：HTTPS pool 单头入口的叶子归属
+
+- 6484e2a4 的独立邮件成功；Metadata 任务 127465429781 明确发现第五十八批
+  遗漏两个 single_test_owners 映射。原有 HTTP 布局测试在本地同样失败，不能把前批
+  较窄的八项 extension 工具测试通过说成全部元数据测试通过。
+- 为 select/IOCP 两个单头分别登记对应测试根的归属，保留原有聚合选择和检查断言。
+  Windows、Linux 各六项 HTTP 布局测试通过；三项适用的平台/入口组合逐项核对，
+  完整测试根给出的单头宏列表与已运行定向根完全相同，Linux 不引入 IOCP 入口。
+  这两项映射是唯一语义变化，没有重写任何库源码或测试载荷。
+- 本批不复用前批的 941 项哈希声称本次完整源码冻结；前批证据仍只绑定 6484e2a4。
+  同期 IMAP 广域输入清单包含 HTTP 清单，另存这一项外部元数据变化证明；它不在
+  IMAP 的清单依赖闭包内，IMAP 实际 C/头/测试/构建工具输入保持，原始快照不改写。
+  新提交 CI 仍待验证，累计 8/21，IMAP 未验收；不合并发布。
+
+证据：ci-6484e2a4-metadata-failed.log、https-pool-owners-before-windows.log、
+https-pool-owners-final-windows.log、https-pool-owners-proof.json、
+ximap-auth-external-metadata-change.json。

@@ -1904,7 +1904,9 @@
 				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c": "http_sse_client",
 				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c": "xhttp_client",
 				"extlibs/xhttp-client/tests/single/test_single_http_client_contract.c": "http_client",
-				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c": "http_client_future"
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c": "http_client_future",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https.c": "http_client_pool_https_tests",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https_iocp.c": "http_client_pool_https_iocp_tests"
 			}
 		}
 	],
