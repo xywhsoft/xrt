@@ -2140,3 +2140,31 @@ ximap-boundary-final-{windows,linux}.json、ximap-boundary-independent-{tls,comp
 ximap-boundary-independent-compress-linux-clang.json、
 ximap-boundary-{checks,input-audit,api-source-map,source-review,final-validation}.json、
 ximap-auth-terminal-candidate.json、acme-port-exact-head-ci-proof.json。
+
+
+### 第五十八批：HTTPS pool 测试等待运行时退役
+
+- 9a208786 的保留 CI 现已结束，七十三项全部成功，独立邮件亦成功。ce3cb859 的
+  独立邮件成功，但 PR CI 的 xhttp-client 任务 127436699377 在原有 HTTPS pool
+  EngineDestroy 断言失败。回调中的 close 标志可以先于回调末尾引用释放；测试必须
+  保持栈上 State 和 Engine 存活到所有操作对象排空、native Worker 完成 join。
+- fixture 增加十秒上限的公开 TryStop 退役等待，仅接受 BUSY/READY，随后检查
+  LiveObjects、PendingCommands、ActiveTimers、WaitErrors、WakeErrors 全零，再执行
+  原有 EngineDestroy 断言。TLS、单连接两次请求、正文、计数和 close_notify 的原有
+  三十三条诊断保留。严格 Clang 还复现原有 Address 可能未初始化的编译告警，改为
+  零初始化；没有屏蔽告警、放宽断言或改动库实现。
+- 同一 fixture 新增 select/IOCP 单头入口，分别登记定向根和完整测试根；完整根的
+  原源码、模块测试、示例、定义和链接有序选择保持，原单头顺序保持并追加两项。
+  Windows 最终显式选择两个测试根，实际四程序通过；只选择 IOCP 根的早期两程序
+  记录单独保留，不把依赖根的资产误算成 select 执行。
+- 最终十个定向程序通过：Windows GCC select/IOCP 模块化、单头四个；Linux GCC、
+  Clang ASan/UBSan/float-cast-overflow/泄漏检查、TCC 各模块化和单头两个。五项
+  元数据门禁及八个工具测试通过。941 项选定源码、头文件、fixture 和直接构建工具
+  输入在 Windows/native 规范化一致；此清单不宣称覆盖全部间接元数据工具依赖，
+  也不宣称本地重跑完整 xhttp-client 测试选择。
+- 本批只交付测试及清单修正，库实现和公共头没有改变；新提交自身 CI 仍须验证。
+  IMAP Auth 的正式共享回归独立准备，尚未修复或验收。累计仍为 8/21，不合并发布。
+
+证据：ci-ce3cb859-xhttp-client-failed.log、https-pool-selection-proof.json、
+https-pool-original-clang-before.log、https-pool-final-{windows,linux}.json、
+https-pool-checks.json、https-pool-input-audit.json。

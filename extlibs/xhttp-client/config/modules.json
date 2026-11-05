@@ -699,7 +699,9 @@
 			"tests": [
 				"extlibs/xhttp-client/tests/http/test_http_client_pool_https.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": [],
@@ -722,7 +724,9 @@
 			"tests": [
 				"extlibs/xhttp-client/tests/http/test_http_client_pool_https_iocp.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https_iocp.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": [],
@@ -1856,7 +1860,9 @@
 				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c",
 				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c",
 				"extlibs/xhttp-client/tests/single/test_single_http_client_contract.c",
-				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c"
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_pool_https_iocp.c"
 			],
 			"examples": [],
 			"benchmarks": [
