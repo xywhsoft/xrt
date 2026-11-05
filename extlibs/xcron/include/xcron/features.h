@@ -41,8 +41,8 @@
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
 #endif
-#ifndef XRT_MODULE_EVENT
-#define XRT_MODULE_EVENT
+#ifndef XRT_MODULE_EVENT_WAITER
+#define XRT_MODULE_EVENT_WAITER
 #endif
 #endif
 

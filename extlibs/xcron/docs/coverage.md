@@ -168,3 +168,15 @@ rejection and 2048 warmed zero-requested-heap cycles. Separate module/single,
 root/leaf static/shared consumers and runnable example are registered. Fixed UTC
 arrival start-lateness and owner-to-worker measurements use millisecond clocks;
 smoke has no production/throughput/P99 acceptance. See [full service contract](service.md).
+
+## Live precise waiting (2026-11-05)
+
+The live owner now selects the public event waiter. Native timer startup rollback,
+wait failure shutdown, cleanup failure/retry, joined handoff, actual Windows
+standard-timer fallback and 64 handle-balanced service lifetimes are exercised.
+Backend capacity and live timers are separately inspectable; normal stop releases
+the native timer before consumers must drain results or reap jobs. Both full
+modular/single suites, static/shared consumers, runnable example and separate
+TSan units pass; WSL is not native Linux qualification. Millisecond unpinned
+fixed-arrival/CPU results retain their failed noise gates. See
+[the stage record](../tests/results/precise-service-20261105.json).

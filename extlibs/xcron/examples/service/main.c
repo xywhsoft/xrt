@@ -18,10 +18,12 @@ int main(void)
     double End=xrtTimer()+10;while(!xrtAtomic32Load(&Calls,XMEMORY_ACQUIRE)){if(xrtTimer()>End)return 5;xrtSleep(1);}
     /* Join does not require consuming reserved outputs. No user Data is freed here. */
     if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return 6;
+    xcronservicestats Stats;if(!xcronServiceInspect(S,&Stats,NULL) || Stats.ActiveNativeTimers)return 10;
     xcronretired Retired;bool Found=false;
     if(!xcronServiceReapStopped(S,&Retired,&Found,NULL) || !Found || Retired.Id!=Reply.Job || Retired.Data!=&Calls || Retired.Info.Succeeded!=1)return 7;
     xcronservicecompletion Done;size_t Count=0;
     if(!xcronServiceDrain(S,&Done,1,&Count,NULL) || Count!=1 || Done.Result!=XCRON_RUN_SUCCEEDED || Done.Error || Done.ScheduledAt!=Next)return 8;
     if(!xcronServiceDestroy(S,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 9;
+    printf("[waiter] backend=%d storage=%zu bytes timers-after-join=%u\n",(int)Stats.Waiter.Backend,Stats.Waiter.StorageBytes,Stats.ActiveNativeTimers);
     puts("[PASS] real UTC deadline, borrowed executor, reserved metadata and original-data retirement");return 0;
 }

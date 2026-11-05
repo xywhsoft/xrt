@@ -341,7 +341,7 @@
       "depends": [
         "xcron_executor",
         "cond",
-        "event"
+        "event_waiter"
       ],
       "public_headers": [
         "extlibs/xcron/include/xcron/service.h",
@@ -357,7 +357,8 @@
         "extlibs/xcron/tests/test_service.c"
       ],
       "single_tests": [
-        "extlibs/xcron/tests/single/test_single_xcron_service.c"
+        "extlibs/xcron/tests/single/test_single_xcron_service.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c"
       ],
       "examples": [
         "extlibs/xcron/examples/service/main.c"
@@ -402,7 +403,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_zoned.c",
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
         "extlibs/xcron/tests/single/test_single_xcron_executor.c",
-        "extlibs/xcron/tests/single/test_single_xcron_service.c"
+        "extlibs/xcron/tests/single/test_single_xcron_service.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -417,7 +419,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_zoned.c": "xcron_zoned",
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler",
         "extlibs/xcron/tests/single/test_single_xcron_executor.c": "xcron_executor",
-        "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service"
+        "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service",
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c": "xcron_service"
       }
     }
   ]

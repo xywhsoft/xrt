@@ -34,9 +34,11 @@ int main(int Argc,char** Argv)
         Returned+=N;if(xrtTimer()>Limit)return 9;if(!N)xrtSleep(1);else DoneAt=xrtTimer();}
     if(xrtAtomic32Load(&B.Completed,XMEMORY_ACQUIRE)!=Count)return 10;
     if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return 11;
+    xcronservicestats Stats;if(!xcronServiceInspect(S,&Stats,NULL) || Stats.ActiveNativeTimers)return 14;
     uint32 Retired=0;for(;;){xcronretired R;bool Found;if(!xcronServiceReapStopped(S,&R,&Found,NULL))return 12;if(!Found)break;++Retired;}
     if(Retired!=Jobs || !xcronServiceDestroy(S,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xrtExecutorDestroy(Pool))return 13;
     qsort(B.Lateness,Count,sizeof(double),serviceBenchCompare);qsort(B.Queue,Count,sizeof(double),serviceBenchCompare);size_t P99=(Count-1)*99/100;
     printf("arrival_rate_per_sec: %u\nstart_lateness_p99_ms: %.3f\nstart_lateness_max_ms: %.3f\nowner_to_worker_p99_ms: %.3f\nsamples: %zu\ncompletion_monotonic_seconds: %.6f\n",Jobs,B.Lateness[P99],B.Lateness[Count-1],B.Queue[P99],Count,DoneAt);
+    printf("waiter_backend: %d\nwaiter_storage_bytes: %zu\nnative_timer_capacity: %u\nnative_timers_after_join: %u\n",(int)Stats.Waiter.Backend,Stats.Waiter.StorageBytes,Stats.Waiter.NativeTimers,Stats.ActiveNativeTimers);
     xrtFree(Data);xrtFree(Samples);return 0;
 }

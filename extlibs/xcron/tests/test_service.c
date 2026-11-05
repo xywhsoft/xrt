@@ -67,10 +67,12 @@ static void serviceClear(servicefixture* F)
 static void testServiceCredits(void)
 {
     servicefixture F=serviceFixture();xexecutor* E=servicePool(1,8);xcronserviceconfig C=serviceConfig(E,&F);C.CompletionLimit=C.BatchLimit=1;serviceStart(&F,&C);
+    xcronservicestats Backend=serviceStats(F.Service);
+    testRequire(Backend.Waiter.StorageBytes==sizeof(xeventwaiter) && Backend.ActiveNativeTimers==Backend.Waiter.NativeTimers,"owner-bound waiter backend and inline storage reported");
     xcronzone* Z=serviceZone();xcronjobconfig J=serviceJob(Z,&F,XRT_TIME_UNIX_EPOCH,XRT_TIME_UNIX_EPOCH+3000);xrtAtomic64Store(&F.Wall,(uint64)J.End,XMEMORY_RELEASE);xcronjobid Job=serviceAdd(F.Service,&J);xcronZoneRelease(Z);
     serviceReady(F.Service,1,0);xrtSleep(15);xcronservicestats T=serviceStats(F.Service);testRequire(T.ReservedCompletions==1 && T.Kernel.Dispatched==1 && xrtAtomic64Load(&F.Calls,XMEMORY_RELAXED)==1,"full completion output stops further dispatch");
     xcronserviceissue I;testRequire(!xcronServiceDestroy(F.Service,&I) && I.Code==XCRON_SERVICE_BUSY,"busy destroy preserves duties");xrtClearError();
-    serviceStop(&F);T=serviceStats(F.Service);testRequire(T.State==XCRON_SERVICE_STOPPED && T.Kernel.Completed==1 && T.Kernel.Jobs==1,"close joins before consuming results or retirement");
+    serviceStop(&F);T=serviceStats(F.Service);testRequire(T.State==XCRON_SERVICE_STOPPED && T.Kernel.Completed==1 && T.Kernel.Jobs==1 && !T.ActiveNativeTimers,"close joins before consuming results or retirement");
     xcronretired R;bool Found=false;testRequire(xcronServiceReapStopped(F.Service,&R,&Found,NULL) && Found && R.Id==Job && R.Data==&F && R.Info.Succeeded==1,"retirement receipt precedes metadata consumption");
     xcronservicecompletion D=serviceDone(F.Service);testRequire(D.Job==Job && D.Result==XCRON_RUN_SUCCEEDED && !D.Error && D.Attempts==1,"metadata remains valid after retirement");
     testRequire(xcronServiceDestroy(F.Service,NULL),"all reserved duties returned");servicePoolEnd(E);

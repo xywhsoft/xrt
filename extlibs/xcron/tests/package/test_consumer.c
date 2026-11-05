@@ -15,6 +15,7 @@ static bool consumerService(void)
     if(!xcronServiceCreate(&C,&S,NULL) || !xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&E,NULL))return false;
     xcronjobconfig J={.Expression=E,.Zone=Z,.Begin=XRT_TIME_UNIX_EPOCH,.End=XRT_TIME_UNIX_EPOCH,.RunningLimit=1};xcronrequestid Q;xcronreply R;
     if(!xcronServiceAddAsync(S,&J,&Q,NULL) || xcronServiceCollect(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || R.Error)return false;
+    xcronservicestats Backend;if(!xcronServiceInspect(S,&Backend,NULL) || Backend.Waiter.StorageBytes!=sizeof(xeventwaiter) || Backend.ActiveNativeTimers!=Backend.Waiter.NativeTimers)return false;
     xcronZoneRelease(Z);size_t N=0;xcronservicecompletion D;double Limit=xrtTimer()+10;
     while(!N){if(!xcronServiceDrain(S,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
     if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || D.Job!=R.Job || !xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;

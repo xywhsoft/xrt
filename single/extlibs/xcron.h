@@ -98,8 +98,8 @@
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
 #endif
-#ifndef XRT_MODULE_EVENT
-#define XRT_MODULE_EVENT
+#ifndef XRT_MODULE_EVENT_WAITER
+#define XRT_MODULE_EVENT_WAITER
 #endif
 #endif
 
@@ -770,8 +770,8 @@ XRT_EXTERN_C_END
 
 #ifndef XCRON_SERVICE_H
 #define XCRON_SERVICE_H
-#if defined(XCRON_FEATURE_XCRON_SERVICE) && (!defined(XCRON_FEATURE_XCRON_EXECUTOR) || !defined(XRT_FEATURE_EVENT) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_THREAD))
-#error "cron service requires execution adapter and public XRT thread/condition/event"
+#if defined(XCRON_FEATURE_XCRON_SERVICE) && (!defined(XCRON_FEATURE_XCRON_EXECUTOR) || !defined(XRT_FEATURE_EVENT_WAITER) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_THREAD))
+#error "cron service requires execution adapter and public XRT thread/condition/event deadline waiter"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE)
 typedef struct xcronservice xcronservice;
@@ -834,6 +834,11 @@ typedef struct xcronservicestats {
     xcronschedulerstats Kernel;
     xcronexecutorstats Executor;
     uint64 SubmitAttempts,RejectedSubmissions,Retries,AdmissionExpired,Published,Collected,WakeFailures;
+    /* Selected backend/capacity persists after stop; live timers becomes zero on
+     * successful owner cleanup. Failed cleanup stays visible and Destroy retries.
+     * Waiter storage is already included in ArenaBytes, not added to Bytes again. */
+    xeventwaiterinfo Waiter;
+    uint32 ActiveNativeTimers;
 } xcronservicestats;
 XRT_EXTERN_C_BEGIN
 /* Dedicated public-XRT owner thread, bounded command tickets, kernel, borrowed
@@ -850,7 +855,12 @@ XRT_EXTERN_C_BEGIN
  * BytesLimit reserves arena + Scheduler.BytesLimit + AdapterBytesLimit without
  * overflow. Stats reports actual requested component bytes. Borrowed data/zones,
  * diagnostics, callbacks and native/runtime bootstrap storage are outside this
- * cap. Optional InitializationBudget charges direct creator and kernel/adapter
+ * cap. One owner-bound reusable event waiter prefers precise native deadlines,
+ * with observable platform fallback in Stats.Waiter and no global resolution
+ * change. Its storage is inside ArenaBytes; native timer handles are outside the
+ * byte cap and counted separately. Normal stop releases it before STOPPED; a
+ * release failure publishes FAILED and Destroy retries after physical join.
+ * Optional InitializationBudget charges direct creator and kernel/adapter
  * startup allocations; borrowed only during Create, not business work/bootstrap.
  * Create failure consumes no Data/context/Executor and leaves Service unchanged.
  * Invalid API spans/output aliases preserve outputs; value failures publish typed
@@ -2766,6 +2776,7 @@ XCRON_API bool xcronExecutionCancelled(const xcronexecution* Execution)
 #if defined(XCRON_FEATURE_XCRON_SERVICE)
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 #if defined(XCRON_FEATURE_XCRON_SERVICE)
 #define XCRON_SERVICE_MAGIC UINT32_C(0x58435631)
 #define XCRON_SERVICE_NONE UINT32_MAX
@@ -2793,6 +2804,8 @@ struct xcronservice {
     xmutex Mutex;
     xcond Changed;
     xevent Wake;
+    xeventwaiter Waiter;
+    bool WaiterLive;
     xthread* Thread;
     uint64 Owner;
     bool Ready,Activated,Closing,CancelRuns,Stopped;
@@ -2979,6 +2992,15 @@ static bool xcronServicePublishStats(xcronservice* S,xcronschedulerstats* K,xcro
     S->Stats.SubmitAttempts=S->SubmitAttempts;S->Stats.RejectedSubmissions=S->RejectedSubmissions;S->Stats.Retries=S->Retries;S->Stats.AdmissionExpired=S->AdmissionExpired;
     xrtMutexUnlock(&S->Mutex);return true;
 }
+/* Owner during stop, or an exclusive caller after native join on retry. */
+static bool xcronServiceWaiterRelease(xcronservice* S)
+{
+    if(!S->WaiterLive)return true;
+    if(!xrtEventWaiterUnit(&S->Waiter))return false;
+    S->WaiterLive=false;
+    xrtMutexLock(&S->Mutex);S->Stats.ActiveNativeTimers=0;xrtMutexUnlock(&S->Mutex);
+    return true;
+}
 static int32 xcronServiceOwner(ptr Raw)
 {
     xcronservice* S=Raw;xallocationscope Scope={0};bool Budget=false,OK=true;xcronserviceerror Code=XCRON_SERVICE_OK;
@@ -2987,9 +3009,19 @@ static int32 xcronServiceOwner(ptr Raw)
     if(OK && !xcronSchedulerCreate(&S->Config.Scheduler,&S->Kernel,NULL)){OK=false;Code=xrtErrorKind(xrtGetError())==XERR_MEMORY?XCRON_SERVICE_MEMORY:XCRON_SERVICE_KERNEL;}
     xcronexecutorconfig B={.Executor=S->Config.Executor,.Proc=S->Config.Proc,.Context=S->Config.Context,.Notify=xcronServiceSignal,.NotifyContext=S,.RunLimit=S->Config.Scheduler.RunLimit,.BytesLimit=S->Config.AdapterBytesLimit};
     if(OK && !xcronExecutorCreate(&B,&S->Bridge,NULL)){OK=false;Code=xrtErrorKind(xrtGetError())==XERR_MEMORY?XCRON_SERVICE_MEMORY:XCRON_SERVICE_EXECUTOR;}
+    /* Last fallible startup resource: Init failure owns no native timer. The
+     * owner, not the creator, binds the reusable wait context to its thread. */
+    if(OK && !xrtEventWaiterInit(&S->Waiter,&S->Wake,0)){OK=false;Code=XCRON_SERVICE_SYSTEM;}
+    if(OK){
+        S->WaiterLive=true;
+        /* Get has no native/allocation failure with these disjoint live spans. */
+        if(!xrtEventWaiterGet(&S->Waiter,&S->Stats.Waiter))abort();
+        S->Stats.ActiveNativeTimers=S->Stats.Waiter.NativeTimers;
+    }
     xerror* StartupError=OK?NULL:xrtTakeError();
     if(Budget)xrtAllocationBudgetLeave(&Scope);
-    if(!OK){if(S->Kernel){xcronSchedulerDestroy(S->Kernel,NULL);S->Kernel=NULL;}
+    if(!OK){if(S->Bridge){xcronExecutorDestroy(S->Bridge,NULL);S->Bridge=NULL;}
+        if(S->Kernel){xcronSchedulerDestroy(S->Kernel,NULL);S->Kernel=NULL;}
         xrtMutexLock(&S->Mutex);S->Startup=(xcronserviceissue){Code,xrtErrorKind(StartupError)};S->StartupError=StartupError;S->Ready=true;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);return 0;}
     xrtMutexLock(&S->Mutex);S->Ready=true;xrtCondBroadcast(&S->Changed);
     while(!S->Activated)xrtCondWaitFor(&S->Changed,&S->Mutex,100);
@@ -3041,6 +3073,7 @@ static int32 xcronServiceOwner(ptr Raw)
         xrtMutexUnlock(&S->Mutex);
         if(Stop){
             if(!xcronExecutorDestroy(S->Bridge,NULL)){xcronServiceFault(S,XCRON_SERVICE_EXECUTOR);continue;}S->Bridge=NULL;
+            if(!xcronServiceWaiterRelease(S))xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
             xrtMutexLock(&S->Mutex);S->Stopped=true;S->Stats.State=S->Stats.Failure.Code==XCRON_SERVICE_OK?XCRON_SERVICE_STOPPED:XCRON_SERVICE_FAILED;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);return 0;
         }
         uint64 Delay=S->Config.ResampleMilliseconds;
@@ -3052,7 +3085,7 @@ static int32 xcronServiceOwner(ptr Raw)
         }
         if(Commands || Completed==S->Config.BatchLimit || (More && Capacity))Delay=0;
         /* The auto-reset event is never reset after the work check. */
-        if(xrtEventWaitFor(&S->Wake,(int64)Delay)==XWAIT_ERROR)xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
+        if(xrtEventWaiterWaitFor(&S->Waiter,(int64)Delay)==XWAIT_ERROR)xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
     }
 }
 static bool xcronServiceArray(size_t Count,size_t Unit,size_t Align,size_t* Total,size_t* Offset)
@@ -3213,6 +3246,7 @@ XCRON_API bool xcronServiceDestroy(xcronservice* S,xcronserviceissue* Issue)
     xrtMutexLock(&S->Mutex);bool Busy=!S->Stopped || S->Stats.Kernel.Jobs || S->Stats.PendingRequests || S->Stats.ReadyReplies || S->Stats.ReservedCompletions;xrtMutexUnlock(&S->Mutex);
     if(Busy)return xcronServiceFail(XCRON_SERVICE_BUSY,XERR_NONE,Issue);
     if(xrtThreadWaitFor(S->Thread,0)!=XWAIT_OK)return xcronServiceFail(XCRON_SERVICE_BUSY,XERR_NONE,Issue);
+    if(!xcronServiceWaiterRelease(S))return xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);
     if(!xcronSchedulerDestroy(S->Kernel,NULL))return xcronServiceFail(XCRON_SERVICE_KERNEL,xrtErrorKind(xrtGetError()),Issue);
     xrtThreadDestroy(S->Thread);xrtErrorFree(S->FatalError);xrtEventUnit(&S->Wake);xrtCondUnit(&S->Changed);xrtMutexUnit(&S->Mutex);S->Magic=0;xrtFree(S);xcronServiceOK(Issue);return true;
 }

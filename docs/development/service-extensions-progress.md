@@ -14,9 +14,11 @@ Target and rules: [development contract](service-extensions-plan.md).
   pools with bounded repair are locally verified. Identity-bound ticket
   management, remaining dedicated modes, HA/tracking and final performance
   acceptance remain pending.
-- xcron five-field/seconds-six-field expression compilation and Gregorian
-  UTC/civil matching/earliest search are locally verified. Named time zones,
-  scheduling and durable recovery remain pending.
+- xcron expression/calendar, explicit zone/TZif occurrences, scheduling kernel,
+  executor adapter and bounded live service are locally verified. The live owner
+  now uses the public reusable precise event waiter. Named-zone database/reload,
+  durable recovery, nominal DST compensation, bounded recurrence CPU and final
+  native performance/long-run acceptance remain pending.
 - P1 codec/expression/calendar foundations are locally verified. P2 now has a
   measured-workload TCP request/deadline/cancel/close slice and bounded pool
   repair; remaining modes and pinned overhead/performance acceptance are pending.
@@ -7127,3 +7129,54 @@ Local commands, source hashes and log receipts: `out/service-extensions-merge/`.
 All four libraries remain developing. Protocol completeness, persistence and
 recovery, native performance, native Linux qualification and >=72h acceptance
 remain open; this is an integration checkpoint. No remote push was performed.
+
+## 2026-11-05 - precise waits integrated into the live Cron owner
+
+Previous goal turn made authoritative progress: both histories were merged with
+integration regressions and portable records. This turn resumes from a clean
+worktree and fast-forwards the four newer master commits to 7cecb354 before edits.
+No existing work is overwritten. Only xcron service selects the already proven
+public event_waiter primitive; no additional Core runtime or API is introduced.
+
+The actual owner initializes its reusable waiter after the kernel/adapter. Native
+init failure now rolls both components back. Work/wake ordering retains the
+auto-reset event with no reset after checking pending work. Stop releases the
+waiter after physical adapter producers finish, before publishing STOPPED. A
+release failure publishes FAILED with a typed SYSTEM cause and retains live
+resource accounting. After native join, exclusive Destroy retries cleanup before
+kernel destruction; another failure preserves an inspectable object for retry.
+
+Stats adds the immutable selected backend/capacity and live native timer count.
+Config remains136 bytes and function signatures are unchanged; stats grows320 to
+344 bytes on both x64 targets, requiring consumers to rebuild with matching
+headers. Inline context is40 Windows/32 POSIX bytes included in ArenaBytes; one
+Windows native timer is separately counted and no process/global resolution is
+changed. POSIX reuses the existing condition. Per-wait validation/clock reads and
+Windows arm/wait/cancel calls are explicit costs, with no zero-overhead claim.
+
+Both platforms pass19 full modular/single programs plus the service regression
+and runnable example. Static/shared consumers pass on each. WSL GCC O2 runs with
+ASan/UBSan/leak-halt; two separate O1 TSan modular/native-wrapper units also pass.
+Windows66 tool tests, generator/reference/docs checks and direct/declaration
+layout probes pass. Failure injection covers real waiter init/wait/unit, charged
+startup rollback, stopped cleanup retry/handoff and actual Windows standard-timer
+fallback. A warmed64-service loop returns Windows handle count to baseline.
+Existing OOM, command races, reserved outputs and2048 zero-heap cycles remain.
+
+Identical fixed UTC arrivals (8 periods x256 jobs, all6144 samples per phase) give
+Windows P99 samples15/14/14ms before and2/2/1ms after. WSL gives3/4/1ms before and
+3/1/2ms after. All phases retain quality failures at the original MAD3%/central-
+range6% thresholds. No noise gate is relaxed. Separate whole-process CPU samples
+include lifecycle overhead; Windows accounting zeros are below useful resolution.
+These unpinned millisecond measurements do not establish production performance,
+maximum throughput, power, native Linux qualification or a maximum latency bound.
+
+Portable evidence: extlibs/xcron/tests/results/precise-service-20261105.json.
+Local source maps/commands/logs, unchanged original measurements and archived old
+benchmark binaries: out/service-extensions/xcron-precise-service/. The final876
+protected inputs match across platforms; unmodified Core fixture blobs are pinned
+separately. Old dangling cache junctions are preserved, with new output aliases;
+WSL Git metadata uses explicit Linux paths. Next audit stopped component-byte
+snapshots against physical adapter destruction, then improve measurement precision
+and bounded recurrence work. All four products and the complete goal remain in
+development; durable scheduling and protocol/performance/long-run gates remain.

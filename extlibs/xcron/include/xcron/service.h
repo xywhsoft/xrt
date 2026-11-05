@@ -3,8 +3,9 @@
 #include <xcron/features.h>
 #include <xcron/executor.h>
 #include <xrt/memory.h>
-#if defined(XCRON_FEATURE_XCRON_SERVICE) && (!defined(XCRON_FEATURE_XCRON_EXECUTOR) || !defined(XRT_FEATURE_EVENT) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_THREAD))
-#error "cron service requires execution adapter and public XRT thread/condition/event"
+#include <xrt/event_waiter.h>
+#if defined(XCRON_FEATURE_XCRON_SERVICE) && (!defined(XCRON_FEATURE_XCRON_EXECUTOR) || !defined(XRT_FEATURE_EVENT_WAITER) || !defined(XRT_FEATURE_COND) || !defined(XRT_FEATURE_THREAD))
+#error "cron service requires execution adapter and public XRT thread/condition/event deadline waiter"
 #endif
 #if defined(XCRON_FEATURE_XCRON_SERVICE)
 typedef struct xcronservice xcronservice;
@@ -67,6 +68,11 @@ typedef struct xcronservicestats {
     xcronschedulerstats Kernel;
     xcronexecutorstats Executor;
     uint64 SubmitAttempts,RejectedSubmissions,Retries,AdmissionExpired,Published,Collected,WakeFailures;
+    /* Selected backend/capacity persists after stop; live timers becomes zero on
+     * successful owner cleanup. Failed cleanup stays visible and Destroy retries.
+     * Waiter storage is already included in ArenaBytes, not added to Bytes again. */
+    xeventwaiterinfo Waiter;
+    uint32 ActiveNativeTimers;
 } xcronservicestats;
 XRT_EXTERN_C_BEGIN
 /* Dedicated public-XRT owner thread, bounded command tickets, kernel, borrowed
@@ -83,7 +89,12 @@ XRT_EXTERN_C_BEGIN
  * BytesLimit reserves arena + Scheduler.BytesLimit + AdapterBytesLimit without
  * overflow. Stats reports actual requested component bytes. Borrowed data/zones,
  * diagnostics, callbacks and native/runtime bootstrap storage are outside this
- * cap. Optional InitializationBudget charges direct creator and kernel/adapter
+ * cap. One owner-bound reusable event waiter prefers precise native deadlines,
+ * with observable platform fallback in Stats.Waiter and no global resolution
+ * change. Its storage is inside ArenaBytes; native timer handles are outside the
+ * byte cap and counted separately. Normal stop releases it before STOPPED; a
+ * release failure publishes FAILED and Destroy retries after physical join.
+ * Optional InitializationBudget charges direct creator and kernel/adapter
  * startup allocations; borrowed only during Create, not business work/bootstrap.
  * Create failure consumes no Data/context/Executor and leaves Service unchanged.
  * Invalid API spans/output aliases preserve outputs; value failures publish typed

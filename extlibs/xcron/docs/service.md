@@ -4,7 +4,8 @@
 bounded command FIFO, the explicit-clock scheduler and a borrowed executor adapter.
 It is a developing module. No new shared runtime, network callback, private Core
 API, durable store or forced termination is used. The owner evaluates recurrences,
-issues leases, consumes physical completions and waits on an auto-reset XRT event.
+issues leases, consumes physical completions and waits on an auto-reset XRT event
+through one reusable public `event_waiter` bound to the owner thread.
 The borrowed Executor is never closed by this service.
 
 ## Commands and original business data
@@ -135,3 +136,29 @@ owner-sample-to-worker delay, at millisecond clock precision. Its rate is an inp
 not measured maximum throughput. Unpinned smoke is no performance acceptance.
 Named-zone database/reload, durable recovery, nominal DST compensation, bounded
 recurrence CPU, native Linux and the full long-run/performance gates remain open.
+
+## Reusable deadline backend
+
+The owner initializes the waiter after the scheduler and adapter. Native startup
+failure rolls back both components and leaves the caller output unchanged.
+Windows prefers one high-resolution nonperiodic timer and uses a standard timer
+only when that mechanism is unsupported. Resource failures are reported, rather
+than treated as unsupported. POSIX reuses the event condition. Signals still use
+EventSet; the owner never resets the event after checking work. No spinning,
+periodic timer, resolution change or new shared runtime is introduced.
+
+`Stats.Waiter` records the selected backend, inline storage and native timer
+capacity. `ActiveNativeTimers` reports live handles, including a failed cleanup.
+Normal stop releases the waiter before publishing STOPPED, even while replies,
+completion metadata or retirement duties remain. A native release failure
+publishes FAILED with a typed SYSTEM failure; after physical join, caller-exclusive
+Destroy retries cleanup before destroying the kernel. A failed retry preserves
+the service for another attempt. Backend metadata persists after cleanup.
+
+The developing stats layout gains these fields; configuration and function
+signatures are unchanged. Consumers must rebuild with matching generated headers.
+Waiter storage is part of ArenaBytes, never counted twice. The native timer handle,
+OS scheduling and diagnostics remain outside the requested-byte cap. Backend
+selection does not guarantee a maximum lateness. Wake, deadline clock reads and
+Windows timer arm/cancel calls are explicit per-wait costs. Fixed-arrival,
+CPU/power, pinned throughput and tail-latency qualification remain required.

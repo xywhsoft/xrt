@@ -15,3 +15,7 @@ retirement receipt, drains metadata, destroys the service, then closes/joins the
 host pool. No files or background threads remain. Every owned optional error in a
 general consumer must be released with `xrtErrorFree`; this success example asserts
 that those error pointers are NULL.
+
+The example also prints the selected waiter backend, inline context bytes and
+zero live native timers after join. Inspect the backend in deployment: a standard
+fallback is observable and a precise backend does not imply a scheduling SLA.
