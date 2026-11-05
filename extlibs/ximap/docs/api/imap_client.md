@@ -31,6 +31,11 @@ Receive 返回的响应、fragment 和 literal 描述均借用 Client 的线路�
 Next 或 ReadLiteral 后失效。literal 正文必须使用调用方缓冲分段读取，未读完前不能继续
 读取后续响应，因此消息大小不会变成固定内存上限。
 
+只有非状态 untagged 数据或后续 fragment 中的行尾标记才声明 literal。greeting、
+tagged 状态和 continuation 的说明文本可以合法地以 `{3}` 等内容结尾；这些文本不会
+设置 `HasLiteral` 或占用后续正文。数据响应中的真实 literal，以及后续 fragment
+再次声明的 literal，仍须逐段读完。参见 [RFC 9051 语法](https://www.rfc-editor.org/rfc/rfc9051.html#section-9)。
+
 低层流式接口不设置默认 literal 大小上限。收到 `HasLiteral` 事件后，调用方应先检查
 `Event.Literal.Size`；超过应用预算时可立即调用 `xrtImapClientAbort`，不必先消费正文。
 拥有型 `imap_message` 便利层继续使用自己的 64 MiB 预算，二者不共享策略上限。

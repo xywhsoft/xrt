@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE 修复验证中，认证终态与错误保真复核继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -52,10 +52,10 @@
 | xpop3 | 6 | 4 | 10 | 6 | 4 | 已完成本轮：四个 C/四十七 API、四环境回归、示例/独立 TLS/交付及 73/73 CI |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
-| xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
+| xsmtp | 6 | 4 | 8 | 6 | 4 | 已完成本轮：四个 C/四十三 API、四环境回归、独立 TLS/交付及 73/73 CI（bf87f2c3） |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
-| xws | 10 | 5 | 22 | 6 | 7 | 五个 C/六十八 API、未对齐复制与真实回环应用通过四环境及交付验证，待本批 CI |
+| xws | 10 | 5 | 22 | 6 | 7 | 已完成本轮：五个 C/六十八 API、未对齐复制、真实回环、四环境交付及七十三门禁（c8fbe2eb） |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 已完成本轮：五个 C/十四 API、四环境完整选择与示例、双平台交付/profile 及 73/73 CI |
@@ -2091,3 +2091,52 @@ ximap-deadline-{checks,input-audit,api-source-map,source-review,final-validation
 证据：ci-e4465100-acme-windows-job.log、
 acme-port-repeated-candidate-before-windows.log、acme-port-final-{windows,linux}.log、
 acme-port-repeated-candidate-validation.json。
+
+
+### 第五十七批：IMAP 输出预检、响应文本与 IDLE 边界
+
+- e4465100 的九十一项 IMAP 自有/支持输入逐一匹配 Git 内容和实际 WSL；只加入测试
+  仪器清单及共享入口后，Windows/Linux GCC 模块化、单头四个原始程序各 8 FAIL/4 PASS。
+  最终有效控制读取两个 FETCH literal，第二个由后续 fragment 声明；早期单 literal
+  Windows 原型另存，不混作最终四程序基线。
+- Append 的可选结果指针在开始命令前校验；AppendEnd 的非法输出范围明确返回
+  XERR_ARGUMENT，保留 tag、剩余上传长度和最近完整响应，随后完成同一上传。
+  原整段调用已开始上传并消费 literal 才拒绝结果指针；基线中的有效 AppendEnd
+  是显式恢复动作，不把恢复时完成的消息说成在非法调用返回前已存储。
+- Client 只在非状态 untagged 数据及 fragment 上解析 literal 标记。greeting、tagged
+  completion 和 continuation 的合法说明文本即使以 {3} 结尾，也不会产生虚假的正文。
+  真正的数据 literal、带第二个 literal 的 fragment、普通状态及后续命令有有效控制。
+  IDLE 在正文或尾部 fragment 未读完时先返回 STATE，不提前记录 DONE；读完后可重试。
+- 新增 feature-null 共享十二场景根，完整选择只各追加一项测试/单头，其余源码、示例、
+  定义、链接及原测试有序项保持。最终为 25 模块化加 17 单头，四环境完整四十二程序
+  均从最终冻结输入直接通过：Windows GCC、Linux GCC、Clang ASan/UBSan/
+  float-cast-overflow/泄漏检查、TCC。另八个定向程序各十二场景全通过。
+- 计入 220 次成功程序/消费者运行：完整选择 168、定向 8、示例 10、最小模块程序 28、
+  全新静态/共享消费者 4、显式最小 TLS 消费者 2。十次示例中两次 host-client 只执行
+  无参数用法入口；协议/body/message/offline 执行实际工作，不宣称外部账号认证已验证。
+  两端没有模块测试资产的 imap_client_tls no-single 选择仍不算编译成果，另用原单头
+  main 实际编译运行各 143 个模块源码的消费者。
+- 独立 TLS/STARTTLS 二十四场景、Windows/Linux GCC 压缩各九十、Linux Clang
+  ASan/UBSan/泄漏压缩九十均通过，共 270 压缩场景。每端 101 公开导出及十二个
+  size 产物符号约束吻合；trim、五项元数据和八个工具测试通过。全部十二个已安装头的
+  非注释 token 与 e446 相同；公共签名、类型、常量和布局声明没有改动。
+- 1922 项实际 Windows/WSL 规范化输入复核一致，独立工具记录的实际二进制哈希亦核对。
+  原始 CI 端口故障修复 9a208786 的 Windows ACME 任务 127415577118 已成功，包含
+  新重复候选回归的十九项 mock/port 测试；其完整 CI 仍待余下平台任务结束，不把单个
+  job 成功写成七十三项全绿。本批自己的新提交 CI 亦须单独验证。
+- 源码后续复核已用真实 public Client 确认三项 Auth 问题：意外 literal 返回协议错误但
+  保持 NOT_AUTHENTICATED/活动命令；LOGIN 取消后的 EOF 主错误被覆盖为 PROTOCOL；
+  非 initial-response 的过长编码凭据在 AUTHENTICATE/continuation 后才被拒绝。
+  各有隔离替换对象草案通过，但尚未进入跟踪源码。正式实现仍须保留原错误 domain/code，
+  补齐恢复、成功、模块/单头和 native 控制；不直接把草案当成交付。邮箱数值域与既有
+  uint64 契约的疑问单列，不悄悄收紧语义。IMAP 仍未验收，累计 8/21。
+- 同步逐库表中已由历史不可变证书验收的 xws、xsmtp 状态。保留其他本地平台、TSan、
+  长稳、外部账号及吞吐限制，协议 smoke 不证明性能等价或零开销。长期任务继续，
+  不合并或发布。
+
+证据：ximap-boundary-before-{provenance,native-inputs,windows,linux}.json、
+ximap-boundary-{test-instrumentation,selection-proof,round-windows,round-linux}.json、
+ximap-boundary-final-{windows,linux}.json、ximap-boundary-independent-{tls,compress}-{windows,linux}.json、
+ximap-boundary-independent-compress-linux-clang.json、
+ximap-boundary-{checks,input-audit,api-source-map,source-review,final-validation}.json、
+ximap-auth-terminal-candidate.json、acme-port-exact-head-ci-proof.json。

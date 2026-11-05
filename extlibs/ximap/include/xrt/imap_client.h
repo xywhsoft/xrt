@@ -201,6 +201,7 @@ XRT_API bool xrtImapClientContinue(
 	读取下一个响应首行或 literal 后续片段；遇到 literal 后必须先读取全部
 	literal，才能继续接收下一事件。低层流式接口不设置 literal 大小上限；
 	调用方可检查 pEvent->Literal.Size，并在超出自身预算时立即 Abort。
+	状态响应和 continuation 的说明文本即使以花括号结尾，也不声明 literal。
 */
 XRT_API bool xrtImapClientReceive(
 	ximapclient* pClient,

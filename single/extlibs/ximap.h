@@ -1078,6 +1078,7 @@ XRT_API bool xrtImapClientContinue(
 	读取下一个响应首行或 literal 后续片段；遇到 literal 后必须先读取全部
 	literal，才能继续接收下一事件。低层流式接口不设置 literal 大小上限；
 	调用方可检查 pEvent->Literal.Size，并在超出自身预算时立即 Abort。
+	状态响应和 continuation 的说明文本即使以花括号结尾，也不声明 literal。
 */
 XRT_API bool xrtImapClientReceive(
 	ximapclient* pClient,
@@ -1501,6 +1502,7 @@ XRT_API bool xrtImapClientBeginIdle(
 /*
 	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
 	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+	未读完 literal 或其后续 fragment 时返回 XERR_STATE，读完后可重试。
 */
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
@@ -1691,7 +1693,10 @@ XRT_API bool xrtImapClientAppendWrite(
 
 
 
-/* 结束 literal，消费命令响应并解析可选 APPENDUID。 */
+/*
+	结束 literal，消费命令响应并解析可选 APPENDUID；pResult 可为 NULL。
+	非法输出范围返回 XERR_ARGUMENT，保留活动上传供更正参数后继续。
+*/
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
@@ -1701,7 +1706,10 @@ XRT_API bool xrtImapClientAppendEnd(
 
 
 
-/* 对已经完整驻留内存的消息执行一次 APPEND。 */
+/*
+	对已经完整驻留内存的消息执行一次 APPEND；pResult 可为 NULL。
+	非法输出范围在开始事务前返回 XERR_ARGUMENT，不发送命令或正文。
+*/
 XRT_API bool xrtImapClientAppend(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,
@@ -6119,7 +6127,13 @@ XRT_API bool __xrtImapClientReceive(
 			return __xrtImapClientFailed(pClient);
 		}
 	}
-	Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	/* Status and continuation resp-text may end in braces without a literal. */
+	Literal = XMAIL_NEXT_END;
+	if ( (pEvent->Kind == XIMAP_EVENT_FRAGMENT) ||
+		((pEvent->Response.Kind == XIMAP_RESPONSE_UNTAGGED) &&
+		 (pEvent->Response.Status == XIMAP_STATUS_NONE)) ) {
+		Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	}
 	if ( Literal == XMAIL_NEXT_ERROR ) {
 		return __xrtImapClientFailed(pClient);
 	}
@@ -6452,7 +6466,8 @@ bool __xrtImapClientIdleStart(ximapclient* pClient)
 bool __xrtImapClientIdleEnd(ximapclient* pClient)
 {
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
-		!pClient->Idle || pClient->IdleDone ) {
+		!pClient->Idle || pClient->IdleDone ||
+		(pClient->LiteralRemaining != 0) || pClient->ExpectFragment ) {
 		return __xrtImapClientError(
 			XERR_STATE,
 			"IMAP IDLE command is not waiting for DONE"
@@ -9827,7 +9842,11 @@ XRT_API bool __xrtImapClientAppendEnd(
 	if ( !xrtMemRangeValid(
 		pResult,
 		pResult != NULL ? sizeof(*pResult) : 0
-	) || !__xrtImapClientAppendFinish(pClient) ||
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtImapClientAppendFinish(pClient) ||
 		!__xrtImapClientWrite(pClient, "\r\n", 2u, iDeadline, pCancel) ) {
 		return false;
 	}
@@ -9896,7 +9915,8 @@ XRT_API bool __xrtImapClientAppend(
 )
 {
 	if ( !xrtMemRangeValid(pConfig, sizeof(*pConfig)) ||
-		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ) {
+		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ||
+		!xrtMemRangeValid(pResult, pResult != NULL ? sizeof(*pResult) : 0) ) {
     if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
 		__xrtMailSetInvalidArgument();

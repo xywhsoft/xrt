@@ -19,6 +19,10 @@ CRLF、消费 completion，并解析 UIDPLUS 的可选 APPENDUID。
 对已经驻留内存的小消息，`xrtImapClientAppend` 组合 Begin、Write 与 End，保持同一状态和
 错误契约。
 
+`Append` 和 `AppendEnd` 的结果指针都可为 `NULL`。非空结果指针的范围非法时返回
+`XERR_ARGUMENT`：完整 `Append` 在发送命令头或正文前拒绝；`AppendEnd` 保留既有上传的
+tag、剩余长度和最近响应，更正结果指针后可继续写入并完成同一上传。
+
 ## 所有权与失败
 
 Mailbox、Flags、InternalDate 和正文缓冲只在对应调用期间借用。结果中的 UID 数值由值语义

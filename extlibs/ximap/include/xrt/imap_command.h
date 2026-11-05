@@ -244,6 +244,7 @@ XRT_API bool xrtImapClientBeginIdle(
 /*
 	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
 	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+	未读完 literal 或其后续 fragment 时返回 XERR_STATE，读完后可重试。
 */
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,

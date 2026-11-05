@@ -883,7 +883,13 @@ XRT_API bool __xrtImapClientReceive(
 			return __xrtImapClientFailed(pClient);
 		}
 	}
-	Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	/* Status and continuation resp-text may end in braces without a literal. */
+	Literal = XMAIL_NEXT_END;
+	if ( (pEvent->Kind == XIMAP_EVENT_FRAGMENT) ||
+		((pEvent->Response.Kind == XIMAP_RESPONSE_UNTAGGED) &&
+		 (pEvent->Response.Status == XIMAP_STATUS_NONE)) ) {
+		Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	}
 	if ( Literal == XMAIL_NEXT_ERROR ) {
 		return __xrtImapClientFailed(pClient);
 	}
@@ -1216,7 +1222,8 @@ bool __xrtImapClientIdleStart(ximapclient* pClient)
 bool __xrtImapClientIdleEnd(ximapclient* pClient)
 {
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
-		!pClient->Idle || pClient->IdleDone ) {
+		!pClient->Idle || pClient->IdleDone ||
+		(pClient->LiteralRemaining != 0) || pClient->ExpectFragment ) {
 		return __xrtImapClientError(
 			XERR_STATE,
 			"IMAP IDLE command is not waiting for DONE"

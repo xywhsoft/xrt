@@ -141,3 +141,16 @@ TLS/STARTTLS 还验证完整 LOGOUT 回复后的未经认证 EOF 和关闭超时
 不会编译或生成零用例成功记录。`--output-dir` 支持仓库外目录；记录内的
 外部二进制使用绝对路径，仓库内产物仍使用相对路径，均绑定实际字节哈希。
 输入与记录边界回归可用 `python tools/test_imap_compress_interop_inputs.py` 运行。
+
+
+## 会话边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_boundary_runtime_tests --no-examples
+```
+
+模块化与单头共享十二个真实 TCP/PREAUTH 场景：APPEND 输出参数预检、greeting/状态/
+continuation 说明文本的花括号尾部，以及 IDLE 仍有 literal/fragment 时的 DONE 资格。
+有效控制读取两个 FETCH literal，第二个由后续 fragment 声明，并继续 NOOP/LOGOUT；
+另有普通状态、读完 IDLE 和非法等待控制。每次拒绝后核对可恢复边界，peer 退出并 join，
+最后验证 Engine 退休计数和逻辑内存释放。该回归同时包含在完整 ximap_tests 中。

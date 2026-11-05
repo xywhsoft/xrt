@@ -29,5 +29,8 @@ LIST、STATUS、SEARCH、FETCH、STORE、COPY、MOVE 与 EXPUNGE 只负责安全
 之后继续用 Next 接收未请求事件。`xrtImapClientEndIdle` 只发送 DONE，调用方仍须用 Next
 消费匹配 tag 的 completion，直到返回 `XMAIL_NEXT_END`。
 
+未请求 FETCH 事件可能携带 literal。必须先读完 literal 正文及其后续 fragment，
+再调用 EndIdle；提前调用返回 `XERR_STATE`，不记录 DONE，读完后可重试同一 IDLE。
+
 小于 `-1` 的非法超时在 Begin/End 的命令或状态改变前拒绝，可以更正参数后继续同一
 IDLE。有效超时、取消或传输失败不会伪造命令边界，线路按 Client 的不可恢复规则处理。

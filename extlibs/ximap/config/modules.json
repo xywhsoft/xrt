@@ -652,7 +652,8 @@
 				"ximap",
 				"imap_offline_example",
 				"imap_tls_upgrade_lifetime_tests",
-				"imap_deadline_runtime_tests"
+				"imap_deadline_runtime_tests",
+				"imap_boundary_runtime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -686,6 +687,31 @@
 			"examples": [],
 			"docs": [
 				"extlibs/ximap/docs/api/imap_client.md"
+			]
+		},
+		{
+			"name": "imap_boundary_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"imap_append",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_boundary_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_boundary_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_client.md",
+				"extlibs/ximap/docs/api/imap_append.md",
+				"extlibs/ximap/docs/api/imap_command.md"
 			]
 		}
 	]
