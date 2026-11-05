@@ -55,7 +55,7 @@
 | xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
-| xws | 10 | 5 | 22 | 6 | 7 | 五个 C/六十八 API 有界复核、未对齐复制修复及四环境回归/交付通过，待真实应用示例与本批 CI |
+| xws | 10 | 5 | 22 | 6 | 7 | 五个 C/六十八 API、未对齐复制与真实回环应用通过四环境及交付验证，待本批 CI |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 已完成本轮：五个 C/十四 API、四环境完整选择与示例、双平台交付/profile 及 73/73 CI |
@@ -1863,3 +1863,46 @@ xws-byte-final-{checks,input-audit,validation}.json、xpop3-ci-635e5fe4-input-bi
 证据：ci-635e5fe4-run-final.json、ci-635e5fe4-mail-final.json、
 xpop3-ci-635e5fe4-input-bindings.json、xpop3-current-owned-56942e53.json、
 xpop3-session-final-{source-review,validation}.json、xpop3-first-round-acceptance.json。
+
+
+### 第五十批：xws 真实回环应用与失败清理
+
+- 增加独立 xws_runtime_loopback_example 根和公开 API 应用。两个实际 TCP Stream
+  在各自 Worker 的 Open/Accept 回调中接管；两端约定相同协议和压缩参数，HTTP
+  Upgrade 集成仍由客户端/服务端产品提供。没有复用 tests/internal 代码或伪造连接。
+- 业务线程异步发送复制文本、所有权文本和压缩文本，服务端分别用普通、引用和压缩
+  Writer 分片回送。双方核对三个完整文本的顺序、opcode 和压缩标志，再检查 Ping/
+  Pong、双方标准关闭的状态码与 reason、三个 Ref 的精确释放次数。应用锁把迟到的
+  Open/Accept 发布与清理串行化；清理不在锁内调用网络 API。
+- 关闭后释放应用句柄，十秒预算内推进 TryStop 直至 Worker 退出并完成 native join，
+  再检查 LiveObjects/WaitErrors/WakeErrors 全零、Destroy Engine 并释放回调上下文。
+  无法退休时以失败退出独立示例进程，不把尚有回调的栈上下文交还给上层。
+  README 给出可直接运行的命令及所有权过程，并明确原七个程序的片段/初始化边界。
+- 实现单头测试复用同一应用。新根只选择所需可选运行时模块，不增加 TLS、HTTP 或
+  其他扩展；生产 xws 的源码、特性、链接及资产集合完全不变，完整测试根仅新增
+  一个示例和一个单头入口，原模块化测试集合保留。
+- 最终完整选择在 Windows GCC 运行 41 个程序，Linux GCC/Clang/TCC 各 34 个程序，
+  包含全部四十八批单头用例和本批应用。四环境最小示例根各有模块/单头两个程序。
+  双 Worker 生命周期另每环境每入口重复十次；合计 231 次成功程序运行。
+  Clang 保持 ASan/UBSan/float-cast-overflow 与泄漏检查。
+- 忽略目录中的改写副本分别让第二条消息错配、禁用自动 Pong。Windows GCC 与
+  Linux 严格 Clang 四次负对照均返回 1，出现预期的消息/超时诊断，随后实际退休
+  live=0/wait=0，引用释放分别为一和三次。这些是预期失败进程，不混入成功运行数，
+  也不是本库新增缺陷。正对照不改生产协议或原有断言。
+- 初次并行验证曾遇 Windows cc1 无法分配 186376 字节；native 助手亦未产出结果后
+  结束。保留原日志并核实相关进程终止后逐平台顺序重跑，最终结果全部通过，未改变
+  主机内存设置或终止其他项目进程。
+- 双平台原有 static/shared 消费者重新运行，生产闭包未变，未把它们描述成新包构建。
+  两份体积/配置性能报告按最终清单刷新；每平台六十八 API 导出及六个产物的全类型
+  符号约束、裁剪、五项元数据门禁和八项工具检查通过。1746 项 Windows/实际 WSL
+  构建与支持输入归一化一致。配置 smoke 不作吞吐、性能回归或零开销结论。
+- xws 本地有界源码/API、回归、应用与交付复核已具备本轮证据，仍须本批不可变 head
+  的完整 CI 后才计入完成。本地 macOS/BSD/Android/MSVC/clang-cl/x86、TSan、长稳和
+  外部 WebSocket 对端限制保留。累计保持 6/21，不合并或发布。
+
+证据：xws-loopback-production-selection-proof.json、xws-loopback-selected-assets.json、
+xws-loopback-{windows,linux}.json、xws-loopback-controls-{windows-gcc,linux-clang}.json、
+xws-loopback-repeat-{windows-gcc,linux-gcc,linux-clang,linux-tcc}.json 及源码/日志；
+xws-loopback-*-resource-pressure.*、xws-loopback-boundary-{windows,linux}.json、
+xws-loopback-{size,performance,delivery}-{windows,linux}.json、xws-loopback-checks.json、
+xws-loopback-input-audit.json、xws-runtime-final-{source-review,validation}.json。
