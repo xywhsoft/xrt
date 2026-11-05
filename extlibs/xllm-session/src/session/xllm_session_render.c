@@ -2,22 +2,35 @@
 
 /* v2 render-time soft prune: old oversized tool outputs collapse to a head/
  * marker/tail form so message and tool-call structure survives pressure. */
-char* xllm_session__pruned_content(const xllm_session* pSession, const xllm_session_entry* pEntry)
+char *xllm_session__pruned_content(const xllm_session *pSession, const xllm_session_entry *pEntry)
 {
-    static const char sMarker[] = "\n\n[... older tool output pruned from active context; full output remains in the persisted session ledger ...]\n\n";
-    const char* sContent = pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "";
+    static const char sMarker[] = "\n\n[... older tool output pruned from active context; full "
+                                  "output remains in the persisted session ledger ...]\n\n";
+    const char *sContent = pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "";
     size_t iLen = strlen(sContent);
     size_t iKeep = pSession->tConfig.uToolPruneBytes;
     size_t iHead;
     size_t iTail;
-    char* sOut;
-    if ( iLen <= iKeep ) { return xllm_session__strdup(sContent); }
+    char *sOut;
+    if (iLen <= iKeep)
+    {
+        return xllm_session__strdup(sContent);
+    }
     iHead = (iKeep * 3u) / 4u;
     iTail = iKeep - iHead;
-    while ( iHead && ((unsigned char)sContent[iHead] & 0xC0u) == 0x80u ) { --iHead; }
-    while ( iTail < iLen && ((unsigned char)sContent[iLen - iTail] & 0xC0u) == 0x80u ) { ++iTail; }
-    sOut = (char*)malloc(iHead + sizeof(sMarker) - 1u + iTail + 1u);
-    if ( !sOut ) { return NULL; }
+    while (iHead && ((unsigned char)sContent[iHead] & 0xC0u) == 0x80u)
+    {
+        --iHead;
+    }
+    while (iTail < iLen && ((unsigned char)sContent[iLen - iTail] & 0xC0u) == 0x80u)
+    {
+        ++iTail;
+    }
+    sOut = (char *)xllm_session__malloc(iHead + sizeof(sMarker) - 1u + iTail + 1u);
+    if (!sOut)
+    {
+        return NULL;
+    }
     memcpy(sOut, sContent, iHead);
     memcpy(sOut + iHead, sMarker, sizeof(sMarker) - 1u);
     memcpy(sOut + iHead + sizeof(sMarker) - 1u, sContent + iLen - iTail, iTail);
@@ -26,15 +39,21 @@ char* xllm_session__pruned_content(const xllm_session* pSession, const xllm_sess
 }
 
 /* Rendered view of one entry with the v2 prune applied, ready for hooks. */
-static bool xllm_session__render_entry(const xllm_session* pSession, const xllm_session_entry* pEntry,
-    xllm_message* pWork, bool bPrune)
+static bool xllm_session__render_entry(const xllm_session *pSession,
+                                       const xllm_session_entry *pEntry, xllm_message *pWork,
+                                       bool bPrune)
 {
-    if ( !xllm_session__message_clone(pWork, &pEntry->tMessage) ) { return false; }
-    if ( bPrune && xllm_session__should_prune_tool(pSession, pEntry) ) {
-        char* sPruned = xllm_session__pruned_content(pSession, pEntry);
+    if (!xllm_session__message_clone(pWork, &pEntry->tMessage))
+    {
+        return false;
+    }
+    if (bPrune && xllm_session__should_prune_tool(pSession, pEntry))
+    {
+        char *sPruned = xllm_session__pruned_content(pSession, pEntry);
         bool bOk = sPruned && xllmMessageSetContent(pWork, sPruned);
         free(sPruned);
-        if ( !bOk ) {
+        if (!bOk)
+        {
             xllmMessageUnit(pWork);
             return false;
         }
@@ -48,101 +67,160 @@ static bool xllm_session__render_entry(const xllm_session* pSession, const xllm_
  * (FNV-1a, linear probing) aggregating kept flags per tool_call id; the
  * checks are then O(1) lookups — O(N) total instead of the old nested
  * O(N^2 x calls) rescan. */
-typedef struct xllm_session_pair_slot {
-    const char* sId;          /* borrowed from the ledger */
+typedef struct xllm_session_pair_slot
+{
+    const char *sId; /* borrowed from the ledger */
+    uint64_t uTurn;
     bool bCallExists;
     bool bCallKept;
     bool bResultExists;
     bool bResultKept;
 } xllm_session_pair_slot;
 
-static size_t xllm_session__pair_hash(const char* sId, size_t iMask)
+static size_t xllm_session__pair_hash(uint64_t uTurn, const char *sId, size_t iMask)
 {
-    size_t u = 1469598103934665603ull;   /* FNV-1a offset */
-    while ( *sId ) {
+    size_t u = 1469598103934665603ull; /* FNV-1a offset */
+    unsigned i;
+    for (i = 0u; i < 8u; ++i)
+    {
+        u ^= (unsigned char)(uTurn & 0xffu);
+        u *= 1099511628211ull;
+        uTurn >>= 8u;
+    }
+    while (*sId)
+    {
         u ^= (unsigned char)*sId++;
         u *= 1099511628211ull;
     }
     return u & iMask;
 }
 
-static xllm_session_pair_slot* xllm_session__pair_slot_find(
-    xllm_session_pair_slot* pTable, size_t iCap, const char* sId, bool bInsert)
+static xllm_session_pair_slot *xllm_session__pair_slot_find(xllm_session_pair_slot *pTable,
+                                                            size_t iCap, uint64_t uTurn,
+                                                            const char *sId, bool bInsert)
 {
-    size_t u = xllm_session__pair_hash(sId, iCap - 1u);
-    for ( ; ; ) {
-        xllm_session_pair_slot* pSlot = &pTable[u];
-        if ( !pSlot->sId ) {
+    size_t u;
+    if (!sId || !sId[0])
+    {
+        return NULL;
+    }
+    u = xllm_session__pair_hash(uTurn, sId, iCap - 1u);
+    for (;;)
+    {
+        xllm_session_pair_slot *pSlot = &pTable[u];
+        if (!pSlot->sId)
+        {
             return bInsert ? pSlot : NULL;
         }
-        if ( strcmp(pSlot->sId, sId) == 0 ) { return pSlot; }
+        if (pSlot->uTurn == uTurn && strcmp(pSlot->sId, sId) == 0)
+        {
+            return pSlot;
+        }
         u = (u + 1u) & (iCap - 1u);
     }
 }
 
-static bool xllm_session__skip_pair_safe(const xllm_session* pSession, const bool* pbKept)
+static bool xllm_session__skip_pair_safe(const xllm_session *pSession, const bool *pbKept)
 {
     size_t i;
     size_t iIds = 0u;
     size_t iCap = 16u;
-    xllm_session_pair_slot* pTable;
+    xllm_session_pair_slot *pTable;
 
     /* Size the table from the id population first. */
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT ) {
+    for (i = 0u; i < pSession->iEntryCount; ++i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i];
+        if (pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT)
+        {
             iIds += pEntry->tMessage.iToolCallCount;
-        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
+        }
+        else if (pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId)
+        {
             ++iIds;
         }
     }
-    while ( iCap < iIds * 2u + 1u ) iCap <<= 1;
-    pTable = (xllm_session_pair_slot*)calloc(iCap, sizeof(*pTable));
-    if ( !pTable ) {
-        return false;   /* allocation failure: fail closed (render aborts) */
+    while (iCap < iIds * 2u + 1u)
+        iCap <<= 1;
+    pTable = (xllm_session_pair_slot *)xllm_session__calloc(iCap, sizeof(*pTable));
+    if (!pTable)
+    {
+        return false; /* allocation failure: fail closed (render aborts) */
     }
 
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT ) {
+    for (i = 0u; i < pSession->iEntryCount; ++i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i];
+        if (pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT)
+        {
             size_t m;
-            for ( m = 0u; m < pEntry->tMessage.iToolCallCount; ++m ) {
-                xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
-                    pEntry->tMessage.pToolCalls[m].sId, true);
-                if ( !pSlot->sId ) {
+            for (m = 0u; m < pEntry->tMessage.iToolCallCount; ++m)
+            {
+                xllm_session_pair_slot *pSlot = xllm_session__pair_slot_find(
+                    pTable, iCap, pEntry->uTurn, pEntry->tMessage.pToolCalls[m].sId, true);
+                if (!pSlot)
+                {
+                    free(pTable);
+                    return false;
+                }
+                if (!pSlot->sId)
+                {
                     pSlot->sId = pEntry->tMessage.pToolCalls[m].sId;
+                    pSlot->uTurn = pEntry->uTurn;
                 }
                 pSlot->bCallExists = true;
-                if ( pbKept[i] ) { pSlot->bCallKept = true; }
+                if (pbKept[i])
+                {
+                    pSlot->bCallKept = true;
+                }
             }
-        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
-            xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
-                pEntry->tMessage.sToolCallId, true);
-            if ( !pSlot->sId ) {
-                pSlot->sId = pEntry->tMessage.sToolCallId;
-            }
-            pSlot->bResultExists = true;
-            if ( pbKept[i] ) { pSlot->bResultKept = true; }
         }
-    }
-
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( !pbKept[i] ) continue;
-        if ( pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId ) {
-            const xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
-                pEntry->tMessage.sToolCallId, false);
-            if ( pSlot && pSlot->bCallExists && !pSlot->bCallKept ) {
+        else if (pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId)
+        {
+            xllm_session_pair_slot *pSlot = xllm_session__pair_slot_find(
+                pTable, iCap, pEntry->uTurn, pEntry->tMessage.sToolCallId, true);
+            if (!pSlot)
+            {
                 free(pTable);
                 return false;
             }
-        } else if ( pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT &&
-                    pEntry->tMessage.iToolCallCount ) {
+            if (!pSlot->sId)
+            {
+                pSlot->sId = pEntry->tMessage.sToolCallId;
+                pSlot->uTurn = pEntry->uTurn;
+            }
+            pSlot->bResultExists = true;
+            if (pbKept[i])
+            {
+                pSlot->bResultKept = true;
+            }
+        }
+    }
+
+    for (i = 0u; i < pSession->iEntryCount; ++i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i];
+        if (!pbKept[i])
+            continue;
+        if (pEntry->tMessage.eRole == XLLM_ROLE_TOOL && pEntry->tMessage.sToolCallId)
+        {
+            const xllm_session_pair_slot *pSlot = xllm_session__pair_slot_find(
+                pTable, iCap, pEntry->uTurn, pEntry->tMessage.sToolCallId, false);
+            if (pSlot && pSlot->bCallExists && !pSlot->bCallKept)
+            {
+                free(pTable);
+                return false;
+            }
+        }
+        else if (pEntry->tMessage.eRole == XLLM_ROLE_ASSISTANT && pEntry->tMessage.iToolCallCount)
+        {
             size_t m;
-            for ( m = 0u; m < pEntry->tMessage.iToolCallCount; ++m ) {
-                const xllm_session_pair_slot* pSlot = xllm_session__pair_slot_find(pTable, iCap,
-                    pEntry->tMessage.pToolCalls[m].sId, false);
-                if ( pSlot && pSlot->bResultExists && !pSlot->bResultKept ) {
+            for (m = 0u; m < pEntry->tMessage.iToolCallCount; ++m)
+            {
+                const xllm_session_pair_slot *pSlot = xllm_session__pair_slot_find(
+                    pTable, iCap, pEntry->uTurn, pEntry->tMessage.pToolCalls[m].sId, false);
+                if (pSlot && pSlot->bResultExists && !pSlot->bResultKept)
+                {
                     free(pTable);
                     return false;
                 }
@@ -153,7 +231,7 @@ static bool xllm_session__skip_pair_safe(const xllm_session* pSession, const boo
     return true;
 }
 
-static bool xllm_session__summary_message(const xllm_session* pSession, xllm_message* pMessage)
+static bool xllm_session__summary_message(const xllm_session *pSession, xllm_message *pMessage)
 {
     xllm_session_buf tSummary = {0};
     bool bOk;
@@ -162,176 +240,253 @@ static bool xllm_session__summary_message(const xllm_session* pSession, xllm_mes
      * user bridge when the retained suffix begins with assistant/tool
      * messages from an in-progress agent loop. */
     xllmMessageInit(pMessage, XLLM_ROLE_USER);
-    bOk = xllm_session__buf_cstr(&tSummary, "Compacted session state. Treat this as authoritative continuity for history through sequence ") &&
-        xllm_session__buf_u64(&tSummary, pSession->uCompactedThrough) &&
-        xllm_session__buf_cstr(&tSummary, ":\n\n") &&
-        xllm_session__buf_cstr(&tSummary, pSession->sSummary) &&
-        xllm_session__append_ledger_blocks(&tSummary, pSession) &&
-        xllmMessageSetContent(pMessage, tSummary.pData);
+    bOk = xllm_session__buf_cstr(&tSummary, "Compacted session state. Treat this as authoritative "
+                                            "continuity for history through sequence ") &&
+          xllm_session__buf_u64(&tSummary, pSession->uCompactedThrough) &&
+          xllm_session__buf_cstr(&tSummary, ":\n\n") &&
+          xllm_session__buf_cstr(&tSummary, pSession->sSummary) &&
+          xllm_session__append_ledger_blocks(&tSummary, pSession) &&
+          xllmMessageSetContent(pMessage, tSummary.pData);
     xllm_session__buf_unit(&tSummary);
     return bOk;
 }
 
-static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_request* pRequest, bool bView, xllm_error* pError)
+static bool xllm_session__build_request_impl(const xllm_session *pSession, xllm_request *pRequest,
+                                             bool bView, xllm_error *pError)
 {
     xllm_session_stats tStats;
-    bool* pbKept = NULL;
+    bool *pbKept = NULL;
     size_t i;
     bool bPrune;
     bool bOk = false;
-    const xllm_session_hooks* pHooks;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !pRequest || !xllmSessionGetStats(pSession, &tStats) ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session and initialized request are required");
+    const xllm_session_hooks *pHooks;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pSession || !pRequest || !xllmSessionGetStats(pSession, &tStats))
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "session and initialized request are required");
         return false;
     }
     pHooks = pSession->pHooks;
-    if ( tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW ) {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "active context exceeds the model input budget and must be compacted");
+    if (tStats.ePressure == XLLM_SESSION_PRESSURE_OVERFLOW)
+    {
+        xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
+                            "active context exceeds the model input budget and must be compacted");
         return false;
     }
-    if ( pRequest->uMaxOutputTokens == 0u || pRequest->uMaxOutputTokens > tStats.uNextMaxOutputTokens ) {
+    if (pRequest->uMaxOutputTokens == 0u ||
+        pRequest->uMaxOutputTokens > tStats.uNextMaxOutputTokens)
+    {
         pRequest->uMaxOutputTokens = tStats.uNextMaxOutputTokens;
     }
-    if ( pRequest->uMaxOutputTokens == 0u ) {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "active context leaves no room for model output");
+    if (pRequest->uMaxOutputTokens == 0u)
+    {
+        xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
+                            "active context leaves no room for model output");
         return false;
     }
-    if ( pHooks && pHooks->pRenderMessage ) {
-        pbKept = (bool*)calloc(pSession->iEntryCount ? pSession->iEntryCount : 1u, sizeof(bool));
-        if ( !pbKept ) {
-            xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+    if (pHooks && pHooks->pRenderMessage)
+    {
+        pbKept = (bool *)xllm_session__calloc(pSession->iEntryCount ? pSession->iEntryCount : 1u,
+                                              sizeof(bool));
+        if (!pbKept)
+        {
+            xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY,
+                                "failed to render session request");
             return false;
         }
     }
     bPrune = tStats.uRawActiveTokens >= tStats.uPruneThresholdTokens;
-#define XLLM_SESSION_RENDER_FAIL(code, msg) do { \
-    xllm_session__error(pError, (code), (msg)); \
-    goto done; \
-} while (0)
+#define XLLM_SESSION_RENDER_FAIL(code, msg)                                                        \
+    do                                                                                             \
+    {                                                                                              \
+        xllm_session__error(pError, (code), (msg));                                                \
+        goto done;                                                                                 \
+    } while (0)
     /* PINNED entries first: the never-compacted cache anchor. Identity is
      * append-only: when several PINNED system entries exist (an identity
      * upgrade), only the newest one renders. */
     {
         uint64_t uLastPinnedSystem = 0u;
         size_t k;
-        for ( k = 0u; k < pSession->iEntryCount; ++k ) {
-            const xllm_session_entry* pScan = &pSession->pEntries[k];
-            if ( (pScan->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
-                 pScan->tMessage.eRole == XLLM_ROLE_SYSTEM ) {
+        for (k = 0u; k < pSession->iEntryCount; ++k)
+        {
+            const xllm_session_entry *pScan = &pSession->pEntries[k];
+            if ((pScan->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u &&
+                pScan->tMessage.eRole == XLLM_ROLE_SYSTEM)
+            {
                 uLastPinnedSystem = pScan->uSequence;
             }
         }
-        for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-            const xllm_session_entry* pEntry = &pSession->pEntries[i];
-            if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u ) { continue; }
-            if ( pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM &&
-                 uLastPinnedSystem != 0u && pEntry->uSequence != uLastPinnedSystem ) { continue; }
-            if ( pHooks && pHooks->pRenderMessage ) {
+        for (i = 0u; i < pSession->iEntryCount; ++i)
+        {
+            const xllm_session_entry *pEntry = &pSession->pEntries[i];
+            if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) == 0u)
+            {
+                continue;
+            }
+            if (pEntry->tMessage.eRole == XLLM_ROLE_SYSTEM && uLastPinnedSystem != 0u &&
+                pEntry->uSequence != uLastPinnedSystem)
+            {
+                continue;
+            }
+            if (pHooks && pHooks->pRenderMessage)
+            {
                 xllm_message tWork;
                 xllm_render_action eAction;
-                if ( !xllm_session__render_entry(pSession, pEntry, &tWork, false) ) {
-                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+                if (!xllm_session__render_entry(pSession, pEntry, &tWork, false))
+                {
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                             "failed to render session request");
                 }
-                if ( !xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.message") ) {
+                if (!xllm_session__hook_enter((xllm_session *)pSession, NULL, "render.message"))
+                {
                     xllmMessageUnit(&tWork);
-                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render hook re-entered a mutating API");
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK,
+                                             "render hook re-entered a mutating API");
                 }
-                eAction = pHooks->pRenderMessage((xllm_session*)pSession,
-                    pEntry->uSequence, pEntry->uTurn, pEntry->uFlags, &tWork, pHooks->pUserData);
-                xllm_session__hook_leave((xllm_session*)pSession);
-                if ( eAction == XLLM_RENDER_SKIP ) {
+                eAction = pHooks->pRenderMessage((xllm_session *)pSession, pEntry->uSequence,
+                                                 pEntry->uTurn, pEntry->uFlags, &tWork,
+                                                 pHooks->pUserData);
+                xllm_session__hook_leave((xllm_session *)pSession);
+                if (eAction == XLLM_RENDER_SKIP)
+                {
                     pbKept[i] = false;
                     xllmMessageUnit(&tWork);
                     continue;
                 }
                 pbKept[i] = true;
-                if ( !xllmRequestAddMessage(pRequest, &tWork) ) {
+                if (!xllmRequestAddMessage(pRequest, &tWork))
+                {
                     xllmMessageUnit(&tWork);
-                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+                    XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                             "failed to render session request");
                 }
                 xllmMessageUnit(&tWork);
-            } else if ( !(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
-                                : xllmRequestAddMessage(pRequest, &pEntry->tMessage)) ) {
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+            }
+            else if (!(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
+                             : xllmRequestAddMessage(pRequest, &pEntry->tMessage)))
+            {
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render session request");
             }
         }
     }
     /* Rolling summary as the user bridge (design §6.6). */
-    if ( pSession->sSummary && pSession->sSummary[0] ) {
+    if (pSession->sSummary && pSession->sSummary[0])
+    {
         xllm_message tWork;
-        if ( !xllm_session__summary_message(pSession, &tWork) ) {
-            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render the compaction summary");
+        if (!xllm_session__summary_message(pSession, &tWork))
+        {
+            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                     "failed to render the compaction summary");
         }
-        if ( pHooks && pHooks->pRenderSummary ) {
+        if (pHooks && pHooks->pRenderSummary)
+        {
             xllm_session_summary tView;
             bool bInject = false;
             xllmSessionGetSummary(pSession, &tView);
-            if ( xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.summary") ) {
-                bInject = pHooks->pRenderSummary((xllm_session*)pSession, &tView, &tWork, pHooks->pUserData);
-                xllm_session__hook_leave((xllm_session*)pSession);
+            if (xllm_session__hook_enter((xllm_session *)pSession, NULL, "render.summary"))
+            {
+                bInject = pHooks->pRenderSummary((xllm_session *)pSession, &tView, &tWork,
+                                                 pHooks->pUserData);
+                xllm_session__hook_leave((xllm_session *)pSession);
             }
-            if ( bInject && !xllmRequestAddMessage(pRequest, &tWork) ) {
+            if (bInject && !xllmRequestAddMessage(pRequest, &tWork))
+            {
                 xllmMessageUnit(&tWork);
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render the compaction summary");
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render the compaction summary");
             }
             xllmMessageUnit(&tWork);
-        } else if ( !xllmRequestAddMessage(pRequest, &tWork) ) {
+        }
+        else if (!xllmRequestAddMessage(pRequest, &tWork))
+        {
             xllmMessageUnit(&tWork);
-            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render the compaction summary");
-        } else {
+            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                     "failed to render the compaction summary");
+        }
+        else
+        {
             xllmMessageUnit(&tWork);
         }
     }
     /* L2 truncation marker, so the model knows older tail turns were dropped. */
-    if ( pSession->uTailFloor > pSession->uCompactedThrough ) {
-        if ( !xllmRequestAddTextMessage(pRequest, XLLM_ROLE_SYSTEM,
-                "[Earlier turns of the retained tail were truncated by overflow recovery.]") ) {
-            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render the truncation marker");
+    if (pSession->uTailFloor > pSession->uCompactedThrough)
+    {
+        if (!xllmRequestAddTextMessage(
+                pRequest, XLLM_ROLE_SYSTEM,
+                "[Earlier turns of the retained tail were truncated by overflow recovery.]"))
+        {
+            XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                     "failed to render the truncation marker");
         }
     }
     /* Tail window: verbatim entries after the compaction checkpoint/floor. */
-    for ( i = 0u; i < pSession->iEntryCount; ++i ) {
-        const xllm_session_entry* pEntry = &pSession->pEntries[i];
-        if ( (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u || pEntry->uSequence <= pSession->uCompactedThrough ) continue;
-        if ( pEntry->uSequence <= pSession->uTailFloor ) continue;
-        if ( pHooks && pHooks->pRenderMessage ) {
+    for (i = 0u; i < pSession->iEntryCount; ++i)
+    {
+        const xllm_session_entry *pEntry = &pSession->pEntries[i];
+        if ((pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) != 0u ||
+            pEntry->uSequence <= pSession->uCompactedThrough)
+            continue;
+        if (pEntry->uSequence <= pSession->uTailFloor)
+            continue;
+        if (pHooks && pHooks->pRenderMessage)
+        {
             xllm_message tWork;
             xllm_render_action eAction;
-            if ( !xllm_session__render_entry(pSession, pEntry, &tWork, bPrune) ) {
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+            if (!xllm_session__render_entry(pSession, pEntry, &tWork, bPrune))
+            {
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render session request");
             }
-            if ( !xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.message") ) {
+            if (!xllm_session__hook_enter((xllm_session *)pSession, NULL, "render.message"))
+            {
                 xllmMessageUnit(&tWork);
                 XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render hook re-entered a mutating API");
             }
-            eAction = pHooks->pRenderMessage((xllm_session*)pSession,
-                pEntry->uSequence, pEntry->uTurn, pEntry->uFlags, &tWork, pHooks->pUserData);
-            xllm_session__hook_leave((xllm_session*)pSession);
-            if ( eAction == XLLM_RENDER_SKIP ) {
+            eAction =
+                pHooks->pRenderMessage((xllm_session *)pSession, pEntry->uSequence, pEntry->uTurn,
+                                       pEntry->uFlags, &tWork, pHooks->pUserData);
+            xllm_session__hook_leave((xllm_session *)pSession);
+            if (eAction == XLLM_RENDER_SKIP)
+            {
                 pbKept[i] = false;
                 xllmMessageUnit(&tWork);
                 continue;
             }
             pbKept[i] = true;
-            if ( !xllmRequestAddMessage(pRequest, &tWork) ) {
+            if (!xllmRequestAddMessage(pRequest, &tWork))
+            {
                 xllmMessageUnit(&tWork);
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render session request");
             }
             xllmMessageUnit(&tWork);
-        } else if ( bPrune && xllm_session__should_prune_tool(pSession, pEntry) ) {
+        }
+        else if (bPrune && xllm_session__should_prune_tool(pSession, pEntry))
+        {
             xllm_message tWork;
             bool bAdd;
-            if ( !xllm_session__render_entry(pSession, pEntry, &tWork, true) ) {
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+            if (!xllm_session__render_entry(pSession, pEntry, &tWork, true))
+            {
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render session request");
             }
             bAdd = xllmRequestAddMessage(pRequest, &tWork);
             xllmMessageUnit(&tWork);
-            if ( !bAdd ) {
-                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
+            if (!bAdd)
+            {
+                XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY,
+                                         "failed to render session request");
             }
-        } else if ( !(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
-                            : xllmRequestAddMessage(pRequest, &pEntry->tMessage)) ) {
+        }
+        else if (!(bView ? xllmRequestAddMessageView(pRequest, &pEntry->tMessage)
+                         : xllmRequestAddMessage(pRequest, &pEntry->tMessage)))
+        {
             XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_OUT_OF_MEMORY, "failed to render session request");
         }
     }
@@ -342,20 +497,23 @@ static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_
      * drifts with uCurrentTurn and old entries' bytes change without any
      * generation bump. */
     size_t iStableSnapshot =
-        ( bView && !(pHooks && pHooks->pRenderMessage) && !bPrune )
-        ? pRequest->iMessageCount : 0u;
-    if ( pbKept && !xllm_session__skip_pair_safe(pSession, pbKept) ) {
+        (bView && !(pHooks && pHooks->pRenderMessage) && !bPrune) ? pRequest->iMessageCount : 0u;
+    if (pbKept && !xllm_session__skip_pair_safe(pSession, pbKept))
+    {
         XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_PROTOCOL,
-            "render hook skipped an entry and broke tool-call pairing");
+                                 "render hook skipped an entry and broke tool-call pairing");
     }
-    if ( pHooks && pHooks->pRenderComplete ) {
+    if (pHooks && pHooks->pRenderComplete)
+    {
         bool bHookOk;
-        if ( !xllm_session__hook_enter((xllm_session*)pSession, NULL, "render.complete") ) {
+        if (!xllm_session__hook_enter((xllm_session *)pSession, NULL, "render.complete"))
+        {
             XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render hook re-entered a mutating API");
         }
-        bHookOk = pHooks->pRenderComplete((xllm_session*)pSession, pRequest, pHooks->pUserData);
-        xllm_session__hook_leave((xllm_session*)pSession);
-        if ( !bHookOk ) {
+        bHookOk = pHooks->pRenderComplete((xllm_session *)pSession, pRequest, pHooks->pUserData);
+        xllm_session__hook_leave((xllm_session *)pSession);
+        if (!bHookOk)
+        {
             XLLM_SESSION_RENDER_FAIL(XLLM_ERROR_HOOK, "render completion hook failed");
         }
     }
@@ -363,23 +521,25 @@ static bool xllm_session__build_request_impl(const xllm_session* pSession, xllm_
     bOk = true;
 done:
     free(pbKept);
-    if ( bOk && iStableSnapshot ) {
+    if (bOk && iStableSnapshot)
+    {
         /* The stamp mixes the per-instance nonce (address-reuse proof) with
          * the render generation; see xllm_session__next_nonce. */
-        pRequest->pStablePrefixOwner = (void*)pSession;
-        pRequest->uStablePrefixStamp =
-            (pSession->uSessionNonce << 1) ^ pSession->uRenderGeneration;
+        pRequest->pStablePrefixOwner = (void *)pSession;
+        pRequest->uStablePrefixStamp = (pSession->uSessionNonce << 1) ^ pSession->uRenderGeneration;
         pRequest->iStableMessages = iStableSnapshot;
     }
     return bOk;
 }
 
-bool xllmSessionBuildRequest(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
+bool xllmSessionBuildRequest(const xllm_session *pSession, xllm_request *pRequest,
+                             xllm_error *pError)
 {
     return xllm_session__build_request_impl(pSession, pRequest, false, pError);
 }
 
-bool xllmSessionBuildRequestView(const xllm_session* pSession, xllm_request* pRequest, xllm_error* pError)
+bool xllmSessionBuildRequestView(const xllm_session *pSession, xllm_request *pRequest,
+                                 xllm_error *pError)
 {
     return xllm_session__build_request_impl(pSession, pRequest, true, pError);
 }

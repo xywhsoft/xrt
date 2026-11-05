@@ -1,0 +1,2 @@
+{"format":"xllm-session-journal","version":1,"journal_sequence":1,"operation":"begin_turn","turn":1}
+{"format":"xllm-session-journal","version":1,"journal_sequence":2,"operation":"add_message","entry":{"sequence":1,"turn":1,"flags":0,"role":1,"content":"legacy journal v1"}}

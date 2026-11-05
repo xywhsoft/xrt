@@ -56,7 +56,11 @@
 				"file_whole",
 				"dir",
 				"path",
-				"random_secure"
+				"random_secure",
+				"file_root",
+				"file_lock",
+				"crypto_sha256",
+				"once"
 			],
 			"public_headers": [
 				"extlibs/xllm-session/include/xllm-session.h",
@@ -67,12 +71,15 @@
 				"extlibs/xllm-session/src/internal/xllm_session_internal.h"
 			],
 			"sources": [
+				"extlibs/xllm-session/src/session/xllm_session_storage.c",
 				"extlibs/xllm-session/src/session/xllm_session_core.c",
 				"extlibs/xllm-session/src/session/xllm_session_govern.c",
 				"extlibs/xllm-session/src/session/xllm_session_compact.c",
 				"extlibs/xllm-session/src/session/xllm_session_render.c",
+				"extlibs/xllm-session/src/session/xllm_session_snapshot.c",
 				"extlibs/xllm-session/src/session/xllm_session_easy.c",
 				"extlibs/xllm-session/src/session/xllm_session_run.c",
+				"extlibs/xllm-session/src/session/xllm_session_parts.c",
 				"extlibs/xllm-session/src/session/xllm_session_persist.c",
 				"extlibs/xllm-session/src/session/xllm_session_journal.c"
 			],
@@ -80,7 +87,8 @@
 				"extlibs/xllm-session/tests/test_xllm_session.c"
 			],
 			"single_tests": [
-				"extlibs/xllm-session/tests/single/test_single_xllm_session.c"
+				"extlibs/xllm-session/tests/single/test_single_xllm_session.c",
+				"extlibs/xllm-session/tests/single/test_single_xllm_session_mdo.c"
 			],
 			"examples": [],
 			"benchmarks": [

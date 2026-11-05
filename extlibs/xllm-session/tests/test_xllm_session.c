@@ -736,16 +736,16 @@ static void test_exact_governance(void)
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage feedback accepted");
     SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
         tStats.uFillExact == 150u && tStats.uCachedInputTokens == 60u &&
-        tStats.uIncrementMax >= 256u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
+        tStats.uIncrementMax == 0u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
         "exact fill recorded with a bounded increment envelope");
     /* budget = 8000 - 1000 - 500 = 6500; soft = 0.95 * 6500 = 6175 */
-    tUsage.uInputTokens = 6000u;
+    tUsage.uInputTokens = 6200u;
     tUsage.uOutputTokens = 10u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
         xllmSessionGetStats(pSession, &tStats) &&
         tStats.ePressure == XLLM_SESSION_PRESSURE_COMPACT,
         "soft threshold crosses into compact pressure");
-    tUsage.uInputTokens = 6400u;
+    tUsage.uInputTokens = 6500u;
     tUsage.uOutputTokens = 100u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
         xllmSessionGetStats(pSession, &tStats) &&
@@ -755,8 +755,8 @@ static void test_exact_governance(void)
     tUsage.uOutputTokens = 50u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage back to sparse");
     pFork = xllmSessionFork(pSession, &tError);
-    SESSION_CHECK(pFork && xllmSessionGetStats(pFork, &tStats) && !tStats.bFillExactValid,
-        "fork invalidates the exact fill");
+    SESSION_CHECK(pFork && xllmSessionGetStats(pFork, &tStats) && tStats.bFillExactValid,
+        "unchanged fork retains the usage prefix anchor");
     xllmSessionDestroy(pFork);
     xllmSessionDestroy(pSession);
 }
@@ -878,11 +878,15 @@ static void test_ops_and_hooks(void)
 
     /* default-equivalence: NULL ops and the default table produce identical prompts */
     pA = xllmSessionPrepareCompaction(pSession, true, &tError);
+    char* default_prompt = pA ? xllm_session__strdup(xllmCompactionPrompt(pA)) : NULL;
+    xllmCompactionDestroy(pA);
+    pA = NULL;
     SESSION_CHECK(xllmSessionSetCompactionOps(pSession, xllmSessionDefaultCompactionOps()),
         "default ops table installs");
     pB = xllmSessionPrepareCompaction(pSession, true, &tError);
-    SESSION_CHECK(pA && pB && strcmp(xllmCompactionPrompt(pA), xllmCompactionPrompt(pB)) == 0,
+    SESSION_CHECK(default_prompt && pB && strcmp(default_prompt, xllmCompactionPrompt(pB)) == 0,
         "NULL ops and the default table render byte-identical prompts");
+    free(default_prompt);
     xllmCompactionDestroy(pA);
     xllmCompactionDestroy(pB);
 
@@ -1179,7 +1183,9 @@ static xllm_result test_run_script_call(void* pUserData, const xllm_request* pRe
     ++pScript->iCalls;
     if ( pRequest->iToolCount == 1u ) { pScript->bSawToolsInRequest = true; }
     if ( pScript->iCalls <= pScript->iToolRounds ) {
-        *ppResponse = test_make_tool_response("call-1", "probe", "{}");
+        char call_id[32];
+        snprintf(call_id, sizeof(call_id), "call-%u", pScript->iCalls);
+        *ppResponse = test_make_tool_response(call_id, "probe", "{}");
     } else {
         *ppResponse = test_make_response("all done", 10u, 5u);
     }

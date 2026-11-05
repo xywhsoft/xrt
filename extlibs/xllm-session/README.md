@@ -43,3 +43,17 @@ xcode CLI
         -> xllm          一次模型调用、SSE、provider 适配
             -> xrt       核心 HTTP/1.1 wire、TLS、future、网络运行时
 ```
+
+## Current persistence and governance contract
+
+Persistence schema 4 preserves complete text/image/native parts, signed
+assistant responses, raw entries and bounded restored model context. Legacy
+v1/v2/v3 fixtures migrate through the same loading path. Image tool results
+store descriptive text as a text part alongside the exact image bytes.
+
+Server usage anchors the retained prefix. Subsequent messages and system-prompt
+changes contribute their actual estimated growth; an unchanged fork can keep
+the same valid anchor. Legacy data without usable feedback falls back to the
+retained estimate. Setting model budgets must not silently discard the recent
+conversation tail. See the migrated snapshot/journal, adversarial transaction,
+model-context, image and allocator-fault fixtures in the product tests.
