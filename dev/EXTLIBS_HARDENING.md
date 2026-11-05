@@ -58,7 +58,7 @@
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
-| xws-server | 6 | 5 | 25 | 13 | 4 | 五个 C 实现/十四 API 初审、真实 Watch OOM 及四环境完整套件通过，输入契约和整体交付压实继续 |
+| xws-server | 6 | 5 | 25 | 13 | 4 | 五个 C/十四 API 复核、握手策略修复、四环境完整选择及双平台交付/profile 本地通过，待本批 CI |
 
 ## 执行记录
 
@@ -1594,3 +1594,76 @@ http-byteviews-before-{provenance,diagnostics}.json 及原日志/二进制；
 http-future-final-{windows,linux}.json、http-future-final-selected-assets.json、
 http-future-final-input-audit.json、http-future-final-tooling.json、future-setup-checks.json、
 http-future-final-validation.json、xws-server-source-review-20261105.json。
+
+
+### 第四十三批远端补记
+
+- 70365de1 的 PR CI 41992076397 已完成，同一 head 的 73 个 job 全部成功；
+  独立邮件 41992068227 同一 head 成功，重复 push CI 已终态取消。
+- 第四十三批八项 HTTP 自有变更输入仍与当前工作树相同；本次 CI 对应不可变的旧 head，
+  不代替后续服务端握手策略和 benchmark 辅助层改动的验证。
+  xhttp-client 全库源码与可选模块复核仍未完成，整轮保持 4/21。
+
+证据：ci-70365de1-run-final.json、ci-70365de1-mail.json、http-future-ci-70365de1.json。
+
+
+### 第四十四批：服务端握手策略与回环基准退休
+
+- 完成 xws-server 五个自有 C、三个内部头及十四个公开函数的有界首轮复核，检查握手、
+  配置/路由快照、Upgrade 转移、同步失败、Future 结果和 Take/取消/Release。上一批
+  两个输入契约候选均经对照确认并修复；不重新引入已撤回的同 Worker 并发候选。
+- UpgradeAccept 原来只禁止三个具体 Sec-WebSocket 响应字段，与公开声明的全部
+  Sec-WebSocket-* 保留空间不符。原实现 Windows/Linux GCC 模块/单头在八项旧控制
+  后接受 Sec-WebSocket-Key；现按大小写不敏感的完整前缀拒绝十一项保留字段。
+  同一真实 HTTP 连接最终仍可完成合法 101、消息和关闭；Sec-WebSocket 与
+  X-Sec-WebSocket-Experimental 两个近似普通字段在对端收到并核对原值。
+- 未选 deflate 的最小根原来会把有效压缩快照静默改成无压缩 Reply，UpgradeAccept
+  也漏掉禁用压缩配置的快照检查；完整根另漏掉 RequireDeflate 与无压缩快照的冲突。
+  分别补齐能力和策略预检，保留错误类别/扩展码与同步失败不回调的契约。
+  同一有效 permessage-deflate 快照复用于模块/单头；最小模块和单头旧实现各两项
+  失败、两项控制通过，完整根新增强制策略一项失败、四项控制通过。夹具在两次基线
+  之间补充了强制策略，保留各次原源码/二进制，不声称它们是同一夹具版本。
+- 新压缩回归检查输入不变、零完成回调与普通无压缩 Reply。仅以真实私有连接存储
+  的零值作为必须在 Worker 操作前拒绝的输入，不把它当作可提交 producer。
+  引用快照改用 memcpy 保留填充字节；公开说明和实现/声明单头同步更新，ABI 不变。
+- 专用回环 profile 暴露基准自身两项问题：Linux 在定义 _GNU_SOURCE 前引入系统头，
+  以及两平台在关闭回调刚发布、最后引用尚未退休时立即断言 LiveObjects==0。
+  原诊断记录 live=2 / wait_errors=0，后续 Destroy 成功；这不是生产泄漏的证明。
+  现先引入 bench_common.h，并在原 5000ms 期限内用 TryStop 等待运行期引用退休、
+  加入 Workers，随后保留 LiveObjects==0 / WaitErrors==0 和 Destroy 的严格检查。
+  不消耗 Engine 的 TryStop 使最终快照有效；无法退休/销毁时基准进程退出，避免借用
+  栈/载荷仍被使用时返回或释放。等待不计入测量，不增加 sleep 或放宽超时。
+- 为旧基准单独重编译前源码、使用相同真实依赖和 Worker，Windows/Linux 各第一次
+  重复即退出 2，live>0 / wait_errors=0。最终 GCC 两平台各 100 次、Linux Clang
+  sanitizer 和 TCC 各 20 次，共 240 次额外重复全部通过。初次 performance-smoke
+  的失败条目及日志保留，未改写成通过；这些 smoke 不证明吞吐或性能回归结果。
+- 额外 TCC 构建发现公共基准辅助层依赖不支持的 GCC atomic 内建。仅为 TinyCC
+  POSIX x64 LP64 增加与运行期相同的 locked cmpxchgq 原语，不引入库依赖；其他
+  编译器和 Windows 分支保留。新增测试验证有符号/高 64 位值、四线程 10 万次更新、
+  唯一获胜者和 5000 次非原子载荷发布。新增 50 次真实回环 smoke；两项均接入
+  feature=null 测试根和完整服务端套件，测试/客户端依赖不进入生产 ALL 根。
+- 本地完整选择为 Windows GCC 47、Linux GCC / Clang ASan+UBSan+
+  float-cast-overflow+leaks / TCC 各 40 个程序：先执行完整 45/38 套件，再在相同
+  完整 source/features/links 闭包独立运行新增两项，已逐项证明闭包不变；不声称
+  47/40 来自一次整套调用。快照引用改进后另刷新四环境最小/完整/单头 12 程序；
+  两项基准辅助在最小测试根/完整根四环境共 16 程序。含五种最小根的本批普通程序
+  总运行 211 次，全部通过；240 次重复另计。
+- 两平台全产品 static/shared 共四个消费者通过，实际检查 101 Reply 及同一 Core
+  错误通道；共享包各核对十四个公开 API 导出。upgrade/router/full 三种体积 profile
+  的 single/static/shared 共十八个产物通过，并额外对全部产物核对裁剪禁用符号。
+  五项元数据门禁和八项 layout/single 工具测试通过。宽输入超集 1538 项保留一处
+  既存无关 Core 测试差异，该测试未选中也未被审计支持头引用；未覆盖任一份文件。
+  本批范围 1537 项归一化 Windows/WSL 输入一致，最终包/profile 在新清单后刷新。
+- 本地未覆盖 MSVC/clang-cl/x86、Android/BSD/macOS、TSan、长稳和外部服务/代理；
+  新 TCC 辅助分支仅验证 POSIX x64 LP64。当前改动仍待本批不可变 head 的远端 CI；
+  70365de1 的 73/73 仅认证第四十三批，不能代替本批。累计保持 4/21，不合并或发布。
+
+证据：xws-server-contract-before-{provenance,windows,linux}.json、
+xws-server-contract-before-{windows,linux}-{supplement,required}.json 及各版本源码/日志；
+xws-server-final-source-review.json、xws-server-round-{windows,linux}.json、
+xws-server-snapshot-final-{windows,linux}.json、xws-server-bench-registration.json、
+xws-server-bench-support-{windows,linux}.json、xws-server-bench-negative-{windows,linux}.json、
+xws-server-bench-tcc-before.{json,log}、xws-server-bench-final-{windows,linux}-summary.json；
+xws-server-final-package-{windows,linux}.json、xws-server-final-exports-{windows,linux}.json、
+xws-server-size-{windows,linux}.json、xws-server-final-symbol-profiles-{windows,linux}.json、
+xws-server-round-{checks,tooling,input-audit}.json、xws-server-final-validation.json。
