@@ -4053,10 +4053,7 @@ XRT_EXTERN_C_END
 
 #if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_FUTURE)
 
-/*
-	连接建立结果拥有 WebSocket Connection。
-	客户端 Future 启用时，成功结果还拥有对应的 101 Response。
-*/
+/* 连接建立结果拥有服务端 WebSocket Connection。 */
 typedef struct xwsserverresult xwsserverresult;
 
 
@@ -4085,7 +4082,7 @@ XWS_SERVER_API xwsserverresult* xrtWsServerResultRef(
 
 /*
 	释放结果引用。
-	最后一个引用会中止尚未取走的 Connection，并销毁尚未取走的 Response。
+	最后一个引用会中止并释放尚未取走的 Connection。
 	NULL 是空操作；非空但无效的对象范围会记录参数错误。
 */
 XWS_SERVER_API void xrtWsServerResultDestroy(

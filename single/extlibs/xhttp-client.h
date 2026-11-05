@@ -6071,7 +6071,7 @@ XHTTP_CLIENT_API void xrtHttpClientConfigInit(xhttpclientconfig* pConfig)
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESUME)
 		xrtHttpResumeConfigInit(&Config.Resume);
 	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -6107,7 +6107,7 @@ XHTTP_CLIENT_API void xrtHttpCallOptionsInit(xhttpcalloptions* pOptions)
 			&Options.Cache
 		);
 	#endif
-	memcpy(pOptions, &Options, sizeof(Options));
+	memcpy((void*)pOptions, &Options, sizeof(Options));
 }
 
 
@@ -6553,7 +6553,7 @@ static xhttpclient* __xrtHttpClientCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (pEngine == NULL) ||
 		(!bOwnResolver && (pResolver == NULL)) ) {
@@ -8297,7 +8297,7 @@ XHTTP_CLIENT_API xhttpcall* xrtHttpClientDo(
 			);
 			return NULL;
 		}
-		memcpy(&Options, pOptions, sizeof(Options));
+		memcpy(&Options, (const void*)pOptions, sizeof(Options));
 	}
     if (Options.Timeout < XRT_WAIT_FOREVER || Options.IdleTimeout < XRT_WAIT_FOREVER) {
         __xrtHttpClientSetError(XERR_ARGUMENT, XHTTP_CLIENT_ERROR_ARGUMENT,
@@ -9049,7 +9049,7 @@ XHTTP_CLIENT_API bool xrtHttpCallInfo(
 		return false;
 	}
 	__xrtHttpCallInfoCopy(pCall, &Info);
-	memcpy(pInfo, &Info, sizeof(Info));
+	memcpy((void*)pInfo, &Info, sizeof(Info));
 	return true;
 }
 
@@ -12547,7 +12547,7 @@ XHTTP_CLIENT_API bool xrtHttpResultInfo(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pInfo, &pResult->Info, sizeof(pResult->Info));
+	memcpy((void*)pInfo, &pResult->Info, sizeof(pResult->Info));
 	return true;
 }
 
@@ -12750,7 +12750,7 @@ XHTTP_CLIENT_API xfuture* xrtHttpClientDoAsync(
 			);
 			return NULL;
 		}
-		memcpy(&Options, pOptions, sizeof(Options));
+		memcpy(&Options, (const void*)pOptions, sizeof(Options));
 		pCallOptions = &Options;
 		pParent = Options.Cancel;
 	}
@@ -12793,9 +12793,14 @@ XHTTP_CLIENT_API xfuture* xrtHttpClientDoAsync(
 		__xrtHttpFutureCancel,
 		pContext
 	) ) {
+		xhttpcall* pCall = pContext->Call;
+
 		pError = xrtTakeError();
+		/* Fail 后完成回调可立即释放上下文；先移出提交方的 Call 引用。 */
+		pContext->Call = NULL;
 		(void)xrtFutureBridgeFail(&pContext->Bridge);
-		(void)xrtHttpCallCancel(pContext->Call);
+		(void)xrtHttpCallCancel(pCall);
+		xrtHttpCallDestroy(pCall);
 		xrtFutureDestroy(pFuture);
 		if ( pError != NULL ) {
 			xrtSetError(pError);

@@ -1312,7 +1312,8 @@
 			"single_tests": [
 				"extlibs/xhttp-client/tests/single/test_single_http_client.c",
 				"extlibs/xhttp-client/tests/single/test_single_http_client_transport.c",
-				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race.c"
+				"extlibs/xhttp-client/tests/single/test_single_http_client_cancel_race.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_contract.c"
 			],
 			"examples": [],
 			"docs": [
@@ -1353,7 +1354,8 @@
 				"extlibs/xhttp-client/tests/http/test_http_client_future_oom_continue.c"
 			],
 			"single_tests": [
-				"extlibs/xhttp-client/tests/single/test_single_http_client_future.c"
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c"
 			],
 			"examples": [
 				"extlibs/xhttp-client/examples/http/client_future/main.c"
@@ -1652,6 +1654,27 @@
 			"legacy": []
 		},
 		{
+			"name": "http_client_future_setup_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"http_client_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xhttp-client/tests/http/test_http_client_future_setup.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xhttp-client/docs/api/http_client.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "xhttp_client_tests",
 			"state": "implemented",
 			"feature": null,
@@ -1693,7 +1716,8 @@
 				"http_client_uring_tests",
 				"http_client_https_tests",
 				"http_client_https_iocp_tests",
-				"http_client_future_https_tests"
+				"http_client_future_https_tests",
+				"http_client_future_setup_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -1795,7 +1819,8 @@
 				"extlibs/xhttp-client/tests/http/test_http_sse_client.c",
 				"extlibs/xhttp-client/tests/http/test_http_sse_client_contract.c",
 				"extlibs/xhttp-client/tests/http/test_http_sse_client_oom.c",
-				"extlibs/xhttp-client/tests/http/test_http_sse_client_terminal.c"
+				"extlibs/xhttp-client/tests/http/test_http_sse_client_terminal.c",
+				"extlibs/xhttp-client/tests/http/test_http_client_future_setup.c"
 			],
 			"single_tests": [
 				"extlibs/xhttp-client/tests/single/test_single_http_client.c",
@@ -1829,7 +1854,9 @@
 				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_iocp.c",
 				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_uring.c",
 				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c",
-				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c"
+				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_contract.c",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c"
 			],
 			"examples": [],
 			"benchmarks": [
@@ -1869,7 +1896,9 @@
 				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_iocp.c": "http_client_iocp_tests",
 				"extlibs/xhttp-client/tests/single/test_single_http_client_transport_uring.c": "http_client_uring_tests",
 				"extlibs/xhttp-client/tests/single/test_single_http_sse_client.c": "http_sse_client",
-				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c": "xhttp_client"
+				"extlibs/xhttp-client/tests/single/test_single_xhttp_client.c": "xhttp_client",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_contract.c": "http_client",
+				"extlibs/xhttp-client/tests/single/test_single_http_client_future_runtime.c": "http_client_future"
 			}
 		}
 	],

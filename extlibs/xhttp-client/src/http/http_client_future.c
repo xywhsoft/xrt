@@ -457,7 +457,7 @@ XHTTP_CLIENT_API bool xrtHttpResultInfo(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pInfo, &pResult->Info, sizeof(pResult->Info));
+	memcpy((void*)pInfo, &pResult->Info, sizeof(pResult->Info));
 	return true;
 }
 
@@ -660,7 +660,7 @@ XHTTP_CLIENT_API xfuture* xrtHttpClientDoAsync(
 			);
 			return NULL;
 		}
-		memcpy(&Options, pOptions, sizeof(Options));
+		memcpy(&Options, (const void*)pOptions, sizeof(Options));
 		pCallOptions = &Options;
 		pParent = Options.Cancel;
 	}
@@ -703,9 +703,14 @@ XHTTP_CLIENT_API xfuture* xrtHttpClientDoAsync(
 		__xrtHttpFutureCancel,
 		pContext
 	) ) {
+		xhttpcall* pCall = pContext->Call;
+
 		pError = xrtTakeError();
+		/* Fail 后完成回调可立即释放上下文；先移出提交方的 Call 引用。 */
+		pContext->Call = NULL;
 		(void)xrtFutureBridgeFail(&pContext->Bridge);
-		(void)xrtHttpCallCancel(pContext->Call);
+		(void)xrtHttpCallCancel(pCall);
+		xrtHttpCallDestroy(pCall);
 		xrtFutureDestroy(pFuture);
 		if ( pError != NULL ) {
 			xrtSetError(pError);

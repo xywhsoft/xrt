@@ -40,7 +40,7 @@
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
 | xacme | 14 | 16 | 28 | 10 | 1 | HTTP/Issue/DNS/provider 预算及清理修复本地通过，RSA/协议与测试资产支持依赖复核继续 |
 | xhttp | 115 | 124 | 236 | 115 | 82 | 正文流/前置条件字节快照及专项测试通过，其余源码复核继续 |
-| xhttp-client | 18 | 18 | 97 | 32 | 12 | 待复核 |
+| xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 | ximap | 11 | 9 | 22 | 15 | 5 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
@@ -58,7 +58,7 @@
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
 | xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
-| xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
+| xws-server | 6 | 5 | 25 | 13 | 4 | 五个 C 实现/十四 API 初审、真实 Watch OOM 及四环境完整套件通过，输入契约和整体交付压实继续 |
 
 ## 执行记录
 
@@ -1549,3 +1549,48 @@ dial-oom-ready-linux-uring-compile.log、dial-oom-ready-final-validation.json。
 
 证据：ci-4b68f2c7-run-final.json、ci-4b68f2c7-mail-final.json、
 xws-client-first-round-acceptance.json、xws-client-final-validation.json。
+
+
+### 第四十三批：HTTP Future 失败发布与字节视图
+
+- 对允许提交线程和完成 Worker 并发的 xrtHttpClientDoAsync，先受控复现装配失败发布后
+  完成回调释放上下文，而提交方继续从上下文读取 Call。真实 Core bridge/Future/error/
+  allocator 不替换，只控制 producer 和完成时序；空/default options 两组提前完成失败，
+  普通取消和延后完成四组对照通过，Windows/Linux 结果相同，原输入和二进制保留。
+- Watch 失败时先把已有 Call 调用方引用移至局部并清空上下文槽，再发布 BridgeFail，
+  后续只取消和释放局部 Call。正常路径不增加引用或分配。最终八组回归另含两个真实
+  Call、双 Worker、loopback 的 Watch OOM 清理，核对原 MEMORY 错误对象和资源归零。
+- WebSocket 服务端的同形候选撤回：xrtHttpConnRequest/响应提交检查要求连接所属
+  Request Worker，真实 Upgrade 完成也在该 Worker 排队；受控跨线程提前完成不能证明
+  该实现的真实可达缺陷。server_future.c 恢复原实现，只保留真实 Worker 上提交 Upgrade
+  后注入 Watch OOM 的回归，验证原错误身份、Server drain 和 Engine/allocator 收尾。
+- Clang sanitizer 随后在原有 HTTP Future 用例的 options init 中中止。保留严格失败日志，
+  另用 recover 诊断遍历得到七处生产复制和两处测试夹具复制的未对齐访问；诊断运行即使
+  返回 0 也不计为通过。五处 runtime 配置/options/CallInfo 与两处 Future options/ResultInfo
+  均改用显式 void/const void 字节视图，保留范围验证和现有行为，不改变 ABI。
+- Call 契约新增真正未对齐的终态 Info 输出，检查前后哨兵和 CANCELLED 元数据；修正
+  夹具自身两处类型化 memcpy。两个新增单头入口分别复用完整 Call 契约和完整真实网络
+  Future 用例，既有参数错误单头 smoke 保留。服务端结果注释纠正拆分遗留的客户端
+  101 Response 所有权描述，同步生成实现/声明单头。测试依赖放在 feature=null 模块，
+  不进入生产 ALL 根。
+- 最终 Windows GCC 58 个程序通过：最小 setup 1、Call 契约模块/单头各 1、HTTP
+  Future/lifecycle/HTTPS/coroutine 相关 12、完整选择的 xws_server_tests 43。
+  Linux GCC / Clang ASan+UBSan+float-cast-overflow+leaks / TCC 各 50 个：1+1+1+11+36，
+  合计 208 次程序运行。sanitizer 最终均恢复 halt_on_error=1；不把诊断 recover 当作门禁。
+  这不是 xhttp-client 全产品 18 个源码和所有可选模块的完整验收。
+- 两平台 http_client_future / websocket_server_future 根各 static/shared 消费者及裁剪
+  均通过，合计八个消费者和四个裁剪检查；整体服务端其他根的交付/profile 仍待后续。
+  十项生成/features/API/release 检查和八项 layout/single 工具测试通过。
+  1457 项构建与 Core/HTTP/WebSocket 支持超集有一处既存无关 Core 测试差异；该项不在
+  本批 source/test/single/example 集合且无 include 引用，两份都未覆盖。保留宽报告后，
+  本批范围的 1456 项归一化输入 Windows/WSL 相同。
+- 本次另阅读服务端五个 C、三个内部头和十四个公开函数，保留附加 Header/最小压缩根
+  输入契约候选待验证，不作为已确认缺陷；未以源码阅读或本地套件通过代替全库验收。
+  新改动仍须本批 CI。累计保持 4/21，未本地认证额外平台、TSan、长稳或外部服务。
+
+证据：future-setup-before-{provenance,windows,linux}.json、future-setup-before-inputs/、
+future-setup-server-candidate-disposition.json、future-setup-server-final-{windows,linux}.json；
+http-byteviews-before-{provenance,diagnostics}.json 及原日志/二进制；
+http-future-final-{windows,linux}.json、http-future-final-selected-assets.json、
+http-future-final-input-audit.json、http-future-final-tooling.json、future-setup-checks.json、
+http-future-final-validation.json、xws-server-source-review-20261105.json。

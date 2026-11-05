@@ -707,6 +707,27 @@
 			"legacy": []
 		},
 		{
+			"name": "websocket_server_future_setup_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-server/tests/websocket/test_server_future_setup.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-server/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "xws_server_tests",
 			"state": "implemented",
 			"feature": null,
@@ -730,7 +751,8 @@
 				"websocket_reconnect_stress_tests",
 				"websocket_reconnect_iocp_tests",
 				"websocket_connection_tour",
-				"websocket_http_iocp_tests"
+				"websocket_http_iocp_tests",
+				"websocket_server_future_setup_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -760,7 +782,8 @@
 				"extlibs/xws-server/tests/websocket/test_http_tls_deflate_iocp.c",
 				"extlibs/xws-server/tests/websocket/test_interop_peer.c",
 				"extlibs/xws-server/tests/websocket/test_http_reconnect.c",
-				"extlibs/xws-server/tests/websocket/test_http_reconnect_iocp.c"
+				"extlibs/xws-server/tests/websocket/test_http_reconnect_iocp.c",
+				"extlibs/xws-server/tests/websocket/test_server_future_setup.c"
 			],
 			"single_tests": [
 				"extlibs/xws-server/tests/single/test_single_websocket_server.c",
