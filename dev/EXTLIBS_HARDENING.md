@@ -49,7 +49,7 @@
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
 | xmail | 19 | 19 | 27 | 18 | 14 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
 | xoauth2 | 1 | 3 | 3 | 2 | 4 | 已完成本轮：源码、本地、双平台认证 CI、Hydra 及交付验收 |
-| xpop3 | 6 | 4 | 10 | 6 | 4 | TLS 助手退休修复及受影响回归通过，完整协议/生命周期复核继续 |
+| xpop3 | 6 | 4 | 10 | 6 | 4 | UIDL 长度修复、四环境完整选择及双平台交付/profile 通过，其余协议/生命周期候选继续 |
 | xrudp | 19 | 20 | 76 | 97 | 0 | 待复核 |
 | xruntime | 36 | 23 | 87 | 42 | 30 | 待复核 |
 | xsmtp | 6 | 4 | 8 | 6 | 4 | TLS 助手修复及 73/73 CI 通过，原 SIGSEGV 唯一根因未证实，协议复核继续 |
@@ -1667,3 +1667,60 @@ xws-server-bench-tcc-before.{json,log}、xws-server-bench-final-{windows,linux}-
 xws-server-final-package-{windows,linux}.json、xws-server-final-exports-{windows,linux}.json、
 xws-server-size-{windows,linux}.json、xws-server-final-symbol-profiles-{windows,linux}.json、
 xws-server-round-{checks,tooling,input-audit}.json、xws-server-final-validation.json。
+
+
+### 第四十五批：UIDL 长度、基准跨平台与远端诊断
+
+- d94c95be 的 PR CI 42008137820 在 macOS Apple Clang job 127180008239 的
+  Build WebSocket extension runtime gates 编译失败。原始日志确认新接入的真实
+  loopback smoke 引用了公共基准头；CPU 绑定分支把 cpu_set_t、CPU_SET 和
+  sched_setaffinity 错用于所有 POSIX 平台，不是运行期服务端断言失败。
+  本库扩展/元数据 job 已成功，不能据此忽略平台失败或计入验收。
+- 公共基准辅助现只在 Linux 引入 sched.h/使用 Linux 绑定接口，Windows 分支保留；
+  其他平台未设置 XBENCH_PIN_CPU 时安静运行，显式要求绑定时打印不支持并返回，
+  不输出绑定成功标记。Linux 在 CPU_SET 前拒绝 CPU_SETSIZE 外的索引。
+  保留原回环和资源退休门禁，不删除 macOS smoke，也不修改 workflow。
+- 受控非 Linux POSIX 依赖配置在 Linux 主机上去除 __linux__ 并拒绝 Linux sched.h，
+  GCC/Clang/TCC 的旧头均编译失败，新头均编译通过；unset/有效数字/无效文本九组
+  检查通过。这不是 Darwin SDK 或 macOS 运行证明，仍须真实新 CI。
+  Windows GCC、Linux GCC/Clang/TCC 另以各自真实平台跑十六组参数/合法 CPU 绑定
+  检查；四环境原子/loopback 回归共八程序全通过，Clang 保持严格 sanitizer。
+- 核对 RFC 1939 第 7 节 UIDL 规范：唯一 ID 限制 1..70 个 0x21..0x7e 字节。
+  原解析器只检查字符、未检查长度；Windows/Linux GCC 模块和单头各接受 71、510
+  字节 ID，空/1/69/70 及全部 256 字节范围控制通过，原文件、二进制和日志保留。
+  现于写入结果前拒绝超过 70 字节的 ID，协议错误码不变；失败保持调用方输出。
+  单头入口复用完整协议回归并保留原依赖裁剪、STAT/命令断言，公共说明和两种生成头同步。
+- UIDL 最小根模块/单头四环境共八程序、每程序七组回归通过。完整 xpop3_tests
+  四环境各 17 程序通过（11 模块、6 单头，所选集合没有 examples）；另有双平台
+  五种最小根各六程序，总计 88 次普通程序运行。全产品 static/shared 四个消费者、
+  两个裁剪检查、两种 profile 的 single/static/shared 共十二个体积产物通过，
+  Windows/Linux profile 输入指纹相同；有限性能 smoke 不作为性能回归证明。
+  五项元数据和八项 layout/single 工具检查通过。
+- 回查输入审计脚本时发现，第四十四批七个绝对清单路径使 native/path 拼接仍读取
+  Windows 原文件。保留旧报告后改为全仓库相对路径，实际分别读取 Windows/WSL，
+  原范围 1537 项仍全部相同。扩展至 xpop3/xmail 源、头、清单、完整选择和工具导入后，
+  最终 1691 项亦一致。原来排除的既存无关 Core 测试继续保持两份不动。
+- d94c95be 的 Windows ACME job 127180008243 另在独立 HTTP/TLS 夹具失败：
+  DNS TLS and copied response fields 连接 localhost 在 3000ms 预算内超时，随后
+  IPv4/IPv6 与其余场景通过。该日志只有包装后的 connect 错误，不能判定唯一原因。
+  增加失败时的耗时/预算及最多十六层 domain/operation/kind/code/system 错误链，
+  不修改生产实现、原预算、成功断言和清理错误身份检查。Windows/Linux 各二十次
+  真实 DNS/SNI/复制响应字段的独立 TLS 重复全部通过，故未声称本地重现了远端故障。
+  两个故意连接失败的对照验证新增诊断；仍待下一 head 的 CI 及必要的进一步定位。
+- xpop3 四个自有 C 已阅读，但环境旧错误与消息预算/回调失败、单消息响应序号关联、
+  三处嵌套 deadline 检查仍只有源码候选，须真实夹具验证后决定。不能以本批 UIDL
+  修复或套件通过宣布本库验收；四个示例也未由本批完整选择重新认证。
+  xws-server 同样等待修复后的新 CI；d94c95be 的独立邮件成功、两组重复 run 终态取消。
+  累计保持 4/21，长期任务继续，不合并或发布。
+
+规范：https://www.rfc-editor.org/rfc/rfc1939.html#page-12 。
+证据：ci-d94c95be-job-127180008239-{raw,clean}.log、
+ci-d94c95be-job-127180008243-{raw,clean}.log、bench-affinity-before-provenance.json、
+bench-affinity-{before,after}-posix.json、bench-affinity-{windows,linux}-platform.json、
+bench-affinity-server-{windows,linux}.json、ci-portability-final-validation.json；
+xpop3-protocol-before-{provenance,windows,linux}.json、xpop3-protocol-before-inputs/、
+xpop3-protocol-before-fixtures/、xpop3-protocol-after-{windows,linux}.json、
+xpop3-round-{windows,linux,checks,input-audit,selected-assets}.json、
+xpop3-{size,performance}-{windows,linux}.json、xpop3-protocol-final-validation.json、
+xpop3-source-review-in-progress.json；xws-server-round-input-audit-canonical.json、
+acme-identity-{windows,linux}-probe.json、acme-identity-{windows,linux}-diagnostic-control.json。

@@ -15,6 +15,11 @@
 
 
 
+#define main testPop3ProtocolMain
+#include "../test_pop3.c"
+#undef main
+
+
 /* POP3 协议单头只依赖公共邮件线路原语。 */
 int main(void)
 {
@@ -37,5 +42,6 @@ int main(void)
 			arrCommand,
 			sizeof(arrCommand),
 			&iSize
-		) && (Stat.Messages == 2u) && (iSize == 6u) ? 0 : 1;
+		) && (Stat.Messages == 2u) && (iSize == 6u) &&
+		(testPop3ProtocolMain() == 0) ? 0 : 1;
 }

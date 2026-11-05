@@ -353,6 +353,7 @@ int main(int argc, char** argv)
 	xmemdebugsnapshot before, memory;
 	char *ca, *upload = NULL;
 	int64 timeout_ms = 3000;
+	double exchange_started;
 	bool bounded, large_body, send_failure, head_failure, body_failure;
 	bool headers, header_oom, link_fields, expected, ok, result;
 	bool request_max, url_failure, budget_mode, budget_retry, budget_timeout, operation_scope;
@@ -459,6 +460,7 @@ int main(int argc, char** argv)
 		}
 	}
 	xrtClearError();
+	exchange_started = xrtTimer();
 	ok = (budget_mode ? xacmeHttpExchangeV : xacmeHttpExchangeOnceV)(&http,
 		send_failure || request_max || (budget_mode && !budget_retry) ? "POST" : "GET", url,
 		send_failure || request_max || (budget_mode && !budget_retry) ? "text/plain" : NULL,
@@ -508,9 +510,21 @@ int main(int argc, char** argv)
 		result = result && memory.PeakBytes >= before.PeakBytes &&
 			memory.PeakBytes - before.PeakBytes <= 4u * 1024u * 1024u;
 	}
-	if(!result) fprintf(stderr, "ACME HTTP interop: ok=%d status=%u size=%zu kind=%d code=%d error=%s\n",
-		(int)ok, (unsigned)response.iStatus, response.iBodySize, xrtErrorKind(error),
-		xrtErrorCode(error), error != NULL ? xrtErrorMessage(error) : "none");
+	if(!result) {
+		const xerror* cause = error;
+		fprintf(stderr, "ACME HTTP interop: ok=%d status=%u size=%zu kind=%d code=%d error=%s elapsed=%.3f budget_ms=%lld\n",
+			(int)ok, (unsigned)response.iStatus, response.iBodySize, xrtErrorKind(error),
+			xrtErrorCode(error), error != NULL ? xrtErrorMessage(error) : "none",
+			xrtTimer() - exchange_started, (long long)timeout_ms);
+		for(unsigned depth = 0u; cause != NULL && depth < 16u; depth++) {
+			const char* domain = xrtErrorDomain(cause);
+			const char* operation = xrtErrorOperation(cause);
+			fprintf(stderr, "ACME HTTP cause[%u]: domain=%s operation=%s kind=%d code=%d system=%d\n",
+				depth, domain != NULL ? domain : "none", operation != NULL ? operation : "none",
+				xrtErrorKind(cause), xrtErrorCode(cause), xrtErrorSystemCode(cause));
+			cause = xrtErrorCause(cause);
+		}
+	}
 	if(send_failure || budget_timeout) {
 		puts("RETURNED"); fflush(stdout);
 		if(getchar() != '\n') result = false;

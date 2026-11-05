@@ -222,6 +222,15 @@ XRT_API bool xrtPop3UidlParse(xstrview Line, xpop3uidlview* pItem)
 	}
 	iPosition = __xrtPop3Space(Line, iPosition);
 	iStart = iPosition;
+	/* RFC 1939 section 7 bounds unique IDs to 1..70 printable octets. */
+	if ( (Line.Size - iStart) > 70u ) {
+		__xrtMailError(
+			XERR_PROTOCOL,
+			XMAIL_ERROR_PROTOCOL,
+			"POP3 unique ID exceeds 70 bytes"
+		);
+		return false;
+	}
 	while ( iPosition < Line.Size ) {
 		unsigned char iByte = (unsigned char)Line.Data[iPosition];
 

@@ -95,7 +95,7 @@ XRT_API bool xrtPop3ListParse(xstrview Line, xpop3listview* pItem);
 
 
 
-/* 解析多行 UIDL 响应中的一项。 */
+/* 解析多行 UIDL 响应中的一项，ID 必须为 1..70 个可打印 ASCII 字节。 */
 XRT_API bool xrtPop3UidlParse(xstrview Line, xpop3uidlview* pItem);
 
 

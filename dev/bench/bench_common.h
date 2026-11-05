@@ -25,7 +25,9 @@
 	#include <winsock2.h>
 	#include <windows.h>
 #else
-	#include <sched.h>
+	#if defined(__linux__)
+		#include <sched.h>
+	#endif
 	#include <time.h>
 	#include <unistd.h>
 #endif
@@ -591,10 +593,14 @@ static void xbenchApplyCpuPinFromEnv(void)
 			);
 			return;
 		}
-	#else
+	#elif defined(__linux__)
 		{
 			cpu_set_t Set;
 
+			if ( iCpu >= CPU_SETSIZE ) {
+				fprintf(stderr, "bench_cpu_pin_error: cpu %lu unsupported\n", iCpu);
+				return;
+			}
 			CPU_ZERO(&Set);
 			CPU_SET((int)iCpu, &Set);
 			if ( sched_setaffinity(0, sizeof(Set), &Set) != 0 ) {
@@ -607,6 +613,10 @@ static void xbenchApplyCpuPinFromEnv(void)
 				return;
 			}
 		}
+	#else
+		/* Other POSIX targets do not expose Linux process-affinity APIs. */
+		fprintf(stderr, "bench_cpu_pin_error: CPU pinning unsupported on this platform\n");
+		return;
 	#endif
 
 	printf("bench_cpu_pin: %lu\n", iCpu);
