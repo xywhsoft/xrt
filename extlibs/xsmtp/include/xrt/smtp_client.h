@@ -193,7 +193,10 @@ XRT_API bool xrtSmtpClientDataBegin(
 
 
 
-/* 发送任意分块边界的消息片段，并跨片段执行 dot transparency。 无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。 */
+/*
+	发送任意分块边界的消息片段，并跨片段执行 dot transparency。
+	无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。
+*/
 XRT_API bool xrtSmtpClientDataWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,

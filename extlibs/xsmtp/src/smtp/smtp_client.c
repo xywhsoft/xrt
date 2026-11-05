@@ -536,6 +536,19 @@ void __xrtSmtpClientAuthComplete(xsmtpclient* pClient)
 
 
 
+#if defined(XSMTP_FEATURE_SMTP_AUTH)
+/* 中止尚在等待 SASL 响应的认证交换，保留原始错误和最后响应。 */
+void __xrtSmtpClientAuthFailed(xsmtpclient* pClient)
+{
+	if ( (pClient != NULL) && (pClient->State == XSMTP_CLIENT_READY) &&
+		(pClient->ReplyCode == 334) ) {
+		(void)__xrtSmtpClientFailed(pClient);
+	}
+}
+#endif
+
+
+
 /* 取得最后响应。 */
 XRT_API bool xrtSmtpClientLastReply(
 	const xsmtpclient* pClient,

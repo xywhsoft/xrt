@@ -1960,3 +1960,35 @@ ci-c8fbe2eb-auth-job-first-attempt-annotations.json、ci-c8fbe2eb-rerun-request.
 ci-c8fbe2eb-retry-auth-job-current.json、ci-c8fbe2eb-auth-job-first-attempt-annotations.json、
 xws-runtime-c8fbe2eb-{input-bindings,reverification}.json、
 xws-runtime-final-{source-review,validation}.json、xws-first-round-acceptance.json。
+
+
+### 第五十三批：SMTP 未完成 SASL 交换的错误收尾
+
+- 九项共享回归以公开 Open 创建真实回环 Client。正式修复前，Windows/Linux 的模块和
+  单头四个程序各五失败/四通过：LOGIN 两个长字段和 PLAIN/LOGIN/XOAUTH2 异常重复
+  challenge 留下 READY；终态拒绝、无效配置、成功 LOGIN 和 PLAIN 发送前大小检查正确。
+  原生产三个文件与 379262bd 的 Git 内容一致，源码、二进制与日志分别保留。
+- 认证方法失败后，通过 SMTP_AUTH 专属内部边界检查仍为 READY 且最近完整响应为 334
+  的会话，复用既有线路失败路径进入 FAILED 并中止传输，保留原始错误和响应。终态拒绝
+  以及发送前失败不进入该路径，正常会话仍可 NOOP/QUIT；未引入公开 ABI/布局变化。
+  回归核对原错误类别、334 文本、后续命令拒绝发送、对端 EOF、Engine join 和内存清理。
+- 完整选择只新增一个模块和一个单头程序，源码/特性/链接/示例列表与原有程序相对顺序
+  保持不变，最终为十一模块、八单头。生成头与公开文档同步，补实既有 OAUTHBEARER
+  配置说明；DATA 注释仅排版整理，前批十二场景仍由完整套件覆盖。
+- Windows GCC、Linux GCC/严格 Clang ASan/UBSan/float-cast-overflow 与泄漏检查/TCC
+  四环境各十九程序通过；八个定向程序各九场景通过。加上两端四个选中示例、五种
+  最小功能根和 static/shared 消费者，本批 106 次选中程序/消费者运行通过。协议示例和
+  offline Submit 实际执行；host 片段 main 及无参数外部提交 main 的边界不描述成完整事务。
+- 两端二十四个独立 TLS/STARTTLS 实际提交场景、每端四十三 API 导出、十二个体积产物
+  全类型禁止符号约束、裁剪、五项元数据和八项工具测试通过。1826 个实际 Windows/WSL
+  输入归一化一致且整个验证阶段未变，各主机 profile 绑定各自实际输入。
+- 四个自有 C、公开/内部头与四十三 API 的有界审查已形成证据；SMTP 仍须最终提交自己
+  的 CI/独立邮件才计入完成。新认证回归未逐一强制每个凭据分配 OOM 位置，既有协议 OOM、
+  TLS 上传故障及升级生命周期回归保留。其他本地平台、TSan、长稳、外部账号和线路性能
+  限制继续保留；配置 smoke 不证明吞吐或零开销。累计 7/21，长期任务继续，不合并或发布。
+
+证据：xsmtp-auth-before-{provenance,summary}.json、xsmtp-auth-before-inputs/、
+xsmtp-auth-{before,final}-{windows,linux}.json、xsmtp-auth-selection-proof.json、
+xsmtp-auth-round-{windows,linux}.json、xsmtp-auth-{size,performance}-{windows,linux}.json、
+xsmtp-auth-final-{exports,symbols}-{windows,linux}.json、xsmtp-auth-independent-tls-{windows,linux}.json、
+xsmtp-auth-{checks,input-audit,source-review,final-validation}.json。

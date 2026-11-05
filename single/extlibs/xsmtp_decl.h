@@ -2959,7 +2959,10 @@ XRT_API bool xrtSmtpClientDataBegin(
 
 
 
-/* 发送任意分块边界的消息片段，并跨片段执行 dot transparency。 无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。 */
+/*
+	发送任意分块边界的消息片段，并跨片段执行 dot transparency。
+	无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。
+*/
 XRT_API bool xrtSmtpClientDataWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
@@ -3213,7 +3216,10 @@ XRT_API bool xrtSmtpAuthConfigValid(const xsmtpauthconfig* pConfig);
 
 
 
-/* 在 READY 会话上完成一次认证；服务器拒绝后仍允许调用方选择其他机制。 */
+/*
+	在 READY 会话上完成一次认证；终态拒绝后仍允许调用方选择其他机制。
+	334 交换未完成即失败时中止会话，保留原始错误和最近响应。
+*/
 XRT_API bool xrtSmtpClientAuth(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,

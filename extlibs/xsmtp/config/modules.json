@@ -407,7 +407,8 @@
 				"smtp_offline_example",
 				"smtp_upload_tls_fault_runtime_tests",
 				"smtp_tls_upgrade_lifetime_tests",
-				"smtp_deadline_runtime_tests"
+				"smtp_deadline_runtime_tests",
+				"smtp_auth_recovery_runtime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -443,6 +444,28 @@
 				"extlibs/xsmtp/docs/api/smtp_client.md"
 			],
 			"legacy": []
+		},
+		{
+			"name": "smtp_auth_recovery_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"smtp_auth",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xsmtp/tests/test_smtp_auth_recovery_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/xsmtp/tests/single/test_single_smtp_auth_recovery_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/xsmtp/docs/api/smtp_auth.md"
+			]
 		}
 	]
 }

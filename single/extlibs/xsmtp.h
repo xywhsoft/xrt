@@ -472,7 +472,10 @@ XRT_API bool xrtSmtpClientDataBegin(
 
 
 
-/* 发送任意分块边界的消息片段，并跨片段执行 dot transparency。 无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。 */
+/*
+	发送任意分块边界的消息片段，并跨片段执行 dot transparency。
+	无效数据地址范围在 I/O 前拒绝，保留 DATA 状态和写入进度。
+*/
 XRT_API bool xrtSmtpClientDataWrite(
 	xsmtpclient* pClient,
 	xbytesview Data,
@@ -726,7 +729,10 @@ XRT_API bool xrtSmtpAuthConfigValid(const xsmtpauthconfig* pConfig);
 
 
 
-/* 在 READY 会话上完成一次认证；服务器拒绝后仍允许调用方选择其他机制。 */
+/*
+	在 READY 会话上完成一次认证；终态拒绝后仍允许调用方选择其他机制。
+	334 交换未完成即失败时中止会话，保留原始错误和最近响应。
+*/
 XRT_API bool xrtSmtpClientAuth(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,
@@ -1022,6 +1028,11 @@ struct xsmtpclient {
 
 /* 认证层成功完成 AUTH 后只通过该内部边界更新会话状态。 */
 void __xrtSmtpClientAuthComplete(xsmtpclient* pClient);
+
+#if defined(XSMTP_FEATURE_SMTP_AUTH)
+/* 失败时关闭尚未结束的 SASL 交换；终态拒绝保留可复用会话。 */
+void __xrtSmtpClientAuthFailed(xsmtpclient* pClient);
+#endif
 
 #endif
 
@@ -2173,6 +2184,19 @@ void __xrtSmtpClientAuthComplete(xsmtpclient* pClient)
 		pClient->Authenticated = true;
 	}
 }
+
+
+
+#if defined(XSMTP_FEATURE_SMTP_AUTH)
+/* 中止尚在等待 SASL 响应的认证交换，保留原始错误和最后响应。 */
+void __xrtSmtpClientAuthFailed(xsmtpclient* pClient)
+{
+	if ( (pClient != NULL) && (pClient->State == XSMTP_CLIENT_READY) &&
+		(pClient->ReplyCode == 334) ) {
+		(void)__xrtSmtpClientFailed(pClient);
+	}
+}
+#endif
 
 
 
@@ -3963,6 +3987,8 @@ XRT_API bool __xrtSmtpClientAuth(
 	}
 	if ( bSuccess ) {
 		__xrtSmtpClientAuthComplete(pClient);
+	} else {
+		__xrtSmtpClientAuthFailed(pClient);
 	}
 	return bSuccess;
 }

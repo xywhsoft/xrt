@@ -62,6 +62,18 @@ python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.jso
 
 其中 DATA 写入覆盖空指针非零长度和地址范围溢出；参数错误后继续写入并完成消息，验证会话可以恢复。
 
+## 认证交换失败回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xsmtp/config/modules.json --suite smtp_auth_recovery_runtime_tests --no-examples
+```
+
+九个真实回环场景复用模块化和单头入口：LOGIN 两个过长字段及 PLAIN、LOGIN、XOAUTH2
+异常重复 challenge 必须中止尚未完成的 SASL 交换，保留原始错误和 334 响应，后续命令
+不会发送。正常终态拒绝、配置错误、成功 LOGIN 和 PLAIN 发送前大小检查作为四个对照，
+验证它们保持应有的可复用/已认证状态。全部对端退休后核对 Engine 和内存调试器。
+`xsmtp_tests` 同时包含本组与十二项截止时间/DATA 边界回归。
+
 ## TLS 上传故障回归
 
 在仓库根目录执行下列离线回环测试，可验证 DATA 与 BDAT 两条发送路径。

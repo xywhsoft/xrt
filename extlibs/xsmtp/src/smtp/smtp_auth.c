@@ -450,6 +450,8 @@ XRT_API bool __xrtSmtpClientAuth(
 	}
 	if ( bSuccess ) {
 		__xrtSmtpClientAuthComplete(pClient);
+	} else {
+		__xrtSmtpClientAuthFailed(pClient);
 	}
 	return bSuccess;
 }
