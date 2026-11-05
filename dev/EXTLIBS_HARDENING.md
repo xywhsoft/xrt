@@ -56,7 +56,7 @@
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
-| xws-client | 5 | 3 | 7 | 5 | 3 | 待复核 |
+| xws-client | 5 | 3 | 7 | 5 | 3 | 源码/API 复核及 Future/字节视图修复通过，四环境完整测试与双平台交付通过，待本批 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 
@@ -1441,3 +1441,50 @@ ci-eccd5638-acme-{windows,linux}-coverage{,-provenance}.json 及原始 zip。
 
 证据：xws-group-first-round-acceptance.json、xws-group-final-validation.json、
 ci-dd5a57c7-{run,jobs}.json、ci-dd5a57c7-run-disposition.json、ci-eccd5638-{run,jobs}.json。
+
+
+### 第四十批：客户端 Future 失败发布与借用快照
+
+- 复核 xws-client 三个自有 C 文件、内部头及 17 个公开接口：URL 映射、源请求克隆/
+  管理字段替换、严格 101/Accept/子协议/Deflate 检查、传输与早到帧交接、
+  Future 装配/取消/成功值、结果引用及原子 Take。HTTP HeadersSet 的同名字段折叠
+  已核对，未因重复头候选线索修改正常行为；结果 Take 与借用不可并发的既有契约保留。
+- 原 Future 监听安装失败后先发布 BridgeFail，完成回调可立即释放上下文及其 Call；
+  工厂随后再次读取 Context->Call 并取消。真实 Core bridge/Future/error/allocator，
+  配合仅控制生产者边界的确定性回归，在原 dd5a57c7 源码上复现 URL/Request 两例
+  失效 Call 访问，四个正常取消/延后退休控制通过，最终 Core 资源均平衡。
+- 现在发布失败前将已有 Call 调用方引用转移到局部，并清空 Context 的所有权槽。
+  发布后只使用该局部引用，取消后归还；完成回调可独立退休 Context。没有增加正常路径
+  分配或引用操作，也没有以提高超时、禁止取消或延长借用寿命替代修复。
+- 最终受控六组全通过。另增 URL/Request 两组真实 HTTP Call、两 Worker、Loopback
+  TCP 故障补测：底层工作接纳后，在当前线程的真实监听分配点注入 OOM，返回 NULL
+  时保留原 MEMORY 对象，独立 Drain 并回收全部网络和 Core 资源。四环境各八组及
+  Linux GCC 最小 future_setup 闭包的八组均通过；受控边界与真实网络证据分开记录。
+- 原实现完整 Clang sanitizer 在现有未对齐配置用例失败；新增真实 TCP 事件表用例又
+  在私有事件快照处复现。自有生产 C/头的十项旧输入哈希与 dd5a57c7 一致，旧源码/
+  二进制/日志保留。四个公开快照边界显式使用 void/const void 字节视图，另修正夹具
+  自身的未对齐配置读取，不禁用 alignment。请求/握手的范围、重叠和失败不改输出断言保留。
+- 事件表用例先传入带哨兵的未对齐存储；返回后清空原表，再放行本地对端的 101 和
+  同块首帧，验证复制的回调仍完成消息和关闭。Future 模块化/单头复用该夹具；原先
+  只被包含而未在聚合套件独立执行的 callback 入口现也登记运行。
+- Windows GCC 全套 17 个程序（9 模块/5 单头/3 示例），Linux GCC / Clang
+  ASan+UBSan+float-cast-overflow+leaks / TCC 各 14 个（7/4/3）通过。
+  真实 Call 补测随后刷新单独的 setup 程序，生产输入未再变更；不把最初六组的日志
+  冒称已经包含后加的两组。Windows/Linux static/shared 四个消费者及模块依赖裁剪通过。
+- 五项生成/features/API/release 门禁和八项 extension layout/single 工具测试通过；
+  1207 项 Core/HTTP/WebSocket 构建输入及测试支持超集归一化后 Windows/WSL 相同。
+  最小 client/future/deflate 根另核对默认功能关闭的实际编译/运行；Linux 三根通过。
+  Linux 的两个体积 profile 各 single/static/shared 及 request 性能 smoke 通过，
+  Windows 的这部分测量尚在执行，不在本次提交中标记为完成；smoke 不作为吞吐回归结论。
+- 本库还需本批 GitHub CI。未本地认证 MSVC/clang-cl/x86、Android/BSD/macOS、
+  TSan/长稳或外部真实代理/证书服务。xhttp-client 中类似的后置 BridgeFail 使用路径
+  属于后续独立复核范围，本批没有将其源代码纳入同一缺陷修复结论。
+  本库暂不计入完成，整轮保持 xjwt/xoauth2/xws-group，3/21，未合并或发布。
+
+证据：xws-client-before-provenance.json、xws-client-before-inputs/、
+xws-client-before-linux.json、xws-client-setup-before-{linux,case-audit}.json、
+xws-client-setup-before-client（WSL）、xws-client-events-before-linux.json 及对应日志；
+xws-client-accept-{windows,linux}.json、xws-client-setup-final-{windows,linux}.json、
+xws-client-selected-assets-final.json、xws-client-checks.json、xws-client-extra-linux.json、
+xws-client-{size,performance}-linux.json、xws-client-final-input-audit.json、
+xws-client-final-validation.json。暂停中断的构建日志另存 *-paused-20261105.log。

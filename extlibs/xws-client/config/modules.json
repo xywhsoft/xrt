@@ -75,7 +75,8 @@
 				"extlibs/xws-client/src/websocket/client.c"
 			],
 			"tests": [
-				"extlibs/xws-client/tests/websocket/test_http_client_invalid.c"
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid.c",
+				"extlibs/xws-client/tests/websocket/test_http_client_handoff.c"
 			],
 			"single_tests": [
 				"extlibs/xws-client/tests/single/test_single_websocket_client.c"
@@ -299,6 +300,27 @@
 			"legacy": []
 		},
 		{
+			"name": "websocket_client_future_setup_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_client_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-client/tests/websocket/test_client_future_setup.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-client/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "xws_client_tests",
 			"state": "implemented",
 			"feature": null,
@@ -307,7 +329,8 @@
 				"websocket_client_proxy_http_connect",
 				"websocket_http_proxy_tests",
 				"websocket_http_proxy_iocp_tests",
-				"websocket_client_invalid_iocp_tests"
+				"websocket_client_invalid_iocp_tests",
+				"websocket_client_future_setup_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -319,7 +342,9 @@
 				"extlibs/xws-client/tests/websocket/test_http_client_deflate.c",
 				"extlibs/xws-client/tests/websocket/test_http_proxy.c",
 				"extlibs/xws-client/tests/websocket/test_http_proxy_iocp.c",
-				"extlibs/xws-client/tests/websocket/test_http_client_invalid_iocp.c"
+				"extlibs/xws-client/tests/websocket/test_http_client_invalid_iocp.c",
+				"extlibs/xws-client/tests/websocket/test_client_future_setup.c",
+				"extlibs/xws-client/tests/websocket/test_http_client_handoff.c"
 			],
 			"single_tests": [
 				"extlibs/xws-client/tests/single/test_single_websocket_client.c",

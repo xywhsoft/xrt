@@ -483,7 +483,7 @@ XWS_CLIENT_API void xrtWsClientConfigInit(
 		Config.Http.Redirect =
 			XHTTP_REDIRECT_MANUAL;
 	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -799,7 +799,7 @@ XWS_CLIENT_API bool xrtWsClientCheck(
 		Selected = pProtocol->Value;
 	}
 	Handshake.Protocol = Selected;
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
+	memcpy((void*)pHandshake, &Handshake, sizeof(Handshake));
 	return true;
 }
 
