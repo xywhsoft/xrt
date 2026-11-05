@@ -39,6 +39,24 @@ python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.jso
 不匹配时拒绝连接。脚本还验证 EXAMINE 的 tagged completion 缺失时客户端失败，
 同时检查 POP3 和 SMTP 范例；已接入 Linux CI，IPv6 回环不可用时跳过对应场景。
 
+## 生产与验证入口
+
+`ximap` 聚合十个功能根并保留协议 smoke；`ximap_tests` 承载完整回归和夹具依赖，
+独立示例通过各自的 example 根构建。生产闭包不携带 TLS 夹具的 RSA 私钥运算、
+签名和 RSA 身份构造模块。Core `tls_stream` 现有的 client/server 依赖仍保留。
+
+## 非法超时与会话恢复回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_deadline_runtime_tests --no-examples
+```
+
+十八个场景在模块化与单头入口中复用同一实现，以公开 Open 和真实 PREAUTH、SELECT、
+APPEND、IDLE 转录建立会话。检查非法超时不会发送字节、误报空写成功、改变活跃 tag、
+最近完整响应或 APPEND 剩余长度，并用同一事务的实际完成、NOOP 和 LOGOUT 证明可恢复。
+EndIdle 另核对无效请求不会提前用掉 DONE 资格。已有正确委托路径、正常收发、IDLE、
+APPEND、无限等待及关闭作为对照。对端全部退出后检查 Engine 退休和内存调试器。
+
 ## TLS 上传故障回归
 
 以下离线回环测试在同一次 TLS APPEND 写入已经部分提交、Future 尚未完成时，

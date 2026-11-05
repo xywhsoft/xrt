@@ -234,13 +234,17 @@ XRT_API bool xrtImapClientBeginExpunge(
 	xcancel* pCancel
 );
 
-/* 开始 IDLE；收到 continuation 后可读取事件，结束时发送 DONE。 */
+/* 开始 IDLE；调用方通过 Next 接收 continuation 和后续事件。 */
 XRT_API bool xrtImapClientBeginIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
 	xcancel* pCancel
 );
 
+/*
+	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
+	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+*/
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
 	int64 iTimeout,

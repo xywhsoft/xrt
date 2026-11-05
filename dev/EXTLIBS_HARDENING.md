@@ -2017,3 +2017,53 @@ xsmtp-auth-{checks,input-audit,source-review,final-validation}.json。
 证据：ci-bf87f2c3-{run,jobs,mail}-final.json、pr-5-smtp-acceptance-state.json、
 xsmtp-auth-{source-review,final-validation,commit-input-bindings}.json、
 xsmtp-bf87f2c3-{reverification,final-source-review}.json、xsmtp-first-round-acceptance.json。
+
+
+### 第五十五批：IMAP 等待前置、生产边界与 TCC 测试兼容
+
+- 真实 public Open/PREAUTH、SELECT、APPEND、IDLE 客户端证明 Send、SendParts、Write
+  的等待检查嵌套错误，以及 EndIdle 在非法等待后提前失去 DONE 资格。BF 原始输入的
+  Windows/Linux GCC 模块化和单头四个程序各为 8 FAIL/10 PASS；仅移动三个 Client
+  检查的 Windows 中间实验为 17 PASS/1 FAIL，单独隔离 EndIdle。最终只前置这四处检查，
+  不机械改写已有委托保护的路径。
+- 新增共享十八场景与单头入口，覆盖非法参数后状态、最后响应、tag、上传余额和输出
+  哨兵保持，以及更正参数后同一 APPEND/IDLE、NOOP、LOGOUT 和有效 Close。所有 peer
+  join 后退休 Engine，并验证资源计数与内存诊断。有效 Send/SendParts、空/非空上传、
+  委托包装、Receive/Close 和无限 NOOP 均有控制。
+- ximap 生产根移出 offline 示例和两个 TLS fixture 根，168 降至 163 源码，准确去掉
+  RSA private/blinding、PSS/PKCS1 签名和 RSA identity 五个文件及四个功能标记。
+  Core TLS_SERVER 和 MessageTree 所需 MAIL_TREE 保留。完整测试根的源码、测试、单头、
+  示例、定义和链接六项有序选择在边界调整前后逐项相同；新增回归后为 24 模块化、
+  16 单头程序。生产单头和两档 size profile 约束意外依赖。
+- 发布消费者检查借用视图的真实别名、由宿主 xrtFree 释放的 quoted 字符串及末尾零、
+  Client 错误共享和输出哨兵。修正 IDLE 文档：Begin 后调用方读取 continuation，End
+  发送 DONE 后调用方仍须读取 tagged completion；同步更新非法等待契约和单头。
+- Windows GCC、Linux GCC、Clang ASan/UBSan/float-cast-overflow/泄漏检查的完整四十程序
+  先通过。TCC 随后在三个既有 static xstrview 数组发现 index too large；原始文件与
+  失败日志保留，只有初始化形式改成普通结构体括号，十个字符串表达式及全部断言保持。
+  三个编译环境的六个受影响模块化/单头入口各补跑成功，共十八次；最终 TCC 完整四十
+  程序通过。这里是有明确输入差异证明的分阶段并集，不宣称前三种编译器对最终文件又
+  完整重跑一遍；失败尝试中的部分通过不混入成功运行总数。
+- 本批共 230 次成功选中程序/消费者运行：完整选择 160、十八场景定向程序 8、示例 10、
+  十个最小功能根实际模块程序 28、全新静态/共享消费者 4，以及显式最小 TLS 消费者 2、
+  初始化兼容补跑 18。imap_client_tls 没有模块测试资产，其 no-single 选择不算编译
+  成果；另用既有最小单头 main 在两端实际编译并运行各 143 个模块源码的消费者补齐。
+- 两端独立 TLS/STARTTLS 共二十四场景；独立压缩互通 Windows/Linux GCC 各九十，
+  Linux Clang ASan/UBSan/泄漏检查九十，共 270。每端 101 公开 API 导出吻合，十二个
+  single/static/shared size 产物满足符号约束，trim、五项元数据门禁及八个工具测试通过。
+  1920 项实际 Windows/WSL 规范化输入一致；两个 profile 指纹核对当前实现，测试数组
+  语法改写不在其实现输入内。配置 smoke 不作吞吐、性能等价或零开销结论。
+- 九个自有 C 均已通读，并建立 101 个声明/定义对应表，但这不是最终逐 API 契约验收。
+  探针已确认 APPEND 输出指针、合法状态/continuation 尾部花括号误判 literal，以及
+  IDLE 仍有 literal/fragment 时提前消耗 DONE 资格；这些修复尚未进入本批，后续须补
+  共享正式回归及最终源码验证。AUTH 分层恢复、邮箱数值域等疑问不当作已证实缺陷。
+  IMAP 不计入完成，累计仍为 8/21；本提交自己的 CI 待运行。长期任务继续，不合并发布。
+
+证据：ximap-deadline-before-{provenance,native-inputs,windows,linux}.json、
+ximap-deadline-after-write-windows.json、ximap-production-boundary-proof.json、
+ximap-deadline-{selected-assets,round-windows,initial-round-linux,resume-linux}.json、
+ximap-portability-{windows,linux}.json、ximap-portability-body-{windows,linux}.json、
+ximap-tcc-final-initializer-proof.json、ximap-minimal-tls-consumer-{windows,linux}.json、
+ximap-deadline-independent-{tls,compress}-{windows,linux}.json、
+ximap-deadline-independent-compress-linux-clang.json、
+ximap-deadline-{checks,input-audit,api-source-map,source-review,final-validation}.json。

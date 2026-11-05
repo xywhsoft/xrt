@@ -680,9 +680,11 @@ XRT_API bool __xrtImapClientSend(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -715,9 +717,11 @@ XRT_API bool __xrtImapClientSendParts(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -749,9 +753,11 @@ XRT_API bool __xrtImapClientWrite(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( !xrtMemRangeValid(pData, iSize) ) {

@@ -25,6 +25,9 @@ LIST、STATUS、SEARCH、FETCH、STORE、COPY、MOVE 与 EXPUNGE 只负责安全
 
 ## IDLE
 
-`xrtImapClientBeginIdle` 等待服务器 continuation 后进入 IDLE。期间使用 Next 接收未请求
-事件；`xrtImapClientEndIdle` 发送 DONE 并消费 tagged completion。取消或超时不会伪造
-命令边界，线路状态按 Client 的不可恢复错误规则处理。
+`xrtImapClientBeginIdle` 开始 IDLE 命令，调用方通过 Next 接收服务器 continuation，
+之后继续用 Next 接收未请求事件。`xrtImapClientEndIdle` 只发送 DONE，调用方仍须用 Next
+消费匹配 tag 的 completion，直到返回 `XMAIL_NEXT_END`。
+
+小于 `-1` 的非法超时在 Begin/End 的命令或状态改变前拒绝，可以更正参数后继续同一
+IDLE。有效超时、取消或传输失败不会伪造命令边界，线路按 Client 的不可恢复规则处理。

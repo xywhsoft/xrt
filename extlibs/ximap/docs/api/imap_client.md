@@ -38,8 +38,9 @@ Next 或 ReadLiteral 后失效。literal 正文必须使用调用方缓冲分段
 ```c
 ximapevent event;
 const size_t literalBudget = 64u * 1024u * 1024u;
+const int64 timeout = INT64_C(10000);
 
-if ( !xrtImapClientReceive(client, &event, deadline, cancel) ) {
+if ( !xrtImapClientReceive(client, &event, timeout, cancel) ) {
 	/* 处理接收错误。 */
 } else if ( event.HasLiteral && (event.Literal.Size > literalBudget) ) {
 	/* Abort 在 literal 未读完时仍可立即终止连接。 */
@@ -49,6 +50,15 @@ if ( !xrtImapClientReceive(client, &event, deadline, cancel) ) {
 
 CAPABILITY、APPENDLIMIT、状态和最近 completion 都由 Client 保存。未知 capability 与未知
 响应仍可通过原始视图处理，不需要等待 xmail 增加专用 API。
+
+## 非法超时与会话恢复
+
+`Send`、`SendParts`、`Write` 和 `Continue` 在 I/O 前拒绝小于 `-1` 的超时并返回
+`XERR_ARGUMENT`，包括零字节 `Write` 和空 continuation。最近完整响应、活跃 tag、
+APPEND 剩余字节与会话状态保持不变，可以更正参数后继续完成同一事务。
+`AppendWrite` 通过同一写入预检保留 literal；超时参数有效时，零长度 `AppendWrite` 仍按原契约拒绝。
+`EndIdle` 对非法超时保留再次发送 DONE 的资格，不会只修改本地状态却未发送。
+有效超时发生传输等待失败时仍遵循下面的不可恢复线路规则；`-1` 表示无限等待。
 
 ## 关闭和错误
 
@@ -66,4 +76,4 @@ NO 或 BAD 时，客户端保留可恢复状态并返回结构化错误。
 
 ## 示例
 
-见 `examples/imap/client/main.c`。
+见 [客户端范例](../../examples/client/main.c)。

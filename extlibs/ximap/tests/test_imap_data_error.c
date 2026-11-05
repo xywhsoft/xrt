@@ -280,8 +280,11 @@ static void testDataValid(void)
 {
 	ximaplistview List; ximapmailboxstatusview Status; ximapesearchview ESearch;
 	ximapsearchcursor Search; ximapsearchitem Id;
-	static const xstrview Names[] = { XRT_STR_LITERAL("123"), XRT_STR_LITERAL("NIL"),
-		XRT_STR_LITERAL("18446744073709551616") };
+	static const xstrview Names[] = {
+		{ "123", sizeof("123") - 1u },
+		{ "NIL", sizeof("NIL") - 1u },
+		{ "18446744073709551616", sizeof("18446744073709551616") - 1u }
+	};
 	for ( size_t i = 0; i < 3; i++ ) {
 		char Text[96]; snprintf(Text, sizeof(Text), "LIST () NIL %.*s", (int)Names[i].Size, Names[i].Data);
 		xrtSetErrorInfo(XERR_ARGUMENT, "test.data", 91, "caller diagnostic");

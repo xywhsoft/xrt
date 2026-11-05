@@ -1240,9 +1240,11 @@ XRT_API bool __xrtImapClientEndIdle(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapCommandSelected(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapCommandSelected(pClient) ) {
 		return false;
 	}
 	return __xrtImapClientIdleEnd(pClient) && __xrtImapClientContinue(
