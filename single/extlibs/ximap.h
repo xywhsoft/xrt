@@ -1236,7 +1236,8 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 
 
 
-/* 在 NOT_AUTHENTICATED 会话上执行配置的认证机制。 */
+/* 在 NOT_AUTHENTICATED 会话上认证。非 IR 凭据超限在命令前拒绝；意外 literal
+ * 或未完成的 LOGIN 取消终止会话。已完成的拒绝/取消保留可复用状态和主错误。 */
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
@@ -2313,6 +2314,12 @@ bool __xrtImapClientProtocolFail(
 	ximapclient* pClient,
 	cstr sMessage
 );
+
+
+
+#if defined(XIMAP_FEATURE_IMAP_AUTH)
+bool __xrtImapClientAuthFail(ximapclient* pClient);
+#endif
 
 
 
@@ -6445,6 +6452,16 @@ bool __xrtImapClientProtocolFail(
 
 
 
+#if defined(XIMAP_FEATURE_IMAP_AUTH)
+/* 认证层已设置主错误；只终止会话，保留认证错误的 domain/code。 */
+bool __xrtImapClientAuthFail(ximapclient* pClient)
+{
+	return __xrtImapClientFailed(pClient);
+}
+#endif
+
+
+
 /* 把刚开始的顺序命令标记为 IDLE。 */
 bool __xrtImapClientIdleStart(ximapclient* pClient)
 {
@@ -6859,6 +6876,7 @@ static __ximapauthnext __xrtImapAuthNext(
 				XERR_PROTOCOL,
 				"unexpected IMAP literal during authentication"
 			);
+			(void)__xrtImapClientAuthFail(pClient);
 			return __XIMAP_AUTH_ERROR;
 		}
 		if ( (Event.Kind == XIMAP_EVENT_RESPONSE) &&
@@ -6985,7 +7003,17 @@ static bool __xrtImapAuthLogin(
 		) ) {
 			return false;
 		}
-		(void)__xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		Next = __xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		if ( Next == __XIMAP_AUTH_ERROR ) {
+			return false;
+		}
+		if ( Next != __XIMAP_AUTH_COMPLETE ) {
+			(void)__xrtImapAuthError(
+				XERR_PROTOCOL,
+				"incomplete IMAP LOGIN cancellation"
+			);
+			return __xrtImapClientAuthFail(pClient);
+		}
 		return __xrtImapAuthError(
 			XERR_PROTOCOL,
 			"unexpected continuation for IMAP LOGIN"
@@ -7077,6 +7105,12 @@ static bool __xrtImapAuthSasl(
 	}
 	bInitial = pConfig->InitialResponse &&
 		((xrtImapClientCapabilities(pClient) & XIMAP_CAP_SASL_IR) != 0);
+	if ( !bInitial &&
+		(iEncoded > xrtImapClientCommandLimit(pClient) - 2u) ) {
+		__xrtMailSetInvalidArgument();
+		__xrtMailAuthFree(sEncoded, iEncoded + 1u);
+		return false;
+	}
 	if ( bInitial ) {
 		sArguments = __xrtImapAuthArguments(
 			Mechanism,

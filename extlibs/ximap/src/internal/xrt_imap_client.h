@@ -50,6 +50,12 @@ bool __xrtImapClientProtocolFail(
 
 
 
+#if defined(XIMAP_FEATURE_IMAP_AUTH)
+bool __xrtImapClientAuthFail(ximapclient* pClient);
+#endif
+
+
+
 bool __xrtImapClientAppendStart(ximapclient* pClient, size_t iSize);
 
 

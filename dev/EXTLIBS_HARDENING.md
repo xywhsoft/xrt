@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE 修复验证中，认证终态与错误保真复核继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证边界修复本地通过，数值域与最终 CI 继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -2187,3 +2187,51 @@ https-pool-checks.json、https-pool-input-audit.json。
 证据：ci-6484e2a4-metadata-failed.log、https-pool-owners-before-windows.log、
 https-pool-owners-final-windows.log、https-pool-owners-proof.json、
 ximap-auth-external-metadata-change.json。
+
+
+### 第六十批：IMAP 认证失败终态、错误保真与凭据预检
+
+- ce3cb859 的九十三项 IMAP 原始输入匹配 Git 和实际 native 文件；只加入测试仪器后，
+  Windows/Linux GCC 模块化、单头四个程序各十四场景，均为 5 FAIL/9 PASS。正式测试
+  通过公开 Open 建立真实 TCP 会话，不伪造 opaque Client；四个失败基线二进制和日志
+  单独保留。PLAIN/LOGIN 的意外 literal、LOGIN 取消 EOF、未完成取消以及非 IR 过长
+  凭据五项失败均被复现，成功、可恢复和分配故障控制保持通过。
+- 认证遇到意外 literal，或 LOGIN 取消后再收到 continuation，以原认证域/code 的
+  PROTOCOL 错误进入 FAILED 并中止传输。新增私有 AuthFail 只在 IMAP_AUTH 启用时存在，
+  复用 Client 既有保留错误的失败路径，不新增公共 API、结构布局或分配。LOGIN 取消
+  的 Next 错误直接保留，不再把 EOF 的 CLOSED 覆盖成 PROTOCOL；已完成的 tagged
+  cancellation 仍返回认证协议错误且可继续 NOOP/LOGOUT，不一概中止有效会话。
+- 非 initial-response 的编码凭据在 Begin 前比较含 CRLF 的线路预算；超限返回
+  ARGUMENT，不先发送 AUTHENTICATE 或消耗活动命令。Client Open 已验证 limit 至少
+  为十六，因此减二不会下溢；拒绝路径沿用凭据清零释放。IR 的原有完整命令线路检查
+  保持，其超限仍为 RANGE；测试明确核对不同路径各自的后续 tag。
+- 共享十四场景还核对精确 PLAIN 载荷、服务器 NO、安全默认明文门、能力拒绝、非法
+  等待，以及原文/编码两处分配 OOM。fail injection 的线程局部实现与分配次序已复核，
+  不会误伤对端或 Engine 线程。配置和用户名字节不变，局部拒绝保留最近完整响应；
+  终态场景在显式 Abort 前观察对端 EOF 并 join，防止仅修改状态却泄漏活连接。
+- 完整选择仅各追加一项，为 26 模块化加 18 单头；原源码、示例、定义、链接和原测试
+  顺序保持。Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/
+  泄漏检查、TCC 四套四十四程序全通过；另八个最小定向程序各十四场景全通过。
+- 本批计入 226 次选中程序/消费者运行：完整选择 176、定向 8、示例 10、最小模块
+  程序 28、静态/共享消费者 4。两次 host-client 仅执行无参数用法；其余示例执行
+  实际工作。两个 imap_client_tls 最小 no-single 选择没有模块测试资产，不计为程序；
+  本批没有另行声称补跑显式模块 TLS 消费者或独立 Clang 压缩矩阵。
+- 两端独立 TLS/STARTTLS 共二十四场景，独立压缩互通共 180 场景通过，记录的实际
+  二进制哈希已核对。每端 101 个公开导出及十二个 size 产物符号约束吻合；trim、
+  五项元数据门禁和完整 137 项构建工具测试通过。十二个已安装头的非注释 token 与
+  ce3cb859 相同，公共签名、常量和布局声明保持。
+- 最终 1924 项 Windows/native 规范化输入吻合，其中 1923 项在本次最终源码验证期间
+  未变；另一项是第五十九批 HTTP 单头归属清单，仅两个映射且不在 IMAP 编译依赖闭包。
+  初始广域快照保留，外部元数据变化、最终快照与提交绑定分别记录，不把旧快照重标为
+  全程未变。修复后的 48d3d47c Metadata/xhttp-client 任务均已成功，完整 CI 仍在等待
+  综合平台任务；本批自己的提交也须单独验证，不据历史 head 的绿色任务验收本批。
+- 邮箱已知数值域和其余逐 API 契约继续复核，明确保留已有 generic uint64/MODSEQ
+  行为，后续单独增加拒绝原子性和合法边界控制。IMAP 未完成本轮验收，累计 8/21；
+  保留其他本地平台、TSan、长稳、外部账号和性能限制，不合并或发布。
+
+证据：ximap-auth-before-{provenance,native-inputs,binary-bindings,windows,linux}.json、
+ximap-auth-{allocator-review,selection-proof,source-review,api-source-map}.json、
+ximap-auth-{final,round}-{windows,linux}.json、ximap-auth-checks.json、
+ximap-auth-independent-{tls,compress}-{windows,linux}.json、
+ximap-auth-{external-metadata-change,final-input-audit,final-validation}.json、
+ci-48d3d47c-{http,metadata}-job.json、ximap-numeric-next-batch-plan.json。

@@ -1201,6 +1201,16 @@ bool __xrtImapClientProtocolFail(
 
 
 
+#if defined(XIMAP_FEATURE_IMAP_AUTH)
+/* 认证层已设置主错误；只终止会话，保留认证错误的 domain/code。 */
+bool __xrtImapClientAuthFail(ximapclient* pClient)
+{
+	return __xrtImapClientFailed(pClient);
+}
+#endif
+
+
+
 /* 把刚开始的顺序命令标记为 IDLE。 */
 bool __xrtImapClientIdleStart(ximapclient* pClient)
 {

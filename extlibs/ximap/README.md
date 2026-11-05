@@ -154,3 +154,16 @@ continuation 说明文本的花括号尾部，以及 IDLE 仍有 literal/fragmen
 有效控制读取两个 FETCH literal，第二个由后续 fragment 声明，并继续 NOOP/LOGOUT；
 另有普通状态、读完 IDLE 和非法等待控制。每次拒绝后核对可恢复边界，peer 退出并 join，
 最后验证 Engine 退休计数和逻辑内存释放。该回归同时包含在完整 ximap_tests 中。
+
+
+## 认证边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_auth_runtime_tests --no-examples
+```
+
+模块化与单头共享十四个真实 TCP、公开 Open 客户端场景：意外 literal 的会话终止、
+LOGIN 取消的 EOF 错误保真及未完成取消、非 initial-response 凭据的命令前长度检查，
+并覆盖成功的精确 PLAIN 载荷、完成的拒绝/取消、IR 超限、非法等待、明文安全门、
+未声明能力及两个凭据分配点的 OOM。可恢复路径继续实际 NOOP/LOGOUT；终态路径在
+显式 Abort 前观察 peer EOF 并 join，最后检查 Engine 退役和逻辑内存释放。

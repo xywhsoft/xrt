@@ -3759,7 +3759,8 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 
 
 
-/* 在 NOT_AUTHENTICATED 会话上执行配置的认证机制。 */
+/* 在 NOT_AUTHENTICATED 会话上认证。非 IR 凭据超限在命令前拒绝；意外 literal
+ * 或未完成的 LOGIN 取消终止会话。已完成的拒绝/取消保留可复用状态和主错误。 */
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
