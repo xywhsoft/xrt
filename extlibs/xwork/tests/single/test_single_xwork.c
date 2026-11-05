@@ -1,8 +1,17 @@
 #include "../../include/xwork/features.h"
 #include "../../../xllm-session/include/xllm-session/features.h"
 #include "../../../xllm/include/xllm/features.h"
+#include <xhttp-client/features.h>
+#include <xhttp-policy/features.h>
+#include <xhttp/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"
+#define XHTTP_IMPLEMENTATION
+#include "../../../../single/extlibs/xhttp.h"
+#define XHTTP_POLICY_IMPLEMENTATION
+#include "../../../../single/extlibs/xhttp-policy.h"
+#define XHTTP_CLIENT_IMPLEMENTATION
+#include "../../../../single/extlibs/xhttp-client.h"
 #define XLLM_IMPLEMENTATION
 #include "../../../../single/extlibs/xllm.h"
 #define XLLM_SESSION_IMPLEMENTATION
