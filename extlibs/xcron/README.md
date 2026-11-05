@@ -27,8 +27,10 @@ reserved completion output, no-effect overload retries, self-wait protection,
 controlled clock-failure shutdown and explicit post-stop Data retirement are
 implemented. See [live contracts/costs](docs/service.md) and
 [runnable real-UTC example](examples/service/README.md). Nominal DST delivery,
-named database/reload, durable recovery, bounded recurrence CPU work and final
-native/performance/long-run qualification remain pending.
+named database/reload, durable recovery and final native/performance/long-run
+qualification remain pending. Actual owner admission/advancement now share global
+segment/month/rule-year budgets, with provisional ADD rollback and independent
+command progress. See the live guide for costs, stats ABI and remaining cold scans.
 
 `XCRON_MODULE_XCRON_ZONED` adds exact local-field matching and earliest actual
 occurrence in a UTC window. It searches ordered fixed-offset segments, returns
@@ -40,7 +42,7 @@ Nominal gap compensation, fold selection and execution remain scheduler policies
 Zoned Init/Step cursors bound segment starts, calendar months and transition-rule
 years independently. They borrow an explicitly supplied live zone and copy the
 expression/window into stable caller storage. See [budget/lifetime/cost details](docs/zoned.md).
-Live scheduler admission/advancement remains synchronous pending integration.
+The live owner uses the shared typed engine with global per-turn budgets.
 
 Select `XCRON_MODULE_XCRON_EXPRESSION` before including `<xcron.h>`. Explicitly
 choose `XCRON_UNIX5` (minute/hour/day/month/weekday, second zero) or

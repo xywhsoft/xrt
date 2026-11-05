@@ -1,6 +1,7 @@
 #include "test.h"
 #include "tzif_fixture.h"
 #include <limits.h>
+static bool SchedulerBudgetModel;
 static xcronexpression schedulerExpression(cstr Text)
 {xcronexpression E;testRequire(xcronExpressionCompile((xstrview){Text,strlen(Text)},XCRON_SECONDS6,&E,NULL),"scheduler expression");return E;}
 static xcronzone* schedulerZone(cstr Text)
@@ -12,7 +13,16 @@ static xcronjobconfig schedulerConfig(xcronzone* Z,xtime Begin,xtime End)
 static xcronjobid schedulerAdd(xcronscheduler* S,const xcronjobconfig* C)
 {xcronjobid Id=0;testRequire(xcronSchedulerAdd(S,C,&Id,NULL) && Id,"scheduler add");return Id;}
 static xcronpoll schedulerPoll(xcronscheduler* S,xtime Wall,uint64 Mono,xcronrun* R,size_t Capacity)
-{xcronpoll P;testRequire(xcronSchedulerPoll(S,(xcronclock){Wall,Mono},R,Capacity,&P,NULL),"scheduler poll");return P;}
+{
+    xcronpoll P;
+    if(!SchedulerBudgetModel)testRequire(xcronSchedulerPoll(S,(xcronclock){Wall,Mono},R,Capacity,&P,NULL),"scheduler poll");
+    else {
+        xcronpollbudgeted Q;testRequire(xcronSchedulerPollBudgeted(S,(xcronclock){Wall,Mono},(xcronzonedbudget){1,1,1},R,Capacity,&Q,NULL),"budgeted model poll");P=Q.Poll;
+        unsigned Turns=0;
+        while(Q.Searching){testRequire(++Turns<1000 && xcronSchedulerPollBudgeted(S,(xcronclock){Wall,Mono},(xcronzonedbudget){1,1,1},NULL,0,&Q,NULL),"calculation-only model drain");P.Faults+=Q.Poll.Faults;}
+    }
+    return P;
+}
 static xcronjobinfo schedulerInfo(xcronscheduler* S,xcronjobid Id)
 {xcronjobinfo I;testRequire(xcronSchedulerJob(S,Id,&I,NULL),"scheduler job info");return I;}
 static void schedulerComplete(xcronscheduler* S,xcronrunid Id)
@@ -23,6 +33,7 @@ static void schedulerClean(xcronscheduler* S)
 {testRequire(xcronSchedulerClose(S,NULL),"scheduler close");xcronretired R;bool Found=true;while(Found)testRequire(xcronSchedulerReap(S,&R,&Found,NULL),"scheduler drain");testRequire(xcronSchedulerDestroy(S,NULL),"scheduler destroy");}
 static void schedulerError(bool Result,xcronschedulerissue* I,xcronschedulererror Code,cstr Text)
 {testRequire(!Result && I->Code==Code && xrtErrorCode(xrtGetError())==(int32)Code && !strcmp(xrtErrorDomain(xrtGetError()),"xrt.cron.scheduler"),Text);xrtClearError();}
+#include "scheduler_budget_cases.h"
 static void testSchedulerLifetime(void)
 {
     xcronscheduler* S=schedulerCreate(1,2,64);xcronzone* Z=schedulerZone("UTC0");int Data=37;
@@ -191,5 +202,6 @@ static void testSchedulerWarm(void)
 int main(void)
 {
     testSchedulerLifetime();testSchedulerMisfires();testSchedulerOverlapAndFairness();testSchedulerClocks();testSchedulerFaults();testSchedulerHeapOrder();testSchedulerModel();testSchedulerZones();testSchedulerArgumentsAndOOM();testSchedulerWarm();
+    SchedulerBudgetModel=true;testSchedulerModel();SchedulerBudgetModel=false;testSchedulerBudgetFairness();testSchedulerAdmission();testSchedulerBudgetArguments();testSchedulerBudgetFaultsAndWarm();testSchedulerBudgetCredit();
     puts("[PASS] scheduler: bounded leases/misfires/overlap/fairness/clocks/92160 model samples/faults/OOM/zero-heap");return 0;
 }

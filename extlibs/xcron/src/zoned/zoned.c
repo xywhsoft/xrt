@@ -85,17 +85,46 @@ XCRON_API xcronzonedstatus xcronZonedNext(const xcronexpression* E,const xcronzo
     if(Issue)*Issue=Work;
     return Status;
 }
-void xcronZonedValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V)
+#if defined(_MSC_VER)
+#define XCRON_ZONED_INLINE static __forceinline
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define XCRON_ZONED_INLINE static inline __attribute__((always_inline))
+#else
+#define XCRON_ZONED_INLINE static inline
+#endif
+XCRON_ZONED_INLINE bool xcronZonedFirst(xtime Begin,xtime End,uint32 Flags,xtime* First)
 {
-    memset(V,0,sizeof(*V));V->Expression=*E;V->Work.Field=XCRON_FIELD_NONE;V->Status=XCRON_ZONED_NONE;
     int64 R=Begin%1000,Delta=R?(R>0?1000-R:-R):((Flags&XCRON_SEARCH_EXCLUSIVE)?1000:0);
-    if(Begin>INT64_MAX-Delta || Begin+Delta>End)return;
-    V->First=Begin+Delta;V->Limit=End;xtime Repeat;
+    if(Begin>INT64_MAX-Delta || Begin+Delta>End)return false;
+    *First=Begin+Delta;return true;
+}
+XCRON_ZONED_INLINE xcronzonedstatus xcronZonedProbe(const xcronexpression* E,const xcronzone* Z,xtime First,xdatetime* Local,int32* Offset,xcronzonedcursorissue* Work)
+{
+    ++Work->SegmentsExamined;xcronzonestate State=xcronZoneStateValue(Z,First);
+    if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN){Work->Code=XCRON_ZONED_ZONE;Work->Zone=XCRON_ZONE_UNKNOWN;return XCRON_ZONED_ERROR;}
+    *Offset=State.Offset;xcronZoneDecompose(First,State.Offset,State.IsDST,Local);
+    if(xcronCalendarPartsMatch(E,Local)){++Work->MonthsExamined;return XCRON_ZONED_FOUND;}
+    return XCRON_ZONED_PENDING;
+}
+xcronzonedstatus xcronZonedReadyValue(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,
+    xtime* First,xdatetime* Local,int32* Offset,xcronzonedcursorissue* Work)
+{
+    *Work=(xcronzonedcursorissue){.Field=XCRON_FIELD_NONE};
+    if(!xcronZonedFirst(Begin,End,Flags,First))return XCRON_ZONED_NONE;
+    return xcronZonedProbe(E,Z,*First,Local,Offset,Work);
+}
+void xcronZonedValueRestart(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V)
+{
+    V->Expression=*E;V->Work=(xcronzonedcursorissue){.Field=XCRON_FIELD_NONE};V->Status=XCRON_ZONED_NONE;V->Phase=0;
+    if(!xcronZonedFirst(Begin,End,Flags,&V->First))return;
+    V->Limit=End;xtime Repeat;
     if(xcronZoneRepeat(Z,V->First,&Repeat) && Repeat<=End && Repeat<=INT64_MAX-(XCRON_ZONED_CYCLE_MS-1000)){
         xtime ProofEnd=Repeat+(XCRON_ZONED_CYCLE_MS-1000);if(ProofEnd<V->Limit)V->Limit=ProofEnd;
     }
     V->Status=XCRON_ZONED_PENDING;
 }
+void xcronZonedValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V)
+{memset(V,0,sizeof(*V));xcronZonedValueRestart(E,Z,Begin,End,Flags,V);}
 static xcronzonedstatus xcronZonedValueError(xcronzonedvalue* V,xcronzonederror Code,xcronzoneerror Zone)
 {V->Work.Code=Code;V->Work.Zone=Zone;return V->Status=XCRON_ZONED_ERROR;}
 xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcronzonedbudget B)
@@ -103,13 +132,9 @@ xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcron
     while(V->Status==XCRON_ZONED_PENDING){
         if(V->Phase==0){
             if(!B.Segments || !B.Months)return V->Status;
-            --B.Segments;++V->Work.SegmentsExamined;
-            xcronzonestate State=xcronZoneStateValue(Z,V->First);
-            if(State.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronZonedValueError(V,XCRON_ZONED_ZONE,XCRON_ZONE_UNKNOWN);
-            V->Offset=State.Offset;xcronZoneDecompose(V->First,State.Offset,State.IsDST,&V->Calendar.First);
-            if(xcronCalendarPartsMatch(&V->Expression,&V->Calendar.First)){
-                ++V->Work.MonthsExamined;V->Result=V->First;return V->Status=XCRON_ZONED_FOUND;
-            }
+            --B.Segments;xcronzonedstatus Ready=xcronZonedProbe(&V->Expression,Z,V->First,&V->Calendar.First,&V->Offset,&V->Work);
+            if(Ready==XCRON_ZONED_ERROR)return V->Status=XCRON_ZONED_ERROR;
+            if(Ready==XCRON_ZONED_FOUND){V->Result=V->First;return V->Status=XCRON_ZONED_FOUND;}
             xcronZoneWalkInit(Z,V->First,&V->Transition);V->Phase=1;
         }
         if(V->Phase==1){

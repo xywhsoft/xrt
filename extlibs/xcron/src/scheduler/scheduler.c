@@ -1,4 +1,4 @@
-#include <xcron/scheduler.h>
+#include "scheduler_internal.h"
 #include "../calendar/calendar_internal.h"
 #include "../timezone/timezone_internal.h"
 #include "../zoned/zoned_internal.h"
@@ -7,14 +7,21 @@
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER)
 #define XCRON_SCHEDULER_MAGIC UINT32_C(0x58435331)
 #define XCRON_SLOT_NONE UINT32_MAX
-typedef enum xcronlocation {XCRON_LOC_FREE=0,XCRON_LOC_HEAP,XCRON_LOC_READY,XCRON_LOC_BLOCKED,XCRON_LOC_RETIRED,XCRON_LOC_RUNNING} xcronlocation;
+#if defined(_MSC_VER)
+#define XCRON_SCHEDULER_INLINE static __forceinline
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define XCRON_SCHEDULER_INLINE static inline __attribute__((always_inline))
+#else
+#define XCRON_SCHEDULER_INLINE static inline
+#endif
+typedef enum xcronlocation {XCRON_LOC_FREE=0,XCRON_LOC_HEAP,XCRON_LOC_READY,XCRON_LOC_BLOCKED,XCRON_LOC_RETIRED,XCRON_LOC_RUNNING,XCRON_LOC_SEARCH} xcronlocation;
 typedef struct xcronjobslot {
     xcronjobconfig Config;
     xcronjobinfo Info;
     uint64 Generation;
     uint32 Next,Previous,Position;
     xcronlocation Location;
-    bool Used;
+    bool Used,Initial;
 } xcronjobslot;
 typedef struct xcronrunslot {uint64 Generation;uint32 Job,Next;bool Used;} xcronrunslot;
 struct xcronscheduler {
@@ -23,8 +30,11 @@ struct xcronscheduler {
     xcronschedulerstats Stats;
     xcronjobslot* Jobs;
     xcronrunslot* Runs;
+    xcronzonedvalue* Searches;
     uint32* Heap;
     uint32 FreeJob,FreeRun,ReadyHead,ReadyTail,RetireHead,RetireTail;
+    uint32 SearchHead,SearchTail,Searching;
+    uint8 Turn;
     bool Promote;
     uint8 JobBits,RunBits;
     _Alignas(xcronjobslot) unsigned char Storage[];
@@ -129,11 +139,27 @@ static void xcronSchedulerQueueRemove(xcronscheduler* S,uint32 I,bool Retired)
     if(J->Next!=XCRON_SLOT_NONE)S->Jobs[J->Next].Previous=J->Previous;else *Tail=J->Previous;
     if(Retired)--S->Stats.Retired;else --S->Stats.Ready;J->Location=XCRON_LOC_RUNNING;
 }
+static bool xcronSchedulerLive(xcronjobstate State)
+{return State==XCRON_JOB_SCHEDULED || State==XCRON_JOB_SEARCHING;}
+static void xcronSchedulerSearchAdd(xcronscheduler* S,uint32 I)
+{
+    xcronjobslot* J=&S->Jobs[I];J->Previous=S->SearchTail;J->Next=XCRON_SLOT_NONE;
+    if(S->SearchTail!=XCRON_SLOT_NONE)S->Jobs[S->SearchTail].Next=I;else S->SearchHead=I;
+    S->SearchTail=I;J->Location=XCRON_LOC_SEARCH;++S->Searching;
+}
+static void xcronSchedulerSearchRemove(xcronscheduler* S,uint32 I)
+{
+    xcronjobslot* J=&S->Jobs[I];
+    if(J->Previous!=XCRON_SLOT_NONE)S->Jobs[J->Previous].Next=J->Next;else S->SearchHead=J->Next;
+    if(J->Next!=XCRON_SLOT_NONE)S->Jobs[J->Next].Previous=J->Previous;else S->SearchTail=J->Previous;
+    --S->Searching;J->Location=XCRON_LOC_RUNNING;
+}
 static void xcronSchedulerDetach(xcronscheduler* S,uint32 I)
 {
     switch(S->Jobs[I].Location){
     case XCRON_LOC_HEAP:xcronSchedulerHeapRemove(S,I);break;
     case XCRON_LOC_READY:xcronSchedulerQueueRemove(S,I,false);break;
+    case XCRON_LOC_SEARCH:xcronSchedulerSearchRemove(S,I);break;
     case XCRON_LOC_BLOCKED:--S->Stats.Blocked;S->Jobs[I].Location=XCRON_LOC_RUNNING;break;
     default:break;
     }
@@ -141,6 +167,8 @@ static void xcronSchedulerDetach(xcronscheduler* S,uint32 I)
 static void xcronSchedulerPlace(xcronscheduler* S,uint32 I)
 {
     xcronjobslot* J=&S->Jobs[I];
+    if(J->Info.State==XCRON_JOB_SEARCHING){xcronSchedulerSearchAdd(S,I);return;}
+    if(J->Initial){J->Location=XCRON_LOC_RUNNING;return;}
     if(J->Info.State!=XCRON_JOB_SCHEDULED){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);return;}
     if(J->Config.Overlap!=XCRON_OVERLAP_SKIP && J->Info.Running>=J->Config.RunningLimit){J->Location=XCRON_LOC_BLOCKED;++S->Stats.Blocked;}
     else if(S->Stats.HasClock && J->Info.Next<=S->Stats.LastClock.Wall)xcronSchedulerQueueAdd(S,I,false);
@@ -156,14 +184,54 @@ static void xcronSchedulerSearch(xcronscheduler* S,uint32 I,xtime Begin,uint32 F
     else if(Result==XCRON_ZONED_NONE)J->Info.State=XCRON_JOB_EXHAUSTED;
     else {J->Info.State=XCRON_JOB_FAULTED;xcronSchedulerIncrement(&S->Stats.Faults);if(Poll)++Poll->Faults;}
 }
-static void xcronSchedulerSkip(xcronscheduler* S,uint32 I,xtime Begin,uint32 Flags,xcronpoll* Poll)
+static void xcronSchedulerSearchStep(xcronscheduler* S,uint32 I,xcronzonedbudget* Remaining,xcronzonedbudget* Used,xcronpoll* Poll,bool Full)
+{
+    xcronjobslot* J=&S->Jobs[I];xcronzonedvalue* V=&S->Searches[I];xcronzonedcursorissue Before=V->Work;
+    xcronzonedbudget B=Full?(xcronzonedbudget){UINT32_MAX,UINT32_MAX,UINT32_MAX}:
+        (xcronzonedbudget){Remaining->Segments?1u:0u,Remaining->Months?1u:0u,Remaining->RuleYears?1u:0u};
+    xcronzonedstatus Status=xcronZonedValueStep(V,J->Config.Zone,B);
+    if(!Full){uint32 Segments=V->Work.SegmentsExamined-Before.SegmentsExamined;
+        uint32 Months=(uint32)(V->Work.MonthsExamined-Before.MonthsExamined),Years=(uint32)(V->Work.RuleYearsExamined-Before.RuleYearsExamined);
+        Remaining->Segments-=Segments;Remaining->Months-=Months;Remaining->RuleYears-=Years;
+        Used->Segments+=Segments;Used->Months+=Months;Used->RuleYears+=Years;
+    }
+    J->Info.LastIssue=(xcronzonedissue){V->Work.Code,V->Work.Field,V->Work.Zone,V->Work.SegmentsExamined,V->Work.MonthsExamined};
+    J->Info.HasNext=Status==XCRON_ZONED_FOUND;
+    if(Status==XCRON_ZONED_PENDING)J->Info.State=XCRON_JOB_SEARCHING;
+    else if(Status==XCRON_ZONED_FOUND){J->Info.State=XCRON_JOB_SCHEDULED;J->Info.Next=V->Result;}
+    else if(Status==XCRON_ZONED_NONE)J->Info.State=XCRON_JOB_EXHAUSTED;
+    else {J->Info.State=XCRON_JOB_FAULTED;if(!J->Initial){xcronSchedulerIncrement(&S->Stats.Faults);if(Poll)++Poll->Faults;}}
+}
+XCRON_SCHEDULER_INLINE void xcronSchedulerSeek(xcronscheduler* S,uint32 I,xtime Begin,uint32 Flags,xcronpoll* Poll,xcronzonedbudget* Remaining,xcronzonedbudget* Used)
+{
+    if(!Remaining){xcronSchedulerSearch(S,I,Begin,Flags,Poll);return;}
+    xcronjobslot* J=&S->Jobs[I];J->Info.HasNext=false;J->Info.LastIssue=(xcronzonedissue){.Field=XCRON_FIELD_NONE};
+    if(Begin>J->Config.End){J->Info.State=XCRON_JOB_EXHAUSTED;return;}
+    /* Ready probes cannot spend the last segment/month credit ahead of an
+     * already queued query. With Capacity=1 that otherwise repeats forever
+     * across fresh polls, despite individually correct global counters. */
+    if(Remaining->Segments && Remaining->Months && (!S->Searching || (Remaining->Segments>1 && Remaining->Months>1))){
+        xtime First;xdatetime Local;int32 Offset;xcronzonedcursorissue Work;
+        xcronzonedstatus Status=xcronZonedReadyValue(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,&First,&Local,&Offset,&Work);
+        Remaining->Segments-=Work.SegmentsExamined;Remaining->Months-=(uint32)Work.MonthsExamined;
+        Used->Segments+=Work.SegmentsExamined;Used->Months+=(uint32)Work.MonthsExamined;
+        J->Info.LastIssue=(xcronzonedissue){Work.Code,Work.Field,Work.Zone,Work.SegmentsExamined,Work.MonthsExamined};
+        if(Status==XCRON_ZONED_FOUND){J->Info.State=XCRON_JOB_SCHEDULED;J->Info.HasNext=true;J->Info.Next=First;return;}
+        if(Status==XCRON_ZONED_NONE){J->Info.State=XCRON_JOB_EXHAUSTED;return;}
+        if(Status==XCRON_ZONED_ERROR){J->Info.State=XCRON_JOB_FAULTED;xcronSchedulerIncrement(&S->Stats.Faults);if(Poll)++Poll->Faults;return;}
+        xcronzonedvalue* V=&S->Searches[I];xcronZonedValueRestart(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,V);
+        V->Work=Work;V->Calendar.First=Local;V->Offset=Offset;xcronZoneWalkInit(J->Config.Zone,First,&V->Transition);V->Phase=1;
+    }else xcronZonedValueRestart(&J->Config.Expression,J->Config.Zone,Begin,J->Config.End,Flags,&S->Searches[I]);
+    J->Info.State=S->Searches[I].Status==XCRON_ZONED_NONE?XCRON_JOB_EXHAUSTED:XCRON_JOB_SEARCHING;
+}
+static void xcronSchedulerSkip(xcronscheduler* S,uint32 I,xtime Begin,uint32 Flags,xcronpoll* Poll,xcronzonedbudget* Remaining,xcronzonedbudget* Used)
 {
     xcronSchedulerIncrement(&S->Jobs[I].Info.SkippedRanges);xcronSchedulerIncrement(&S->Stats.SkippedRanges);++Poll->SkippedRanges;
-    xcronSchedulerSearch(S,I,Begin,Flags,Poll);
+    xcronSchedulerSeek(S,I,Begin,Flags,Poll,Remaining,Used);
 }
 static bool xcronSchedulerActionable(const xcronscheduler* S,xcronclock Now)
 {
-    if(S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall)return true;
+    if(S->Searching || (S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall))return true;
     return S->Stats.Ready && S->FreeRun!=XCRON_SLOT_NONE;
 }
 static bool xcronSchedulerClock(const xcronscheduler* S,xcronclock Now)
@@ -182,17 +250,22 @@ XCRON_API bool xcronSchedulerCreate(const xcronschedulerconfig* Config,xcronsche
     size_t Bytes=sizeof(xcronscheduler);
     if(!xcronSchedulerArrayBytes(Config->JobLimit,sizeof(xcronjobslot),&Bytes) ||
         !xcronSchedulerArrayBytes(Config->RunLimit,sizeof(xcronrunslot),&Bytes) ||
-        !xcronSchedulerArrayBytes(Config->JobLimit,sizeof(uint32),&Bytes) || Bytes>Config->BytesLimit)return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
+        !xcronSchedulerArrayBytes(Config->JobLimit,sizeof(uint32),&Bytes))return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
+    size_t Padding=(_Alignof(xcronzonedvalue)-Bytes%_Alignof(xcronzonedvalue))%_Alignof(xcronzonedvalue);
+    if(Padding>SIZE_MAX-Bytes)return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
+    Bytes+=Padding;size_t SearchAt=Bytes;
+    if(!xcronSchedulerArrayBytes(Config->JobLimit,sizeof(xcronzonedvalue),&Bytes) || Bytes>Config->BytesLimit)return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
     size_t JBytes=(size_t)Config->JobLimit*sizeof(xcronjobslot),RBytes=(size_t)Config->RunLimit*sizeof(xcronrunslot);
     xcronscheduler* S=xrtMalloc(Bytes);if(!S)return xcronSchedulerFail(XCRON_SCHEDULER_MEMORY,NULL,Issue);
     memset(S,0,Bytes);S->Magic=XCRON_SCHEDULER_MAGIC;S->Config=*Config;S->Stats.Bytes=Bytes;
     S->Jobs=(xcronjobslot*)S->Storage;S->Runs=(xcronrunslot*)(S->Storage+JBytes);S->Heap=(uint32*)(S->Storage+JBytes+RBytes);
+    S->Searches=(xcronzonedvalue*)((unsigned char*)S+SearchAt);S->SearchHead=S->SearchTail=XCRON_SLOT_NONE;
     S->FreeJob=0;S->FreeRun=0;S->ReadyHead=S->ReadyTail=S->RetireHead=S->RetireTail=XCRON_SLOT_NONE;S->Promote=true;S->JobBits=xcronSchedulerIndexBits(Config->JobLimit);S->RunBits=xcronSchedulerIndexBits(Config->RunLimit);
     for(uint32 I=0;I<Config->JobLimit;++I){S->Jobs[I].Generation=1;S->Jobs[I].Next=I+1<Config->JobLimit?I+1:XCRON_SLOT_NONE;}
     for(uint32 I=0;I<Config->RunLimit;++I){S->Runs[I].Generation=1;S->Runs[I].Next=I+1<Config->RunLimit?I+1:XCRON_SLOT_NONE;}
     *Out=S;xcronSchedulerOK(Issue);return true;
 }
-XCRON_API bool xcronSchedulerAdd(xcronscheduler* S,const xcronjobconfig* Config,xcronjobid* Id,xcronschedulerissue* Issue)
+static bool xcronSchedulerAdmissionArgs(xcronscheduler* S,const xcronjobconfig* Config,xcronjobid* Id,xcronschedulerissue* Issue)
 {
     void* O[]={Id,Issue};size_t N[]={sizeof(*Id),Issue?sizeof(*Issue):0};
     if(!S || !Config || !Id || !xcronSchedulerOutputs(S,Config,sizeof(*Config),O,N,2) ||
@@ -204,13 +277,68 @@ XCRON_API bool xcronSchedulerAdd(xcronscheduler* S,const xcronjobconfig* Config,
     if(S->FreeJob==XCRON_SLOT_NONE)return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
     xcronfield Field;xcronzonedissue ZI={.Field=XCRON_FIELD_NONE};
     if(!xcronCalendarValidateExpression(&Config->Expression,&Field)){ZI.Code=XCRON_ZONED_EXPRESSION;ZI.Field=Field;return xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&ZI,Issue);}
+    return true;
+}
+static uint32 xcronSchedulerAllocateJob(xcronscheduler* S,const xcronjobconfig* Config,bool Initial)
+{
+    uint32 I=S->FreeJob;xcronjobslot* J=&S->Jobs[I];S->FreeJob=J->Next;J->Used=true;J->Initial=Initial;J->Location=XCRON_LOC_RUNNING;J->Config=*Config;memset(&J->Info,0,sizeof(J->Info));
+    ++S->Stats.Jobs;if(S->Stats.Jobs>S->Stats.PeakJobs)S->Stats.PeakJobs=S->Stats.Jobs;return I;
+}
+static void xcronSchedulerFreeJob(xcronscheduler* S,uint32 I)
+{
+    xcronjobslot* J=&S->Jobs[I];xcronZoneRelease(J->Config.Zone);J->Config.Zone=NULL;J->Config.Data=NULL;J->Used=false;J->Initial=false;J->Location=XCRON_LOC_FREE;--S->Stats.Jobs;
+    if(J->Generation!=(UINT64_MAX>>S->JobBits)){++J->Generation;J->Next=S->FreeJob;S->FreeJob=I;}
+}
+XCRON_API bool xcronSchedulerAdd(xcronscheduler* S,const xcronjobconfig* Config,xcronjobid* Id,xcronschedulerissue* Issue)
+{
+    if(!xcronSchedulerAdmissionArgs(S,Config,Id,Issue))return false;
+    xcronzonedissue ZI={.Field=XCRON_FIELD_NONE};
     xtime Next=0;xcronzonedstatus Result=xcronZonedNextValue(&Config->Expression,Config->Zone,Config->Begin,Config->End,Config->SearchFlags,&Next,&ZI);
     if(Result==XCRON_ZONED_ERROR)return xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&ZI,Issue);
     if(!xcronZoneRetain(Config->Zone))return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
-    uint32 I=S->FreeJob;xcronjobslot* J=&S->Jobs[I];S->FreeJob=J->Next;J->Used=true;J->Config=*Config;memset(&J->Info,0,sizeof(J->Info));
+    uint32 I=xcronSchedulerAllocateJob(S,Config,false);xcronjobslot* J=&S->Jobs[I];
     J->Info.State=Result==XCRON_ZONED_FOUND?XCRON_JOB_SCHEDULED:XCRON_JOB_EXHAUSTED;J->Info.HasNext=Result==XCRON_ZONED_FOUND;J->Info.Next=Next;J->Info.LastIssue=ZI;
-    ++S->Stats.Jobs;if(S->Stats.Jobs>S->Stats.PeakJobs)S->Stats.PeakJobs=S->Stats.Jobs;
     xcronSchedulerPlace(S,I);*Id=xcronSchedulerId(J->Generation,I,S->JobBits);xcronSchedulerOK(Issue);return true;
+}
+bool xcronSchedulerBeginAdmission(xcronscheduler* S,const xcronjobconfig* Config,xcronjobid* Id,xcronschedulerissue* Issue)
+{
+    if(!xcronSchedulerAdmissionArgs(S,Config,Id,Issue))return false;
+    if(!xcronZoneRetain(Config->Zone))return xcronSchedulerFail(XCRON_SCHEDULER_LIMIT,NULL,Issue);
+    uint32 I=xcronSchedulerAllocateJob(S,Config,true);xcronjobslot* J=&S->Jobs[I];
+    xcronZonedValueInit(&J->Config.Expression,J->Config.Zone,J->Config.Begin,J->Config.End,J->Config.SearchFlags,&S->Searches[I]);
+    J->Info.LastIssue=(xcronzonedissue){.Field=XCRON_FIELD_NONE};J->Info.State=S->Searches[I].Status==XCRON_ZONED_PENDING?XCRON_JOB_SEARCHING:XCRON_JOB_EXHAUSTED;
+    xcronSchedulerPlace(S,I);*Id=xcronSchedulerId(J->Generation,I,S->JobBits);xcronSchedulerOK(Issue);return true;
+}
+xcronadmissionstatus xcronSchedulerFinishAdmission(xcronscheduler* S,xcronjobid Id,bool Cancel,xcronschedulerissue* Issue)
+{
+    uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I) || !S->Jobs[I].Initial){xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);return XCRON_ADMISSION_REJECTED;}
+    xcronjobslot* J=&S->Jobs[I];
+    if(Cancel || S->Stats.Closed){xcronSchedulerDetach(S,I);xcronSchedulerFreeJob(S,I);xcronSchedulerFail(XCRON_SCHEDULER_CLOSED,NULL,Issue);return XCRON_ADMISSION_REJECTED;}
+    if(J->Info.State==XCRON_JOB_SEARCHING)return XCRON_ADMISSION_PENDING;
+    if(J->Info.State==XCRON_JOB_FAULTED){xcronzonedissue ZI=J->Info.LastIssue;xcronSchedulerFreeJob(S,I);xcronSchedulerFail(XCRON_SCHEDULER_CALCULATION,&ZI,Issue);return XCRON_ADMISSION_REJECTED;}
+    J->Initial=false;xcronSchedulerPlace(S,I);xcronSchedulerOK(Issue);return XCRON_ADMISSION_ACCEPTED;
+}
+XCRON_SCHEDULER_INLINE void xcronSchedulerReady(xcronscheduler* S,xcronclock Now,xcronrun* Runs,xcronpoll* P,bool* GlobalBlocked,xcronzonedbudget* Remaining,xcronzonedbudget* Used)
+{
+    uint32 I=S->ReadyHead;xcronjobslot* J=&S->Jobs[I];
+    if(J->Info.Next>Now.Wall){xcronSchedulerQueueRemove(S,I,false);xcronSchedulerHeapAdd(S,I);return;}
+    if(J->Config.Overlap==XCRON_OVERLAP_SKIP && J->Info.Running){
+        xcronSchedulerQueueRemove(S,I,false);xcronSchedulerSkip(S,I,Now.Wall,XCRON_SEARCH_EXCLUSIVE,P,Remaining,Used);xcronSchedulerPlace(S,I);return;
+    }
+    if(J->Info.Running>=J->Config.RunningLimit){xcronSchedulerQueueRemove(S,I,false);J->Location=XCRON_LOC_BLOCKED;++S->Stats.Blocked;return;}
+    if(S->FreeRun==XCRON_SLOT_NONE){*GlobalBlocked=true;return;}
+    xcronSchedulerQueueRemove(S,I,false);xtime Cutoff=xcronSchedulerCutoff(Now.Wall,J->Config.GraceMilliseconds);
+    if(J->Config.Misfire==XCRON_MISFIRE_SKIP && J->Info.Next<Cutoff){
+        xcronSchedulerSkip(S,I,Cutoff,0,P,Remaining,Used);xcronSchedulerPlace(S,I);return;
+    }
+    bool Coalesced=J->Config.Misfire==XCRON_MISFIRE_COALESCE && J->Info.Next<Cutoff;
+    xtime Through=Coalesced?(Now.Wall<J->Config.End?Now.Wall:J->Config.End):J->Info.Next;
+    uint32 RIndex=S->FreeRun;xcronrunslot* R=&S->Runs[RIndex];S->FreeRun=R->Next;R->Used=true;R->Job=I;
+    Runs[P->Count++]=(xcronrun){xcronSchedulerId(R->Generation,RIndex,S->RunBits),xcronSchedulerId(J->Generation,I,S->JobBits),J->Config.Data,J->Info.Next,Through,Now,Coalesced?XCRON_RUN_COALESCED:0};
+    ++J->Info.Running;++S->Stats.Running;if(S->Stats.Running>S->Stats.PeakRunning)S->Stats.PeakRunning=S->Stats.Running;
+    xcronSchedulerIncrement(&J->Info.Dispatched);xcronSchedulerIncrement(&S->Stats.Dispatched);
+    if(Coalesced){xcronSchedulerIncrement(&J->Info.CoalescedRanges);xcronSchedulerIncrement(&S->Stats.CoalescedRanges);}
+    xcronSchedulerSeek(S,I,Through,XCRON_SEARCH_EXCLUSIVE,P,Remaining,Used);xcronSchedulerPlace(S,I);
 }
 XCRON_API bool xcronSchedulerPoll(xcronscheduler* S,xcronclock Now,xcronrun* Runs,size_t Capacity,xcronpoll* Out,xcronschedulerissue* Issue)
 {
@@ -219,6 +347,7 @@ XCRON_API bool xcronSchedulerPoll(xcronscheduler* S,xcronclock Now,xcronrun* Run
     if(!xcronSchedulerClock(S,Now))return xcronSchedulerFail(XCRON_SCHEDULER_CLOCK,NULL,Issue);
     if(S->Stats.HasClock && Now.Wall<S->Stats.LastClock.Wall)xcronSchedulerIncrement(&S->Stats.WallRegressions);
     S->Stats.LastClock=Now;S->Stats.HasClock=true;xcronSchedulerIncrement(&S->Stats.ClockSamples);xcronpoll P={0};bool GlobalBlocked=false;
+    while(S->Searching && P.Work<S->Config.WorkLimit){uint32 I=S->SearchHead;xcronSchedulerSearchRemove(S,I);++P.Work;xcronSchedulerSearchStep(S,I,NULL,NULL,&P,true);xcronSchedulerPlace(S,I);}
     while(P.Work<S->Config.WorkLimit && P.Count<Capacity){
         bool Due=S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall;
         bool Ready=S->Stats.Ready && !GlobalBlocked;
@@ -227,30 +356,35 @@ XCRON_API bool xcronSchedulerPoll(xcronscheduler* S,xcronclock Now,xcronrun* Run
         if(Due && (!Ready || S->Promote)){
             uint32 I=S->Heap[0];xcronSchedulerHeapRemove(S,I);xcronSchedulerQueueAdd(S,I,false);S->Promote=false;continue;
         }
-        S->Promote=true;uint32 I=S->ReadyHead;xcronjobslot* J=&S->Jobs[I];
-        /* A rolled-back wall sample cannot dispatch a previously ready future. */
-        if(J->Info.Next>Now.Wall){xcronSchedulerQueueRemove(S,I,false);xcronSchedulerHeapAdd(S,I);continue;}
-        if(J->Config.Overlap==XCRON_OVERLAP_SKIP && J->Info.Running){
-            xcronSchedulerQueueRemove(S,I,false);xcronSchedulerSkip(S,I,Now.Wall,XCRON_SEARCH_EXCLUSIVE,&P);xcronSchedulerPlace(S,I);continue;
-        }
-        if(J->Info.Running>=J->Config.RunningLimit){
-            xcronSchedulerQueueRemove(S,I,false);J->Location=XCRON_LOC_BLOCKED;++S->Stats.Blocked;continue;
-        }
-        if(S->FreeRun==XCRON_SLOT_NONE){GlobalBlocked=true;continue;}
-        xcronSchedulerQueueRemove(S,I,false);xtime Cutoff=xcronSchedulerCutoff(Now.Wall,J->Config.GraceMilliseconds);
-        if(J->Config.Misfire==XCRON_MISFIRE_SKIP && J->Info.Next<Cutoff){
-            xcronSchedulerSkip(S,I,Cutoff,0,&P);xcronSchedulerPlace(S,I);continue;
-        }
-        bool Coalesced=J->Config.Misfire==XCRON_MISFIRE_COALESCE && J->Info.Next<Cutoff;
-        xtime Through=Coalesced?(Now.Wall<J->Config.End?Now.Wall:J->Config.End):J->Info.Next;
-        uint32 RIndex=S->FreeRun;xcronrunslot* R=&S->Runs[RIndex];S->FreeRun=R->Next;R->Used=true;R->Job=I;
-        Runs[P.Count++]=(xcronrun){xcronSchedulerId(R->Generation,RIndex,S->RunBits),xcronSchedulerId(J->Generation,I,S->JobBits),J->Config.Data,J->Info.Next,Through,Now,Coalesced?XCRON_RUN_COALESCED:0};
-        ++J->Info.Running;++S->Stats.Running;if(S->Stats.Running>S->Stats.PeakRunning)S->Stats.PeakRunning=S->Stats.Running;
-        xcronSchedulerIncrement(&J->Info.Dispatched);xcronSchedulerIncrement(&S->Stats.Dispatched);
-        if(Coalesced){xcronSchedulerIncrement(&J->Info.CoalescedRanges);xcronSchedulerIncrement(&S->Stats.CoalescedRanges);}
-        xcronSchedulerSearch(S,I,Through,XCRON_SEARCH_EXCLUSIVE,&P);xcronSchedulerPlace(S,I);
+        S->Promote=true;xcronSchedulerReady(S,Now,Runs,&P,&GlobalBlocked,NULL,NULL);
     }
     P.More=xcronSchedulerActionable(S,Now);*Out=P;xcronSchedulerOK(Issue);return true;
+}
+XCRON_API bool xcronSchedulerPollBudgeted(xcronscheduler* S,xcronclock Now,xcronzonedbudget Budget,xcronrun* Runs,size_t Capacity,xcronpollbudgeted* Out,xcronschedulerissue* Issue)
+{
+    void* O[]={Runs,Out,Issue};size_t N[]={Capacity<=SIZE_MAX/sizeof(*Runs)?Capacity*sizeof(*Runs):SIZE_MAX,sizeof(*Out),Issue?sizeof(*Issue):0};
+    if(!S || !Out || (!Runs && Capacity) || Capacity>SIZE_MAX/sizeof(*Runs) || !Budget.Segments || !Budget.Months || !Budget.RuleYears || !xcronSchedulerOutputs(S,NULL,0,O,N,3))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
+    if(!xcronSchedulerClock(S,Now))return xcronSchedulerFail(XCRON_SCHEDULER_CLOCK,NULL,Issue);
+    if(S->Stats.HasClock && Now.Wall<S->Stats.LastClock.Wall)xcronSchedulerIncrement(&S->Stats.WallRegressions);
+    S->Stats.LastClock=Now;S->Stats.HasClock=true;xcronSchedulerIncrement(&S->Stats.ClockSamples);
+    xcronpollbudgeted Q={0};xcronzonedbudget Remaining=Budget;bool GlobalBlocked=false;uint32 Stalled=0;
+    while(Q.Poll.Work<S->Config.WorkLimit){
+        /* After filling output, only pending calculations need more actions.
+         * Avoid a full class scan (and gratuitous heap promotions) otherwise. */
+        if(Q.Poll.Count>=Capacity && !S->Searching)break;
+        bool Available[3]={S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall,
+            S->Stats.Ready && !GlobalBlocked && Q.Poll.Count<Capacity,
+            S->Searching && Stalled<S->Searching && (Remaining.Segments || Remaining.Months || Remaining.RuleYears)};
+        if(!Available[0] && !Available[1] && !Available[2])break;
+        uint32 Class=3;for(uint32 NClass=0;NClass<3;++NClass){uint32 C=(S->Turn+NClass)%3;if(Available[C]){Class=C;break;}}
+        if(Class==3)break;
+        S->Turn=(uint8)((Class+1)%3);++Q.Poll.Work;
+        if(Class==0){uint32 I=S->Heap[0];xcronSchedulerHeapRemove(S,I);xcronSchedulerQueueAdd(S,I,false);}
+        else if(Class==1){uint32 Before=S->Searching;xcronSchedulerReady(S,Now,Runs,&Q.Poll,&GlobalBlocked,&Remaining,&Q.Used);if(S->Searching>Before)Stalled=0;}
+        else {uint32 I=S->SearchHead;xcronzonedbudget Before=Q.Used;xcronSchedulerSearchRemove(S,I);xcronSchedulerSearchStep(S,I,&Remaining,&Q.Used,&Q.Poll,false);xcronSchedulerPlace(S,I);
+            if(S->Jobs[I].Info.State==XCRON_JOB_SEARCHING && Before.Segments==Q.Used.Segments && Before.Months==Q.Used.Months && Before.RuleYears==Q.Used.RuleYears)++Stalled;else Stalled=0;}
+    }
+    Q.Searching=S->Searching;Q.Poll.More=xcronSchedulerActionable(S,Now);*Out=Q;xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerComplete(xcronscheduler* S,xcronrunid Id,xcronrunresult Result,xcronschedulerissue* Issue)
 {
@@ -261,21 +395,21 @@ XCRON_API bool xcronSchedulerComplete(xcronscheduler* S,xcronrunid Id,xcronrunre
     if(R->Generation!=(UINT64_MAX>>S->RunBits)){++R->Generation;R->Next=S->FreeRun;S->FreeRun=RIndex;}
     xcronSchedulerIncrement(&S->Stats.Completed);
     xcronSchedulerIncrement(Result==XCRON_RUN_SUCCEEDED?&J->Info.Succeeded:Result==XCRON_RUN_FAILED?&J->Info.Failed:&J->Info.Cancelled);
-    if(J->Info.State!=XCRON_JOB_SCHEDULED){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);}
+    if(!xcronSchedulerLive(J->Info.State)){if(!J->Info.Running)xcronSchedulerQueueAdd(S,I,true);}
     else if(J->Location==XCRON_LOC_BLOCKED && J->Info.Running<J->Config.RunningLimit){--S->Stats.Blocked;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerCancel(xcronscheduler* S,xcronjobid Id,xcronschedulerissue* Issue)
 {
     if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
-    uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I))return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
-    xcronjobslot* J=&S->Jobs[I];if(J->Info.State==XCRON_JOB_SCHEDULED){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}
+    uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+    xcronjobslot* J=&S->Jobs[I];if(xcronSchedulerLive(J->Info.State)){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}
     xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerJob(const xcronscheduler* S,xcronjobid Id,xcronjobinfo* Info,xcronschedulerissue* Issue)
 {
     if(!Info || !xcronSchedulerArgs(S,Info,sizeof(*Info),Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
-    uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I))return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
+    uint32 I;if(!xcronSchedulerJobIndex(S,Id,&I) || S->Jobs[I].Initial)return xcronSchedulerFail(XCRON_SCHEDULER_STALE,NULL,Issue);
     *Info=S->Jobs[I].Info;xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerReap(xcronscheduler* S,xcronretired* Retired,bool* Found,xcronschedulerissue* Issue)
@@ -285,15 +419,14 @@ XCRON_API bool xcronSchedulerReap(xcronscheduler* S,xcronretired* Retired,bool* 
     uint32 I=S->RetireHead;
     if(I==XCRON_SLOT_NONE){*Found=false;xcronSchedulerOK(Issue);return true;}
     xcronjobslot* J=&S->Jobs[I];xcronretired Value={xcronSchedulerId(J->Generation,I,S->JobBits),J->Config.Data,J->Info};
-    xcronSchedulerQueueRemove(S,I,true);xcronZoneRelease(J->Config.Zone);J->Config.Zone=NULL;J->Config.Data=NULL;J->Used=false;J->Location=XCRON_LOC_FREE;--S->Stats.Jobs;
-    if(J->Generation!=(UINT64_MAX>>S->JobBits)){++J->Generation;J->Next=S->FreeJob;S->FreeJob=I;}
+    xcronSchedulerQueueRemove(S,I,true);xcronSchedulerFreeJob(S,I);
     *Retired=Value;*Found=true;xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerClose(xcronscheduler* S,xcronschedulerissue* Issue)
 {
     if(!xcronSchedulerArgs(S,NULL,0,Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
     if(!S->Stats.Closed){S->Stats.Closed=true;
-        for(uint32 I=0;I<S->Config.JobLimit;++I){xcronjobslot* J=&S->Jobs[I];if(J->Used && J->Info.State==XCRON_JOB_SCHEDULED){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}}}
+        for(uint32 I=0;I<S->Config.JobLimit;++I){xcronjobslot* J=&S->Jobs[I];if(J->Used && xcronSchedulerLive(J->Info.State)){xcronSchedulerDetach(S,I);J->Info.State=XCRON_JOB_CANCELLED;J->Info.HasNext=false;xcronSchedulerPlace(S,I);}}}
     xcronSchedulerOK(Issue);return true;
 }
 XCRON_API bool xcronSchedulerWake(const xcronscheduler* S,xcronclock Now,uint64 MaxWait,xcronwake* Wake,xcronschedulerissue* Issue)
@@ -301,10 +434,10 @@ XCRON_API bool xcronSchedulerWake(const xcronscheduler* S,xcronclock Now,uint64 
     if(!Wake || !MaxWait || !xcronSchedulerArgs(S,Wake,sizeof(*Wake),Issue))return xcronSchedulerFail(XCRON_SCHEDULER_ARGUMENT,NULL,NULL);
     if(!xcronSchedulerClock(S,Now))return xcronSchedulerFail(XCRON_SCHEDULER_CLOCK,NULL,Issue);
     uint64 Delay=MaxWait;bool Free=S->FreeRun!=XCRON_SLOT_NONE;
-    bool Immediate=(S->Stats.Ready && Free) || (S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall);
+    bool Immediate=S->Searching || (S->Stats.Ready && Free) || (S->Stats.Heap && S->Jobs[S->Heap[0]].Info.Next<=Now.Wall);
     /* A full lease table needs an external completion or bounded resampling,
      * not repeated immediate wakes for a ready job it cannot dispatch. */
-    if(!Free && !S->Stats.Heap)Immediate=false;
+    if(!Free && !S->Stats.Heap && !S->Searching)Immediate=false;
     if(Immediate)Delay=0;
     else if(S->Stats.Heap){xtime Due=S->Jobs[S->Heap[0]].Info.Next;
         if(Due>Now.Wall){uint64 Distance=(uint64)Due-(uint64)Now.Wall;if(Distance<Delay)Delay=Distance;}}

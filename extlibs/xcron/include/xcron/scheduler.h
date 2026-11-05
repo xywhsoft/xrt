@@ -11,7 +11,7 @@ typedef uint64 xcronjobid;
 typedef uint64 xcronrunid;
 typedef enum xcronmisfire {XCRON_MISFIRE_CATCH_UP=0,XCRON_MISFIRE_SKIP,XCRON_MISFIRE_COALESCE} xcronmisfire;
 typedef enum xcronoverlap {XCRON_OVERLAP_WAIT=0,XCRON_OVERLAP_ALLOW,XCRON_OVERLAP_SKIP} xcronoverlap;
-typedef enum xcronjobstate {XCRON_JOB_SCHEDULED=0,XCRON_JOB_EXHAUSTED,XCRON_JOB_CANCELLED,XCRON_JOB_FAULTED} xcronjobstate;
+typedef enum xcronjobstate {XCRON_JOB_SCHEDULED=0,XCRON_JOB_EXHAUSTED,XCRON_JOB_CANCELLED,XCRON_JOB_FAULTED,XCRON_JOB_SEARCHING} xcronjobstate;
 typedef enum xcronrunresult {XCRON_RUN_SUCCEEDED=0,XCRON_RUN_FAILED,XCRON_RUN_CANCELLED} xcronrunresult;
 typedef enum xcronschedulererror {
     XCRON_SCHEDULER_OK=0,XCRON_SCHEDULER_ARGUMENT=4001,XCRON_SCHEDULER_LIMIT,
@@ -57,6 +57,11 @@ typedef struct xcronpoll {
     uint32 Work,Faults,SkippedRanges;
     bool More;
 } xcronpoll;
+typedef struct xcronpollbudgeted {
+    xcronpoll Poll;
+    xcronzonedbudget Used;
+    uint32 Searching;
+} xcronpollbudgeted;
 typedef struct xcronwake {
     uint64 MonotonicMilliseconds,DelayMilliseconds;
     bool Immediate,WaitingForCompletion;
@@ -72,8 +77,9 @@ typedef struct xcronschedulerstats {
 XRT_EXTERN_C_BEGIN
 /* Single externally serialized owner; no timer, worker, callback or storage is
  * created. Limits must be nonzero, Reserved zero. One allocation preallocates
- * all job/run slots, heap and queues within BytesLimit (excluding retained zones
- * and XRT diagnostics). Normal operations and recorded job faults allocate none.
+ * all job/run/query slots, heap and queues within BytesLimit (excluding retained zones
+ * and XRT diagnostics). Query storage is416 bytes per job on verified x64 targets,
+ * separate from hot job slots. Normal operations and recorded job faults allocate none.
  * IDs are scoped to this scheduler. Job/run IDs have a generation; exhausted
  * generations use all bits not needed by the configured slot index, then retire
  * rather than wrap. Never use an ID with another instance.
@@ -107,6 +113,22 @@ XCRON_API bool xcronSchedulerAdd(xcronscheduler* Scheduler,const xcronjobconfig*
  * More requests another poll at the same sample if output/work budgets stopped
  * immediately actionable work. All outputs are caller storage; none are retained. */
 XCRON_API bool xcronSchedulerPoll(xcronscheduler* Scheduler,xcronclock Now,xcronrun* Runs,size_t Capacity,xcronpoll* Poll,xcronschedulerissue* Issue);
+/* Resumable recurrence advancement. Positive global SearchBudget bounds the
+ * sum of segment/month/rule-year work across every job in this call; WorkLimit
+ * still bounds queue/heap actions. Heap, ready and pending queries alternate;
+ * pending queries use FIFO one-unit quanta. A ready action may eagerly use one
+ * quantum to preserve the dense fast path, charging the same global budget.
+ * Capacity=0 (Runs may be NULL) advances calculations without publishing leases,
+ * including while completion output is full. A job awaiting its next occurrence
+ * is SEARCHING with HasNext=false; its live leases/Data remain valid. Cancel
+ * removes its pending query without traversal. Completed calculation faults are
+ * recorded per job without ambient diagnostics, as for Poll. Used reports actual
+ * per-call work, Searching the remaining query count. More includes queries even
+ * when lease slots are full. Poll may synchronously finish such queries if callers
+ * mix APIs; only this entry point bounds recurrence work. No elapsed CPU/OS or
+ * callback-duration guarantee; Close remains O(JobLimit). */
+XCRON_API bool xcronSchedulerPollBudgeted(xcronscheduler* Scheduler,xcronclock Now,xcronzonedbudget SearchBudget,
+    xcronrun* Runs,size_t Capacity,xcronpollbudgeted* Poll,xcronschedulerissue* Issue);
 /* Completion means the physical body and all its data-using tails have stopped.
  * It is exactly once; stale/duplicate IDs fail without changing state.
  * Worker threads must deliver completions to the serialized scheduler owner.

@@ -3,6 +3,7 @@
 #include <xrt/thread.h>
 #include <xrt/memory.h>
 #include <limits.h>
+#include "tzif_fixture.h"
 typedef struct servicefixture {
     xcronservice* Service;
     xatomic64 Wall,Mono,Calls;
@@ -64,6 +65,7 @@ static void serviceClear(servicefixture* F)
     xcronretired R;bool Found;do{testRequire(xcronServiceReapStopped(F->Service,&R,&Found,NULL),"post-stop retirement");if(Found)testRequire(R.Data==F,"returned original data");}while(Found);
     testRequire(xcronServiceDestroy(F->Service,NULL),"destroy duty-free service");F->Service=NULL;
 }
+#include "service_budget_cases.h"
 static void testServiceResourceBytes(void)
 {
     servicefixture F=serviceFixture();xrtAtomic32Store(&F.HoldClock,1,XMEMORY_RELEASE);
@@ -247,6 +249,7 @@ static void testServiceFold(void)
 }
 int main(void)
 {
+    testServiceBudgetedTurns();testServiceDeferredFailure();
     testServiceResourceBytes();testServiceCredits();testServiceCommands();testServiceRetries();testServiceReentryAndClock();testServicePhysicalResults();testServiceConcurrency();testServiceBudgetAndWarm();testServiceRealClock();testServiceWallJumps();testServiceArguments();testServiceCloseRace();testServiceFold();
     puts("[PASS] live cron service: reserved outputs/commands/data duties/retry bounds/self-wait/clock failure/physical cancellation/512 concurrent commands/OOM/2048 zero-heap cycles/real clock");return 0;
 }

@@ -279,7 +279,9 @@
         "extlibs/xcron/include/xcron/scheduler.h",
         "extlibs/xcron/include/xcron/export.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xcron/src/scheduler/scheduler_internal.h"
+      ],
       "sources": [
         "extlibs/xcron/src/scheduler/scheduler.c"
       ],
@@ -293,7 +295,8 @@
         "extlibs/xcron/examples/scheduler/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_scheduler.c"
+        "extlibs/xcron/bench/bench_scheduler.c",
+        "extlibs/xcron/bench/bench_scheduler_budgeted.c"
       ],
       "docs": [
         "extlibs/xcron/docs/scheduler.md",

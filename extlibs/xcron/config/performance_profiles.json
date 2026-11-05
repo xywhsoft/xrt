@@ -421,6 +421,66 @@
       ]
     },
     {
+      "name": "xcron_scheduler_budgeted_1",
+      "system": "scheduler",
+      "description": "Global work-budgeted pull dispatch and physical completion, 1 jobs; batch P99, unpinned/no production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_budgeted_1",
+          "source": "extlibs/xcron/bench/bench_scheduler_budgeted.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "200000",
+            "1"
+          ],
+          "smoke_args": [
+            "1000",
+            "1"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_budgeted_128",
+      "system": "scheduler",
+      "description": "Global work-budgeted pull dispatch and physical completion, 128 jobs; batch P99, unpinned/no production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_budgeted_128",
+          "source": "extlibs/xcron/bench/bench_scheduler_budgeted.c",
+          "suite": "xcron_scheduler",
+          "args": [
+            "10000",
+            "128"
+          ],
+          "smoke_args": [
+            "20",
+            "128"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "xcron_executor_1",
       "system": "executor",
       "description": "Borrowed XRT executor adapter, 1 workers and 64-lease batches; minimal counter baseline is not feature-equivalent; no production/P99 acceptance",

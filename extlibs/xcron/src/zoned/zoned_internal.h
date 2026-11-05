@@ -19,6 +19,13 @@ typedef struct xcronzonedvalue {
 } xcronzonedvalue;
 /* Valid immutable inputs, ordered window. No diagnostics, retention or heap. */
 void xcronZonedValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V);
+/* Reuse initialized private arena storage; reset every phase-live field without
+ * clearing dormant calendar/transition bytes. Public opaque Init still zeros. */
+void xcronZonedValueRestart(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcronzonedvalue* V);
+/* Constant earliest-rounded-instant probe. On PENDING, Local/Offset seed
+ * subsequent traversal; Work reports its actual segment/month cost. */
+xcronzonedstatus xcronZonedReadyValue(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,
+    xtime* First,xdatetime* Local,int32* Offset,xcronzonedcursorissue* Work);
 xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcronzonedbudget Budget);
 #endif
 #endif

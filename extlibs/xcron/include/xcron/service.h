@@ -76,6 +76,10 @@ typedef struct xcronservicestats {
      * Waiter storage is already included in ArenaBytes, not added to Bytes again. */
     xeventwaiterinfo Waiter;
     uint32 ActiveNativeTimers;
+    /* Historical latest owner poll, including zero-output calculation turns;
+     * Searching describes that poll, not a live post-close gauge. Each search
+     * budget equals Scheduler.WorkLimit globally across admissions/advancement. */
+    xcronpollbudgeted LastPoll;
 } xcronservicestats;
 XRT_EXTERN_C_BEGIN
 /* Dedicated public-XRT owner thread, bounded command tickets, kernel, borrowed
@@ -86,8 +90,10 @@ XRT_EXTERN_C_BEGIN
  * Create returns, after *Service is published. It must return promptly with a
  * valid pair, retain no output and finish all context-using tails. Monotonic
  * regression/read failure causes observable controlled shutdown. Wall jumps are
- * governed by each job's existing misfire policy. Full recurrence searches can
- * still delay this owner; no hard CPU/P99 bound is claimed.
+ * governed by each job's existing misfire policy. Recurrence admissions and
+ * advancement use global segment/month/rule-year budgets of Scheduler.WorkLimit
+ * per owner turn. Foreign callbacks, diagnostics and configured Close/cancel
+ * scans still preclude a hard whole-owner CPU/P99 bound.
  * All limits positive, Reserved zero; BatchLimit <=RunLimit and CompletionLimit.
  * BytesLimit reserves arena + Scheduler.BytesLimit + AdapterBytesLimit without
  * overflow. Stats reports actual requested component bytes. Borrowed data/zones,
@@ -111,8 +117,11 @@ XCRON_API bool xcronServiceCreate(const xcronserviceconfig* Config,xcronservice*
  * borrowed until a failed ADD reply is collected, or a successful job is reaped.
  * ADD success reply has Job and Data=NULL; failure returns original Data. Other
  * commands carry no Data duty. Close rejects new commands; queued ADDs not yet
- * processed complete CLOSED, while an already executing Add can succeed then be
- * cancelled. Generation tickets remain occupied until exactly one Collect. */
+ * processed complete CLOSED. A running initial calculation may also roll back
+ * CLOSED; a committed Add can succeed then be cancelled. Commands dequeue FIFO,
+ * while slow calculations may publish replies after later commands. No Job ID
+ * is published before transactional commit. Generation tickets remain occupied
+ * until exactly one Collect. */
 XCRON_API bool xcronServiceAddAsync(xcronservice* Service,const xcronjobconfig* Config,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceCancelAsync(xcronservice* Service,xcronjobid Job,bool CancelRuns,xcronrequestid* Request,xcronserviceissue* Issue);
 XCRON_API bool xcronServiceInfoAsync(xcronservice* Service,xcronjobid Job,xcronrequestid* Request,xcronserviceissue* Issue);

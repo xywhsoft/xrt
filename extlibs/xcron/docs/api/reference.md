@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `55` 个函数、`138` 个常量或宏、
-`61` 个公共类型。
+当前登记 `56` 个函数、`139` 个常量或宏、
+`62` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -150,7 +150,7 @@
 
 [查看带契约注释的公共头](../../include/xcron/scheduler.h)
 
-### 函数 (11)
+### 函数 (12)
 
 - `xcronSchedulerAdd`
 - `xcronSchedulerCancel`
@@ -161,16 +161,18 @@
 - `xcronSchedulerInspect`
 - `xcronSchedulerJob`
 - `xcronSchedulerPoll`
+- `xcronSchedulerPollBudgeted`
 - `xcronSchedulerReap`
 - `xcronSchedulerWake`
 
-### 常量与宏 (24)
+### 常量与宏 (25)
 
 - `XCRON_FEATURE_XCRON_ZONED`
 - `XCRON_JOB_CANCELLED`
 - `XCRON_JOB_EXHAUSTED`
 - `XCRON_JOB_FAULTED`
 - `XCRON_JOB_SCHEDULED`
+- `XCRON_JOB_SEARCHING`
 - `XCRON_MISFIRE_CATCH_UP`
 - `XCRON_MISFIRE_COALESCE`
 - `XCRON_MISFIRE_SKIP`
@@ -191,7 +193,7 @@
 - `XCRON_SCHEDULER_OK`
 - `XCRON_SCHEDULER_STALE`
 
-### 类型 (16)
+### 类型 (18)
 
 - `xcronclock`
 - `xcronjobconfig`
@@ -200,6 +202,7 @@
 - `xcronmisfire`
 - `xcronoverlap`
 - `xcronpoll`
+- `xcronpollbudgeted`
 - `xcronretired`
 - `xcronscheduler`
 - `xcronschedulerconfig`
@@ -208,6 +211,7 @@
 - `xcronschedulerstats`
 - `xcronwake`
 - `xcronzone`
+- `xcronzonedbudget`
 - `xcronzonedissue`
 
 ## `extlibs/xcron/include/xcron/service.h`
@@ -351,9 +355,8 @@
 - `XCRON_ZONED_WINDOW`
 - `XCRON_ZONED_ZONE`
 
-### 类型 (5)
+### 类型 (4)
 
-- `xcronzonedbudget`
 - `xcronzonedcursor`
 - `xcronzonedcursorissue`
 - `xcronzonederror`

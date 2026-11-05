@@ -58,9 +58,14 @@ int main(void)
     if(ZonedStatus!=XCRON_ZONED_FOUND || Stepped!=Candidates[1])return 27;
 	xcronscheduler* Scheduler=NULL; xcronschedulerconfig Config={1,2,32,0,65536};
 	xcronjobconfig Job={.Expression=ZonedExpression,.Zone=Zone,.Begin=Candidates[0],.End=Candidates[1],.Overlap=XCRON_OVERLAP_ALLOW,.RunningLimit=2};
-	xcronjobid JobId; xcronrun Runs[2]; xcronpoll Poll; xcronretired Receipt; bool Found=false;
-	if (!xcronSchedulerCreate(&Config,&Scheduler,NULL) || !xcronSchedulerAdd(Scheduler,&Job,&JobId,NULL) ||
-		!xcronSchedulerPoll(Scheduler,(xcronclock){Candidates[1],0},Runs,2,&Poll,NULL) || Poll.Count!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1]) return 10;
+	xcronjobid JobId; xcronrun Runs[2]; xcronretired Receipt; bool Found=false;
+    if(!xcronSchedulerCreate(&Config,&Scheduler,NULL) || !xcronSchedulerAdd(Scheduler,&Job,&JobId,NULL))return 10;
+    size_t Produced=0;
+    for(unsigned Turn=0;Turn<100 && Produced<2;++Turn){xcronpollbudgeted P;
+        if(!xcronSchedulerPollBudgeted(Scheduler,(xcronclock){Candidates[1],0},(xcronzonedbudget){1,1,1},Runs+Produced,2-Produced,&P,NULL) || P.Used.Segments>1 || P.Used.Months>1 || P.Used.RuleYears>1)return 10;
+        Produced+=P.Poll.Count;
+    }
+    if(Produced!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1])return 10;
 	xexecutorconfig PoolConfig={1,4,0}; xexecutor* Pool=xrtExecutorCreate(&PoolConfig); xcronexecutor* Adapter=NULL;
 	xcronexecutorconfig ExecutionConfig={Pool,consumerExecute,NULL,NULL,NULL,2,0,65536};
 	if (!Pool || !xcronExecutorCreate(&ExecutionConfig,&Adapter,NULL) || !xcronExecutorSubmit(Adapter,&Runs[0],NULL) || !xcronExecutorSubmit(Adapter,&Runs[1],NULL)) return 11;

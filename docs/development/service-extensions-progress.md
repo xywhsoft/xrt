@@ -7340,3 +7340,100 @@ typed work into actual scheduler admission/advancement and owner-turn global
 budgets with fairness/cancellation/reserved-output tests. Named database/reload,
 nominal delivery, durable recovery, original Redis/RPC/MQTT scope and native/
 performance/>=72h production acceptance remain active across all four libraries.
+
+## 2026-11-05 - budgeted live admission and recurrence advancement
+
+Previous goal turn was progress: ee3a125a was validated and synchronized to
+master. Both worktrees started this stage clean at that parent. The actual
+scheduler and service now consume the typed resumable zoned engine. No Core
+change, new dependency or shared runtime is introduced.
+
+New PollBudgeted applies three positive GLOBAL per-call search budgets across
+all jobs, alongside the existing WorkLimit action cap. Heap/ready/search classes
+rotate; pending searches use FIFO one-unit quanta. Capacity0 advances queries
+without publishing a lease, even when completion output and run slots are full.
+SEARCHING is nonterminal; Complete preserves its query and Data, and Cancel
+removes it without evaluating the remaining history. Later faults preserve live
+leases. Existing Add/Poll stay synchronous, with the same public layouts; mixing
+old Poll into pending work gives up the recurrence-work bound.
+
+The live owner reserves an unpublished job slot for ADD, then computes its first
+occurrence through the same budgeted queue. Only successful completion commits
+the public ID. Failed/closed admission releases its reservation and retained zone,
+returns original Data through the reply and creates no job/retirement duty.
+Public Job/Cancel cannot use a guessed provisional ID. FIFO command dequeue does
+not imply ordered replies: a quick command or later light ADD can finish first.
+Per-turn admission inspections are capped before and after calculation. Every
+turn budgets each traversal resource to Scheduler.WorkLimit, even with zero
+output reservations. Existing close/job scans, adapter cancellation/run scans,
+foreign callbacks, error allocation and OS scheduling still preclude a hard
+whole-owner CPU/P99 bound.
+
+One416-byte typed query per configured job is added to the single kernel
+allocation, plus a16-byte private header increase and up to4 alignment bytes on
+verified x64 targets. The hot job-slot stride remains240 using existing padding.
+BytesLimit accounts for the entire reserve; cold allocation/zeroing are real
+costs. Dense successors use a shared charged constant probe, avoiding full query
+initialization. A miss seeds the initialized arena without repeating its charged
+lookup; no heap, public opaque copies, lock or hidden zone retain occurs during
+normal successor calculation. Service LastPoll adds one mutex-protected40-byte
+publication. Service stats grows344 to384 bytes (LastPoll at344); configuration
+remains136. Direct and generated-declaration probes agree on both platforms;
+consumers must rebuild matching headers.
+
+The finite independent policy model now checks184320 samples (92160 through each
+entry point). Adversarial tests cover mixed long/light queries, global budgets,
+full leases/zero output, cancellation, provisional commit/rollback, guessed IDs,
+typed deferred OOM and later faults with two live leases.128 sparse lifecycles
+produce more than10000 real paused/resumed turns under a one-byte allocation
+quota, preserving ambient diagnostics and requested-allocation counters.
+An actual clock-credit barrier holds a full completion output and400-year absent
+initial query across an owner boundary while later Reap/light ADD progress.
+Close returns original Data without an ID/body; a separate unknown mapping also
+fails transactionally. The archived parent libraries fail that same boundary
+witness on each OS, while the new owner passes; no latency-threshold inference
+or fabricated reply is used.
+
+Two rejected prototypes remain in the evidence. Clearing a full query for every
+dense successor initially cost about18% at128 jobs; the charged ready probe and
+separate hot/query arrays removed that specific gap. A second standalone
+Capacity1/WorkLimit3 probe then found real cross-call starvation despite correct
+per-call counters: eager dense work repeatedly consumed all segment/month credit
+before an older query. The failing binary is retained. Reserving the last credit
+for queued queries fixes it, and the regression is in the final full suites.
+Neither prototype's earlier passing checks substitute for final validation.
+
+Final Windows/WSL source maps match all2477 protected inputs and remain unchanged
+through every accepted run (the new evidence file excludes its own hash).
+Each platform passes19 modular/single programs, the updated scheduler example,
+and static/shared consumers executing the actual new API. Windows79 tool tests
+and feature/single/reference/docs checks pass. WSL uses O2 ASan/UBSan/leak-halt
+and four separate O1 TSan scheduler/service modular/single units. Frozen422-zone
+2026e independent zoneinfo oracles validate63180 actual cursor Next queries and
+218700 legacy Match queries per OS after sharing the ready-probe helper. Final
+rebuilt oracle executables have identical hashes to the checked executables.
+
+Separate dense budgeted1/128 profiles include all recurrence work and physical
+Complete, with whole-batch P99. Adding profiles changes the global fingerprint;
+old reports are not rewritten or forcibly paired. Archived parent binaries and
+unchanged legacy workloads also run five alternating before/sync/budgeted trials,
+with all samples/warmups retained and the original5% throughput/10% P99 and
+MAD3%/central-range6% gates. Windows unpinned budgeted/parent throughput ratios
+are0.7570/1.0171 and P99 ratios1.5000/1.0385 for1/128 jobs. The separate process-
+affinity probe (CPU4,1M instead of200K one-job batches) gives throughput
+0.9582/0.9626 and P99 1.0000/1.1148. The128-job pinned P99 exceeds the original10%
+limit; the unpinned one-job throughput and P99 exceed their limits too. These
+remain failures, not passes excused by noise. WSL unpinned ratios are
+1.0204/0.9992 throughput and1.0000/1.0284 P99; pinned ratios1.0006/1.0238 and
+1.0000/0.9761. Both formal platform reports still fail noise gates. No qualified
+no-regression, maximum throughput or production P99 claim follows. Other local
+work was observed compiling in WSL; its work/process settings were preserved.
+
+Portable evidence: extlibs/xcron/tests/results/bounded-owner-20261105.json.
+Raw logs, source maps, archived parent libraries/binaries, rejected prototypes,
+barrier/starvation witnesses and all performance trials remain under
+`out/service-extensions/xcron-bounded-scheduler/`, including pre-credit and
+pre-empty-shortcut snapshots. Next resolve the Windows performance differences
+with qualified native measurements; named database/reload, nominal DST delivery,
+durable recovery and the original Redis/RPC/MQTT scopes remain active. None of
+the four libraries has completed the native/performance/>=72h production gates.

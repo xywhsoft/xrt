@@ -146,7 +146,60 @@ including batch P99 (the whole batch, not divided into fictitious per-job latenc
 They exclude threads/timers/storage and do not establish production/performance
 acceptance. Native Linux, mixed load, adversarial P99 and >=72h qualification remain.
 
-Named database/reload and leap-aware conversion, nominal DST delivery choices,
-NetEngine/Executor integration, callback/cancellation-token contracts, admission
-hand-off/rejection recovery and durable crash recovery remain incomplete. The
-module and root stay developing; no scheduler-product completion is claimed.
+Named database/reload and leap-aware conversion, nominal DST delivery choices
+and durable crash recovery remain incomplete. The borrowed Executor adapter and
+live owner have separate [execution](executor.md) and [service](service.md)
+contracts, including cancellation and no-effect rejection recovery. The module
+and root stay developing; no scheduler-product completion is claimed.
+
+## Budgeted recurrence work
+
+`xcronSchedulerPollBudgeted` preserves lease/misfire/overlap/clock semantics and
+adds independent global segment/month/rule-year limits. Every field is positive;
+the sum of all jobs' traversal in one call stays within its limit. WorkLimit
+continues to cap heap/queue actions. A40-byte report embeds the existing Poll and
+adds actual Used work and the remaining Searching count. Capacity0/NULL Runs is
+a calculation-only turn, useful when business output or leases are full.
+
+Heap promotion, ready evaluation and search work rotate across calls. Pending
+queries form a FIFO and take one-unit quanta. A ready evaluation may probe the
+earliest rounded instant, charging the same global budget; an immediate hit
+needs no full query-context initialization or recurrence loop. A miss seeds the
+resumable query without repeating its charged state lookup. Already queued
+queries reserve the last segment/month credit: an eager ready probe
+cannot exhaust it ahead of an older pending query, even with output capacity1.
+Queries that cannot use the remaining resource budget are rotated once and deferred, avoiding
+repeated no-progress work in the same call.
+
+SEARCHING is an appended nonterminal job state with HasNext=false. Live leases
+and original Data stay valid. Complete cannot mistake SEARCHING for retirement.
+Cancel removes a queued query in constant queue work; no remaining calendar or
+history is evaluated. A later calculation fault records LastIssue and Poll.Faults
+while previously published leases remain valid. Skip/coalesce range boundaries
+are fixed when their decision is made; resumptions never rebase them on a new
+wall sample. Once a result is known, placement uses the latest sample, preserving
+wall rollback and avoiding replay of consumed instants.
+
+The original Add remains a synchronous transactional calculation. Poll may
+synchronously drain work left by a budgeted call; mixing it back in gives up the
+recurrence bound. The live service uses provisional admission and the budgeted
+entry point throughout. No scheduler callback or new shared runtime is involved.
+Work units do not guarantee elapsed CPU or OS scheduling; Close is still O(JobLimit).
+
+One416-byte typed query slot per configured job is reserved in the scheduler's
+single allocation, with alignment padding and header bytes charged to BytesLimit.
+The query array is separate from hot job slots; adding the provisional bit uses
+existing padding instead of enlarging their stride. Normal immediate successors
+avoid this query array. No extra allocation/lock/opaque wrapper copy occurs on
+steady calculation paths. Existing config/job-info/poll/stats layouts remain;
+the new report is separate. Tight byte caps must accommodate the additional
+reserve. The initial allocation/zeroing and each actual pending query's state
+setup/bookkeeping remain explicit costs.
+
+The finite policy model runs another92160 samples through budgeted calls plus
+calculation-only drains. Additional tests cover global limits, mixed heavy/light
+fairness, full run capacity, cancellation/physical retirement, unpublished
+admission IDs, rollback/typed OOM, future faults with live leases and128 sparse
+lifecycles with more than10000 actual yields under a one-byte quota. Separate
+dense1/128-job budgeted profiles include recurrence and physical Complete with
+whole-batch P99. They are measurements, not production qualification.

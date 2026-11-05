@@ -1,5 +1,6 @@
 #include <xcron/service.h>
 #include "../timezone/timezone_internal.h"
+#include "../scheduler/scheduler_internal.h"
 #include <xrt/atomic.h>
 #include <xrt/sync.h>
 #include <xrt/thread.h>
@@ -10,7 +11,7 @@
 #if defined(XCRON_FEATURE_XCRON_SERVICE)
 #define XCRON_SERVICE_MAGIC UINT32_C(0x58435631)
 #define XCRON_SERVICE_NONE UINT32_MAX
-typedef enum xcroncommandstate {XCRON_CMD_FREE=0,XCRON_CMD_QUEUED,XCRON_CMD_PROCESSING,XCRON_CMD_READY} xcroncommandstate;
+typedef enum xcroncommandstate {XCRON_CMD_FREE=0,XCRON_CMD_QUEUED,XCRON_CMD_PROCESSING,XCRON_CMD_READY,XCRON_CMD_ADMITTING} xcroncommandstate;
 typedef struct xcroncommand {
     uint64 Generation;
     uint32 Next;
@@ -55,6 +56,7 @@ struct xcronservice {
     xcroncompletion* DoneBatch;
     uint32 FreeCommand,CommandHead,CommandTail,FreeCompletion,DoneHead,DoneTail;
     uint32 RetryCount;
+    uint32 AdmissionHead,AdmissionTail,AdmissionCount;
     uint8 CommandBits,RunBits;
     xcronclock Now;
     bool HasClock;
@@ -193,6 +195,32 @@ static void xcronServiceSubmit(xcronservice* S,uint32 I,bool Retry)
     if(Code==XCRON_COMPLETION_EXPIRED)xcronServiceIncrement(&S->AdmissionExpired);
     xcronServiceFinish(S,I,XCRON_RUN_FAILED,Code,E.Code,Error);
 }
+static void xcronServiceReplyReady(xcronservice* S,xcroncommand* C,xcronreply R,bool OK)
+{
+    if(!OK)R.Error=xrtTakeError();else xrtClearError();
+    xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_READY;--S->Stats.PendingRequests;++S->Stats.ReadyReplies;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);
+}
+static void xcronServiceAdmissionAdd(xcronservice* S,uint32 I)
+{
+    S->Commands[I].Next=XCRON_SERVICE_NONE;
+    if(S->AdmissionTail!=XCRON_SERVICE_NONE)S->Commands[S->AdmissionTail].Next=I;else S->AdmissionHead=I;
+    S->AdmissionTail=I;++S->AdmissionCount;
+}
+static void xcronServiceAdmissions(xcronservice* S)
+{
+    uint32 Count=S->AdmissionCount;if(Count>S->Config.CommandWorkLimit)Count=S->Config.CommandWorkLimit;
+    for(uint32 N=0;N<Count;++N){
+        uint32 I=S->AdmissionHead;xcroncommand* C=&S->Commands[I];S->AdmissionHead=C->Next;
+        if(S->AdmissionHead==XCRON_SERVICE_NONE)S->AdmissionTail=XCRON_SERVICE_NONE;
+        --S->AdmissionCount;xrtMutexLock(&S->Mutex);bool Closing=S->Closing;xcronreply R=C->Reply;xrtMutexUnlock(&S->Mutex);
+        xrtClearError();xcronadmissionstatus Status=xcronSchedulerFinishAdmission(S->Kernel,C->Job,Closing,&R.Scheduler);
+        if(Status==XCRON_ADMISSION_PENDING){xcronServiceAdmissionAdd(S,I);continue;}
+        bool OK=Status==XCRON_ADMISSION_ACCEPTED;
+        if(OK)R.Job=C->Job;
+        else {R.Code=R.Scheduler.Code==XCRON_SCHEDULER_CLOSED?XCRON_SERVICE_CLOSED:XCRON_SERVICE_KERNEL;R.Job=0;R.Data=C->Add.Data;}
+        xcronZoneRelease(C->Add.Zone);C->Add.Zone=NULL;xcronServiceReplyReady(S,C,R,OK);
+    }
+}
 static void xcronServiceCommand(xcronservice* S,uint32 I)
 {
     xcroncommand* C=&S->Commands[I];xcronreply R={.Request=C->Reply.Request,.Kind=C->Reply.Kind};bool OK=false;
@@ -201,7 +229,8 @@ static void xcronServiceCommand(xcronservice* S,uint32 I)
     case XCRON_REQUEST_ADD:{
         xrtMutexLock(&S->Mutex);bool Closing=S->Closing;xrtMutexUnlock(&S->Mutex);
         if(Closing){R.Code=XCRON_SERVICE_CLOSED;xcronServiceFail(R.Code,XERR_NONE,NULL);}
-        else {OK=xcronSchedulerAdd(S->Kernel,&C->Add,&R.Job,&R.Scheduler);if(!OK)R.Code=XCRON_SERVICE_KERNEL;}
+        else {OK=xcronSchedulerBeginAdmission(S->Kernel,&C->Add,&C->Job,&R.Scheduler);if(!OK)R.Code=XCRON_SERVICE_KERNEL;
+            else {xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_ADMITTING;xrtMutexUnlock(&S->Mutex);xcronServiceAdmissionAdd(S,I);return;}}
         if(!OK)R.Data=C->Add.Data;
         xcronZoneRelease(C->Add.Zone);C->Add.Zone=NULL;break;}
     case XCRON_REQUEST_CANCEL:
@@ -210,8 +239,7 @@ static void xcronServiceCommand(xcronservice* S,uint32 I)
     case XCRON_REQUEST_INFO:R.Job=C->Job;OK=xcronSchedulerJob(S->Kernel,C->Job,&R.Info,&R.Scheduler);if(!OK)R.Code=XCRON_SERVICE_KERNEL;break;
     case XCRON_REQUEST_REAP:OK=xcronSchedulerReap(S->Kernel,&R.Retired,&R.Found,&R.Scheduler);if(!OK)R.Code=XCRON_SERVICE_KERNEL;break;
     }
-    if(!OK)R.Error=xrtTakeError();else xrtClearError();
-    xrtMutexLock(&S->Mutex);C->Reply=R;C->State=XCRON_CMD_READY;--S->Stats.PendingRequests;++S->Stats.ReadyReplies;xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);
+    xcronServiceReplyReady(S,C,R,OK);
 }
 static void xcronServiceStatsSet(xcronservice* S,const xcronschedulerstats* K,const xcronexecutorstats* E)
 {
@@ -276,6 +304,7 @@ static int32 xcronServiceOwner(ptr Raw)
             if(I!=XCRON_SERVICE_NONE){S->CommandHead=S->Commands[I].Next;if(S->CommandHead==XCRON_SERVICE_NONE)S->CommandTail=XCRON_SERVICE_NONE;S->Commands[I].State=XCRON_CMD_PROCESSING;}
             xrtMutexUnlock(&S->Mutex);if(I==XCRON_SERVICE_NONE)break;xcronServiceCommand(S,I);
         }
+        xcronServiceAdmissions(S);
         size_t Completed=0;
         if(!xcronExecutorDrain(S->Bridge,S->DoneBatch,S->Config.BatchLimit,&Completed,NULL))xcronServiceFault(S,XCRON_SERVICE_EXECUTOR);
         for(size_t N=0;N<Completed;++N){xcroncompletion* D=&S->DoneBatch[N];uint32 Index=xcronServiceRunIndex(S,D->Run.Id);
@@ -284,7 +313,7 @@ static int32 xcronServiceOwner(ptr Raw)
             xcronServiceFinish(S,I,D->Result,XCRON_COMPLETION_NORMAL,D->Code,D->Error);
         }
         xrtMutexLock(&S->Mutex);Closing=S->Closing;xrtMutexUnlock(&S->Mutex);
-        bool More=false;
+        bool More=false;uint32 Searching=0;
         if(!Closing && xcronServiceClockRead(S)){
             xrtMutexLock(&S->Mutex);Closing=S->Closing;xrtMutexUnlock(&S->Mutex);
             if(!Closing){
@@ -296,8 +325,11 @@ static int32 xcronServiceOwner(ptr Raw)
                 xrtMutexLock(&S->Mutex);uint32 Reserved=0;
                 while(Reserved<Capacity && S->FreeCompletion!=XCRON_SERVICE_NONE){uint32 I=S->FreeCompletion;S->FreeCompletion=S->Reservations[I].Next;S->ReservedBatch[Reserved++]=I;++S->Stats.ReservedCompletions;}
                 xrtMutexUnlock(&S->Mutex);
-                xcronpoll P={0};bool Polled=false;
-                if(Reserved){Polled=xcronSchedulerPoll(S->Kernel,S->Now,S->RunBatch,Reserved,&P,NULL);if(!Polled)xcronServiceFault(S,XCRON_SERVICE_KERNEL);}
+                xcronpollbudgeted Q={0};uint32 Work=S->Config.Scheduler.WorkLimit;
+                bool Polled=xcronSchedulerPollBudgeted(S->Kernel,S->Now,(xcronzonedbudget){Work,Work,Work},S->RunBatch,Reserved,&Q,NULL);
+                if(!Polled)xcronServiceFault(S,XCRON_SERVICE_KERNEL);
+                else {xrtMutexLock(&S->Mutex);S->Stats.LastPoll=Q;xrtMutexUnlock(&S->Mutex);}
+                xcronpoll P=Q.Poll;Searching=Q.Searching;
                 for(uint32 N=0;N<(uint32)P.Count;++N){uint32 I=S->ReservedBatch[N];xcronreservation* R=&S->Reservations[I];
                     R->Run=S->RunBatch[N];R->Attempts=0;R->Rejection=NULL;R->HeapPosition=XCRON_SERVICE_NONE;R->Deadline=xcronServiceAddTime(S->Now.MonotonicMilliseconds,S->Config.AdmissionMilliseconds);
                     S->ActiveMap[xcronServiceRunIndex(S,R->Run.Id)]=I;xcronServiceSubmit(S,I,false);}
@@ -306,6 +338,7 @@ static int32 xcronServiceOwner(ptr Raw)
                 xrtMutexUnlock(&S->Mutex);More=Polled && P.More;
             }
         }
+        xcronServiceAdmissions(S);
         xcronschedulerstats K;xcronexecutorstats E;if(!xcronServicePublishStats(S,&K,&E))continue;
         xrtMutexLock(&S->Mutex);Closing=S->Closing;bool Commands=S->CommandHead!=XCRON_SERVICE_NONE;
         bool Capacity=S->FreeCompletion!=XCRON_SERVICE_NONE && E.Active<S->Config.Scheduler.RunLimit;
@@ -327,7 +360,7 @@ static int32 xcronServiceOwner(ptr Raw)
             if(S->RetryCount){xcronreservation* R=&S->Reservations[S->RetryHeap[0]];uint64 At=R->RetryAt<R->Deadline?R->RetryAt:R->Deadline;
                 uint64 Wait=At<=S->Now.MonotonicMilliseconds?0:At-S->Now.MonotonicMilliseconds;if(Wait<Delay)Delay=Wait;}
         }
-        if(Commands || Completed==S->Config.BatchLimit || (More && Capacity))Delay=0;
+        if(Commands || S->AdmissionCount || Searching || Completed==S->Config.BatchLimit || (More && Capacity))Delay=0;
         /* The auto-reset event is never reset after the work check. */
         if(xrtEventWaiterWaitFor(&S->Waiter,(int64)Delay)==XWAIT_ERROR)xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
     }
@@ -362,7 +395,7 @@ XCRON_API bool xcronServiceCreate(const xcronserviceconfig* C,xcronservice** Out
     if(!S){if(Budget)xrtAllocationBudgetLeave(&Scope);return xcronServiceFail(XCRON_SERVICE_MEMORY,XERR_MEMORY,Issue);}
     memset(S,0,Bytes);S->Magic=XCRON_SERVICE_MAGIC;S->ArenaBytes=Bytes;S->Config=*C;S->Stats.ArenaBytes=Bytes;S->Stats.Bytes=Bytes;
     S->Commands=(xcroncommand*)((unsigned char*)S+Offsets[0]);S->Reservations=(xcronreservation*)((unsigned char*)S+Offsets[1]);S->ActiveMap=(uint32*)((unsigned char*)S+Offsets[2]);S->RetryHeap=(uint32*)((unsigned char*)S+Offsets[3]);S->ReservedBatch=(uint32*)((unsigned char*)S+Offsets[4]);S->RunBatch=(xcronrun*)((unsigned char*)S+Offsets[5]);S->DoneBatch=(xcroncompletion*)((unsigned char*)S+Offsets[6]);
-    S->CommandHead=S->CommandTail=S->DoneHead=S->DoneTail=XCRON_SERVICE_NONE;S->CommandBits=xcronServiceBits(C->CommandLimit);S->RunBits=xcronServiceBits(C->Scheduler.RunLimit);xrtAtomic64Init(&S->WakeFailures,0);
+    S->CommandHead=S->CommandTail=S->DoneHead=S->DoneTail=S->AdmissionHead=S->AdmissionTail=XCRON_SERVICE_NONE;S->CommandBits=xcronServiceBits(C->CommandLimit);S->RunBits=xcronServiceBits(C->Scheduler.RunLimit);xrtAtomic64Init(&S->WakeFailures,0);
     for(uint32 I=0;I<C->CommandLimit;++I){S->Commands[I].Generation=1;S->Commands[I].Next=I+1<C->CommandLimit?I+1:XCRON_SERVICE_NONE;}
     for(uint32 I=0;I<C->CompletionLimit;++I){S->Reservations[I].Next=I+1<C->CompletionLimit?I+1:XCRON_SERVICE_NONE;S->Reservations[I].HeapPosition=XCRON_SERVICE_NONE;}
     for(uint32 I=0;I<C->Scheduler.RunLimit;++I)S->ActiveMap[I]=XCRON_SERVICE_NONE;

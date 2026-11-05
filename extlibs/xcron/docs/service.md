@@ -122,9 +122,10 @@ or total process-RSS guarantee is implied.
 Normal warmed control/dispatch uses no dynamic requested heap allocation. Hot
 lease lookup is direct; retry operations are O(log RunLimit). Cold CancelRuns
 scans active kernel slots, and kernel Close scans jobs. FIFO command work, poll
-actions and completion/retry batches are bounded per turn. A single recurrence
-query can still traverse deep history/a Gregorian cycle: hard owner CPU and P99
-bounds are outstanding. Thread-safe hot APIs use a mutex; no lock-free claim is made.
+actions and completion/retry batches are bounded per turn. Recurrence traversal
+now has global segment/month/rule-year budgets, described below. Foreign callbacks,
+cold scans and OS scheduling still prevent a hard whole-owner CPU/P99 bound.
+Thread-safe hot APIs use a mutex; no lock-free claim is made.
 Outputs reject range overflow, mutual/input aliases and owned service arena
 overlap; caller keeps them disjoint from all borrowed Data/contexts/zones and
 private component storage. Error domain is `xrt.cron.service`; structural argument
@@ -138,8 +139,8 @@ observed cold allocation prefixes and warmed dispatch. The fixed-arrival benchma
 records scheduled-to-worker start lateness without deleting slow samples, plus
 owner-sample-to-worker delay, at millisecond clock precision. Its rate is an input,
 not measured maximum throughput. Unpinned smoke is no performance acceptance.
-Named-zone database/reload, durable recovery, nominal DST compensation, bounded
-recurrence CPU, native Linux and the full long-run/performance gates remain open.
+Named-zone database/reload, durable recovery, nominal DST compensation, native
+Linux and the full long-run/performance gates remain open.
 
 ## Reusable deadline backend
 
@@ -166,3 +167,47 @@ OS scheduling and diagnostics remain outside the requested-byte cap. Backend
 selection does not guarantee a maximum lateness. Wake, deadline clock reads and
 Windows timer arm/cancel calls are explicit per-wait costs. Fixed-arrival,
 CPU/power, pinned throughput and tail-latency qualification remain required.
+
+## Transactional admission and global recurrence budgets
+
+The owner now begins ADD into a reserved, unpublished kernel slot. Shape/mask
+validation remains immediate. Initial calendar/history calculation runs in the
+same budgeted FIFO as successor, skip and coalesce queries. The provisional ID
+is not usable through public Job/Cancel APIs, cannot dispatch and cannot appear
+in Reap. Success commits the prepared job before publishing the ADD reply.
+Calculation failure releases the slot/zone and returns original Data through
+the failed reply; close also rolls back a pending admission without publishing
+an ID. Initial failure is not a later job fault or a retirement receipt.
+
+Commands still dequeue in FIFO order. A slow ADD may finish after a later quick
+command or another ADD; tickets identify their own replies. The retained command
+zone and Data duty stay live until that command is ready, exactly as before.
+Provisional slots count in Kernel.Jobs/PeakJobs and consume JobLimit, bounding
+concurrent admission state; they do not imply successful job admission.
+
+Every owner turn calls PollBudgeted with each global search limit equal to
+Scheduler.WorkLimit. Queue/heap actions retain that same WorkLimit cap. The owner
+also polls with zero output capacity, so full completion credits cannot stall
+calculation or admission replies. Query FIFO quanta and rotating work classes
+prevent one long history search monopolizing later jobs. New commands are capped
+by CommandWorkLimit; provisional finishes are inspected at most that many before
+and again after calculation. Close/cancel of a pending query discards it rather
+than finishing its history. Existing cold job/run scans remain explicit costs.
+
+The appended LastPoll report exposes actual global work and remaining searches.
+It is a historical snapshot of that poll, not a live post-close queue gauge.
+On verified x64 targets service stats grows344 to384 bytes; config stays136,
+scheduler config24, job info96 and the new standalone report40. Consumers must
+rebuild against matching public/generated headers. Kernel bytes additionally
+reserve416 bytes per configured job plus private header/alignment; this is part
+of the existing byte cap, not a hidden allocation. Dense successors use a charged
+constant probe and avoid full query initialization. Pending state reuses the
+preallocated typed array; no public opaque-context copies or new shared runtime
+are introduced. LastPoll publication adds one mutex-protected metadata update.
+
+Clock-turn barrier tests hold a full completion output, start a400-year absent
+query and verify its ticket stays pending at the next actual owner boundary.
+A later Reap and light ADD complete while it remains pending, calculation work
+continues without output reservations, and close returns original Data without
+a job ID. The same boundary witness fails on the archived old library. The test
+does not infer algorithmic progress from a timing threshold or a fake reply.

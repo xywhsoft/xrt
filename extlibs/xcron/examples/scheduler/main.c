@@ -2,7 +2,8 @@
  * Run from the repository root:
  * python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.json --suite xcron_scheduler --no-single --cflag=-O2
  * Expect: one coalesced [0,3500] lease; cancellation cannot reclaim Data until
- * Complete; then exactly one retirement receipt. Cleanup releases every zone,
+ * Complete; then exactly one retirement receipt. Poll uses positive global
+ * segment/month/rule-year budgets. Cleanup releases every zone,
  * job and scheduler. A real executor/timer adapter is a separate layer. */
 #include <xcron.h>
 #include <inttypes.h>
@@ -18,7 +19,7 @@ int main(void)
     if(!xcronSchedulerAdd(Scheduler,&Job,&Id,NULL))goto Done;
     /* Scheduler retained Zone and copied the expression; caller can release. */
     xcronZoneRelease(Zone);Zone=NULL;
-    xcronpoll Poll;if(!xcronSchedulerPoll(Scheduler,(xcronclock){3500,100},&Run,1,&Poll,NULL) || Poll.Count!=1 ||
+    xcronpollbudgeted Poll;if(!xcronSchedulerPollBudgeted(Scheduler,(xcronclock){3500,100},(xcronzonedbudget){1,1,1},&Run,1,&Poll,NULL) || Poll.Poll.Count!=1 ||
         Run.ScheduledAt!=0 || Run.Through!=3500 || Run.Flags!=XCRON_RUN_COALESCED || Run.Data!=&Data)goto Done;
     if(!xcronSchedulerCancel(Scheduler,Id,NULL))goto Done;
     xcronretired Receipt;if(!xcronSchedulerReap(Scheduler,&Receipt,&Found,NULL) || Found)goto Done;

@@ -159,6 +159,24 @@ It creates no timer/thread/executor and supplies no durable recovery. See
 [the complete contract and remaining gaps](scheduler.md). The root and leaf remain
 developing. Qualification evidence is recorded separately from implementation.
 
+Budgeted advancement adds a second92160-sample finite-list model run, fixed
+skip/coalesce boundaries, calculation-only polls at full lease capacity, future
+faults with valid live leases and pending-query cancellation/retirement. Tests
+check global segment/month/rule-year/action/output limits across mixed heavy/light
+jobs. A Capacity1/WorkLimit3 dense catch-up counterexample verifies that eager
+probes reserve credit instead of starving an older query. Provisional admission
+IDs cannot dispatch, be publicly queried/cancelled or Reap; prepare/commit/rollback
+and typed diagnostic OOM retain the original Data/zone duties.128 sparse bounded
+lifecycles perform more than10000 real yields with zero requested heap.
+
+The actual service clock-turn fixture holds completion output full while a
+400-year absent initial query remains pending. Later Reap/light ADD work proceeds,
+and close returns original Data with no published job. This behavioral witness
+fails against archived parent libraries. LastPoll checks each actual owner turn;
+the test uses callback barriers rather than a latency threshold. A separate
+deferred unknown-coverage failure leaves no job/body/retirement duty. Existing
+service adversarial, OOM, metadata-credit and concurrency tests run on this path.
+
 # Actual executor adapter stage
 
 The developing `xcron_executor` leaf adds real public-XRT worker execution,
