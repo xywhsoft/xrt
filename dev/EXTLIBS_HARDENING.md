@@ -56,7 +56,7 @@
 | xssh | 66 | 65 | 71 | 66 | 65 | 待复核 |
 | xwork | 1 | 8 | 1 | 1 | 0 | 路径/只读隔离修复通过，工具状态机复核中 |
 | xws | 10 | 5 | 22 | 6 | 7 | 待复核 |
-| xws-client | 5 | 3 | 7 | 5 | 3 | 源码/API 复核及 Future/字节视图修复通过，四环境完整测试与双平台交付通过，待本批 CI |
+| xws-client | 5 | 3 | 7 | 5 | 3 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-group | 3 | 3 | 4 | 3 | 2 | 已完成本轮：源码/API/所有权、四环境完整测试、双平台交付及 73/73 CI |
 | xws-server | 6 | 5 | 25 | 13 | 4 | 握手/路由字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
 
@@ -1532,3 +1532,20 @@ dial-oom-ci-before-linux-gcc-repeat.json、dial-oom-listener-before-linux-gcc-re
 dial-oom-*-before-fixture.c、dial-oom-ready-without-fence.{c,json} 及对应构建/重复日志；
 dial-oom-ready-{windows,linux}.json、dial-oom-ready-full-{windows,linux}.json、
 dial-oom-ready-linux-uring-compile.log、dial-oom-ready-final-validation.json。
+
+
+### 第四十二批：xws-client 首轮验收
+
+- 4b68f2c7 的 PR CI 41983687946 已完成，严格核对同一 head 的 73 个 job 全部成功，
+  包括 macOS Apple Clang、Windows、扩展元数据和 xws-client 扩展作业。
+  独立邮件 run 41983681051 同一 head 成功。
+- 与第四十批本地验收的 b8df81f5 比对，30 项本库源码、头、测试和配置 Git blob
+  在上述 CI head 与当前工作树中均未改变；Core OOM 夹具修复也通过了本次 macOS 作业。
+  结合既有四环境完整测试、八组 setup 回归、三最小根、包/裁剪和体积/performance smoke
+  证据，将 xws-client 计入本轮完成。smoke 仍不作为性能回归结论。
+- 本轮累计 xjwt、xoauth2、xws-group、xws-client，4/21。当前工作树的后续 HTTP
+  Future/字节视图修复属于下一批，不能由这次 CI 或本库的完成状态代为认证。
+  未自动合并或发布；未覆盖平台和长稳边界延续第四十批记录。
+
+证据：ci-4b68f2c7-run-final.json、ci-4b68f2c7-mail-final.json、
+xws-client-first-round-acceptance.json、xws-client-final-validation.json。
