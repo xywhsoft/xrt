@@ -181,7 +181,12 @@ static void __xrtExecutorNotifyIdle(xexecutor* pExecutor)
 /* 唤醒一个或全部休眠 Worker；批量工作允许多个 Worker 立即窃取。 */
 void __xrtExecutorWake(xexecutor* pExecutor, bool bBatch)
 {
-	if ( xrtAtomic32Load(
+	/* Shutdown is published with release ordering. A zero-sleeper snapshot
+	 * cannot synchronize with a worker about to park: skipping the lock can
+	 * lose the final stop notification. All lifecycle callers broadcast; they
+	 * must rendezvous with the predicate check/CondWait under SleepLock.
+	 * Scalar admission retains its queue-publication fast path. */
+	if ( !bBatch && xrtAtomic32Load(
 		&pExecutor->Sleepers,
 		XMEMORY_ACQUIRE
 	) == 0 ) {

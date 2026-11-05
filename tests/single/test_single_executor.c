@@ -1,6 +1,7 @@
 #define XRT_MODULE_EXECUTOR
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#include "../concurrency/test_executor_shutdown.h"
 
 
 
@@ -15,6 +16,7 @@ static void testSingleExecutorRun(ptr pData)
 
 int main(void)
 {
+	testExecutorShutdown();
 	xexecutorconfig Config = { 2, 8, 0 };
 	xatomic32 Count;
 	xexecutor* pExecutor;
