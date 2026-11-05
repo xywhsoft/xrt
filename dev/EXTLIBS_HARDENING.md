@@ -1938,3 +1938,25 @@ xsmtp-final-round-{windows,linux}.json、xsmtp-contract-final-{exports,symbols}-
 xsmtp-deadline-{size,performance}-{windows,linux}.json、xsmtp-final-{checks,input-audit,source-review}.json、
 xsmtp-deadline-final-validation.json、xsmtp-auth-next-candidate.json、
 ci-c8fbe2eb-auth-job-first-attempt-annotations.json、ci-c8fbe2eb-rerun-request.json。
+
+
+### 第五十二批：xws 首轮验收
+
+- 不可变 head c8fbe2eb 的 CI 42032910380 第二次执行已成功：复用原七十二个成功门禁，
+  仅重跑先前达到九十分钟上限的 Linux 认证作业，最终七十三项均通过。原超时和完整
+  注释保留，不把它改写为首轮全绿；同一 head 独立邮件 42032895955 已成功。
+- PR 仍为 OPEN draft，base 为 codex/fix-actions，当前 base 仍是该 CI head 的祖先。
+  1746 项历史输入已重新逐一核对 Git tree/blob 内容；当前 raw xws 自有输入以及
+  Core/配置/工具没有差异。SMTP 新改动不在该不可变证书内，未声称当前广义支持输入
+  全部等于历史 c8 快照。
+- 结合第四十八、五十批五个自有 C/六十八 API 的有界审查、九个未对齐字节视图修复、
+  231 次成功程序和四个预期失败对照、真实回环应用及完整交付证据，将 xws 计入本轮完成。
+  两端六十八 API 导出、十二个产物全类型符号约束、裁剪和元数据结果沿各自实际输入保留。
+- 累计 xjwt、xoauth2、xws-group、xws-client、xws-server、xpop3、xws，7/21。
+  本地其他平台、TSan、长稳和外部对端限制保留，smoke 不作为吞吐/零开销证明。
+  SMTP 后续认证修复仍须自己的本地交付及不可变 head CI。长期任务继续，不合并或发布。
+
+证据：ci-c8fbe2eb-effective-final-jobs.json、ci-c8fbe2eb-rerun-current.json、
+ci-c8fbe2eb-retry-auth-job-current.json、ci-c8fbe2eb-auth-job-first-attempt-annotations.json、
+xws-runtime-c8fbe2eb-{input-bindings,reverification}.json、
+xws-runtime-final-{source-review,validation}.json、xws-first-round-acceptance.json。
