@@ -172,6 +172,30 @@ static unsigned testOomPrefixes(void)
 }
 #endif
 
+static void postCommitFinalizer(xvalue* pObject, ptr pData)
+{
+	unsigned* pCalls = pData;
+	++*pCalls;
+	testRequire(xrtValueRetain(pObject) == NULL, "finalizer receiver cannot be retained");
+	testRequire(xrtGetError() != NULL, "resurrection is rejected"); xrtClearError();
+	testRequire(xrtValueObjectSetNewPostCommit(pObject, (xstrview){"value", 5}, xrtValueInt(0)),
+		"borrowed finalizer may replace a field after commit");
+	int64 iValue = -1;
+	testRequire(xrtValueGetInt(xrtValueObjectGet(pObject, (xstrview){"value", 5}), &iValue) && iValue == 0,
+		"finalizer observes the committed replacement");
+	testRequire(xrtValueRetain(pObject) == NULL, "field write does not revive receiver");
+	xrtClearError();
+}
+static void testFinalizerBorrow(void)
+{
+	unsigned iCalls = 0;
+	xvalue* pObject = xrtValueObject();
+	testRequire(pObject && xrtValueObjectSetNew(pObject, (xstrview){"value", 5}, xrtValueInt(1)) &&
+		xrtValueObjectFinalizerBind(pObject, postCommitFinalizer, &iCalls), "prepare finalizer field write");
+	xrtValueRelease(pObject);
+	testRequire(iCalls == 1 && !xrtGetError(), "exactly one finalizer, no borrowed shell release");
+}
+
 int main(void)
 {
 #if defined(XRT_FEATURE_MEMORY_DEBUG)
@@ -180,6 +204,7 @@ int main(void)
 	xmemdebugsnapshot Before = {0}, After = {0};
 	xrtMemDebugSnapshot(&Before);
 #endif
+	testFinalizerBorrow();
 	testBackReferences();
 	testCowAndErrors();
 	testReceiverPin();

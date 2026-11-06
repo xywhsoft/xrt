@@ -114122,8 +114122,17 @@ XRT_API bool xrtValueObjectSetNewPostCommit(xvalue* pObject, xstrview Key, xvalu
 	xrtownershipscope Mutation = {0};
 	xvalue* pOld = NULL;
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
-	xvalue* pPin = xrtValueRetain(pObject);
-	bool bResult = pPin != NULL && __xrtValueObjectExchangeOwned(pObject, Key, pItem, &pOld);
+	/* Finalize already borrows the last-live real shell under the backing's
+	 * release guard. Pinning that shell would resurrect it and is forbidden.
+	 * Only this authenticated finalizing receiver may reuse that borrow; all
+	 * normal replacements keep their independent receiver pin. */
+	bool bFinalizerBorrow = pObject != NULL && pObject->Type == XVALUE_OBJECT &&
+		(pObject->Flags & (XRT_VALUE_FLAG_FINALIZING | XRT_VALUE_FLAG_BUSY)) == XRT_VALUE_FLAG_FINALIZING &&
+		pObject->Data.Backing != NULL &&
+		(pObject->Data.Backing->Flags & XRT_VALUE_BACKING_FINALIZING) != 0;
+	xvalue* pPin = bFinalizerBorrow ? NULL : xrtValueRetain(pObject);
+	bool bResult = (bFinalizerBorrow || pPin != NULL) &&
+		__xrtValueObjectExchangeOwned(pObject, Key, pItem, &pOld);
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	/* On failure retire the unaccepted input, on success the detached field.
  * A pinned receiver survives arbitrary old-value cleanup. Preserve the first
