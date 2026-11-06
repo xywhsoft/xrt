@@ -213,3 +213,15 @@ python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.jso
 每程序实际创建 69..517 个公开 Open 客户端，日志给出轮数。核对输出快照、精确正文、
 未调用非法正文 sink、最近已保存响应和主错误；失败终态在显式 Abort 前等待 peer
 EOF/错误及线程退出，最后核对 Engine 五零计数和逻辑内存释放。
+
+## BODY 本次错误分类回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_message_error_tests --no-examples
+```
+
+模块化与单头共享九个真实 TCP/public Open 场景：正文预算和重复 literal 分别覆盖无旧错误、
+已有 VALUE、已有 MEMORY，另有两个成功后实际 NOOP/LOGOUT 的复用控制，以及 sink 提供
+具体错误的对象保真控制。超限前不调用 sink；重复 literal 已交付的首段不回滚，但失败
+不发布 written。核对错误种类、域、代码、消息或对象身份、完整 sink 缓冲和已保存响应。
+终态在显式 Abort 前观察 peer EOF/错误并 join，最后验证 Engine 五零计数和逻辑内存释放。

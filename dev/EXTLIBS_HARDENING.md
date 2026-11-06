@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/APPEND/literal/IDLE/认证、数值与借用范围本地通过，APPEND/BODY 主错误保真与最终 CI 继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/认证、数值、借用范围与 BODY 本次错误分类本地通过，BodyBytes 输出预检及最终 CI 继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -2449,3 +2449,50 @@ ximap-diagnostics-{final,round}-{windows,linux}.json、ximap-diagnostics-checks.
 ximap-diagnostics-independent-{tls,compress}-{windows,linux}.json、
 ximap-diagnostics-prior-ci-proof.json、ci-46a3687a-final-{run,jobs,mail}.json、
 ximap-message-limit-candidate-linux.json、ximap-message-duplicate-candidate-linux.json。
+
+
+### 第六十五批：BODY 本次拒绝错误的独立分类
+
+- 从已提交 f34bf191 的 101 项 IMAP 输入开始逐一核对 Windows、Git 与 native；
+  另从该 head 的 2032 个 Git blob 建立独立 Windows/native 原始源码目录，只加入
+  新测试和清单仪器。四个 GCC 模块化、单头原版程序各九项结果均为 4 FAIL/5 PASS，
+  同一测试源码哈希 0aed0391 用于最终验证，不把旧 WIP 探针冒充正式修复前基线。
+- 只修改一个生产 C：实际重复 literal 无条件产生新的 PROTOCOL；把 checked-add
+  失败与明确预算超限分开，前者保留下层原因，后者始终报告新的 RANGE/LIMIT。
+  调用前已有 VALUE 或 MEMORY 不再掩盖这两类本次拒绝。沿用 Recover 关闭活动会话，
+  不改变公共声明、布局、正常成功保留旧错误和 sink 提供具体错误的对象保真。
+- 九项真实 TCP/public Open、SELECT、BodyWrite 场景分别检查两类拒绝的无旧错误、
+  旧 VALUE、旧 MEMORY，以及两个成功控制和一个显式 sink 错误控制。成功后执行
+  实际 NOOP/LOGOUT；终态在显式 Abort 前观察 peer EOF/错误并 join，有限等待 CLOSED，
+  最后检查 Engine 五零计数及逻辑内存释放。核对完整 sink 缓冲、written 哨兵、
+  最近响应、状态、错误种类/域/代码/消息或对象身份。超限不调用 sink，重复 literal
+  已交付的第一段不回滚；失败不发布 written，不把长度输出保留解释为副作用回滚。
+- 最终 Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/泄漏检查、
+  TCC 四套各 52 程序通过，完整根为 30 模块化、22 单头，只追加新回归；原源码、
+  示例、依赖、定义、链接及旧测试顺序不变。另八个最小定向程序各九项全通过。
+- 本批计入 258 次选中程序/消费者运行：完整选择 208、定向 8、示例 10、最小模块
+  程序 28、静态/共享消费者 4。两个 host-client 无参数入口仅显示用法，两个无测试
+  资产的最小 TLS 选择不计程序；两端独立 TLS/STARTTLS 共 24 场景、压缩互通 180
+  场景和实际二进制哈希通过，不另算额外显式模块 TLS 或独立 Clang 压缩矩阵。
+- 每端 101 个公开导出、十二个 size 产物符号约束、trim、五项元数据和 137 项工具
+  测试通过。十二个已安装头的非注释 token 与 f34bf191 相同；2034 项最终输入从
+  冻结时起保持 Windows/native 一致并绑定最终 Git 内容。有效路径不新增分配或拷贝，
+  拒绝诊断仍可能分配，不称零开销、吞吐结论或性能等价。
+- 截至本批提交前快照，f34bf191 主 CI immutable attempt1 已有 72/73 任务成功，
+  仅 Windows 总任务仍运行；两个原先失败的 Windows IMAP 夹具任务均已成功，独立
+  邮件也成功。保留该非终态快照，不宣称主 CI 已全部完成；本批新提交须有自己的 CI。
+- 独立原版 f34 源码的只读 BodyBytes 探针另确认：回绕的长度输出指针，无旧错误时
+  正确报告 ARGUMENT，已有 VALUE 时却保留旧 VALUE；合法长度指针/NULL Client 仍
+  正常报告 ARGUMENT，输出哨兵保持。三个场景及实际对象、源码、二进制哈希保留，
+  只是后续线索，本批不改该预检分支，也不称下一提交的正式四程序回归基线。
+- sink 返回 false 却不发布新错误、调用前已有错误时的语义仍单独保留，不增加每片段
+  引用管理或重设运行时错误机制。本批自己的 CI、余下逐 API 复核与全部 21 库目标
+  继续；累计 8/21，IMAP 尚未整库验收。保护原工作区，不合并或发布。
+
+证据：ximap-body-errors-before-{provenance,native-inputs,windows,linux,bindings}.json、
+ximap-body-errors-original-f34-workspace.json、
+ximap-body-errors-{source-review,api-source-map,selection-proof}.json、
+ximap-body-errors-{input-audit,final-input-audit,final-validation}.json、
+ximap-body-errors-{final,round}-{windows,linux}.json、ximap-body-errors-checks.json、
+ximap-body-errors-independent-{tls,compress}-{windows,linux}.json、
+ximap-body-errors-prior-ci-observation-20261106T045255.json、ximap-body-bytes-output-candidate-linux.json。

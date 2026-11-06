@@ -411,7 +411,7 @@ XRT_API bool __xrtImapClientBodyWrite(
 			&Event,
 			Items.Response
 		) ) {
-			if ( bFound && (xrtGetError() == NULL) ) {
+			if ( bFound ) {
 				(void)__xrtImapMessageError(
 					XERR_PROTOCOL,
 					"IMAP BODY command returned multiple literals"
@@ -424,14 +424,16 @@ XRT_API bool __xrtImapClientBodyWrite(
 			iWritten,
 			Event.Literal.Size,
 			&iWritten
-		) || ((iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes)) ) {
-			if ( xrtGetError() == NULL ) {
-				__xrtMailError(
-					XERR_RANGE,
-					XMAIL_ERROR_LIMIT,
-					"IMAP BODY literal exceeds the byte limit"
-				);
-			}
+		) ) {
+			__xrtImapMessageItemsFree(&Items);
+			return __xrtImapMessageRecover(pClient);
+		}
+		if ( (iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes) ) {
+			__xrtMailError(
+				XERR_RANGE,
+				XMAIL_ERROR_LIMIT,
+				"IMAP BODY literal exceeds the byte limit"
+			);
 			__xrtImapMessageItemsFree(&Items);
 			return __xrtImapMessageRecover(pClient);
 		}

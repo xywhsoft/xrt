@@ -34,6 +34,12 @@ FETCH 解析的拒绝诊断若因分配失败报告 MEMORY，便利层保留该�
 即使调用前已有 MEMORY 错误。失败不发布 written/连续字节的长度结果；有效 BODY 的
 借用片段仍只在 sink 回调期间有效。
 
+本次声明长度超限始终报告新的 `XERR_RANGE`/`XMAIL_ERROR_LIMIT`，重复 literal 始终报告
+新的 `XERR_PROTOCOL`/`XMAIL_ERROR_PROTOCOL`，即使调用前已有 VALUE 或 MEMORY 错误。
+超限 literal 不交给 sink；重复 literal 的首段可能已经交付，失败不回滚 sink 副作用，
+也不发布 `pWritten`。sink 返回 false 并提供具体错误时，保留该错误对象。
+成功调用保留调用前的错误，不将其清空。
+
 ## 示例
 
 见 `examples/imap/message/main.c`。
