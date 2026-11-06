@@ -29,6 +29,11 @@ struct xsmtpclient {
 /* 认证层成功完成 AUTH 后只通过该内部边界更新会话状态。 */
 void __xrtSmtpClientAuthComplete(xsmtpclient* pClient);
 
+#if defined(XSMTP_FEATURE_SMTP_AUTH)
+/* 失败时关闭尚未结束的 SASL 交换；终态拒绝保留可复用会话。 */
+void __xrtSmtpClientAuthFailed(xsmtpclient* pClient);
+#endif
+
 #endif
 
 #endif

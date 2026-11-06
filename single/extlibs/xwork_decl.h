@@ -2927,7 +2927,7 @@ XRT_API bool xworkMcpClientGetInfo(const xwork_mcp_client* pClient, xwork_mcp_in
 XRT_API void xworkMcpClientDestroy(xwork_mcp_client* pClient);
 /* Cooperatively cancel the current run (visible to tools and the loop). */
 XRT_API bool xworkAgentCancel(xwork_agent* pAgent);
-/* The agent's workspace root (base for tool-relative paths). */
+/* The physical workspace root (base for tool-relative paths; resolves root links). */
 XRT_API const char* xworkAgentWorkspaceRoot(const xwork_agent* pAgent);
 
 /* True when any path component is an internal control directory (.git,

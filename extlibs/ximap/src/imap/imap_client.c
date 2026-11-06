@@ -680,9 +680,11 @@ XRT_API bool __xrtImapClientSend(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -715,9 +717,11 @@ XRT_API bool __xrtImapClientSendParts(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -749,9 +753,11 @@ XRT_API bool __xrtImapClientWrite(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( !xrtMemRangeValid(pData, iSize) ) {
@@ -877,7 +883,13 @@ XRT_API bool __xrtImapClientReceive(
 			return __xrtImapClientFailed(pClient);
 		}
 	}
-	Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	/* Status and continuation resp-text may end in braces without a literal. */
+	Literal = XMAIL_NEXT_END;
+	if ( (pEvent->Kind == XIMAP_EVENT_FRAGMENT) ||
+		((pEvent->Response.Kind == XIMAP_RESPONSE_UNTAGGED) &&
+		 (pEvent->Response.Status == XIMAP_STATUS_NONE)) ) {
+		Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	}
 	if ( Literal == XMAIL_NEXT_ERROR ) {
 		return __xrtImapClientFailed(pClient);
 	}
@@ -1189,6 +1201,17 @@ bool __xrtImapClientProtocolFail(
 
 
 
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
+/* 上层已设置主错误；只终止会话，保留原错误的 domain/code。 */
+bool __xrtImapClientFailPreserveError(ximapclient* pClient)
+{
+	return __xrtImapClientFailed(pClient);
+}
+#endif
+
+
+
 /* 把刚开始的顺序命令标记为 IDLE。 */
 bool __xrtImapClientIdleStart(ximapclient* pClient)
 {
@@ -1210,7 +1233,8 @@ bool __xrtImapClientIdleStart(ximapclient* pClient)
 bool __xrtImapClientIdleEnd(ximapclient* pClient)
 {
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
-		!pClient->Idle || pClient->IdleDone ) {
+		!pClient->Idle || pClient->IdleDone ||
+		(pClient->LiteralRemaining != 0) || pClient->ExpectFragment ) {
 		return __xrtImapClientError(
 			XERR_STATE,
 			"IMAP IDLE command is not waiting for DONE"

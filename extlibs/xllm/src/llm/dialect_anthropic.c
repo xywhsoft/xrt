@@ -198,10 +198,14 @@ static bool xllm__anthropic_append_message(xllm__anthropic_writer* pWriter, cons
                 if ( pPart->eKind == XLLM_PART_REASONING ) { continue; }
                 if ( pPart->eKind == XLLM_PART_NATIVE && pPart->sNativeType &&
                      strcmp(pPart->sNativeType, "thinking_signature") == 0 ) {
-                    if ( !pMessage->sReasoningContent || !pMessage->sReasoningContent[0] ) { continue; }
+                    const char* sThinking = pMessage->sReasoningContent;
+                    if ( i && pMessage->pParts[i - 1u].eKind == XLLM_PART_REASONING ) {
+                        sThinking = pMessage->pParts[i - 1u].sText;
+                    }
+                    if ( !sThinking || !sThinking[0] ) { continue; }
                     if ( !bFirst && !xllm__buf_append_char(pBody, ',') ) { return false; }
                     if ( !xllm__buf_append_cstr(pBody, "{\"type\":\"thinking\",\"thinking\":") ||
-                         !xllm__json_string(pBody, pMessage->sReasoningContent) ||
+                         !xllm__json_string(pBody, sThinking) ||
                          !xllm__buf_append_cstr(pBody, ",\"signature\":") ||
                          !xllm__json_string(pBody, pPart->sText ? pPart->sText : "") ||
                          !xllm__buf_append_char(pBody, '}') ) { return false; }
@@ -216,7 +220,8 @@ static bool xllm__anthropic_append_message(xllm__anthropic_writer* pWriter, cons
         if ( pMessage->sContent && pMessage->sContent[0] ) {
             if ( !bFirst && !xllm__buf_append_char(pBody, ',') ) { return false; }
             if ( !xllm__buf_append_cstr(pBody, "{\"type\":\"text\",\"text\":") ||
-                 !xllm__json_string(pBody, pMessage->sContent) ) { return false; }
+                 !xllm__json_string(pBody, pMessage->sContent) ||
+                 !xllm__buf_append_char(pBody, '}') ) { return false; }
             bFirst = false;
         }
         for ( i = 0u; i < pMessage->iToolCallCount; ++i ) {

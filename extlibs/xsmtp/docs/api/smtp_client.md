@@ -11,6 +11,11 @@
 不会销毁这些共享对象。所有阻塞操作都接受同一个相对毫秒 `int64` 和可选 `xcancel`，且
 不能从 Client 所属 Engine 的 Worker 回调中调用。单个 Client 不支持并发命令。
 
+`Receive`、`BdatWrite`、`Close` 在超时小于 `-1` 时先报告参数错误，不消耗线路响应、
+不发送负载或关闭传输，也不改变会话阶段和最近完整响应。`Receive` 保留调用方输出；
+`BdatWrite` 的空片段也遵守这项检查，拒绝后仍可按原声明长度继续写入该块。
+合法的 `-1` 无限等待不受影响。
+
 ## 会话状态
 
 Open 验证 `220` banner，然后发送 EHLO；只有服务器明确返回 `500`、`502` 或 `504` 时，
@@ -36,6 +41,8 @@ CHUNKING 路径在首块后进入 `XSMTP_CLIENT_CHUNK`，LAST 成功后回到 RE
 跨片段保留 CRLF 与行首状态，并直接发送 dot-transparent 片段，不创建整报文副本。
 `xrtSmtpClientData` 是连续输入便利入口，发送前先完整验证 CRLF，再委托给同一增量状态机。
 调用方仍负责 MIME 字段、传输编码和服务器 SIZE 限制。
+`DataWrite` 在 I/O 前拒绝无效的数据地址范围，保留 DATA 状态、写入进度和最后响应，
+调用方可以更正数据视图后继续写入。传输和协议失败仍中止会话。
 
 ## CHUNKING 快速路径
 

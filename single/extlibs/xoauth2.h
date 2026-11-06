@@ -319,7 +319,7 @@ typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
 
 /* 自定义端点配置（授权/token/userinfo/JWKS URL 与 scope）。 */
 typedef struct xoauth2config {
-	const char* AuthorizeUrl;    /* 授权端点 */
+	const char* AuthorizeUrl;    /* 非空授权端点；保留已有 query，禁止 fragment */
 	const char* TokenUrl;        /* token 端点 */
 	const char* UserInfoUrl;     /* 可选 userinfo 端点 */
 	const char* JwksUrl;         /* 可选 OIDC JWKS 端点（应用层经 xoauth2HttpGet 拉取） */
@@ -365,7 +365,9 @@ XRT_API void xoauth2UseGoogle(xoauth2client* pClient, const char* id, const char
 XRT_API void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* appSecret, const char* redirect);
 /* 一键套用 Microsoft/Azure AD 端点（含 tenant）。 */
 XRT_API void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret, const char* redirect, const char* tenant);
-/* 套用自定义端点配置。 */
+/* 套用自定义端点配置并清除旧登录事务。允许传入 &pClient->Config 或它的副本；
+ * 新配置引用的旧预设 URL（包括子串）继续由客户端持有，其余旧 URL 立即释放。
+ * 外部字符串仍为借用，调用方须保证其在配置使用期间有效。 */
 XRT_API void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig);
 
 /* 会话终止/客户端重置：清零 state/verifier（敏感）并释放预设持有的
@@ -381,6 +383,8 @@ XRT_API void xoauth2ClientUnit(xoauth2client* pClient);
 	内部自动：生成随机 state、生成 PKCE verifier/challenge (S256)、
 	拼 provider 特有参数。UsePkce=false 时跳过 PKCE（预设按 provider
 	支持度决定）。
+	保留端点已有查询参数；拒绝空端点/客户端标识及端点 fragment。
+	失败会清除已有 state、verifier、challenge 和 nonce，不能复用旧登录事务。
 	返回 URL 字符串（xrtFree 释放）；调用方将用户浏览器重定向到该 URL。
 */
 XRT_API char* xoauth2BeginLogin(xoauth2client* pClient);
@@ -790,13 +794,24 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	char* sRedir = NULL;
 	char* sScope = NULL;
 	char* sUrl = NULL;
+	const char* sSeparator;
 	size_t nCap;
+	size_t iEndpointSize;
 	int n;
-	if ( pClient == NULL || pClient->Config.ClientId == NULL ||
-	     pClient->Config.AuthorizeUrl == NULL ) {
+	if ( pClient == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "xoauth2BeginLogin: not configured");
 		return NULL;
 	}
+	if ( pClient->Config.ClientId == NULL || !pClient->Config.ClientId[0] ||
+	     pClient->Config.AuthorizeUrl == NULL || !pClient->Config.AuthorizeUrl[0] ||
+	     strchr(pClient->Config.AuthorizeUrl, '#') != NULL ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "authorization endpoint and client id are required; endpoint fragments are forbidden");
+		goto Fail;
+	}
+	iEndpointSize = strlen(pClient->Config.AuthorizeUrl);
+	sSeparator = strchr(pClient->Config.AuthorizeUrl, '?') == NULL ? "?" :
+		(pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '?' ||
+		 pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '&') ? "" : "&";
 
 	/* 生成 state */
 	if ( !xoauth2StateGenerate(pClient->sState, sizeof(pClient->sState)) ) {
@@ -852,13 +867,13 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 
 	if ( pClient->Wechat )
 		n = snprintf(sUrl, nCap,
-			"%s?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s#wechat_redirect",
-			pClient->Config.AuthorizeUrl, sId, sRedir,
+			"%s%sappid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir,
 			sScope ? sScope : "", pClient->sState);
 	else
 		n = snprintf(sUrl, nCap,
-			"%s?response_type=code&client_id=%s&redirect_uri=%s&state=%s",
-			pClient->Config.AuthorizeUrl, sId, sRedir, pClient->sState);
+			"%s%sresponse_type=code&client_id=%s&redirect_uri=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir, pClient->sState);
 
 	if ( !pClient->Wechat && sScope != NULL && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&scope=%s", sScope);
@@ -870,6 +885,9 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	}
 	if ( pClient->Config.UseNonce && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&nonce=%s", pClient->sNonce);
+	}
+	if ( pClient->Wechat && n > 0 && (size_t)n < nCap ) {
+		n += snprintf(sUrl + n, nCap - n, "#wechat_redirect");
 	}
 
 	if ( n <= 0 || (size_t)n >= nCap ) {
@@ -1048,12 +1066,47 @@ void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* sec
 	pClient->Config.UseNonce = true;
 }
 
+static bool xoauth2__config_uses_owned(const xoauth2config* pConfig, const char* sOwned)
+{
+	const char* fields[] = {
+		pConfig->AuthorizeUrl, pConfig->TokenUrl, pConfig->UserInfoUrl,
+		pConfig->JwksUrl, pConfig->Issuer, pConfig->ClientId,
+		pConfig->ClientSecret, pConfig->RedirectUri, pConfig->Scope
+	};
+	uintptr_t base;
+	size_t length;
+	if ( sOwned == NULL ) return false;
+	base = (uintptr_t)sOwned;
+	length = strlen(sOwned);
+	for ( size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i ) {
+		uintptr_t address = (uintptr_t)fields[i];
+		if ( fields[i] && address >= base && address - base <= length ) return true;
+	}
+	return false;
+}
+
 void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig)
 {
+	xoauth2config config;
+	char* owned[3];
 	if ( pClient == NULL || pConfig == NULL ) return;
-	xoauth2__client_clear_owned(pClient);
+	/* Snapshot before resetting: pConfig may be &pClient->Config. Retain only
+	 * allocations still referenced by a configuration string, including suffixes. */
+	config = *pConfig;
+	owned[0] = pClient->pOwnedAuthUrl;
+	owned[1] = pClient->pOwnedTokenUrl;
+	owned[2] = pClient->pOwnedIssuerUrl;
+	for ( size_t i = 0; i < sizeof(owned) / sizeof(owned[0]); ++i ) {
+		if ( !xoauth2__config_uses_owned(&config, owned[i]) ) {
+			xrtFree(owned[i]);
+			owned[i] = NULL;
+		}
+	}
 	memset(pClient, 0, sizeof(*pClient));
-	pClient->Config = *pConfig;
+	pClient->Config = config;
+	pClient->pOwnedAuthUrl = owned[0];
+	pClient->pOwnedTokenUrl = owned[1];
+	pClient->pOwnedIssuerUrl = owned[2];
 }
 
 void xoauth2ClientUnit(xoauth2client* pClient)

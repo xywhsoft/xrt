@@ -383,7 +383,7 @@ static void testWsServerRanges(void)
 	memset(ConfigStorage, 0xC3, sizeof(ConfigStorage));
 	memset(HandshakeStorage, 0xD4, sizeof(HandshakeStorage));
 	xrtWsServerConfigInit(pConfig);
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	testRequire(
 		(ConfigStorage[0] == UINT8_C(0xC3)) &&
 		(ConfigStorage[sizeof(ConfigStorage) - 1u] ==

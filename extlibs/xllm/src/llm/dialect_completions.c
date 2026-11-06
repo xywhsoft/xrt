@@ -429,6 +429,9 @@ static char* xllm__completions_build_request_cached(xllm_client* pClient,
 oom:
     xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
 fail:
+    if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+        xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
+    }
     xllm__buf_reset(&tBody);
     return NULL;
 }

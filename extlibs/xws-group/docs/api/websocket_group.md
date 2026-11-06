@@ -4,11 +4,11 @@
 
 ## 模块
 
-- 裁剪宏：`XRT_MODULE_WEBSOCKET_GROUP`
+- 裁剪宏：`XWS_GROUP_MODULE_WEBSOCKET_GROUP`
 - 特性宏：`XWS_GROUP_FEATURE_WEBSOCKET_GROUP`
 - 依赖：`websocket_connection`、`set`、`mutex`
-- 头文件：`<xrt/websocket_group.h>`；`<xrt.h>` 也会包含它
-- 批量裁剪宏：`XRT_MODULE_WEBSOCKET_GROUP_FUTURE`
+- 入口头：`<xws-group.h>`；接口声明位于 `<xrt/websocket_group.h>`
+- 批量裁剪宏：`XWS_GROUP_MODULE_WEBSOCKET_GROUP_FUTURE`
 - 批量特性宏：`XWS_GROUP_FEATURE_WEBSOCKET_GROUP_FUTURE`
 - 批量依赖：`websocket_group`、`websocket_connection_ref_future`、`future`
 
@@ -18,7 +18,7 @@
 
 `xrtWsGroupAdd` 成功后持有一个 Connection 引用；重复加入同一指针保持成功，但不会形成第二个成员或引用。`xrtWsGroupRemove`、`xrtWsGroupClear` 和最终 `xrtWsGroupDestroy` 归还这些引用。它们都不会关闭或中止 Connection。`Clear` 在组锁内用空集合原子替换成员集，随后在锁外归还旧成员引用，因此大量成员析构、最后引用释放或分配器工作不会长期占用组锁。
 
-`xrtWsGroupHas` 查询指定 Connection 是否属于组，`xrtWsGroupCount` 返回当前成员数，`xrtWsGroupLimit` 返回创建时的硬上限；三者都是加锁取得的瞬时快照。`xrtWsGroupSealed` 返回永久封闭状态。查询不会增加 Connection 引用，也不能替代需要稳定遍历的 Snapshot。
+`xrtWsGroupHas` 查询指定 Connection 是否属于组，`xrtWsGroupCount` 返回当前成员数，两者加锁取得瞬时快照；`xrtWsGroupLimit` 返回创建时固定的硬上限。`xrtWsGroupSealed` 加锁读取永久封闭状态。查询不会增加 Connection 引用，也不能替代需要稳定遍历的 Snapshot。
 
 成员达到非零 `Limit` 时，新成员返回 `false`，错误为 `XERR_AGAIN / XWS_GROUP_ERROR_CAPACITY`。这表示移除成员后可以重试，不是协议错误。
 
@@ -73,7 +73,7 @@ xrtWsGroupDestroy(pGroup);
 
 `xwsgroupopstate` 的逐成员状态为 `XWS_GROUP_OP_REJECTED`、`XWS_GROUP_OP_PENDING`、`XWS_GROUP_OP_RESOLVED`、`XWS_GROUP_OP_FAILED`、`XWS_GROUP_OP_CANCELLED` 和 `XWS_GROUP_OP_CLOSED`。同步拒绝没有 Future；其余状态与对应成员 Future 的生命周期一致。
 
-`xrtWsGroupOpWait`、`xrtWsGroupOpWaitFor`、`xrtWsGroupOpWaitFor` 和 `xrtWsGroupOpWaitForCancel` 是完成 Future 的同步便利层。不得从这些 Connection 所属的网络 Worker 上执行阻塞等待。
+`xrtWsGroupOpWait`、`xrtWsGroupOpWaitFor` 和 `xrtWsGroupOpWaitForCancel` 是完成 Future 的同步便利层。不得从这些 Connection 所属的网络 Worker 上执行阻塞等待。
 
 ## 批量示例
 

@@ -20,5 +20,13 @@ Username、Secret 和可选 AuthorizationId 只在 `xrtImapClientAuth` 调用期
 是否声明所选机制。成功后状态进入 AUTHENTICATED；服务器拒绝认证时仍可选择另一机制，
 线路、取消、超时或解析失败则遵循 Client 的失败终态。
 
+非 initial-response 的编码凭据若加上 CRLF 超过 CommandLineLimit，返回
+`XERR_ARGUMENT`，不会先发送 AUTHENTICATE，也不会建立活动命令。临时凭据仍清零释放；
+调用方可调整配置后重试。initial-response 的完整命令继续遵循 Client 的线路长度检查。
+
+认证中收到意外 literal，或 LOGIN 发送取消后仍收到 continuation，返回认证域的
+`XERR_PROTOCOL` 并关闭会话，状态为 FAILED。LOGIN 取消期间发生的 EOF、超时等主错误
+原样保留；若已经读完 tagged cancellation，则返回认证协议错误但会话仍可复用。
+
 未内建的 SASL 机制仍可用 Client 的 Send、Continue、Receive 和 ReadLiteral 原语实现，
 无需修改网络层或 IMAP 解析层。

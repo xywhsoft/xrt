@@ -165,7 +165,7 @@ typedef bool (*xoauth2httpproc)(const char* sMethod, const char* sUrl,
 
 /* 自定义端点配置（授权/token/userinfo/JWKS URL 与 scope）。 */
 typedef struct xoauth2config {
-	const char* AuthorizeUrl;    /* 授权端点 */
+	const char* AuthorizeUrl;    /* 非空授权端点；保留已有 query，禁止 fragment */
 	const char* TokenUrl;        /* token 端点 */
 	const char* UserInfoUrl;     /* 可选 userinfo 端点 */
 	const char* JwksUrl;         /* 可选 OIDC JWKS 端点（应用层经 xoauth2HttpGet 拉取） */
@@ -211,7 +211,9 @@ XRT_API void xoauth2UseGoogle(xoauth2client* pClient, const char* id, const char
 XRT_API void xoauth2UseWechat(xoauth2client* pClient, const char* appid, const char* appSecret, const char* redirect);
 /* 一键套用 Microsoft/Azure AD 端点（含 tenant）。 */
 XRT_API void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* secret, const char* redirect, const char* tenant);
-/* 套用自定义端点配置。 */
+/* 套用自定义端点配置并清除旧登录事务。允许传入 &pClient->Config 或它的副本；
+ * 新配置引用的旧预设 URL（包括子串）继续由客户端持有，其余旧 URL 立即释放。
+ * 外部字符串仍为借用，调用方须保证其在配置使用期间有效。 */
 XRT_API void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig);
 
 /* 会话终止/客户端重置：清零 state/verifier（敏感）并释放预设持有的
@@ -227,6 +229,8 @@ XRT_API void xoauth2ClientUnit(xoauth2client* pClient);
 	内部自动：生成随机 state、生成 PKCE verifier/challenge (S256)、
 	拼 provider 特有参数。UsePkce=false 时跳过 PKCE（预设按 provider
 	支持度决定）。
+	保留端点已有查询参数；拒绝空端点/客户端标识及端点 fragment。
+	失败会清除已有 state、verifier、challenge 和 nonce，不能复用旧登录事务。
 	返回 URL 字符串（xrtFree 释放）；调用方将用户浏览器重定向到该 URL。
 */
 XRT_API char* xoauth2BeginLogin(xoauth2client* pClient);

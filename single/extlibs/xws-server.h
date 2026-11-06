@@ -310,7 +310,10 @@ XWS_SERVER_API bool xrtWsServerCheck(
 
 
 
-/* 从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。 */
+/*
+	从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。
+	握手要求构建中未选中的压缩能力时返回错误。
+*/
 XWS_SERVER_API xhttpreply* xrtWsServerReply(
 	const xwsserverhandshake* pHandshake
 );
@@ -332,6 +335,7 @@ XWS_SERVER_API xnetresult xrtWsServerReject(
 	提交已经通过 xrtWsServerCheck 的 WebSocket 握手。
 	Headers 可以为空；非空时只追加普通响应字段，Upgrade、Connection、
 	Sec-WebSocket-* 以及正文分帧字段由协议层独占，不能覆盖。
+	压缩快照必须满足配置的启用和强制策略。
 	Handshake 和 Headers 只在调用期间借用，配置、事件和子协议会在返回前快照。
 	该入口适合鉴权后追加 Cookie、追踪标识或应用自定义 Header；同步失败不调用 Proc。
 */
@@ -540,10 +544,7 @@ XRT_EXTERN_C_END
 
 #if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_FUTURE)
 
-/*
-	连接建立结果拥有 WebSocket Connection。
-	客户端 Future 启用时，成功结果还拥有对应的 101 Response。
-*/
+/* 连接建立结果拥有服务端 WebSocket Connection。 */
 typedef struct xwsserverresult xwsserverresult;
 
 
@@ -572,7 +573,7 @@ XWS_SERVER_API xwsserverresult* xrtWsServerResultRef(
 
 /*
 	释放结果引用。
-	最后一个引用会中止尚未取走的 Connection，并销毁尚未取走的 Response。
+	最后一个引用会中止并释放尚未取走的 Connection。
 	NULL 是空操作；非空但无效的对象范围会记录参数错误。
 */
 XWS_SERVER_API void xrtWsServerResultDestroy(
@@ -839,7 +840,7 @@ static inline bool __xwsServerConnEventsSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	return true;
 }
 
@@ -866,7 +867,7 @@ static inline bool __xwsServerServerConfigSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	#if !defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_DEFLATE)
 		if (pOutput->EnableDeflate || pOutput->RequireDeflate) {
 			__xwsServerHandshakeError(XERR_VALUE, XWS_HANDSHAKE_ERROR_EXTENSION, sOperation, "WebSocket compression support is not selected");
@@ -1600,7 +1601,7 @@ XWS_SERVER_API void xrtWsServerConfigInit(
 	memset(&Config, 0, sizeof(Config));
 	xrtWsConnConfigInit(&Config.Connection);
 	Config.Connection.Role = XWS_ROLE_SERVER;
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -1616,7 +1617,7 @@ XWS_SERVER_API bool xrtWsServerConfigValid(
 	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
 		return false;
 	}
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	if ( !xrtWsProtocolsValid(Config.Protocols) ) {
 		return false;
 	}
@@ -1828,7 +1829,7 @@ XWS_SERVER_API bool xrtWsServerCheck(
 	) ) {
 		return false;
 	}
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
+	memcpy((void*)pHandshake, &Handshake, sizeof(Handshake));
 	return true;
 }
 
@@ -1855,7 +1856,7 @@ XWS_SERVER_API xhttpreply* xrtWsServerReply(
 	) ) {
 		return NULL;
 	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
+	memcpy(&Handshake, (const void*)pHandshake, sizeof(Handshake));
 	#if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_DEFLATE)
 		bDeflateValid = !Handshake.DeflateEnabled ||
 			 (xrtWsDeflateResponseWrite(
@@ -1870,6 +1871,16 @@ XWS_SERVER_API xhttpreply* xrtWsServerReply(
 				sExtensions,
 				iExtensions
 			   ) == 0));
+	#else
+		if ( Handshake.DeflateEnabled ) {
+			__xwsServerHandshakeError(
+				XERR_VALUE,
+				XWS_HANDSHAKE_ERROR_EXTENSION,
+				"reply-websocket-upgrade",
+				"WebSocket compression support is not selected"
+			);
+			return NULL;
+		}
 	#endif
 	if ( (Handshake.Accept[XWS_ACCEPT_SIZE] != '\0') ||
 		!xrtHttpFieldValueValid((xstrview) {
@@ -2110,16 +2121,11 @@ static bool __xrtWsServerHeaderReserved(xstrview Name)
 	) || xrtHttpFieldNameEqual(
 		Name,
 		XRT_STR_LITERAL("Upgrade")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Accept")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Protocol")
-	) || xrtHttpFieldNameEqual(
-		Name,
-		XRT_STR_LITERAL("Sec-WebSocket-Extensions")
-	) || xrtHttpFieldNameEqual(
+	) || ((Name.Size >= sizeof("Sec-WebSocket-") - 1u) &&
+		xrtHttpFieldNameEqual(
+			(xstrview){Name.Data, sizeof("Sec-WebSocket-") - 1u},
+			XRT_STR_LITERAL("Sec-WebSocket-")
+		)) || xrtHttpFieldNameEqual(
 		Name,
 		XRT_STR_LITERAL("Content-Length")
 	) || xrtHttpFieldNameEqual(
@@ -2276,7 +2282,7 @@ XWS_SERVER_API xnetresult xrtWsUpgradeAccept(
 		);
 		return XNET_RESULT_ERROR;
 	}
-	memcpy(&Handshake, pHandshake, sizeof(Handshake));
+	memcpy(&Handshake, (const void*)pHandshake, sizeof(Handshake));
 	if ( (Handshake.Protocol.Size != 0) &&
 		!xrtWsProtocolsHas(
 			Config.Protocols,
@@ -2290,18 +2296,18 @@ XWS_SERVER_API xnetresult xrtWsUpgradeAccept(
 		);
 		return XNET_RESULT_ERROR;
 	}
-	#if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_DEFLATE)
-		if ( Handshake.DeflateEnabled &&
-			!Config.EnableDeflate ) {
-			__xwsServerHandshakeError(
-				XERR_VALUE,
-				XWS_HANDSHAKE_ERROR_EXTENSION,
-				"accept-websocket-upgrade",
-				"WebSocket compression was not enabled by the server"
-			);
-			return XNET_RESULT_ERROR;
-		}
-	#endif
+	if ( (Handshake.DeflateEnabled && !Config.EnableDeflate) ||
+		(Config.RequireDeflate && !Handshake.DeflateEnabled) ) {
+		__xwsServerHandshakeError(
+			XERR_VALUE,
+			XWS_HANDSHAKE_ERROR_EXTENSION,
+			"accept-websocket-upgrade",
+			Handshake.DeflateEnabled ?
+				"WebSocket compression was not enabled by the server" :
+				"WebSocket handshake does not provide required compression"
+		);
+		return XNET_RESULT_ERROR;
+	}
 	pReply = xrtWsServerReply(&Handshake);
 	if ( pReply == NULL ) {
 		return XNET_RESULT_ERROR;
@@ -2905,7 +2911,7 @@ XWS_SERVER_API void xrtWsServerRouteConfigInit(
 	}
 	memset(&Config, 0, sizeof(Config));
 	xrtWsServerConfigInit(&Config.Server);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -2954,7 +2960,7 @@ XWS_SERVER_API bool xrtWsServerRoute(
 		) ) {
 			return false;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( !xrtWsServerConfigValid(&Config.Server) ) {
 		pCause = xrtErrorRef(xrtGetError());

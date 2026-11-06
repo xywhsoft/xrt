@@ -397,7 +397,11 @@ XRT_API bool __xrtImapClientAppendEnd(
 	if ( !xrtMemRangeValid(
 		pResult,
 		pResult != NULL ? sizeof(*pResult) : 0
-	) || !__xrtImapClientAppendFinish(pClient) ||
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtImapClientAppendFinish(pClient) ||
 		!__xrtImapClientWrite(pClient, "\r\n", 2u, iDeadline, pCancel) ) {
 		return false;
 	}
@@ -434,6 +438,9 @@ XRT_API bool __xrtImapClientAppendEnd(
 				);
 			}
 			if ( !__xrtImapAppendResult(Final.Text, &Result) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP APPEND completion"
@@ -466,7 +473,8 @@ XRT_API bool __xrtImapClientAppend(
 )
 {
 	if ( !xrtMemRangeValid(pConfig, sizeof(*pConfig)) ||
-		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ) {
+		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ||
+		!xrtMemRangeValid(pResult, pResult != NULL ? sizeof(*pResult) : 0) ) {
     if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
 		__xrtMailSetInvalidArgument();

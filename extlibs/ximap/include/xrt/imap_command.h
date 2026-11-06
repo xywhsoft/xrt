@@ -59,7 +59,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 把一条 SELECT、EXAMINE 或未请求更新合并到邮箱摘要。 */
+/* 合并一条邮箱更新。摘要须与响应对象及 Source/Text 借用范围分离；拒绝时摘要不变。
+ * 已知 UID/序号/计数按 uint32 数值域校验，泛型数字和 MODSEQ 保留 uint64。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo
@@ -76,7 +77,7 @@ XRT_API bool xrtImapClientNoop(
 
 
 
-/* 选择可写邮箱，并返回零分配状态摘要。 */
+/* 选择可写邮箱并返回零分配摘要。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -87,7 +88,7 @@ XRT_API bool xrtImapClientSelect(
 
 
 
-/* 以只读方式选择邮箱，并返回零分配状态摘要。 */
+/* 以只读方式选择邮箱。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -234,13 +235,18 @@ XRT_API bool xrtImapClientBeginExpunge(
 	xcancel* pCancel
 );
 
-/* 开始 IDLE；收到 continuation 后可读取事件，结束时发送 DONE。 */
+/* 开始 IDLE；调用方通过 Next 接收 continuation 和后续事件。 */
 XRT_API bool xrtImapClientBeginIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
 	xcancel* pCancel
 );
 
+/*
+	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
+	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+	未读完 literal 或其后续 fragment 时返回 XERR_STATE，读完后可重试。
+*/
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
 	int64 iTimeout,

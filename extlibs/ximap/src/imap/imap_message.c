@@ -191,9 +191,17 @@ static bool __xrtImapMessageLiteralValid(
 	if ( (pEvent->Kind != XIMAP_EVENT_RESPONSE) ||
 		(pEvent->Response.Kind != XIMAP_RESPONSE_UNTAGGED) ||
 		(pEvent->Response.Status != XIMAP_STATUS_NONE) ||
-		pEvent->Literal.Binary ||
-		!xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
+		pEvent->Literal.Binary ) {
+		return __xrtImapMessageError(
+			XERR_PROTOCOL,
+			"invalid IMAP BODY literal response"
+		);
+	}
+	if ( !xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
 		!xrtImapFetchCursorInit(&Cursor, &Fetch) ) {
+		if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			return false;
+		}
 		return __xrtImapMessageError(
 			XERR_PROTOCOL,
 			"invalid IMAP BODY literal response"
@@ -403,7 +411,7 @@ XRT_API bool __xrtImapClientBodyWrite(
 			&Event,
 			Items.Response
 		) ) {
-			if ( bFound && (xrtGetError() == NULL) ) {
+			if ( bFound ) {
 				(void)__xrtImapMessageError(
 					XERR_PROTOCOL,
 					"IMAP BODY command returned multiple literals"
@@ -416,14 +424,16 @@ XRT_API bool __xrtImapClientBodyWrite(
 			iWritten,
 			Event.Literal.Size,
 			&iWritten
-		) || ((iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes)) ) {
-			if ( xrtGetError() == NULL ) {
-				__xrtMailError(
-					XERR_RANGE,
-					XMAIL_ERROR_LIMIT,
-					"IMAP BODY literal exceeds the byte limit"
-				);
-			}
+		) ) {
+			__xrtImapMessageItemsFree(&Items);
+			return __xrtImapMessageRecover(pClient);
+		}
+		if ( (iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes) ) {
+			__xrtMailError(
+				XERR_RANGE,
+				XMAIL_ERROR_LIMIT,
+				"IMAP BODY literal exceeds the byte limit"
+			);
 			__xrtImapMessageItemsFree(&Items);
 			return __xrtImapMessageRecover(pClient);
 		}
@@ -466,10 +476,11 @@ XRT_API bytes __xrtImapClientBodyBytes(
 	if ( !xrtMemRangeValid(
 		pOutputSize,
 		pOutputSize != NULL ? sizeof(*pOutputSize) : 0
-	) || !xrtBufferInit(&Buffer.Buffer) ) {
-		if ( xrtGetError() == NULL ) {
-			__xrtMailSetInvalidArgument();
-		}
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return NULL;
+	}
+	if ( !xrtBufferInit(&Buffer.Buffer) ) {
 		return NULL;
 	}
 	if ( !__xrtImapClientBodyWrite(

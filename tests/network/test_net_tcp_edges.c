@@ -17,6 +17,9 @@
 typedef struct testtcpreject {
 	xatomicptr Stream;
 	xatomic32 Accepts;
+	xatomic32 FirstBlocked;
+	xatomic32 FirstRelease;
+	xatomic32 FirstReturned;
 	xatomic32 Blocked;
 	xatomic32 Release;
 	xatomic32 Returned;
@@ -471,6 +474,16 @@ static bool testTcpRejectAccept(
 		"TCP reject callback worker mismatch");
 	testRequire(xrtNetStreamSocket(pStream) != NULL,
 		"TCP reject callback socket missing");
+	/* A peer may observe a reset if rejection races its blocking connect.
+	 * Keep the first accepted socket alive until the test publishes that the
+	 * connect call returned. This gate also makes the pending callback real. */
+	if ( iAccept == 1u ) {
+		xrtAtomic32Store(&pContext->FirstBlocked, 1, XMEMORY_RELEASE);
+		while ( xrtAtomic32Load(&pContext->FirstRelease, XMEMORY_ACQUIRE) == 0 ) {
+			xrtThreadYield();
+		}
+		xrtAtomic32Store(&pContext->FirstReturned, 1, XMEMORY_RELEASE);
+	}
 	if ( iAccept == 2u ) {
 		testRequire(xrtNetStreamRef(pStream) == pStream,
 			"TCP rejected stream retain failed");
@@ -649,11 +662,24 @@ static void testTcpRejectRace(void)
 		XNET_SOCKET_STREAM,
 		0
 	);
-	testRequire((FirstPeer != NULL) &&
-		 (xrtNetSocketConnect(FirstPeer, &Address) == XNET_RESULT_OK),
-		"TCP first rejected peer failed");
-	testTcpEdgeWait(&Context.Accepts, 1,
-		"TCP first reject callback missing");
+	testRequire(FirstPeer != NULL, "TCP first rejected peer open failed");
+	{
+		xnetresult Result = xrtNetSocketConnect(FirstPeer, &Address);
+		if ( Result != XNET_RESULT_OK ) {
+			const xerror* pError = xrtGetError();
+			fprintf(stderr, "TCP first reject connect result=%d kind=%d code=%d system=%d message=%s\n",
+				(int)Result, (int)xrtErrorKind(pError), (int)xrtErrorCode(pError),
+				(int)xrtErrorSystemCode(pError), pError != NULL ? xrtErrorMessage(pError) : "");
+		}
+		testRequire(Result == XNET_RESULT_OK, "TCP first rejected peer failed");
+	}
+	testTcpEdgeWait(&Context.FirstBlocked, 1,
+		"TCP first reject callback did not block");
+	testRequire(xrtAtomic32Load(&Context.FirstReturned, XMEMORY_ACQUIRE) == 0,
+		"TCP first reject callback returned before the connected peer released it");
+	xrtAtomic32Store(&Context.FirstRelease, 1, XMEMORY_RELEASE);
+	testTcpEdgeWait(&Context.FirstReturned, 1,
+		"TCP first reject callback did not return");
 	testRequire(xrtNetSocketClose(FirstPeer),
 		"TCP first rejected peer close failed");
 

@@ -971,7 +971,8 @@
 				"websocket_writer_ref_tls_tests",
 				"websocket_writer_ref_tls_iocp_tests",
 				"websocket_connection_tls_future_tests",
-				"websocket_connection_tls_future_iocp_tests"
+				"websocket_connection_tls_future_iocp_tests",
+				"xws_runtime_loopback_example"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -1006,7 +1007,12 @@
 				"extlibs/xws/tests/single/test_single_websocket_connection_future.c",
 				"extlibs/xws/tests/single/test_single_websocket_connection_ref_future.c",
 				"extlibs/xws/tests/single/test_single_websocket_connection_tls.c",
-				"extlibs/xws/tests/single/test_single_xws.c"
+				"extlibs/xws/tests/single/test_single_xws.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_invalid.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_sync.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_future_ref.c",
+				"extlibs/xws/tests/single/test_single_websocket_contract_deflate.c",
+				"extlibs/xws/tests/single/test_single_websocket_runtime_loopback.c"
 			],
 			"examples": [],
 			"docs": [
@@ -1019,11 +1025,40 @@
 				"extlibs/xws/tests/single/test_single_websocket_connection_future.c": "websocket_connection_future",
 				"extlibs/xws/tests/single/test_single_websocket_connection_ref_future.c": "websocket_connection_ref_future",
 				"extlibs/xws/tests/single/test_single_websocket_connection_tls.c": "websocket_connection_tls_tests",
-				"extlibs/xws/tests/single/test_single_xws.c": "xws"
+				"extlibs/xws/tests/single/test_single_xws.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_invalid.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_sync.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_future_ref.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_contract_deflate.c": "xws",
+				"extlibs/xws/tests/single/test_single_websocket_runtime_loopback.c": "xws_runtime_loopback_example"
 			},
 			"collect_dependency_assets": [
 				"examples"
 			]
+		},
+		{
+			"name": "xws_runtime_loopback_example",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_writer_deflate",
+				"websocket_writer_ref",
+				"websocket_connection_ref_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xws/tests/single/test_single_websocket_runtime_loopback.c"
+			],
+			"examples": [
+				"extlibs/xws/examples/websocket/runtime_loopback/main.c"
+			],
+			"docs": [
+				"extlibs/xws/README.md"
+			],
+			"legacy": []
 		}
 	],
 	"umbrella_header": "xws.h"

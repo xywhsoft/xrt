@@ -4471,7 +4471,8 @@ typedef struct xhttpserverevents {
 		const xerror* pError,
 		ptr pData
 	);
-	/* 全部 HTTP Connection 运行时和受理的 Upgrade 回调退出后发布。 */
+	/* 全部 HTTP Connection 运行时（含剩余适配器）和受理的 Upgrade 回调退出后发布。
+	 * 调用方仍可持有已关闭/升级的 Connection 引用，不延迟内部运行时退休。 */
 	void (*Shutdown)(xhttpserver* pServer, ptr pData);
 	ptr Data;
 } xhttpserverevents;
@@ -5484,7 +5485,8 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 
 /*
 	按区分大小写的名称查找首个借用参数；未找到返回空指针且不设置错误。
-	若输入描述符数组未对齐，返回地址也可能未对齐，调用方应以 memcpy 读取。
+	若输入描述符数组未对齐，返回地址也可能未对齐；调用方应显式转成
+	const void*，再以 memcpy 读取到对齐的局部值。
 */
 XHTTP_SERVER_API const xhttprouteparam* xrtHttpRouteParam(
 	const xhttprouteparam* pParams,

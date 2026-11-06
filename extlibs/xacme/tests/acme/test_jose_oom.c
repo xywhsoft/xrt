@@ -56,9 +56,10 @@ static void testSweepJose(cstr sName, str (*fn)(void))
 				xrtMemDebugFailTriggered(),
 				"jose oom failure not from injection");
 			testRequire(
-				(xrtErrorKind(xrtGetError()) == XERR_MEMORY) ||
-					(xrtErrorKind(xrtGetError()) == XERR_INTERNAL),
+				(xrtErrorKind(xrtGetError()) == XERR_MEMORY),
 				"jose oom failure kind mismatch");
+			testRequire(strcmp(xrtErrorDomain(xrtGetError()), "xrt.acme.jose") != 0,
+				"jose oom must retain the allocator diagnostic");
 			iCovered++;
 		}
 		xrtMemDebugFailClear();

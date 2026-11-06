@@ -39,6 +39,24 @@ python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.jso
 不匹配时拒绝连接。脚本还验证 EXAMINE 的 tagged completion 缺失时客户端失败，
 同时检查 POP3 和 SMTP 范例；已接入 Linux CI，IPv6 回环不可用时跳过对应场景。
 
+## 生产与验证入口
+
+`ximap` 聚合十个功能根并保留协议 smoke；`ximap_tests` 承载完整回归和夹具依赖，
+独立示例通过各自的 example 根构建。生产闭包不携带 TLS 夹具的 RSA 私钥运算、
+签名和 RSA 身份构造模块。Core `tls_stream` 现有的 client/server 依赖仍保留。
+
+## 非法超时与会话恢复回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_deadline_runtime_tests --no-examples
+```
+
+十八个场景在模块化与单头入口中复用同一实现，以公开 Open 和真实 PREAUTH、SELECT、
+APPEND、IDLE 转录建立会话。检查非法超时不会发送字节、误报空写成功、改变活跃 tag、
+最近完整响应或 APPEND 剩余长度，并用同一事务的实际完成、NOOP 和 LOGOUT 证明可恢复。
+EndIdle 另核对无效请求不会提前用掉 DONE 资格。已有正确委托路径、正常收发、IDLE、
+APPEND、无限等待及关闭作为对照。对端全部退出后检查 Engine 退休和内存调试器。
+
 ## TLS 上传故障回归
 
 以下离线回环测试在同一次 TLS APPEND 写入已经部分提交、Future 尚未完成时，
@@ -123,3 +141,92 @@ TLS/STARTTLS 还验证完整 LOGOUT 回复后的未经认证 EOF 和关闭超时
 不会编译或生成零用例成功记录。`--output-dir` 支持仓库外目录；记录内的
 外部二进制使用绝对路径，仓库内产物仍使用相对路径，均绑定实际字节哈希。
 输入与记录边界回归可用 `python tools/test_imap_compress_interop_inputs.py` 运行。
+
+
+## 会话边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_boundary_runtime_tests --no-examples
+```
+
+模块化与单头共享十二个真实 TCP/PREAUTH 场景：APPEND 输出参数预检、greeting/状态/
+continuation 说明文本的花括号尾部，以及 IDLE 仍有 literal/fragment 时的 DONE 资格。
+有效控制读取两个 FETCH literal，第二个由后续 fragment 声明，并继续 NOOP/LOGOUT；
+另有普通状态、读完 IDLE 和非法等待控制。每次拒绝后核对可恢复边界，peer 退出并 join，
+最后验证 Engine 退休计数和逻辑内存释放。该回归同时包含在完整 ximap_tests 中。
+
+
+## 认证边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_auth_runtime_tests --no-examples
+```
+
+模块化与单头共享十四个真实 TCP、公开 Open 客户端场景：意外 literal 的会话终止、
+LOGIN 取消的 EOF 错误保真及未完成取消、非 initial-response 凭据的命令前长度检查，
+并覆盖成功的精确 PLAIN 载荷、完成的拒绝/取消、IR 超限、非法等待、明文安全门、
+未声明能力及两个凭据分配点的 OOM。可恢复路径继续实际 NOOP/LOGOUT；终态路径在
+显式 Abort 前观察 peer EOF 并 join，最后检查 Engine 退役和逻辑内存释放。
+
+
+## 邮箱数值与摘要边界回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_mailbox_numbers_tests --no-examples
+```
+
+模块化与单头共享四十三场景：已知 UID/计数/序号的零值和 uint32 边界、额外参数、
+更新拒绝时的摘要与标记位保留，并有未知扩展、完整 uint64 泛型数字/MODSEQ 和
+STATUS UNSEEN 零计数控制。九个真实 TCP/public Open 会话检查 SELECT/EXAMINE 的
+非法数值终态、合法最大值和空邮箱、服务器拒绝后的复用，以及本地非法邮箱、线路
+超限和引号 OOM 不清空输出、不消耗命令。终态先观察 peer EOF 并 join，再显式清理；
+全部场景后核对 Engine 资源计数和逻辑内存释放。
+
+
+## 邮箱借用范围与诊断 OOM 回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_mailbox_alias_tests --no-examples
+```
+
+模块化与单头共享二十四项结果：响应对象、Source/Text 的分离约定，单字节或分离
+存储的重叠拒绝，NULL/回绕范围，相邻合法存储、未知扩展和成功调用保留原错误。
+拒绝诊断 OOM 检查输入与输出完整字节不变；两个真实 TCP/public Open 选择场景
+分别覆盖 untagged/tagged 非法响应的正常协议诊断及 0..31 个主线程分配故障位置。
+公开错误通知器只观察所属线程，区分已存在的协议错误之后的清理 OOM，验证主 MEMORY
+不被后续报告覆盖；失败终态先观察 peer EOF 并 join，再显式 Abort。最后核对 Engine
+资源计数和逻辑内存释放。
+
+故障扫描每类最多执行八轮 0..31 配置位置，仅在尚未观察到目标远程诊断路径时继续
+采样；分配次序可随调度变化。任何一次实际断言失败始终保留，不通过重跑消除失败。
+日志记录实际轮数，配置位置不等于实际 OOM 次数。
+
+## APPEND/BODY 主诊断错误回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_diagnostic_oom_tests --no-examples
+```
+
+模块化与单头共享七项结果：APPEND、BODY 的合法完成及实际 NOOP/LOGOUT 复用、正常
+非法响应、已有 MEMORY 时 binary literal 元数据仍报告新协议错误，以及两类有界分配
+故障扫描。每个扫描最多八轮 0..31，覆盖出现后停止补采样；任一实际失败均保留。
+每程序实际创建 69..517 个公开 Open 客户端，日志给出轮数。核对输出快照、精确正文、
+未调用非法正文 sink、最近已保存响应和主错误；失败终态在显式 Abort 前等待 peer
+EOF/错误及线程退出，最后核对 Engine 五零计数和逻辑内存释放。
+
+## BODY 本次错误分类回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_message_error_tests --no-examples
+```
+
+模块化与单头共享十五个真实 TCP/public Open 场景：正文预算和重复 literal 分别覆盖无旧错误、
+已有 VALUE、已有 MEMORY，另有两个成功后实际 NOOP/LOGOUT 的复用控制，以及 sink 提供
+具体错误的对象保真控制。超限前不调用 sink；重复 literal 已交付的首段不回滚，但失败
+不发布 written。核对错误种类、域、代码、消息或对象身份、完整 sink 缓冲和已保存响应。
+终态在显式 Abort 前观察 peer EOF/错误并 join，最后验证 Engine 五零计数和逻辑内存释放。
+
+另六项检查 `BodyBytes`：回绕长度指针在无旧错误、旧 VALUE、旧 MEMORY 下报告新参数
+错误，拒绝诊断 OOM 报告本次 MEMORY；这些预检均不发送 FETCH，继续实际 NOOP/LOGOUT
+并核对未消耗的命令标签。两个合法控制分别提供和省略长度输出，核对正文、附加零字节、
+原错误对象保留及 Client 销毁后的拥有型正文寿命，最后使用 `xrtFree` 释放。

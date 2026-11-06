@@ -2695,7 +2695,7 @@ typedef struct xjwtconfig {
 
 /* 签发配置零值（可注入 iss/aud 与自定义 claims）。 */
 XRT_API void  xjwtConfigInit(xjwtconfig* pConfig);
-/* config 指定的字段覆盖 token 中同名字段，不改变调用方的 claims。 */
+/* config 字段覆盖 token 中同名字段，不改变输入；分配失败保留 Core 内存错误。 */
 XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
 
 /* ------------------------------------------------------------------
@@ -2703,6 +2703,8 @@ XRT_API char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims);
  * 通过返回 claims（xrtValueRelease 释放），失败返回 NULL 并设 xerror。
  * keyPem：HS 系列收密钥字符串，RS 系列收公钥 PEM，ES 收公钥 PEM。
  * check 传 NULL 等价于 xjwtCheckInit 后只查 exp。
+ * 三条验证入口均拒绝未知或畸形 crit，以及非 true 的 b64（MALFORMED）；
+ * 可接受显式 b64=true 和对应的 crit=["b64"]。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtVerify(const char* token, const char* keyPem, const xjwtcheck* check);
 
@@ -2726,6 +2728,7 @@ XRT_API xvalue*  xjwtVerifyKey(const char* token, const xjwtkey* key, const xjwt
  * *pAlg 收 header 算法（未知为 INVALID），失败时置 INVALID。
  * *pKid 为堆拷贝，由调用方 xrtFree；缺失或失败为 NULL，显式空 kid 为 ""。
  * 传 pKid 时拒绝非字符串、≥256 字节或含 NUL 的 kid，不做前缀匹配。
+ * 解码仅供检查原文，不应用验签入口的 crit/b64 支持策略。
  * ------------------------------------------------------------------ */
 XRT_API xvalue* xjwtDecode(const char* token, int* pAlg);
 /* 只解 header 不验签（取 alg/kid 供路由选择）。 */
@@ -2734,6 +2737,7 @@ XRT_API xvalue* xjwtDecodeHeader(const char* token, int* pAlg, const char** pKid
 /* ------------------------------------------------------------------
  * claims 独立校验（手工流程用）
  * ------------------------------------------------------------------ */
+/* Audience 已配置时，aud 数组的每项必须为字符串，即使前项已匹配。 */
 XRT_API bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check);
 
 /* 取字符串 claim 到调用方缓冲（超长安全截断到 cap-1 并补零）。
@@ -2754,6 +2758,9 @@ XRT_API int xjwtLastError(void);
  * kid 严格匹配：token 带 kid 时须为字符串并精确命中带同一 kid 的条目；
  * 空字符串与缺失不同，含 NUL 不支持；JWK kid 须短于 128 字节。
  * token 无 kid 时取第一把可用密钥。
+ * 仅导入验签用途：use 须省略或为 sig；key_ops 存在时必须含 verify，
+ * 且仅可含不重复的 sign/verify。alg 须为匹配密钥族的已支持非对称算法，
+ * 提供后绑定该算法，令牌算法不符返回 ALG_MISMATCH。
  * ------------------------------------------------------------------ */
 typedef struct xjwtjwks xjwtjwks;
 

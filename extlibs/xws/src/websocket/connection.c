@@ -232,7 +232,7 @@ XWS_API bool xrtWsConnConfigValid(
 	if ( !xrtMemRangeValid(pConfig, sizeof(Config)) ) {
 		return false;
 	}
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	return __xrtWsConnConfigPrepare(&Config);
 }
 
@@ -2603,7 +2603,7 @@ static void __xrtWsConnCloseSnapshot(
 	Close.Reason.Data = pConnection->RemoteReason;
 	Close.Reason.Size = pConnection->RemoteReasonSize;
 	xrtSpinUnlock(&pMutable->TransportLock);
-	memcpy(pClose, &Close, sizeof(Close));
+	memcpy((void*)pClose, &Close, sizeof(Close));
 }
 
 
@@ -2891,7 +2891,7 @@ static xwsconn* __xrtWsConnCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	memset(&Events, 0, sizeof(Events));
 	if ( pEvents != NULL ) {
@@ -2906,7 +2906,7 @@ static xwsconn* __xrtWsConnCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Events, pEvents, sizeof(Events));
+		memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	}
 	if ( !__xrtWsConnConfigPrepare(&Config) ) {
 		(void)__xrtWsConnRemember(
@@ -3093,7 +3093,7 @@ XWS_API void xrtWsConnConfigInit(xwsconnconfig* pConfig)
 		Config.Deflater.Strategy = XDEFLATE_STRATEGY_DEFAULT;
 		Config.Deflater.WindowBits = XWS_DEFLATE_WINDOW_MAX;
 	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -3475,7 +3475,7 @@ XWS_API bool xrtWsConnDeflate(
 		return false;
 	}
 	Deflate = pConnection->Config.Deflate;
-	memcpy(pDeflate, &Deflate, sizeof(Deflate));
+	memcpy((void*)pDeflate, &Deflate, sizeof(Deflate));
 	return true;
 }
 #endif

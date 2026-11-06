@@ -45,6 +45,7 @@ static bool xacmeCfCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	snprintf(sAuth, sizeof(sAuth), "Bearer %s", pCtx->sToken);
 	if(!xacmeDnsHttpsUrl(sUrl, sizeof(sUrl), pCtx->sEndpoint,
 			sPathAndQuery))
@@ -423,23 +424,34 @@ static bool xacmeCfRemoveLocked(
 		xacmeCfDeleteRecord, pCtx);
 }
 
-static bool xacmeCfAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeCfAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednscfcontext* pCtx = (xacmednscfcontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeCfReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeCfAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeCfAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeCfAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -456,6 +468,14 @@ static bool xacmeCfRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview 
 	bOk = xacmeCfRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsCfAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeCfAdd;
+	if(!*pMatched) return false;
+	return xacmeCfAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsCfConfigInit(xacmednscfconfig* pConfig)

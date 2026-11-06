@@ -3,6 +3,7 @@
 
 typedef struct xwork_subagent_policy {
     const xwork_readonly_subagent_config* pConfig;
+    const xwork_agent* pAgent;
 } xwork_subagent_policy;
 
 /* ------------------------------------------------------------------ */
@@ -224,9 +225,20 @@ static xwork_permission_decision xwork__subagent_permission(
     if ( !pRequest || pRequest->eEffect != XWORK_TOOL_EFFECT_READ_ONLY ) {
         return XWORK_PERMISSION_DENY;
     }
-    if ( pRequest->eResourceKind == XWORK_RESOURCE_PATH &&
-         xworkPathIsProtected(pRequest->sResource) ) {
-        return XWORK_PERMISSION_DENY;
+    if ( pRequest->eResourceKind == XWORK_RESOURCE_PATH ) {
+        char* sResolved;
+        char* sRelative;
+        bool bDenied;
+        if ( xworkPathIsProtected(pRequest->sResource) || !pPolicy || !pPolicy->pAgent ) {
+            return XWORK_PERMISSION_DENY;
+        }
+        sResolved = xwork__resolve_path(pPolicy->pAgent, pRequest->sResource, NULL);
+        if ( !sResolved ) return XWORK_PERMISSION_DENY;
+        sRelative = xwork__relative_path(pPolicy->pAgent, sResolved);
+        bDenied = !sRelative || xworkPathIsProtected(sRelative);
+        free(sRelative);
+        free(sResolved);
+        if ( bDenied ) return XWORK_PERMISSION_DENY;
     }
     if ( pPolicy && pPolicy->pConfig && pPolicy->pConfig->OnPermission ) {
         eDecision = pPolicy->pConfig->OnPermission(
@@ -367,6 +379,7 @@ xwork_result xworkAgentRunReadOnlySubagent(
     tAgentConfig.bRequireVerificationAfterWrite = false;
     pChild = xworkAgentCreate(&tAgentConfig, pError);
     if ( !pChild ) goto cleanup;
+    tPolicy.pAgent = pChild;
     pChild->uAgentDepth = 1u;
     pChild->uDelegationId = xwork__atomic_add_u64(&pParent->uSubagentSequence, 1u);
     pChild->uParentAgentTurn = pConfig->uParentAgentTurn;

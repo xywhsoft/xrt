@@ -465,7 +465,8 @@ XHTTP_SERVER_API void xrtHttpBodyFileConfigInit(
 	}
 	memset(&Config, 0, sizeof(Config));
 	Config.ReadSize = XHTTP_BODY_FILE_READ_DEFAULT;
-	memcpy(pConfig, &Config, sizeof(Config));
+	/* Caller snapshots may be unaligned: copy an explicit byte view. */
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -483,7 +484,7 @@ static bool __xrtHttpBodyFileConfigCopy(
 			__xhttpErrorSetInvalidArgument();
 			return false;
 		}
-		memcpy(pOutput, pConfig, sizeof(*pOutput));
+		memcpy(pOutput, (const void*)pConfig, sizeof(*pOutput));
 	}
 	if ( pOutput->ReadSize == 0 ) {
 		__xhttpErrorSetInvalidArgument();

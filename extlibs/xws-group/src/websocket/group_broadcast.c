@@ -417,7 +417,7 @@ XWS_GROUP_API xwsgroupop* xrtWsGroupSendRefAsync(
 		);
 		return NULL;
 	}
-	memcpy(&Ref, pRef, sizeof(Ref));
+	memcpy(&Ref, (const void*)pRef, sizeof(Ref));
 	if ( (Ref.Data == NULL) ||
 		(Ref.Size == 0) ||
 		(Ref.Release == NULL) ||

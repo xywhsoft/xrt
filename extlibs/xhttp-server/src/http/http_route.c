@@ -425,12 +425,12 @@ XHTTP_SERVER_API bool xrtHttpRouteValidate(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pParameters, &iParameters, sizeof(iParameters));
+	memcpy((void*)pParameters, &iParameters, sizeof(iParameters));
 	if ( !__xrtHttpRouteValidate(Pattern, &iParameters) ) {
 		xrtSetErrorKind(XERR_VALUE);
 		return false;
 	}
-	memcpy(pParameters, &iParameters, sizeof(iParameters));
+	memcpy((void*)pParameters, &iParameters, sizeof(iParameters));
 	return true;
 }
 
@@ -474,7 +474,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return XHTTP_ROUTE_ERROR;
 	}
-	memcpy(pCount, &iResult, sizeof(iResult));
+	memcpy((void*)pCount, &iResult, sizeof(iResult));
 	if ( !__xrtHttpRouteValidate(Pattern, &iParameters) ||
 		!__xrtHttpRoutePathValid(Path) ) {
 		xrtSetErrorKind(XERR_VALUE);
@@ -485,7 +485,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		return Status;
 	}
 	iResult = iParameters;
-	memcpy(pCount, &iResult, sizeof(iResult));
+	memcpy((void*)pCount, &iResult, sizeof(iResult));
 	if ( iCapacity < iParameters ) {
 		return XHTTP_ROUTE_MORE;
 	}
@@ -495,7 +495,7 @@ XHTTP_SERVER_API xhttproutestatus xrtHttpRouteMatch(
 		);
 		if ( Status != XHTTP_ROUTE_MATCH ) {
 			iResult = 0;
-			memcpy(pCount, &iResult, sizeof(iResult));
+			memcpy((void*)pCount, &iResult, sizeof(iResult));
 			xrtSetErrorKind(XERR_INTERNAL);
 			return XHTTP_ROUTE_ERROR;
 		}

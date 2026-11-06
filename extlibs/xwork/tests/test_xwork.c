@@ -1151,6 +1151,7 @@ static void test_task_system(void)
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
                 "{\"task_id\":%" PRIu64 ",\"release\":true}", uB);
             if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+            xworkToolOutputUnit(&tOut);
         }
     }
 
@@ -1828,6 +1829,7 @@ static void test_run_window_and_durable_recovery(void)
         "crash fixture leaves exactly one pending call");
     CHECK(pSession && xllmSessionSave(pSession, sSnapshot, &tLlmError),
         "snapshot saves before the simulated crash");
+    xllmRunSummaryUnit(&tSummary);
     xworkExecutorUnbind(&tExecutor);
     xworkAgentDestroy(pAgent);
     pAgent = NULL;
@@ -1972,6 +1974,8 @@ static void test_compaction_styles(void)
     }
 }
 
+#include "path_boundary_cases.h"
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -1980,6 +1984,7 @@ int main(int argc, char** argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork v2 tests\n");
+    test_path_boundaries();
     test_process_text_normalization();
     test_stream_restart();
     test_agent_context_deadline();

@@ -140,7 +140,9 @@
 				"extlibs/xacme/tests/acme/test_http.c",
 				"extlibs/xacme/tests/acme/test_tlsdbg.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_http_future_fault.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
@@ -163,7 +165,8 @@
 				"array"
 			],
 			"internal_headers": [
-				"extlibs/xacme/src/internal/xacme_dnstxt.h"
+				"extlibs/xacme/src/internal/xacme_dnstxt.h",
+				"extlibs/xacme/src/internal/xacme_dns_budget.h"
 			],
 			"public_headers": [
 				"extlibs/xacme/include/xrt/acme_dns.h"
@@ -298,7 +301,10 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_csr.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_key_import_wipe.c",
+				"extlibs/xacme/tests/single/test_single_key_export_wipe.c"
+			],
 			"examples": [],
 			"docs": [],
 			"legacy": []
@@ -448,9 +454,33 @@
 			"legacy": []
 		},
 		{
+			"name": "acme_provider_budget_fault_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"dns_ali",
+				"dns_cf",
+				"dns_tencent",
+				"dns_aws",
+				"dns_huawei",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_provider_budget.c"
+			],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "xacme_tests",
 			"state": "implemented",
 			"feature": null,
+			"collect_dependency_assets": ["single_tests"],
 			"depends": [
 				"xacme",
 				"memory_debug",
@@ -458,7 +488,8 @@
 				"acme_flow_fault_tests",
 				"acme_dns_fault_tests",
 				"dir_create_diagnostic_tests",
-				"acme_store_windows_fault_tests"
+				"acme_store_windows_fault_tests",
+				"acme_provider_budget_fault_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -669,7 +700,9 @@
 			"tests": [
 				"extlibs/xacme/tests/acme/test_obtain.c"
 			],
-			"single_tests": [],
+			"single_tests": [
+				"extlibs/xacme/tests/single/test_single_obtain_account_fault.c"
+			],
 			"examples": [
 				"extlibs/xacme/examples/obtain/main.c"
 			],

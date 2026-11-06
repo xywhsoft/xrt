@@ -20,6 +20,11 @@ literal 直接以最多 16 KiB 的借用片段交给 `xmailwriteproc`，不创�
 `xrtImapClientMessageTree` 固定读取完整 `BODY[]`，随后按 `xmailtreelimits` 解析并返回由
 `xrtMailTreeFree` 释放的拥有型 MIME 树。
 
+`BodyBytes` 的长度输出可为 NULL；非空指针要求整个 `size_t` 范围不回绕。
+非法范围在发送 FETCH 前报告新的 ARGUMENT，即使调用前已有 VALUE 或 MEMORY；
+拒绝诊断的分配失败则保留本次 MEMORY。该预检失败不消耗命令标签，Client 可继续使用。
+返回正文及附加零字节不借用 Client，销毁 Client 后仍有效，调用方最终以 `xrtFree` 释放。
+
 ## 状态和失败
 
 服务器正常完成但没有返回目标消息时，函数返回 `XERR_NOT_FOUND`，Client 保持可复用。
@@ -28,6 +33,17 @@ literal 直接以最多 16 KiB 的借用片段交给 `xmailwriteproc`，不创�
 literal 已开始后发生预算超限、sink 失败、取消、线路错误、属性不匹配或重复 literal 时，
 函数关闭当前 Client 并保留首个错误，避免残余字节成为下一条响应。成功后 Client 仍处于
 选中态，可以继续执行命令。
+
+FETCH 解析的拒绝诊断若因分配失败报告 MEMORY，便利层保留该主错误并关闭活动会话，
+不再覆盖为通用 PROTOCOL。binary literal 等不受支持的响应元数据仍产生新的协议错误，
+即使调用前已有 MEMORY 错误。失败不发布 written/连续字节的长度结果；有效 BODY 的
+借用片段仍只在 sink 回调期间有效。
+
+本次声明长度超限始终报告新的 `XERR_RANGE`/`XMAIL_ERROR_LIMIT`，重复 literal 始终报告
+新的 `XERR_PROTOCOL`/`XMAIL_ERROR_PROTOCOL`，即使调用前已有 VALUE 或 MEMORY 错误。
+超限 literal 不交给 sink；重复 literal 的首段可能已经交付，失败不回滚 sink 副作用，
+也不发布 `pWritten`。sink 返回 false 并提供具体错误时，保留该错误对象。
+成功调用保留调用前的错误，不将其清空。
 
 ## 示例
 

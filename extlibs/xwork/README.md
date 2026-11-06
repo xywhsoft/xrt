@@ -68,6 +68,14 @@ Search and file listing are not builtin tools: the host deploys `rg`/`fd` (Git f
 
 Filesystem tools reject paths outside the configured workspace. `exec_command` starts inside the workspace, but it is a real shell and is not an OS sandbox. Hosts that do not fully trust commands should use `XWORK_APPROVAL_CALLBACK` or `XWORK_APPROVAL_READ_ONLY`.
 
+Workspace containment uses physical paths. Existing symlinks or junctions may
+refer to other locations within the same workspace; external and dangling
+targets are rejected. A new write target is checked against its nearest
+existing parent, and a workspace configured through a link uses the physical
+root. The check occurs when resolving each tool path; hosts must keep the
+filesystem namespace stable during the following file operation. Read-only
+subagents also check the physical target against protected control directories.
+
 Managed process IDs live for the lifetime of one `xwork_agent`. They intentionally are not serialized into the session checkpoint because OS process handles cannot be recovered safely after a host restart. Destroying the agent stops and releases every remaining managed process.
 
 `exec_command` treats only exit code `0` as success by default. For a command that is expected to reject invalid input, pass a non-empty `expected_exit_codes` array such as `[1, 2]`; a normal exit matching the array is successful, while timeouts, cancellation, signals, and other abnormal exits remain failures.

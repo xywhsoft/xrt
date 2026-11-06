@@ -27,6 +27,9 @@ typedef struct test_http_server_lifecycle_client {
 typedef struct test_http_server_shutdown_order {
 	xnetengine* Engine;
 	xhttpserver* Server;
+	xhttpconn* Connection;
+	xnetworker* Worker;
+	bool RetainConnection;
 	xatomic32 Open;
 	xatomic32 Request;
 	xatomic32 Cleanup;
@@ -252,7 +255,9 @@ static void testHttpServerShutdownOrderCleanup(ptr pData)
 	test_http_server_shutdown_order* pState =
 		(test_http_server_shutdown_order*)pData;
 
-	xrtAtomic32Store(
+	testRequire(xrtNetWorkerIsCurrent(pState->Worker),
+		"HTTP shutdown adapter cleanup left its Worker");
+	(void)xrtAtomic32FetchAdd(
 		&pState->Cleanup,
 		1,
 		XMEMORY_RELEASE
@@ -286,6 +291,12 @@ static void testHttpServerShutdownOrderOpen(
 		),
 		"HTTP shutdown order could not install cleanup context"
 	);
+	pState->Worker = xrtHttpConnWorker(pConnection);
+	if ( pState->RetainConnection ) {
+		pState->Connection = xrtHttpConnRef(pConnection);
+		testRequire(pState->Connection != NULL,
+			"HTTP shutdown order could not retain the Connection");
+	}
 	xrtAtomic32Store(
 		&pState->Open,
 		1,
@@ -364,7 +375,7 @@ static void testHttpServerShutdownOrderDone(
 
 
 /* 验证 Shutdown 不会在 Connection 的 HTTP 运行时清理完成前发布。 */
-static void testHttpServerShutdownCleanupOrder(void)
+static void testHttpServerShutdownCleanupOrder(bool RetainConnection)
 {
 	test_http_server_shutdown_order State;
 	test_http_server_lifecycle_client Client;
@@ -377,6 +388,7 @@ static void testHttpServerShutdownCleanupOrder(void)
 	xnetaddr Address;
 
 	memset(&State, 0, sizeof(State));
+	State.RetainConnection = RetainConnection;
 	memset(&Client, 0, sizeof(Client));
 	xrtAtomic32Init(&State.Open, 0);
 	xrtAtomic32Init(&State.Request, 0);
@@ -508,6 +520,15 @@ static void testHttpServerShutdownCleanupOrder(void)
 		"HTTP shutdown order terminal facts mismatch"
 	);
 
+	testRequire(xrtAtomic32Load(&State.Cleanup, XMEMORY_ACQUIRE) == 1,
+		"HTTP shutdown adapter cleanup was not unique");
+	if ( State.Connection != NULL ) {
+		testRequire(xrtHttpConnState(State.Connection) == XHTTP_CONN_CLOSED,
+			"retained HTTP Connection did not close before Shutdown");
+		xrtHttpConnDestroy(State.Connection);
+		testRequire(xrtAtomic32Load(&State.Cleanup, XMEMORY_ACQUIRE) == 1,
+			"retained HTTP Connection released its adapter twice");
+	}
 	xrtNetStreamDestroy(Client.Stream);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
@@ -919,7 +940,8 @@ int main(void)
 		testHttpServerEngineDestroy(State.Engine),
 		"HTTP lifecycle engine destroy failed"
 	);
-	testHttpServerShutdownCleanupOrder();
+	testHttpServerShutdownCleanupOrder(true);
+	testHttpServerShutdownCleanupOrder(false);
 	printf("[PASS] HTTP server lifecycle boundaries\n");
 	return 0;
 }

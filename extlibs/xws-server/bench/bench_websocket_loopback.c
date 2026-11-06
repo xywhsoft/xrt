@@ -1,5 +1,5 @@
-#include <xrt/detail/wait.h>
 #include "../../../dev/bench/bench_common.h"
+#include <xrt/detail/wait.h>
 
 #include <xws-server.h>
 #include <xws-client.h>
@@ -348,6 +348,27 @@ static bool benchWsWaitServerClosed(xhttpserver* pServer)
 
 
 
+/* Close callbacks publish before their final runtime references are released.
+ * TryStop preserves RUNNING while those references exist, then joins Workers
+ * without consuming the Engine so the final zero-resource snapshot is valid. */
+static bool benchWsStopEngine(xnetengine* pEngine)
+{
+	double Deadline = __xrtWaitAfter(BENCH_WS_TIMEOUT);
+
+	for ( ;; ) {
+		xnetretireresult Result = xrtNetEngineTryStop(pEngine);
+		if ( Result == XNET_RETIRE_READY ) {
+			return true;
+		}
+		if ( (Result != XNET_RETIRE_BUSY) || __xrtWaitExpired(Deadline) ) {
+			return false;
+		}
+		xrtThreadYield();
+	}
+}
+
+
+
 /* 测量一次 Upgrade 和单连接上的顺序二进制消息回环。 */
 static bool benchWsLoopback(uint32 iIterations, size_t iPayloadSize)
 {
@@ -622,14 +643,30 @@ cleanup:
 		xrtHttpServerDestroy(pServer);
 	}
 	if ( pEngine != NULL ) {
+		if (!benchWsStopEngine(pEngine)) {
+			fprintf(stderr, "WebSocket benchmark Engine retirement failed");
+			xbenchPrintCurrentError();
+			fprintf(stderr, "\n");
+			/* This standalone benchmark must keep borrowed stack/payload data
+			 * alive until Workers retire or the whole process terminates. */
+			exit(2);
+		}
 		if (
 			!xrtNetEngineStats(pEngine, &EngineStats) ||
 			(EngineStats.LiveObjects != 0) ||
 			(EngineStats.WaitErrors != 0)
 		) {
+			fprintf(stderr, "WebSocket benchmark Engine cleanup: live=%llu wait_errors=%llu\n",
+				(unsigned long long)EngineStats.LiveObjects,
+				(unsigned long long)EngineStats.WaitErrors);
 			bClean = false;
 		}
-		bClean = xrtNetEngineDestroy(pEngine) && bClean;
+		if (!xrtNetEngineDestroy(pEngine)) {
+			fprintf(stderr, "WebSocket benchmark Engine destroy failed");
+			xbenchPrintCurrentError();
+			fprintf(stderr, "\n");
+			exit(2);
+		}
 	}
 	free(pPayload);
 	free(pLatencies);

@@ -527,7 +527,9 @@ XRT_API bool xllmMessageAddPart(xllm_message* pMessage, const xllm_part* pPart);
 XRT_API bool xllmMessageSetNative(xllm_message* pMessage, const char* sNativeJson);
 
 /* Convenience: build a history assistant message from a completed response
- * (text, reasoning, tool calls; provider-native replay blobs are preserved). */
+ * (text, reasoning, tool calls; provider-native replay blobs are preserved).
+ * Signed reasoning uses REASONING/thinking_signature pairs, with answer TEXT
+ * parts preserved in arrival order; each signature retains its own text. */
 XRT_API bool xllmMessageFromResponse(const xllm_response* pResponse, xllm_message* pMessage);
 
 /* JSON response mode (off or object). */
