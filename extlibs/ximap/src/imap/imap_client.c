@@ -1201,7 +1201,8 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
 /* 上层已设置主错误；只终止会话，保留原错误的 domain/code。 */
 bool __xrtImapClientFailPreserveError(ximapclient* pClient)
 {

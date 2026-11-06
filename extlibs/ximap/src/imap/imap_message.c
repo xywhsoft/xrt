@@ -191,9 +191,17 @@ static bool __xrtImapMessageLiteralValid(
 	if ( (pEvent->Kind != XIMAP_EVENT_RESPONSE) ||
 		(pEvent->Response.Kind != XIMAP_RESPONSE_UNTAGGED) ||
 		(pEvent->Response.Status != XIMAP_STATUS_NONE) ||
-		pEvent->Literal.Binary ||
-		!xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
+		pEvent->Literal.Binary ) {
+		return __xrtImapMessageError(
+			XERR_PROTOCOL,
+			"invalid IMAP BODY literal response"
+		);
+	}
+	if ( !xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
 		!xrtImapFetchCursorInit(&Cursor, &Fetch) ) {
+		if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			return false;
+		}
 		return __xrtImapMessageError(
 			XERR_PROTOCOL,
 			"invalid IMAP BODY literal response"

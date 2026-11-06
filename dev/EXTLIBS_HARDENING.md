@@ -2381,3 +2381,71 @@ acme-chunked-budget-final-linux-{gcc-coverage,clang-sanitized}.log、
 acme-chunked-budget-final-inputs.json、acme-chunked-budget-native-binaries.json、
 acme-chunked-budget-final-validation.json、ci-005641a5-initial-runs.json、
 ximap-alias-{final-validation,commit-input-bindings}.json、ci-005641a5-duplicates-terminal.json。
+
+
+### 第六十四批：APPEND/BODY 主诊断错误与故障夹具收尾
+
+- 当前基线 46a3687a 的九十九项 IMAP 输入先逐一匹配 Windows、Git 与 native 文件。
+  正式测试演进后，从该 head 的 2030 个 Git blob 建立独立 Windows/native 原始源码
+  目录，只加入测试及清单仪器，避免把工作树中已修复实现重跑为“修复前”。最终四个
+  GCC 模块化、单头程序各七项结果均为 2 FAIL/5 PASS，测试源码哈希 c0d47e3a 与
+  修复后完全相同。初始非自适应、前两轮夹具版本的源码、二进制与日志独立归档。
+- APPEND End 解析 APPENDUID 的诊断构造若已报告 MEMORY，复用保留错误的失败
+  路径，不再二次归类为 PROTOCOL。私有助手编译条件加入 APPEND：该模块只依赖
+  Client，不为修复引入 Command 依赖；原 AUTH/COMMAND 行为保持。
+- BODY 把响应元数据拒绝与下层 FETCH 解析失败分开。只在实际下层失败后保留其
+  MEMORY，沿用既有 Recover 关闭会话；binary literal 等不支持元数据仍产生新的
+  PROTOCOL，即使调用前已有 MEMORY。正常非法响应仍保留原包装诊断和 domain/code。
+  APPEND 结果及 BODY written/sink 拒绝快照保持；不新增公共签名、常量或结构布局。
+- 七项结果包括 APPEND/BODY 的合法值及实际 NOOP/LOGOUT 复用、两项正常拒绝、
+  旧 MEMORY/binary 元数据控制，以及两类主线程一次性分配故障扫描。每类扫描在
+  0..31 配置位置最多八轮，观察到远程目标路径后停止补采样；任一次实际失败始终
+  保留，不能通过重跑消除错误。每程序实际创建 69..517 个公开 Open 客户端，记录
+  轮数；未触发位置只是控制，不称实际 OOM 或穷尽分配器/调度空间。
+- 46a3687a 的主 CI 为 71/73，独立邮件成功，Windows ACME 覆盖率已成功，确认
+  上批有限预算修复在 GitHub 通过。两个剩余失败均在 Windows IMAP alias 夹具；
+  005641a5 的 immutable attempt1 则七十三全成功，独立邮件也成功，分别保留证据。
+- 原 alias 逐位置只跑一次，在 160 个仪器程序中出现五次“未采到目标路径”，而各次
+  MEMORY 保真断言均成立；分配次序会随队列复用、调度变化。加入同样有界补采样后，
+  采样专项 160 程序全通过；该仪器 epoch 单独保留，不重标为最终交付测试。
+- 严格 Clang 完整轮又揭示对端收尾的两个窗口：客户端正确中止后，对端已读到命令
+  却无法成功回复；以及 peer 已观察 EOF/错误、Close Future 报 IO 时，Stream 仍暂处
+  CLOSING。探针及 Core 源码确认 WaitClosed 在 CLOSED 状态发布之前可见。夹具改为
+  独立观察 peer EOF，再在原截止时间内等待 CLOSED；正常控制额外核对精确诊断，
+  tagged 情况核对完整已保存响应，不要求错误退出后对端回复必须成功。原本的正常
+  tagged CI 失败没有细分日志，不能声称已逐项重现其原因；新提交 CI 继续验证。
+  最终 Clang 对端探针四十程序全通过，保留实际仪器源码和二进制哈希。
+- 最终 Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/泄漏检查、
+  TCC 四套各五十程序通过，完整根为 29 模块化、21 单头，只追加一项测试；原源码、
+  依赖、定义、链接和旧资产顺序保持。另八个最小定向程序各七项通过，包含旧错误
+  控制；独立 APPEND 最小选择验证新增助手可链接，不依赖完整套件间接拉入 Command。
+- 本批计入 250 次选中程序/消费者运行：完整选择 200、定向 8、示例 10、最小模块
+  程序 28、静态/共享消费者 4。两次 host-client 仅无参数用法，两个无模块测试资产
+  的最小 TLS 选择不计程序。两端独立 TLS/STARTTLS 二十四场景、压缩互通 180 场景
+  及实际二进制哈希通过，不另算显式模块 TLS 消费者或独立 Clang 压缩矩阵。
+- 每端 101 个公开导出、十二个 size 产物符号约束、trim、五项元数据与 137 项工具
+  测试通过。三个自有 C 改动，十二个已安装头非注释 token 与 46a3687a 相同；2032
+  项最终 Windows/native 输入冻结一致并绑定最终 Git 内容。有效路径不新增分配或
+  拷贝；拒绝诊断仍可分配，MEMORY 分支省掉次级诊断，不称零开销或性能等价。
+- 额外只读真实 BodyWrite 探针确认后续缺陷：预算超限在无旧错误时报告 RANGE，已有
+  VALUE 时却沿用旧分类；合法正文仍正确成功并保留原 VALUE。三组输出/回调控制及
+  冻结 epoch3 的 2032 项输入、原库对象哈希保留。这是后续修复线索，本批不改预算
+  分支，不把当前物理源码探针当作下一批已提交 head 的正式基线。
+- 同样三组公开会话控制还确认重复 literal 遇到旧 VALUE 时沿用旧分类，而无旧错误
+  正确报告 PROTOCOL；合法单 literal 保留 VALUE 并成功。失败前已交付一个 sink 片段，
+  written 仍不发布，明确不把输出参数原子性扩展为 sink 副作用回滚。该分支同留下一批。
+- Windows 首次工具测试有两项因宿主提交内存不足报 cc1 OOM，原日志和退出码保留；
+  原编译检查复核及完整 137 项再执行均通过，不改源码、不累加相同工具测试覆盖数。
+- 失败与停止轮均保留：旧轮因确认夹具需修正而定向停止，不因观察超时重启；其通过
+  数不并入最终 epoch。逐 API 契约复核、本批自己的 CI 与其他库继续，累计 8/21，
+  IMAP 尚未新增整库验收；保护原工作区，不合并或发布。
+
+证据：ximap-diagnostics-before-{provenance,native-inputs,windows,linux}.json、
+ximap-diagnostics-original46-workspace.json、ximap-diagnostics-{initial7,epoch1,epoch2}/、
+ximap-alias-fixture-{original160,trace-windows}.json、
+ximap-diagnostic-peer-trace-linux-before.json、ximap-diagnostics-peer-final/bindings.json、
+ximap-diagnostics-{source-review,api-source-map,input-audit,final-input-audit,final-validation}.json、
+ximap-diagnostics-{final,round}-{windows,linux}.json、ximap-diagnostics-checks.json、
+ximap-diagnostics-independent-{tls,compress}-{windows,linux}.json、
+ximap-diagnostics-prior-ci-proof.json、ci-46a3687a-final-{run,jobs,mail}.json、
+ximap-message-limit-candidate-linux.json、ximap-message-duplicate-candidate-linux.json。

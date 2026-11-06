@@ -2318,7 +2318,8 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
 bool __xrtImapClientFailPreserveError(ximapclient* pClient);
 #endif
 
@@ -6453,7 +6454,8 @@ bool __xrtImapClientProtocolFail(
 
 
 
-#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND)
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
 /* 上层已设置主错误；只终止会话，保留原错误的 domain/code。 */
 bool __xrtImapClientFailPreserveError(ximapclient* pClient)
 {
@@ -9111,9 +9113,17 @@ static bool __xrtImapMessageLiteralValid(
 	if ( (pEvent->Kind != XIMAP_EVENT_RESPONSE) ||
 		(pEvent->Response.Kind != XIMAP_RESPONSE_UNTAGGED) ||
 		(pEvent->Response.Status != XIMAP_STATUS_NONE) ||
-		pEvent->Literal.Binary ||
-		!xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
+		pEvent->Literal.Binary ) {
+		return __xrtImapMessageError(
+			XERR_PROTOCOL,
+			"invalid IMAP BODY literal response"
+		);
+	}
+	if ( !xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
 		!xrtImapFetchCursorInit(&Cursor, &Fetch) ) {
+		if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			return false;
+		}
 		return __xrtImapMessageError(
 			XERR_PROTOCOL,
 			"invalid IMAP BODY literal response"
@@ -9967,6 +9977,9 @@ XRT_API bool __xrtImapClientAppendEnd(
 				);
 			}
 			if ( !__xrtImapAppendResult(Final.Text, &Result) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP APPEND completion"

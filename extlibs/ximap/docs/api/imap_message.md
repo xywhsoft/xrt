@@ -29,6 +29,11 @@ literal 已开始后发生预算超限、sink 失败、取消、线路错误、�
 函数关闭当前 Client 并保留首个错误，避免残余字节成为下一条响应。成功后 Client 仍处于
 选中态，可以继续执行命令。
 
+FETCH 解析的拒绝诊断若因分配失败报告 MEMORY，便利层保留该主错误并关闭活动会话，
+不再覆盖为通用 PROTOCOL。binary literal 等不受支持的响应元数据仍产生新的协议错误，
+即使调用前已有 MEMORY 错误。失败不发布 written/连续字节的长度结果；有效 BODY 的
+借用片段仍只在 sink 回调期间有效。
+
 ## 示例
 
 见 `examples/imap/message/main.c`。

@@ -196,3 +196,20 @@ python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.jso
 公开错误通知器只观察所属线程，区分已存在的协议错误之后的清理 OOM，验证主 MEMORY
 不被后续报告覆盖；失败终态先观察 peer EOF 并 join，再显式 Abort。最后核对 Engine
 资源计数和逻辑内存释放。
+
+故障扫描每类最多执行八轮 0..31 配置位置，仅在尚未观察到目标远程诊断路径时继续
+采样；分配次序可随调度变化。任何一次实际断言失败始终保留，不通过重跑消除失败。
+日志记录实际轮数，配置位置不等于实际 OOM 次数。
+
+## APPEND/BODY 主诊断错误回归
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_diagnostic_oom_tests --no-examples
+```
+
+模块化与单头共享七项结果：APPEND、BODY 的合法完成及实际 NOOP/LOGOUT 复用、正常
+非法响应、已有 MEMORY 时 binary literal 元数据仍报告新协议错误，以及两类有界分配
+故障扫描。每个扫描最多八轮 0..31，覆盖出现后停止补采样；任一实际失败均保留。
+每程序实际创建 69..517 个公开 Open 客户端，日志给出轮数。核对输出快照、精确正文、
+未调用非法正文 sink、最近已保存响应和主错误；失败终态在显式 Abort 前等待 peer
+EOF/错误及线程退出，最后核对 Engine 五零计数和逻辑内存释放。

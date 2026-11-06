@@ -234,16 +234,20 @@ static int32 aliasDiagServer(ptr data)
         server->SeenSelect = received == 1;
         valid = received != 0;
         if (server->SeenSelect) {
-            valid = aliasDiagSend(stream, server->Tagged ?
+            /* The client may retire after consuming the invalid response but
+             * before the peer observes send completion. Still require EOF. */
+            (void)aliasDiagSend(stream, server->Tagged ?
                 "A00000002 OK [UIDNEXT 0] invalid\r\n" :
-                "* OK [UIDNEXT 0] invalid\r\nA00000002 OK selected\r\n", server->Deadline) && valid;
-            if (valid) valid = aliasDiagReceive(stream, "x", server->Deadline) == -1;
+                "* OK [UIDNEXT 0] invalid\r\nA00000002 OK selected\r\n", server->Deadline);
+            valid = aliasDiagReceive(stream, "x", server->Deadline) == -1;
         }
     }
     if (stream != NULL) {
         if (xrtNetStreamState(stream) == XNET_STREAM_OPEN) valid = xrtNetStreamClose(stream) && valid;
-        valid = (__xrtNetStreamWait(stream, XNET_STREAM_WAIT_CLOSE, server->Deadline, NULL) ||
-            xrtNetStreamState(stream) == XNET_STREAM_CLOSED) && valid;
+        (void)__xrtNetStreamWait(stream, XNET_STREAM_WAIT_CLOSE, server->Deadline, NULL);
+        while (xrtNetStreamState(stream) != XNET_STREAM_CLOSED && !__xrtWaitExpired(server->Deadline))
+            xrtThreadYield();
+        valid = xrtNetStreamState(stream) == XNET_STREAM_CLOSED && valid;
         xrtNetStreamDestroy(stream);
     }
     xrtClearError(); server->Success = valid; return valid ? 0 : 1;
@@ -266,9 +270,10 @@ static bool aliasDiagnostic(void)
     config.Net.Host = "imap.test"; config.Net.Port = TestImapAddress.Port;
     xrtSetErrorHandler(aliasDiagObserve, &trace);
     for (unsigned mode = 0; mode < 2u; mode++) {
-        bool sweep = true; unsigned primary = 0, primary_after_response = 0, masked = 0;
+        bool sweep = true; unsigned primary = 0, primary_after_response = 0, masked = 0, rounds = 0;
         bool last_triggered = true;
-        for (int n = -1; n < 32; n++) {
+        for (unsigned round = 0; round < 8u; round++) {
+        for (int n = round ? 0 : -1; n < 32; n++) {
             aliasdiagserver server; xthread* thread; ximapclient* client; ximapmailboxinfo info;
             ximapresponseview last; xerrkind kind; ximapclientstate state;
             bool returned, triggered, valid, joined = false, saved_bad_tag;
@@ -291,13 +296,17 @@ static bool aliasDiagnostic(void)
                 valid = valid && joined && server.Success && xrtThreadExitCode(thread) == 0;
             }
             if (n < 0) valid = valid && kind == XERR_PROTOCOL && state == XIMAP_CLIENT_FAILED &&
-                !triggered && !trace.PrimaryMemory;
+                !triggered && !trace.PrimaryMemory && (mode == 0u || saved_bad_tag) &&
+                strcmp(xrtErrorMessage(xrtGetError()), mode ? "invalid IMAP mailbox response code" :
+                    "invalid IMAP mailbox status response") == 0;
             xrtClearError(); testRequire(xrtImapClientAbort(client), "mailbox diagnostic Abort failed"); xrtImapClientDestroy(client);
             if (!joined) testRequire(__xrtThreadWaitUntil(thread, server.Deadline) == XWAIT_OK, "mailbox diagnostic peer join failed");
             valid = valid && server.Success && xrtThreadExitCode(thread) == 0;
             if (trace.PrimaryMemory && server.SeenSelect && (mode == 0u || saved_bad_tag)) primary_after_response++;
             xrtThreadDestroy(thread);
             if (n < 0) {
+                if (!valid) fprintf(stderr, "mailbox normal mode=%u kind=%d state=%d triggered=%d primary=%d joined=%d peer=%d seen=%d saved=%d\n",
+                    mode, (int)kind, (int)state, triggered, trace.PrimaryMemory, joined, server.Success, server.SeenSelect, saved_bad_tag);
                 if (!aliasResult(valid, mode ? "tagged invalid response normal diagnostic" : "untagged invalid response normal diagnostic")) all = false;
             } else {
                 if (!valid) fprintf(stderr, "mailbox diagnostic mode=%u fault=%d primary_memory=%d kind=%d state=%d\n",
@@ -305,9 +314,12 @@ static bool aliasDiagnostic(void)
                 sweep = sweep && valid; last_triggered = triggered;
             }
         }
+        rounds++;
+        if (primary_after_response != 0) break;
+        }
         sweep = sweep && primary != 0 && primary_after_response != 0 && !last_triggered;
-        printf("mailbox diagnostic mode=%u slots=32 primary=%u response_primary=%u masked=%u\n",
-            mode, primary, primary_after_response, masked);
+        printf("mailbox diagnostic mode=%u slots=32 rounds=%u primary=%u response_primary=%u masked=%u\n",
+            mode, rounds, primary, primary_after_response, masked);
         if (!aliasResult(sweep, mode ? "tagged primary diagnostic OOM preserved" : "untagged primary diagnostic OOM preserved")) all = false;
     }
     xrtSetErrorHandler(NULL, NULL);

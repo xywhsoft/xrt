@@ -438,6 +438,9 @@ XRT_API bool __xrtImapClientAppendEnd(
 				);
 			}
 			if ( !__xrtImapAppendResult(Final.Text, &Result) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP APPEND completion"
