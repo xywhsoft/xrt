@@ -220,8 +220,13 @@ EOF/错误及线程退出，最后核对 Engine 五零计数和逻辑内存释�
 python tools/build.py --compiler gcc --manifest extlibs/ximap/config/modules.json --suite imap_message_error_tests --no-examples
 ```
 
-模块化与单头共享九个真实 TCP/public Open 场景：正文预算和重复 literal 分别覆盖无旧错误、
+模块化与单头共享十五个真实 TCP/public Open 场景：正文预算和重复 literal 分别覆盖无旧错误、
 已有 VALUE、已有 MEMORY，另有两个成功后实际 NOOP/LOGOUT 的复用控制，以及 sink 提供
 具体错误的对象保真控制。超限前不调用 sink；重复 literal 已交付的首段不回滚，但失败
 不发布 written。核对错误种类、域、代码、消息或对象身份、完整 sink 缓冲和已保存响应。
 终态在显式 Abort 前观察 peer EOF/错误并 join，最后验证 Engine 五零计数和逻辑内存释放。
+
+另六项检查 `BodyBytes`：回绕长度指针在无旧错误、旧 VALUE、旧 MEMORY 下报告新参数
+错误，拒绝诊断 OOM 报告本次 MEMORY；这些预检均不发送 FETCH，继续实际 NOOP/LOGOUT
+并核对未消耗的命令标签。两个合法控制分别提供和省略长度输出，核对正文、附加零字节、
+原错误对象保留及 Client 销毁后的拥有型正文寿命，最后使用 `xrtFree` 释放。

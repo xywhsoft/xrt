@@ -476,10 +476,11 @@ XRT_API bytes __xrtImapClientBodyBytes(
 	if ( !xrtMemRangeValid(
 		pOutputSize,
 		pOutputSize != NULL ? sizeof(*pOutputSize) : 0
-	) || !xrtBufferInit(&Buffer.Buffer) ) {
-		if ( xrtGetError() == NULL ) {
-			__xrtMailSetInvalidArgument();
-		}
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return NULL;
+	}
+	if ( !xrtBufferInit(&Buffer.Buffer) ) {
 		return NULL;
 	}
 	if ( !__xrtImapClientBodyWrite(

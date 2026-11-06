@@ -43,7 +43,7 @@
 | xhttp-client | 18 | 18 | 97 | 32 | 12 | Future 失败发布和七处字节视图修复、四环境专项及双平台交付通过，其余源码复核继续 |
 | xhttp-policy | 27 | 22 | 49 | 19 | 15 | 待复核 |
 | xhttp-server | 25 | 31 | 90 | 32 | 25 | 关闭/Upgrade、字节视图及完整 GCC/Clang/TCC 通过，其余源码复核继续 |
-| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/认证、数值、借用范围与 BODY 本次错误分类本地通过，BodyBytes 输出预检及最终 CI 继续 |
+| ximap | 11 | 9 | 22 | 15 | 5 | 九个 C/101 API 已通读；等待/认证、数值、借用范围及 BODY/BodyBytes 错误保真本地通过，最终契约和本批 CI 继续 |
 | xjwt | 1 | 4 | 3 | 2 | 1 | 已完成本轮：源码、本地、双平台认证 CI 及交付验收 |
 | xllm | 1 | 12 | 3 | 1 | 2 | 回放/UTF-8 修复及包/裁剪/profile 通过，源码复核继续 |
 | xllm-session | 1 | 8 | 2 | 1 | 0 | 恢复/终值修复及包/裁剪/profile 通过，源码复核继续 |
@@ -2496,3 +2496,57 @@ ximap-body-errors-{input-audit,final-input-audit,final-validation}.json、
 ximap-body-errors-{final,round}-{windows,linux}.json、ximap-body-errors-checks.json、
 ximap-body-errors-independent-{tls,compress}-{windows,linux}.json、
 ximap-body-errors-prior-ci-observation-20261106T045255.json、ximap-body-bytes-output-candidate-linux.json。
+
+
+### 第六十六批：BodyBytes 输出范围预检及拥有型正文寿命
+
+- 从已提交 6d00fd05 的 103 项 IMAP 输入开始逐一核对 Windows、Git 和 native；
+  再从该 head 的 2034 个 Git blob 建立独立 Windows/native 原始源码目录，只替换
+  现有共享测试。四个 GCC 模块化、单头原版程序各十五项均为 3 FAIL/12 PASS，
+  最终测试哈希 490a620d 与原版基线相同，不重标原 f34 的只读候选探针。
+- 只改一个生产 C 的输出预检：回绕的非空 size_t 输出范围始终调用现有邮件参数
+  错误入口，不受调用前 VALUE/MEMORY 影响；把 BufferInit 放入独立判断，保留其
+  实际失败原因。拒绝诊断分配失败时保留本次 MEMORY，不再沿用无关旧错误。
+  不新增公共声明、布局、依赖、feature 或测试资产，不改变正常成功保留原错误。
+- 共享回归从九项增至十五项，原九项 BODY 预算、重复 literal、有效复用和显式 sink
+  错误控制保留。新增六个真实 public Open/SELECT/BodyBytes 会话：输出范围拒绝
+  在无旧错误、旧 VALUE、旧 MEMORY 下的新参数诊断；调用主线程 failAfter(0) 的
+  诊断 OOM；有效长度输出、可省略 NULL 输出的两项成功控制。OOM 必须实际触发，
+  断言前清除故障配置，不把未触发位置计为 OOM。
+- 预检后核对 SELECTED、已保存 SELECT、精确 NOOP A3/LOGOUT A4，证明未发送 FETCH、
+  未消耗命令标签；有效请求仍是 FETCH A3/NOOP A4/LOGOUT A5。成功控制保留原错误
+  对象，核对正文与不计入长度的零字节，在 Client 销毁后再次读取拥有型正文再以
+  xrtFree 释放。peer 在原有限截止时间内完成 CLOSED 和 join，最后检查 Engine
+  五零计数及逻辑内存释放，不借助私有 Client 布局。
+- 最终 Windows GCC、Linux GCC、严格 Clang ASan/UBSan/float-cast-overflow/泄漏检查、
+  TCC 四套各 52 程序通过，完整根仍为 30 模块化、22 单头；与 6d00fd05 相比所有
+  资产路径、依赖、定义、链接及顺序完全相同。八个最小定向程序各十五项全通过。
+- 本批 258 次选中程序/消费者运行包括完整 208、定向 8、示例 10、最小模块程序 28、
+  静态/共享消费者 4；两个无参数 host-client 仅用法控制，两个无资产的最小 TLS
+  选择不计程序。独立 TLS/STARTTLS 24 场景、压缩互通 180 场景及实际二进制哈希
+  通过，不另算显式模块 TLS 消费者或独立 Clang 压缩矩阵。
+- 每端 101 个公开导出、十二个 size 产物符号约束、trim、五项元数据和 137 项工具
+  测试通过；十二个已安装头的非注释 token 与 6d00fd05 相同。2034 项最终输入从
+  冻结时起保持 Windows/native 一致，并绑定最终 Git 内容。有效路径不增加分配、
+  拷贝或错误引用记账，拒绝诊断仍可能分配，不声称零开销或性能等价。
+- f34bf191 的 immutable attempt1 主 CI 73/73 及独立邮件已全部成功，两个 Windows
+  IMAP 夹具修复有该 head 的实际成功证据；不反改原 46a3687a 的失败记录。
+  截至本批提交前的固定快照，6d00fd05 主 CI 已有 71/73 任务成功，剩余仍运行或排队，
+  无失败；独立邮件已成功。保留非终态快照，本批新提交须独立核对自己的 CI。
+- 并行的只读源码复核确认后续 xmail Builder 线索：成功 Body 写入清空调用前 VALUE，
+  违反项目“成功不隐式清错”约定；无旧错误成功、显式 sink IO、无诊断失败的 IO
+  fallback 三个控制通过。四场景及实际单 C 探针、二进制和 Core/xmail 单头、Builder C
+  的 Git/Windows/native 哈希保留，不计入本批 258 次交付运行，不称下一 head 的正式
+  四程序基线，本批不改 xmail 生产代码。
+- sink 返回 false 但不发布新错误、调用前已有错误的约定继续单独复核，本批不加入
+  每片段引用或运行时错误代际机制。IMAP 最终契约验收、本批自己的 CI 与全部 21 库
+  目标继续，累计 8/21。保护原工作区和 native 独立 Core 测试，不合并或发布。
+
+证据：ximap-body-bytes-before-{provenance,native-inputs,windows,linux,bindings}.json、
+ximap-body-bytes-original6d-workspace.json、
+ximap-body-bytes-{source-review,api-source-map,selection-proof}.json、
+ximap-body-bytes-{input-audit,final-input-audit,final-validation}.json、
+ximap-body-bytes-{final,round}-{windows,linux}.json、ximap-body-bytes-checks.json、
+ximap-body-bytes-independent-{tls,compress}-{windows,linux}.json、
+ximap-body-bytes-prior-ci-observation.json、ci-f34bf191-final-{run,jobs,mail}.json、
+xmail-builder-old-error-candidate-linux.json、xmail-builder-candidate-6d-input-bindings.json。

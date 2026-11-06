@@ -43,23 +43,30 @@ static int32 messageErrorServer(ptr data)
         messageErrorReceive(stream, "A00000001 CAPABILITY\r\n", server->Deadline) == 1 &&
         messageErrorSend(stream, "* CAPABILITY IMAP4rev1\r\nA00000001 OK capabilities\r\n", server->Deadline) &&
         messageErrorReceive(stream, "A00000002 SELECT \"INBOX\"\r\n", server->Deadline) == 1 &&
-        messageErrorSend(stream, "* 1 EXISTS\r\nA00000002 OK selected\r\n", server->Deadline) &&
-        messageErrorReceive(stream, "A00000003 FETCH 1 BODY.PEEK[]\r\n", server->Deadline) == 1;
-    if (valid) {
-        cstr response = server->Mode == 0 ?
-            "* 1 FETCH (BODY[] {2}\r\nxx)\r\nA00000003 OK fetched\r\n" :
-            (server->Mode == 1 && !server->Good) ?
-            "* 1 FETCH (BODY[] {1}\r\nx)\r\n* 2 FETCH (BODY[] {1}\r\ny)\r\nA00000003 OK fetched\r\n" :
-            "* 1 FETCH (BODY[] {1}\r\nx)\r\nA00000003 OK fetched\r\n";
-        /* The receiver may abort before the peer's send completion. Require
-         * peer EOF independently rather than requiring that send to succeed. */
-        bool sent = messageErrorSend(stream, response, server->Deadline);
-        if (server->Good) valid = sent &&
-            messageErrorReceive(stream, "A00000004 NOOP\r\n", server->Deadline) == 1 &&
-            messageErrorSend(stream, "A00000004 OK noop\r\n", server->Deadline) &&
-            messageErrorReceive(stream, "A00000005 LOGOUT\r\n", server->Deadline) == 1 &&
-            messageErrorSend(stream, "* BYE closing\r\nA00000005 OK logout\r\n", server->Deadline);
-        else valid = messageErrorReceive(stream, "x", server->Deadline) == -1;
+        messageErrorSend(stream, "* 1 EXISTS\r\nA00000002 OK selected\r\n", server->Deadline);
+    if (valid && server->Mode == 3u) valid =
+        messageErrorReceive(stream, "A00000003 NOOP\r\n", server->Deadline) == 1 &&
+        messageErrorSend(stream, "A00000003 OK noop\r\n", server->Deadline) &&
+        messageErrorReceive(stream, "A00000004 LOGOUT\r\n", server->Deadline) == 1 &&
+        messageErrorSend(stream, "* BYE closing\r\nA00000004 OK logout\r\n", server->Deadline);
+    else if (valid) {
+        valid = messageErrorReceive(stream, "A00000003 FETCH 1 BODY.PEEK[]\r\n", server->Deadline) == 1;
+        if (valid) {
+            cstr response = server->Mode == 0 ?
+                "* 1 FETCH (BODY[] {2}\r\nxx)\r\nA00000003 OK fetched\r\n" :
+                (server->Mode == 1 && !server->Good) ?
+                "* 1 FETCH (BODY[] {1}\r\nx)\r\n* 2 FETCH (BODY[] {1}\r\ny)\r\nA00000003 OK fetched\r\n" :
+                "* 1 FETCH (BODY[] {1}\r\nx)\r\nA00000003 OK fetched\r\n";
+            /* The receiver may abort before the peer's send completion. Require
+             * peer EOF independently rather than requiring that send to succeed. */
+            bool sent = messageErrorSend(stream, response, server->Deadline);
+            if (server->Good) valid = sent &&
+                messageErrorReceive(stream, "A00000004 NOOP\r\n", server->Deadline) == 1 &&
+                messageErrorSend(stream, "A00000004 OK noop\r\n", server->Deadline) &&
+                messageErrorReceive(stream, "A00000005 LOGOUT\r\n", server->Deadline) == 1 &&
+                messageErrorSend(stream, "* BYE closing\r\nA00000005 OK logout\r\n", server->Deadline);
+            else valid = messageErrorReceive(stream, "x", server->Deadline) == -1;
+        }
     }
     if (stream != NULL) {
         if (xrtNetStreamState(stream) == XNET_STREAM_OPEN) valid = xrtNetStreamClose(stream) && valid;
@@ -150,6 +157,63 @@ static bool messageErrorCase(const ximapclientconfig* config, xnetlistener* list
     xrtClearError(); return valid;
 }
 
+/* mode: 3 invalid size range, 4 valid owned bytes, 5 optional size, 6 diagnostic OOM. */
+static bool messageBytesCase(const ximapclientconfig* config, xnetlistener* listener,
+    unsigned mode, xerrkind previous, cstr name)
+{
+    messageerrorserver server;
+    xthread* thread; ximapclient* client; ximapmailboxinfo info; ximapresponseview last;
+    xerror* prior = NULL; size_t size = 0x1234u; bytes owned;
+    bool preflight = mode == 3u || mode == 6u, fault = mode == 6u;
+    bool valid, triggered, joined; xerrkind kind;
+    server.Listener = listener; server.Deadline = __xrtWaitAfter(10000);
+    server.Mode = preflight ? 3u : mode; server.Good = true; server.Success = false;
+    thread = xrtThreadCreate(messageErrorServer, &server, 0);
+    testRequire(thread != NULL, "message bytes peer creation failed");
+    client = xrtImapClientOpen(config, 10000, NULL);
+    testRequire(client != NULL, "message bytes public Open failed");
+    testRequire(xrtImapClientSelect(client, XRT_STR_LITERAL("INBOX"), &info, 10000, NULL),
+        "message bytes Select failed");
+    xrtClearError();
+    if (previous != XERR_NONE) {
+        prior = xrtErrorCreate(previous, "imap.test", 73, "prior error");
+        testRequire(prior != NULL, "message bytes prior error creation failed"); xrtSetError(prior);
+    }
+    if (fault) testRequire(xrtMemDebugFailAfter(0), "message bytes diagnostic fault setup failed");
+    owned = xrtImapClientBodyBytes(client, 1u, XRT_STR_LITERAL(""), false, true, 1u,
+        preflight ? (size_t*)(uintptr_t)(UINTPTR_MAX - sizeof(size_t) + 1u) :
+            mode == 5u ? NULL : &size, 10000, NULL);
+    kind = xrtErrorKind(xrtGetError()); triggered = xrtMemDebugFailTriggered(); xrtMemDebugFailClear();
+    valid = xrtImapClientState(client) == XIMAP_CLIENT_SELECTED && triggered == fault;
+    if (preflight) valid = valid && owned == NULL && size == 0x1234u && xrtGetError() != prior &&
+        kind == (fault ? XERR_MEMORY : XERR_ARGUMENT) &&
+        xrtErrorCode(xrtGetError()) == (fault ? 1 : 0) &&
+        strcmp(xrtErrorDomain(xrtGetError()), fault ? "xrt.memory" : "xrt.mail") == 0 &&
+        strcmp(xrtErrorMessage(xrtGetError()), fault ? "memory allocation failed" : "invalid argument") == 0;
+    else valid = valid && owned != NULL && owned[0] == 'x' && owned[1] == 0 &&
+        size == (mode == 5u ? 0x1234u : 1u) && xrtGetError() == prior;
+    testRequire(xrtImapClientLastResponse(client, &last), "message bytes saved response missing");
+    valid = valid && testMailViewEqual(last.Source, preflight ? XRT_STR_LITERAL("A00000002 OK selected") :
+        XRT_STR_LITERAL("A00000003 OK fetched"));
+    /* Exact NOOP tags prove a preflight rejection neither sends FETCH nor
+     * consumes its command tag. Successful owned bytes outlive client teardown. */
+    valid = xrtImapClientNoop(client, 10000, NULL) && valid;
+    valid = xrtImapClientLogout(client, 10000, NULL) && valid;
+    valid = valid && xrtImapClientState(client) == XIMAP_CLIENT_CLOSED;
+    joined = __xrtThreadWaitUntil(thread, server.Deadline) == XWAIT_OK;
+    valid = valid && joined && server.Success && xrtThreadExitCode(thread) == 0;
+    if (!valid) fprintf(stderr, "message bytes mode=%u prior=%d kind=%d triggered=%d size=%zu peer=%d joined=%d\n",
+        mode, (int)previous, (int)kind, triggered, size, server.Success, joined);
+    xrtClearError(); xrtErrorFree(prior);
+    testRequire(xrtImapClientAbort(client), "message bytes Abort failed"); xrtImapClientDestroy(client);
+    if (owned != NULL) valid = valid && !preflight && owned[0] == 'x' && owned[1] == 0;
+    xrtFree(owned);
+    if (!joined) testRequire(__xrtThreadWaitUntil(thread, server.Deadline) == XWAIT_OK, "message bytes peer join failed");
+    xrtThreadDestroy(thread);
+    printf("[%s] IMAP message error %s\n", valid ? "PASS" : "FAIL", name);
+    xrtClearError(); return valid;
+}
+
 int main(void)
 {
     xnetengineconfig ec; xnetlistenconfig lc; xnetresolverconfig rc; ximapclientconfig config;
@@ -177,6 +241,12 @@ int main(void)
         if (!messageErrorCase(&config, listener, mode, XERR_VALUE, true, names[3])) all = false;
     }
     if (!messageErrorCase(&config, listener, 2u, XERR_VALUE, false, "sink supplied error replaces prior VALUE exactly")) all = false;
+    if (!messageBytesCase(&config, listener, 3u, XERR_NONE, "BodyBytes invalid output range without prior error")) all = false;
+    if (!messageBytesCase(&config, listener, 3u, XERR_VALUE, "BodyBytes invalid output range replaces prior VALUE")) all = false;
+    if (!messageBytesCase(&config, listener, 3u, XERR_MEMORY, "BodyBytes invalid output range replaces prior MEMORY")) all = false;
+    if (!messageBytesCase(&config, listener, 4u, XERR_VALUE, "BodyBytes owned NUL bytes survive client and preserve prior VALUE")) all = false;
+    if (!messageBytesCase(&config, listener, 5u, XERR_MEMORY, "BodyBytes optional size preserves prior MEMORY and ownership")) all = false;
+    if (!messageBytesCase(&config, listener, 6u, XERR_VALUE, "BodyBytes output refusal diagnostic OOM preserves new MEMORY")) all = false;
     testRequire(xrtNetListenerClose(listener), "message error Listener close failed"); double deadline = __xrtWaitAfter(10000);
     while (xrtNetListenerState(listener) != XNET_LISTENER_CLOSED) { testRequire(!__xrtWaitExpired(deadline), "message error Listener timeout"); xrtThreadYield(); }
     xrtNetListenerDestroy(listener); testRequire(xrtNetResolverDestroy(resolver), "message error Resolver destroy failed");

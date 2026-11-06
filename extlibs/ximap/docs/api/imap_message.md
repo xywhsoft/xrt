@@ -20,6 +20,11 @@ literal 直接以最多 16 KiB 的借用片段交给 `xmailwriteproc`，不创�
 `xrtImapClientMessageTree` 固定读取完整 `BODY[]`，随后按 `xmailtreelimits` 解析并返回由
 `xrtMailTreeFree` 释放的拥有型 MIME 树。
 
+`BodyBytes` 的长度输出可为 NULL；非空指针要求整个 `size_t` 范围不回绕。
+非法范围在发送 FETCH 前报告新的 ARGUMENT，即使调用前已有 VALUE 或 MEMORY；
+拒绝诊断的分配失败则保留本次 MEMORY。该预检失败不消耗命令标签，Client 可继续使用。
+返回正文及附加零字节不借用 Client，销毁 Client 后仍有效，调用方最终以 `xrtFree` 释放。
+
 ## 状态和失败
 
 服务器正常完成但没有返回目标消息时，函数返回 `XERR_NOT_FOUND`，Client 保持可复用。
