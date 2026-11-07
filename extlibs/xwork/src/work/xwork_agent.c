@@ -539,6 +539,7 @@ xwork_result xwork__execute_tool_prepared(
     xwork_result eResult = XWORK_RESULT_ERROR;
     size_t iResultLimit = 0u;
     uint64_t uAgentDeadline;
+    uint32_t uResultRecoveries=0;
     xwork_error tPermissionError;
     if (ppSessionContent)
         *ppSessionContent = NULL;
@@ -739,19 +740,9 @@ xwork_result xwork__execute_tool_prepared(
             /* Ordinary execution/argument/IO failures belong in the tool
              * result so the model can recover. Scope termination, loss of
              * durable context, OOM and uncertain receipts remain fatal. */
-            if(pError&&pError->eCode==XWORK_ERROR_OUT_OF_MEMORY){
-                uint32_t RecoveryAttempt=0;
-                /* Execution may already have produced effects. Recover only
-                 * the result allocation, never invoke the tool a second time. */
-                xworkToolOutputUnit(&tOutput);
-                if(!xwork__recover(pAgent,"tool_resource",pError,++RecoveryAttempt,true))goto cleanup;
-                while(!xworkToolOutputSet(&tOutput,false,
-                    "tool_failure: resource_exhausted\nExecution may have applied effects. Inspect the existing receipt and target state before choosing another operation; do not blindly replay it.")){
-                    if(!xwork__recover(pAgent,"tool_resource",pError,++RecoveryAttempt,true))goto cleanup;
-                }
-                if(pbEffectApplied)*pbEffectApplied=true;
-                goto tool_ready;
-            }
+            /* Execution may already have applied effects. The OOM label
+             * recovers only result preparation, never the tool callback. */
+            if(pError&&pError->eCode==XWORK_ERROR_OUT_OF_MEMORY)goto oom;
             if (eResult == XWORK_RESULT_CANCELLED || xwork__is_cancelled(pAgent) ||
                 xwork__operation_status(pAgent) == XWORK_OPERATION_TIMED_OUT ||
                 (pError &&
@@ -951,6 +942,17 @@ tool_ready:
     goto cleanup;
 oom:
     xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to prepare tool result");
+    if(xwork__recover(pAgent,"tool_resource",pError,++uResultRecoveries,true)){
+        /* No jump returns to execution or hooks. Drop only the uncommitted
+         * projection; existing artifacts and external effects remain owned. */
+        free(sInline);sInline=NULL;xwork__buf_unit(&tSession);xwork__buf_unit(&tHookOutput);
+        xworkToolOutputUnit(&tOutput);
+        while(!xworkToolOutputSet(&tOutput,false,
+            "tool_failure: resource_exhausted\nExecution may have applied effects. Inspect the existing receipt and target state before choosing another operation; do not blindly replay it."))
+            if(!xwork__recover(pAgent,"tool_resource",pError,++uResultRecoveries,true))goto cleanup;
+        if(pbEffectApplied)*pbEffectApplied=true;
+        goto tool_ready;
+    }
 cleanup:
     if (eResult != XWORK_RESULT_OK)
     {
@@ -1037,6 +1039,7 @@ retry_compaction_summary:
     for (uAttempt = 1u; uAttempt <= uMaxAttempts; ++uAttempt)
     {
         xwork_buf tCorrection = {0};
+retry_summary_request:
         xllmRequestInit(&tRequest);
         xllmRequestSetCancel(&tRequest, xwork__active_cancel(pAgent));
         xllmRequestSetDeadline(&tRequest, xwork__active_deadline(pAgent));
@@ -1054,6 +1057,7 @@ retry_compaction_summary:
             xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                              "failed to build compaction request");
             xllmRequestUnit(&tRequest);
+            if(xwork__recover(pAgent,"resource",pError,++uPrepareRecoveries,true))goto retry_summary_request;
             goto cleanup;
         }
         if (sRejectedSummary)
@@ -1075,6 +1079,7 @@ retry_compaction_summary:
                 xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                                  "failed to build compaction correction request");
                 xllmRequestUnit(&tRequest);
+                if(xwork__recover(pAgent,"resource",pError,++uPrepareRecoveries,true))goto retry_summary_request;
                 goto cleanup;
             }
         }
@@ -1146,16 +1151,13 @@ retry_compaction_summary:
             eResult = XWORK_RESULT_CANCELLED;
             goto cleanup;
         }
-        free(sRejectedSummary);
-        sRejectedSummary = xwork__strdup(pResponse->sContent ? pResponse->sContent : "");
-        xllmResponseDestroy(pResponse);
-        pResponse = NULL;
-        if (!sRejectedSummary)
-        {
+        free(sRejectedSummary);sRejectedSummary=NULL;
+        while(!(sRejectedSummary=xwork__strdup(pResponse->sContent?pResponse->sContent:""))){
             xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                              "failed to retain rejected compaction summary");
-            goto cleanup;
+            if(!xwork__recover(pAgent,"resource",pError,++uPrepareRecoveries,true))goto cleanup;
         }
+        xllmResponseDestroy(pResponse);pResponse=NULL;
     }
     if (!pResponse || pResponse->iToolCallCount != 0u || !tQuality.bAccepted)
     {
