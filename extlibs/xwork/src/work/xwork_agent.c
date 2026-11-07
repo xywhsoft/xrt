@@ -739,6 +739,19 @@ xwork_result xwork__execute_tool_prepared(
             /* Ordinary execution/argument/IO failures belong in the tool
              * result so the model can recover. Scope termination, loss of
              * durable context, OOM and uncertain receipts remain fatal. */
+            if(pError&&pError->eCode==XWORK_ERROR_OUT_OF_MEMORY){
+                uint32_t RecoveryAttempt=0;
+                /* Execution may already have produced effects. Recover only
+                 * the result allocation, never invoke the tool a second time. */
+                xworkToolOutputUnit(&tOutput);
+                if(!xwork__recover(pAgent,"resource",pError,++RecoveryAttempt,true))goto cleanup;
+                while(!xworkToolOutputSet(&tOutput,false,
+                    "tool_failure: resource_exhausted\nExecution may have applied effects. Inspect the existing receipt and target state before choosing another operation; do not blindly replay it.")){
+                    if(!xwork__recover(pAgent,"resource",pError,++RecoveryAttempt,true))goto cleanup;
+                }
+                if(pbEffectApplied)*pbEffectApplied=true;
+                goto tool_ready;
+            }
             if (eResult == XWORK_RESULT_CANCELLED || xwork__is_cancelled(pAgent) ||
                 xwork__operation_status(pAgent) == XWORK_OPERATION_TIMED_OUT ||
                 (pError &&
@@ -983,9 +996,12 @@ static xwork_result xwork__compact_if_needed(xwork_agent *pAgent, uint64_t uTurn
     uint32_t uAttempt;
     uint32_t uMaxAttempts;
     char *sRejectedSummary = NULL;
+    uint32_t uPrepareRecoveries=0;
+retry_compaction_prepare:
     if (!xllmSessionGetStats(pAgent->pSession, &tStats))
     {
         xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to inspect context pressure");
+        if(xwork__recover(pAgent,"context",pError,++uPrepareRecoveries,true))goto retry_compaction_prepare;
         return XWORK_RESULT_ERROR;
     }
     if (!bForce && tStats.ePressure != XLLM_SESSION_PRESSURE_COMPACT &&
@@ -1001,6 +1017,7 @@ static xwork_result xwork__compact_if_needed(xwork_agent *pAgent, uint64_t uTurn
                          tSessionError.sMessage[0]
                              ? tSessionError.sMessage
                              : "context needs compaction but no safe prefix is available");
+        if(xwork__recover(pAgent,tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY?"resource":"compaction",pError,++uPrepareRecoveries,true))goto retry_compaction_prepare;
         return XWORK_RESULT_ERROR;
     }
     memset(&tEvent, 0, sizeof(tEvent));
@@ -1016,6 +1033,7 @@ static xwork_result xwork__compact_if_needed(xwork_agent *pAgent, uint64_t uTurn
     }
     memset(&tQuality, 0, sizeof(tQuality));
     uMaxAttempts = pAgent->uCompactionQualityRetries + 1u;
+retry_compaction_summary:
     for (uAttempt = 1u; uAttempt <= uMaxAttempts; ++uAttempt)
     {
         xwork_buf tCorrection = {0};
@@ -1140,15 +1158,21 @@ static xwork_result xwork__compact_if_needed(xwork_agent *pAgent, uint64_t uTurn
             "compaction summary failed quality policy after %u attempt(s); missing_sections=0x%08x",
             (unsigned)uMaxAttempts, (unsigned)tQuality.uMissingSections);
         xwork__set_error(pError, XWORK_ERROR_CONTEXT, sMessage);
+        if(xwork__recover(pAgent,"compaction_quality",pError,uMaxAttempts,true))goto retry_compaction_summary;
         goto cleanup;
     }
     xllmErrorInit(&tSessionError);
+retry_compaction_commit:
     if (!xllmSessionCommitCompaction(pAgent->pSession, pCompaction, pResponse->sContent,
                                      &tSessionError))
     {
         xwork__set_error(pError, XWORK_ERROR_CONTEXT,
                          tSessionError.sMessage[0] ? tSessionError.sMessage
                                                    : "failed to commit context compaction");
+        /* Commit validates a still-prepared transaction and stages its journal
+         * before changing the active summary. Never regenerate the summary. */
+        if((tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY||tSessionError.eCode==XLLM_ERROR_NETWORK)&&
+            xwork__recover(pAgent,tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY?"resource":"storage",pError,++uPrepareRecoveries,true))goto retry_compaction_commit;
         goto cleanup;
     }
     if (!xwork__save(pAgent, pError))
@@ -1296,6 +1320,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
     xwork_result eResult = XWORK_RESULT_ERROR;
     xwork_run_result tRun;
     xwork_event tEvent;
+    uint32_t uRequestRecoveries=0;
     if (pResult)
         memset(pResult, 0, sizeof(*pResult));
     memset(&tRun, 0, sizeof(tRun));
@@ -1607,6 +1632,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
             }
             bNeedNewTurn = false;
         }
+retry_request_build:
         xllmRequestInit(&tRequest);
         xllmErrorInit(&tModelError);
         if (!xllmSessionBuildRequest(pAgent->pSession, &tRequest, &tModelError))
@@ -1616,6 +1642,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
                                  ? tModelError.sMessage
                                  : "failed to build model request from session");
             xllmRequestUnit(&tRequest);
+            if(xwork__recover(pAgent,tModelError.eCode==XLLM_ERROR_OUT_OF_MEMORY?"resource":"context",pError,++uRequestRecoveries,true))goto retry_request_build;
             eResult = XWORK_RESULT_ERROR;
             goto cleanup;
         }
@@ -1628,6 +1655,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
             xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                              "failed to apply model request profile");
             xllmRequestUnit(&tRequest);
+            if(xwork__recover(pAgent,"resource",pError,++uRequestRecoveries,true))goto retry_request_build;
             eResult = XWORK_RESULT_ERROR;
             goto cleanup;
         }
@@ -1640,6 +1668,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
                 xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                                  "failed to add tool definitions to model request");
                 xllmRequestUnit(&tRequest);
+                if(xwork__recover(pAgent,"resource",pError,++uRequestRecoveries,true))goto retry_request_build;
                 eResult = XWORK_RESULT_ERROR;
                 goto cleanup;
             }
@@ -1768,6 +1797,7 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
             goto cleanup;
         }
         uExtensionCompactions = 0u;
+        uRequestRecoveries=0;
         tRun.tLastUsage = pResponse->tUsage;
         if (!xllmSessionAddAssistantResponse(pAgent->pSession, uTurn, pResponse))
         {

@@ -4,9 +4,17 @@ xwork is the C runtime above xllm-session: runtime/agent/run lifetimes, immutabl
 catalogs, tool permissions, bounded tool results, asynchronous tasks, subagents,
 MCP transports, durable recovery, scheduling, events and host-owned artifacts.
 
-The public API is in `include/xwork/api.h`. ABI version is 9; event schema is 3.
+The public API is in `include/xwork/api.h`. ABI version is 10; event schema is 3.
 This replaces the v2 public record layouts. Recompile hosts and SDK consumers
 when adopting it; an existing v2 binary must not load a v3 library.
+
+Hosts may handle `XWORK_AGENT_EXTENSION_RECOVERY` to retain a safe failed
+request-build, checkpoint or compaction boundary while resources recover.
+Opt in explicitly with `bRecoveryHandled` and a delay. Cancellation/deadlines
+always win. The runtime never repeats a tool to recover an allocation failure;
+its uncertain effects are returned for inspection. Storage recovery does not
+send its own notice back into the failed event sink. Unhandled hosts retain
+their original bounded error behavior.
 
 ## Build and test
 

@@ -2023,6 +2023,51 @@ static void test_compaction_styles(void)
     }
 }
 
+static unsigned recovery_policy_calls,recovery_notices;
+static bool recovery_opt_in;
+static bool recovery_owner_retain(void* Data){(void)Data;return true;}
+static void recovery_owner_release(void* Data){(void)Data;}
+static xwork_result recovery_policy(void* Data,xwork_agent_extension_context* Context,xwork_error* Error)
+{
+    (void)Data;(void)Error;
+    if(Context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY){
+        recovery_policy_calls++;
+        Context->bRecoveryHandled=recovery_opt_in;
+        Context->uRecoveryDelayMs=1;
+    }
+    return XWORK_RESULT_OK;
+}
+static bool recovery_notice(void* Data,const xwork_event* Event)
+{
+    (void)Data;if(Event->eKind==XWORK_EVENT_RECOVERY_WAIT)recovery_notices++;
+    return true;
+}
+static void test_host_recovery(void)
+{
+    xwork_agent_config Config;xwork_error Error;xllm_session_config SessionConfig;
+    xllmSessionConfigInit(&SessionConfig);xllm_session* Session=xllmSessionCreate(&SessionConfig,NULL);
+    xcancel* Cancel=xrtCancelCreate();xworkAgentConfigInit(&Config);
+    Config.pSession=Session;Config.pCancel=Cancel;Config.OnExtension=recovery_policy;
+    Config.sWorkspaceRoot=".";
+    Config.pOwnerUserData=&recovery_opt_in;Config.OnOwnerRetain=recovery_owner_retain;Config.OnOwnerRelease=recovery_owner_release;
+    Config.OnEvent=recovery_notice;Config.bAutoSaveSession=false;
+    xwork_agent* Agent=xworkAgentCreate(&Config,&Error);
+    CHECK(Agent!=NULL,"recovery agent created");
+    if(Agent){
+        recovery_policy_calls=recovery_notices=0;recovery_opt_in=false;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,true),"recovery must explicitly opt in");
+        recovery_opt_in=true;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,false),"uncertain effects cannot be replayed");
+        CHECK(xwork__recover(Agent,"resource",&Error,1,true),"safe boundary recovers");
+        CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
+        CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
+        xrtCancelRequest(Cancel);
+        CHECK(!xwork__recover(Agent,"resource",&Error,2,true),"cancelled recovery never retries");
+        xworkAgentDestroy(Agent);
+    }
+    xrtCancelDestroy(Cancel);xllmSessionDestroy(Session);
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -2031,6 +2076,7 @@ int main(int argc, char** argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork migrated compatibility tests\n");
+    test_host_recovery();
     test_process_text_normalization();
     test_stream_restart();
     test_agent_context_deadline();
