@@ -2024,7 +2024,7 @@ static void test_compaction_styles(void)
 }
 
 static unsigned recovery_policy_calls,recovery_notices;
-static bool recovery_opt_in,recovery_needs_change;
+static bool recovery_opt_in,recovery_needs_change,recovery_repair_storage;
 static unsigned recovery_probes;
 static bool recovery_owner_retain(void* Data){(void)Data;return true;}
 static void recovery_owner_release(void* Data){(void)Data;}
@@ -2033,6 +2033,7 @@ static xwork_result recovery_policy(void* Data,xwork_agent_extension_context* Co
     (void)Data;(void)Error;
     if(Context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY){
         if(Context->bRecoveryProbe){Context->bRecoveryReady=++recovery_probes>=2;return XWORK_RESULT_OK;}
+        if(recovery_repair_storage&&!strcmp(Context->sRecoveryStage,"storage")){(void)remove(".build/xwork-retained-checkpoint");recovery_repair_storage=false;}
         recovery_policy_calls++;
         Context->bRecoveryHandled=recovery_opt_in;
         Context->uRecoveryDelayMs=1;Context->bRecoveryNeedsChange=recovery_needs_change;
@@ -2076,6 +2077,13 @@ static void test_host_recovery(void)
         CHECK(xwork__recover(Agent,"resource",&Error,1,true),"safe boundary recovers");
         CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
         CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
+        (void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        FILE* Blocker=fopen(".build/xwork-retained-checkpoint","wb");if(Blocker){fputs("blocker",Blocker);fclose(Blocker);}
+        free(Agent->sSessionPath);Agent->sSessionPath=test_strdup(".build/xwork-retained-checkpoint/session.json");
+        Agent->bAutoSaveSession=true;recovery_repair_storage=true;
+        CHECK(Blocker&&xwork__save(Agent,&Error)&&!recovery_repair_storage,
+            "checkpoint retries only its failed save after storage becomes available");
+        Agent->bAutoSaveSession=false;(void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
         recovery_needs_change=true;recovery_probes=0;
         CHECK(xwork__recover(Agent,"context",&Error,1,true)&&recovery_probes==2,"condition wait probes without replaying the failed operation");
         recovery_needs_change=false;

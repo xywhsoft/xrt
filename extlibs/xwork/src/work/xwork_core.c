@@ -821,13 +821,13 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
                      uint32_t Attempt,bool Safe)
 {
     xwork_agent_extension_context Context={0};xwork_error PolicyError;
-    if(!Agent||!Agent->OnExtension||!Safe||xwork__is_cancelled(Agent)||
-        xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT)return false;
+    if(!Agent||!Agent->OnExtension||!Safe)return false;
+    if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
+    if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
     Context.ePhase=XWORK_AGENT_EXTENSION_RECOVERY;Context.sRecoveryStage=Stage;
     Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
     xworkErrorInit(&PolicyError);
     if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
-    if(!strcmp(Stage,"resource"))Agent->uMaxParallelTools=1;
     xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
     xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
     Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";

@@ -3631,13 +3631,13 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
                      uint32_t Attempt,bool Safe)
 {
     xwork_agent_extension_context Context={0};xwork_error PolicyError;
-    if(!Agent||!Agent->OnExtension||!Safe||xwork__is_cancelled(Agent)||
-        xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT)return false;
+    if(!Agent||!Agent->OnExtension||!Safe)return false;
+    if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
+    if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
     Context.ePhase=XWORK_AGENT_EXTENSION_RECOVERY;Context.sRecoveryStage=Stage;
     Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
     xworkErrorInit(&PolicyError);
     if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
-    if(!strcmp(Stage,"resource"))Agent->uMaxParallelTools=1;
     xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
     xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
     Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";
@@ -18675,6 +18675,23 @@ cleanup:
     return eResult;
 }
 
+/* Scalar session mutators journal before changing their in-memory state.
+ * Retry only when the journal outcome is known, with the original input held. */
+static bool xwork__recover_append(xwork_agent* Agent,xwork_error* Error,uint32_t Attempt)
+{
+    if(xllmSessionGetState(Agent->pSession)==XLLM_SESSION_STATE_RECOVERY_REQUIRED)return false;
+    xllm_error Persist;xllmErrorInit(&Persist);
+    bool Storage=xllmSessionGetLastPersistenceError(Agent->pSession,&Persist);
+    xwork__set_error(Error,Storage?XWORK_ERROR_IO:XWORK_ERROR_OUT_OF_MEMORY,"failed to retain session operation");
+    return xwork__recover(Agent,Storage?"storage":"resource",Error,Attempt,true);
+}
+static uint64_t xwork__begin_turn_retained(xwork_agent* Agent,xwork_error* Error)
+{
+    uint32_t Attempt=0;uint64_t Turn;
+    while(!(Turn=xllmSessionBeginTurn(Agent->pSession)))
+        if(!xwork__recover_append(Agent,Error,++Attempt))return 0;
+    return Turn;
+}
 static void xwork__emit_error(xwork_agent *pAgent, uint64_t uTurn, const xwork_error *pError)
 {
     xwork_event tEvent;
@@ -18862,18 +18879,17 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
                              "another prompt");
             goto cleanup;
         }
-        uTurn = xllmSessionBeginTurn(pAgent->pSession);
+        uTurn = xwork__begin_turn_retained(pAgent,pError);
         if (!uTurn)
         {
-            xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to begin user turn");
+            if(!pError||pError->eCode==XWORK_ERROR_NONE)xwork__set_error(pError,XWORK_ERROR_CONTEXT,"failed to begin user turn");
             goto cleanup;
         }
-        if (!(pUserMessage
-                  ? xllmSessionAddMessage(pAgent->pSession, uTurn, pUserMessage, 0u)
-                  : xllmSessionAddText(pAgent->pSession, uTurn, XLLM_ROLE_USER, sPrompt, 0u)))
-        {
-            xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to add user prompt to session");
-            goto cleanup;
+        { uint32_t Attempt=0;
+            while (!(pUserMessage
+                  ? xllmSessionAddMessage(pAgent->pSession,uTurn,pUserMessage,0u)
+                  : xllmSessionAddText(pAgent->pSession,uTurn,XLLM_ROLE_USER,sPrompt,0u)))
+                if(!xwork__recover_append(pAgent,pError,++Attempt))goto cleanup;
         }
         uUserMessageSequence = xllmSessionLastSequence(pAgent->pSession);
         if (!uUserMessageSequence)
@@ -19097,16 +19113,17 @@ static xwork_result xwork__agent_run_default(xwork_agent *pAgent, const char *sP
             goto cleanup;
         if (bNeedNewTurn)
         {
-            uTurn = xllmSessionBeginTurn(pAgent->pSession);
+            uTurn = xwork__begin_turn_retained(pAgent,pError);
             if (!uTurn)
             {
-                xwork__set_error(pError, XWORK_ERROR_CONTEXT, "failed to start next agent turn");
+                if(!pError||pError->eCode==XWORK_ERROR_NONE)xwork__set_error(pError,XWORK_ERROR_CONTEXT,"failed to start next agent turn");
                 eResult = XWORK_RESULT_ERROR;
                 goto cleanup;
             }
             bNeedNewTurn = false;
         }
 retry_request_build:
+        if(uRequestRecoveries)pAgent->uMaxParallelTools=1;
         xllmRequestInit(&tRequest);
         xllmErrorInit(&tModelError);
         if (!xllmSessionBuildRequest(pAgent->pSession, &tRequest, &tModelError))
@@ -19344,7 +19361,7 @@ retry_request_build:
                     goto cleanup;
                 }
                 ++uVerificationPrompts;
-                uTurn = xllmSessionBeginTurn(pAgent->pSession);
+                uTurn = xwork__begin_turn_retained(pAgent,pError);
                 if (!uTurn ||
                     !xllmSessionAddText(pAgent->pSession, uTurn, XLLM_ROLE_USER,
                                         sVerificationPrompt, XLLM_SESSION_ENTRY_SYNTHETIC))
@@ -19476,6 +19493,9 @@ retry_ordered_result:
                 else
                 {
                     ++uConsecutiveToolFailures;
+                    /* Main thread, after all worker callbacks joined. Never
+                     * mutate dispatch policy concurrently from an OOM hook. */
+                    pAgent->uMaxParallelTools=1;
                 }
                 if (uConsecutiveToolFailures >= pAgent->uConsecutiveFailureLimit)
                 {
@@ -19504,7 +19524,7 @@ retry_ordered_result:
                 xwork__set_error(pError, XWORK_ERROR_LOOP_GUARD,
                                  "consecutive tool failure limit reached");
                 if(xwork__recover(pAgent,"loop_guard",pError,uConsecutiveToolFailures,true)){
-                    uint64_t RecoveryTurn=xllmSessionBeginTurn(pAgent->pSession);
+                    uint64_t RecoveryTurn=xwork__begin_turn_retained(pAgent,pError);
                     if(RecoveryTurn&&xllmSessionAddText(pAgent->pSession,RecoveryTurn,XLLM_ROLE_USER,
                         "The current method repeatedly failed. Choose a different available tool or approach. Do not blindly repeat commands with possible effects; inspect existing results and receipts first.",XLLM_SESSION_ENTRY_SYNTHETIC)&&xwork__save(pAgent,pError)){
                         xllmResponseDestroy(pResponse);bNeedNewTurn=true;continue;
