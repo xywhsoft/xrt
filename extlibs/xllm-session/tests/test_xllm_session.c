@@ -139,6 +139,16 @@ static void test_compaction_user_bridge(void)
         "## Goal\ntoo little continuity.", &tQuality, &tError) &&
         !tQuality.bAccepted && tQuality.uMissingSections != 0u,
         "quality report rejects an incomplete compaction summary");
+    {
+        char *Normalized=NULL;
+        const char *Candidate="The implementation remains incomplete. Preserve the original requested project and exact file paths. Tool receipts show retained.txt was written once. Continue by inspecting the repository, making the remaining changes, and verifying the result. No production credentials were changed or exposed. All original decisions and evidence stay in the durable history. Do not rerun previously completed commands without first inspecting their effects.";
+        SESSION_CHECK(pCompaction && xllmCompactionNormalizeSummary(pCompaction,Candidate,&Normalized,&tError) &&
+            Normalized && strstr(Normalized,Candidate) && xllmCompactionEvaluateSummary(pCompaction,Normalized,&tQuality,&tError) && tQuality.bAccepted,
+            "format repair preserves the complete candidate and passes the same gate");
+        free(Normalized);Normalized=NULL;
+        SESSION_CHECK(!xllmCompactionNormalizeSummary(pCompaction,"incomplete",&Normalized,&tError) && !Normalized,
+            "format repair cannot pad an inadequate short candidate");
+    }
     SESSION_CHECK(pCompaction && xllmSessionCommitCompaction(pSession, pCompaction,
         test_pi_summary("Implement the requested project and preserve tool continuity."), &tError),
         "bridge compaction commits a continuation summary");

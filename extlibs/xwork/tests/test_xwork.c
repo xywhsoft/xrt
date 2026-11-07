@@ -2024,16 +2024,18 @@ static void test_compaction_styles(void)
 }
 
 static unsigned recovery_policy_calls,recovery_notices;
-static bool recovery_opt_in;
+static bool recovery_opt_in,recovery_needs_change;
+static unsigned recovery_probes;
 static bool recovery_owner_retain(void* Data){(void)Data;return true;}
 static void recovery_owner_release(void* Data){(void)Data;}
 static xwork_result recovery_policy(void* Data,xwork_agent_extension_context* Context,xwork_error* Error)
 {
     (void)Data;(void)Error;
     if(Context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY){
+        if(Context->bRecoveryProbe){Context->bRecoveryReady=++recovery_probes>=2;return XWORK_RESULT_OK;}
         recovery_policy_calls++;
         Context->bRecoveryHandled=recovery_opt_in;
-        Context->uRecoveryDelayMs=1;
+        Context->uRecoveryDelayMs=1;Context->bRecoveryNeedsChange=recovery_needs_change;
     }
     return XWORK_RESULT_OK;
 }
@@ -2041,6 +2043,19 @@ static bool recovery_notice(void* Data,const xwork_event* Event)
 {
     (void)Data;if(Event->eKind==XWORK_EVENT_RECOVERY_WAIT)recovery_notices++;
     return true;
+}
+static unsigned recovery_model_calls,recovery_tool_effects;
+static xwork_result recovery_oom_tool(void* Data,const xwork_tool_context* Context,const char* Args,xwork_tool_output* Output,xwork_error* Error)
+{
+    (void)Data;(void)Context;(void)Args;(void)Output;++recovery_tool_effects;
+    xworkErrorInit(Error);Error->eCode=XWORK_ERROR_OUT_OF_MEMORY;return XWORK_RESULT_ERROR;
+}
+static xllm_result recovery_model(void* Data,const xllm_request* Request,const xllm_stream_callbacks* Callbacks,xllm_response** Response,xllm_error* Error)
+{
+    (void)Data;(void)Callbacks;(void)Error;++recovery_model_calls;
+    if(recovery_model_calls==1){*Response=mock_response("",1u);return *Response&&mock_set_call(*Response,0,"once","effect_then_oom","{}")?XLLM_RESULT_OK:XLLM_RESULT_ERROR;}
+    CHECK(request_has_text(Request,"Execution may have applied effects"),"OOM result tells the model to inspect effects instead of blind replay");
+    *Response=mock_response("Completed effects retained; result allocation recovered.",0u);return *Response?XLLM_RESULT_OK:XLLM_RESULT_ERROR;
 }
 static void test_host_recovery(void)
 {
@@ -2061,6 +2076,18 @@ static void test_host_recovery(void)
         CHECK(xwork__recover(Agent,"resource",&Error,1,true),"safe boundary recovers");
         CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
         CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
+        recovery_needs_change=true;recovery_probes=0;
+        CHECK(xwork__recover(Agent,"context",&Error,1,true)&&recovery_probes==2,"condition wait probes without replaying the failed operation");
+        recovery_needs_change=false;
+        xwork_tool_definition Tool={0};Tool.sName="effect_then_oom";Tool.sDescription="Local OOM fixture";Tool.sParametersJson="{\"type\":\"object\"}";
+        Tool.uEffects=XWORK_TOOL_EFFECT_READ_ONLY;Tool.OnExecute=recovery_oom_tool;
+        CHECK(xworkAgentRegisterTool(Agent,&Tool,&Error),"OOM fixture registered");
+        Agent->OnModelComplete=recovery_model;recovery_tool_effects=recovery_model_calls=0;
+        xwork_run_result Run={0};
+        CHECK(xworkAgentRun(Agent,"Exercise a completed tool followed by OOM.",&Run,&Error)==XWORK_RESULT_OK&&
+            recovery_tool_effects==1&&recovery_model_calls==2&&Run.uToolCalls==1,
+            "resource recovery never repeats an already invoked effectful tool");
+        xworkRunResultUnit(&Run);
         xrtCancelRequest(Cancel);
         CHECK(!xwork__recover(Agent,"resource",&Error,2,true),"cancelled recovery never retries");
         xworkAgentDestroy(Agent);

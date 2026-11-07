@@ -744,10 +744,10 @@ xwork_result xwork__execute_tool_prepared(
                 /* Execution may already have produced effects. Recover only
                  * the result allocation, never invoke the tool a second time. */
                 xworkToolOutputUnit(&tOutput);
-                if(!xwork__recover(pAgent,"resource",pError,++RecoveryAttempt,true))goto cleanup;
+                if(!xwork__recover(pAgent,"tool_resource",pError,++RecoveryAttempt,true))goto cleanup;
                 while(!xworkToolOutputSet(&tOutput,false,
                     "tool_failure: resource_exhausted\nExecution may have applied effects. Inspect the existing receipt and target state before choosing another operation; do not blindly replay it.")){
-                    if(!xwork__recover(pAgent,"resource",pError,++RecoveryAttempt,true))goto cleanup;
+                    if(!xwork__recover(pAgent,"tool_resource",pError,++RecoveryAttempt,true))goto cleanup;
                 }
                 if(pbEffectApplied)*pbEffectApplied=true;
                 goto tool_ready;
@@ -756,7 +756,7 @@ xwork_result xwork__execute_tool_prepared(
                 xwork__operation_status(pAgent) == XWORK_OPERATION_TIMED_OUT ||
                 (pError &&
                  (pError->eCode == XWORK_ERROR_OUT_OF_MEMORY ||
-                  pError->eCode == XWORK_ERROR_CONTEXT || pError->eCode == XWORK_ERROR_CANCELLED ||
+                  pError->eCode == XWORK_ERROR_CANCELLED ||
                   pError->eCode == XWORK_ERROR_RECOVERY_REQUIRED)))
                 goto cleanup;
             {
@@ -1126,6 +1126,13 @@ retry_compaction_summary:
         }
         if (pResponse->iToolCallCount == 0u && tQuality.bAccepted)
             break;
+        if(uAttempt==uMaxAttempts&&pResponse->iToolCallCount==0u){
+            char *Normalized=NULL;
+            if(xllmCompactionNormalizeSummary(pCompaction,pResponse->sContent,&Normalized,&tSessionError)){
+                free(pResponse->sContent);pResponse->sContent=Normalized;
+                if(xllmCompactionEvaluateSummary(pCompaction,Normalized,&tQuality,&tSessionError)&&tQuality.bAccepted)break;
+            }
+        }
         ++pRun->uRejectedCompactionSummaries;
         memset(&tEvent, 0, sizeof(tEvent));
         tEvent.eKind = XWORK_EVENT_COMPACTION_REJECTED;
@@ -1171,7 +1178,8 @@ retry_compaction_commit:
                                                    : "failed to commit context compaction");
         /* Commit validates a still-prepared transaction and stages its journal
          * before changing the active summary. Never regenerate the summary. */
-        if((tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY||tSessionError.eCode==XLLM_ERROR_NETWORK)&&
+        if(xllmSessionGetState(pAgent->pSession)!=XLLM_SESSION_STATE_RECOVERY_REQUIRED&&
+            (tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY||tSessionError.eCode==XLLM_ERROR_NETWORK)&&
             xwork__recover(pAgent,tSessionError.eCode==XLLM_ERROR_OUT_OF_MEMORY?"resource":"storage",pError,++uPrepareRecoveries,true))goto retry_compaction_commit;
         goto cleanup;
     }
@@ -1799,13 +1807,24 @@ retry_request_build:
         uExtensionCompactions = 0u;
         uRequestRecoveries=0;
         tRun.tLastUsage = pResponse->tUsage;
-        if (!xllmSessionAddAssistantResponse(pAgent->pSession, uTurn, pResponse))
         {
-            xllmResponseDestroy(pResponse);
-            xwork__set_error(pError, XWORK_ERROR_CONTEXT,
-                             "failed to append assistant response to session");
-            eResult = XWORK_RESULT_ERROR;
-            goto cleanup;
+            /* AddAssistantResponse can commit the message before recording
+             * usage. Resume that second operation instead of duplicating the
+             * assistant message (and its tool calls). Never regenerate it. */
+            uint64_t Before=xllmSessionLastSequence(pAgent->pSession);
+            uint32_t Recoveries=0;
+            while (!(xllmSessionLastSequence(pAgent->pSession)>Before ?
+                xllmSessionRecordUsage(pAgent->pSession,&pResponse->tUsage):
+                xllmSessionAddAssistantResponse(pAgent->pSession,uTurn,pResponse))) {
+                xllm_error Persist;xllmErrorInit(&Persist);
+                bool Storage=xllmSessionGetLastPersistenceError(pAgent->pSession,&Persist);
+                xwork__set_error(pError,Storage?XWORK_ERROR_IO:XWORK_ERROR_OUT_OF_MEMORY,
+                    "failed to retain the completed model response");
+                if(xllmSessionGetState(pAgent->pSession)==XLLM_SESSION_STATE_RECOVERY_REQUIRED||
+                    !xwork__recover(pAgent,Storage?"storage":"resource",pError,++Recoveries,true)){
+                    xllmResponseDestroy(pResponse);eResult=XWORK_RESULT_ERROR;goto cleanup;
+                }
+            }
         }
         if (!xwork__save(pAgent, pError))
         {
@@ -1852,6 +1871,9 @@ retry_request_build:
                     xwork__set_error(
                         pError, XWORK_ERROR_LOOP_GUARD,
                         "agent repeatedly attempted to finish without verifying workspace changes");
+                    if(xwork__recover(pAgent,"verification",pError,uVerificationPrompts+1u,true)){
+                        bNeedNewTurn=true;continue;
+                    }
                     eResult = XWORK_RESULT_LIMIT;
                     goto cleanup;
                 }
@@ -1896,14 +1918,17 @@ retry_request_build:
         {
             bool bBatchHadSuccess = false;
             bool bFailureLimitReached = false;
-            xwork_tool_batch_output *pOutputs =
+            uint32_t BatchRecoveries=0;
+retry_batch_allocation:
+            ;xwork_tool_batch_output *pOutputs =
                 (xwork_tool_batch_output *)calloc(pResponse->iToolCallCount, sizeof(*pOutputs));
             xllm_executor_ctx tBatchContext;
             if (!pOutputs)
             {
-                xllmResponseDestroy(pResponse);
                 xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY,
                                  "failed to allocate ordered tool batch outputs");
+                if(xwork__recover(pAgent,"resource",pError,++BatchRecoveries,true))goto retry_batch_allocation;
+                xllmResponseDestroy(pResponse);
                 eResult = XWORK_RESULT_ERROR;
                 goto cleanup;
             }
@@ -1938,6 +1963,8 @@ retry_request_build:
                     xllmResponseDestroy(pResponse);
                     goto cleanup;
                 }
+                uint32_t ResultRecoveries=0;
+retry_ordered_result:
                 if (pOutputs[i].pImageBytes && pOutputs[i].iImageSize && pOutputs[i].sImageMime[0])
                 {
                     bRecorded = xllmSessionAddToolResultWithImage(
@@ -1953,6 +1980,10 @@ retry_request_build:
                 {
                     xwork__set_error(pError, XWORK_ERROR_CONTEXT,
                                      "failed to append an ordered tool result to session");
+                    xllm_error Persist;xllmErrorInit(&Persist);
+                    bool Storage=xllmSessionGetLastPersistenceError(pAgent->pSession,&Persist);
+                    if(xllmSessionGetState(pAgent->pSession)!=XLLM_SESSION_STATE_RECOVERY_REQUIRED&&
+                        xwork__recover(pAgent,Storage?"storage":"resource",pError,++ResultRecoveries,true))goto retry_ordered_result;
                     eResult = XWORK_RESULT_ERROR;
                     xwork__tool_batch_outputs_unit(pOutputs, pResponse->iToolCallCount);
                     free(pOutputs);
@@ -2006,6 +2037,13 @@ retry_request_build:
             {
                 xwork__set_error(pError, XWORK_ERROR_LOOP_GUARD,
                                  "consecutive tool failure limit reached");
+                if(xwork__recover(pAgent,"loop_guard",pError,uConsecutiveToolFailures,true)){
+                    uint64_t RecoveryTurn=xllmSessionBeginTurn(pAgent->pSession);
+                    if(RecoveryTurn&&xllmSessionAddText(pAgent->pSession,RecoveryTurn,XLLM_ROLE_USER,
+                        "The current method repeatedly failed. Choose a different available tool or approach. Do not blindly repeat commands with possible effects; inspect existing results and receipts first.",XLLM_SESSION_ENTRY_SYNTHETIC)&&xwork__save(pAgent,pError)){
+                        xllmResponseDestroy(pResponse);bNeedNewTurn=true;continue;
+                    }
+                }
                 eResult = XWORK_RESULT_LIMIT;
                 xllmResponseDestroy(pResponse);
                 goto cleanup;
@@ -2038,6 +2076,10 @@ cleanup:
                          "session event persistence failed; completed tool results remain "
                          "available for recovery");
         xwork__atomic_store(&pAgent->iCancelled, 0);
+    }
+    if(eResult!=XWORK_RESULT_OK&&!pAgent->bEventSinkFailed){
+        if(xwork__operation_status(pAgent)==XWORK_OPERATION_TIMED_OUT||(pError&&pError->eCode==XWORK_ERROR_TIMEOUT))eResult=XWORK_RESULT_TIMEOUT;
+        else if(xwork__is_cancelled(pAgent)||(pError&&pError->eCode==XWORK_ERROR_CANCELLED))eResult=XWORK_RESULT_CANCELLED;
     }
     if (eResult != XWORK_RESULT_OK)
     {

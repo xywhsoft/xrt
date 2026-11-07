@@ -3048,6 +3048,11 @@ XRT_API bool xllmCompactionAbort(xllm_compaction* pCompaction, xllm_error* pErro
 XRT_API const char* xllmCompactionPrompt(const xllm_compaction* pCompaction);
 XRT_API uint64_t xllmCompactionThroughSequence(const xllm_compaction* pCompaction);
 XRT_API uint64_t xllmCompactionEstimatedTokens(const xllm_compaction* pCompaction);
+/* Repair missing structural headings without rewriting or dropping any of the
+ * candidate's text. Reject empty/short/oversized candidates and reapply the
+ * configured evaluator. Caller owns the returned malloc-compatible string. */
+XRT_API bool xllmCompactionNormalizeSummary(const xllm_compaction* pCompaction,
+    const char* sCandidate, char** psSummary, xllm_error* pError);
 /* Record the meta-call usage before committing (exact summary accounting). */
 XRT_API bool xllmCompactionSetUsage(xllm_compaction* pCompaction, const xllm_usage* pUsage);
 XRT_API bool xllmCompactionEvaluateSummary(const xllm_compaction* pCompaction, const char* sSummary,

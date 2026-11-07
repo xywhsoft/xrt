@@ -117,6 +117,21 @@ Hosts own persistence and execution admission; cancellation remains cooperative.
 
 ## SDK export
 
+Hosts can implement `XWORK_AGENT_EXTENSION_RECOVERY` and explicitly opt in at
+safe boundaries. `xworkAgentWaitRecovery` retains the caller's pending operation;
+it never executes a tool or model. A policy chooses active backoff or retained
+waiting, and can probe an external condition without repeating work. Stop and
+explicit deadlines always interrupt waiting. Checkpoints, request construction,
+compaction commits, and already completed results are retried independently.
+Unknown journal outcomes still require explicit receipt recovery.
+
+Compaction first keeps the existing safe-prefix/split-turn planning. If a final
+candidate has adequate content but missing headings, the session library can
+normalize its format without dropping candidate text and applies the same
+quality gate again. Short/oversized candidates cannot be padded into acceptance.
+Hosts decide how to wait after rejected candidates; the library does not start
+unlimited batches of paid summarization calls on its own.
+
 `tools/export_agent_libraries.py --xserver <checkout>` generates the flat XS/TCC
 layout from committed canonical sources. `--check` verifies the exact mapping.
 The export changes guards, DLL annotations and include spellings, preserving

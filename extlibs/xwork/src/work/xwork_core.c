@@ -827,20 +827,31 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
     xworkErrorInit(&PolicyError);
     if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
+    if(!strcmp(Stage,"resource"))Agent->uMaxParallelTools=1;
     xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
+    xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
     Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";
     if(!strcmp(Stage,"storage"))Event.sProviderCode="waiting_storage";
     if(!strncmp(Stage,"compaction",10))Event.sProviderCode="waiting_compaction";
     if(!strcmp(Stage,"context"))Event.sProviderCode="waiting_context";
+    if(!strcmp(Stage,"callback"))Event.sProviderCode="waiting_callback";
+    if(!strcmp(Stage,"verification"))Event.sProviderCode="waiting_verification";
+    if(!strcmp(Stage,"loop_guard"))Event.sProviderCode="waiting_tools";
     Event.tDiagnostics.uAttemptCount=Attempt;Event.tDiagnostics.uRetryAfterMs=Context.uRecoveryDelayMs;
     /* A storage outage must not recursively ask the failed sink to persist
      * its own recovery notice. The original operation remains authoritative. */
     if(strcmp(Stage,"storage")&&!xwork__emit(Agent,&Event))return false;
-    uint64_t Until=xllmClockUs()+(uint64_t)Context.uRecoveryDelayMs*1000u;
+    uint64_t Until=xllmClockUs()+(uint64_t)Context.uRecoveryDelayMs*1000u,NextProbe=xllmClockUs();
     do{
-        if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
         if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
-        if(xllmClockUs()>=Until)break;
+        if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
+        if(Context.bRecoveryNeedsChange&&xllmClockUs()>=NextProbe){
+            Context.bRecoveryProbe=true;Context.bRecoveryReady=false;
+            if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK)return false;
+            if(Context.bRecoveryReady)break;
+            NextProbe=xllmClockUs()+1000000u;
+        }
+        if(!Context.bRecoveryNeedsChange&&xllmClockUs()>=Until)break;
         xrtSleep(20);
     }while(true);
     if(strcmp(Stage,"storage")){Event.tDiagnostics.uRetryAfterMs=0;(void)xwork__emit(Agent,&Event);}
@@ -869,6 +880,11 @@ retry_checkpoint:
         return false;
     }
     return true;
+}
+
+bool xworkAgentWaitRecovery(xwork_agent *Agent,const char *Stage,xwork_error *Error,uint32_t Attempt)
+{
+    return Stage&&Stage[0]&&xwork__recover(Agent,Stage,Error,Attempt,true);
 }
 
 bool xworkPathIsProtected(const char *sPath)

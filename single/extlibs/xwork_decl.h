@@ -4046,6 +4046,10 @@ typedef struct xwork_agent_extension_context {
     bool bRecoveryHandled;
     bool bRecoveryWaiting;
     uint32_t uRecoveryDelayMs;
+    bool bRecoveryNeedsChange;
+    bool bRecoveryProbe; /* Poll only; must not run a model or tool. */
+    bool bRecoveryReady;
+    uint64_t uRecoveryRevision;
 } xwork_agent_extension_context;
 typedef xwork_result (*xwork_agent_extension_fn)(void*,xwork_agent_extension_context*,xwork_error*);
 
@@ -4245,6 +4249,10 @@ typedef struct xwork_readonly_subagent_config {
 } xwork_readonly_subagent_config;
 
 XRT_API void xworkErrorInit(xwork_error* pError);
+/* Safe host boundary only: retain the failed operation and wait through the
+ * installed recovery policy. Does not invoke/replay any model or tool. */
+XRT_API bool xworkAgentWaitRecovery(xwork_agent* pAgent, const char* sStage,
+    xwork_error* pError, uint32_t uAttempt);
 XRT_API const char* xworkErrorCodeName(xwork_error_code eCode);
 XRT_API void xworkRecoveryCallInfoInit(xwork_recovery_call_info* pInfo);
 XRT_API void xworkRecoveryDecisionInit(xwork_recovery_decision* pDecision);
