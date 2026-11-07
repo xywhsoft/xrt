@@ -2084,6 +2084,10 @@ static void test_host_recovery(void)
         CHECK(Blocker&&xwork__save(Agent,&Error)&&!recovery_repair_storage,
             "checkpoint retries only its failed save after storage becomes available");
         Agent->bAutoSaveSession=false;(void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        unsigned NoticesBefore=recovery_notices;
+        CHECK(xrtMutexLock(Agent->pCallbackLock)&&xworkAgentWaitRecovery(Agent,"callback_quiet",&Error,1)&&
+            recovery_notices==NoticesBefore,"serialized callback recovery never reenters its own event lock");
+        (void)xrtMutexUnlock(Agent->pCallbackLock);
         recovery_needs_change=true;recovery_probes=0;
         CHECK(xwork__recover(Agent,"context",&Error,1,true)&&recovery_probes==2,"condition wait probes without replaying the failed operation");
         recovery_needs_change=false;

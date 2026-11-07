@@ -124,6 +124,9 @@ waiting, and can probe an external condition without repeating work. Stop and
 explicit deadlines always interrupt waiting. Checkpoints, request construction,
 compaction commits, and already completed results are retried independently.
 Unknown journal outcomes still require explicit receipt recovery.
+For a callback already inside the serialized event/hook lock, use the stage
+`callback_quiet` or `callback_resource_quiet`: these retain cancellation and
+policy waiting without recursively entering the same event sink.
 
 Compaction first keeps the existing safe-prefix/split-turn planning. If a final
 candidate has adequate content but missing headings, the session library can

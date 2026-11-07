@@ -840,7 +840,8 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
     Event.tDiagnostics.uAttemptCount=Attempt;Event.tDiagnostics.uRetryAfterMs=Context.uRecoveryDelayMs;
     /* A storage outage must not recursively ask the failed sink to persist
      * its own recovery notice. The original operation remains authoritative. */
-    if(strcmp(Stage,"storage")&&!xwork__emit(Agent,&Event))return false;
+    bool Notify=strcmp(Stage,"storage")&&strcmp(Stage,"callback_quiet")&&strcmp(Stage,"callback_resource_quiet");
+    if(Notify&&!xwork__emit(Agent,&Event))return false;
     uint64_t Until=xllmClockUs()+(uint64_t)Context.uRecoveryDelayMs*1000u,NextProbe=xllmClockUs();
     do{
         if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
@@ -854,7 +855,7 @@ bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
         if(!Context.bRecoveryNeedsChange&&xllmClockUs()>=Until)break;
         xrtSleep(20);
     }while(true);
-    if(strcmp(Stage,"storage")){Event.tDiagnostics.uRetryAfterMs=0;(void)xwork__emit(Agent,&Event);}
+    if(Notify){Event.tDiagnostics.uRetryAfterMs=0;(void)xwork__emit(Agent,&Event);}
     return true;
 }
 
