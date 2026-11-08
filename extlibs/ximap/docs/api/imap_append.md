@@ -19,6 +19,10 @@ CRLF、消费 completion，并解析 UIDPLUS 的可选 APPENDUID。
 对已经驻留内存的小消息，`xrtImapClientAppend` 组合 Begin、Write 与 End，保持同一状态和
 错误契约。
 
+`Append` 和 `AppendEnd` 的结果指针都可为 `NULL`。非空结果指针的范围非法时返回
+`XERR_ARGUMENT`：完整 `Append` 在发送命令头或正文前拒绝；`AppendEnd` 保留既有上传的
+tag、剩余长度和最近响应，更正结果指针后可继续写入并完成同一上传。
+
 ## 所有权与失败
 
 Mailbox、Flags、InternalDate 和正文缓冲只在对应调用期间借用。结果中的 UID 数值由值语义
@@ -29,6 +33,10 @@ Mailbox、Flags、InternalDate 和正文缓冲只在对应调用期间借用。�
 写入超过声明长度返回 `XERR_RANGE`；尚未写满就调用 `AppendEnd` 返回 `XERR_STATE`，
 活动上传仍可继续写入。实际传输失败、取消、超时或中途断流会使会话进入失败终态，
 因为无法重新建立可靠的 IMAP 命令边界。
+
+解析 APPENDUID 的拒绝诊断若因分配失败报告 MEMORY，End 保留该主错误并进入 FAILED，
+不再用通用协议诊断覆盖。结果输出仍保持调用前字节；正常非法 APPENDUID 继续报告
+PROTOCOL，合法完成后的会话仍可继续使用。
 
 启用 COMPRESS 后，`AppendWrite` 成功表示编码器已接受该块正文，压缩数据可能仍在
 编码器中等待刷新；`AppendEnd` 建立最后的同步刷新边界，再等待服务器 completion。

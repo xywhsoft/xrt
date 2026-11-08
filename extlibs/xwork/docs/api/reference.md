@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `197` 个函数、`145` 个常量或宏、
+当前登记 `198` 个函数、`147` 个常量或宏、
 `109` 个公共类型。
 
 ## `extlibs/xwork/include/xwork/api.h`
 
 [查看带契约注释的公共头](../../include/xwork/api.h)
 
-### 函数 (197)
+### 函数 (198)
 
 - `xworkAgentAdoptRuntimeToolCatalog`
 - `xworkAgentAllowExternalPaths`
@@ -57,6 +57,7 @@
 - `xworkAgentUnregisterSubagentType`
 - `xworkAgentUnregisterTool`
 - `xworkAgentUnregisterToolsBySource`
+- `xworkAgentWaitRecovery`
 - `xworkAgentWorkspaceRoot`
 - `xworkArtifactChunkInit`
 - `xworkArtifactChunkUnit`
@@ -211,7 +212,7 @@
 - `xworkToolResultWriterWrite`
 - `xworkToolResultWriterWriteText`
 
-### 常量与宏 (145)
+### 常量与宏 (147)
 
 - `XWORK_ABI_VERSION`
 - `XWORK_AGENT_EXTENSION_AFTER_TOOL`
@@ -220,6 +221,7 @@
 - `XWORK_AGENT_EXTENSION_CHILD_READY`
 - `XWORK_AGENT_EXTENSION_CONTEXT`
 - `XWORK_AGENT_EXTENSION_MODEL_DISPATCH`
+- `XWORK_AGENT_EXTENSION_RECOVERY`
 - `XWORK_AGENT_EXTENSION_RELEASE`
 - `XWORK_AGENT_EXTENSION_REQUEST`
 - `XWORK_AGENT_EXTENSION_RESPONSE`
@@ -260,6 +262,7 @@
 - `XWORK_EVENT_MODEL_TEXT_DELTA`
 - `XWORK_EVENT_RECOVERY_REQUIRED`
 - `XWORK_EVENT_RECOVERY_RESOLVED`
+- `XWORK_EVENT_RECOVERY_WAIT`
 - `XWORK_EVENT_SCHEMA_VERSION`
 - `XWORK_EVENT_SNAPSHOT_MAX_RECORDS`
 - `XWORK_EVENT_TASK_UPDATED`

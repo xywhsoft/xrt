@@ -91,3 +91,26 @@ Windows 与 Linux 的编译计数分别保存在 `out/gcc/native-windows` 与
 `--report-only` 要求保留原报告和原始计数，重新核对输入和精确计数，不重建测试。
 旧计数未绑定报告、输入已经变化、计数丢失或报告与计数不符时都会拒绝读取，
 不会给旧计数重新附上当前源码的哈希。CI 在两个平台执行溯源回归并保留报告及自有对象计数。
+
+## UIDL 边界
+
+UIDL 的唯一 ID 按 [RFC 1939 第 7 节](https://www.rfc-editor.org/rfc/rfc1939.html#page-12)
+限制为 1–70 个可打印 ASCII 字节。空 ID、过长 ID 和范围外字节返回协议错误，
+解析失败保留调用方的结果存储。模块化和协议单头复用相同的长度边界及全部 256 字节回归。
+
+## 会话与消息错误回归
+
+无效超时、单消息响应序号、消息预算和 sink 错误归属由真实回环对端验证；
+模块化和单头复用同一夹具，并核对会话恢复、LastReply、错误身份及最终资源退休：
+
+```sh
+python tools/build.py --compiler gcc --manifest extlibs/xpop3/config/modules.json --suite pop3_contract_runtime_tests --no-examples
+```
+
+该测试根不引入 TLS；完整 `xpop3_tests` 同时保留既有 TLS/STLS/OOM/取消回归。
+
+生产根 `xpop3` 只选择本库五个功能根；完整离线测试使用 `xpop3_tests`。
+生产包和 ALL 单头不因夹具或范例带入 RSA 私钥签名、RSA 身份构造或通用 String。
+Core 的 `tls_stream` 自身同时依赖 TLS client/server，本轮保留该既有 Core 边界。
+协议-only 体积 profile 禁止 Client、网络、TLS 和 MIME 树符号；完整 profile
+禁止其他邮件协议和 WebSocket 符号。

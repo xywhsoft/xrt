@@ -191,6 +191,23 @@ static bool __xrtImapCommandNumber(xstrview Text, uint64* pValue)
 
 
 
+/* 已知 UID/计数使用 uint32 范围；泛型数字和 MODSEQ 保留 uint64。 */
+static bool __xrtImapCommandMailboxNumber(uint64 iValue, bool bNonzero)
+{
+	if ( bNonzero && (iValue == 0) ) {
+		return __xrtImapCommandError(
+			XERR_PROTOCOL,
+			"IMAP mailbox number must be nonzero"
+		);
+	}
+	return (iValue <= UINT32_MAX) || __xrtImapCommandError(
+		XERR_RANGE,
+		"IMAP mailbox number exceeds uint32"
+	);
+}
+
+
+
 /* 合并 SELECT/EXAMINE 的方括号响应码。 */
 static xmailnext __xrtImapCommandMailboxCode(
 	xstrview Text,
@@ -234,6 +251,10 @@ static xmailnext __xrtImapCommandMailboxCode(
 			XERR_PROTOCOL,
 			"invalid numeric IMAP mailbox response code"
 		);
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( !__xrtMailAsciiEqualI(Code.Name, XRT_STR_LITERAL("HIGHESTMODSEQ")) &&
+		!__xrtImapCommandMailboxNumber(iValue, true) ) {
 		return XMAIL_NEXT_ERROR;
 	}
 	if ( __xrtMailAsciiEqualI(Code.Name, XRT_STR_LITERAL("UNSEEN")) ) {
@@ -294,6 +315,9 @@ static bool __xrtImapCommandFinish(
 			if ( (pInfo != NULL) &&
 				(xrtImapMailboxInfoUpdate(&Final, pInfo) ==
 				 XMAIL_NEXT_ERROR) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP mailbox response code"
@@ -318,6 +342,9 @@ static bool __xrtImapCommandFinish(
 			(Event.Kind == XIMAP_EVENT_RESPONSE) &&
 			(xrtImapMailboxInfoUpdate(&Event.Response, pInfo) ==
 			 XMAIL_NEXT_ERROR) ) {
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				return __xrtImapClientFailPreserveError(pClient);
+			}
 			return __xrtImapClientProtocolFail(
 				pClient,
 				"invalid IMAP mailbox status response"
@@ -406,6 +433,12 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 			sizeof(*pResponse),
 			pInfo,
 			sizeof(*pInfo)
+		) || !xrtMemRangeValid(pResponse->Source.Data, pResponse->Source.Size) ||
+		!xrtMemRangeValid(pResponse->Text.Data, pResponse->Text.Size) ||
+		xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Source.Data, pResponse->Source.Size
+		) || xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Text.Data, pResponse->Text.Size
 		) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
@@ -423,17 +456,33 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	if ( Next != XMAIL_NEXT_ITEM ) {
 		return Next;
 	}
+	if ( (Number.Text.Size != 0) &&
+		(__xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXISTS")) ||
+		 __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("RECENT")) ||
+		 __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXPUNGE"))) ) {
+		(void)__xrtImapCommandError(XERR_PROTOCOL, "unexpected IMAP mailbox number data");
+		return XMAIL_NEXT_ERROR;
+	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXISTS")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, false) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		pInfo->Exists = Number.Number;
 		pInfo->Present |= XIMAP_MAILBOX_EXISTS;
 		return XMAIL_NEXT_ITEM;
 	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("RECENT")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, false) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		pInfo->Recent = Number.Number;
 		pInfo->Present |= XIMAP_MAILBOX_RECENT;
 		return XMAIL_NEXT_ITEM;
 	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXPUNGE")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, true) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		if ( ((pInfo->Present & XIMAP_MAILBOX_EXISTS) != 0) &&
 			(pInfo->Exists != 0) ) {
 			pInfo->Exists--;
@@ -487,7 +536,6 @@ static bool __xrtImapCommandSelect(
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
-	xrtImapMailboxInfoInit(pInfo);
 	if ( !__xrtImapCommandBeginMailbox(
 		pClient,
 		bReadOnly ? XRT_STR_LITERAL("EXAMINE") :
@@ -498,6 +546,7 @@ static bool __xrtImapCommandSelect(
 	) ) {
 		return false;
 	}
+	xrtImapMailboxInfoInit(pInfo);
 	if ( !__xrtImapCommandFinish(
 		pClient,
 		pInfo,
@@ -1240,9 +1289,11 @@ XRT_API bool __xrtImapClientEndIdle(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapCommandSelected(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapCommandSelected(pClient) ) {
 		return false;
 	}
 	return __xrtImapClientIdleEnd(pClient) && __xrtImapClientContinue(

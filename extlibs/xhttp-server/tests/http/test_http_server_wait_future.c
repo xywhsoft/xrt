@@ -1,3 +1,4 @@
+#include <xrt/detail/wait.h>
 #include "../test.h"
 
 
@@ -15,6 +16,12 @@
 /* 测试状态记录 Shutdown 内注册的等待和回调发布顺序。 */
 typedef struct test_http_server_wait {
 	xatomic32 Shutdown;
+	xatomic32 FirstHeld;
+	xatomic32 ReleaseFirst;
+	xatomic32 WatchReleased;
+	xhttpserver* Server;
+	xfuture* Pending;
+	xfuturewatch FirstWatch;
 	xfuture* CallbackWait;
 } test_http_server_wait;
 
@@ -51,6 +58,38 @@ static void testHttpServerWaitShutdown(
 
 
 
+/* Hold the real first Promise publication before the producer reaches the
+ * callback-registered waiter. Different waiters are independent publications. */
+static void testHttpServerWaitHoldFirst(ptr pData)
+{
+	test_http_server_wait* pState = (test_http_server_wait*)pData;
+	testRequire(xrtFutureState(pState->Pending) == XFUTURE_RESOLVED,
+		"HTTP first waiter notification preceded publication");
+	xrtAtomic32Store(&pState->FirstHeld, 1, XMEMORY_RELEASE);
+	while ( xrtAtomic32Load(&pState->ReleaseFirst, XMEMORY_ACQUIRE) == 0 ) {
+		xrtThreadYield();
+	}
+}
+
+
+
+static void testHttpServerWaitReleaseWatch(ptr pData)
+{
+	test_http_server_wait* pState = (test_http_server_wait*)pData;
+	(void)xrtAtomic32FetchAdd(&pState->WatchReleased, 1, XMEMORY_RELEASE);
+}
+
+
+
+/* Drain may finish on its caller; keep the controller free to release the gate. */
+static int32 testHttpServerWaitDrain(ptr pData)
+{
+	test_http_server_wait* pState = (test_http_server_wait*)pData;
+	return xrtHttpServerDrain(pState->Server) ? 0 : 1;
+}
+
+
+
 /* 验证多等待者、独立取消、关闭完成与迟注册语义。 */
 int main(void)
 {
@@ -63,6 +102,8 @@ int main(void)
 	xfuture* pCancelled;
 	xfuture* pPending;
 	xfuture* pLate;
+	xthread* pDrain;
+	double Deadline;
 
 	testRequire(
 		(xrtHttpServerWaitAsync(NULL) == NULL) &&
@@ -78,6 +119,9 @@ int main(void)
 	xrtClearError();
 	memset(&State, 0, sizeof(State));
 	xrtAtomic32Init(&State.Shutdown, 0);
+	xrtAtomic32Init(&State.FirstHeld, 0);
+	xrtAtomic32Init(&State.ReleaseFirst, 0);
+	xrtAtomic32Init(&State.WatchReleased, 0);
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_HTTP_SERVER_WAIT_BACKEND;
 	EngineConfig.Workers = 1;
@@ -129,10 +173,19 @@ int main(void)
 		(xrtFutureWaitFor(pPending, 0) == XWAIT_TIMEOUT),
 		"HTTP server wait cancellation affected another owner"
 	);
-	testRequire(
-		xrtHttpServerDrain(pServer),
-		"HTTP server wait drain failed"
-	);
+	State.Server = pServer;
+	State.Pending = pPending;
+	testRequire(xrtFutureWatchInit(&State.FirstWatch, testHttpServerWaitHoldFirst,
+		testHttpServerWaitReleaseWatch, &State) &&
+		(xrtFutureWatchAdd(pPending, &State.FirstWatch) == XFUTURE_WATCH_PENDING),
+		"HTTP first-waiter publication gate setup failed");
+	pDrain = xrtThreadCreate(testHttpServerWaitDrain, &State, 0);
+	testRequire(pDrain != NULL, "HTTP server wait drain thread failed");
+	Deadline = __xrtWaitAfter(5000);
+	while ( xrtAtomic32Load(&State.FirstHeld, XMEMORY_ACQUIRE) == 0 ) {
+		testRequire(!__xrtWaitExpired(Deadline), "HTTP first-waiter gate was not reached");
+		xrtThreadYield();
+	}
 	testRequire(
 		(xrtFutureWaitFor(
 			pPending,
@@ -148,11 +201,19 @@ int main(void)
 		(xrtFutureWaitFor(
 			State.CallbackWait,
 			0
-		 ) == XWAIT_OK) &&
-		(xrtFutureState(State.CallbackWait) ==
-		 XFUTURE_RESOLVED),
-		"HTTP server close wait did not resolve after shutdown"
+		 ) == XWAIT_TIMEOUT) &&
+		(xrtFutureState(State.CallbackWait) == XFUTURE_PENDING),
+		"HTTP callback waiter escaped the held first publication"
 	);
+	xrtAtomic32Store(&State.ReleaseFirst, 1, XMEMORY_RELEASE);
+	xrtFutureWatchRemove(pPending, &State.FirstWatch);
+	testRequire((xrtFutureWaitFor(State.CallbackWait, INT64_C(5000)) == XWAIT_OK) &&
+		(xrtFutureState(State.CallbackWait) == XFUTURE_RESOLVED) &&
+		(xrtAtomic32Load(&State.WatchReleased, XMEMORY_ACQUIRE) == 1) &&
+		(xrtThreadWaitFor(pDrain, INT64_C(5000)) == XWAIT_OK) &&
+		(xrtThreadExitCode(pDrain) == 0),
+		"HTTP independent waiter did not finish after publication gate release");
+	xrtThreadDestroy(pDrain);
 	pLate = xrtHttpServerWaitAsync(pServer);
 	testRequire(
 		(pLate != NULL) &&

@@ -37,6 +37,13 @@ int main(void)
 		#error "XIMAP_MODULE_XIMAP dependency closure is incomplete"
 	#endif
 
+	#if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) || \
+		defined(XRT_FEATURE_CRYPTO_RSA_PSS_SIGN) || \
+		defined(XRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN) || \
+		defined(XRT_FEATURE_TLS_IDENTITY_RSA)
+		#error "ximap production root retained TLS fixture signing dependencies"
+	#endif
+
 	return xrtImapResponseParse(
 		XRT_STR_LITERAL("* 23 FETCH (BODY[] {4096}"),
 		&Response

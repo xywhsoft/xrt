@@ -368,7 +368,7 @@ static void testHttpRouterMemoryContracts(void)
 		"HTTP Router packed-output fixture failed"
 	);
 	iCount = SIZE_MAX;
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	testRequire(
 		xrtHttpRouterMatch(
 			pRouter,
@@ -381,9 +381,9 @@ static void testHttpRouterMemoryContracts(void)
 		) == XHTTP_ROUTER_MATCH,
 		"HTTP Router rejected unaligned match outputs"
 	);
-	memcpy(&iCount, pCount, sizeof(iCount));
-	memcpy(&Match, pMatch, sizeof(Match));
-	memcpy(&Param, pParam, sizeof(Param));
+	memcpy(&iCount, (const void*)pCount, sizeof(iCount));
+	memcpy(&Match, (const void*)pMatch, sizeof(Match));
+	memcpy(&Param, (const void*)pParam, sizeof(Param));
 	testRequire(
 		(iCount == 1u) && (Match.Value == (ptr)1) &&
 		testHttpRouterView(Param.Name, "id") &&
@@ -391,7 +391,7 @@ static void testHttpRouterMemoryContracts(void)
 		"HTTP Router unaligned match output mismatch"
 	);
 	iCount = SIZE_MAX;
-	memcpy(pCount, &iCount, sizeof(iCount));
+	memcpy((void*)pCount, &iCount, sizeof(iCount));
 	testRequire(
 		xrtHttpRouterMethods(
 			pRouter,
@@ -402,8 +402,8 @@ static void testHttpRouterMemoryContracts(void)
 		) == XHTTP_ROUTER_MATCH,
 		"HTTP Router rejected unaligned method outputs"
 	);
-	memcpy(&iCount, pCount, sizeof(iCount));
-	memcpy(Methods, pMethods, sizeof(Methods));
+	memcpy(&iCount, (const void*)pCount, sizeof(iCount));
+	memcpy(Methods, (const void*)pMethods, sizeof(Methods));
 	testRequire(
 		(iCount == 2u) &&
 		testHttpRouterView(Methods[0], "GET") &&
@@ -576,7 +576,7 @@ static void testHttpRouterManyMethods(void)
 		) == XHTTP_ROUTER_MATCH && (iCount == 20u),
 		"HTTP router large method enumeration failed"
 	);
-	memcpy(Methods, pMethods, sizeof(Methods));
+	memcpy(Methods, (const void*)pMethods, sizeof(Methods));
 	testRequire(
 		testHttpRouterView(Methods[0], "M00") &&
 		testHttpRouterView(Methods[19], "M19"),

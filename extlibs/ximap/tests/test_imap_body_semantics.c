@@ -84,10 +84,10 @@ static void testSemanticsError(size_t Index, bool Inject)
 static void testSemanticsValid(void)
 {
     static const xstrview Bodies[] = {
-        XRT_STR_LITERAL(TEST_MESSAGE("(NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)")),
-        XRT_STR_LITERAL(TEST_MESSAGE("(\"date\" \"subject\" ((NIL NIL \"Friends\" NIL)(\"Name\" NIL \"123\" \"example.test\")(NIL NIL NIL NIL)) NIL NIL NIL NIL NIL \"reply\" \"id\")")),
-        XRT_STR_LITERAL(TEST_MESSAGE("(\"\" \"a\\\"b\" ((\"\" \"\" \"\" \"\") (NIL NIL NIL NIL)) NIL NIL NIL NIL NIL NIL NIL)")),
-        XRT_STR_LITERAL("(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 9223372036854775807 9223372036854775807 NIL NIL NIL NIL (\"future\" 9223372036854775807))")
+        { TEST_MESSAGE("(NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)"), sizeof(TEST_MESSAGE("(NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)")) - 1u },
+        { TEST_MESSAGE("(\"date\" \"subject\" ((NIL NIL \"Friends\" NIL)(\"Name\" NIL \"123\" \"example.test\")(NIL NIL NIL NIL)) NIL NIL NIL NIL NIL \"reply\" \"id\")"), sizeof(TEST_MESSAGE("(\"date\" \"subject\" ((NIL NIL \"Friends\" NIL)(\"Name\" NIL \"123\" \"example.test\")(NIL NIL NIL NIL)) NIL NIL NIL NIL NIL \"reply\" \"id\")")) - 1u },
+        { TEST_MESSAGE("(\"\" \"a\\\"b\" ((\"\" \"\" \"\" \"\") (NIL NIL NIL NIL)) NIL NIL NIL NIL NIL NIL NIL)"), sizeof(TEST_MESSAGE("(\"\" \"a\\\"b\" ((\"\" \"\" \"\" \"\") (NIL NIL NIL NIL)) NIL NIL NIL NIL NIL NIL NIL)")) - 1u },
+        { "(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 9223372036854775807 9223372036854775807 NIL NIL NIL NIL (\"future\" 9223372036854775807))", sizeof("(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 9223372036854775807 9223372036854775807 NIL NIL NIL NIL (\"future\" 9223372036854775807))") - 1u }
     };
     for ( size_t i = 0; i < sizeof(Bodies) / sizeof(Bodies[0]); i++ ) {
         ximapbodyview Body; xrtSetErrorInfo(XERR_ARGUMENT, "test.semantics", 91, "caller diagnostic");

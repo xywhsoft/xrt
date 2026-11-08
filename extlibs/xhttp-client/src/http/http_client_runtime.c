@@ -437,7 +437,7 @@ XHTTP_CLIENT_API void xrtHttpClientConfigInit(xhttpclientconfig* pConfig)
 	#if defined(XHTTP_FEATURE_HTTP_CLIENT_RESUME)
 		xrtHttpResumeConfigInit(&Config.Resume);
 	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -473,7 +473,7 @@ XHTTP_CLIENT_API void xrtHttpCallOptionsInit(xhttpcalloptions* pOptions)
 			&Options.Cache
 		);
 	#endif
-	memcpy(pOptions, &Options, sizeof(Options));
+	memcpy((void*)pOptions, &Options, sizeof(Options));
 }
 
 
@@ -919,7 +919,7 @@ static xhttpclient* __xrtHttpClientCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (pEngine == NULL) ||
 		(!bOwnResolver && (pResolver == NULL)) ) {
@@ -2663,7 +2663,7 @@ XHTTP_CLIENT_API xhttpcall* xrtHttpClientDo(
 			);
 			return NULL;
 		}
-		memcpy(&Options, pOptions, sizeof(Options));
+		memcpy(&Options, (const void*)pOptions, sizeof(Options));
 	}
     if (Options.Timeout < XRT_WAIT_FOREVER || Options.IdleTimeout < XRT_WAIT_FOREVER) {
         __xrtHttpClientSetError(XERR_ARGUMENT, XHTTP_CLIENT_ERROR_ARGUMENT,
@@ -3415,7 +3415,7 @@ XHTTP_CLIENT_API bool xrtHttpCallInfo(
 		return false;
 	}
 	__xrtHttpCallInfoCopy(pCall, &Info);
-	memcpy(pInfo, &Info, sizeof(Info));
+	memcpy((void*)pInfo, &Info, sizeof(Info));
 	return true;
 }
 

@@ -332,6 +332,12 @@ bool __xrtHttpConnAdapterSet(
 
 
 
+/* 在 Worker 上、HTTP 运行时退出前归还剩余适配器；Take 后或重复调用为空操作。
+ * 最终析构仍作为未启动/失败实例的兜底，不延迟正常运行时清理到公开引用归零。 */
+void __xrtHttpConnAdapterRelease(xhttpconn* pConnection);
+
+
+
 /* 在所属 Worker 上借用当前顶层适配器上下文。 */
 ptr __xrtHttpConnAdapterData(xhttpconn* pConnection);
 

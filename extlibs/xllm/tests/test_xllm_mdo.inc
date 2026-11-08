@@ -2853,6 +2853,109 @@ static void test_adapter_assembly_oom(void)
           "adapter assembly fault cases release every test allocation once");
 }
 
+static void test_replay_dialects_oom(void)
+{
+    static const xllm_provider aProviders[] = {
+        XLLM_PROVIDER_OPENAI_COMPAT, XLLM_PROVIDER_GLM,
+        XLLM_PROVIDER_OPENAI_RESPONSES, XLLM_PROVIDER_ANTHROPIC
+    };
+    xllm_client* pClient = NULL;
+    xllm_request tRequest;
+    xllm_message tMessage;
+    xllm_error tError;
+    xllm_allocator tFault = { test_fault_alloc, test_fault_realloc, test_fault_free };
+    char* sJson;
+    long k;
+    long iSucceeded = 0;
+    long iFailed = 0;
+    size_t iProvider;
+    g_iFailAt = -1;
+    xllm__set_allocator(&tFault);
+    xllmRequestInit(&tRequest);
+    xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
+    CHECK(xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_SYSTEM, "Be terse.") &&
+        xllmMessageSetContent(&tMessage, "prior answer") &&
+        xllmMessageAddToolCall(&tMessage, "call_1", "read_file", "{}") &&
+        xllmRequestAddMessage(&tRequest, &tMessage) &&
+        xllmRequestAddToolResult(&tRequest, "call_1", "result") &&
+        xllmRequestAddTool(&tRequest, "read_file", "Read", "{\"type\":\"object\"}", true) &&
+        xllmRequestSetExtraBody(&tRequest, "{\"x\":1}"), "oom request inputs");
+    g_bSawOomError = false;
+    for ( iProvider = 0u; iProvider < sizeof(aProviders) / sizeof(aProviders[0]); ++iProvider ) {
+        pClient = test_make_client("http://127.0.0.1:1/v1", aProviders[iProvider]);
+        CHECK(pClient != NULL, "oom dialect client created");
+        if ( !pClient ) continue;
+        for ( k = 1; k <= 96; ++k ) {
+            g_iFailAt = k;
+            g_iTestAllocs = 0u;
+            sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+            if ( sJson ) {
+                ++iSucceeded;
+                CHECK(xrtJsonValid(xrtStrView(sJson)), "oom survival keeps JSON valid");
+                xllmFree(sJson);
+            } else {
+                ++iFailed;
+                if ( tError.eCode != XLLM_ERROR_OUT_OF_MEMORY ) {
+                    g_bSawOomError = true;
+                    printf("       provider %d fault allocation %ld returned error %d: %s\n",
+                        (int)aProviders[iProvider], k, (int)tError.eCode, tError.sMessage);
+                }
+            }
+        }
+        g_iFailAt = -1;
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "request succeeds after fault injection is disabled");
+        xllmFree(sJson);
+        xllmClientDestroy(pClient);
+        pClient = NULL;
+    }
+    CHECK(iFailed > 0 && iSucceeded > 0, "allocation faults observed across the build path");
+    CHECK(!g_bSawOomError, "every injected failure maps to an out-of-memory error");
+    xllmMessageUnit(&tMessage);
+    xllmRequestUnit(&tRequest);
+    xllmClientDestroy(pClient);
+    xllm__set_allocator(NULL);
+    CHECK(!g_bTestAllocatorUnderflow && g_iTestLiveAllocs == 0u, "dialect fault sweep releases every allocation once");
+}
+
+static void test_response_conversion_oom(void)
+{
+    xllm_allocator tFault = { test_fault_alloc, test_fault_realloc, test_fault_free };
+    xllm_block aBlocks[2] = {
+        { XLLM_BLOCK_REASONING, "signed thought", 0u, "opaque signature" },
+        { XLLM_BLOCK_TEXT, "answer", 0u, NULL }
+    };
+    xllm_response tResponse = {0};
+    xllm_tool_call tCall = { "call-1", "inspect", "{}" };
+    xllm_message tMessage;
+    long iAllocations;
+    long k;
+    tResponse.sContent = "answer";
+    tResponse.sReasoningContent = "signed thought";
+    tResponse.pBlocks = aBlocks;
+    tResponse.iBlockCount = 2u;
+    tResponse.pToolCalls = &tCall;
+    tResponse.iToolCallCount = 1u;
+    g_iFailAt = -1;
+    g_iTestAllocs = 0u;
+    xllm__set_allocator(&tFault);
+    CHECK(xllmMessageFromResponse(&tResponse, &tMessage), "signed response allocation baseline succeeds");
+    iAllocations = (long)g_iTestAllocs;
+    xllmMessageUnit(&tMessage);
+    CHECK(iAllocations > 0, "response conversion has measured allocation failure points");
+    for ( k = 1; k <= iAllocations; ++k ) {
+        g_iFailAt = k;
+        g_iTestAllocs = 0u;
+        CHECK(!xllmMessageFromResponse(&tResponse, &tMessage) &&
+            !tMessage.sContent && !tMessage.sReasoningContent && !tMessage.pParts &&
+            !tMessage.iPartCount && !tMessage.pToolCalls && !tMessage.iToolCallCount,
+            "every response conversion allocation failure leaves a released output");
+        xllmMessageUnit(&tMessage);
+    }
+    g_iFailAt = -1;
+    xllm__set_allocator(NULL);
+}
+
 static void test_oom_injection(void)
 {
     xllm_client *pClient = test_make_client("http://127.0.0.1:1/v1", XLLM_PROVIDER_OPENAI_COMPAT);
@@ -4106,6 +4209,8 @@ int main(int argc, char **argv)
     test_op_slot_completion_remove_race();
     test_async_engine();
     test_oom_injection();
+    test_replay_dialects_oom();
+    test_response_conversion_oom();
     test_public_mutator_oom();
     test_public_client_oom();
     test_adapter_assembly_oom();

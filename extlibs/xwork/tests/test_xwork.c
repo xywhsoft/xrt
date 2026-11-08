@@ -1205,6 +1205,7 @@ static void test_task_system(void)
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
                 "{\"task_id\":%" PRIu64 ",\"release\":true}", uB);
             if ( pStopTool ) (void)test_entry_execute(pStopTool, pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+            xworkToolOutputUnit(&tOut);
         }
     }
 
@@ -1879,6 +1880,7 @@ static void test_run_window_and_durable_recovery(void)
         "crash fixture leaves exactly one pending call");
     CHECK(pSession && xllmSessionSave(pSession, sSnapshot, &tLlmError),
         "snapshot saves before the simulated crash");
+    xllmRunSummaryUnit(&tSummary);
     xworkExecutorUnbind(&tExecutor);
     xworkAgentDestroy(pAgent);
     pAgent = NULL;
@@ -2023,6 +2025,7 @@ static void test_compaction_styles(void)
     }
 }
 
+#include "path_boundary_cases.h"
 static unsigned recovery_policy_calls,recovery_notices;
 static bool recovery_opt_in,recovery_needs_change,recovery_repair_storage;
 static unsigned recovery_probes;
@@ -2078,6 +2081,7 @@ static void test_host_recovery(void)
         CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
         CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
         (void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        CHECK(xrtDirCreateAll(".build"), "recovery fixture parent directory exists");
         FILE* Blocker=fopen(".build/xwork-retained-checkpoint","wb");if(Blocker){fputs("blocker",Blocker);fclose(Blocker);}
         free(Agent->sSessionPath);Agent->sSessionPath=test_strdup(".build/xwork-retained-checkpoint/session.json");
         Agent->bAutoSaveSession=true;recovery_repair_storage=true;
@@ -2116,6 +2120,7 @@ int main(int argc, char** argv)
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork migrated compatibility tests\n");
     test_host_recovery();
+    test_path_boundaries();
     test_process_text_normalization();
     test_stream_restart();
     test_agent_context_deadline();

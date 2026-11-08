@@ -1863,33 +1863,13 @@ bool xllm__utf8_valid(const char *sText)
     {
         unsigned char c = *p;
         size_t iExtra;
-        size_t iSequenceExtra;
         uint32_t cp;
-        if (c < 0x80u)
-        {
-            ++p;
-            continue;
-        }
-        if (c >= 0xC2u && c <= 0xDFu)
-        {
-            iExtra = 1u;
-            cp = c & 0x1Fu;
-        }
-        else if (c >= 0xE0u && c <= 0xEFu)
-        {
-            iExtra = 2u;
-            cp = c & 0x0Fu;
-        }
-        else if (c >= 0xF0u && c <= 0xF4u)
-        {
-            iExtra = 3u;
-            cp = c & 0x07u;
-        }
-        else
-        {
-            return false;
-        }
-        iSequenceExtra = iExtra;
+        uint32_t uMinimum;
+        if ( c < 0x80u ) { ++p; continue; }
+        if ( c >= 0xC2u && c <= 0xDFu ) { iExtra = 1u; cp = c & 0x1Fu; uMinimum = 0x80u; }
+        else if ( c >= 0xE0u && c <= 0xEFu ) { iExtra = 2u; cp = c & 0x0Fu; uMinimum = 0x800u; }
+        else if ( c >= 0xF0u && c <= 0xF4u ) { iExtra = 3u; cp = c & 0x07u; uMinimum = 0x10000u; }
+        else { return false; }
         ++p;
         while (iExtra--)
         {
@@ -1900,18 +1880,7 @@ bool xllm__utf8_valid(const char *sText)
             cp = (cp << 6u) | (unsigned char)(*p & 0x3Fu);
             ++p;
         }
-        if ((cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu)
-        {
-            return false;
-        }
-        if (iSequenceExtra == 2u && cp < 0x800u)
-        {
-            return false;
-        }
-        if (iSequenceExtra == 3u && cp < 0x10000u)
-        {
-            return false;
-        }
+        if ( cp < uMinimum || (cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu ) { return false; }
     }
     return true;
 }
@@ -2641,10 +2610,10 @@ void xllmFree(void *pMemory) { xllm__free(pMemory); }
 
 #if defined(XLLM_FEATURE_XLLM)
 
-static const xllm_capability_flags XLLM_GLM_AGENT_CAPS =
-    XLLM_CAP_TEXT_IN | XLLM_CAP_TOOL_RESULT_IN | XLLM_CAP_TEXT_OUT | XLLM_CAP_JSON_OUT |
-    XLLM_CAP_TOOL_CALL_OUT | XLLM_CAP_REASONING_OUT | XLLM_CAP_STREAM | XLLM_CAP_REASONING_CONTROL |
-    XLLM_CAP_PARALLEL_TOOL_CALL;
+#define XLLM_GLM_AGENT_CAPS ( \
+    XLLM_CAP_TEXT_IN | XLLM_CAP_TOOL_RESULT_IN | XLLM_CAP_TEXT_OUT | \
+    XLLM_CAP_JSON_OUT | XLLM_CAP_TOOL_CALL_OUT | XLLM_CAP_REASONING_OUT | \
+    XLLM_CAP_STREAM | XLLM_CAP_REASONING_CONTROL | XLLM_CAP_PARALLEL_TOOL_CALL)
 
 static const xllm_model_profile XLLM_BUILTIN_PROFILES[] = {
     {"glm-5.2-coding", "glm-5.2", XLLM_PROVIDER_GLM, XLLM_GLM_AGENT_CAPS,
@@ -2654,7 +2623,9 @@ static const xllm_model_profile XLLM_BUILTIN_PROFILES[] = {
     {"glm-5-coding", "glm-5", XLLM_PROVIDER_GLM, XLLM_GLM_AGENT_CAPS, XLLM_WINDOW_SHARED_CONTEXT,
      204800ull, 204799ull, 131072u, 32768u, 32768u}};
 
-static bool xllm_profile__equal_ci(const char *a, const char *b)
+#undef XLLM_GLM_AGENT_CAPS
+
+static bool xllm_profile__equal_ci(const char* a, const char* b)
 {
     if (!a || !b)
         return false;
@@ -3228,6 +3199,7 @@ bool xllmMessageFromResponse(const xllm_response *pResponse, xllm_message *pMess
             if (pBlock->eKind != XLLM_BLOCK_TEXT && pBlock->eKind != XLLM_BLOCK_REASONING)
                 continue;
             tPart.eKind = pBlock->eKind == XLLM_BLOCK_TEXT ? XLLM_PART_TEXT : XLLM_PART_REASONING;
+            if (!xllm__utf8_valid(pBlock->sText)) goto fail;
             tPart.sText = pBlock->sText;
             if (!xllmMessageAddPart(pMessage, &tPart))
                 goto fail;
@@ -3236,6 +3208,7 @@ bool xllmMessageFromResponse(const xllm_response *pResponse, xllm_message *pMess
             if (pBlock->eKind == XLLM_BLOCK_REASONING && pBlock->sNative && pBlock->sNative[0])
             {
                 tPart.eKind = XLLM_PART_NATIVE;
+                if (!xllm__utf8_valid(pBlock->sNative)) goto fail;
                 tPart.sText = pBlock->sNative;
                 tPart.sNativeType = "thinking_signature"; /* Opaque, not JSON. */
                 if (!xllmMessageAddPart(pMessage, &tPart))
@@ -5751,6 +5724,9 @@ static char *xllm__completions_build_request_cached(xllm_client *pClient,
 oom:
     xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
 fail:
+    if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+        xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build request JSON");
+    }
     xllm__buf_reset(&tBody);
     return NULL;
 }

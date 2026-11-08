@@ -591,10 +591,7 @@
 				"imap_command",
 				"imap_message",
 				"imap_append",
-				"imap_compress",
-				"imap_offline_example",
-				"imap_client_tls_runtime_tests",
-				"imap_compress_tls_runtime_tests"
+				"imap_compress"
 			],
 			"public_headers": [
 				"extlibs/ximap/include/ximap/features.h",
@@ -603,24 +600,7 @@
 			"internal_headers": [],
 			"sources": [],
 			"tests": [
-				"extlibs/ximap/tests/test_imap.c",
-				"extlibs/ximap/tests/test_imap_data.c",
-				"extlibs/ximap/tests/test_imap_body.c",
-				"extlibs/ximap/tests/test_imap_client.c",
-				"extlibs/ximap/tests/test_imap_bye_runtime.c",
-				"extlibs/ximap/tests/test_imap_auth.c",
-				"extlibs/ximap/tests/test_imap_command.c",
-				"extlibs/ximap/tests/test_imap_command_runtime.c",
-				"extlibs/ximap/tests/test_imap_message.c",
-				"extlibs/ximap/tests/test_imap_message_runtime.c",
-				"extlibs/ximap/tests/test_imap_append.c",
-				"extlibs/ximap/tests/test_imap_append_runtime.c",
-				"extlibs/ximap/tests/test_imap_append_fault_runtime.c",
-				"extlibs/ximap/tests/test_imap_append_tls_fault_runtime.c",
-				"extlibs/ximap/tests/test_imap_compress.c",
-				"extlibs/ximap/tests/test_imap_client_starttls_runtime.c",
-				"extlibs/ximap/tests/test_imap_compress_tls_runtime.c",
-				"extlibs/ximap/tests/test_ximap_protocol_oom.c"
+				"extlibs/ximap/tests/test_imap.c"
 			],
 			"single_tests": [
 				"extlibs/ximap/tests/single/test_single_ximap.c"
@@ -630,6 +610,27 @@
 				"extlibs/ximap/README.md",
 				"extlibs/ximap/docs/api/reference.md"
 			],
+			"legacy": []
+		},
+		{
+			"name": "imap_tls_upgrade_lifetime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_client_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_tls_upgrade_lifetime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
 			"legacy": []
 		},
 		{
@@ -648,7 +649,16 @@
 				"imap_data_error_tests",
 				"imap_body_error_tests",
 				"imap_protocol_oom_tests",
-				"ximap"
+				"ximap",
+				"imap_offline_example",
+				"imap_tls_upgrade_lifetime_tests",
+				"imap_deadline_runtime_tests",
+				"imap_boundary_runtime_tests",
+				"imap_auth_runtime_tests",
+				"imap_mailbox_numbers_tests",
+				"imap_mailbox_alias_tests",
+				"imap_diagnostic_oom_tests",
+				"imap_message_error_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -660,6 +670,168 @@
 				"extlibs/ximap/README.md"
 			],
 			"legacy": []
+		},
+		{
+			"name": "imap_deadline_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"imap_append",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_deadline_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_deadline_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_client.md"
+			]
+		},
+		{
+			"name": "imap_boundary_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"imap_append",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_boundary_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_boundary_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_client.md",
+				"extlibs/ximap/docs/api/imap_append.md",
+				"extlibs/ximap/docs/api/imap_command.md"
+			]
+		},
+		{
+			"name": "imap_auth_runtime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_auth",
+				"imap_command",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_auth_runtime.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_auth_runtime.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_auth.md"
+			]
+		},
+		{
+			"name": "imap_mailbox_numbers_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"imap_data",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_mailbox_numbers.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_mailbox_numbers.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_command.md"
+			]
+		},
+		{
+			"name": "imap_mailbox_alias_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_command",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_mailbox_alias.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_mailbox_alias.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_command.md"
+			]
+		},
+		{
+			"name": "imap_diagnostic_oom_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_append",
+				"imap_message",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_diagnostic_oom.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_diagnostic_oom.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_append.md",
+				"extlibs/ximap/docs/api/imap_message.md"
+			]
+		},
+		{
+			"name": "imap_message_error_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"imap_message",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/ximap/tests/test_imap_message_error.c"
+			],
+			"single_tests": [
+				"extlibs/ximap/tests/single/test_single_imap_message_error.c"
+			],
+			"examples": [],
+			"docs": [
+				"extlibs/ximap/docs/api/imap_message.md"
+			]
 		}
 	]
 }

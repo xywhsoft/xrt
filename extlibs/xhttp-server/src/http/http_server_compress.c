@@ -48,7 +48,7 @@ XHTTP_SERVER_API xhttpreplycompressstatus xrtHttpServerReplyCompress(
 		);
 		return XHTTP_REPLY_COMPRESS_ERROR;
 	}
-	memcpy(ppOutput, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppOutput, &pOutput, sizeof(pOutput));
 	if ( (pRequest == NULL) || (pReply == NULL) ) {
 		__xrtHttpReplyCompressError(
 			XERR_ARGUMENT,

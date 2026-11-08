@@ -94,10 +94,13 @@ bool xjwtClaimsValid(const xvalue* claims, const xjwtcheck* check)
 		} else if ( pAud != NULL && xrtValueIs(pAud, XVALUE_ARRAY) ) {
 			size_t iExpect = strlen(check->Audience);
 			size_t n = xrtValueCount(pAud);
-			for ( size_t i = 0; i < n && !bMatch; i++ ) {
-				xvalue* pElem = xrtValueArrayGet(pAud, (uint32)i);
-				if ( pElem != NULL && xrtValueGetString(pElem, &sv) &&
-				     sv.Size == iExpect &&
+			for ( size_t i = 0; i < n; i++ ) {
+				xvalue* pElem = xrtValueArrayGet(pAud, i);
+				if ( pElem == NULL || !xrtValueGetString(pElem, &sv) ) {
+					xjwt__error(XJWT_ERROR_AUDIENCE, "aud array must contain only strings");
+					return false;
+				}
+				if ( sv.Size == iExpect &&
 				     xrtConstTimeEqual(sv.Data, check->Audience, iExpect) )
 					bMatch = true;
 			}
@@ -142,7 +145,7 @@ static bool xjwtSignSet(xvalue* pObject, const char* sKey, xvalue* pValue)
 {
 	if ( xrtValueObjectSetNew(pObject, xrtStrView(sKey), pValue) )
 		return true;
-	xjwt__error(XJWT_ERROR_PARSE, "JWT field allocation failed");
+	xjwt__error_unless_memory(XJWT_ERROR_PARSE, "JWT field allocation failed");
 	return false;
 }
 
@@ -171,7 +174,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	/* 仅复制顶层对象：xrt 的 COW 外壳隔离字段替换，嵌套值只读序列化。 */
 	xvalue* pClaims = xrtValueClone(claims);
 	if ( pClaims == NULL ) {
-		xjwt__error(XJWT_ERROR_PARSE, "claims clone failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims clone failed");
 		return NULL;
 	}
 	/* 自动注入标准 claims；成功或失败都不改变调用方对象。 */
@@ -197,7 +200,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xvalue* pHead = xrtValueObject();
 	if ( pHead == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header object alloc failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header object alloc failed");
 		return NULL;
 	}
 	if ( !xjwtSignSet(pHead, "alg", xrtValueString(xrtStrView(sAlg))) ||
@@ -212,7 +215,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pHead);
 	if ( sHeadJson == NULL ) {
 		xrtValueRelease(pClaims);
-		xjwt__error(XJWT_ERROR_PARSE, "header stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "header stringify failed");
 		return NULL;
 	}
 
@@ -221,7 +224,7 @@ char* xjwtSign(const xjwtconfig* pConfig, const xvalue* claims)
 	xrtValueRelease(pClaims);
 	if ( sClaimsJson == NULL ) {
 		xrtFree(sHeadJson);
-		xjwt__error(XJWT_ERROR_PARSE, "claims stringify failed");
+		xjwt__error_unless_memory(XJWT_ERROR_PARSE, "claims stringify failed");
 		return NULL;
 	}
 
@@ -307,6 +310,31 @@ char* xjwtEs256(const xvalue* claims, const char* privatePem, int expireSeconds)
 /* 主入口：验证                                                          */
 /* ------------------------------------------------------------------ */
 
+static bool xjwt__header_supported(const xvalue* pHeader)
+{
+	xvalue* pB64 = xrtValueObjectGet(pHeader, xrtStrView("b64"));
+	xvalue* pCrit = xrtValueObjectGet(pHeader, xrtStrView("crit"));
+	bool bEncoded;
+	xstrview Name;
+	/* RFC 7797 sections 3/7: JWT payloads remain base64url encoded.
+	 * An explicit true is equivalent to the absent default. */
+	if ( pB64 != NULL && (!xrtValueGetBool(pB64, &bEncoded) || !bEncoded) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "JWT b64 must be true when present");
+		return false;
+	}
+	/* RFC 7515 section 4.1.11: never ignore an unknown critical extension.
+	 * Only b64=true is supported, so any additional entry is unknown or a
+	 * forbidden duplicate; a mentioned parameter must also be present. */
+	if ( pCrit != NULL && (!xrtValueIs(pCrit, XVALUE_ARRAY) ||
+		xrtValueCount(pCrit) != 1u || pB64 == NULL ||
+		!xrtValueGetString(xrtValueArrayGet(pCrit, 0u), &Name) ||
+		Name.Size != 3u || memcmp(Name.Data, "b64", 3u) != 0) ) {
+		xjwt__error(XJWT_ERROR_MALFORMED, "unsupported or malformed critical JWT header");
+		return false;
+	}
+	return true;
+}
+
 /* 三条验证路径共用前置：header(alg+kid) → claims 解码校验 → 重建签名输入 → 解码签名。
  * 成功返回 claims 并交出中间量（调用方 xrtFree）；失败返回 NULL。 */
 xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
@@ -319,6 +347,12 @@ xvalue* xjwt__verify_prepare(const char* sToken, const xjwtcheck* pCheck,
 	/* header：alg + kid */
 	xvalue* pHdr = xjwtDecodeHeader(sToken, pAlg, pKid);
 	if ( pHdr == NULL ) return NULL;
+	if ( !xjwt__header_supported(pHdr) ) {
+		xrtValueRelease(pHdr);
+		xrtFree((void*)*pKid);
+		*pKid = NULL;
+		return NULL;
+	}
 	xrtValueRelease(pHdr);
 	if ( *pAlg == XJWT_ALG_INVALID ) {
 		xrtFree((void*)*pKid); *pKid = NULL;

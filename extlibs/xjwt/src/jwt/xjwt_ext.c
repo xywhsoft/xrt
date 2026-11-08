@@ -539,9 +539,52 @@ cleanup:
  * （静默截断会让密钥轮换期的新 kid 验不过，比报错更难排查） */
 #define XJWT_JWKS_MAX_KEYS 16
 
+static int jwt_alg_rsa_family(int alg);
+
+static bool jwk_verification_metadata(const xvalue* pKey, const char* sType, int* pAlg)
+{
+	xvalue* pUse = xrtValueObjectGet(pKey, xrtStrView("use"));
+	xvalue* pOps = xrtValueObjectGet(pKey, xrtStrView("key_ops"));
+	xvalue* pBinding = xrtValueObjectGet(pKey, xrtStrView("alg"));
+	xstrview Text;
+	*pAlg = 0;
+	if ( pUse != NULL && (!xrtValueGetString(pUse, &Text) ||
+		Text.Size != 3u || memcmp(Text.Data, "sig", 3u) != 0) ) return false;
+	if ( pOps != NULL ) {
+		bool bSign = false, bVerify = false;
+		size_t n = xrtValueCount(pOps);
+		/* This reader imports signature-verification keys, not encryption or
+		 * key-agreement keys. Permit sign+verify, but no mixed-use operations. */
+		if ( !xrtValueIs(pOps, XVALUE_ARRAY) || n == 0u || n > 2u ) return false;
+		for ( size_t i = 0u; i < n; ++i ) {
+			if ( !xrtValueGetString(xrtValueArrayGet(pOps, i), &Text) ) return false;
+			if ( Text.Size == 6u && memcmp(Text.Data, "verify", 6u) == 0 && !bVerify ) bVerify = true;
+			else if ( Text.Size == 4u && memcmp(Text.Data, "sign", 4u) == 0 && !bSign ) bSign = true;
+			else return false;
+		}
+		if ( !bVerify ) return false;
+	}
+	if ( pBinding != NULL ) {
+		char sName[16];
+		int iFamily;
+		if ( !xrtValueGetString(pBinding, &Text) || Text.Size >= sizeof(sName) ||
+			memchr(Text.Data, 0, Text.Size) != NULL ) return false;
+		memcpy(sName, Text.Data, Text.Size);
+		sName[Text.Size] = 0;
+		*pAlg = xjwtAlgParse(sName);
+		iFamily = jwt_alg_rsa_family(*pAlg);
+		if ( iFamily < 0 || (iFamily == 1 ? strcmp(sType, "RSA") != 0 : strcmp(sType, "EC") != 0) )
+			return false;
+	}
+	return true;
+}
+
 xjwtjwks* xjwtJwksParse(const char* sJson)
 {
-	if ( sJson == NULL ) return NULL;
+	if ( sJson == NULL ) {
+		xjwt__error(XJWT_ERROR_ARGUMENT, "JWKS JSON is null");
+		return NULL;
+	}
 	xerror* pPrevious = xrtTakeError();
 	xvalue* p = xrtJsonParse(xrtStrView(sJson));
 	if ( p == NULL ) {
@@ -598,6 +641,8 @@ xjwtjwks* xjwtJwksParse(const char* sJson)
 			memchr(sv.Data, 0, sv.Size) != NULL ) continue;
 		memcpy(pJwks->keys[idx].kty, sv.Data, sv.Size);
 		pJwks->keys[idx].kty[sv.Size] = 0;
+		if ( !jwk_verification_metadata(pKey, pJwks->keys[idx].kty,
+			&pJwks->keys[idx].Alg) ) continue;
 
 		if ( strcmp(pJwks->keys[idx].kty, "RSA") == 0 ) {
 			/* RSA: n + e；任一缺失/畸形则释放并清零槽位后跳过
@@ -753,6 +798,11 @@ xvalue* xjwtVerifyJwks(const char* sToken, const xjwtjwks* pJwks,
 	if ( iFound < 0 ) {
 		xrtFree(sInput); xrtFree(pSigBin); xrtValueRelease(pClaims);
 		xjwt__error(XJWT_ERROR_KEY_NOT_FOUND, "no matching kid in JWKS");
+		return NULL;
+	}
+	if ( pJwks->keys[iFound].Alg != 0 && pJwks->keys[iFound].Alg != alg ) {
+		xrtFree(sInput); xrtFree(pSigBin); xrtValueRelease(pClaims);
+		xjwt__error(XJWT_ERROR_ALG_MISMATCH, "token algorithm does not match the JWK binding");
 		return NULL;
 	}
 

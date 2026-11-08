@@ -139,6 +139,8 @@ static bool xacmeAwsCall(
 	uint8 kSigning[XRT_SHA256_SIZE];
 	uint8 Signature[XRT_SHA256_SIZE];
 
+	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xrtTimeSplitAt(xrtNow(), 0, &Now))
 	{
 		return false;
@@ -412,7 +414,7 @@ static xacmeawsmutationresult xacmeAwsMutateTxt(xacmednsawscontext* pCtx,
 		if(Result == XACME_AWS_FAILED || (bAdd && Result == XACME_AWS_UNCERTAIN)) return Result;
 		Last = Result;
 		bRetried = true;
-		if(iAttempt + 1u < 4u) xrtSleep(500u << iAttempt);
+		if(iAttempt + 1u < 4u && !xacmeDnsOperationSleep(&pCtx->Http, 500u << iAttempt)) return XACME_AWS_FAILED;
 	}
 	if(Last == XACME_AWS_BUSY) return XACME_AWS_FAILED;
 	xrtSetErrorInfo(XERR_PROTOCOL, "xrt.acme.dns",
@@ -546,21 +548,32 @@ static bool xacmeAwsRemoveLocked(
 	return true;
 }
 
-static bool xacmeAwsAdd(
-	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeAwsAddDeadline(
+	xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednsawscontext* pCtx = (xacmednsawscontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
 	bOk = xacmeAwsAddLocked(pProvider, sFqdn, sTxt);
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeAwsAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeAwsAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeAwsRemove(
@@ -578,6 +591,14 @@ static bool xacmeAwsRemove(
 	bOk = xacmeAwsRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsAwsAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeAwsAdd;
+	if(!*pMatched) return false;
+	return xacmeAwsAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsAwsConfigInit(xacmednsawsconfig* pConfig)

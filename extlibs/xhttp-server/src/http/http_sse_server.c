@@ -69,7 +69,7 @@ XHTTP_SERVER_API xhttpreply* xrtHttpSseReplyCreate(
 		__xhttpErrorSetInvalidArgument();
 		return NULL;
 	}
-	memcpy(ppStream, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppStream, &pOutput, sizeof(pOutput));
 	pBody = xrtHttpBodyStreamCreate(pConfig, &pStream);
 	if ( pBody == NULL ) {
 		return NULL;
@@ -90,7 +90,7 @@ XHTTP_SERVER_API xhttpreply* xrtHttpSseReplyCreate(
 		return NULL;
 	}
 	xrtHttpBodyDestroy(pBody);
-	memcpy(ppStream, &pStream, sizeof(pStream));
+	memcpy((void*)ppStream, &pStream, sizeof(pStream));
 	return pReply;
 }
 

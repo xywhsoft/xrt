@@ -477,7 +477,7 @@ static xnetresult __xrtWsWriterSendRef(
 		);
 		return XNET_RESULT_ERROR;
 	}
-	memcpy(&Ref, pRef, sizeof(Ref));
+	memcpy(&Ref, (const void*)pRef, sizeof(Ref));
 	if ( !xrtMemRangeValid(Ref.Data, Ref.Size) ||
 		(Ref.Size == 0) || (Ref.Release == NULL) ) {
 		__xrtWsWriterReject(

@@ -142,8 +142,11 @@ int main(void)
 		size_t iCovered = 0u;
 		bool bRecovered = false;
 		xacmees256key Parsed;
+		xacmees256key Previous;
 		for(;;)
 		{
+			memset(&Parsed, 0xa5, sizeof(Parsed));
+			Previous = Parsed;
 			testRequire(xrtMemDebugFailAfter(i), "pem read arm failed");
 			if(xacmeKeyPemRead(sPem, iPemSize, &Parsed))
 			{
@@ -155,6 +158,8 @@ int main(void)
 			else
 			{
 				testCsrCheckFailure("pem read failure mismatch");
+				testRequire(memcmp(&Parsed, &Previous, sizeof(Parsed)) == 0,
+					"pem read OOM modified its output");
 				iCovered++;
 			}
 			xrtMemDebugFailClear();
@@ -168,6 +173,33 @@ int main(void)
 		}
 		testRequire(iCovered != 0u, "pem read no points");
 		printf("[oom] pem read points=%zu\n", iCovered);
+	}
+
+	/* The generic reader also publishes its fixed-size key only on success. */
+	{
+		size_t covered = 0;
+		for(uint64 i = 0;; ++i)
+		{
+			xacmecertkey Parsed, Previous;
+			bool ok;
+			memset(&Parsed, 0x5a, sizeof(Parsed)); Previous = Parsed;
+			testRequire(xrtMemDebugFailAfter(i), "cert pem read arm failed");
+			ok = xacmeCertKeyReadPem(sPem, iPemSize, &Parsed);
+			if(ok) testRequire(!xrtMemDebugFailTriggered(), "cert pem read ignored a failure");
+			else
+			{
+				testCsrCheckFailure("cert pem read failure mismatch");
+				testRequire(memcmp(&Parsed, &Previous, sizeof(Parsed)) == 0,
+					"cert pem read OOM modified its output");
+				covered++;
+			}
+			xacmeCertKeyUnit(&Parsed); xrtSecureZero(&Previous, sizeof(Previous));
+			xrtMemDebugFailClear(); xrtClearError();
+			testCsrNoLive("cert pem read leaked storage");
+			if(ok) break;
+		}
+		testRequire(covered != 0u, "cert pem read no points");
+		printf("[oom] cert pem read points=%zu\n", covered);
 	}
 
 	/* 恢复正常分配后全部可用。 */

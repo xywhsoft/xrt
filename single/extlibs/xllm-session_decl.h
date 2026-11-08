@@ -2601,8 +2601,8 @@ typedef struct xllm_session_config {
     uint32_t uSummaryMaxTokens;
     uint32_t uSummaryMinTokens;
     uint32_t uCompactionRequiredSections;
-    double fPruneTrigger;
-    double fCompactTrigger;
+    double fPruneTrigger;           /* finite; 0 < prune < compact <= 1 */
+    double fCompactTrigger;         /* NaN and infinity reject session creation */
     /* --- v3 additions (appended; ConfigInit assigns defaults) --- */
     uint32_t uKeepRecentTokens;      /* tail-window cut budget; 0 = derived min(20000, window/4) */
     uint32_t uSummaryMaxBytes;       /* summary byte cap (quality gate); 0 = 32768, clamped to window */

@@ -1396,6 +1396,7 @@ XRT_API bool xworkAgentLoadMcpTool(xwork_agent* pAgent,
     const char* sServerId, const char* sRemoteToolName,
     xwork_error* pError);
 XRT_API bool xworkAgentCancel(xwork_agent* pAgent);
+/* Physical workspace root used for relative tool paths. */
 XRT_API const char* xworkAgentWorkspaceRoot(const xwork_agent* pAgent);
 /* Host-selected filesystem scope. Defaults to workspace and explicit mounts.
  * Allowing external paths removes the workspace boundary for ordinary native
@@ -3196,6 +3197,7 @@ bool xwork__path_is_inside(const char *sRoot, const char *sPath)
         if (!sPath[i] || !xwork__path_char_equal(sRoot[i], sPath[i]))
             return false;
     }
+    if ( iRootLen && (sRoot[iRootLen - 1u] == '/' || sRoot[iRootLen - 1u] == '\\') ) return true;
     return sPath[iRootLen] == '\0' || sPath[iRootLen] == '/' || sPath[iRootLen] == '\\';
 }
 
@@ -3380,11 +3382,31 @@ done:
     return bOk;
 }
 
+static char* xwork__physical_path(const char* sPath)
+{
+    char* sReal = xrtPathReal(sPath);
+#if defined(_WIN32)
+    /* Keep ordinary DOS/UNC spellings usable by child processes and PathRel.
+     * GetFinalPathNameByHandleW supplies an extended namespace prefix. */
+    if ( sReal && strncmp(sReal, "\\\\?\\UNC\\", 8u) == 0 ) {
+        memmove(sReal + 2u, sReal + 8u, strlen(sReal + 8u) + 1u);
+        sReal[0] = sReal[1] = '\\';
+    } else if ( sReal && strncmp(sReal, "\\\\?\\", 4u) == 0 &&
+                isalpha((unsigned char)sReal[4]) && sReal[5] == ':' ) {
+        memmove(sReal, sReal + 4u, strlen(sReal + 4u) + 1u);
+    }
+#endif
+    return sReal;
+}
+
 char *xwork__resolve_path(const xwork_agent *pAgent, const char *sPath, xwork_error *pError)
 {
     char *sJoined = NULL;
     char *sAbs;
     char *sCopy;
+    char *sProbe = NULL, *sReal = NULL, *sResolved = NULL;
+    const char *sSuffix;
+    xfileinfo Info;
     const char *sRoot;
     bool bMounted;
     if (!pAgent || !sPath || !sPath[0])
@@ -3462,11 +3484,43 @@ char *xwork__resolve_path(const xwork_agent *pAgent, const char *sPath, xwork_er
             }
         }
     }
+    if (!bMounted) {
+        sProbe = xrtStrDup(sAbs);
+        if (!sProbe) goto oom;
+        while (!xrtPathStat(sProbe, false, &Info)) {
+            char *sParent = xrtPathParent(sProbe);
+            if (!sParent || strcmp(sParent, sProbe) == 0) {
+                xrtFree(sParent); goto io;
+            }
+            xrtFree(sProbe); sProbe = sParent;
+        }
+        sReal = xwork__physical_path(sProbe);
+        if (!sReal) goto io;
+        sSuffix = sAbs + strlen(sProbe);
+        while (*sSuffix == '/' || *sSuffix == '\\') ++sSuffix;
+        sResolved = *sSuffix ? xrtPathJoin(sReal, sSuffix) : xrtStrDup(sReal);
+        if (!sResolved) goto oom;
+        if (!xwork__external_paths(pAgent) && !xwork__path_is_inside(sRoot, sResolved)) {
+            xwork__set_error(pError, XWORK_ERROR_POLICY, "path escapes the configured workspace");
+            goto failure;
+        }
+        xrtFree(sAbs); sAbs = sResolved; sResolved = NULL;
+        xrtFree(sReal); sReal = NULL;
+        xrtFree(sProbe); sProbe = NULL;
+    }
     sCopy = xwork__strdup(sAbs);
     xrtFree(sAbs);
     if (!sCopy)
         xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to copy resolved path");
     return sCopy;
+oom:
+    xwork__set_error(pError, XWORK_ERROR_OUT_OF_MEMORY, "failed to copy resolved path");
+    goto failure;
+io:
+    xwork__set_error(pError, XWORK_ERROR_IO, "failed to resolve physical workspace path");
+failure:
+    xrtFree(sResolved); xrtFree(sReal); xrtFree(sProbe); xrtFree(sAbs);
+    return NULL;
 }
 
 char *xwork__relative_path(const xwork_agent *pAgent, const char *sPath)
@@ -4032,7 +4086,7 @@ xwork_agent *xwork__agent_create_bound(const xwork_agent_config *pConfig, xwork_
                          "agent requires a runtime, definition, session, and workspace root");
         return NULL;
     }
-    sRoot = xrtPathAbs(pConfig->sWorkspaceRoot);
+    sRoot = xwork__physical_path(pConfig->sWorkspaceRoot);
     if (!sRoot || !xrtDirExists((str)sRoot))
     {
         if (sRoot)
@@ -20455,6 +20509,7 @@ void xworkExecutorUnbind(xllm_executor *pExecutor)
 typedef struct xwork_subagent_policy
 {
     const xwork_readonly_subagent_config *pConfig;
+    const xwork_agent *pAgent;
 } xwork_subagent_policy;
 
 /* ------------------------------------------------------------------ */
@@ -21447,10 +21502,18 @@ xwork__subagent_permission(void *pUserData, const xwork_permission_request *pReq
     }
     for (i = 0u; i < pRequest->iResourceCount; ++i)
     {
-        if (pRequest->pResources[i].eKind == XWORK_RESOURCE_PATH &&
-            xworkPathIsProtected(pRequest->pResources[i].sResource))
-        {
-            return XWORK_PERMISSION_DENY;
+        if (pRequest->pResources[i].eKind == XWORK_RESOURCE_PATH) {
+            const char *sPath = pRequest->pResources[i].sResource;
+            char *sResolved, *sRelative;
+            bool bDenied;
+            if (xworkPathIsProtected(sPath) || !pPolicy || !pPolicy->pAgent)
+                return XWORK_PERMISSION_DENY;
+            sResolved = xwork__resolve_path(pPolicy->pAgent, sPath, NULL);
+            if (!sResolved) return XWORK_PERMISSION_DENY;
+            sRelative = xwork__relative_path(pPolicy->pAgent, sResolved);
+            bDenied = !sRelative || xworkPathIsProtected(sRelative);
+            free(sRelative); free(sResolved);
+            if (bDenied) return XWORK_PERMISSION_DENY;
         }
     }
     if (pPolicy && pPolicy->pConfig && pPolicy->pConfig->OnPermission)
@@ -21627,6 +21690,7 @@ xwork_result xworkAgentRunReadOnlySubagent(xwork_agent *pParent,
     pChild = xworkAgentCreate(&tAgentConfig, pError);
     if (!pChild)
         goto cleanup;
+    tPolicy.pAgent = pChild;
     if (!xworkAgentSetProcessOwner(pChild, pParent->OnProcessAcquire, pParent->OnProcessRelease,
                                    pParent->pProcessOwnerData, pError))
         goto cleanup;

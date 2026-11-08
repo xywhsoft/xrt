@@ -200,7 +200,7 @@ XHTTP_SERVER_API void xrtHttpStaticReplyConfigInit(
 	}
 	memset(&Config, 0, sizeof(Config));
 	xrtHttpStaticPlanConfigInit(&Config.Plan);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -222,7 +222,7 @@ XHTTP_SERVER_API void xrtHttpStaticServeConfigInit(
 	Config.Indexes = __xrtHttpServerStaticIndexes;
 	Config.IndexCount = sizeof(__xrtHttpServerStaticIndexes) /
 		sizeof(__xrtHttpServerStaticIndexes[0]);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -247,7 +247,7 @@ static bool __xrtHttpStaticReplyConfigResolve(
 			);
 			return false;
 		}
-		memcpy(&Config, pInput, sizeof(Config));
+		memcpy(&Config, (const void*)pInput, sizeof(Config));
 	}
 	if ( !__xhttpViewValid(Config.ContentType) ||
 		!__xhttpViewValid(Config.CacheControl) ||
@@ -292,7 +292,7 @@ static bool __xrtHttpStaticServeConfigResolve(
 			);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( !__xrtHttpStaticReplyConfigResolve(
 		&pConfig->Reply,
@@ -337,7 +337,7 @@ static bool __xrtHttpStaticServeConfigResolve(
 	for ( i = 0; i < pConfig->IndexCount; i++ ) {
 		memcpy(
 			&Index,
-			pConfig->Indexes + i,
+			(const void*)(pConfig->Indexes + i),
 			sizeof(Index)
 		);
 		if ( !__xhttpViewValid(Index) ) {
@@ -482,7 +482,7 @@ static bool __xrtHttpServerStaticResponseRead(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return false;
 	}
-	memcpy(pResponse, pInput, sizeof(*pResponse));
+	memcpy(pResponse, (const void*)pInput, sizeof(*pResponse));
 	if ( (pResponse->FieldCount >
 		 XHTTP_STATIC_RESPONSE_MAX_FIELDS) ||
 		!__xhttpViewValid(pResponse->ContentType) ||
@@ -1083,7 +1083,7 @@ static xrt_http_server_static_prepare*
 		return pPrepare;
 	}
 	for ( i = 0; i < iCount; i++ ) {
-		memcpy(&Index, pIndexes + i, sizeof(Index));
+		memcpy(&Index, (const void*)(pIndexes + i), sizeof(Index));
 		sIndex = xrtStrDupView(Index);
 		if ( sIndex != NULL ) {
 			pPrepare->Paths[i] = xrtPathJoin(

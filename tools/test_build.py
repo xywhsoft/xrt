@@ -219,6 +219,24 @@ class FeatureAllExclusionTest(unittest.TestCase):
 class AggregateAssetTest(unittest.TestCase):
 	"""验证产品测试聚合不会把核心或其他扩展的资产误纳入。"""
 
+	def test_acme_aggregate_includes_component_retirement_and_fault_probes(self) -> None:
+		"""CI 的产品入口必须实际运行组件的单头故障和秘密退休探针。"""
+
+		manifest = xrt_build.ROOT / "extlibs/xacme/config/modules.json"
+		for platform in ("windows", "linux", "macos"):
+			with self.subTest(platform=platform):
+				plan = xrt_build._load_modules("xacme_tests", [manifest], platform=platform)
+				_, _, singles, _, _, _, owners, by_name, _, _ = plan
+				for component in ("acme_http", "acme_csr", "acme_obtain", "xacme"):
+					component_plan = xrt_build._load_modules(component, [manifest], platform=platform)
+					self.assertTrue(component_plan[2], component)
+					self.assertTrue(set(component_plan[2]).issubset(singles), component)
+				defines = xrt_build._single_test_defines(singles, owners, by_name, platform=platform)
+				self.assertEqual(len(singles), len(set(singles)))
+				self.assertEqual(set(defines), set(singles))
+				self.assertFalse(any(path.startswith("tests/") for path in singles
+					if not path.endswith("test_single_dir_create_diagnostic.c")))
+
 	def test_service_product_commands_actually_select_documented_examples(self) -> None:
 		"""A passing empty root suite must not masquerade as example execution."""
 

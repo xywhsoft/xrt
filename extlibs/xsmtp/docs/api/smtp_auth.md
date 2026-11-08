@@ -1,6 +1,6 @@
 # SMTP 认证 API
 
-`smtp_auth` 是独立可裁剪层，只为 `smtp_client` 增加 Base64 和 PLAIN、LOGIN、XOAUTH2
+`smtp_auth` 是独立可裁剪层，只为 `smtp_client` 增加 Base64 和 PLAIN、LOGIN、XOAUTH2 和 OAUTHBEARER
 认证流程，不强制依赖 TLS。实际应用通常同时选择 `smtp_client_tls`，但裁剪关系保持正交。
 
 ## 安全默认值
@@ -11,7 +11,7 @@
 
 Username、Secret 和可选 AuthorizationId 都只在 `xrtSmtpClientAuth` 调用期间借用，不保存到
 Client。PLAIN 原文、XOAUTH2 bearer 原文、Base64 文本和发送行副本在使用后立即清零释放。
-AuthorizationId 只适用于 PLAIN；XOAUTH2 字段拒绝其协议分隔字节。
+AuthorizationId 适用于 PLAIN 和 OAUTHBEARER；bearer 字段拒绝其协议分隔字节。
 
 ## 机制
 
@@ -20,5 +20,10 @@ AuthorizationId 只适用于 PLAIN；XOAUTH2 字段拒绝其协议分隔字节�
 - `XSMTP_AUTH_XOAUTH2` 使用 bearer 格式；服务器以 `334` 返回错误详情时，客户端发送空响应
   正常结束 SASL 交换，再读取最终拒绝状态。
 
-服务器拒绝认证时 Client 仍保持 READY，调用方可以检查 `xrtSmtpClientLastReply` 后选择其他
-机制；网络、取消、超时或响应解析失败仍遵循 SMTP Client 的不可恢复传输状态。
+- `XSMTP_AUTH_OAUTHBEARER` 要求 TLS；AuthorizationId 为空时使用 Username。
+
+服务器返回完整终态拒绝（例如 `535`）时 Client 仍保持 READY，调用方可以检查
+`xrtSmtpClientLastReply` 后选择其他机制。配置或初始响应大小在发送前失败也保持会话可用。
+收到 `334` 后仍有 SASL 响应待交换时，凭据编码/发送错误或异常重复 challenge 会进入
+FAILED 并中止传输，保留原始错误和最近完整响应；后续 NOOP 等命令在发送前拒绝。
+网络、取消、超时或响应解析失败仍遵循 SMTP Client 的不可恢复传输状态。

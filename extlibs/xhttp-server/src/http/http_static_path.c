@@ -116,7 +116,7 @@ static bool __xrtHttpStaticPathConfigResolve(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( (pConfig->Flags &
 		~((uint32)XHTTP_STATIC_PATH_PORTABLE |
@@ -542,7 +542,7 @@ XHTTP_SERVER_API void xrtHttpStaticPathConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -581,7 +581,7 @@ static xhttpstaticpathstatus __xrtHttpStaticPathWrite(
 	if ( !Info.Matched ) {
 		iResultSize = 0;
 		bResultTrailing = false;
-		memcpy(pSize, &iResultSize, sizeof(iResultSize));
+		memcpy((void*)pSize, &iResultSize, sizeof(iResultSize));
 		memcpy(
 			pTrailingSlash,
 			&bResultTrailing,
@@ -619,7 +619,7 @@ static xhttpstaticpathstatus __xrtHttpStaticPathWrite(
 	}
 	iResultSize = Writer.Size;
 	bResultTrailing = Info.TrailingSlash;
-	memcpy(pSize, &iResultSize, sizeof(iResultSize));
+	memcpy((void*)pSize, &iResultSize, sizeof(iResultSize));
 	memcpy(
 		pTrailingSlash,
 		&bResultTrailing,
@@ -698,7 +698,7 @@ XHTTP_SERVER_API void xrtHttpStaticPathInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pPath, &Path, sizeof(Path));
+	memcpy((void*)pPath, &Path, sizeof(Path));
 }
 
 
@@ -729,7 +729,7 @@ XHTTP_SERVER_API bool xrtHttpStaticPathMap(
 	) ) {
 		return false;
 	}
-	memcpy(&Current, pPath, sizeof(Current));
+	memcpy(&Current, (const void*)pPath, sizeof(Current));
 	if ( (Current.Path != NULL) ||
 		(Current.Size != 0) ||
 		Current.Matched ||
@@ -794,7 +794,7 @@ XHTTP_SERVER_API bool xrtHttpStaticPathMap(
 	Result.Size = iSize;
 	Result.Matched = true;
 	Result.TrailingSlash = bTrailingSlash;
-	memcpy(pPath, &Result, sizeof(Result));
+	memcpy((void*)pPath, &Result, sizeof(Result));
 	return true;
 }
 
@@ -815,9 +815,9 @@ XHTTP_SERVER_API void xrtHttpStaticPathFree(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(&Path, pPath, sizeof(Path));
+	memcpy(&Path, (const void*)pPath, sizeof(Path));
 	xrtFree(Path.Path);
-	memcpy(pPath, &Empty, sizeof(Empty));
+	memcpy((void*)pPath, &Empty, sizeof(Empty));
 }
 
 #endif

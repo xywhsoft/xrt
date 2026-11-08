@@ -102,6 +102,7 @@ struct xjwtjwks {
 	struct {
 		char kid[128];
 		bool HasKid;      /* 显式空 kid 与未提供 kid 不同 */
+		int Alg;           /* 0 = 未绑定；其余为 XJWT_ALG_* */
 		char kty[8];       /* "RSA" 或 "EC" */
 		xrsapublickey rsa;
 		unsigned char ec65[65];

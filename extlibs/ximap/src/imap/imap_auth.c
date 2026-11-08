@@ -61,6 +61,7 @@ static __ximapauthnext __xrtImapAuthNext(
 				XERR_PROTOCOL,
 				"unexpected IMAP literal during authentication"
 			);
+			(void)__xrtImapClientFailPreserveError(pClient);
 			return __XIMAP_AUTH_ERROR;
 		}
 		if ( (Event.Kind == XIMAP_EVENT_RESPONSE) &&
@@ -187,7 +188,17 @@ static bool __xrtImapAuthLogin(
 		) ) {
 			return false;
 		}
-		(void)__xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		Next = __xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		if ( Next == __XIMAP_AUTH_ERROR ) {
+			return false;
+		}
+		if ( Next != __XIMAP_AUTH_COMPLETE ) {
+			(void)__xrtImapAuthError(
+				XERR_PROTOCOL,
+				"incomplete IMAP LOGIN cancellation"
+			);
+			return __xrtImapClientFailPreserveError(pClient);
+		}
 		return __xrtImapAuthError(
 			XERR_PROTOCOL,
 			"unexpected continuation for IMAP LOGIN"
@@ -279,6 +290,12 @@ static bool __xrtImapAuthSasl(
 	}
 	bInitial = pConfig->InitialResponse &&
 		((xrtImapClientCapabilities(pClient) & XIMAP_CAP_SASL_IR) != 0);
+	if ( !bInitial &&
+		(iEncoded > xrtImapClientCommandLimit(pClient) - 2u) ) {
+		__xrtMailSetInvalidArgument();
+		__xrtMailAuthFree(sEncoded, iEncoded + 1u);
+		return false;
+	}
 	if ( bInitial ) {
 		sArguments = __xrtImapAuthArguments(
 			Mechanism,

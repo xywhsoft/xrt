@@ -52,7 +52,10 @@ XRT_API bool xrtSmtpAuthConfigValid(const xsmtpauthconfig* pConfig);
 
 
 
-/* 在 READY 会话上完成一次认证；服务器拒绝后仍允许调用方选择其他机制。 */
+/*
+	在 READY 会话上完成一次认证；终态拒绝后仍允许调用方选择其他机制。
+	334 交换未完成即失败时中止会话，保留原始错误和最近响应。
+*/
 XRT_API bool xrtSmtpClientAuth(
 	xsmtpclient* pClient,
 	const xsmtpauthconfig* pConfig,

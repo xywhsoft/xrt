@@ -32,6 +32,11 @@ int main(void)
 		#error "XPOP3_MODULE_XPOP3 dependency closure is incomplete"
 	#endif
 
+	#if defined(XRT_FEATURE_TLS_IDENTITY_RSA) || defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) || \
+		defined(XRT_FEATURE_STRING)
+		#error "xpop3 product retained test/example-only dependencies"
+	#endif
+
 	return xrtPop3ReplyParse(
 		XRT_STR_LITERAL("+OK mailbox ready"),
 		&Reply

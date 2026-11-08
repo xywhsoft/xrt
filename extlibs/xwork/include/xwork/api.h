@@ -1289,6 +1289,7 @@ XRT_API bool xworkAgentLoadMcpTool(xwork_agent* pAgent,
     const char* sServerId, const char* sRemoteToolName,
     xwork_error* pError);
 XRT_API bool xworkAgentCancel(xwork_agent* pAgent);
+/* Physical workspace root used for relative tool paths. */
 XRT_API const char* xworkAgentWorkspaceRoot(const xwork_agent* pAgent);
 /* Host-selected filesystem scope. Defaults to workspace and explicit mounts.
  * Allowing external paths removes the workspace boundary for ordinary native

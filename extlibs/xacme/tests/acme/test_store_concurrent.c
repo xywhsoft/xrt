@@ -3,15 +3,15 @@
 
 #include <xrt/acme_store.h>
 
-#include <stdatomic.h>
+#include <xrt/atomic.h>
 #include <string.h>
 
 typedef struct storewriter {
 	cstr sRoot;
 	cstr sChain;
 	cstr sKey;
-	atomic_int* pStart;
-	atomic_int* pFinished;
+	xatomic32* pStart;
+	xatomic32* pFinished;
 	int iSuccess;
 	int iFailure;
 	int iLastError;
@@ -26,7 +26,7 @@ static int testStoreWriter(ptr pData)
 	int i;
 	Grant.sFullchainPem = (str)pWriter->sChain;
 	Grant.sKeyPem = (str)pWriter->sKey;
-	while(atomic_load(pWriter->pStart) == 0)
+	while(xrtAtomic32Load(pWriter->pStart, XMEMORY_SEQ_CST) == 0)
 		testThreadYield();
 	for(i = 0; i < 12; i++)
 	{
@@ -45,7 +45,7 @@ static int testStoreWriter(ptr pData)
 					xrtErrorOperation(xrtGetError()) : "");
 		}
 	}
-	(void)atomic_fetch_add(pWriter->pFinished, 1);
+	(void)xrtAtomic32FetchAdd(pWriter->pFinished, 1u, XMEMORY_SEQ_CST);
 	return 0;
 }
 
@@ -65,8 +65,8 @@ int main(void)
 	xacmeissuegrant Initial = {
 		(str)"initial chain\n", (str)"initial key\n"
 	};
-	atomic_int iStart = 0;
-	atomic_int iFinished = 0;
+	xatomic32 iStart = XRT_ATOMIC32_INIT(0);
+	xatomic32 iFinished = XRT_ATOMIC32_INIT(0);
 	storewriter aWriters[2] = {
 		{ sRoot, "A chain\n", "A key\n", &iStart, &iFinished,
 			0, 0, 0, 0, { 0 } },
@@ -89,8 +89,8 @@ int main(void)
 		"concurrent.example.com", &Initial, NULL),
 		"acme store concurrent baseline save failed");
 	testThreadsStart(aThreads, 2u);
-	atomic_store(&iStart, 1);
-	while((atomic_load(&iFinished) < 2 || iReads < 50) &&
+	xrtAtomic32Store(&iStart, 1u, XMEMORY_SEQ_CST);
+	while((xrtAtomic32Load(&iFinished, XMEMORY_SEQ_CST) < 2 || iReads < 50) &&
 		iReads < 5000)
 	{
 		xacmeissuegrant Loaded;

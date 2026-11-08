@@ -25,7 +25,9 @@
 	#include <winsock2.h>
 	#include <windows.h>
 #else
-	#include <sched.h>
+	#if defined(__linux__)
+		#include <sched.h>
+	#endif
 	#include <time.h>
 	#include <unistd.h>
 #endif
@@ -192,6 +194,27 @@ static void xbenchSleepMs(uint32_t iDelay)
 
 
 
+#if defined(__TINYC__) && defined(__x86_64__) && (LONG_MAX == INT64_MAX)
+#define XBENCH_TCC_ATOMIC64 1
+
+/* TinyCC lacks GCC atomic builtins. Aligned LP64 counters use the same locked
+ * x64 compare/exchange primitive as the runtime, without an extra library. */
+static uint64_t xbenchAtomicCompareU64(
+	volatile uint64_t* pValue, uint64_t iExpected, uint64_t iDesired)
+{
+	uint64_t iActual;
+	__asm__ volatile (
+		"lock; cmpxchgq %2, %1"
+		: "=a"(iActual), "+m"(*pValue)
+		: "r"(iDesired), "0"(iExpected)
+		: "cc", "memory"
+	);
+	return iActual;
+}
+#endif
+
+
+
 /* 原子增加指定增量并返回新值。 */
 static long xbenchAtomicAdd(volatile long* pValue, long iDelta)
 {
@@ -214,6 +237,15 @@ static long xbenchAtomicAdd(volatile long* pValue, long iDelta)
 			}
 			iOld = iActual;
 		}
+	#elif defined(XBENCH_TCC_ATOMIC64)
+		uint64_t iOld = xbenchAtomicCompareU64((volatile uint64_t*)pValue, 0, 0);
+		for ( ;; ) {
+			uint64_t iNext = iOld + (uint64_t)iDelta;
+			uint64_t iActual = xbenchAtomicCompareU64((volatile uint64_t*)pValue,
+				iOld, iNext);
+			if ( iActual == iOld ) return (long)iNext;
+			iOld = iActual;
+		}
 	#else
 		return __atomic_add_fetch(pValue, iDelta, __ATOMIC_SEQ_CST);
 	#endif
@@ -234,6 +266,8 @@ static long xbenchAtomicLoad(const volatile long* pValue)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		return InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+	#elif defined(XBENCH_TCC_ATOMIC64)
+		return (long)xbenchAtomicCompareU64((volatile uint64_t*)pValue, 0, 0);
 	#else
 		return __atomic_load_n(pValue, __ATOMIC_SEQ_CST);
 	#endif
@@ -246,6 +280,14 @@ static void xbenchAtomicStore(volatile long* pValue, long iValue)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		InterlockedExchange((volatile LONG*)pValue, iValue);
+	#elif defined(XBENCH_TCC_ATOMIC64)
+		uint64_t iOld = xbenchAtomicCompareU64((volatile uint64_t*)pValue, 0, 0);
+		for ( ;; ) {
+			uint64_t iActual = xbenchAtomicCompareU64((volatile uint64_t*)pValue,
+				iOld, (uint64_t)iValue);
+			if ( iActual == iOld ) return;
+			iOld = iActual;
+		}
 	#else
 		__atomic_store_n(pValue, iValue, __ATOMIC_SEQ_CST);
 	#endif
@@ -284,6 +326,8 @@ static uint64_t xbenchAtomicLoadU64(const volatile uint64_t* pValue)
 			0,
 			0
 		);
+	#elif defined(XBENCH_TCC_ATOMIC64)
+		return xbenchAtomicCompareU64((volatile uint64_t*)pValue, 0, 0);
 	#else
 		return __atomic_load_n(pValue, __ATOMIC_SEQ_CST);
 	#endif
@@ -306,6 +350,8 @@ static bool xbenchAtomicSetOnceU64(
 			(LONG64)iValue,
 			0
 		) == 0u;
+	#elif defined(XBENCH_TCC_ATOMIC64)
+		return xbenchAtomicCompareU64(pValue, 0, iValue) == 0u;
 	#else
 		{
 			uint64_t iExpected = 0u;
@@ -336,6 +382,9 @@ static long xbenchAtomicMax(volatile long* pValue, long iCandidate)
 				iCandidate,
 				iPrevious
 			);
+		#elif defined(XBENCH_TCC_ATOMIC64)
+			long iSeen = (long)xbenchAtomicCompareU64((volatile uint64_t*)pValue,
+				(uint64_t)iPrevious, (uint64_t)iCandidate);
 		#else
 			long iSeen = iPrevious;
 
@@ -544,10 +593,14 @@ static void xbenchApplyCpuPinFromEnv(void)
 			);
 			return;
 		}
-	#else
+	#elif defined(__linux__)
 		{
 			cpu_set_t Set;
 
+			if ( iCpu >= CPU_SETSIZE ) {
+				fprintf(stderr, "bench_cpu_pin_error: cpu %lu unsupported\n", iCpu);
+				return;
+			}
 			CPU_ZERO(&Set);
 			CPU_SET((int)iCpu, &Set);
 			if ( sched_setaffinity(0, sizeof(Set), &Set) != 0 ) {
@@ -560,6 +613,10 @@ static void xbenchApplyCpuPinFromEnv(void)
 				return;
 			}
 		}
+	#else
+		/* Other POSIX targets do not expose Linux process-affinity APIs. */
+		fprintf(stderr, "bench_cpu_pin_error: CPU pinning unsupported on this platform\n");
+		return;
 	#endif
 
 	printf("bench_cpu_pin: %lu\n", iCpu);

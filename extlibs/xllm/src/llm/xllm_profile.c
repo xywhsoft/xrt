@@ -1,9 +1,9 @@
 #include "../internal/xllm_internal.h"
 
-static const xllm_capability_flags XLLM_GLM_AGENT_CAPS =
-    XLLM_CAP_TEXT_IN | XLLM_CAP_TOOL_RESULT_IN | XLLM_CAP_TEXT_OUT | XLLM_CAP_JSON_OUT |
-    XLLM_CAP_TOOL_CALL_OUT | XLLM_CAP_REASONING_OUT | XLLM_CAP_STREAM | XLLM_CAP_REASONING_CONTROL |
-    XLLM_CAP_PARALLEL_TOOL_CALL;
+#define XLLM_GLM_AGENT_CAPS ( \
+    XLLM_CAP_TEXT_IN | XLLM_CAP_TOOL_RESULT_IN | XLLM_CAP_TEXT_OUT | \
+    XLLM_CAP_JSON_OUT | XLLM_CAP_TOOL_CALL_OUT | XLLM_CAP_REASONING_OUT | \
+    XLLM_CAP_STREAM | XLLM_CAP_REASONING_CONTROL | XLLM_CAP_PARALLEL_TOOL_CALL)
 
 static const xllm_model_profile XLLM_BUILTIN_PROFILES[] = {
     {"glm-5.2-coding", "glm-5.2", XLLM_PROVIDER_GLM, XLLM_GLM_AGENT_CAPS,
@@ -13,7 +13,9 @@ static const xllm_model_profile XLLM_BUILTIN_PROFILES[] = {
     {"glm-5-coding", "glm-5", XLLM_PROVIDER_GLM, XLLM_GLM_AGENT_CAPS, XLLM_WINDOW_SHARED_CONTEXT,
      204800ull, 204799ull, 131072u, 32768u, 32768u}};
 
-static bool xllm_profile__equal_ci(const char *a, const char *b)
+#undef XLLM_GLM_AGENT_CAPS
+
+static bool xllm_profile__equal_ci(const char* a, const char* b)
 {
     if (!a || !b)
         return false;

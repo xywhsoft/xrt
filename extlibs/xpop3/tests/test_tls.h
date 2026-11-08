@@ -12,6 +12,7 @@ typedef struct testmailtlsupgrade {
 	const xtlsstreamconfig* Stream;
 	xtlsstream* Tls;
 	xpromise* Promise;
+	xatomic32 Done;
 } testmailtlsupgrade;
 
 
@@ -57,6 +58,8 @@ static void testMailTlsUpgradeTask(
 		(void)xrtPromiseClose(pUpgrade->Promise);
 	}
 	xrtPromiseDestroy(pUpgrade->Promise);
+	/* Completion publishes the result, not retirement of this borrowed job. */
+	xrtAtomic32Store(&pUpgrade->Done, 1u, XMEMORY_RELEASE);
 }
 
 
@@ -74,6 +77,7 @@ static inline xtlsstream* testMailTlsUpgrade(
 	xnetworker* pWorker = xrtNetStreamWorker(pTcp);
 	xfuture* pFuture;
 	xfuture* pOpen;
+	xwaitresult Wait;
 
 	if ( pWorker == NULL ) {
 		return NULL;
@@ -83,6 +87,7 @@ static inline xtlsstream* testMailTlsUpgrade(
 	Upgrade.Tcp = pTcp;
 	Upgrade.Server = pServer;
 	Upgrade.Stream = &Stream;
+	xrtAtomic32Init(&Upgrade.Done, 0u);
 	Upgrade.Promise = xrtPromiseCreate(&pFuture, NULL);
 	if ( Upgrade.Promise == NULL ) {
 		return NULL;
@@ -97,7 +102,14 @@ static inline xtlsstream* testMailTlsUpgrade(
 		xrtFutureDestroy(pFuture);
 		return NULL;
 	}
-	if ( (__xrtFutureWaitUntil(pFuture, iDeadline) != XWAIT_OK) ||
+	Wait = __xrtFutureWaitUntil(pFuture, iDeadline);
+	/* Every return must retire the Worker borrow of Upgrade and Stream.
+	 * A stalled test fails its original deadline instead of escaping the stack. */
+	while ( !xrtAtomic32Load(&Upgrade.Done, XMEMORY_ACQUIRE) ) {
+		testRequire(!__xrtWaitExpired(iDeadline), "mail TLS upgrade task did not retire");
+		xrtThreadYield();
+	}
+	if ( (Wait != XWAIT_OK) ||
 		(xrtFutureState(pFuture) != XFUTURE_RESOLVED) ||
 		(Upgrade.Tls == NULL) ) {
 		xrtFutureDestroy(pFuture);

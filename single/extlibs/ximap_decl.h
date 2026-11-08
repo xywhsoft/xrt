@@ -3564,6 +3564,7 @@ XRT_API bool xrtImapClientLastResponse(
 /*
 	直接发送显式 tag 的完整命令行，不创建临时拼接缓冲。
 	低层调用方可连续发送多个命令，并用 Receive 按 tag 关联完成响应。
+	小于 -1 的超时在发送前拒绝，保留会话和最近响应。
 */
 XRT_API bool xrtImapClientSend(
 	ximapclient* pClient,
@@ -3579,6 +3580,7 @@ XRT_API bool xrtImapClientSend(
 /*
 	直接发送由独立参数片组成的显式 tag 命令；各片之间自动插入一个空格，
 	不创建参数拼接缓冲。空参数数组表示无参数命令。
+	小于 -1 的超时在发送前拒绝，保留会话和最近响应。
 */
 XRT_API bool xrtImapClientSendParts(
 	ximapclient* pClient,
@@ -3592,7 +3594,10 @@ XRT_API bool xrtImapClientSendParts(
 
 
 
-/* 发送原始命令续传字节，用于 APPEND literal 等协议扩展。 */
+/*
+	发送原始命令续传字节，用于 APPEND literal 等协议扩展。
+	小于 -1 的超时在 I/O 前拒绝，零字节也适用，保留活跃命令和上传进度。
+*/
 XRT_API bool xrtImapClientWrite(
 	ximapclient* pClient,
 	const void* pData,
@@ -3603,7 +3608,10 @@ XRT_API bool xrtImapClientWrite(
 
 
 
-/* 发送一条不带 tag 的 continuation 数据并自动追加 CRLF。 */
+/*
+	发送一条不带 tag 的 continuation 数据并自动追加 CRLF。
+	小于 -1 的超时不发送数据或 CRLF，保留活跃命令。
+*/
 XRT_API bool xrtImapClientContinue(
 	ximapclient* pClient,
 	xstrview Data,
@@ -3617,6 +3625,7 @@ XRT_API bool xrtImapClientContinue(
 	读取下一个响应首行或 literal 后续片段；遇到 literal 后必须先读取全部
 	literal，才能继续接收下一事件。低层流式接口不设置 literal 大小上限；
 	调用方可检查 pEvent->Literal.Size，并在超出自身预算时立即 Abort。
+	状态响应和 continuation 的说明文本即使以花括号结尾，也不声明 literal。
 */
 XRT_API bool xrtImapClientReceive(
 	ximapclient* pClient,
@@ -3774,7 +3783,8 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 
 
 
-/* 在 NOT_AUTHENTICATED 会话上执行配置的认证机制。 */
+/* 在 NOT_AUTHENTICATED 会话上认证。非 IR 凭据超限在命令前拒绝；意外 literal
+ * 或未完成的 LOGIN 取消终止会话。已完成的拒绝/取消保留可复用状态和主错误。 */
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
@@ -3855,7 +3865,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 把一条 SELECT、EXAMINE 或未请求更新合并到邮箱摘要。 */
+/* 合并一条邮箱更新。摘要须与响应对象及 Source/Text 借用范围分离；拒绝时摘要不变。
+ * 已知 UID/序号/计数按 uint32 数值域校验，泛型数字和 MODSEQ 保留 uint64。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo
@@ -3872,7 +3883,7 @@ XRT_API bool xrtImapClientNoop(
 
 
 
-/* 选择可写邮箱，并返回零分配状态摘要。 */
+/* 选择可写邮箱并返回零分配摘要。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -3883,7 +3894,7 @@ XRT_API bool xrtImapClientSelect(
 
 
 
-/* 以只读方式选择邮箱，并返回零分配状态摘要。 */
+/* 以只读方式选择邮箱。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -4030,13 +4041,18 @@ XRT_API bool xrtImapClientBeginExpunge(
 	xcancel* pCancel
 );
 
-/* 开始 IDLE；收到 continuation 后可读取事件，结束时发送 DONE。 */
+/* 开始 IDLE；调用方通过 Next 接收 continuation 和后续事件。 */
 XRT_API bool xrtImapClientBeginIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
 	xcancel* pCancel
 );
 
+/*
+	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
+	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+	未读完 literal 或其后续 fragment 时返回 XERR_STATE，读完后可重试。
+*/
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
@@ -4226,7 +4242,10 @@ XRT_API bool xrtImapClientAppendWrite(
 
 
 
-/* 结束 literal，消费命令响应并解析可选 APPENDUID。 */
+/*
+	结束 literal，消费命令响应并解析可选 APPENDUID；pResult 可为 NULL。
+	非法输出范围返回 XERR_ARGUMENT，保留活动上传供更正参数后继续。
+*/
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
@@ -4236,7 +4255,10 @@ XRT_API bool xrtImapClientAppendEnd(
 
 
 
-/* 对已经完整驻留内存的消息执行一次 APPEND。 */
+/*
+	对已经完整驻留内存的消息执行一次 APPEND；pResult 可为 NULL。
+	非法输出范围在开始事务前返回 XERR_ARGUMENT，不发送命令或正文。
+*/
 XRT_API bool xrtImapClientAppend(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,

@@ -427,6 +427,7 @@ bool xllmMessageFromResponse(const xllm_response *pResponse, xllm_message *pMess
             if (pBlock->eKind != XLLM_BLOCK_TEXT && pBlock->eKind != XLLM_BLOCK_REASONING)
                 continue;
             tPart.eKind = pBlock->eKind == XLLM_BLOCK_TEXT ? XLLM_PART_TEXT : XLLM_PART_REASONING;
+            if (!xllm__utf8_valid(pBlock->sText)) goto fail;
             tPart.sText = pBlock->sText;
             if (!xllmMessageAddPart(pMessage, &tPart))
                 goto fail;
@@ -435,6 +436,7 @@ bool xllmMessageFromResponse(const xllm_response *pResponse, xllm_message *pMess
             if (pBlock->eKind == XLLM_BLOCK_REASONING && pBlock->sNative && pBlock->sNative[0])
             {
                 tPart.eKind = XLLM_PART_NATIVE;
+                if (!xllm__utf8_valid(pBlock->sNative)) goto fail;
                 tPart.sText = pBlock->sNative;
                 tPart.sNativeType = "thinking_signature"; /* Opaque, not JSON. */
                 if (!xllmMessageAddPart(pMessage, &tPart))

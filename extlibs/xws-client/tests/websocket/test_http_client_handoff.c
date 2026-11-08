@@ -20,6 +20,7 @@ typedef struct test_ws_http_client_handoff {
 	xhttpresponse* Response;
 	xwsconn* Connection;
 	xatomic32 Accepted;
+	xatomic32 AllowResponse;
 	xatomic32 Connected;
 	xatomic32 Message;
 	xatomic32 WsClosed;
@@ -172,6 +173,11 @@ static void testWsHttpClientHandoffRead(
 		"WebSocket HTTP client handoff response overflowed"
 	);
 	memcpy(Response + (size_t)iHead, Frame, sizeof(Frame));
+	testWsHttpClientHandoffWait(
+		&pState->AllowResponse,
+		1,
+		"WebSocket HTTP client handoff input snapshots were not released"
+	);
 	testRequire(
 		(xrtNetBufConsume(pBuffer, iSize) == iSize) &&
 		(xrtNetStreamSend(
@@ -433,6 +439,9 @@ int main(void)
 	xhttpclientconfig ClientConfig;
 	xwsclientconfig WsConfig;
 	xwsconnevents WsEvents;
+	uint8 WsEventsStorage[sizeof(WsEvents) + 2u];
+	const xwsconnevents* pWsEvents =
+		(const xwsconnevents*)(const void*)(WsEventsStorage + 1u);
 	xnetaddr Address;
 	#if TEST_WS_HTTP_CLIENT_FUTURE
 		xfuture* pFuture;
@@ -445,6 +454,7 @@ int main(void)
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
 	memset(&WsEvents, 0, sizeof(WsEvents));
 	xrtAtomic32Init(&State.Accepted, 0);
+	xrtAtomic32Init(&State.AllowResponse, 0);
 	xrtAtomic32Init(&State.Connected, 0);
 	xrtAtomic32Init(&State.Message, 0);
 	xrtAtomic32Init(&State.WsClosed, 0);
@@ -517,12 +527,14 @@ int main(void)
 		testWsHttpClientHandoffMessageEnd;
 	WsEvents.Error = testWsHttpClientHandoffWsError;
 	WsEvents.Close = testWsHttpClientHandoffWsClose;
+	memset(WsEventsStorage, 0xA7, sizeof(WsEventsStorage));
+	memcpy(WsEventsStorage + 1u, &WsEvents, sizeof(WsEvents));
 	#if TEST_WS_HTTP_CLIENT_FUTURE
 		pFuture = xrtWsConnectAsync(
 			State.Client,
 			(xstrview) { Url, (size_t)iLength },
 			&WsConfig,
-			&WsEvents,
+			pWsEvents,
 			&State
 		);
 		testRequire(
@@ -534,7 +546,7 @@ int main(void)
 			State.Client,
 			(xstrview) { Url, (size_t)iLength },
 			&WsConfig,
-			&WsEvents,
+			pWsEvents,
 			&State,
 			testWsHttpClientHandoffDone,
 			&State
@@ -544,6 +556,15 @@ int main(void)
 			"WebSocket HTTP client handoff submission failed"
 		);
 	#endif
+	testRequire(
+		(WsEventsStorage[0] == 0xA7) &&
+		(WsEventsStorage[sizeof(WsEventsStorage) - 1u] == 0xA7),
+		"WebSocket client modified the borrowed unaligned event storage"
+	);
+	/* The peer cannot publish 101 or the early frame until both asynchronous
+	 * entry points have returned and their borrowed event source is gone. */
+	memset(WsEventsStorage + 1u, 0, sizeof(WsEvents));
+	xrtAtomic32Store(&State.AllowResponse, 1, XMEMORY_RELEASE);
 	testWsHttpClientHandoffWait(
 		&State.Accepted,
 		1,

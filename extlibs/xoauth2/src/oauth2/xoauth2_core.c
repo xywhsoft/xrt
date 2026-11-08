@@ -152,13 +152,24 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	char* sRedir = NULL;
 	char* sScope = NULL;
 	char* sUrl = NULL;
+	const char* sSeparator;
 	size_t nCap;
+	size_t iEndpointSize;
 	int n;
-	if ( pClient == NULL || pClient->Config.ClientId == NULL ||
-	     pClient->Config.AuthorizeUrl == NULL ) {
+	if ( pClient == NULL ) {
 		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "xoauth2BeginLogin: not configured");
 		return NULL;
 	}
+	if ( pClient->Config.ClientId == NULL || !pClient->Config.ClientId[0] ||
+	     pClient->Config.AuthorizeUrl == NULL || !pClient->Config.AuthorizeUrl[0] ||
+	     strchr(pClient->Config.AuthorizeUrl, '#') != NULL ) {
+		xoauth2__error(XOAUTH2_ERROR_ARGUMENT, "authorization endpoint and client id are required; endpoint fragments are forbidden");
+		goto Fail;
+	}
+	iEndpointSize = strlen(pClient->Config.AuthorizeUrl);
+	sSeparator = strchr(pClient->Config.AuthorizeUrl, '?') == NULL ? "?" :
+		(pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '?' ||
+		 pClient->Config.AuthorizeUrl[iEndpointSize - 1u] == '&') ? "" : "&";
 
 	/* 生成 state */
 	if ( !xoauth2StateGenerate(pClient->sState, sizeof(pClient->sState)) ) {
@@ -214,13 +225,13 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 
 	if ( pClient->Wechat )
 		n = snprintf(sUrl, nCap,
-			"%s?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s#wechat_redirect",
-			pClient->Config.AuthorizeUrl, sId, sRedir,
+			"%s%sappid=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir,
 			sScope ? sScope : "", pClient->sState);
 	else
 		n = snprintf(sUrl, nCap,
-			"%s?response_type=code&client_id=%s&redirect_uri=%s&state=%s",
-			pClient->Config.AuthorizeUrl, sId, sRedir, pClient->sState);
+			"%s%sresponse_type=code&client_id=%s&redirect_uri=%s&state=%s",
+			pClient->Config.AuthorizeUrl, sSeparator, sId, sRedir, pClient->sState);
 
 	if ( !pClient->Wechat && sScope != NULL && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&scope=%s", sScope);
@@ -232,6 +243,9 @@ char* xoauth2BeginLogin(xoauth2client* pClient)
 	}
 	if ( pClient->Config.UseNonce && n > 0 && (size_t)n < nCap ) {
 		n += snprintf(sUrl + n, nCap - n, "&nonce=%s", pClient->sNonce);
+	}
+	if ( pClient->Wechat && n > 0 && (size_t)n < nCap ) {
+		n += snprintf(sUrl + n, nCap - n, "#wechat_redirect");
 	}
 
 	if ( n <= 0 || (size_t)n >= nCap ) {
@@ -410,12 +424,47 @@ void xoauth2UseMicrosoft(xoauth2client* pClient, const char* id, const char* sec
 	pClient->Config.UseNonce = true;
 }
 
+static bool xoauth2__config_uses_owned(const xoauth2config* pConfig, const char* sOwned)
+{
+	const char* fields[] = {
+		pConfig->AuthorizeUrl, pConfig->TokenUrl, pConfig->UserInfoUrl,
+		pConfig->JwksUrl, pConfig->Issuer, pConfig->ClientId,
+		pConfig->ClientSecret, pConfig->RedirectUri, pConfig->Scope
+	};
+	uintptr_t base;
+	size_t length;
+	if ( sOwned == NULL ) return false;
+	base = (uintptr_t)sOwned;
+	length = strlen(sOwned);
+	for ( size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i ) {
+		uintptr_t address = (uintptr_t)fields[i];
+		if ( fields[i] && address >= base && address - base <= length ) return true;
+	}
+	return false;
+}
+
 void xoauth2UseCustom(xoauth2client* pClient, const xoauth2config* pConfig)
 {
+	xoauth2config config;
+	char* owned[3];
 	if ( pClient == NULL || pConfig == NULL ) return;
-	xoauth2__client_clear_owned(pClient);
+	/* Snapshot before resetting: pConfig may be &pClient->Config. Retain only
+	 * allocations still referenced by a configuration string, including suffixes. */
+	config = *pConfig;
+	owned[0] = pClient->pOwnedAuthUrl;
+	owned[1] = pClient->pOwnedTokenUrl;
+	owned[2] = pClient->pOwnedIssuerUrl;
+	for ( size_t i = 0; i < sizeof(owned) / sizeof(owned[0]); ++i ) {
+		if ( !xoauth2__config_uses_owned(&config, owned[i]) ) {
+			xrtFree(owned[i]);
+			owned[i] = NULL;
+		}
+	}
 	memset(pClient, 0, sizeof(*pClient));
-	pClient->Config = *pConfig;
+	pClient->Config = config;
+	pClient->pOwnedAuthUrl = owned[0];
+	pClient->pOwnedTokenUrl = owned[1];
+	pClient->pOwnedIssuerUrl = owned[2];
 }
 
 void xoauth2ClientUnit(xoauth2client* pClient)

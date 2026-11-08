@@ -20,7 +20,12 @@ typedef struct xacmehttp {
 	bool bEngineOwned;
 	struct xnetresolver* pResolver;
 	struct xtlsverifier* pVerifier;
+	/* One Exchange budget across dial, all I/O and safe transport retries. */
 	int64 uTimeoutMs;
+	/* Optional enclosing operation budget. Internal callers set/clear this
+	 * only for the synchronous operation; retirement keeps its own budget. */
+	bool bOperationDeadline;
+	double OperationDeadline;
 	/* Last exchange failed after a write began; independent of error allocation. */
 	bool bWriteUncertain;
 	/* 未交付的堆外壳可转移到退休队列；入列后仅由队列访问。 */
@@ -46,7 +51,8 @@ XRT_EXTERN_C_BEGIN
 
 #if defined(XACME_FEATURE_ACME_HTTP)
 
-/* pBorrowedEngine 为空时自建引擎并在 Unit 中停止销毁。 */
+/* pBorrowedEngine 为空时自建引擎并在 Unit 中停止销毁。
+ * uTimeoutMs: 0 selects 30 seconds; -1 is unlimited; values below -1 are invalid. */
 bool xacmeHttpInit(
 	xacmehttp* pHttp,
 	struct xnetengine* pBorrowedEngine,
@@ -70,6 +76,11 @@ void xacmeHttpResponseUnit(xacmehttpresponse* pResponse);
 	sMethod 为 "GET"/"POST"；POST 空 body 即 POST-as-GET。
 	失败返回 false 并设置线程错误；响应不交付部分字段。
 	响应头/trailer 各最多 100 字段，正文最多 4 MiB；关闭定界 HTTPS 要求 close_notify。
+	异步失败保留内存/超时类别及生产任务的原因链；其他底层失败归入传输 I/O。
+	等待超时先请求取消，清理不覆盖原始错误。
+	连接、全部发送块、响应头/正文及安全重试共用本次交换的单调截止时间。
+	已耗尽预算不再提交新 IO 或重试；退避只消耗剩余预算。超时保留原失败原因，
+	错误上下文分配失败仍报告 MEMORY。请求开始发送前耗尽预算不标记写入结果未知。
 	URL 支持大小写等价的 http/https 与 IPv6 方括号；无路径查询使用 /?，片段不发送。
 	拒绝 userinfo、非法端口、非规范数值地址、未编码控制字符与畸形百分号编码。
 	DNS SNI/校验名去末尾根点；IP 字面量只校验证书身份，不发送 SNI。

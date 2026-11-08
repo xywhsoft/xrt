@@ -559,8 +559,8 @@ static bool xllm_session__normalize_config(xllm_session_config *pConfig, xllm_er
             pConfig->uContextWindowTokens, pConfig->uMaxOutputTokens);
     }
     if (pConfig->uOutputReserveTokens > pConfig->uMaxOutputTokens ||
-        pConfig->fPruneTrigger <= 0.0 || pConfig->fPruneTrigger >= 1.0 ||
-        pConfig->fCompactTrigger <= pConfig->fPruneTrigger || pConfig->fCompactTrigger > 1.0)
+        !(pConfig->fPruneTrigger > 0.0 && pConfig->fPruneTrigger < 1.0 &&
+          pConfig->fCompactTrigger > pConfig->fPruneTrigger && pConfig->fCompactTrigger <= 1.0))
     {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
                             "invalid session reserves or pressure thresholds");

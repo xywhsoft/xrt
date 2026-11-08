@@ -208,6 +208,8 @@ bool xllm_session__checksum_restore(const char *pData, size_t iLen,
                                     xllm_error *pError);
 xvalue *xllm_session__json_get(xvalue *pObject, const char *sKey);
 const char *xllm_session__json_text(xvalue *pObject, const char *sKey);
+bool xllm_session__json_uint(xvalue* pObject, const char* sKey, uint64_t* puValue);
+bool xllm_session__json_uint_valid(xvalue* pObject, const char* sKey, uint64_t uMax, bool bRequired);
 uint64_t xllm_session__json_u64(xvalue *pObject, const char *sKey, uint64_t uDefault);
 double xllm_session__json_double(xvalue *pObject, const char *sKey, double fDefault);
 bool xllm_session__write_parts(xllm_session_buf *pJson, const xllm_message *pMessage);

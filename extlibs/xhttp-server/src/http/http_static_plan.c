@@ -24,7 +24,7 @@ XHTTP_SERVER_API void xrtHttpStaticPlanConfigInit(
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -43,7 +43,7 @@ static bool __xrtHttpStaticPlanConfigResolve(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( (pConfig->MaxRanges >
 		 (SIZE_MAX / sizeof(xhttpbyterange))) ||
@@ -265,7 +265,7 @@ static void __xrtHttpStaticPlanPublish(
 	const xhttpstaticplan* pPlan
 )
 {
-	memcpy(pOutput, pPlan, sizeof(*pPlan));
+	memcpy((void*)pOutput, pPlan, sizeof(*pPlan));
 }
 
 

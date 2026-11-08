@@ -44,3 +44,22 @@ python tools/package.py --manifest extlibs/xws-server/config/modules.json --suit
 事件在所属网络 Worker 上执行。消息视图仅在回调期间借用；Copy 复制数据，Ref 保留引用，Take 按原契约转移所有权。发送预算和异步队列有硬上限，控制帧预留、取消、失败清理与关闭顺序保持原行为。
 
 详细接口见 [API 参考](docs/api/reference.md)，整体边界见 [WebSocket 拆分说明](../xws/docs/design/websocket-runtime.md)。
+
+服务端配置、握手和路由配置的未对齐存储支持见对应公共头。快照的范围、重叠和借用边界
+在复制前检查；调用方自行用 `memcpy` 读取或写入原始存储时，使用显式 `const void*` 或
+`void*` 字节视图，避免编译器从结构体指针类型推导对齐要求。
+
+预验证握手在创建 Reply 或提交 Upgrade 时仍需满足当前构建和配置的压缩策略；
+未选中压缩能力、配置未启用压缩或缺少强制压缩时返回错误。附加 Header 不能使用
+大小写不敏感的 `Sec-WebSocket-` 保留前缀。
+
+## 体积与有限回环验证
+
+```sh
+python tools/measure_size.py --compiler gcc --manifest extlibs/xws-server/config/modules.json --config extlibs/xws-server/config/size_profiles.json
+python tools/measure_performance.py --compiler gcc --manifest extlibs/xws-server/config/modules.json --config extlibs/xws-server/config/performance_profiles.json --smoke
+python tools/build.py --compiler gcc --manifest extlibs/xws-server/config/modules.json --suite websocket_loopback_smoke_tests --no-single --no-examples
+```
+
+smoke 使用 50 次回环并检查关闭和资源退休，不作为性能回归结论。测试根还验证基准
+计数器的并发更新与数据发布，已纳入 `xws_server_tests`；这些测试依赖不进入生产 ALL 根。

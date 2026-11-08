@@ -1,14 +1,38 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../src/internal/xrt_http_server_runtime.h"
 
 
 
 /* 保存被中止 Upgrade 的唯一完成与 HTTP Close 计数。 */
 typedef struct test_http_server_upgrade_failure {
+	xhttpconn* Connection;
+	xatomic32 AdapterReleased;
 	xatomic32 Completed;
 	xatomic32 HttpClosed;
 	xatomic32 Shutdown;
 } test_http_server_upgrade_failure;
+
+/* Adapter lifetime ends with the HTTP runtime, even with a retained public owner. */
+static void testHttpServerUpgradeFailureAdapterRelease(ptr pData)
+{
+	test_http_server_upgrade_failure* pState = (test_http_server_upgrade_failure*)pData;
+	testRequire(xrtNetWorkerIsCurrent(xrtHttpConnWorker(pState->Connection)),
+		"HTTP Upgrade adapter release left its Worker");
+	testRequire(xrtAtomic32FetchAdd(&pState->AdapterReleased, 1, XMEMORY_RELEASE) == 0,
+		"HTTP Upgrade adapter released more than once");
+}
+
+static void testHttpServerUpgradeFailureOpen(xhttpserver* pServer, xhttpconn* pConnection, ptr pData)
+{
+	test_http_server_upgrade_failure* pState = (test_http_server_upgrade_failure*)pData;
+	(void)pServer;
+	pState->Connection = xrtHttpConnRef(pConnection);
+	testRequire(pState->Connection != NULL && __xrtHttpConnAdapterSet(
+		pConnection, pState, testHttpServerUpgradeFailureAdapterRelease),
+		"HTTP Upgrade adapter setup failed");
+}
+
 
 
 
@@ -24,6 +48,8 @@ static void testHttpServerUpgradeFailureComplete(
 	test_http_server_upgrade_failure* pState =
 		(test_http_server_upgrade_failure*)pData;
 
+	testRequire(xrtAtomic32Load(&pState->AdapterReleased, XMEMORY_ACQUIRE) == 0,
+		"HTTP Upgrade adapter retired before its completion callback returned");
 	testRequire(
 		(Result == XNET_RESULT_CANCELLED) &&
 		(Upgrade.Tcp == NULL) &&
@@ -125,6 +151,8 @@ static void testHttpServerUpgradeFailureShutdown(
 	test_http_server_upgrade_failure* pState =
 		(test_http_server_upgrade_failure*)pData;
 
+	testRequire(xrtAtomic32Load(&pState->AdapterReleased, XMEMORY_ACQUIRE) == 1,
+		"HTTP Shutdown preceded Upgrade adapter release");
 	testRequire(
 		xrtHttpServerState(pServer) ==
 			XHTTP_SERVER_CLOSED,
@@ -211,6 +239,7 @@ int main(void)
 	xnetsocket Client;
 
 	memset(&State, 0, sizeof(State));
+	xrtAtomic32Init(&State.AdapterReleased, 0);
 	xrtAtomic32Init(&State.Completed, 0);
 	xrtAtomic32Init(&State.HttpClosed, 0);
 	xrtAtomic32Init(&State.Shutdown, 0);
@@ -237,6 +266,7 @@ int main(void)
 	ServerConfig.Network.Listen.Stream.WriteLowWater = 4;
 	ServerConfig.Network.Listen.Stream.WriteLimit = 16;
 	xrtHttpServerEventsInit(&Events);
+	Events.Open = testHttpServerUpgradeFailureOpen;
 	Events.Request = testHttpServerUpgradeFailureRequest;
 	Events.Close = testHttpServerUpgradeFailureClose;
 	Events.Shutdown = testHttpServerUpgradeFailureShutdown;
@@ -304,6 +334,9 @@ int main(void)
 		 ) == 0),
 		"aborted HTTP Upgrade ownership mismatch"
 	);
+	xrtHttpConnDestroy(State.Connection);
+	testRequire(xrtAtomic32Load(&State.AdapterReleased, XMEMORY_ACQUIRE) == 1,
+		"retained HTTP Upgrade Connection released its adapter twice");
 	xrtHttpServerDestroy(pServer);
 	testRequire(
 		testHttpServerEngineDestroy(pEngine),

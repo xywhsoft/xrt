@@ -267,6 +267,7 @@ static bool __xrtWsClientFutureWatch(
 )
 {
 	xerror* pError;
+	xhttpcall* pCall;
 
 	if ( xrtFutureBridgeWatch(
 		&pContext->Bridge,
@@ -277,8 +278,13 @@ static bool __xrtWsClientFutureWatch(
 		return true;
 	}
 	pError = xrtTakeError();
+	/* Failure publication lets completion retire the context immediately.
+	 * Transfer its caller Call reference before opening that gate. */
+	pCall = pContext->Call;
+	pContext->Call = NULL;
 	xrtFutureBridgeFail(&pContext->Bridge);
-	(void)xrtHttpCallCancel(pContext->Call);
+	(void)xrtHttpCallCancel(pCall);
+	xrtHttpCallDestroy(pCall);
 	xrtFutureDestroy(pFuture);
 	if ( pError != NULL ) {
 		xrtSetError(pError);

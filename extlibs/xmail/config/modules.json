@@ -904,6 +904,27 @@
 			"legacy": []
 		},
 		{
+			"name": "mail_tls_upgrade_lifetime_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"mail_net_tls",
+				"tls_identity_rsa",
+				"pem",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xmail/tests/mail/test_mail_tls_upgrade_lifetime.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [],
+			"legacy": []
+		},
+		{
 			"name": "xmail_tests",
 			"state": "implemented",
 			"feature": null,
@@ -916,7 +937,8 @@
 				"mail_net_tls_runtime_tests",
 				"mail_compose_oom_tests",
 				"mail_tree_oom_tests",
-				"mail_net_tls_close_fault_tests"
+				"mail_net_tls_close_fault_tests",
+				"mail_tls_upgrade_lifetime_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
