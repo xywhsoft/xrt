@@ -4851,6 +4851,7 @@ XCRON_API xcrondeliverystatus xcronDeliveryCursorStep(xcrondeliverycursor* C,con
 /* ========================================================================== */
 
 #if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+#include <stddef.h>
 #include <string.h>
 #if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
 #define XCRON_OCCURRENCE_CYCLE_MS INT64_C(12622780800000)
@@ -5030,8 +5031,8 @@ XCRON_API bool xcronOccurrenceCursorInit(xcronoccurrencecursor* C,const xcronexp
         xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_ARGUMENT,.Field=XCRON_FIELD_NONE},NULL);return false;
     }
     if(!xcronOccurrenceInputs(E,Begin,End,Issue))return false;
-    xcronoccurrenceimpl I;memset(&I,0,sizeof(I));I.Magic=XCRON_OCCURRENCE_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Zone=(uintptr_t)Z;xcronOccurrenceValueInit(E,Z,Begin,End,Flags,Policy,&I.Value);
-    memset(C,0,sizeof(*C));memcpy(C,&I,sizeof(I));if(Issue)*Issue=I.Value.Work;return true;
+    xcronoccurrenceimpl I;memset(&I,0,offsetof(xcronoccurrenceimpl,Value));I.Magic=XCRON_OCCURRENCE_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Zone=(uintptr_t)Z;xcronOccurrenceValueInit(E,Z,Begin,End,Flags,Policy,&I.Value);
+    memcpy(C,&I,sizeof(I));memset(C->Storage+sizeof(I),0,sizeof(*C)-sizeof(I));if(Issue)*Issue=I.Value.Work;return true;
 }
 XCRON_API xcronoccurrencestatus xcronOccurrenceCursorStep(xcronoccurrencecursor* C,const xcronzone* Z,xcronoccurrencebudget B,xcronoccurrence* Next,xcronoccurrenceissue* Issue)
 {

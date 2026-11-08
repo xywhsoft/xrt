@@ -8117,3 +8117,62 @@ Remaining work includes investigating the Windows tail, controlled native
 performance, job integration/compensation/durability, remaining Redis/RPC/MQTT
 features/interop and>=72h acceptance. Goal active; all development stays on
 D:/GIT/xrt master unless a concrete exception is needed.
+
+### 2026-11-09: remove duplicate occurrence cursor initialization work
+
+Investigated the earlier Windows LAST cursor batch p95 regression using preserved
+pre-ordered and e507 executables, unchanged100000x32-query workload and complete
+result-metadata facts. Each default/single-logical-CPU condition retains A/B warmup
+and three ABBA cycles (six measured executions per version). Child affinity is
+verified; only the owned helper/children are affected and the helper restores its
+mask. System power policy is read only. Process user/kernel CPU and outer wall
+time supplement the unchanged benchmark metrics. Original failed reports remain.
+
+Same-window pre-ordered->e507 medians do not reproduce a threshold failure:
+default throughput699365->781476 queries/s and p9560.45->55.7us; logical CPU2
+707208->794859 and47.85->40.35us. Both conditions still fail the original noise
+checks. This does NOT establish the cause or close the original56.2->70.6us
+regression, and no causal link to the following cleanup is claimed.
+
+GCC O2 Windows disassembly confirms CursorInit cleared its entire816-byte control,
+then ValueInit cleared the same792-byte value again, then cleared1024 caller
+bytes before overwriting816 of them. Init now clears only the control prefix,
+lets ValueInit initialize its value once, copies that control and clears only
+the unused public tail. Source-requested x64 zeroing drops2632->1024 bytes per
+Init (1608 removed); the816-byte control copy and normal Step copies remain.
+These extents do not measure cache/bus traffic and are not zero-overhead claims.
+Windows and Linux before/after disassembly and exact executable hashes remain.
+Public64/20/128/1024 and private792/816 layouts/magic are unchanged.
+
+Added a regression comparing every cursor/Issue byte after Init over A5/5A caller
+storage at the same address, for both pending and empty rounded windows. Both
+execute correctly; exclusive reinitialization after terminal execution restores
+all bytes. Windows/WSL modular and single occurrence tests, root+leaf static/shared
+consumers, example and direct/generated layout checks pass. WSL uses O2 ASan/
+UBSan/leak-halt; both O1 TSan programs pass. Both422-zone reports exactly match
+e507 results, metadata and all traversal counters (121664 queries,349582 Steps).
+Feature/single/API/docs checks pass; no unrelated tool or full-product suites
+are rerun for this isolated Init change. Both backends share2527 frozen inputs;
+all production/generated C/H stay unchanged during compiler and timing pipelines.
+
+Initial scoped driver incorrectly combined mutually exclusive modular/single
+selectors; both rejected before C compilation. Corrected to separate commands;
+initial driver, logs, receipts and input maps remain. A supplementary environment
+helper initially named a nonexistent private version function; original helper
+and error note remain. It now uses the runner's release_identity.tool_version;
+CPU/compiler/default affinity/power metadata match the original environments.
+
+Fresh same-window e507->cleanup diagnostics retain the same ABBA scheme and all
+warmup/raw samples. Descriptive medians: Windows default767429->787786 queries/s,
+p9564.45->53us; logical CPU2 776502->790018 and55.65->48.65us; WSL680962->706540
+and56.7->53.55us. No median crosses the original5% throughput/10% latency limits;
+all conditions still fail original3% MAD/6% central-noise checks on some tails.
+These supplementary diagnostics do not replace formal baselines, resolve the
+earlier tail cause, or qualify native production performance. WSL is not native
+Linux acceptance. No scheduler policy, callback/owner behavior or protocol scope
+is changed. Next functional work remains selected occurrence job integration,
+compensation/durability and remaining Redis/RPC/MQTT features; controlled native
+performance and>=72h gates remain open. Goal active; work stays on master.
+
+Portable evidence: extlibs/xcron/tests/results/occurrence-cursor-init-20261109.json.
+Raw evidence: out/service-extensions/xcron-cursor-tail-20261109/.

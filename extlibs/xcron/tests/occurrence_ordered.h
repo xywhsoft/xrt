@@ -1,4 +1,15 @@
 #include "../src/timezone/timezone_internal.h"
+static void testOccurrenceReinit(void)
+{
+    xcronzone* Z=occurrenceZone("UTC0");xcronexpression E=occurrenceExpr("* * * * * *");xcronoccurrencecursor C,Canonical;xcronoccurrenceissue I,Expected;xcronoccurrence Out;
+    for(unsigned Empty=0;Empty<2;++Empty){xtime Begin=Empty?INT64_MAX:0,End=Empty?INT64_MAX:1000;
+        memset(&C,0xa5,sizeof(C));testRequire(xcronOccurrenceCursorInit(&C,&E,Z,Begin,End,0,(xcrondeliverypolicy){0,0},&Expected),"initialization over poisoned caller storage");memcpy(&Canonical,&C,sizeof(C));
+        memset(&C,0x5a,sizeof(C));memset(&I,0x5a,sizeof(I));testRequire(xcronOccurrenceCursorInit(&C,&E,Z,Begin,End,0,(xcrondeliverypolicy){0,0},&I) && !memcmp(&C,&Canonical,sizeof(C)) && !memcmp(&I,&Expected,sizeof(I)),"every initialized cursor byte and Issue are independent of prior storage");
+        testRequire(xcronOccurrenceCursorStep(&C,Z,(xcronoccurrencebudget){1,1,1,1,1},&Out,NULL)==(Empty?XCRON_OCCURRENCE_NONE:XCRON_OCCURRENCE_FOUND),"poison-independent pending/empty cursors execute normally");
+        testRequire(xcronOccurrenceCursorInit(&C,&E,Z,Begin,End,0,(xcrondeliverypolicy){0,0},NULL) && !memcmp(&C,&Canonical,sizeof(C)),"exclusive reinitialization clears terminal state and all unused bytes");
+    }
+    xcronZoneRelease(Z);
+}
 static void testOccurrenceOrdered(void)
 {
     xcronzone* Z=occurrenceZone("STD0DST,J60/2,J300/2");xcronexpression E=occurrenceExpr("0 30 2 1 MAR *");

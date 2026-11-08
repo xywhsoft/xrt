@@ -85,7 +85,7 @@ static void testOccurrenceBrute(void)
 #include "occurrence_adversarial.h"
 #include "occurrence_ordered.h"
 int main(void)
-{testOccurrenceGolden();testOccurrenceBrute();testOccurrenceHistory();testOccurrenceOrdered();testOccurrenceArguments();testOccurrenceWarmAndOOM();
+{testOccurrenceGolden();testOccurrenceBrute();testOccurrenceHistory();testOccurrenceOrdered();testOccurrenceReinit();testOccurrenceArguments();testOccurrenceWarmAndOOM();
 #if defined(XRT_FEATURE_THREAD)
 testOccurrenceHandoff();
 #endif
