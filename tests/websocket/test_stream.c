@@ -2635,6 +2635,40 @@ static void testWsConnCloseTask(
 
 
 
+/* Ownership wrappers must validate the object span before probing metadata. */
+static void testWsConnRejectWrappingConnection(void)
+{
+	xwsstream* pInvalid = (xwsstream*)(uintptr_t)(UINTPTR_MAX - 1u);
+
+	xrtClearError();
+	xrtWsStreamPause(pInvalid);
+	testRequire(
+		xrtErrorCode(xrtGetError()) == XWS_STREAM_ERROR_ARGUMENT,
+		"WebSocket Pause probed an invalid connection"
+	);
+	testRequire(
+		!xrtWsStreamResume(pInvalid) &&
+		(xrtWsStreamRef(pInvalid) == NULL) &&
+		(xrtWsStreamText(pInvalid, XRT_STR_LITERAL("x")) == XNET_RESULT_ERROR) &&
+		(xrtWsStreamBinary(pInvalid, XRT_BYTES_LITERAL("x")) == XNET_RESULT_ERROR) &&
+		(xrtWsStreamPing(pInvalid, XRT_BYTES_LITERAL("x")) == XNET_RESULT_ERROR) &&
+		(xrtWsStreamPong(pInvalid, XRT_BYTES_LITERAL("x")) == XNET_RESULT_ERROR) &&
+		(xrtWsStreamClose(pInvalid, XWS_CLOSE_NORMAL, XRT_STR_LITERAL("")) == XNET_RESULT_ERROR) &&
+		!xrtWsStreamAbort(pInvalid),
+		"WebSocket ownership wrapper accepted a wrapping connection range"
+	);
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_REF)
+		testRequire(
+			(xrtWsStreamSendRef(pInvalid, XWS_OPCODE_BINARY, NULL) == XNET_RESULT_ERROR) &&
+			(xrtWsStreamSendBytes(pInvalid, XWS_OPCODE_BINARY, NULL, 0, 0) == XNET_RESULT_ERROR),
+			"WebSocket reference wrapper probed an invalid connection"
+		);
+	#endif
+	xrtClearError();
+}
+
+
+
 /* 验证统一 TCP 会话的流式消息、掩码、控制帧和 Close 生命周期。 */
 int main(void)
 {
@@ -2670,6 +2704,7 @@ int main(void)
 		xrtSetAllocator(&Allocator),
 		"WebSocket OOM allocator install failed"
 	);
+	testWsConnRejectWrappingConnection();
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
 	memset(&ClientEvents, 0, sizeof(ClientEvents));
 	xrtAtomicPtrInit(&Test.Client, NULL);

@@ -1,0 +1,1222 @@
+{
+  "schema": 1,
+  "stage": "owner-bound precise waits in bounded live xcron service",
+  "date": "2026-11-05",
+  "base_revision": "7cecb354dd67aba47eb47cf9c118aea2b0195498",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "long_run_qualified": false,
+  "implementation": [
+    "Service selects existing public event_waiter; no Core/API implementation changes, extra owner, callback or shared runtime.",
+    "Owner initializes waiter after kernel/adapter; init failure rolls back both and preserves creation output.",
+    "Auto-reset signals remain ordinary EventSet; work checks are followed by waiter wait without resetting the event.",
+    "Owner releases waiter before STOPPED; failed release publishes FAILED and retains handle accounting. Exclusive Destroy after physical join retries before destroying kernel.",
+    "Waiter backend/capacity persists; live timers report zero on normal stop. Inline waiter belongs to ArenaBytes; native handles remain outside requested-byte caps."
+  ],
+  "public_abi": {
+    "config_unchanged": 136,
+    "stats_before": 320,
+    "stats_after": 344,
+    "consumers_must_rebuild": true,
+    "new_fields": [
+      "Waiter",
+      "ActiveNativeTimers"
+    ],
+    "function_signatures_unchanged": true
+  },
+  "regression": [
+    "Real Core waiters under public-boundary init/wait/unit injection, budget balance and native-thread owner binding.",
+    "Repeated cleanup failure leaves object inspectable/retryable; joined creator performs successful physical handoff.",
+    "Windows unsupported high-resolution lookup forces actual standard timer fallback and validates backend metadata.",
+    "64 service timer lifetimes return native process handle count to baseline after warmup.",
+    "Existing OOM, 2048 warmed zero-requested-heap cycles, close races, retries, wall jumps, physical cancellation, data retirement and self-wait guards retained."
+  ],
+  "validation": {
+    "windows": {
+      "complete": true,
+      "program_counts": {
+        "suite": 19,
+        "example": 2,
+        "static": 0,
+        "shared": 0,
+        "tools": 1,
+        "features": 0,
+        "single": 0,
+        "reference": 0,
+        "docs": 0
+      },
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3c1f26ae79d5a6268955b31724e799ad377b1f0b8c8f2b7c81adccab2d1dd009"
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "eb175d7488a73684e31fc0843aa15c4497f55d54583f609fae8978726bcbebcb"
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8f1bc11c2d6830bde8e1fd245957233a2a8037c5a7a1a54c0723635d72cfeb97"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "34168f69688fd3dd2b7f05ad5e30f0d1fd56529b77f4e6bbfb8b419857a02be5"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e62ec1f08568272dd9a98c3536f91af8ce75c3ec3d2724add298bb4d1c35c274"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3e667e70a8cb7cc7bfa7ae012a45329b18f60691f93a0faeae38329fdb6134ab"
+        }
+      ],
+      "layout": {
+        "config": 136,
+        "stats": 344,
+        "waiter": 40,
+        "waiter_offset": 320,
+        "timer_offset": 336
+      },
+      "test_scope": "GCC O2 modular/single, runnable example, static/shared consumers; 66 Python tool tests and generator/API-doc consistency"
+    },
+    "wsl": {
+      "complete": true,
+      "program_counts": {
+        "suite": 19,
+        "example": 2,
+        "static": 0,
+        "shared": 0,
+        "tsan-modular": 1,
+        "tsan-native": 1
+      },
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f92fa05ce23db724ba61c800b877a973c7e7624e0db1f236267f615ca6139637"
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c8392925113aefa3bde923926bfdb9a8825164684697082bb5456d7894f14524"
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a4917d7f40f4bc08b8afb4b9c29eb18c096c810be6f0ce98256f91891b4bd854"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2383b1324264b3f65a6eb34e1795d2206e2f96c9d7ece6b45bfc2a413956ff25"
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_service",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "06c9188c1a1ebebab4e2b2ae89403275c71b692097003f00efd82012b5669629"
+        },
+        {
+          "label": "tsan-native",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_service_waiter"
+          ],
+          "exit_code": 0,
+          "log_sha256": "db842225c24dadde2b71265817f71a061aa6dc6c51740d463e1b7bb7cf58d47c"
+        }
+      ],
+      "layout": {
+        "config": 136,
+        "stats": 344,
+        "waiter": 32,
+        "waiter_offset": 320,
+        "timer_offset": 336
+      },
+      "test_scope": "GCC O2 modular/single, runnable example, static/shared consumers; ASan/UBSan/leak halt and separate O1 TSan modular/native-wrapper units"
+    }
+  },
+  "protected_inputs": {
+    "count": 876,
+    "canonical_map_sha256": "7f09cb22adc555379119afe4d0d6a0c4ca029c30e8b7058c8e2eaa51ac200af0",
+    "local_map": "out\\service-extensions\\xcron-precise-service\\windows-inputs.json",
+    "platform_maps_equal": true,
+    "core_test_fixture_blobs": {
+      "tests/test.h": {
+        "git_blob": "fdc4b8dfd3868a5a93595bf42993540479dc4d5c",
+        "sha256": "56d176ed0c762152da6e10c4141dab43fc6142310e71e6093c710fbbe4603eb4"
+      },
+      "tests/concurrency/test_event_waiter.c": {
+        "git_blob": "e5b9d29278781b45476d3a61c3291163d782e21f",
+        "sha256": "1cfa2e8509ee3f94543d052ad6c0ea7cb7508eb692ed74d8a012a6d319bede3e"
+      },
+      "tests/single/test_single_event_waiter.c": {
+        "git_blob": "2590ef67bd23ac53a6bc0e4293056c0c7e01a218",
+        "sha256": "0cb696aee8ac22db6ab64a822e2579cf556e87bff4786912e87b60d0cb3e1954"
+      }
+    }
+  },
+  "measurements": {
+    "windows": {
+      "before": {
+        "report": {
+          "schema": 2,
+          "product": "xcron",
+          "generated_at": "2026-11-05T06:10:55.756702+00:00",
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_family": "gnu",
+          "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+          "compiler_version": "gcc.EXE (GCC) 16.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 3,
+          "warmups": 0,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "7cecb354dd67aba47eb47cf9c118aea2b0195498",
+          "source_dirty": false,
+          "source_fingerprint": "2f28328c596d281707724df84f3c7bc1e56646a700e37dc458f4eb6feba9b033",
+          "benchmark_fingerprint": "e9e9e72830444c9fe4577fea7577d8c5af7aa3262e27ff892156bb1827cabd91",
+          "profiles": {
+            "xcron_service_256": {
+              "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+              "benchmarks": {
+                "xcron_service_256": {
+                  "source": "extlibs/xcron/bench/bench_service.c",
+                  "inputs": [],
+                  "suite": "xcron_service",
+                  "args": [
+                    "8",
+                    "256"
+                  ],
+                  "facts": {},
+                  "metrics": {
+                    "start_lateness_p99_ms": {
+                      "samples": [
+                        15.0,
+                        14.0,
+                        14.0
+                      ],
+                      "median": 14.0,
+                      "mean": 14.333333333333334,
+                      "min": 14.0,
+                      "max": 15.0,
+                      "mad": 0.0,
+                      "relative_mad": 0.0,
+                      "range": 1.0,
+                      "relative_range": 0.07142857142857142,
+                      "central_range": 1.0,
+                      "relative_central_range": 0.07142857142857142,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "start_lateness_max_ms": {
+                      "samples": [
+                        15.0,
+                        14.0,
+                        14.0
+                      ],
+                      "median": 14.0,
+                      "mean": 14.333333333333334,
+                      "min": 14.0,
+                      "max": 15.0,
+                      "mad": 0.0,
+                      "relative_mad": 0.0,
+                      "range": 1.0,
+                      "relative_range": 0.07142857142857142,
+                      "central_range": 1.0,
+                      "relative_central_range": 0.07142857142857142,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "owner_to_worker_p99_ms": {
+                      "samples": [
+                        1.048,
+                        1.114,
+                        1.065
+                      ],
+                      "median": 1.065,
+                      "mean": 1.0756666666666668,
+                      "min": 1.048,
+                      "max": 1.114,
+                      "mad": 0.016999999999999904,
+                      "relative_mad": 0.0159624413145539,
+                      "range": 0.06600000000000006,
+                      "relative_range": 0.06197183098591555,
+                      "central_range": 0.06600000000000006,
+                      "relative_central_range": 0.06197183098591555,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "log_sha256": "b7c85887b31ae4ca4377e5cf8cc121d5ec7a339977bec4f9bd33bc0c0a43daff",
+        "quality_failures": [
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_central_range=7.1%",
+          "xcron_service_256/xcron_service_256/start_lateness_max_ms: relative_central_range=7.1%",
+          "xcron_service_256/xcron_service_256/owner_to_worker_p99_ms: relative_central_range=6.2%"
+        ]
+      },
+      "after": {
+        "report": {
+          "schema": 2,
+          "product": "xcron",
+          "generated_at": "2026-11-05T06:32:04.346009+00:00",
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_family": "gnu",
+          "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+          "compiler_version": "gcc.EXE (GCC) 16.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 3,
+          "warmups": 0,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "7cecb354dd67aba47eb47cf9c118aea2b0195498",
+          "source_dirty": true,
+          "source_fingerprint": "a526ce9e17b5708ae46d37213041ec6c34bb00a1d4ea960c53f61a6a614d2037",
+          "benchmark_fingerprint": "cef6138a618c43a43d44ed8b8a78c5bfff28674699f31f703dd5ef0209bf2bba",
+          "profiles": {
+            "xcron_service_256": {
+              "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+              "benchmarks": {
+                "xcron_service_256": {
+                  "source": "extlibs/xcron/bench/bench_service.c",
+                  "inputs": [],
+                  "suite": "xcron_service",
+                  "args": [
+                    "8",
+                    "256"
+                  ],
+                  "facts": {},
+                  "metrics": {
+                    "start_lateness_p99_ms": {
+                      "samples": [
+                        2.0,
+                        2.0,
+                        1.0
+                      ],
+                      "median": 2.0,
+                      "mean": 1.6666666666666667,
+                      "min": 1.0,
+                      "max": 2.0,
+                      "mad": 0.0,
+                      "relative_mad": 0.0,
+                      "range": 1.0,
+                      "relative_range": 0.5,
+                      "central_range": 1.0,
+                      "relative_central_range": 0.5,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "start_lateness_max_ms": {
+                      "samples": [
+                        2.0,
+                        2.0,
+                        2.0
+                      ],
+                      "median": 2.0,
+                      "mean": 2.0,
+                      "min": 2.0,
+                      "max": 2.0,
+                      "mad": 0.0,
+                      "relative_mad": 0.0,
+                      "range": 0.0,
+                      "relative_range": 0.0,
+                      "central_range": 0.0,
+                      "relative_central_range": 0.0,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "owner_to_worker_p99_ms": {
+                      "samples": [
+                        1.036,
+                        1.05,
+                        1.037
+                      ],
+                      "median": 1.037,
+                      "mean": 1.0410000000000001,
+                      "min": 1.036,
+                      "max": 1.05,
+                      "mad": 0.0009999999999998899,
+                      "relative_mad": 0.0009643201542911186,
+                      "range": 0.014000000000000012,
+                      "relative_range": 0.01350048216007716,
+                      "central_range": 0.014000000000000012,
+                      "relative_central_range": 0.01350048216007716,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "log_sha256": "b11a5ccfae21261a3e1415e696c1cca84472228f1b14322e66f9fad8f3f81ed7",
+        "quality_failures": [
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_central_range=50.0%"
+        ]
+      },
+      "process_cpu": {
+        "scope": "Whole benchmark process CPU, including startup/admission/shutdown; 3 ordered before then 3 after samples, unpinned and not performance acceptance",
+        "platform": "Windows-10-10.0.19045-SP0",
+        "args": [
+          8,
+          256
+        ],
+        "measurement_exit_code": 1,
+        "rows": [
+          {
+            "phase": "before",
+            "repeat": 0,
+            "binary": "out\\service-extensions\\xcron-precise-service\\windows-before-bench.exe",
+            "binary_sha256": "efaa369b4b0b0412cb5be4f4d25872f17734b27b8e4828ecd540c98cc340a955",
+            "wall_seconds": 9.004551499994704,
+            "user_cpu_seconds": 0.0,
+            "kernel_cpu_seconds": 0.0,
+            "cpu_seconds": 0.0,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 11.0,
+              "start_lateness_max_ms": 11.0,
+              "owner_to_worker_p99_ms": 1.037,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 222974.550115
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 11.000\nstart_lateness_max_ms: 11.000\nowner_to_worker_p99_ms: 1.037\nsamples: 2048\ncompletion_monotonic_seconds: 222974.550115\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "before",
+            "repeat": 1,
+            "binary": "out\\service-extensions\\xcron-precise-service\\windows-before-bench.exe",
+            "binary_sha256": "efaa369b4b0b0412cb5be4f4d25872f17734b27b8e4828ecd540c98cc340a955",
+            "wall_seconds": 8.923685599991586,
+            "user_cpu_seconds": 0.0,
+            "kernel_cpu_seconds": 0.0,
+            "cpu_seconds": 0.0,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 15.0,
+              "start_lateness_max_ms": 15.0,
+              "owner_to_worker_p99_ms": 1.081,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 222983.542648
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 15.000\nstart_lateness_max_ms: 15.000\nowner_to_worker_p99_ms: 1.081\nsamples: 2048\ncompletion_monotonic_seconds: 222983.542648\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "before",
+            "repeat": 2,
+            "binary": "out\\service-extensions\\xcron-precise-service\\windows-before-bench.exe",
+            "binary_sha256": "efaa369b4b0b0412cb5be4f4d25872f17734b27b8e4828ecd540c98cc340a955",
+            "wall_seconds": 8.998251000011805,
+            "user_cpu_seconds": 0.0625,
+            "kernel_cpu_seconds": 0.0,
+            "cpu_seconds": 0.0625,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 13.0,
+              "start_lateness_max_ms": 13.0,
+              "owner_to_worker_p99_ms": 1.087,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 222992.542105
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 13.000\nstart_lateness_max_ms: 13.000\nowner_to_worker_p99_ms: 1.087\nsamples: 2048\ncompletion_monotonic_seconds: 222992.542105\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 0,
+            "binary": "out\\performance\\gnu\\native\\xcron\\xcron_service_256.exe",
+            "binary_sha256": "74e1097be4f037b58a4f0db8ca164b9015cef68abdab4d4942d7b07a983ee902",
+            "wall_seconds": 8.985413899994455,
+            "user_cpu_seconds": 0.0,
+            "kernel_cpu_seconds": 0.015625,
+            "cpu_seconds": 0.015625,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 0.988,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 223001.528771,
+              "waiter_backend": 1.0,
+              "waiter_storage_bytes": 40.0,
+              "native_timer_capacity": 1.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 0.988\nsamples: 2048\ncompletion_monotonic_seconds: 223001.528771\nwaiter_backend: 1\nwaiter_storage_bytes: 40\nnative_timer_capacity: 1\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 1,
+            "binary": "out\\performance\\gnu\\native\\xcron\\xcron_service_256.exe",
+            "binary_sha256": "74e1097be4f037b58a4f0db8ca164b9015cef68abdab4d4942d7b07a983ee902",
+            "wall_seconds": 8.995905400021002,
+            "user_cpu_seconds": 0.015625,
+            "kernel_cpu_seconds": 0.015625,
+            "cpu_seconds": 0.03125,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.097,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 223010.525304,
+              "waiter_backend": 1.0,
+              "waiter_storage_bytes": 40.0,
+              "native_timer_capacity": 1.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.097\nsamples: 2048\ncompletion_monotonic_seconds: 223010.525304\nwaiter_backend: 1\nwaiter_storage_bytes: 40\nnative_timer_capacity: 1\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 2,
+            "binary": "out\\performance\\gnu\\native\\xcron\\xcron_service_256.exe",
+            "binary_sha256": "74e1097be4f037b58a4f0db8ca164b9015cef68abdab4d4942d7b07a983ee902",
+            "wall_seconds": 9.004698299977463,
+            "user_cpu_seconds": 0.0,
+            "kernel_cpu_seconds": 0.0,
+            "cpu_seconds": 0.0,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.041,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 223019.532165,
+              "waiter_backend": 1.0,
+              "waiter_storage_bytes": 40.0,
+              "native_timer_capacity": 1.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.041\nsamples: 2048\ncompletion_monotonic_seconds: 223019.532165\nwaiter_backend: 1\nwaiter_storage_bytes: 40\nnative_timer_capacity: 1\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "before": {
+        "report": {
+          "schema": 2,
+          "product": "xcron",
+          "generated_at": "2026-11-05T06:11:56.940651+00:00",
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_family": "gnu",
+          "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 3,
+          "warmups": 0,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": null,
+          "source_dirty": null,
+          "source_fingerprint": "2f28328c596d281707724df84f3c7bc1e56646a700e37dc458f4eb6feba9b033",
+          "benchmark_fingerprint": "e9e9e72830444c9fe4577fea7577d8c5af7aa3262e27ff892156bb1827cabd91",
+          "profiles": {
+            "xcron_service_256": {
+              "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+              "benchmarks": {
+                "xcron_service_256": {
+                  "source": "extlibs/xcron/bench/bench_service.c",
+                  "inputs": [],
+                  "suite": "xcron_service",
+                  "args": [
+                    "8",
+                    "256"
+                  ],
+                  "facts": {},
+                  "metrics": {
+                    "start_lateness_p99_ms": {
+                      "samples": [
+                        3.0,
+                        4.0,
+                        1.0
+                      ],
+                      "median": 3.0,
+                      "mean": 2.6666666666666665,
+                      "min": 1.0,
+                      "max": 4.0,
+                      "mad": 1.0,
+                      "relative_mad": 0.3333333333333333,
+                      "range": 3.0,
+                      "relative_range": 1.0,
+                      "central_range": 3.0,
+                      "relative_central_range": 1.0,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "start_lateness_max_ms": {
+                      "samples": [
+                        3.0,
+                        4.0,
+                        2.0
+                      ],
+                      "median": 3.0,
+                      "mean": 3.0,
+                      "min": 2.0,
+                      "max": 4.0,
+                      "mad": 1.0,
+                      "relative_mad": 0.3333333333333333,
+                      "range": 2.0,
+                      "relative_range": 0.6666666666666666,
+                      "central_range": 2.0,
+                      "relative_central_range": 0.6666666666666666,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "owner_to_worker_p99_ms": {
+                      "samples": [
+                        1.42,
+                        1.478,
+                        1.388
+                      ],
+                      "median": 1.42,
+                      "mean": 1.4286666666666665,
+                      "min": 1.388,
+                      "max": 1.478,
+                      "mad": 0.03200000000000003,
+                      "relative_mad": 0.022535211267605656,
+                      "range": 0.09000000000000008,
+                      "relative_range": 0.0633802816901409,
+                      "central_range": 0.09000000000000008,
+                      "relative_central_range": 0.0633802816901409,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "log_sha256": "c4f79a976aedaf1e9ee8f42248ec393edb905dd1a033774c76b13c1dc460ba45",
+        "quality_failures": [
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_mad=33.3%",
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_central_range=100.0%",
+          "xcron_service_256/xcron_service_256/start_lateness_max_ms: relative_mad=33.3%",
+          "xcron_service_256/xcron_service_256/start_lateness_max_ms: relative_central_range=66.7%",
+          "xcron_service_256/xcron_service_256/owner_to_worker_p99_ms: relative_central_range=6.3%"
+        ]
+      },
+      "after": {
+        "report": {
+          "schema": 2,
+          "product": "xcron",
+          "generated_at": "2026-11-05T06:35:42.628681+00:00",
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_family": "gnu",
+          "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 3,
+          "warmups": 0,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "7cecb354dd67aba47eb47cf9c118aea2b0195498",
+          "source_dirty": true,
+          "source_fingerprint": "a526ce9e17b5708ae46d37213041ec6c34bb00a1d4ea960c53f61a6a614d2037",
+          "benchmark_fingerprint": "cef6138a618c43a43d44ed8b8a78c5bfff28674699f31f703dd5ef0209bf2bba",
+          "profiles": {
+            "xcron_service_256": {
+              "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+              "benchmarks": {
+                "xcron_service_256": {
+                  "source": "extlibs/xcron/bench/bench_service.c",
+                  "inputs": [],
+                  "suite": "xcron_service",
+                  "args": [
+                    "8",
+                    "256"
+                  ],
+                  "facts": {},
+                  "metrics": {
+                    "start_lateness_p99_ms": {
+                      "samples": [
+                        3.0,
+                        1.0,
+                        2.0
+                      ],
+                      "median": 2.0,
+                      "mean": 2.0,
+                      "min": 1.0,
+                      "max": 3.0,
+                      "mad": 1.0,
+                      "relative_mad": 0.5,
+                      "range": 2.0,
+                      "relative_range": 1.0,
+                      "central_range": 2.0,
+                      "relative_central_range": 1.0,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "start_lateness_max_ms": {
+                      "samples": [
+                        3.0,
+                        2.0,
+                        2.0
+                      ],
+                      "median": 2.0,
+                      "mean": 2.3333333333333335,
+                      "min": 2.0,
+                      "max": 3.0,
+                      "mad": 0.0,
+                      "relative_mad": 0.0,
+                      "range": 1.0,
+                      "relative_range": 0.5,
+                      "central_range": 1.0,
+                      "relative_central_range": 0.5,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "owner_to_worker_p99_ms": {
+                      "samples": [
+                        1.266,
+                        1.255,
+                        1.268
+                      ],
+                      "median": 1.266,
+                      "mean": 1.263,
+                      "min": 1.255,
+                      "max": 1.268,
+                      "mad": 0.0020000000000000018,
+                      "relative_mad": 0.0015797788309636664,
+                      "range": 0.013000000000000123,
+                      "relative_range": 0.01026856240126392,
+                      "central_range": 0.013000000000000123,
+                      "relative_central_range": 0.01026856240126392,
+                      "direction": "lower",
+                      "unit": "ms",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "log_sha256": "bb4631be601c8d37f782bb4342e8b4a920f21f0ddd99afb51c5bf85100121939",
+        "quality_failures": [
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_mad=50.0%",
+          "xcron_service_256/xcron_service_256/start_lateness_p99_ms: relative_central_range=100.0%",
+          "xcron_service_256/xcron_service_256/start_lateness_max_ms: relative_central_range=50.0%"
+        ]
+      },
+      "process_cpu": {
+        "scope": "Whole benchmark process CPU, including startup/admission/shutdown; 3 ordered before then 3 after samples, unpinned and not performance acceptance",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "args": [
+          8,
+          256
+        ],
+        "measurement_exit_code": 1,
+        "rows": [
+          {
+            "phase": "before",
+            "repeat": 0,
+            "binary": "out/service-extensions/xcron-precise-service/wsl-before-bench",
+            "binary_sha256": "e2c93e0a76ebc4fc4d0770a7351b1b80d80226a2d312387db2a58bd6dbc2a852",
+            "wall_seconds": 8.937208666999993,
+            "user_cpu_seconds": 0.05241600000000002,
+            "kernel_cpu_seconds": 0.1238930000000007,
+            "cpu_seconds": 0.17630900000000072,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.349,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 434.874024
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.349\nsamples: 2048\ncompletion_monotonic_seconds: 434.874024\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "before",
+            "repeat": 1,
+            "binary": "out/service-extensions/xcron-precise-service/wsl-before-bench",
+            "binary_sha256": "e2c93e0a76ebc4fc4d0770a7351b1b80d80226a2d312387db2a58bd6dbc2a852",
+            "wall_seconds": 9.020506290000014,
+            "user_cpu_seconds": 0.07597400000000043,
+            "kernel_cpu_seconds": 0.12481400000000065,
+            "cpu_seconds": 0.20078800000000108,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 3.0,
+              "start_lateness_max_ms": 3.0,
+              "owner_to_worker_p99_ms": 1.744,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 443.875062
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 3.000\nstart_lateness_max_ms: 3.000\nowner_to_worker_p99_ms: 1.744\nsamples: 2048\ncompletion_monotonic_seconds: 443.875062\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "before",
+            "repeat": 2,
+            "binary": "out/service-extensions/xcron-precise-service/wsl-before-bench",
+            "binary_sha256": "e2c93e0a76ebc4fc4d0770a7351b1b80d80226a2d312387db2a58bd6dbc2a852",
+            "wall_seconds": 8.819209589000025,
+            "user_cpu_seconds": 0.05919299999999961,
+            "kernel_cpu_seconds": 0.10852099999999965,
+            "cpu_seconds": 0.16771399999999925,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 2.084,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 452.873172
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 2.084\nsamples: 2048\ncompletion_monotonic_seconds: 452.873172\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 0,
+            "binary": "out/performance/gnu/native/xcron/xcron_service_256",
+            "binary_sha256": "0d415555926ff47ec7319e8bdf5c8f6ee2aa88e8c13f90854acdd04e5b81c8b8",
+            "wall_seconds": 8.99208098500003,
+            "user_cpu_seconds": 0.06314300000000017,
+            "kernel_cpu_seconds": 0.09922399999999953,
+            "cpu_seconds": 0.1623669999999997,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.219,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 461.872653,
+              "waiter_backend": 3.0,
+              "waiter_storage_bytes": 32.0,
+              "native_timer_capacity": 0.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.219\nsamples: 2048\ncompletion_monotonic_seconds: 461.872653\nwaiter_backend: 3\nwaiter_storage_bytes: 32\nnative_timer_capacity: 0\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 1,
+            "binary": "out/performance/gnu/native/xcron/xcron_service_256",
+            "binary_sha256": "0d415555926ff47ec7319e8bdf5c8f6ee2aa88e8c13f90854acdd04e5b81c8b8",
+            "wall_seconds": 8.993004023999958,
+            "user_cpu_seconds": 0.037061000000000455,
+            "kernel_cpu_seconds": 0.11118500000000076,
+            "cpu_seconds": 0.1482460000000012,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.428,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 470.87257,
+              "waiter_backend": 3.0,
+              "waiter_storage_bytes": 32.0,
+              "native_timer_capacity": 0.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.428\nsamples: 2048\ncompletion_monotonic_seconds: 470.872570\nwaiter_backend: 3\nwaiter_storage_bytes: 32\nnative_timer_capacity: 0\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          },
+          {
+            "phase": "after",
+            "repeat": 2,
+            "binary": "out/performance/gnu/native/xcron/xcron_service_256",
+            "binary_sha256": "0d415555926ff47ec7319e8bdf5c8f6ee2aa88e8c13f90854acdd04e5b81c8b8",
+            "wall_seconds": 8.996467011999982,
+            "user_cpu_seconds": 0.06388599999999922,
+            "kernel_cpu_seconds": 0.09828500000000062,
+            "cpu_seconds": 0.16217099999999984,
+            "facts": {
+              "arrival_rate_per_sec": 256.0,
+              "start_lateness_p99_ms": 2.0,
+              "start_lateness_max_ms": 2.0,
+              "owner_to_worker_p99_ms": 1.431,
+              "samples": 2048.0,
+              "completion_monotonic_seconds": 479.872926,
+              "waiter_backend": 3.0,
+              "waiter_storage_bytes": 32.0,
+              "native_timer_capacity": 0.0,
+              "native_timers_after_join": 0.0
+            },
+            "stdout": "arrival_rate_per_sec: 256\nstart_lateness_p99_ms: 2.000\nstart_lateness_max_ms: 2.000\nowner_to_worker_p99_ms: 1.431\nsamples: 2048\ncompletion_monotonic_seconds: 479.872926\nwaiter_backend: 3\nwaiter_storage_bytes: 32\nnative_timer_capacity: 0\nnative_timers_after_join: 0\n",
+            "stderr": "",
+            "exit_code": 0
+          }
+        ]
+      }
+    }
+  },
+  "measurement_limits": [
+    "All three official 8-period/256-job repetitions kept, with original MAD3%/central-range6% gates unchanged; every before/after quality failure is retained.",
+    "Whole-process CPU includes admission/startup/shutdown, not just the owner; ordered unpinned before/after runs do not establish causal CPU or power improvements.",
+    "Windows zero CPU values are limited by accounting granularity and are not zero-cost evidence.",
+    "Wall lateness uses existing millisecond xrtNow; fixed arrival rate is not maximum throughput.",
+    "Initial WSL baseline could not resolve Windows worktree Git metadata; its original report is retained. The shared files were from the clean checked starting parent. Later WSL checks use explicit GIT_DIR/GIT_WORK_TREE."
+  ],
+  "local_evidence": "out\\service-extensions\\xcron-precise-service",
+  "setup": [
+    "Preserved pre-existing dangling build/package junctions; used equivalent comma-suite output aliases.",
+    "Corrected TSan selector invocation to separate modular and single runs; no runtime failure was hidden.",
+    "Declaration-layout probe requires Core declaration header first; corrected probe uses documented include order."
+  ],
+  "remaining": [
+    "Precise platform clock/latency measurement and pinned native throughput/P99, CPU/power and >=72h gates.",
+    "Audit stopped service component-byte snapshots against physical adapter destruction; retain bounded resource accounting.",
+    "Bounded recurrence CPU, named-zone database/reload, durable recovery and nominal DST compensation.",
+    "All original Redis/RPC/MQTT protocol, recovery and delivery requirements remain active."
+  ]
+}

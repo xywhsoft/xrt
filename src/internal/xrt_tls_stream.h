@@ -20,6 +20,19 @@ typedef struct __xrt_tls_listener_stream __xrt_tls_listener_stream;
 /* 组合对象只在所属 Worker 修改协议字段，原子字段提供跨线程快照和门。 */
 struct xtlsstream {
 	volatile int32 References;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipState;
+	xatomic32 OwnershipActive;
+	xnetengine* OwnershipEngine;
+	__xrt_net_engine_runtime RuntimeOwner;
+	const xtlsstreamownershipv1* OwnershipPolicy;
+	xerror* OwnershipFinishError;
+	bool OwnershipEngineHeld;
+	bool OwnershipStorageHeld;
+	bool OwnershipDataHeld;
+	bool OwnershipFinished;
+	bool OwnershipFinishing;
+	bool OwnershipBuffersSettled;
 	xatomic32 State;
 	xatomic32 CloseGate;
 	xatomic32 AbortGate;
@@ -31,6 +44,9 @@ struct xtlsstream {
 	xtlsstreamconfig Config;
 	xtlsstreamevents Events;
 	xatomicptr Data;
+	/* A protocol handoff never replaces the session's original context. */
+	const xtlsstreamownershipv1* EventPolicy;
+	xatomicptr EventData;
 	xerror* Error;
 	uint64 HandshakeTimer;
 	uint64 CloseTimer;
@@ -80,6 +96,20 @@ struct xtlsstream {
 	#endif
 };
 
+/* Complete short native submission/ref transitions. Worker protocol borrows
+ * are excluded by Engine quiescence, not by a lock held across callbacks. */
+bool __xrtTlsStreamOwnershipEnter(xtlsstream* pStream, bool bSubmit);
+void __xrtTlsStreamOwnershipLeave(xtlsstream* pStream);
+bool __xrtTlsStreamAbortAccepted(xtlsstream* pStream);
+
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+/* Already accepted native work is not a new public submission. It still
+ * requires the correct Worker and may never access a cleared participant. */
+xtlsresult __xrtTlsStreamReadAccepted(xtlsstream*, void*, size_t, size_t*);
+xtlsresult __xrtTlsStreamSendAccepted(xtlsstream*, const void*, size_t, size_t*);
+bool __xrtTlsStreamAsyncOwnershipWalk(const xtlsstream*, xrtownershipvisitor, ptr);
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
@@ -90,6 +120,9 @@ typedef struct __xrt_tls_listener_wait __xrt_tls_listener_wait;
 
 /* 每条受管 Stream 保留 Listener，直到组合流进入最终终态。 */
 struct __xrt_tls_listener_stream {
+	volatile int32 References;
+	xatomic32 Active;
+	const void* Claim;
 	__xrt_tls_listener_stream* Next;
 	__xrt_tls_listener_stream* HandshakePrevious;
 	__xrt_tls_listener_stream* HandshakeNext;
@@ -99,6 +132,10 @@ struct __xrt_tls_listener_stream {
 	bool CallerHeld;
 	bool HandshakePending;
 	bool CloseMarked;
+	bool Owned;
+	bool HandshakeLinked;
+	bool Closed;
+	bool Cleared;
 };
 
 
@@ -106,6 +143,17 @@ struct __xrt_tls_listener_stream {
 /* Listener 自身只管理握手入口和完成队列，不复制 TCP 传输状态机。 */
 struct xtlslistener {
 	volatile int32 References;
+	xatomicptr OwnershipClaim;
+	xatomic32 OwnershipState;
+	xatomic32 OwnershipActive;
+	__xrt_net_engine_runtime RuntimeOwner;
+	const xtlslistenerownershipv1* OwnershipPolicy;
+	xerror* OwnershipFinishError;
+	bool OwnershipEngineHeld;
+	bool OwnershipStorageHeld;
+	bool OwnershipDataHeld;
+	bool OwnershipFinished;
+	bool OwnershipFinishing;
 	xatomic32 State;
 	xatomic64 Handshakes;
 	xatomic64 Accepted;
@@ -139,6 +187,15 @@ struct xtlslistener {
 	bool Published;
 	bool RuntimeHeld;
 };
+
+bool __xrtTlsListenerOwnershipEnter(xtlslistener*, bool);
+void __xrtTlsListenerOwnershipLeave(xtlslistener*);
+bool __xrtTlsListenerStreamNodeHold(const void*);
+void __xrtTlsListenerStreamNodeDrop(const void*);
+
+#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+bool __xrtTlsListenerWaitOwnershipWalk(const xtlslistener*, xrtownershipvisitor, ptr);
+#endif
 
 
 

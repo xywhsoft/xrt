@@ -22,15 +22,14 @@ static void __xrtEcdsaVerifyClear(
 
 
 /* 验证固定 NIST 曲线和任意非空摘要上的 raw r||s 签名。 */
-bool __xrtEcdsaVerify(
+xrt_crypto_check __xrtEcdsaCheck(
 	int iCurve,
 	const void* pHash,
 	size_t iHashSize,
 	const void* pSignature,
 	const void* pPublic,
 	size_t iScalarSize,
-	size_t iPublicSize,
-	cstr sOperation
+	size_t iPublicSize
 )
 {
 	const uint8* pRaw = (const uint8*)pSignature;
@@ -64,8 +63,7 @@ bool __xrtEcdsaVerify(
 		((iCurve == XRT_NIST_P384) &&
 		 ((iScalarSize != 48u) || (iPublicSize != 97u))) ||
 		((iCurve != XRT_NIST_P256) && (iCurve != XRT_NIST_P384)) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	pOrderBytes = __xrtNistOrder(iCurve, NULL);
 	pSquare = __xrtEcdsaSquare(iCurve);
@@ -79,8 +77,7 @@ bool __xrtEcdsaVerify(
 	iValid &= __xrtNistPointValid(iCurve, pPublic, iPublicSize);
 	if ( iValid == 0 ) {
 		__xrtEcdsaVerifyClear(Values, 9, Bytes, sizeof(Bytes));
-		__xrtEcdsaError(sOperation, "the ECDSA signature or public key is invalid");
-		return false;
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	/* ECDSA bits2int 取摘要左侧 qlen 位，短摘要按大端整数左补零。 */
@@ -161,10 +158,28 @@ bool __xrtEcdsaVerify(
 		bResult = false;
 	}
 	__xrtEcdsaVerifyClear(Values, 9, Bytes, sizeof(Bytes));
-	if ( !bResult ) {
+	return bResult ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
+}
+
+bool __xrtEcdsaVerify(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pSignature, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize, cstr sOperation
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaCheck(
+		iCurve, pHash, iHashSize, pSignature, pPublic, iScalarSize, iPublicSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
 		__xrtEcdsaError(sOperation, "the ECDSA signature verification failed");
 	}
-	return bResult;
+	return false;
 }
 
 #endif

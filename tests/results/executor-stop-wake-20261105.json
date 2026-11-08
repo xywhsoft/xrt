@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "stage": "executor stop notification sleep-lock rendezvous",
+  "base_revision": "d3cb93186a501472c588cf051de4f5780c814459",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "public_api_or_layout_changed": false,
+  "witness": {
+    "platform": "Windows GCC O2 native single xcron service",
+    "process_id": 35140,
+    "main_stack": [
+      "__xrtThreadWaitUntil",
+      "xrtExecutorDestroy",
+      "servicePoolEnd",
+      "testServiceRetries"
+    ],
+    "worker_stack": [
+      "SleepConditionVariableSRW",
+      "__xrtCondWaitUntil",
+      "__xrtExecutorWorker"
+    ],
+    "state": {
+      "Closed": 1,
+      "Shutdown": 1,
+      "Sleepers": 1,
+      "Queued": 0,
+      "Outstanding": 0
+    },
+    "hung_process_stopped_explicitly": true,
+    "suite_failed_not_accepted": true,
+    "log_sha256": {
+      "windows-hang.log": "4446587af64da3563860fb643039edf8dffe243e73c6ea8b4c10fed9294f3fcc",
+      "windows-hang-registers.log": "1420015270c6fcea76cb1567836898c17bd0e2ff6f9ea02f27f4807747010c64",
+      "windows-hang-state.log": "6964a87ff65b061ef513f5be398eabe4ec378e0d3572c1e4cd39a12a5561c99e"
+    },
+    "limitation": "Natural deadlock captured; eight runs of the new 1024-round stress on the old implementation all passed. No claim of deterministic reproduction."
+  },
+  "fix": "Broadcast/lifecycle wake always locks SleepLock, synchronizing the stop predicate check and CondWait. A release Shutdown store followed by an acquire zero-Sleepers load can otherwise be reordered/observe old values. Scalar admission retains its existing fast path.",
+  "cost": "Batch/lifecycle notification adds an uncontended lock/broadcast/unlock when Sleepers was zero; no added allocation, thread, ABI, global timer or public API.",
+  "verification": {
+    "windows-core": {
+      "exit_code": 0,
+      "program_executions": 9,
+      "log_sha256": "4000f2f15cda6db2815c3708d1de8386d748ebd9bf9f381dbf161d237cc8b13d"
+    },
+    "wsl-core": {
+      "exit_code": 0,
+      "program_executions": 9,
+      "log_sha256": "cad9073466a3c27bab49f8c92dd1d34f6e7286445aceae89a025060c4a35e257"
+    },
+    "wsl-tsan-modular": {
+      "exit_code": 0,
+      "program_executions": 1,
+      "log_sha256": "1738acc1b436fd5a101368d73d74a5ff262c91dc06282d5d3f217872617cdf5b"
+    },
+    "wsl-tsan-native": {
+      "exit_code": 0,
+      "program_executions": 1,
+      "log_sha256": "80de2faa4cc0a762f6bf33b96ada2aad2b480e76bb1937f84fb9ec7025dd0736"
+    },
+    "windows-service-native": {
+      "exit_code": 0,
+      "program_executions": 1,
+      "log_sha256": "4ba55795226d761f54cdd1663b405d53a72061bb6071b6dc03cd5898e7d26773"
+    }
+  },
+  "native_service_repetitions": {
+    "rounds": 16,
+    "all_exit_zero": true,
+    "evidence_sha256": "1d7f23277adecd041cf0d431e33806430e8f372b64b582888a6799e35b7696a4"
+  },
+  "stress": {
+    "rounds_per_program": 1024,
+    "max_join_milliseconds": 30000,
+    "configurations": "one/two workers, empty/immediate or previously drained destruction, batch sizes zero through three",
+    "wsl_sanitizers": "ASan/UBSan/leak-halt plus separate modular and single O1 TSan; existing -Wno-error=tsan allowance for fences"
+  },
+  "unqualified_windows_executor_probe": {
+    "tasks": 131072,
+    "workers": 4,
+    "alternating_repetitions": 5,
+    "values": {
+      "1": {
+        "samples": {
+          "before": [
+            909377.89,
+            890175.954,
+            881532.028,
+            895082.89,
+            893600.021
+          ],
+          "after": [
+            888530.358,
+            880138.005,
+            888860.557,
+            915134.716,
+            898385.987
+          ]
+        },
+        "median_ratio": 0.9946962131953666
+      },
+      "32": {
+        "samples": {
+          "before": [
+            5217252.854,
+            5558467.554,
+            5196588.787,
+            5263280.475,
+            5274739.426
+          ],
+          "after": [
+            5177089.546,
+            5277139.188,
+            4861793.202,
+            5124644.209,
+            5463017.764
+          ]
+        },
+        "median_ratio": 0.9836241048886912
+      }
+    },
+    "evidence_sha256": "4382031ad40a660609750a08586e0831b94335e69152c965693f12dc757a2dc7",
+    "not_a_performance_gate": "Unpinned shared host and coarse sample count; no qualified throughput or tail-latency claim."
+  },
+  "validated_file_sha256": {
+    "src/concurrency/executor.c": "ee117788a4210352df1482e2acda3084da04fadb0c362de164ac5f20238fbf8a",
+    "single/xrt.h": "14afd7c681efe005d055c0f435995e17843377aaca1fbcb52ba5c48b4f562369",
+    "tests/concurrency/test_executor.c": "c1ec4b3b5fc7d63cf3d48c611b19e6ca91f9a3c8381463c5775dc45338ee3ebe",
+    "tests/concurrency/test_executor_shutdown.h": "fb248a1acd9583dd683b5f9e7fb9e90ce6f57f7ff6dc7b59607fc4a681e9b5e2",
+    "tests/single/test_single_executor.c": "a49621a5c2cf4989d10fd4a772319ef3c257228bcd015ab5a6bf579cb8b2b32e"
+  },
+  "local_evidence": "out/service-extensions/executor-stop-wake/"
+}

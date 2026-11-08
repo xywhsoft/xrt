@@ -7622,3 +7622,92 @@ const xfuturepayloadownershipv1* xrtNetTcpFutureStreamPayloadPolicyV1Get(void);
 #### 范例
 
 [同模块资源的基础组合示例](../../examples/network/tcp/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+### `xrtNetStreamConnectOwnedV1`
+
+创建数字地址连接，并在发布启动任务**之前**安装拥有型事件上下文。
+不执行名称解析，不改变 `xnetstreamconfig` 的配置和时间单位。
+
+```c
+xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+    const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+    ptr pData, const xnetstreameventsownershipv1* pPolicy);
+```
+
+#### 参数
+
+Engine、Remote、Affinity、Config 与 `xrtNetStreamConnect` 相同。Data 必须为
+非空的一个真实拥有引用；Policy 必须常驻、size 精确匹配，并提供有效的
+Drop 和拥有图 Count／Trace。事件表来自 Policy，而非可变的调用方临时表。
+
+#### 返回值
+
+成功返回一个 Stream 调用方引用，同时消费恰好一个 Data 引用；失败返回
+NULL，完全不消费 Data。Open／Close 可能与提交者并发，甚至先于本函数
+返回，调用方不能假定回调会等返回值赋值完成。事件只借用已登记的 Data。
+
+#### 错误
+
+无效描述符、无效连接配置、分配、套接字及启动任务发布失败使用既有
+checked 错误。失败回滚不调用 Data 的 Drop；成功后的替换／关闭复用
+`xrtNetStreamSetEventsOwnedV1` 的 Worker 延迟退役，待回调／分派栈退出后
+才 Drop，不在拥有图 Freeze 内调用用户清理。
+
+#### 范例
+
+见 [拥有型 TCP／TLS 交接用例](../../tests/tls/test_tls_transport_handoff.c) 与
+[交接合同](../design/tls-transport-handoff.md)。此入口只建立真实 TCP 拥有边，
+不单独证明 TLS Session、Listener、Dial 或异步节点已经可以收集退役。
+
+### 非阻塞 Dial Future 发布
+
+TCP／Proxy／TLS Dial Future 共用真实拥有发布器，不再依赖
+`xrtFutureBridgeWait`。Done 可以先于 Submit 返回：完成方保存实际结果
+与错误后立即返回，发布方或后续完成方以互斥锁选择唯一处理者。发布前
+取消保留并在 Dial 发布后转发，不能因句柄槽尚未赋值而丢失。
+
+producer、Owned CancelWatch、已接受 Done 和提交者分别持有真实引用。
+处理者在锁及 ownership Mutation 外取消订阅、释放原生句柄并完成
+Promise；各族使用自己的拥有 payload。准备等待真实源完成；Clear 无
+用户回调，Finish 可重复检查并保留首次清理错误。已有 TCP／Proxy
+公开调用方式不变，TLS 的借用与 owned 入口仍严格区分。
+
+合同与普通发布／回环验收见
+[Dial Future 发布设计](../design/tls-dial-future-ownership.md)。
+
+
+## Stream 物理退休等待（net_tcp_retire）
+
+选择 `XRT_MODULE_NET_TCP_RETIRE`（依赖 `net_tcp`、`cond`），可使用：
+
+```c
+xwaitresult xrtNetStreamWaitRetired(xnetstream* Stream, int64 Timeout);
+```
+
+该操作等待 Stream 已经 CLOSED，并且只剩调用方持有的一个真实强引用。
+它包含原生 I/O、控制命令、发送引用和 owned event/Drop 回调尾部的退出；
+`XNET_STREAM_WAIT_CLOSE` 与 State=CLOSED 仅表示逻辑关闭，不能代替此条件。
+额外的调用方别名也会使等待保持 pending；该接口不会隐藏、减去或消费引用。
+
+接口不发起 Close/Abort，不给 Stream 另加引用，不分配等待节点，不轮询、不冻结
+所有权图。调用方必须让自己的 owner 在所有并发等待结束前保持存活，并在把成功
+解释为最终退休或 Destroy 前停止其他 API/Ref 入口。多个等待线程可借用同一
+稳定 owner；不得并发释放这个 owner。同一 Engine 的任何 Worker 都拒绝此等待，
+也不得在所有权图冻结期间阻塞等待。已退休的 Stream 可以在原 Engine 销毁后查询。
+
+Timeout 使用相对毫秒：0 为立即检查，-1 为无限，其余负数报错。一次调用使用
+一个单调截止点，虚假唤醒不会续期。超时保留 owner，成功表示物理条件成立而非
+TCP 对端收到数据，也不覆盖原有传输关闭原因。
+
+此可裁剪模块给 Stream 增加嵌入的 mutex/condition；未选择时不改变 TCP 释放路径。
+选择后，引用数大于 2 的释放仍走 CAS，不加等待锁；2->1 与最终 1->0 则与等待者
+共用锁，保证无丢失唤醒，也保证不能在通知尾部仍使用对象时先行释放。
+这些同步存储增加实际对象大小，不能据此宣称零开销，吞吐/CPU 成本仍须测量。
+
+运行本地生命周期、别名、多等待者、超时、Worker 拒绝与竞争测试：
+
+```text
+python tools/build.py --compiler gcc --suite net_tcp_retire --test test_net_tcp_retire --no-single --no-examples --cflag=-O2
+```
+
+独立单头验证入口为 `tests/single/test_single_net_tcp_retire.c`。

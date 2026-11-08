@@ -1,0 +1,3412 @@
+{
+  "schema": 1,
+  "stage": "named immutable TZif snapshots, aggregate quota and explicit anchored-root reload",
+  "base_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+  "functional_execution_date": "2026-11-05",
+  "resume_integrity_check_date": "2026-11-08",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "api": {
+    "added": [
+      "xcronTzdbCreate",
+      "xcronTzdbLoad",
+      "xcronTzdbAcquire",
+      "xcronTzdbSnapshotRetain",
+      "xcronTzdbSnapshotRelease",
+      "xcronTzdbSnapshotInfo",
+      "xcronTzdbFind",
+      "xcronTzdbInspect",
+      "xcronTzdbClose",
+      "xcronTzdbDestroy",
+      "xcronTzdbLoadRoot"
+    ],
+    "changed_existing": [],
+    "reference": {
+      "functions": 67,
+      "constants": 164,
+      "types": 71
+    },
+    "new_leaves": [
+      "xcron_tzdb",
+      "xcron_tzdb_file"
+    ],
+    "state": "developing",
+    "existing_service_layout_unchanged": [
+      136,
+      384
+    ]
+  },
+  "implementation": [
+    "Exact case-sensitive bounded ASCII path names; caller-owned explicit manifest and visible version. No system TZ, implicit directory, data download, worker, watcher or shared runtime.",
+    "Cold copy/validate/heapsort/decode outside publication mutex. Bounded builders, expected-revision check before and at atomic publication. Failed/stale/closed candidates roll back without changing outputs/current version.",
+    "Immutable refcounted snapshots and independently retained zones survive reload, close and physical manager destruction. Existing jobs retain original zones until explicit replacement.",
+    "One Core quota charges manager, all generations/decoded footer/history and temporary IO/helper allocations until physically freed, including independently retained zones. Builder count and requested bytes are bounded.",
+    "Optional root loader opens contained names with public Core anchored APIs, validates regular <=16MiB files, full read/EOF and second metadata, closes every file and frees partial work on failure.",
+    "Close rejects future acquisition/build publication. Destroy requires Close, zero admitted builders and caller physical exclusion/join of ALL concurrent database calls. Loading0 does not imply a returned caller."
+  ],
+  "costs_and_limits": [
+    "Find: validated bounded name, binary search and one retained zone result; normal success/NONE requests no allocation, IO or publication mutex. Acquire adds mutex and snapshot refcount.",
+    "Cold descriptor/name copies, in-place heapsort row moves, independent TZif/footer decoding and old-catalog release remain; aliases decode separately. File loading adds per-member resolve/open/read/stat/close and one temporary input buffer.",
+    "Quota excludes one fixed Core quota-control allocation, native mutex, allocator backing/headers, caller root/inputs and final outward diagnostic. Lower-level diagnostics within a load DO consume quota. Explicit inner quota replaces ambient caller quota per Core semantics.",
+    "Trusted immutable release directory/manifest is caller responsibility. Atomic publication does not provide a filesystem-wide transaction, release authentication or detection of every same-size concurrent rewrite.",
+    "Outputs must be disjoint from all other borrowed/retained owners; Find checks snapshot and selected zone rather than O(names) alias scans."
+  ],
+  "verification": [
+    "23 actual modular/single programs per platform; two offline runnable examples; six link-wrapped IO faults; static/shared consumers invoke all11 operations and retain owners after destruction.",
+    "286 quota boundaries across8 actual DST/footer/history entries, complete rollback and peak accounting. All footer/history positions plus arena failures exercised. Typed malformed data survives inner and outward diagnostic OOM.",
+    "Reverse257-name catalog,10000 positive and10000 negative lookups under one-byte quota with unchanged allocation counters; exact case/missing names, structural/mutual/nested aliases, invalid spans/counts, refcount/revision saturation.",
+    "Held source construction permits readers while builder is outside publication lock; builder admission, Close/Destroy busy, physical join rollback. Two held CAS builders race with one winner. Four readers through250 real publications validate coherent versions and detached zone lifetimes.",
+    "One422-zone2026e database per OS,54173 independent state/offset/name queries after source/root/manager destruction, including465 unknowns and1 missing name; snapshot owned requested bytes809072.",
+    "3798 actual named RootLoad/Acquire/Find calls per OS, then63180 actual public cursor Next and218700 legacy Match calls after root/snapshot/manager destruction;680 typed coverage errors (347 Next,333 Match). These are not all database lookups.",
+    "WSL O2 ASan/UBSan/leak-halt and two O1 TSan modular/single units pass. Windows85 tooling tests and generated feature/single/reference/docs checks pass. On resume13 performance-tool tests plus docs/single checks pass on final benchmark metrics.",
+    "Direct/generated declarations match config16,entry32,issue48,info40,stats64 on both x64 systems. Private manager Windows80/WSL152, snapshot header56,row32. Existing service config136/stats384 remain unchanged."
+  ],
+  "integrity": {
+    "protected_inputs_count": 2495,
+    "functional_map_canonical_sha256": "dca0365e2fff6d08e74c9f958fabfc9e7452603126dd45bc09696c15ac948b92",
+    "final_measurement_map_canonical_sha256": "aea6e8d462a1540838c7d8b484aa9b4e4ab0773669ad182733c584957d42b763",
+    "post_functional_changes": {
+      "extlibs/xcron/bench/bench_tzdb.c": {
+        "functional_sha256": "93a59ac45a66154ffb04e71edb8d90d3383414686cdca154613577bfddb165c1",
+        "final_sha256": "fda8736f3e92a54d45a88c394d8087e98b191ea809e6c0badca86f3a6a247700"
+      },
+      "extlibs/xcron/config/performance_profiles.json": {
+        "functional_sha256": "65f5ad24733e45a75f16adb80ba2d97d3ffccab3dd42c4214afbb63847ff70cd",
+        "final_sha256": "da2721bf32aef256fa9e2da18a831a661c8fb4040e811b7698f7dd708aa63035"
+      }
+    },
+    "scope": "Functional products/tests/generated bytes are unchanged. Exactly two benchmark-only inputs add post-sort percentile output and profile metadata; timed loop unchanged. Original maps/receipts are retained. Markdown and this evidence are outside the protected map. Size ran before the metric expansion; product/size inputs unchanged, no separate size source map was captured.",
+    "changed_file_sha256": {
+      "docs/development/service-extensions-progress.md": "d59c2f14cae6cd2114611bce028bee89b2d2b0106cac804d3fbdc98a92d546da",
+      "extlibs/xcron/README.md": "f81690589864da52e148eee7f46da876dde6fc6e2b61b38ef2e3cd8782e59c98",
+      "extlibs/xcron/config/modules.json": "fe3f13f5a1fa7e011ecbb77150d7a032cbdd8a40e249678bf2d88d4cbda517e2",
+      "extlibs/xcron/config/performance_profiles.json": "da2721bf32aef256fa9e2da18a831a661c8fb4040e811b7698f7dd708aa63035",
+      "extlibs/xcron/config/size_profiles.json": "e9c4365c20d4c5765ab87061b1484aae022f262dc1f88b97e6ddf4df133ce094",
+      "extlibs/xcron/docs/api/reference.md": "9a3ed7e3dc01a0f0f87e6c07d481e0df1be65cf55841092a0cd8bc409e135e5a",
+      "extlibs/xcron/docs/coverage.md": "778446c886e388cea8516f8fb3ea4dadd336edc57c1cd7d9522cdc1771ca8eb5",
+      "extlibs/xcron/docs/scheduler.md": "94dc56fd1bbaf940d0e999ebc4cf1d1cca41880421cfcc4c53db4a8a63a7f72e",
+      "extlibs/xcron/docs/service.md": "ecae658cd7caceb8ce52a96fc45b0f4f9191001066807f2566258a564dbbb52a",
+      "extlibs/xcron/docs/timezone.md": "27ade4e77133914af1fb2037a9d6fd66c64731abd23dda4812acbc2c8f3441bd",
+      "extlibs/xcron/docs/tzdb.md": "0a59c642c6d9af91b574090e61d3d9580e870b404c4cfd751d6bbd008e9c4643",
+      "extlibs/xcron/docs/zoned.md": "c61cd243213f0611f56bc7bb289acde612fbf56432f7fd509cd9a1779d8e04e2",
+      "extlibs/xcron/include/xcron.h": "76d3c5dd36fe817361193fafd314f7442c20ca4f2e5f9e713b912f4119b3e00b",
+      "extlibs/xcron/include/xcron/features.h": "f9f1d6f8b136c1841fcfa66171f421208c314df6bc3bf851c972afeca55c9eb9",
+      "extlibs/xcron/include/xcron/tzdb.h": "7edf766666991d368bc4f463677204ff8c14b40fb978432404a913b00abffc07",
+      "extlibs/xcron/include/xcron/tzdb_file.h": "c99f2ea97ef4bd247c28c7a41e67d8bf7eaa21eb00d7d4e7aecd806db392a332",
+      "extlibs/xcron/src/timezone/timezone_internal.h": "68b31b761fc0e8466612e479aa743ae73b4aa67b508fea967ba146e960202cde",
+      "extlibs/xcron/src/timezone/tzif.c": "37301ce69c4605ebabf3d624239860165a83364434147a8fcea0a846b7a7084c",
+      "extlibs/xcron/src/tzdb/tzdb.c": "8526d701f3acf608fa3e68d5142b6c836dd54bf32af7cce2c873b3f30c909113",
+      "extlibs/xcron/src/tzdb/tzdb_internal.h": "753ce69a538ff472e3a975e0d1baa44b81943c45358849cef84d6df84af9c4ae",
+      "extlibs/xcron/src/tzdb_file/tzdb_file.c": "5ff0f4a569bc3c3a1bd60173a625809eae568889dc1b57c06c828083887d2f90",
+      "extlibs/xcron/tests/package/test_consumer.c": "704a4b133ee586e638544f8e5ea0857f8a2ca8edbaee3f5873833c2221ce558c",
+      "extlibs/xcron/tests/test_zoned_reference.py": "424845a665655b383b90ab716e3acdfb3240987e741bae3d179d181a2dbde636",
+      "extlibs/xcron/tests/zoned_probe.c": "9dbe2bd9bbcee4e482cbd4bf4b5b121e8219c2bb01662954fea87511ee31ea0c",
+      "extlibs/xcron/bench/bench_tzdb.c": "fda8736f3e92a54d45a88c394d8087e98b191ea809e6c0badca86f3a6a247700",
+      "extlibs/xcron/examples/tzdb/main.c": "b20215cf254232177698715193d2ef2397563b2555a0f60273cc8bda2f2e1160",
+      "extlibs/xcron/examples/tzdb/README.md": "4c57ea2da0460fb78a5dadf0d3e938d43913a5f1f9d7be35b283a8fc69cbdbb0",
+      "extlibs/xcron/examples/tzdb_file/main.c": "a2cba929233c8ee8b96e0ee32e9f7235d844f9f43f2fb013262f9c028504aa4f",
+      "extlibs/xcron/examples/tzdb_file/README.md": "ebe83d8203cf455bf11b44aa5bd05053e67463cac0850fc2d3ab92bd8b3d156d",
+      "extlibs/xcron/tests/single/test_single_xcron_tzdb.c": "742525234606a396ff8098f7fe31176ec0db88b3c360e7047f04795a725e814e",
+      "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c": "588012ca094a94c2f40e17259e2d7d8a4c012b7839bcb91d33524b38cc8053f8",
+      "extlibs/xcron/tests/test_tzdb.c": "1146b68b6a09c3438834e5beee0e42e57e9a704f696f5755fa665de4b134141b",
+      "extlibs/xcron/tests/test_tzdb_file.c": "ae13f9bbc2c6abb661ddfe727f67f703b447f1afbb814e57fb20dc6e682ca850",
+      "extlibs/xcron/tests/test_tzdb_reference.py": "dd4a13387e4d29e7e094d86cb1d66fa11f3c2577f57c30b932733a5ceefa07a9",
+      "extlibs/xcron/tests/tzdb_adversarial_cases.h": "734dd706bed5eeb1a71f1a6fe362c2379cfbfa1b1d7273766b04f06604f79f39",
+      "extlibs/xcron/tests/tzdb_file_fault_cases.h": "1c9e5ac63133df2d0975e91c65ff81b5a4ff2ef3c2ec7f44db121d7d23182a82",
+      "extlibs/xcron/tests/tzdb_probe.c": "269056702978769d8cd8232d64e639bba8161b06e65a1ae566adc4f38c028bbe",
+      "single/extlibs/xcron.h": "c9dd54b040b98771211c3d7ebb9bdafc1e1f528a0c0fa8d630f1c1a94481c1c6",
+      "single/extlibs/xcron_decl.h": "faeae97bcb5171e01993cac2d77c9bedb535d07072e4e2fe19538c073bac4dc6"
+    },
+    "local_recipes_sha256": {
+      "run_stage.py": "3f3c5224d78e7ab80f18a95166d31ae88b6197920eccf03c2a92d414a2c45ce3",
+      "run_measurements.py": "c9d0023d616bdfd094d8bb305dfce9ddfbe5b55a052e14c79a6f222895c1b4a5",
+      "build_probes.py": "a83b72bfe3b08fd8365822f23a7e578c2f8e7b2b02bc43b4e311149f13a2ca02",
+      "layout.c": "c9d809924e01bef476e5853640b969aae0596afa1a7ee22de14b24e4a532d343"
+    },
+    "retained_prototype_logs_sha256": {
+      "tzdb-core-wsl.log": "9cca76f79d01c95819b200b3960bb85d560291d1101fea3a0ccd69fdc2150bd2",
+      "tzdb-fault-windows.log": "00ada8c39428cd8414f7e7dbd6d92bba351520d9a73e32cc59fef9eb97b59104",
+      "tzdb-prefix-windows.log": "11af416f44abdc8023773008a4088d4686e8a9089b97a2ce30ec4bde7c50689d",
+      "tzdb-prototype-windows.log": "f3bb47ed33692179755295fefd24b568aeefa258a4816f3c856113ee3c29b9f7",
+      "tzdb-prototype-wsl.log": "6fc38973818534239e0bdd8abecdadfdb1635a234b948f404db60288186bbeab",
+      "tzdb-prototype2-windows.log": "fee23b8883ad5daca58576ad5a3ca81f7c400869b0c80bfe1778b4f4c23c1cac",
+      "tzdb-prototype3-windows.log": "29ba2516a64709bd9ae94fa7679c0a87393ad24127d1d06140bc00526fd26e34",
+      "tzdb-prototype3-wsl.log": "dd450e5bdfb7479d429ce17b5646e2cebf045b34e92d238eb4c097e887365263"
+    }
+  },
+  "reference_corpus": {
+    "version": "2026e",
+    "zones": 422,
+    "tzif_sha256": {
+      "Africa/Abidjan": "d2efac4e5f23d88c95d72c1db42807170f52f43dd98a205af5a92a91b9f2d997",
+      "Africa/Accra": "7346770dc7af569c724fd1ce816d7149ffdff3e303420059faa1557cc959e115",
+      "Africa/Addis_Ababa": "fc87a606ec2e31f061a7806193472eb39181dd3b1a8a3563f404992bc693a77b",
+      "Africa/Algiers": "bda1698cd542c0e6e76dfbbcdab390cdd26f37a9d5826a57a50d5aab37f3b2a6",
+      "Africa/Asmara": "65af76431c1dd400e1ada6687e648e0fba1f80138acccdf7987cd3e1cd01b199",
+      "Africa/Bamako": "a212ea76ad201e8a956438bd008cd333ead81dac3ebcd2df4fcddc5b0f59165e",
+      "Africa/Bangui": "a72ce103a74d3432bfd869efa0276a8eb4f83398f93d94e922f793b9ef7beaef",
+      "Africa/Banjul": "f511d8d1785320b80330d02f1d8ff3a6619f71f09539a73daba97f91cf630f5e",
+      "Africa/Bissau": "223bb10cfe846620c716f97f6c74ba34deec751c4b297965a28042f36f69a1a9",
+      "Africa/Blantyre": "de96b327c8198764a41bc035efd36b63075f618e7db479ebf451226a54d4bd42",
+      "Africa/Brazzaville": "4680eb49f8aa6b167969f6e27221d859792357cefe0285eb03f60725db664d57",
+      "Africa/Bujumbura": "c880a655aba172cecd4ae8eddd5f8d4cdde07686f00223e4adcc086dad320e7e",
+      "Africa/Cairo": "2dfb7e1822d085a4899bd56a526b041681c84b55617daee91499fd1990a989fb",
+      "Africa/Casablanca": "a7f132b9488727f34030a78a111d9b84f5e0bbb8f56c6eb83e26f26730394171",
+      "Africa/Ceuta": "0b0fb6fe714319b37c5aa22c56971abb2668a165fc8f72a6c763e70b47c7badf",
+      "Africa/Conakry": "93b62b3d76c1d4a477d84d232c576f9b9f21e428a42635db94eaca2c59b7b2ec",
+      "Africa/Dakar": "40733be9374ab5a9bd38be2be2664e538f97a265bbe7d898a6167d3800cb228b",
+      "Africa/Dar_es_Salaam": "4fc4f312a5287024c7f8473d753b6d1bcde396138d778adf5fce60dddcc9b53f",
+      "Africa/Djibouti": "b92bac77f2dd9edd59397c0315e116fd0dc4fbc1ae6cd266687a2822877959f1",
+      "Africa/Douala": "3b014a5d1cbee2524ae309a895cbe0fe47da87c12016fe8cc2562ac79906590b",
+      "Africa/El_Aaiun": "d9b5d8cf88070b1958cfef9a9bedb8fc252f8cbae64a29dd2b3690f8f58e96d1",
+      "Africa/Freetown": "77d05b2ed586a9d22f6e4a791ec0634256dc919faac6279bdb7db388a9c1f67b",
+      "Africa/Gaborone": "3ca27c9dd26ccfd118a270eaee39195154cd63f15700d14de650bf7493cec628",
+      "Africa/Harare": "22720486f3e24b8e4b4f746afd2e0020f22d3a6c055b79579457e3efc2373ee5",
+      "Africa/Johannesburg": "6c1bcc752668e77585a308ae8543bd0bccd8e813865626e809bf94f3fe3d977e",
+      "Africa/Juba": "5159c8a843c9c072d3302fabe6a6501cdbfda29a1856c29dabeb5aff95d4c3f4",
+      "Africa/Kampala": "5e23eb14b36a74840f4490a272ffc7b1f271a5829a349015f878ddb2bf34d9aa",
+      "Africa/Khartoum": "318583a09dc070222d65d029a1e3a0b565830f1aaec13a27e6fe533863fbd3ea",
+      "Africa/Kigali": "8cd9c1bb40c4452e61520a9dfc9a409a67109bad6f41f413c786998d00cbc9cf",
+      "Africa/Kinshasa": "7ae6d0e96d674a4c232cb01faf61a954340d84ea92a71a63ebd060e1c67d8c08",
+      "Africa/Lagos": "cffeb0282ccbd7fba0e493ff8677a1e5a6dd5197885042e437f95a773f844846",
+      "Africa/Libreville": "44575c7c30a1281ec495adb7a404888ed4d7e41c0234f13767ae7b1a1458be73",
+      "Africa/Lome": "5b031c585ed04311c7c7c14b2ee23ba49cb22ded8ddee8adffc9f14de68d2ba8",
+      "Africa/Luanda": "c87aa48fc0f0043c6d101335acc8c7ab4ffc2707c14a8f5b1d6d1abf3bdec69a",
+      "Africa/Lubumbashi": "ed509eccb6e51d5cd529388c57692a641a5b9313233897a1bfabdb612a415c04",
+      "Africa/Lusaka": "fac7c446a8dcddffc75a7dca5c762444f74df9f83c70cc505b138db85242dea4",
+      "Africa/Malabo": "8d17cee7263820e7a14499ba087cd792f4f4b358bb4c874f24c42537ce975704",
+      "Africa/Maputo": "444ed3a710414bc6bf43eb27e591da49d3be3db153449a6a0c9473f7e39fdbcb",
+      "Africa/Maseru": "be0b75733f8dfc6ff35bd69c3d0f94abc72e1d6897c81f53d0ba7da1d72227b6",
+      "Africa/Mbabane": "b0b8a11ab3cc1a97295b0bcde33b1129de82616b2f83987687926e100d3adf91",
+      "Africa/Mogadishu": "cf5c8032414fd86bdafddb2cdfd6813730f7ec4a08cb92b22a5f1403490fa7e2",
+      "Africa/Monrovia": "f95b095b9714e0a76f7e061a415bf895cbb399a28854531de369cee915ce05d5",
+      "Africa/Nairobi": "c89b2e253a8926a6cecf7eff34e4bfcdb7fe24daff22d84718c30deec0ea4968",
+      "Africa/Ndjamena": "f13dc0d199bd1a3d01be6eab77cf2ddc60172a229d1947c7948a98964608d0a3",
+      "Africa/Niamey": "78a49cb93c76e4f036933c36ace93e46ea1d7ccf58c7b086dd8f1c5eb441a400",
+      "Africa/Nouakchott": "7fde47dac81d3d51ed1bf257f8834faa4da20d4ba1d85b824f86bf2cd79ac801",
+      "Africa/Ouagadougou": "fe2dc2c6ab2ef71c41bb3542802a3c18a2d657befa39f3e61321c12677d16caf",
+      "Africa/Porto-Novo": "30a8a8c8c9337afff37986d7c36afe814c8b56cb75e958dd89bca1ef6dff731d",
+      "Africa/Sao_Tome": "31d8f1a50dbaf2ecc9ed9c7566ba0552d454c2ab09e85ff263701857d157c352",
+      "Africa/Tripoli": "5b5769b460fbd13ee9a46a28d1f733150783888a749ee96d2cd3d5eba3300767",
+      "Africa/Tunis": "38554c10ce1e613d84cf46deba1114093488a5c165756c6c576b84a1364850d2",
+      "Africa/Windhoek": "c6e86fb9dacc1f86a59d59a8b924d023c60bf05fc76e0b05d8443b0192b3b87b",
+      "America/Adak": "9d767d4f8dfffee4fdf29e594a8552a41aa77d41cdb4a2e5f7687c94b5699e54",
+      "America/Anchorage": "385fe1232365859f607e890bbc1b37bcac6c2d13932ecf8cee82ed76ee156043",
+      "America/Anguilla": "434fbfb6b97c6d6ef4a036030bb901a49c74b7a4df8b6e0a1dcfd3cedf8a1fc1",
+      "America/Antigua": "d63c0dde8af51ad22539678225d3f58c760f0f8971dc5e43783644853087b14e",
+      "America/Araguaina": "1babfdc18159f040785907c8b2a45b6e288a7766f6ee3ed9b797458c16f3c76a",
+      "America/Argentina/Buenos_Aires": "26653c941c26cb6f6047a3a67b2b6f15d311c7a39b24a9d834798bc8c9975f63",
+      "America/Argentina/Catamarca": "b8c0895d719898d1121d5be3e5160167431cace744d788709b5ee5db9320456d",
+      "America/Argentina/Cordoba": "ba788d8a184c1e7af85cae16a7088f527ac04f460f9afcea07a7f48512ed5ef6",
+      "America/Argentina/Jujuy": "3c69807a1ca90b18f45c27a70925aaca50c83db28b2b40e5af024aff6e03e7dd",
+      "America/Argentina/La_Rioja": "526e97a155e1b2beb669dd665ae79b7ba358d191dab81751f6d3060e0a823878",
+      "America/Argentina/Mendoza": "c5c395b6f47255814053dd32d90630a72421a4c2f2029efe171be4bb89209747",
+      "America/Argentina/Rio_Gallegos": "17d64a478a3c80b1d7ed006e22331aa4621d9b3271a6ac1ba2e3e067932a0e96",
+      "America/Argentina/Salta": "875298ac33486a9bc3918862d4f681f160f5a9639ee2f8618032560c2195e237",
+      "America/Argentina/San_Juan": "008d8696d03cd263cdce11f163272e13021b3b500d5f222a05064ca63a8aa9d4",
+      "America/Argentina/San_Luis": "d88b4645c2d52b6c31f0cc89b076c8041780914e01f8c379c7567137267b5091",
+      "America/Argentina/Tucuman": "b703be16ab4d255f173b3593bc543ec6711c582a035076378295481b43336dff",
+      "America/Argentina/Ushuaia": "03a21ba55958f4820fa1228c15147d0cc44e7705d44837361ec012b9e3929eaa",
+      "America/Aruba": "e05ef0b458a717e7c83d8bc16c50e3a74a719fb5f3725b1c4fe7569a1b07fcfc",
+      "America/Asuncion": "f727c68843615cd81ddbfd311d5b05fa12de264192a91b3ecc3f4ef78e4a2567",
+      "America/Atikokan": "e1af781ad3c751d43edac773f568a7b0a9fd57f4223385e6163e3c1533cc7920",
+      "America/Bahia": "aa2edd03a1687c384bc553267762fc6cadc779a42773d5fe8e28a3c327e1b378",
+      "America/Bahia_Banderas": "32fad7189e4bcda1ce7a0b89ab1b33c63c4c85569f1956e4fa88d711ceff6042",
+      "America/Barbados": "8a66be42bae16b3bb841fbeed99d3e7ba13e193898927b8906ee9cdb2546f4b1",
+      "America/Belem": "69931482d1437473484a9ab241161b992d88043f81012dc26899e1bbaa272c26",
+      "America/Belize": "a647cb63629f3dc85b7896b5a56717996030a7866546fc562d57b35e7adb930b",
+      "America/Blanc-Sablon": "b5537964f9883b7bdcdff6b2a3083aa9bbe385e838389b43153f72f08b96df7e",
+      "America/Boa_Vista": "74cb5a1b5d641a526b8092601961036590269cefc77d3dcbe17f2923bd8b2c56",
+      "America/Bogota": "bf2235f43af0084d48823ee6ad21024299281e7bbc51620863daa154781978dd",
+      "America/Boise": "ec742c34f262521790805cf99152ef4e77f9c615c061a78036a0ec9312b3d95b",
+      "America/Cambridge_Bay": "ff8c51957dd6755a4472aa13ea6c83ecd7930979e7f4e624fe21f4d3a6f050ba",
+      "America/Campo_Grande": "8083625e0e62d9ee9187635ba366c5aa13c024be05e1c02a1a705a9e45d30d7c",
+      "America/Cancun": "11d574370d968cced59e3147a2ae63b126cbbae13b78fd4e13be2eb44c96246e",
+      "America/Caracas": "99434c15d0f364b6affde3c0d68701766a950627ab91e12ccd3205a4d0a6e49d",
+      "America/Cayenne": "e24ec8bf5c285f86ada9e3caadcbcc403d9593d4e699aeeb5bf016fd1eb6a427",
+      "America/Cayman": "8a2ab69b8045ea3681c799a08704335f1111f7373e21f4ee08e8ae84eb408fc9",
+      "America/Chicago": "feba326ebe88eac20017a718748c46c68469a1e7f5e7716dcb8f1d43a6e6f686",
+      "America/Chihuahua": "dcd8336de760f00cc0ab1b1b4121b48d5471f8bc58970d62de4c7e63397ed887",
+      "America/Ciudad_Juarez": "8abe1bdbb0e216b84bd07e1f650f769c46be041a0f7cb588cf7a61537ef77601",
+      "America/Costa_Rica": "ef8ad86ba96b80893296cf4f907a3c482625f683aa8ae1b94bb31676725e94fe",
+      "America/Coyhaique": "6de65753a2f0e63c765a9ddd3519058a87d71a66b674ce83b2abc94fd0921dd7",
+      "America/Creston": "74d39aef5420436779ba1edc97ec5999efbcbb79cc47d189ecf4a4b562033914",
+      "America/Cuiaba": "19126a92145736c3947208d975d43144825d4586b0f6933f60b59bba7f3c7648",
+      "America/Curacao": "646108ca5019e62cbfac806c5d112d1ff65f5912242c8f5d4233ff108ca7dec6",
+      "America/Danmarkshavn": "6116407d40a856d68bd4bf8c60c60c1f5c3239a5509df528fe0167bcc5d2bb3c",
+      "America/Dawson": "ac01e1cae32eca37ff7b20364811bbe8c4417ff7e3ff18b9140ba2595420261c",
+      "America/Dawson_Creek": "6895c2c8fe23de0804e3018237e2eb4bd8690ffe73587cd04de4802935843d43",
+      "America/Denver": "32e819c00a43b3c348f539d700d425504f20b8d068c16418d26fa9b693e775c9",
+      "America/Detroit": "85e733f32a98d828f907ad46de02d9740559bd180af65d0ff7473f80dfae0f98",
+      "America/Dominica": "7e7db465be161ee7c531100137bf880f3acee56b1874e20661be218ae48f0a8c",
+      "America/Edmonton": "b5e3d3820009abc262c82a3ebfa9261dd12fc210f77322ef121067b040866587",
+      "America/Eirunepe": "8f9784c648c56aab42f83f172b4ac6ce817dc8481b4a54db3ea546f562a111af",
+      "America/El_Salvador": "82f18df0b923fac1a6dbfaecf0e52300c7f5a0cb4aa765deb3a51f593d16aa05",
+      "America/Fort_Nelson": "7ab7ce0ebdc3ad2a73eb990074eed3b367466d9c6f75d10fea0c78057df2d89d",
+      "America/Fortaleza": "ae3892074ab5701b8c0ce33da2b5bfbb07b950e2c1c1395f8c5a2dc0e61ed665",
+      "America/Glace_Bay": "1bc0c62c609aa47fda60217f3a168be50a277fb14e02000fc1e94ee61b425817",
+      "America/Goose_Bay": "26068bb9e8214af5f683bdb914e7c882982fb2ac591b29163a1019586a506516",
+      "America/Grand_Turk": "e1838510f2bad017a5dbf7c2b18eaf499c5470c24a8e22adc8e7ff4349211305",
+      "America/Grenada": "c9885c70cded8b2588d77c3834a38a148e0836ccfa5c5e7e2bc25f6033aae7bb",
+      "America/Guadeloupe": "add9720f2ed382210e7a64178c261615160071b7d576af02633317deae9cc702",
+      "America/Guatemala": "76e81480277a418e76c87907b943f88d15b3a39c78dfd2108a06980af105e3a4",
+      "America/Guayaquil": "8f652e228fb846048e95335fbbbee6859f76c1a35378a152be6a157a6268a13d",
+      "America/Guyana": "4746cebc24430bc49121ec6686c76e3dd1db6d13f02361af883f68b44c6252b9",
+      "America/Halifax": "4d9a667393f05a82df4df42843f6f7535ec113689529278d911d07a3c99b4e7f",
+      "America/Havana": "1d441e02e281b04908e522d98eaca75c808e51539a8e42b3287e6bf8ebf939d7",
+      "America/Hermosillo": "8b160a7acb4b992ee05a86e4f4aaba16d2d9a35caa6d601cb6b1542a5bb372dc",
+      "America/Indiana/Indianapolis": "90d2b2f4a8fd202b226187c209b020833300edec5ff86a463ccc685e8707532c",
+      "America/Indiana/Knox": "0acbd9e412b0daa55abf7c7f17c094f6d68974393b8d7e3509fb2a9acea35d5f",
+      "America/Indiana/Marengo": "7f7b50fa580c49403b9ef9fae295e12ad24bee65b319a8e809e81ae4c10949b2",
+      "America/Indiana/Petersburg": "03cf0e1ee334460de230b1e32a05eafddda36427554b2b5442cfbd5b429c1724",
+      "America/Indiana/Tell_City": "e1d5aa02bf58d815df2f8a40424fbcd5cde01a5d9c35d1d7383effc09861867f",
+      "America/Indiana/Vevay": "1fb551d86fbfb03fc2e519b83f78358910b515608f8389b43060f73f53cbcec9",
+      "America/Indiana/Vincennes": "eb6980c53ec03c509aa3281f96713374ea5ef9fb96d7239b23a9ba11451c4bb0",
+      "America/Indiana/Winamac": "69918cda347c087f411d252aed7ca08b078377a768ad72cf5e0db8e97b1b47ab",
+      "America/Inuvik": "3992044b9bfa8c0abde7438eab008bc4efd5d36792ae0ca26f7037dd57ef728a",
+      "America/Iqaluit": "7de3a7c40374374afe335aa592b03824cc9ac28734b6a69ed2288108f0c0b389",
+      "America/Jamaica": "c256a089e50f45fe7e6de89efa1ed0b0e35b3738c6b26f2f32cf2e7f6f29c36f",
+      "America/Juneau": "17db0b8cc14d0ae8f210903ffda6a5f68679cbbfa7cc270834acedb3a4086b31",
+      "America/Kentucky/Louisville": "b4fd3bdb157f9ffbc8423c71709efb0067868fac8bd4a3e99f77f089db3d8355",
+      "America/Kentucky/Monticello": "2ed7720a8f3906b5d0b3aae51fad589bef0aa961c7e8fc003a30f44318487733",
+      "America/Kralendijk": "646108ca5019e62cbfac806c5d112d1ff65f5912242c8f5d4233ff108ca7dec6",
+      "America/La_Paz": "86a7c3f0b407ba97598638b67bddfff69390013f91ee6bb3ce33f49f27db1576",
+      "America/Lima": "1c78139c3527099ce26ef2f432b1bcab23aebe3998630ddedd1e556e7c4c66cf",
+      "America/Los_Angeles": "68977bb9ad6d186fefc6c7abd36010a66e30008dcb2d376087a41c49861e7268",
+      "America/Lower_Princes": "646108ca5019e62cbfac806c5d112d1ff65f5912242c8f5d4233ff108ca7dec6",
+      "America/Maceio": "dd1e439527b7da44039a8495216a5cca4da8eeaa21afeae58b0a834861483324",
+      "America/Managua": "c41cc5d350079f61367c3f10772f831c57b7e94aa878da4a3df0a176e04a59d9",
+      "America/Manaus": "17a44b38e78e8bd972999890990f6947cb45a4f67a120b8d74f7ce73a0615c31",
+      "America/Marigot": "d7b813d9e39530528917fb32a700cfb9d905c061228eb45f90153e68adc52fad",
+      "America/Martinique": "7ccb3cd24394d9816f0b47fdcb67a37bdec9780b536016a65eb9e54ee9cd2f34",
+      "America/Matamoros": "7eaf8fa9d999ad0f7c52c1661c0f62be3059bf91840514ceb8b4390aee5a8d6f",
+      "America/Mazatlan": "0561f636a54f0353ecc842cf37fd8117c2a596bb26424aa0d5eba3b10be79f1f",
+      "America/Menominee": "02bbfd58b6df84d72946c5231c353be7b044770969d3c1addf4022c46de0674e",
+      "America/Merida": "4953441c26b38e899fb67b8f5416b2148f84f884345a696e1df4e91cfd21dddd",
+      "America/Metlakatla": "09fb18b409c5defed5f7d11d9fdc10dafc8fd2e0267afd2e07679ddfbcbbb657",
+      "America/Mexico_City": "528836f85316cf6a35da347ab0af6f7a625a98b7a8e8e105310477b34c53c647",
+      "America/Miquelon": "979b7104961ef474d166520b71b48bfc734362b8d46f4a2e79c372ed012483d7",
+      "America/Moncton": "5a6bfe6e4f5a28a7165b33a9735505bbaec739fc1a224d969a1dcb82a19cb72b",
+      "America/Monterrey": "622c5311226e6dfe990545f2ea0df6840336811e065d73ea394e2dbf42f7906d",
+      "America/Montevideo": "7501011389a364fb724632972ba67e6cc1c9745aa9c21233c431f8c74e2b2989",
+      "America/Montserrat": "c5048b50bdc8f0e2e1ca4643fea2eda2375c64df32c6d4ca7d36bf23e5165df7",
+      "America/Nassau": "304a41fcbd71dd49f0c2a8cec0da83bc27e04183ce9e10768dec0bc223b15788",
+      "America/New_York": "e9ed07d7bee0c76a9d442d091ef1f01668fee7c4f26014c0a868b19fe6c18a95",
+      "America/Nome": "b0cf6377a846706c9fcff994a561dfde0c88347b21ab57798d3541cc8339f28d",
+      "America/Noronha": "7de7910228d0a8aca5660a9ef389ca86c14bc9c4f9cc8066ee62c8bddc86c38c",
+      "America/North_Dakota/Beulah": "aad81ba8dbbc3370241c5da7fbfa12a6cd69613e12c607256e490f29b5da047b",
+      "America/North_Dakota/Center": "f5959b2bd60a92ab942f2054152dcbaff89dc5bb7b57bcb85b810ed0a9f6d2cc",
+      "America/North_Dakota/New_Salem": "0c7fdbb107ee5272b6a1b75bd3a2a08ac3b85cbaa1b75d815ddae052c659bde8",
+      "America/Nuuk": "2865eb30df98918a550a02dda5c7f030543bec4b11006b235021b7c8052f55fc",
+      "America/Ojinaga": "6f7f10ffb55d902673695c1bece5ee75d8a1240cd428f4d3a97726a419b59ed1",
+      "America/Panama": "91ac80fe976931c490d058c8ce8b5d71ffa6d4961f6ca13ea9c153f0b0bccea0",
+      "America/Paramaribo": "67b519bcd96077ea845078c43d85c890b35382331c0b393d11f51412653277b3",
+      "America/Phoenix": "8a5973d2c62e2cbf2520f2b44e4a2ee9d2f455c93f0f45bfdeb4533af1584664",
+      "America/Port-au-Prince": "d3d64025de083a23297dda54b85d54e3847f851b7a06fa409055ce9d83bdc8e3",
+      "America/Port_of_Spain": "d7b813d9e39530528917fb32a700cfb9d905c061228eb45f90153e68adc52fad",
+      "America/Porto_Velho": "b92315da16568fe572061141c02f79d3071385f3778eae8a9727044a64132ce0",
+      "America/Puerto_Rico": "8491e557ff801a8306516b8ca5946ff5f2e6821af31477eb47d7d191cc5a6497",
+      "America/Punta_Arenas": "b51e6e21fd77e7501616aaea36d9979e14169ca444989699a8a0736964553134",
+      "America/Rankin_Inlet": "9d782a8cbdced815747a6f9793ca9545165bfd7d324261c4eaf9924af23d2b37",
+      "America/Recife": "6c9fc7134f89162a38fa8c29674a4b3bc5376a2d1f886bbc4072f40dec4b88b7",
+      "America/Regina": "ca3a93d3ca476c80987bcdc7f099ad68306f085a91bfb4dfcdedd8f31b97ba4c",
+      "America/Resolute": "0a7314d9d048fbadefb7cf89d10d51a29c7ef1bf694422e386faf270c21e7468",
+      "America/Rio_Branco": "d20a49525e3a8506e9d0fe978f54b4340ac859e02bcaeb835e3b2576f0791871",
+      "America/Santarem": "56664ff52e693ee705c72a80395f74f049965d066f8028162e6949253525d0b1",
+      "America/Santiago": "d020f0d77742314b28aae32ea68260ba99330143610cae84d2557151103ba2c0",
+      "America/Santo_Domingo": "0cab5a123f1f43ddb26c84d3594e019b5eb44bda732665156e36964677a7c54e",
+      "America/Sao_Paulo": "04c06744ee3fe078ef3b8b779e38eb30666bf993e67a092fcaf2fc28f63a64ce",
+      "America/Scoresbysund": "2beaa488c08216039ef1c70f300040fa50e373dbdbeb0a65b8138255f88174b2",
+      "America/Sitka": "4c55dbd6a95eeb899aea20d3197b2287e693ad80150a4b7c19e2df4c14806842",
+      "America/St_Barthelemy": "d7b813d9e39530528917fb32a700cfb9d905c061228eb45f90153e68adc52fad",
+      "America/St_Johns": "af5fb5eee2afdbb799dc9b15930fc32d941ba3ac2f8eeb95bbb0b6a43b263a02",
+      "America/St_Kitts": "afc412c84fb12ae86faca5a8e0878cbf91c32dd3c4b7485ead82d4533d0059f6",
+      "America/St_Lucia": "236ae9122a1b4b1cc9f8e7a2f59dcf167198b208d5cc058bea4642d60a2d94de",
+      "America/St_Thomas": "5b1f38380e227d9d815400286437a6fbdd8ef838e724683db5f4655a6f351553",
+      "America/St_Vincent": "3549bddd8952b7e47d6a5d04d501d522521e3380e3b04e864cf13b661f5ffdef",
+      "America/Swift_Current": "45128e17bbd90bc56f6310fc3cfe09d7f8543dac8a04fecbbbcd1abd191f3c36",
+      "America/Tegucigalpa": "1333b3ee7b5396b78cabaf4967609c01bf0fb3df15f5b50c378f34b693c8cb0e",
+      "America/Thule": "f31b8f45a654f1180ee440aa1581d89a71e2a1cf35b0139a8a5915bbc634da2f",
+      "America/Tijuana": "8c2e7b321726e6345912da396796bdb3672bfc4bd1a91c65ee58b38e004d4ca5",
+      "America/Toronto": "a587a1a1607439f7bac283e1815f2bdbafb9649a453d18e06c2e44e6996d888f",
+      "America/Tortola": "2630eeb7e722f660ef4df14899437b18d2cbc092f66304427c0538257a08bda2",
+      "America/Vancouver": "e182e20ec67c46a7dd0aedb3d45fb1395edcb14ff2af2ac694a5776b307bed31",
+      "America/Whitehorse": "4eb47a3c29d81be9920a504ca21aa53fcaa76215cc52cc9d23e2feaae5c5c723",
+      "America/Winnipeg": "4cbeda42e9c21c0e3b8017248071bbd194136350581e3c71ee3312c0f6ddb383",
+      "America/Yakutat": "bba6f211a06eba4abf0cc777414ef41431e634bd72573b13caadd61a24b873f6",
+      "Antarctica/Casey": "55e68b3b14df0f28df197ab9525f7924420c5cd587496fb4377c8ea12ed52be7",
+      "Antarctica/Davis": "5c1d76744ab443edd793304d4cd0bb1b57f31fe5b1c5cb48b99a88df3a7cca92",
+      "Antarctica/DumontDUrville": "bb609a35ef45882fcaa9d546b9d46cf558149238c53bac702a16b248da182a33",
+      "Antarctica/Macquarie": "89eed195a53c4474e8ad5563f8c5fc4ad28cab1fe85dfe141f63d4aa9cdcc1ed",
+      "Antarctica/Mawson": "1232056ea45daf664905a2355efa16469b679d6d4b16b961c9dc430ee2108d22",
+      "Antarctica/McMurdo": "bfcb3bf057d9b44e1c5fab524e1493c8c05f24fcd78785de5ec9a06e9733a322",
+      "Antarctica/Palmer": "1d3658d0cf2d77ba14c794443e04421eea8a8395777e32448b895804d2f812d8",
+      "Antarctica/Rothera": "ffd358f9ff2f928cd062b8db5073f96237080a0d3e2eec80f4f9c878ad76dd15",
+      "Antarctica/Syowa": "505c1d07be893222938513db045c0cd92e2bc8cd9c4daded545f8e6248b59caa",
+      "Antarctica/Troll": "7e3718a69c2bd459e312cb1e7be44b806380373a14c9f8ec7be4462b8e8f4761",
+      "Antarctica/Vostok": "29f7edc1dccae8f90c0f3d1df83df3e0728806063d2aab2a1e74e7aac3ccad48",
+      "Arctic/Longyearbyen": "51d0844618f5258a71de88e68a5691a32568478a8c035f8f12fea11b09e9b090",
+      "Asia/Aden": "96a3ebcde1fc338ef6911805551c31d7f16f271fa27e8d0fe68421dba876e898",
+      "Asia/Almaty": "94f2d65e4d9fd66598450645908aeaff91e486872c5018acd0cfb285d0c77014",
+      "Asia/Amman": "42fe1c5d7c3b28141613cf367208f4923437c21d6fa55d68ac9dafd898f1af65",
+      "Asia/Anadyr": "5aa2a71e8e481d2599d3c776b12e72b47b6fd0c40ca1cccfdd6f736c30eb6d85",
+      "Asia/Aqtau": "e27eb9e0566d0ecb1749f850b338d91b93a6b5b136ce8d4a6e259c62b149834d",
+      "Asia/Aqtobe": "d681474dbfb26dc4ea2d79b4af564e5607583131e51a836cf8f82fbb1e747771",
+      "Asia/Ashgabat": "fac7c69d1ba68a8eff06cf30f581f8c510d6823077c01796edcd02e7a42a93ae",
+      "Asia/Atyrau": "fd4f02394204f671bf1ca75d644d50d2c3eecf7accc1f8f099f9d50d8fef4a68",
+      "Asia/Baghdad": "4bea65288e3308ba88d22746001124de84536b3372ac88f64fdf3e12d5ad643f",
+      "Asia/Bahrain": "94b760c3b4252e939ec05f7adc78b6b73a41bf790998285fc3b150ef692c39a3",
+      "Asia/Baku": "ebf86af7c4861b48f4240f2a631f7a59c20c6522d6e30e3ad105e1fce33f71c8",
+      "Asia/Bangkok": "85fff93d57a041c1524bad028d2f340bb87e4c63ab7d0e27726f3737c5666649",
+      "Asia/Barnaul": "df37948a62d332b219134bd7e971c5bc1dcca2a131a156c4e424a6e86574cdfd",
+      "Asia/Beirut": "fd9ff664083f88bf6f539d490c1f02074e2e5c10eb7f590b222b3e2675da4b6a",
+      "Asia/Bishkek": "20ea14ca300120b0a45eed6b8c222a4b002e7d16059257396000b88dd855c3a4",
+      "Asia/Brunei": "36cc4dc9f07f0bd5cad91a69715752f6a981a7108f2d5d00da0453e7b880bf2c",
+      "Asia/Chita": "2db4a54b6decc0590035449c83cce4351d2298035635f388698777f476cb7484",
+      "Asia/Colombo": "c39d8bedb813e26e6172046e7af20f63cdf1cad7e406690b86728cc29d7a2ac6",
+      "Asia/Damascus": "12d84685e6875a6cb922b2c273d3663378ef0124051edf13b01174ec8d6d81b8",
+      "Asia/Dhaka": "fb1ba527629586f2a9eab9592ccc9da70ee85d58ab93eae2107fb5f35c4f139e",
+      "Asia/Dili": "d80f6e166c12c28140e68d9e9352c0d2e72884f9cce368215af0fd0f94dd9c99",
+      "Asia/Dubai": "a667613e16894702b038dbf18993467854880a3956cf263d265147bfe1fdba96",
+      "Asia/Dushanbe": "9286279d85ae16c057775bc97d9b06769c276c51c4c2f9060664abaf1dca22cb",
+      "Asia/Famagusta": "085adcca077cb9d7b9c7a384b5f33f0f0d0a607a31a4f3f3ab8e8aa075718e37",
+      "Asia/Gaza": "b7463171440be7754d2a729b2a28e7d0e13f31aaf21329e89da6ec7be893b73b",
+      "Asia/Hebron": "e98d144872b1fb1a02c42aff5a90ae337a253f5bd41a7ceb7271a2c9015ca9d4",
+      "Asia/Ho_Chi_Minh": "2e7bf5be950d017068f2fd1bf5df40429cbe004c8ee506b6220d0fbc3923ae65",
+      "Asia/Hong_Kong": "6a5fcee243e5ab92698242d88c4699ceb7208a22ee97d342d11e41ebd2555a17",
+      "Asia/Hovd": "667e0f2c6943f944490ec6c2868af96ea593cee022976b5bac6256d23e532dbb",
+      "Asia/Irkutsk": "215ba85c2c1d788f8a2147c5904b7ac818ea60fdd5f464eb17efd62e77df1739",
+      "Asia/Jakarta": "4ef13306f4b37f314274eb0c019d10811f79240e717f790064e361cb98045d11",
+      "Asia/Jayapura": "8a1cd477e2fc1d456a1be35ad743323c4f986308d5163fb17abaa34cde04259b",
+      "Asia/Jerusalem": "254b964265b94e16b4a498f0eb543968dec25f4cf80fba29b3d38e4a775ae837",
+      "Asia/Kabul": "25911ba3c6d28ff2fb1e75d49b68005253650af2654498459121c2839a378209",
+      "Asia/Kamchatka": "298d4f949bd148d918ff9872241c63e430f079e61541a04ad396602f791d7026",
+      "Asia/Karachi": "881fa658c4d75327c1c00919773f3f526130d31b20c48b9bf8a348eda9338649",
+      "Asia/Kathmandu": "fd1b1f79259b0abf24338611262ed7bfa8401221d6d7820586c5ec7e16cf8e83",
+      "Asia/Khandyga": "6ca7e6c3a939a980d0b041c6dccbfe5588acdd8842795eea8a30f17f140d9ff8",
+      "Asia/Kolkata": "e90c341036cb7203200e293cb3b513267e104a39a594f35e195254e6bc0a17cf",
+      "Asia/Krasnoyarsk": "0f9284ff5c16483d98762c43cbc9f72c135a025135ff2dd3597c3a36bc4528a0",
+      "Asia/Kuala_Lumpur": "16c33d8c3ebac8eddde9149085d9224330539bad676a2f3ff34bc6d46703d24a",
+      "Asia/Kuching": "0f9aadc9627f48cf1b4d0789248621aaaa23c6554a6eb142d4460c0d4f46cd74",
+      "Asia/Kuwait": "a65c6e8397449b5325d884f1d9e23ed765b2a2b98394e0010ef896e6648c653a",
+      "Asia/Macau": "32f02447246cac0dabd39d88b65c85e5b8761617918c8d233f0834b88887d989",
+      "Asia/Magadan": "1dc704117050bcc98ba02fc913eccffcc94b019d5698d2d02df337b49b79e4ce",
+      "Asia/Makassar": "3a126d0aa493114faee67d28a4154ee41bbec10cdc60fcbd4bfe9a02125780ec",
+      "Asia/Manila": "f314d21c542e615756dd385d36a896cd57ba16fef983fe6b4d061444bbf1ac9e",
+      "Asia/Muscat": "4d08ca780545a5026472af7a37542e3efcbf96a6f6f1f0b44070aff23dacb99c",
+      "Asia/Nicosia": "d149e6d08153ec7c86790ec5def4daffe9257f2b0282bba5a853ba043d699595",
+      "Asia/Novokuznetsk": "a72c71b5252d6037959859340a0f85df795a652d222ad75ef7f1899cbf5fd0a3",
+      "Asia/Novosibirsk": "e4adbe1b1d794e19477e89725bce52e73444b4070c8de1c16162b813cc762dd6",
+      "Asia/Omsk": "1f25c8588b495c12951d4cd67103e2d4c99de992e6664f90851528f4abf65ce2",
+      "Asia/Oral": "5904f8a91982f5123f965f3307d16f9002fc7b319bf2aa2a59def9193942ee44",
+      "Asia/Phnom_Penh": "04849aa17a4de959c28b15e92c6863700c4056d0a428139555ceaa4e96acff16",
+      "Asia/Pontianak": "8a7397c2e2ad8cabf5cff7a588f65222a8d2b7ac21b6ec613de1b56298d4fc14",
+      "Asia/Pyongyang": "ffe8371a70c0b5f0d7e17024b571fd8c5a2e2d40e63a8be78e839fbd1a540ec1",
+      "Asia/Qatar": "c2494663758f1a9fb3d4e5306ff28e1f3453c019ddb7545f0e0f54b6db77e86e",
+      "Asia/Qostanay": "1c88e59fc4083cd454e8c916cf23e2eaf0eb8e59956785f31717141ed5cc8bbb",
+      "Asia/Qyzylorda": "2592cd37a36e2e4a9a5847956826625bf80be81ac814bf65afae622bb9b254f8",
+      "Asia/Riyadh": "a02287eee69f37c475a3e8a35c6a13e54d49671c2fa0bcc9bbfd82ab28b68543",
+      "Asia/Sakhalin": "c73028afcda28407bec971300ba39688cce8f5be99fa8425dfd348914e4785bb",
+      "Asia/Samarkand": "cc929246dde512f77a42f83d6f8f500323b87132725674cac8f61ccae7691f19",
+      "Asia/Seoul": "2c8f4bb15dd77090b497e2a841ff3323ecbbae4f9dbb9edead2f8dd8fb5d8bb4",
+      "Asia/Shanghai": "64ffc2e43a94435a043c040d1d3af7e92d031adc78e7737af1861baa4eeef3e6",
+      "Asia/Singapore": "5e67952267aa709f212739bb4e302d8b59d6240c5ac0eaaaee32330e71d7da12",
+      "Asia/Srednekolymsk": "79f69a4fc8851eb71c729f9564a34cbed4ee3cb3631b957d247e4a287847dd22",
+      "Asia/Taipei": "0cc990c0ea4faa5db9b9edcd7fcbc028a4f87a6d3a0f567dac76cb222b718b19",
+      "Asia/Tashkent": "6a944fcb6e757d2472fe2c6c83704e64d9946c774ef3a3f9f8f7600b55f0b3b5",
+      "Asia/Tbilisi": "cd0fb66d5ab9fd449449bc0deaad2abd68c3f875e429a1f889f315ab59447883",
+      "Asia/Tehran": "30095335232a07c7181a1ced11b253f3912069845b8f43ea5f897d24349cd0ce",
+      "Asia/Thimphu": "1b69d341510c98a956b7407be3f7d400beca437600bbffc9e87722898b362325",
+      "Asia/Tokyo": "a02b9e66044dc5c35c5f76467627fdcba4aee1cc958606b85c777095cad82ceb",
+      "Asia/Tomsk": "72bd142d981606741fcc38897989aaa40ed7a39411ceeaefac7b2b6d9b2784e4",
+      "Asia/Ulaanbaatar": "a9491746c4dcfeeec1f7427150b4aeef2cca6c6b467ca71f10521ab063c2d9e7",
+      "Asia/Urumqi": "17564e759643b151f00c98a792c47e86372a3f3a8e963bddade648585ba52716",
+      "Asia/Ust-Nera": "cec1bc9209f0d0572ce4dd96c0d4d59af5a44e5a707fb3a8f32ebc1dc5e3632c",
+      "Asia/Vientiane": "6648d5ba8e941c079cec7d4d5a6634d1d45a8866b3080c21bff53dbd0b7d613d",
+      "Asia/Vladivostok": "5cc40b321e523db23a0b847750ee0a85b9c6e2159590735e7730907aac4593a0",
+      "Asia/Yakutsk": "3cf36b446820f6379f39433ee8cf17a9a226f8495f991652580b5218a2f33574",
+      "Asia/Yangon": "fd81c04aae19e5871420b21d844ce0dbb0862f36ab5073c31ecd438f44203463",
+      "Asia/Yekaterinburg": "e0dc845ba5e3af852c58f87adc720f2381ba193fed546d57920736c5bc068f30",
+      "Asia/Yerevan": "14cd29500e0d6d35816ff0ac2792822d5acba0d99a77b9e304aa85ac9043a311",
+      "Atlantic/Azores": "eba843c5a2bcc459e4b4b32ba4dc640f8af58069214be3c4a657aec33b86440d",
+      "Atlantic/Bermuda": "2cd18a7ccb2762fc089a34f2cd7acb84c3871c3bbba88ebb45b60d2afbc8d792",
+      "Atlantic/Canary": "ca62bdb9faa986f3630cade1ce290de067e4711dd07820623cac9573a16395b0",
+      "Atlantic/Cape_Verde": "a3dda92dd2c55ff6fdbd48aadeb36971ae2dba920edddc7dacdae73dc03ce3be",
+      "Atlantic/Faroe": "3626dd64f66d6a99d847f9b22199cc753692286b0e04682e8e3d3f4f636f033b",
+      "Atlantic/Madeira": "95863ce4c0b9f8650a1319b7e778b1c2d643c5ab186af4d35842efbf94572f11",
+      "Atlantic/Reykjavik": "99291a4411992de52b9bcf0478771a5a711ddf95a7f808361b5d07b48dc6d9f8",
+      "Atlantic/South_Georgia": "23d48070f3ee9b2e977fd3fb760d9a135ea8c700c8ab2285aa29c94c2f97b203",
+      "Atlantic/St_Helena": "a6dfe04a0d3889bca9b71df65370184b41c8a83efb4eb1222da544478d0f6d5d",
+      "Atlantic/Stanley": "b221235d302e4ee9bfe171ad4bdf0c044df85d6ff9c605d28445f938c9d2163a",
+      "Australia/Adelaide": "95dd846f153be6856098f7bbd37cfe23a6aa2e0d0a9afeb665c086ce44f9476d",
+      "Australia/Brisbane": "796e90cf37b6b74faca5e2669afb7524ccdb91269d20a744f385c773b254b467",
+      "Australia/Broken_Hill": "de4ff79634ef4b91927e8ed787ac3bd54811dda03060f06c9c227e9a51180aa4",
+      "Australia/Darwin": "7e7d08661216f7c1409f32e283efc606d5b92c0e788da8dd79e533838b421afa",
+      "Australia/Eucla": "8b5f97186f08e84d1d5c8756185e039647c32d686203127fde0329b7e9e6feee",
+      "Australia/Hobart": "18b412ce021fb16c4ebe628eae1a5fa1f5aa20d41fea1dfa358cb799caba81c8",
+      "Australia/Lindeman": "c4ce94771db6a0b3682d1d58ec64211ce628bfc9f0df140daa073f35543624ae",
+      "Australia/Lord_Howe": "a323c5433991a963eb497b7da4d1d09848bf3ef5f5d64d9c9649f388e4bab9df",
+      "Australia/Melbourne": "96fc7f31072e9cc73abb6b2622b97c5f8dbb6cbb17be3920a4249d8d80933413",
+      "Australia/Perth": "025d4339487853fa1f3144127959734b20f7c7b4948cff5d72149a0541a67968",
+      "Australia/Sydney": "42c3857585b16db2f8ffd47ba19faa60f473340de8d4fe9320ea7be861605906",
+      "Etc/GMT+12": "6fbd0712112babc2099aaf31edc399cb8791fffddfab9b871e98ef3c1107a8c0",
+      "Etc/GMT-14": "3e95e8444061d36a85a6fc55323da957d200cd242f044ed73ef9cdf6a499f8a7",
+      "Europe/Amsterdam": "a70f079e056dddb53942b473bbbd2a3a67faf5323292592096f554b5ef67b4aa",
+      "Europe/Andorra": "8130798c2426bc8c372498b5fef01c398ba1b733c147a457531f60555ea9eae8",
+      "Europe/Astrakhan": "65e183663c15551a1e47e27ae36cc49cddba04f2f9f1589324b6f09e4ee92d79",
+      "Europe/Athens": "5c363e14151d751c901cdf06c502d9e1ac23b8e956973954763bfb39d5c53730",
+      "Europe/Belgrade": "3a95adb06156044fd2fa662841c0268c2b5af47c1b19000d9d299563d387093a",
+      "Europe/Berlin": "5ee475f71a0fc1a32faeb849f8c39c6e7aa66d6d41ec742b97b3a7436b3b0701",
+      "Europe/Bratislava": "1bd7dd8545e6cf1eb9d419f267a57b00e60857d115e5a309326e3878968b2d9c",
+      "Europe/Brussels": "812f55aeb6e8cde9ddf4786e15eb4256b21e82cf5f5d28da1bad17d94570cac0",
+      "Europe/Bucharest": "9df83af9b5360fa0cc1166fd10c2014799319cdb1b0d2c7450a7c71ff673a857",
+      "Europe/Budapest": "94dc2ac5672206fc3d7a2f35550c082876c2fd90c98e980753a1c5838c025246",
+      "Europe/Busingen": "2b9418ed48e3d9551c84a4786e185bd2181d009866c040fbd729170d038629ef",
+      "Europe/Chisinau": "7b4941ae82ed7958f8897d198bf937e7ccf5460065caca2728e2a471cb3e9d93",
+      "Europe/Copenhagen": "abb8806e477bcbd42f6c08ba5c664450e4f034309161646ef55402c54ad9d355",
+      "Europe/Dublin": "0676251fa5226d9b79a6967c02b110e59399cdedc423610af2350715f3431684",
+      "Europe/Gibraltar": "6bced6a5a065bf123880053d3a940e90df155096e2ad55987fe55f14b4c8a12e",
+      "Europe/Guernsey": "63454225987aa547bd9b47d41f274ee90de8d52c66c3c624d42508da55cf8cb0",
+      "Europe/Helsinki": "184901ecbb158667a0b7b62eb9685e083bc3182edbecdc3d6d3743192f6a9097",
+      "Europe/Isle_of_Man": "8c20e22715c8950b0a30c68f191d9fbf2ebef60189279f2ca99cbabc14ec1b12",
+      "Europe/Istanbul": "264e308e7743b5afee2d673c5b57567636dabc925bb0be513939996e856718a5",
+      "Europe/Jersey": "7ae8f42ddba0b50ac3b52b23f967a0cd0da7cddbbfdbc711152b38d4146b673d",
+      "Europe/Kaliningrad": "b3b19749ed58bcc72cec089484735303a2389c03909ff2a6cff66a2583be2cc3",
+      "Europe/Kirov": "3fb4f665fe44a3aa382f80db83f05f8858d48138f47505e5af063e419d5e0559",
+      "Europe/Kyiv": "fb0ae91bd8cfb882853f5360055be7c6c3117fd2ff879cf727a4378e3d40c0d3",
+      "Europe/Lisbon": "92b07cb24689226bf934308d1f1bd33c306aa4da610c52cd5bce25077960502c",
+      "Europe/Ljubljana": "2267951ff4cc76cebc3e804b8cca03648c169ec16ce0cbf9e5dfbe51e748043f",
+      "Europe/London": "c85495070dca42687df6a1c3ee780a27cbcb82f1844750ea6f642833a44d29b4",
+      "Europe/Luxembourg": "f7be03bdffd7d50212286d732224c92487c66afa1b3b6d475154be1dfcac39c6",
+      "Europe/Madrid": "9a42d7d37ad6dedd2d9b328120f7bf9e852f6850c4af00baff964f659b161cea",
+      "Europe/Malta": "12129c6cf2f8efbeb9b56022439edcbac68ad9368842a64282d268119b3751dd",
+      "Europe/Mariehamn": "184901ecbb158667a0b7b62eb9685e083bc3182edbecdc3d6d3743192f6a9097",
+      "Europe/Minsk": "2a03e6d1f1f2727b60777c5b4e69839783b5dd787ff5edb352777c5c5494dbda",
+      "Europe/Monaco": "e74b956576175ea7e7afe2b8b6c48d976e8265b463bbae42f924e9f35f305fce",
+      "Europe/Moscow": "2a69287d1723e93f0f876f0f242866f09569d77b91bde7fa4d9d06b8fcd4883c",
+      "Europe/Oslo": "51d0844618f5258a71de88e68a5691a32568478a8c035f8f12fea11b09e9b090",
+      "Europe/Paris": "ab77a1488a2dd4667a4f23072236e0d2845fe208405eec1b4834985629ba7af8",
+      "Europe/Podgorica": "3a95adb06156044fd2fa662841c0268c2b5af47c1b19000d9d299563d387093a",
+      "Europe/Prague": "1bd7dd8545e6cf1eb9d419f267a57b00e60857d115e5a309326e3878968b2d9c",
+      "Europe/Riga": "849dbfd26d6d696f48b80fa13323f99fe597ed83ab47485e2accc98609634569",
+      "Europe/Rome": "d5ade82cc4a232949b87d43157c84b2c355b66a6ac87cf6250ed6ead80b5018f",
+      "Europe/Samara": "9d72f42316d3eaabb5d0236e6831f1c785b539a02769a293b4827d37d5113285",
+      "Europe/San_Marino": "d5ade82cc4a232949b87d43157c84b2c355b66a6ac87cf6250ed6ead80b5018f",
+      "Europe/Sarajevo": "a3e49aca8bf331e3c6d0faf68ab466cde901c8051a8674e926acd2c66deaff57",
+      "Europe/Saratov": "ca0c23bd7375dd381a5b18e0eb2b161271d6371c2b56d9046eb93cb7d6f3555c",
+      "Europe/Simferopol": "b7397bc5d355499a6b342ba5e181392d2a6847d268ba398eabc55b6c1f301e27",
+      "Europe/Skopje": "50301171643800580da77e75187dc2f9ec2e0b40860578248c9c3dd0c348dcb8",
+      "Europe/Sofia": "84240a5df30dae7039c47370feecd38cacd5c38f81becab9a063b8c940afe6d6",
+      "Europe/Stockholm": "5e0a7819287cfa9cdd78978ff13436d235830d48f5ed1ebd87a4584db2d87768",
+      "Europe/Tallinn": "e1ae890b4688a4ccea215ecedf9ce81b42cb270910ab90285d9da2be489cebec",
+      "Europe/Tirane": "ced959c824bd5825de556f2706e9f74f28b91d463412d15b8816c473582e72ec",
+      "Europe/Ulyanovsk": "73c01de69ec22a3ff570203b95546970fa9b417198697f3772ebbab88171f818",
+      "Europe/Vaduz": "a7b7adba7d5cbdab931406b197603bdb12f5b9952ca7e91cf8f17c5d729955c8",
+      "Europe/Vatican": "d5ade82cc4a232949b87d43157c84b2c355b66a6ac87cf6250ed6ead80b5018f",
+      "Europe/Vienna": "6662379000c4e9b9eb24471caa1ef75d7058dfa2f51b80e4a624d0226b4dad49",
+      "Europe/Vilnius": "505cd15f7a2b09307c77d23397124fcb9794036a013ee0aed54265fb60fb0b75",
+      "Europe/Volgograd": "46016fb7b9b367e4ed20a2fd0551e6a0d64b21e2c8ba20dd5de635d20dbfbe4b",
+      "Europe/Warsaw": "4e22c33db79517472480b54491a49e0da299f3072d7490ce97f1c4fd6779acab",
+      "Europe/Zagreb": "799e8a8826651db19a97b6231c4aca1813391e942ddaf289ceefcb1f868e620d",
+      "Europe/Zurich": "2b9418ed48e3d9551c84a4786e185bd2181d009866c040fbd729170d038629ef",
+      "Factory": "6851652b1f771d7a09a05e124ae4e50fc719b4903e9dee682b301ae9e5f65789",
+      "Indian/Antananarivo": "7c045fb862767cb86ae329a1a808dbfb8d04910550be71a4fcf5ebe5e5824c99",
+      "Indian/Chagos": "d9eaeb5f329d1487295342fe5d18521f184d69b2336c8e655d5dcfaba96de346",
+      "Indian/Christmas": "091b425a489f23f6570e58e9e6dbe6a9ace1031b239848b1eed0f1ec23855b2d",
+      "Indian/Cocos": "4cf1a8ba68d9da36e51d7e8e2f58fb5179c7b3d51ad9e211eb8637b904d97c8c",
+      "Indian/Comoro": "4f2dc7f436427a68c992f877d9c331baffef0f65023fd9bca4c0dd697e88ff70",
+      "Indian/Kerguelen": "993f72e2d4c318a331e6fba16e526c416575bba7878b1fdefa09a88ac8c4e908",
+      "Indian/Mahe": "a0144cd0e7274c509ab19d5bad430573a876f63e8378aae989f08be5d9053fa6",
+      "Indian/Maldives": "17bddf7d57c1a14a07aded3e0f0b2242b60970ba4f396f892469379fcf253395",
+      "Indian/Mauritius": "667aab7357218a695c889b1804e97436f2079eb35d0b19dc1b159ccead4f05e2",
+      "Indian/Mayotte": "ab52952d2b74e897e330f67b329a0a4c7d34e9e585cce1ada8a10cbd4d11523f",
+      "Indian/Reunion": "6cd43bc15d219dfb98653d350d5f87682f0518e2ee08faa03ee5fbbef1dd08e1",
+      "Pacific/Apia": "33740ab29ef943b1f55f769e13ff59a90962f5a12434209072d650e6c10abb4d",
+      "Pacific/Auckland": "8000e3a323e8fd0212414e9426b020707a771c368ca0e151747f9ddb7b814b27",
+      "Pacific/Bougainville": "85613ce9e5e7371faf0016e9efe61222a5b279c1cf30858b7ed565a00a0f84bf",
+      "Pacific/Chatham": "c617b155ce657c9fea02fd9ddc7ac823a95f452c4a6580408d8db3a58902184f",
+      "Pacific/Chuuk": "1faba48c1b9392bf8daa049689f4d9aa6c0ba3e890ed1db0f5696fb8ce0a1047",
+      "Pacific/Easter": "41bb9b06cff1425bcac1e027bab8721e320ae238bbec68781bebac5ee97a5d53",
+      "Pacific/Efate": "a12c4d710631e7ed45536ff21f31c8fa14fe74c25c3f1cf2e1799d2355315c0a",
+      "Pacific/Fakaofo": "a8ea1da5330a8f3b6f6485d52defdffe467a59c1e5f5f08b13d66ccaf74528b2",
+      "Pacific/Fiji": "8c1e456ceb029c7550436a213e25844143e11ba2726c1dcda20dea4fa5894342",
+      "Pacific/Funafuti": "3df36747c8f10d8478944b8b55d81ae3ebb9fa6db3b11e971e7d33145d2d5648",
+      "Pacific/Galapagos": "fc625460e8d28888e83413b6a9dab6de2b0b309e0d0959370ca21119e0dcf010",
+      "Pacific/Gambier": "8004bb82bd471ffaded2e6272fa796a3928627e07941a88cf26576718e664311",
+      "Pacific/Guadalcanal": "3389135aa69241a57500c8722d2be6c2804917b5fd89cac82dbbd0270a7de348",
+      "Pacific/Guam": "131f739e67faacd7c6cdeea036964908caf54d3e2b925d929eb85e72b749b9f2",
+      "Pacific/Honolulu": "7f03d1bf5264e7ab023a2ef9b997ddfc8cb6936692407c770762b9c549523f33",
+      "Pacific/Kanton": "1cd4c02abb07fd1d96dd046529c98d95de4a71774fd328170a3128bdcd62fba4",
+      "Pacific/Kiritimati": "8589353a8cfe2e3d4fb9909b355d96248bce2ed0b04b0ab6bbaddc6f567edcd4",
+      "Pacific/Kosrae": "4348eb6f8cde0eb77ad5b53857c4ea8cc73421ea7cad667266a274baab2e9f1b",
+      "Pacific/Kwajalein": "4e667fd1ffb2490fac6810254575747f8f48b709dee755415e7eab59cad6a874",
+      "Pacific/Majuro": "0dfce301c3b5ce88ebe20b9b61064890ca9e20fdbb43f45e06ba3190145192a0",
+      "Pacific/Marquesas": "153c4f2535ad938f0b55bdcdd94eb828ba4bb26beed03401b9b4c283e76fc863",
+      "Pacific/Midway": "9b903c517a790a878e17f41acd44f8782af3963a4673ae296d93ab906494cad9",
+      "Pacific/Nauru": "f4048a80b1c1fbc9ec4c42b5029cdf4c7d3242d6cd026197f8923bb87662aa70",
+      "Pacific/Niue": "3a5957c6e927711edaf92326745a31e5acf5c6920f3216da85086d39b9a9b833",
+      "Pacific/Norfolk": "0cc757d419b5f25ccdba2096cf07de1d43111973d2f2fe405a787efc45ff019c",
+      "Pacific/Noumea": "b641f1c67c6c5d33aacf76335a2d269214c220e37383e5bb12949131d3e329d4",
+      "Pacific/Pago_Pago": "7c262b62985863aad47f13b0ef5db2e5cc917b5d38002de9a2ea83ddb0883458",
+      "Pacific/Palau": "68dd876d3d2b7aac0aaed2ca0caf4cdb36f47748a474d953aeb9ed571747ebaa",
+      "Pacific/Pitcairn": "5388c052ebec44da32f17acf6b5e98a5c5c272a1c9634bba26f08d80f1163b57",
+      "Pacific/Pohnpei": "394e49033055cfca49245832fe283191982e924f13ac0e3bfb81f97a11f85bf0",
+      "Pacific/Port_Moresby": "9c1dfa1c15994dd8774e53f40cb14dcf529143468721f1dba7b2c2e14ae9f5f0",
+      "Pacific/Rarotonga": "c0f12ca176f20e7ba17f39202ef52a852ceb331fc50f8dae00f96e48f321dc17",
+      "Pacific/Saipan": "f1d685991ea1f04d186f9c9920b6d5905220348b5291a34be8be71f4aa717774",
+      "Pacific/Tahiti": "0517dff46dc4fa258a84e591d56bb4d99d223208ebc035d5f9736ba88b577536",
+      "Pacific/Tarawa": "53268a8a6b11f0b8e02fc67683ae48d074efaf7b4c66e036c1478107afd9a7d7",
+      "Pacific/Tongatapu": "3a9a4166a4c06626fd1d8ed4f400be25abceee6e8dc4f194b547cf40097da016",
+      "Pacific/Wake": "483c1f91de23a0b0bc408712c2683cf69f720267bfe028d763b0b998c2ec22ea",
+      "Pacific/Wallis": "0e68cea3f0d2ef4ca81686b2baf04dfb081bbf4262c9a4d9d2eca7c08239a468",
+      "UTC": "8b85846791ab2c8a5463c83a5be3c043e2570d7448434d41398969ed47e3e6f2"
+    },
+    "source": "out/service-extensions/xcron-zoned-cursor/corpus; frozen prior independent-oracle stage, each file verified by both oracle programs"
+  },
+  "platforms": {
+    "windows": {
+      "validation_sha256": "ad83aaa7b66d9e6ab7b7bd7194da6916f93e9627427ad8f152208210b44e20ce",
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3e3b86031e26e817c41fce05daeea098fce1f08ac9d855882aae6bdddfeb96c2"
+        },
+        {
+          "label": "examples",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb,xcron_tzdb_file,memory_stats",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c9c992679a5acde1055d21f6c1e39b2b4463816baabb6a21a2e6b6d86937c289"
+        },
+        {
+          "label": "io-faults",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb_file,thread,memory_stats",
+            "--test",
+            "test_tzdb_file",
+            "--no-single",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-DXCRON_TZDB_FILE_FAULTS",
+            "--ldflag=-Wl,--wrap=xrtReadFull",
+            "--ldflag=-Wl,--wrap=xrtRead",
+            "--ldflag=-Wl,--wrap=xrtFileStat",
+            "--ldflag=-Wl,--wrap=xrtClose"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e22c5068810f8f415de6197a54fd4b3b3e7638a03eec2023e45273b1c4e7b9bd"
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "cfc69a0650bf7d03b20898e617a32520d83a0015fb5697e6f5b179650cd9bed7"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4dccc122cdd4e700c667cf61655935bb233e027071f24a9034447b08933460d5"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-tzdb\\build_probes.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8aff5aae3368ad1cdd2f58d4fa17b925b68ad3a9aa789c86062152889c6d1fbe"
+        },
+        {
+          "label": "whole-oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_tzdb_reference.py",
+            "--probe",
+            "out\\service-extensions\\xcron-tzdb\\windows-tzdb-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\xcron-tzdb\\windows-whole-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a372b7bcc97490314ba354b65f88bee708b9ecdca1a3b6fbc87158995dfae42b"
+        },
+        {
+          "label": "named-zoned-oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_zoned_reference.py",
+            "--database",
+            "--probe",
+            "out\\service-extensions\\xcron-tzdb\\windows-named-zoned-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\xcron-tzdb\\windows-named-zoned-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f8d723405dd953ce1a471020ca0dfaf1398820bd1050c0686bc37bf73cfed730"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a0cafb356c16968dc75601befbc352dbba986bb20b95c3e9095d7f3a43c4e43e"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "084dad9dbdee3e0c64053f84e8dacf7601ac963901bd9879edfee9ea7aa79def"
+        }
+      ],
+      "probe_recipes_sha256": "722a31b5c9e1b98080ccc4c31d52c370fb32b590a931deee9166255afe2d8360",
+      "probe_binaries_sha256": {
+        "tzdb-probe": "4a6a5fba001948740e131e90412712c1bc2068cfbb71a3f01bb1e4b3359d6415",
+        "named-zoned-probe": "644a1e420708acaa029e51fda69f3893b03a9dfbb61d822c336f5436b12a7a54",
+        "layout-direct": "00210514f2e194d66146c8c21e0744677ed2bf077e3185134a31e6bfd0c65584",
+        "layout-decl": "f2478db0b4ad67ebb373e0b84363de7dfdc29ad06c6a2b6813bb371e65f8ee8d"
+      },
+      "layouts": [
+        {
+          "declarations": false,
+          "values": {
+            "config": 16,
+            "entry": 32,
+            "issue": 48,
+            "info": 40,
+            "stats": 64,
+            "service_config": 136,
+            "service_stats": 384,
+            "manager": 80,
+            "snapshot_header": 56,
+            "row": 32
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "config": 16,
+            "entry": 32,
+            "issue": 48,
+            "info": 40,
+            "stats": 64,
+            "service_config": 136,
+            "service_stats": 384
+          }
+        }
+      ],
+      "whole_database_oracle": {
+        "schema": 1,
+        "version": "# version 2026e",
+        "zones": 422,
+        "queries": 54173,
+        "unknown": 465,
+        "named_missing": 1,
+        "snapshot_bytes": 809072,
+        "command": [
+          "out\\service-extensions\\xcron-tzdb\\windows-tzdb-probe.exe",
+          "out\\service-extensions\\xcron-zoned-cursor\\corpus",
+          "out\\service-extensions\\xcron-tzdb\\windows-whole-oracle.names.txt",
+          "2026e"
+        ],
+        "manifest_sha256": "70f52a75a7ef5d3d9ea819cb3229140ca10ec5f92ed4bb9b751dd603a9656a59",
+        "names_sha256": "ebb939b806088ad43160eb6b7a013d814a03004c7fe52a01fe5216450284166f",
+        "stdout_sha256": "b40c0f60c94ea456a1e467badbb08d2edc2b8b87101bd59182a32b51c0d66213",
+        "stderr": "",
+        "exit_code": 0,
+        "scope": "One actual all-name LoadRoot revision; lookups after source-name/root/database destruction. Independent zoneinfo offsets plus raw RFC coverage/type flags."
+      },
+      "whole_database_oracle_sha256": "2beb8c89fae13671cb39e0cee34cf00ea74d3105a1088086b1c52cfa8ccec1c3",
+      "named_cursor_oracle": {
+        "schema": 1,
+        "oracle": "zoneinfo label enumeration and independent UTC sorting/RFC coverage",
+        "version": "# version 2026e",
+        "zones": 422,
+        "totals": {
+          "match": 218700,
+          "next": 63180,
+          "zone_errors": 680,
+          "found": 28633,
+          "none": 34200
+        },
+        "source": "named-root LoadRoot/Acquire/Find, queries after root/snapshot/database destruction",
+        "named_loads_and_lookups": 3798
+      },
+      "named_cursor_oracle_sha256": "18dfef64ef23320d5d54b77ac04cc6c1b1d020c6792dbace857e64bfe2a977f2",
+      "measurements": {
+        "size": {
+          "receipt": {
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xcron/config/size_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb,xcron_tzdb_file",
+              "--report",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-tzdb\\windows-size.json"
+            ],
+            "exit_code": 0,
+            "report_sha256": "e45024e0c56987d9deead241dfb26f18b450d966527a77af5a5b909faf30ae52",
+            "log_sha256": "797cea558ac5ed6fa6b40e89b06a13588812ca7b6e287c40513876a23f0c0169"
+          },
+          "report": {
+            "schema": 2,
+            "platform": "win32",
+            "machine": "amd64",
+            "compiler_family": "gnu",
+            "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+            "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+            "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+            "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+            "arch": "native",
+            "optimization": "O2",
+            "stripped": false,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "1e4e7d234247b88ef4e0e5e6158dd1315010ff793e9e3ccd31750235c049fe6e",
+            "growth_limits": {
+              "text": 0.1,
+              "data": 0.2,
+              "bss": 0.2,
+              "file": 0.15
+            },
+            "profiles": {
+              "xcron_tzdb": {
+                "suite": "xcron_tzdb",
+                "description": "Named snapshot/CAS/quota closure with no filesystem dependency",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronSchedulerCreate",
+                  "xrtNetEngineCreate",
+                  "xrtRootOpen",
+                  "xrtFileOpen",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronSchedulerCreate",
+                  "_xrtNetEngineCreate",
+                  "_xrtRootOpen",
+                  "_xrtFileOpen"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 73912,
+                    "data": 2376,
+                    "bss": 11072,
+                    "members": 1,
+                    "load": 76288,
+                    "file": 111949,
+                    "path": "out/size/gnu/native/xcron_tzdb/single/xcron_single.o",
+                    "compile_seconds": 3.4794006000156514,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 32268,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 3,
+                    "load": 32268,
+                    "file": 44602,
+                    "path": "release/gnu/native/xcron_tzdb/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 42485,
+                    "data": 144,
+                    "bss": 272,
+                    "members": 1,
+                    "load": 42629,
+                    "file": 82610,
+                    "path": "release/gnu/native/xcron_tzdb/shared/xcron.dll"
+                  }
+                }
+              },
+              "xcron_tzdb_file": {
+                "suite": "xcron_tzdb_file",
+                "description": "Named snapshot/CAS/quota closure and explicit anchored-file loader",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronSchedulerCreate",
+                  "xrtNetEngineCreate",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronSchedulerCreate",
+                  "_xrtNetEngineCreate"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 178540,
+                    "data": 2376,
+                    "bss": 11072,
+                    "members": 1,
+                    "load": 180916,
+                    "file": 257742,
+                    "path": "out/size/gnu/native/xcron_tzdb_file/single/xcron_single.o",
+                    "compile_seconds": 6.513814899983117,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 33344,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 4,
+                    "load": 33344,
+                    "file": 47308,
+                    "path": "release/gnu/native/xcron_tzdb_file/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 43977,
+                    "data": 144,
+                    "bss": 272,
+                    "members": 1,
+                    "load": 44121,
+                    "file": 85783,
+                    "path": "release/gnu/native/xcron_tzdb_file/shared/xcron.dll"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "performance": {
+          "receipt": {
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb_16_snapshot,xcron_tzdb_16_acquire,xcron_tzdb_1024_snapshot,xcron_tzdb_1024_acquire",
+              "--report",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-tzdb\\windows-performance.json"
+            ],
+            "exit_code": 1,
+            "report_sha256": "495e68c8b89f20146f6bb376c28a5279c11d00680158b0fe7356c2906042ca87",
+            "log_sha256": "4c030379314bb64d21559b0e43383b20f9c43bf47367be0365089b4bf37b6b68"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-05T14:22:18.030563+00:00",
+            "platform": "win32",
+            "machine": "amd64",
+            "platform_release": "10",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0xfff/0xfff",
+            "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "compiler_family": "gnu",
+            "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "arch": "native",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "dafab6cdc2d2e139c0cac7c640adb61803ff543f0fd783a73bd516741e1a02c4",
+            "benchmark_fingerprint": "cf5ac1cc1b0e76e99db40bcbdf948f97aca04f0fb89aca48d4b93f9d046241d0",
+            "profiles": {
+              "xcron_tzdb_16_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "16",
+                      "acquire_per_lookup": "0"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          11263966.659,
+                          11269659.172,
+                          11746578.578,
+                          11112529.116,
+                          13010840.672
+                        ],
+                        "median": 11269659.172,
+                        "mean": 11680714.839399999,
+                        "min": 11112529.116,
+                        "max": 13010840.672,
+                        "mad": 157130.05599999987,
+                        "relative_mad": 0.01394275138243727,
+                        "range": 1898311.5559999999,
+                        "relative_range": 0.16844445133855018,
+                        "central_range": 482611.91899999976,
+                        "relative_central_range": 0.04282400307181178,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          8.1,
+                          9.7,
+                          8.0,
+                          9.8,
+                          7.9
+                        ],
+                        "median": 8.1,
+                        "mean": 8.7,
+                        "min": 7.9,
+                        "max": 9.8,
+                        "mad": 0.1999999999999993,
+                        "relative_mad": 0.02469135802469127,
+                        "range": 1.9000000000000004,
+                        "relative_range": 0.23456790123456794,
+                        "central_range": 1.6999999999999993,
+                        "relative_central_range": 0.20987654320987648,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          16.3,
+                          16.3,
+                          16.1,
+                          16.3,
+                          15.6
+                        ],
+                        "median": 16.3,
+                        "mean": 16.12,
+                        "min": 15.6,
+                        "max": 16.3,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.7000000000000011,
+                        "relative_range": 0.042944785276073684,
+                        "central_range": 0.1999999999999993,
+                        "relative_central_range": 0.012269938650306704,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          20.7,
+                          18.8,
+                          16.7,
+                          17.8,
+                          16.4
+                        ],
+                        "median": 17.8,
+                        "mean": 18.080000000000002,
+                        "min": 16.4,
+                        "max": 20.7,
+                        "mad": 1.1000000000000014,
+                        "relative_mad": 0.06179775280898884,
+                        "range": 4.300000000000001,
+                        "relative_range": 0.2415730337078652,
+                        "central_range": 2.1000000000000014,
+                        "relative_central_range": 0.11797752808988772,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          30.2,
+                          40.1,
+                          33.3,
+                          35.1,
+                          21.8
+                        ],
+                        "median": 33.3,
+                        "mean": 32.1,
+                        "min": 21.8,
+                        "max": 40.1,
+                        "mad": 3.099999999999998,
+                        "relative_mad": 0.09309309309309304,
+                        "range": 18.3,
+                        "relative_range": 0.5495495495495496,
+                        "central_range": 4.900000000000002,
+                        "relative_central_range": 0.14714714714714722,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_16_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "16",
+                      "acquire_per_lookup": "1"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          7905675.409,
+                          10184887.537,
+                          9075079.265,
+                          7774458.11,
+                          8679295.947
+                        ],
+                        "median": 8679295.947,
+                        "mean": 8723879.2536,
+                        "min": 7774458.11,
+                        "max": 10184887.537,
+                        "mad": 773620.5380000006,
+                        "relative_mad": 0.08913401993941716,
+                        "range": 2410429.427,
+                        "relative_range": 0.27772176933696624,
+                        "central_range": 1169403.8560000006,
+                        "relative_central_range": 0.13473487517201269,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          17.0,
+                          10.6,
+                          10.7,
+                          17.2,
+                          10.8
+                        ],
+                        "median": 10.8,
+                        "mean": 13.26,
+                        "min": 10.6,
+                        "max": 17.2,
+                        "mad": 0.20000000000000107,
+                        "relative_mad": 0.018518518518518615,
+                        "range": 6.6,
+                        "relative_range": 0.611111111111111,
+                        "central_range": 6.300000000000001,
+                        "relative_central_range": 0.5833333333333334,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          22.2,
+                          21.0,
+                          21.4,
+                          21.5,
+                          21.7
+                        ],
+                        "median": 21.5,
+                        "mean": 21.56,
+                        "min": 21.0,
+                        "max": 22.2,
+                        "mad": 0.1999999999999993,
+                        "relative_mad": 0.009302325581395316,
+                        "range": 1.1999999999999993,
+                        "relative_range": 0.05581395348837206,
+                        "central_range": 0.3000000000000007,
+                        "relative_central_range": 0.013953488372093056,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          28.5,
+                          22.8,
+                          25.2,
+                          26.8,
+                          26.1
+                        ],
+                        "median": 26.1,
+                        "mean": 25.880000000000003,
+                        "min": 22.8,
+                        "max": 28.5,
+                        "mad": 0.9000000000000021,
+                        "relative_mad": 0.03448275862068974,
+                        "range": 5.699999999999999,
+                        "relative_range": 0.2183908045977011,
+                        "central_range": 1.6000000000000014,
+                        "relative_central_range": 0.06130268199233722,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          45.0,
+                          37.3,
+                          41.9,
+                          49.2,
+                          46.4
+                        ],
+                        "median": 45.0,
+                        "mean": 43.96,
+                        "min": 37.3,
+                        "max": 49.2,
+                        "mad": 3.1000000000000014,
+                        "relative_mad": 0.06888888888888892,
+                        "range": 11.900000000000006,
+                        "relative_range": 0.2644444444444446,
+                        "central_range": 4.5,
+                        "relative_central_range": 0.1,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "1024",
+                      "acquire_per_lookup": "0"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          7583324.743,
+                          7200999.589,
+                          7123006.533,
+                          6472645.739,
+                          7256564.924
+                        ],
+                        "median": 7200999.589,
+                        "mean": 7127308.3056,
+                        "min": 6472645.739,
+                        "max": 7583324.743,
+                        "mad": 77993.05599999987,
+                        "relative_mad": 0.010830865220314605,
+                        "range": 1110679.0039999997,
+                        "relative_range": 0.1542395594212552,
+                        "central_range": 133558.39099999983,
+                        "relative_central_range": 0.018547201586293527,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          14.3,
+                          14.4,
+                          14.5,
+                          17.7,
+                          14.4
+                        ],
+                        "median": 14.4,
+                        "mean": 15.059999999999999,
+                        "min": 14.3,
+                        "max": 17.7,
+                        "mad": 0.09999999999999964,
+                        "relative_mad": 0.00694444444444442,
+                        "range": 3.3999999999999986,
+                        "relative_range": 0.236111111111111,
+                        "central_range": 0.09999999999999964,
+                        "relative_central_range": 0.00694444444444442,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          26.6,
+                          26.5,
+                          26.3,
+                          27.1,
+                          26.3
+                        ],
+                        "median": 26.5,
+                        "mean": 26.560000000000002,
+                        "min": 26.3,
+                        "max": 27.1,
+                        "mad": 0.1999999999999993,
+                        "relative_mad": 0.007547169811320728,
+                        "range": 0.8000000000000007,
+                        "relative_range": 0.030188679245283047,
+                        "central_range": 0.3000000000000007,
+                        "relative_central_range": 0.011320754716981159,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          31.9,
+                          30.1,
+                          31.0,
+                          31.4,
+                          31.3
+                        ],
+                        "median": 31.3,
+                        "mean": 31.139999999999997,
+                        "min": 30.1,
+                        "max": 31.9,
+                        "mad": 0.3000000000000007,
+                        "relative_mad": 0.009584664536741236,
+                        "range": 1.7999999999999972,
+                        "relative_range": 0.05750798722044719,
+                        "central_range": 0.3999999999999986,
+                        "relative_central_range": 0.012779552715654906,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          58.9,
+                          55.6,
+                          52.4,
+                          67.8,
+                          58.3
+                        ],
+                        "median": 58.3,
+                        "mean": 58.6,
+                        "min": 52.4,
+                        "max": 67.8,
+                        "mad": 2.6999999999999957,
+                        "relative_mad": 0.04631217838765001,
+                        "range": 15.399999999999999,
+                        "relative_range": 0.2641509433962264,
+                        "central_range": 3.299999999999997,
+                        "relative_central_range": 0.05660377358490561,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "1024",
+                      "acquire_per_lookup": "1"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          5938867.709,
+                          5397719.127,
+                          5394770.781,
+                          5727094.976,
+                          5231098.061
+                        ],
+                        "median": 5397719.127,
+                        "mean": 5537910.130799999,
+                        "min": 5231098.061,
+                        "max": 5938867.709,
+                        "mad": 166621.06600000057,
+                        "relative_mad": 0.03086879144313812,
+                        "range": 707769.648,
+                        "relative_range": 0.13112383792992421,
+                        "central_range": 332324.19499999937,
+                        "relative_central_range": 0.06156752272226916,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          17.1,
+                          18.6,
+                          20.9,
+                          17.2,
+                          22.2
+                        ],
+                        "median": 18.6,
+                        "mean": 19.2,
+                        "min": 17.1,
+                        "max": 22.2,
+                        "mad": 1.5,
+                        "relative_mad": 0.08064516129032258,
+                        "range": 5.099999999999998,
+                        "relative_range": 0.27419354838709664,
+                        "central_range": 3.6999999999999993,
+                        "relative_central_range": 0.19892473118279563,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          32.5,
+                          33.1,
+                          32.8,
+                          32.1,
+                          33.2
+                        ],
+                        "median": 32.8,
+                        "mean": 32.739999999999995,
+                        "min": 32.1,
+                        "max": 33.2,
+                        "mad": 0.30000000000000426,
+                        "relative_mad": 0.009146341463414765,
+                        "range": 1.1000000000000014,
+                        "relative_range": 0.0335365853658537,
+                        "central_range": 0.6000000000000014,
+                        "relative_central_range": 0.018292682926829312,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          39.9,
+                          41.0,
+                          46.4,
+                          34.5,
+                          43.4
+                        ],
+                        "median": 41.0,
+                        "mean": 41.04,
+                        "min": 34.5,
+                        "max": 46.4,
+                        "mad": 2.3999999999999986,
+                        "relative_mad": 0.05853658536585363,
+                        "range": 11.899999999999999,
+                        "relative_range": 0.29024390243902437,
+                        "central_range": 3.5,
+                        "relative_central_range": 0.08536585365853659,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          81.8,
+                          105.6,
+                          115.6,
+                          51.3,
+                          111.6
+                        ],
+                        "median": 105.6,
+                        "mean": 93.17999999999999,
+                        "min": 51.3,
+                        "max": 115.6,
+                        "mad": 10.0,
+                        "relative_mad": 0.0946969696969697,
+                        "range": 64.3,
+                        "relative_range": 0.6089015151515151,
+                        "central_range": 29.799999999999997,
+                        "relative_central_range": 0.28219696969696967,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "initial-performance": {
+          "receipt": {
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb_16_snapshot,xcron_tzdb_16_acquire,xcron_tzdb_1024_snapshot,xcron_tzdb_1024_acquire",
+              "--report",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-tzdb\\windows-performance.json"
+            ],
+            "exit_code": 1,
+            "report_sha256": "8e192e3aa4ea2f81c5420533958aaa7fa3505b1e8dc5e619ee6d4331d00c436f",
+            "log_sha256": "d4235be262644d23203469992fbfdecef052466b22598e1cbf8432c3736b8f45"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-05T14:04:57.393612+00:00",
+            "platform": "win32",
+            "machine": "amd64",
+            "platform_release": "10",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0xfff/0xfff",
+            "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "compiler_family": "gnu",
+            "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "arch": "native",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "1917b0d9015f7863aefd254e783484d557cc4287f8223d5c403e874709a66b55",
+            "benchmark_fingerprint": "024d0053db661859f4500c6ff08b49c9fc4dc80b24ac7722a9df9110e71fefeb",
+            "profiles": {
+              "xcron_tzdb_16_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "0"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          9703762.33,
+                          9706036.017,
+                          10384013.81,
+                          10508168.458,
+                          9366591.564
+                        ],
+                        "median": 9706036.017,
+                        "mean": 9933714.435800001,
+                        "min": 9366591.564,
+                        "max": 10508168.458,
+                        "mad": 339444.4530000016,
+                        "relative_mad": 0.03497251116784122,
+                        "range": 1141576.8940000013,
+                        "relative_range": 0.11761515123172257,
+                        "central_range": 680251.4800000004,
+                        "relative_central_range": 0.07008540652523321,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          21.9,
+                          21.3,
+                          21.8,
+                          21.4,
+                          23.3
+                        ],
+                        "median": 21.8,
+                        "mean": 21.94,
+                        "min": 21.3,
+                        "max": 23.3,
+                        "mad": 0.40000000000000213,
+                        "relative_mad": 0.018348623853211107,
+                        "range": 2.0,
+                        "relative_range": 0.09174311926605504,
+                        "central_range": 0.5,
+                        "relative_central_range": 0.02293577981651376,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_16_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "1"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          5660861.335,
+                          5543806.248,
+                          6521515.397,
+                          8246800.982,
+                          8323698.219
+                        ],
+                        "median": 6521515.397,
+                        "mean": 6859336.4362,
+                        "min": 5543806.248,
+                        "max": 8323698.219,
+                        "mad": 977709.1490000002,
+                        "relative_mad": 0.14992054598993385,
+                        "range": 2779891.971,
+                        "relative_range": 0.42626472556958067,
+                        "central_range": 2585939.647,
+                        "relative_central_range": 0.3965243489557002,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          59.4,
+                          82.3,
+                          50.7,
+                          25.4,
+                          25.8
+                        ],
+                        "median": 50.7,
+                        "mean": 48.72,
+                        "min": 25.4,
+                        "max": 82.3,
+                        "mad": 24.900000000000002,
+                        "relative_mad": 0.4911242603550296,
+                        "range": 56.9,
+                        "relative_range": 1.1222879684418146,
+                        "central_range": 33.599999999999994,
+                        "relative_central_range": 0.6627218934911241,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "0"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          5340015.027,
+                          5325467.174,
+                          5470978.596,
+                          5550633.705,
+                          6643252.661
+                        ],
+                        "median": 5470978.596,
+                        "mean": 5666069.4326,
+                        "min": 5325467.174,
+                        "max": 6643252.661,
+                        "mad": 130963.56900000013,
+                        "relative_mad": 0.02393786901227353,
+                        "range": 1317785.4870000007,
+                        "relative_range": 0.24086833166619845,
+                        "central_range": 210618.6780000003,
+                        "relative_central_range": 0.0384974414182483,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          49.1,
+                          50.3,
+                          52.4,
+                          54.7,
+                          32.9
+                        ],
+                        "median": 50.3,
+                        "mean": 47.88,
+                        "min": 32.9,
+                        "max": 54.7,
+                        "mad": 2.1000000000000014,
+                        "relative_mad": 0.04174950298210739,
+                        "range": 21.800000000000004,
+                        "relative_range": 0.433399602385686,
+                        "central_range": 3.299999999999997,
+                        "relative_central_range": 0.0656063618290258,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "1"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          4288798.295,
+                          4492990.583,
+                          5008447.843,
+                          6026302.929,
+                          5014605.037
+                        ],
+                        "median": 5008447.843,
+                        "mean": 4966228.9374,
+                        "min": 4288798.295,
+                        "max": 6026302.929,
+                        "mad": 515457.2600000007,
+                        "relative_mad": 0.10291756571258372,
+                        "range": 1737504.6339999996,
+                        "relative_range": 0.34691479046315776,
+                        "central_range": 521614.4539999999,
+                        "relative_central_range": 0.10414692742164189,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          87.2,
+                          71.0,
+                          61.5,
+                          40.0,
+                          48.0
+                        ],
+                        "median": 61.5,
+                        "mean": 61.54,
+                        "min": 40.0,
+                        "max": 87.2,
+                        "mad": 13.5,
+                        "relative_mad": 0.21951219512195122,
+                        "range": 47.2,
+                        "relative_range": 0.7674796747967481,
+                        "central_range": 23.0,
+                        "relative_central_range": 0.37398373983739835,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "retained_initial_receipts_sha256": "ada522bb0b30911656dea3169d5ac33c08b389f476e5c1e26ca9b858b89eb603",
+      "retained_layout_setup_failure_log_sha256": "9709efd8e0e766e2017bace847a407ee63dc57c15270584cd85913ffef6b963a"
+    },
+    "wsl": {
+      "validation_sha256": "e0576396f89c378ff97642cf9f83ce1d4846d0f405c71ff7a81236fb29bf2b4f",
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "762612b436a2347790ee87cf20e06f01fe8b6851b847577c23ecc808dbaabbdc"
+        },
+        {
+          "label": "examples",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb,xcron_tzdb_file,memory_stats",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "64417202fbf35cc8cd1ff5afa03903db331ad49ec5516bed77fe2409ccdf8345"
+        },
+        {
+          "label": "io-faults",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb_file,thread,memory_stats",
+            "--test",
+            "test_tzdb_file",
+            "--no-single",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-DXCRON_TZDB_FILE_FAULTS",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined",
+            "--ldflag=-Wl,--wrap=xrtReadFull",
+            "--ldflag=-Wl,--wrap=xrtRead",
+            "--ldflag=-Wl,--wrap=xrtFileStat",
+            "--ldflag=-Wl,--wrap=xrtClose"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3646bda2963b33b57d941d3254a1dea38710330c914bfae54fa1303383f11a7f"
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d30998fb870dc4f4aaf2fe819419f0f0ffaa934aaf0836c4e658aa1e9cac4d65"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8ac4d3921198306117fbbc803443de01f0b628002e77c76c442c461af38bc2c0"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-tzdb/build_probes.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4a7c964c86df4e99f2d479bd8cef17a48d6c4ad994224988fe50822e2fe27ba2"
+        },
+        {
+          "label": "whole-oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_tzdb_reference.py",
+            "--probe",
+            "out/service-extensions/xcron-tzdb/wsl-tzdb-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/xcron-tzdb/wsl-whole-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "10a4af636b491d0c0c432682562a68552a97604d6c721066e3313e6dc6cbcbea"
+        },
+        {
+          "label": "named-zoned-oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_zoned_reference.py",
+            "--database",
+            "--probe",
+            "out/service-extensions/xcron-tzdb/wsl-named-zoned-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/xcron-tzdb/wsl-named-zoned-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "02af9db812296e7456cb4497759587181870d9cfa2b444d5cd93d6c25ab9bb30"
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_tzdb",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "ebf1413df92c2f8fd97fb7c56d1af35443b0634afbd4fd199020376639b42e87"
+        },
+        {
+          "label": "tsan-native",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_tzdb"
+          ],
+          "exit_code": 0,
+          "log_sha256": "cce6e64f4cf1eea5ac59832221afcd4e286daf64f6471f89d68b7e7abb4fd070"
+        }
+      ],
+      "probe_recipes_sha256": "7be15fb48d09823cd1666d1fb5c159e638fb2217ca06b3aa2ebdd339b5c2f0d3",
+      "probe_binaries_sha256": {
+        "tzdb-probe": "bb031e8fbbd67faba786a0fed55d6614f410fcce2bed2b1a7c5429dced86ec8a",
+        "named-zoned-probe": "2d179862ca754839d4e06ca3491b135d1f71cbb86d337d0aa4887063533a96a2",
+        "layout-direct": "2ac7b1465a2b32528d2e36670f31179e39148a5dc3b813f69e87053100a6854f",
+        "layout-decl": "25707603bbf94c5a0dfe34660aed81ce278fce510b65decee7ccccf67dc5df60"
+      },
+      "layouts": [
+        {
+          "declarations": false,
+          "values": {
+            "config": 16,
+            "entry": 32,
+            "issue": 48,
+            "info": 40,
+            "stats": 64,
+            "service_config": 136,
+            "service_stats": 384,
+            "manager": 152,
+            "snapshot_header": 56,
+            "row": 32
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "config": 16,
+            "entry": 32,
+            "issue": 48,
+            "info": 40,
+            "stats": 64,
+            "service_config": 136,
+            "service_stats": 384
+          }
+        }
+      ],
+      "whole_database_oracle": {
+        "schema": 1,
+        "version": "# version 2026e",
+        "zones": 422,
+        "queries": 54173,
+        "unknown": 465,
+        "named_missing": 1,
+        "snapshot_bytes": 809072,
+        "command": [
+          "out/service-extensions/xcron-tzdb/wsl-tzdb-probe",
+          "out/service-extensions/xcron-zoned-cursor/corpus",
+          "out/service-extensions/xcron-tzdb/wsl-whole-oracle.names.txt",
+          "2026e"
+        ],
+        "manifest_sha256": "70f52a75a7ef5d3d9ea819cb3229140ca10ec5f92ed4bb9b751dd603a9656a59",
+        "names_sha256": "12129b26a723a7c2533178be470a8a324d5b84a320d3dbf17c39c916cd70ef07",
+        "stdout_sha256": "b40c0f60c94ea456a1e467badbb08d2edc2b8b87101bd59182a32b51c0d66213",
+        "stderr": "",
+        "exit_code": 0,
+        "scope": "One actual all-name LoadRoot revision; lookups after source-name/root/database destruction. Independent zoneinfo offsets plus raw RFC coverage/type flags."
+      },
+      "whole_database_oracle_sha256": "6fc0a69e5121051807354c38b2454eec3bbdc0fb54ebb47bebc2272493a34621",
+      "named_cursor_oracle": {
+        "schema": 1,
+        "oracle": "zoneinfo label enumeration and independent UTC sorting/RFC coverage",
+        "version": "# version 2026e",
+        "zones": 422,
+        "totals": {
+          "match": 218700,
+          "next": 63180,
+          "zone_errors": 680,
+          "found": 28633,
+          "none": 34200
+        },
+        "source": "named-root LoadRoot/Acquire/Find, queries after root/snapshot/database destruction",
+        "named_loads_and_lookups": 3798
+      },
+      "named_cursor_oracle_sha256": "380af1354d7bc8cc0231cb422c578cbd605dcf2a6f8803bd1670c7346556f2a0",
+      "measurements": {
+        "size": {
+          "receipt": {
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xcron/config/size_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb,xcron_tzdb_file",
+              "--report",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-tzdb/wsl-size.json"
+            ],
+            "exit_code": 0,
+            "report_sha256": "1a659c4bdc6c5c3ae4a3af7f08140507d858840e9b30e2cbf6833dc4f7dfd650",
+            "log_sha256": "7e197a0d4edc2c3d60b4623ddb8174070caf1c47f822db13a04f51564ad69981"
+          },
+          "report": {
+            "schema": 2,
+            "platform": "linux",
+            "machine": "x86_64",
+            "compiler_family": "gnu",
+            "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+            "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+            "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+            "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+            "arch": "x64",
+            "optimization": "O2",
+            "stripped": false,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "1e4e7d234247b88ef4e0e5e6158dd1315010ff793e9e3ccd31750235c049fe6e",
+            "growth_limits": {
+              "text": 0.1,
+              "data": 0.2,
+              "bss": 0.2,
+              "file": 0.15
+            },
+            "profiles": {
+              "xcron_tzdb": {
+                "suite": "xcron_tzdb",
+                "description": "Named snapshot/CAS/quota closure with no filesystem dependency",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronSchedulerCreate",
+                  "xrtNetEngineCreate",
+                  "xrtRootOpen",
+                  "xrtFileOpen",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronSchedulerCreate",
+                  "_xrtNetEngineCreate",
+                  "_xrtRootOpen",
+                  "_xrtFileOpen"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 80816,
+                    "data": 2424,
+                    "bss": 10892,
+                    "members": 1,
+                    "load": 83240,
+                    "file": 137496,
+                    "path": "out/size/gnu/x64/xcron_tzdb/single/xcron_single.o",
+                    "compile_seconds": 2.428263311999899,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 35103,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 3,
+                    "load": 35103,
+                    "file": 53868,
+                    "path": "release/gnu/x64/xcron_tzdb/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 40963,
+                    "data": 856,
+                    "bss": 8,
+                    "members": 1,
+                    "load": 41819,
+                    "file": 60496,
+                    "path": "release/gnu/x64/xcron_tzdb/shared/libxcron.so"
+                  }
+                }
+              },
+              "xcron_tzdb_file": {
+                "suite": "xcron_tzdb_file",
+                "description": "Named snapshot/CAS/quota closure and explicit anchored-file loader",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronSchedulerCreate",
+                  "xrtNetEngineCreate",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronSchedulerCreate",
+                  "_xrtNetEngineCreate"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 174164,
+                    "data": 2664,
+                    "bss": 10892,
+                    "members": 1,
+                    "load": 176828,
+                    "file": 298664,
+                    "path": "out/size/gnu/x64/xcron_tzdb_file/single/xcron_single.o",
+                    "compile_seconds": 4.1865525880000405,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 36299,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 4,
+                    "load": 36299,
+                    "file": 58034,
+                    "path": "release/gnu/x64/xcron_tzdb_file/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 42911,
+                    "data": 920,
+                    "bss": 8,
+                    "members": 1,
+                    "load": 43831,
+                    "file": 60976,
+                    "path": "release/gnu/x64/xcron_tzdb_file/shared/libxcron.so"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "performance": {
+          "receipt": {
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb_16_snapshot,xcron_tzdb_16_acquire,xcron_tzdb_1024_snapshot,xcron_tzdb_1024_acquire",
+              "--report",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-tzdb/wsl-performance.json"
+            ],
+            "exit_code": 1,
+            "report_sha256": "52ec26416971bd4320d0e22f9a8762808d85299cbbb4af32bfdec49bfb1ca142",
+            "log_sha256": "3247845a2e5fdd2441a59a5e9e7c2d8eae30f963fe553059a4802b78d9e185de"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-05T14:24:38.146542+00:00",
+            "platform": "linux",
+            "machine": "x86_64",
+            "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+            "power_policy": "unknown",
+            "compiler_family": "gnu",
+            "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "arch": "x64",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "dafab6cdc2d2e139c0cac7c640adb61803ff543f0fd783a73bd516741e1a02c4",
+            "benchmark_fingerprint": "cf5ac1cc1b0e76e99db40bcbdf948f97aca04f0fb89aca48d4b93f9d046241d0",
+            "profiles": {
+              "xcron_tzdb_16_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "16",
+                      "acquire_per_lookup": "0"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          16571314.289,
+                          21194541.233,
+                          18853664.499,
+                          18924410.155,
+                          16253016.395
+                        ],
+                        "median": 18853664.499,
+                        "mean": 18359389.314200003,
+                        "min": 16253016.395,
+                        "max": 21194541.233,
+                        "mad": 2282350.210000001,
+                        "relative_mad": 0.12105605306178312,
+                        "range": 4941524.8379999995,
+                        "relative_range": 0.26209890593216495,
+                        "central_range": 2353095.8660000004,
+                        "relative_central_range": 0.12480840879102355,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          5.6,
+                          5.4,
+                          5.3,
+                          5.3,
+                          5.7
+                        ],
+                        "median": 5.4,
+                        "mean": 5.46,
+                        "min": 5.3,
+                        "max": 5.7,
+                        "mad": 0.10000000000000053,
+                        "relative_mad": 0.018518518518518615,
+                        "range": 0.40000000000000036,
+                        "relative_range": 0.07407407407407414,
+                        "central_range": 0.2999999999999998,
+                        "relative_central_range": 0.05555555555555552,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          10.9,
+                          10.5,
+                          10.8,
+                          10.9,
+                          11.6
+                        ],
+                        "median": 10.9,
+                        "mean": 10.940000000000001,
+                        "min": 10.5,
+                        "max": 11.6,
+                        "mad": 0.09999999999999964,
+                        "relative_mad": 0.009174311926605472,
+                        "range": 1.0999999999999996,
+                        "relative_range": 0.10091743119266051,
+                        "central_range": 0.09999999999999964,
+                        "relative_central_range": 0.009174311926605472,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          14.2,
+                          11.5,
+                          11.4,
+                          13.4,
+                          14.3
+                        ],
+                        "median": 13.4,
+                        "mean": 12.959999999999999,
+                        "min": 11.4,
+                        "max": 14.3,
+                        "mad": 0.9000000000000004,
+                        "relative_mad": 0.06716417910447764,
+                        "range": 2.9000000000000004,
+                        "relative_range": 0.2164179104477612,
+                        "central_range": 2.6999999999999993,
+                        "relative_central_range": 0.20149253731343278,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          39.8,
+                          32.4,
+                          34.1,
+                          35.4,
+                          32.3
+                        ],
+                        "median": 34.1,
+                        "mean": 34.8,
+                        "min": 32.3,
+                        "max": 39.8,
+                        "mad": 1.7000000000000028,
+                        "relative_mad": 0.049853372434017676,
+                        "range": 7.5,
+                        "relative_range": 0.21994134897360704,
+                        "central_range": 3.0,
+                        "relative_central_range": 0.0879765395894428,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_16_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "16",
+                      "acquire_per_lookup": "1"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          10963060.499,
+                          11471783.486,
+                          11736097.204,
+                          9387142.714,
+                          11515180.287
+                        ],
+                        "median": 11471783.486,
+                        "mean": 11014652.838,
+                        "min": 9387142.714,
+                        "max": 11736097.204,
+                        "mad": 264313.71800000034,
+                        "relative_mad": 0.023040333556030326,
+                        "range": 2348954.49,
+                        "relative_range": 0.20475931165076736,
+                        "central_range": 552119.7880000006,
+                        "relative_central_range": 0.04812850492460913,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          9.3,
+                          9.2,
+                          9.3,
+                          14.9,
+                          9.0
+                        ],
+                        "median": 9.3,
+                        "mean": 10.34,
+                        "min": 9.0,
+                        "max": 14.9,
+                        "mad": 0.10000000000000142,
+                        "relative_mad": 0.010752688172043163,
+                        "range": 5.9,
+                        "relative_range": 0.6344086021505376,
+                        "central_range": 0.10000000000000142,
+                        "relative_central_range": 0.010752688172043163,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          17.5,
+                          17.9,
+                          17.5,
+                          17.9,
+                          18.0
+                        ],
+                        "median": 17.9,
+                        "mean": 17.759999999999998,
+                        "min": 17.5,
+                        "max": 18.0,
+                        "mad": 0.10000000000000142,
+                        "relative_mad": 0.00558659217877103,
+                        "range": 0.5,
+                        "relative_range": 0.02793296089385475,
+                        "central_range": 0.3999999999999986,
+                        "relative_central_range": 0.02234636871508372,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          24.1,
+                          22.3,
+                          19.1,
+                          28.6,
+                          23.5
+                        ],
+                        "median": 23.5,
+                        "mean": 23.520000000000003,
+                        "min": 19.1,
+                        "max": 28.6,
+                        "mad": 1.1999999999999993,
+                        "relative_mad": 0.05106382978723401,
+                        "range": 9.5,
+                        "relative_range": 0.40425531914893614,
+                        "central_range": 1.8000000000000007,
+                        "relative_central_range": 0.07659574468085109,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          57.1,
+                          60.9,
+                          43.0,
+                          44.7,
+                          61.7
+                        ],
+                        "median": 57.1,
+                        "mean": 53.48,
+                        "min": 43.0,
+                        "max": 61.7,
+                        "mad": 4.600000000000001,
+                        "relative_mad": 0.08056042031523646,
+                        "range": 18.700000000000003,
+                        "relative_range": 0.32749562171628727,
+                        "central_range": 16.199999999999996,
+                        "relative_central_range": 0.28371278458844124,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "1024",
+                      "acquire_per_lookup": "0"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          7604407.957,
+                          7049388.661,
+                          6585014.883,
+                          7659505.033,
+                          7457507.052
+                        ],
+                        "median": 7457507.052,
+                        "mean": 7271164.717200001,
+                        "min": 6585014.883,
+                        "max": 7659505.033,
+                        "mad": 201997.98099999968,
+                        "relative_mad": 0.02708652899574887,
+                        "range": 1074490.1499999994,
+                        "relative_range": 0.14408168071551955,
+                        "central_range": 555019.2960000001,
+                        "relative_central_range": 0.07442424018240139,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          14.0,
+                          19.3,
+                          19.8,
+                          13.9,
+                          14.301
+                        ],
+                        "median": 14.301,
+                        "mean": 16.2602,
+                        "min": 13.9,
+                        "max": 19.8,
+                        "mad": 0.4009999999999998,
+                        "relative_mad": 0.028039997202992783,
+                        "range": 5.9,
+                        "relative_range": 0.412558562338298,
+                        "central_range": 5.300000000000001,
+                        "relative_central_range": 0.37060345430389485,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          21.8,
+                          21.7,
+                          22.9,
+                          22.0,
+                          21.8
+                        ],
+                        "median": 21.8,
+                        "mean": 22.04,
+                        "min": 21.7,
+                        "max": 22.9,
+                        "mad": 0.10000000000000142,
+                        "relative_mad": 0.004587155963302818,
+                        "range": 1.1999999999999993,
+                        "relative_range": 0.055045871559632996,
+                        "central_range": 0.1999999999999993,
+                        "relative_central_range": 0.009174311926605472,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          32.1,
+                          34.8,
+                          44.5,
+                          36.2,
+                          33.8
+                        ],
+                        "median": 34.8,
+                        "mean": 36.28,
+                        "min": 32.1,
+                        "max": 44.5,
+                        "mad": 1.4000000000000057,
+                        "relative_mad": 0.04022988505747143,
+                        "range": 12.399999999999999,
+                        "relative_range": 0.3563218390804598,
+                        "central_range": 2.4000000000000057,
+                        "relative_central_range": 0.06896551724137948,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          70.2,
+                          75.0,
+                          147.9,
+                          92.7,
+                          87.8
+                        ],
+                        "median": 87.8,
+                        "mean": 94.72,
+                        "min": 70.2,
+                        "max": 147.9,
+                        "mad": 12.799999999999997,
+                        "relative_mad": 0.14578587699316625,
+                        "range": 77.7,
+                        "relative_range": 0.8849658314350798,
+                        "central_range": 17.700000000000003,
+                        "relative_central_range": 0.2015945330296128,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "128",
+                      "names": "1024",
+                      "acquire_per_lookup": "1"
+                    },
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          6136374.45,
+                          6476398.216,
+                          5662320.376,
+                          5795982.336,
+                          5943281.684
+                        ],
+                        "median": 5943281.684,
+                        "mean": 6002871.4124,
+                        "min": 5662320.376,
+                        "max": 6476398.216,
+                        "mad": 193092.76599999983,
+                        "relative_mad": 0.03248925026047946,
+                        "range": 814077.8399999999,
+                        "relative_range": 0.1369744668491132,
+                        "central_range": 340392.11400000006,
+                        "relative_central_range": 0.05727342772872013,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          17.4,
+                          17.4,
+                          21.7,
+                          17.7,
+                          17.6
+                        ],
+                        "median": 17.6,
+                        "mean": 18.36,
+                        "min": 17.4,
+                        "max": 21.7,
+                        "mad": 0.20000000000000284,
+                        "relative_mad": 0.011363636363636524,
+                        "range": 4.300000000000001,
+                        "relative_range": 0.24431818181818185,
+                        "central_range": 0.3000000000000007,
+                        "relative_central_range": 0.017045454545454586,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          28.4,
+                          28.2,
+                          29.1,
+                          29.2,
+                          28.4
+                        ],
+                        "median": 28.4,
+                        "mean": 28.660000000000004,
+                        "min": 28.2,
+                        "max": 29.2,
+                        "mad": 0.1999999999999993,
+                        "relative_mad": 0.007042253521126736,
+                        "range": 1.0,
+                        "relative_range": 0.035211267605633804,
+                        "central_range": 0.7000000000000028,
+                        "relative_central_range": 0.024647887323943764,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          39.3,
+                          36.8,
+                          40.1,
+                          38.1,
+                          38.3
+                        ],
+                        "median": 38.3,
+                        "mean": 38.519999999999996,
+                        "min": 36.8,
+                        "max": 40.1,
+                        "mad": 1.0,
+                        "relative_mad": 0.026109660574412535,
+                        "range": 3.3000000000000043,
+                        "relative_range": 0.08616187989556147,
+                        "central_range": 1.1999999999999957,
+                        "relative_central_range": 0.03133159268929493,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          99.7,
+                          84.7,
+                          104.4,
+                          79.8,
+                          85.6
+                        ],
+                        "median": 85.6,
+                        "mean": 90.84,
+                        "min": 79.8,
+                        "max": 104.4,
+                        "mad": 5.799999999999997,
+                        "relative_mad": 0.06775700934579436,
+                        "range": 24.60000000000001,
+                        "relative_range": 0.2873831775700936,
+                        "central_range": 15.0,
+                        "relative_central_range": 0.1752336448598131,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "initial-performance": {
+          "receipt": {
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_tzdb_16_snapshot,xcron_tzdb_16_acquire,xcron_tzdb_1024_snapshot,xcron_tzdb_1024_acquire",
+              "--report",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-tzdb/wsl-performance.json"
+            ],
+            "exit_code": 1,
+            "report_sha256": "22736b5cce57581ebd874b98a02cf076686b6d9c9b27ff2058ed10984c2059a7",
+            "log_sha256": "eb3ebd0969ec9485e29728db4661d9639f03cdbda228563bb3eeee921e252104"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-05T14:09:16.896623+00:00",
+            "platform": "linux",
+            "machine": "x86_64",
+            "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+            "power_policy": "unknown",
+            "compiler_family": "gnu",
+            "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "arch": "x64",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "0a35e1d2ad870ede5e79898914c935e48902430b",
+            "source_dirty": true,
+            "source_fingerprint": "1917b0d9015f7863aefd254e783484d557cc4287f8223d5c403e874709a66b55",
+            "benchmark_fingerprint": "024d0053db661859f4500c6ff08b49c9fc4dc80b24ac7722a9df9110e71fefeb",
+            "profiles": {
+              "xcron_tzdb_16_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "0"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          18316642.722,
+                          18809173.31,
+                          19934154.684,
+                          14800630.535,
+                          17839721.006
+                        ],
+                        "median": 18316642.722,
+                        "mean": 17940064.4514,
+                        "min": 14800630.535,
+                        "max": 19934154.684,
+                        "mad": 492530.5879999995,
+                        "relative_mad": 0.026889785179268922,
+                        "range": 5133524.149,
+                        "relative_range": 0.2802655610481586,
+                        "central_range": 969452.3039999977,
+                        "relative_central_range": 0.05292740152842502,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          13.8,
+                          12.2,
+                          20.7,
+                          30.4,
+                          14.1
+                        ],
+                        "median": 14.1,
+                        "mean": 18.240000000000002,
+                        "min": 12.2,
+                        "max": 30.4,
+                        "mad": 1.9000000000000004,
+                        "relative_mad": 0.13475177304964542,
+                        "range": 18.2,
+                        "relative_range": 1.2907801418439717,
+                        "central_range": 6.899999999999999,
+                        "relative_central_range": 0.4893617021276595,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_16_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_16_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "16",
+                      "1"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          11049141.827,
+                          10308090.961,
+                          10414488.337,
+                          10599685.4,
+                          9062967.024
+                        ],
+                        "median": 10414488.337,
+                        "mean": 10286874.7098,
+                        "min": 9062967.024,
+                        "max": 11049141.827,
+                        "mad": 185197.063000001,
+                        "relative_mad": 0.017782636746737086,
+                        "range": 1986174.8029999994,
+                        "relative_range": 0.1907126628529249,
+                        "central_range": 291594.4390000012,
+                        "relative_central_range": 0.027998921268560177,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          32.9,
+                          38.0,
+                          30.5,
+                          31.5,
+                          35.0
+                        ],
+                        "median": 32.9,
+                        "mean": 33.58,
+                        "min": 30.5,
+                        "max": 38.0,
+                        "mad": 2.1000000000000014,
+                        "relative_mad": 0.0638297872340426,
+                        "range": 7.5,
+                        "relative_range": 0.22796352583586627,
+                        "central_range": 3.5,
+                        "relative_central_range": 0.10638297872340426,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_snapshot": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_snapshot": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "0"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          7358685.923,
+                          6608078.513,
+                          6938639.696,
+                          6817358.845,
+                          7716617.077
+                        ],
+                        "median": 6938639.696,
+                        "mean": 7087876.010799999,
+                        "min": 6608078.513,
+                        "max": 7716617.077,
+                        "mad": 330561.1830000002,
+                        "relative_mad": 0.04764063238368793,
+                        "range": 1108538.5639999993,
+                        "relative_range": 0.15976309659644838,
+                        "central_range": 541327.0780000007,
+                        "relative_central_range": 0.07801631180129816,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          36.7,
+                          51.8,
+                          43.1,
+                          39.9,
+                          39.3
+                        ],
+                        "median": 39.9,
+                        "mean": 42.160000000000004,
+                        "min": 36.7,
+                        "max": 51.8,
+                        "mad": 3.1999999999999957,
+                        "relative_mad": 0.08020050125313273,
+                        "range": 15.099999999999994,
+                        "relative_range": 0.3784461152882204,
+                        "central_range": 3.8000000000000043,
+                        "relative_central_range": 0.09523809523809534,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_tzdb_1024_acquire": {
+                "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+                "benchmarks": {
+                  "xcron_tzdb_1024_acquire": {
+                    "source": "extlibs/xcron/bench/bench_tzdb.c",
+                    "inputs": [],
+                    "suite": "xcron_tzdb",
+                    "args": [
+                      "10000",
+                      "1024",
+                      "1"
+                    ],
+                    "facts": {},
+                    "metrics": {
+                      "lookups_per_sec": {
+                        "samples": [
+                          6365476.646,
+                          6345696.512,
+                          5868286.152,
+                          6218666.574,
+                          6201595.277
+                        ],
+                        "median": 6218666.574,
+                        "mean": 6199944.2321999995,
+                        "min": 5868286.152,
+                        "max": 6365476.646,
+                        "mad": 127029.93800000008,
+                        "relative_mad": 0.0204271987392132,
+                        "range": 497190.49399999995,
+                        "relative_range": 0.07995130275656422,
+                        "central_range": 144101.23500000034,
+                        "relative_central_range": 0.023172368752246972,
+                        "direction": "higher",
+                        "unit": "lookups/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          36.5,
+                          36.1,
+                          38.4,
+                          37.4,
+                          37.7
+                        ],
+                        "median": 37.4,
+                        "mean": 37.22,
+                        "min": 36.1,
+                        "max": 38.4,
+                        "mad": 0.8999999999999986,
+                        "relative_mad": 0.024064171122994617,
+                        "range": 2.299999999999997,
+                        "relative_range": 0.06149732620320848,
+                        "central_range": 1.2000000000000028,
+                        "relative_central_range": 0.03208556149732628,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "retained_initial_receipts_sha256": "0d2e130b51d4319f2196a1c47caf781b87481a55daee46e03ef8dd3eea5b71f2",
+      "retained_layout_setup_failure_log_sha256": "74cf1f20c480aa410dcc64f837e424b5d297de795df95a14fc68d7a5901831ce"
+    }
+  },
+  "performance_scope": {
+    "batch_size": 128,
+    "batches": 10000,
+    "names": [
+      16,
+      1024
+    ],
+    "repeats": 5,
+    "warmups": 1,
+    "metrics": [
+      "lookups_per_sec",
+      "batch_p50_us",
+      "batch_p95_us",
+      "batch_p99_us",
+      "batch_p999_us"
+    ],
+    "qualification": "Initial and expanded reports both fail original noise gates on each OS; retained without baseline rewriting/force pairing. No qualified speedup or production tail claim.",
+    "exclusions": [
+      "cold import",
+      "IO",
+      "concurrent reload",
+      "worker execution",
+      "business body",
+      "end-to-end queueing"
+    ],
+    "note": "Latency is the entire128-lookup/release batch; no percentile division into a per-lookup figure. Held snapshot and Acquire-per-lookup are separate actual paths."
+  },
+  "size_scope": "Single objects include selected Core closure; static/shared own xcron only and use separate companion XRT. Forbidden symbols pass; unlike artifacts cannot be compared as equivalent whole deployments.",
+  "limitations": [
+    "Windows native symbolic-link fixture skipped: creation denied1314. WSL actual contained aliases and escaping link to an existing valid outside file pass; no Windows alias coverage claim.",
+    "Wrapped close calls the real close before returning a synthetic failure; this tests consumed-file/error cleanup, not every native failed-close lifetime scenario.",
+    "Initial probe layout compile omitted Core declaration includes; fixed only in ignored harness, original failed receipts/logs retained and unchanged successful commands/logs/source maps verified before reuse. Prototype compile failures for missing includes/declarations and misleading indentation are retained; fixed before accepted product validation.",
+    "No native Linux or >=72h mixed-load acceptance. Original performance gates, nominal DST delivery, durability, remaining Redis/RPC/MQTT scope and final product acceptance remain open. All four products developing."
+  ],
+  "local_evidence_directory": "out/service-extensions/xcron-tzdb/"
+}

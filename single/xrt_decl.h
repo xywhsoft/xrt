@@ -302,6 +302,9 @@
 #if !defined(XRT_FEATURE_EVENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT 1
 #endif
+#if !defined(XRT_FEATURE_EVENT_WAITER)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER 1
+#endif
 #if !defined(XRT_FEATURE_EXECUTOR)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR 1
 #endif
@@ -569,6 +572,9 @@
 #if !defined(XRT_FEATURE_NET_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE 1
 #endif
+#if !defined(XRT_FEATURE_NET_FILE_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE 1
+#endif
 #if !defined(XRT_FEATURE_NET_FRAME)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME 1
 #endif
@@ -649,6 +655,9 @@
 #endif
 #if !defined(XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE 1
+#endif
+#if !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE 1
 #endif
 #if !defined(XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER 1
@@ -886,6 +895,9 @@
 #endif
 #if !defined(XRT_FEATURE_TLS_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT 1
+#endif
+#if !defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH 1
 #endif
 #if !defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_RESUME 1
@@ -1475,6 +1487,9 @@
 #if !defined(XRT_MODULE_EVENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT 1
 #endif
+#if !defined(XRT_MODULE_EVENT_WAITER)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER 1
+#endif
 #if !defined(XRT_MODULE_EXECUTOR)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR 1
 #endif
@@ -1742,6 +1757,9 @@
 #if !defined(XRT_MODULE_NET_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE 1
 #endif
+#if !defined(XRT_MODULE_NET_FILE_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE 1
+#endif
 #if !defined(XRT_MODULE_NET_FRAME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FRAME 1
 #endif
@@ -1822,6 +1840,9 @@
 #endif
 #if !defined(XRT_MODULE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE 1
+#endif
+#if !defined(XRT_MODULE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE 1
 #endif
 #if !defined(XRT_MODULE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SERVER 1
@@ -2059,6 +2080,9 @@
 #endif
 #if !defined(XRT_MODULE_TLS_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT 1
+#endif
+#if !defined(XRT_MODULE_TLS_CLIENT_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH 1
 #endif
 #if !defined(XRT_MODULE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME 1
@@ -2386,6 +2410,16 @@
 /* 此文件由 tools/generate_features.py 生成，请勿直接修改。 */
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
+
+/* event_waiter 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EVENT_WAITER)
+#ifndef XRT_FEATURE_EVENT_WAITER
+#define XRT_FEATURE_EVENT_WAITER
+#endif
+#ifndef XRT_MODULE_EVENT
+#define XRT_MODULE_EVENT
+#endif
+#endif
 
 /* regex 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
@@ -3735,19 +3769,6 @@
 #endif
 #endif
 
-/* net_dial_future_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
-#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
 /* tls_stream_dial_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_DIAL_FUTURE
@@ -3756,11 +3777,21 @@
 #ifndef XRT_MODULE_TLS_STREAM_DIAL
 #define XRT_MODULE_TLS_STREAM_DIAL
 #endif
+#ifndef XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#define XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#endif
+#endif
+
+/* net_dial_future_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
+#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
 #endif
 #endif
 
@@ -3904,6 +3935,19 @@
 #endif
 #endif
 
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
 /* net_tcp_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_FUTURE)
 #ifndef XRT_FEATURE_NET_TCP_FUTURE
@@ -3949,6 +3993,22 @@
 #endif
 #endif
 
+/* net_file_future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE_FUTURE)
+#ifndef XRT_FEATURE_NET_FILE_FUTURE
+#define XRT_FEATURE_NET_FILE_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_FILE
+#define XRT_MODULE_NET_FILE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* net_file 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE)
 #ifndef XRT_FEATURE_NET_FILE
@@ -3964,6 +4024,28 @@
 #ifndef XRT_MODULE_NET_PORT_URING
 #define XRT_MODULE_NET_PORT_URING
 #endif
+#endif
+#endif
+
+/* tls_client_auth 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_CLIENT_AUTH)
+#ifndef XRT_FEATURE_TLS_CLIENT_AUTH
+#define XRT_FEATURE_TLS_CLIENT_AUTH
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY
+#define XRT_MODULE_TLS_IDENTITY
+#endif
+#ifndef XRT_MODULE_TLS_MESSAGES_WRITE
+#define XRT_MODULE_TLS_MESSAGES_WRITE
+#endif
+#ifndef XRT_MODULE_X509_PROFILE
+#define XRT_MODULE_X509_PROFILE
+#endif
+#ifndef XRT_MODULE_X509_NAME
+#define XRT_MODULE_X509_NAME
 #endif
 #endif
 
@@ -7487,6 +7569,44 @@ typedef struct xrtownershippreparationv1 {
 	xrtownershipprepareresult (*Prepare)(const void* pData, const void* pToken);
 } xrtownershippreparationv1;
 
+/* Optional resumable semantic finalization. This is an independent exact
+ * capability, never an extension or cast of xrtownershipadapterv1. Readers
+ * validate size, tag, exact Adapter identity and both hooks before admitting
+ * it. Adapter V1's bool Finalize retains its synchronous at-most-once contract;
+ * a consumer of this capability calls Step INSTEAD of that V1 slot.
+ *
+ * CanStep runs under the ownership freeze for the actual held/claimed token.
+ * It is nonblocking, diagnostic-preserving and performs no allocation, user
+ * callback, Count/Trace, reference or owning-edge change. It certifies current
+ * creator/activity eligibility, not completion or graph readability.
+ *
+ * Step runs OUTSIDE freeze and mutation with all real pins/claims/code alive.
+ * It always writes *pComplete (callers initialize false). Its bool result is
+ * success/failure independently of completion, including without a diagnostic:
+ *   true/false: waiting; true/true: complete;
+ *   false/false: failed but still owned; false/true: consumed with failure.
+ * Waiting MAY already have executed semantic callbacks or changed real edges;
+ * it is NOT the no-side-effect BUSY of preparation/physical completion.
+ * Persist completed sub-duties in participant state across waits, failure and
+ * collector abort/recreation. Never replay a completed semantic effect.
+ *
+ * Revalidate the whole graph after every Step before a NEW duty or Clear.
+ * A started continuation may resume through a known transient read refusal
+ * only with its saved exact capability, real held claim and CanStep authority;
+ * this never admits unknown metadata, starts an independent new finalizer or
+ * grants Clear. Observe resurrection at the next complete graph proof. Each
+ * collector turn must be bounded, retaining unfinished owners through waiting.
+ * Clear requires all semantic duties complete and a fresh unreachable graph;
+ * Finish/Drop retain their existing strictly post-Clear/physical contracts. */
+#define XRT_OWNERSHIP_FINALIZATION_V1_TAG UINT64_C(0x5852544F574E5331)
+typedef struct xrtownershipfinalizationv1 {
+	size_t size;
+	uint64 AbiTag;
+	const xrtownershipadapterv1* Adapter;
+	bool (*CanStep)(const void* pData, const void* pToken);
+	bool (*Step)(const void* pData, const void* pToken, bool* pComplete);
+} xrtownershipfinalizationv1;
+
 /* Optional completion after Clear, distinct from semantic preparation.
  * Exact Adapter identity and permanent code are admitted with this descriptor.
  * Step runs outside freeze/mutation with all plan pins retained. BUSY makes
@@ -7505,6 +7625,35 @@ typedef struct xrtownershipfinishv1 {
 	const xrtownershipadapterv1* Adapter;
 	xrtownershipfinishresult (*Step)(const void* pData, const void* pToken);
 } xrtownershipfinishv1;
+/* Optional typed completion extension. V1 remains the exact first member;
+ * publish &descriptor.V1 with V1.size=sizeof(xrtownershipfinishv2). Readers
+ * accept only that exact size, this tag, the same Adapter and non-NULL hooks;
+ * unknown versions fail closed without guessing a larger descriptor layout.
+ * A V1 reader must reject the larger size, never silently use the void Drop.
+ *
+ * DropChecked consumes exactly ONE real Hold reference, also on false. It
+ * may perform final cleanup after Restore when an uncommitted snapshot pin
+ * is the last reference. False reports cleanup failure independently of TLS
+ * diagnostics; it never permits retrying that consumed reference. Call either
+ * DropChecked OR Adapter->Drop, exactly once. All descriptor/code pins must
+ * outlive this callback's physical return. DropChecked runs outside freeze.
+ * DropReady is a pure, nonallocating preflight under graph freeze. It keeps
+ * the ambient diagnostic unchanged and runs no semantic/user callback. True
+ * certifies that this thread can consume the snapshot reference outside the
+ * freeze, including any final cleanup. False means BUSY and consumes nothing.
+ * Readers check it before acquiring new holds and preflight EVERY held node
+ * before restoring any claim or dropping any reference. This prevents an
+ * aborted snapshot from moving creator-thread finalization to another thread.
+ * Ready is not permission to call arbitrary cleanup while frozen; a true
+ * admission remains valid until that drop, under the participant's lifetime
+ * and native-thread contract. V1.Step keeps its committed-completion contract. */
+#define XRT_OWNERSHIP_FINISH_V2_TAG UINT64_C(0x5852544F574E4632)
+typedef struct xrtownershipfinishv2 {
+	xrtownershipfinishv1 V1;
+	uint64 AbiTag;
+	bool (*DropChecked)(const void* pData);
+	bool (*DropReady)(const void* pData);
+} xrtownershipfinishv2;
 typedef struct xrtownershipresult {
 	size_t NodeCount;
 	size_t EdgeCount;
@@ -15815,6 +15964,34 @@ XRT_API uint64 xrtValueObjectReadTypeIdV1(const xvalueobjectreadv1* pView);
 /* Exact byte key, including embedded NUL. A missing field returns NULL without
  * an error; NULL data with a nonzero key size is an invalid argument. */
 XRT_API const xvalue* xrtValueObjectReadGetV1(const xvalueobjectreadv1* pView, xstrview Key);
+/* Allocation-free read scope for wire Array/Object containers. Caller owns
+ * the real receiver for the complete synchronous scope and serializes access
+ * to it. Begin borrows, never retains/clones/boxes any value or backing. The
+ * receiver is BUSY until End: mutation, retain, clone and release through that
+ * shell fail; independently owned aliases retain normal COW behavior. Children
+ * and key/text bytes are borrowed only until End; open child containers before
+ * invoking code that could change their contents. No suspend, thread transfer,
+ * copying a live scope, or accessing raw receiver APIs while it is active.
+ * Storage starts zeroed. End clears it and is idempotent on a cleared scope.
+ * Scope guards add no fields or checks to ordinary values or operations. */
+#ifndef XRT_VALUE_VIEW_V1_DEFINED
+#define XRT_VALUE_VIEW_V1_DEFINED
+typedef struct xvalueviewv1 {
+    const struct xvalueviewv1* Self;
+    const xvalue* Value;
+    const void* Backing;
+    size_t Count;
+    xvaluetype Type;
+} xvalueviewv1;
+XRT_API bool xrtValueViewBeginV1(const xvalue* pValue, xvalueviewv1* pView);
+XRT_API bool xrtValueViewEndV1(xvalueviewv1* pView);
+XRT_API size_t xrtValueViewCountV1(const xvalueviewv1* pView);
+/* At is checked, zero-based; Object keys retain insertion order. Find is
+ * Object-only, with exact byte keys. Missing Find returns NULL without error. */
+XRT_API const xvalue* xrtValueViewAtV1(const xvalueviewv1* pView, size_t iIndex, xstrview* pKey);
+XRT_API const xvalue* xrtValueViewFindV1(const xvalueviewv1* pView, xstrview Key);
+#endif
+
 /* Borrowed discovery anchors for this instance's live, explicitly certified
  * Object backings. Policy identity is exact; COW/deep-clone backings are each
  * visited once, with their shared Lifetime UserData (possibly NULL). Ordinary
@@ -17486,6 +17663,13 @@ XRT_API xtaskpool* xrtTaskPoolCreateOwnedExitV1(const xtaskpoolconfig* pConfig,
  * conservatively busy. The caller owns a real reference through return. */
 XRT_API xwaitresult xrtTaskPoolTryJoinV1(xtaskpool* pPool);
 
+/* Borrowed, read-only identity query for cleanup drivers. True also covers
+ * native ThreadKey/exit callbacks after a job's language activity has ended.
+ * The caller owns a real pool reference. Invalid state remains checked; this
+ * neither joins nor changes worker/resource ownership. */
+XRT_API bool xrtTaskPoolIsCurrentWorkerV1(const xtaskpool* pPool);
+
+
 /* A borrowed view of the real pool owner slot. Create contributes one actual
  * reference; successful Destroy consumes it once. Collector Hold/Release pins
  * keep the terminal shell alive after joined worker resources are retired.
@@ -17896,6 +18080,17 @@ XRT_EXTERN_C_BEGIN
 
 /* 创建预分配作业槽、Worker 本地队列和工作窃取线程。 */
 XRT_API xexecutor* xrtExecutorCreate(const xexecutorconfig* pConfig);
+
+/* Current native control context belongs to this live executor: a worker
+ * (including its body/drop/worker-exit tails), or queued-work cancellation
+ * cleanup on any calling thread. NULL/an unrelated executor returns false. Preserves
+ * ambient error and allocates no per-query storage after Core context setup.
+ * Does not retain/close/cancel/wait for work or authorize object destruction. Caller keeps
+ * the executor live; invoke outside ownership freeze like other native controls.
+ * Worker lookup uses the existing TLS/native-thread fallback; other callers use
+ * the existing synchronized callback registry. Not a wait-free graph query.
+ * Use before a blocking facade that depends on work/drop from that executor. */
+XRT_API bool xrtExecutorIsCurrent(const xexecutor* pExecutor);
 
 /* Success consumes ONE Data reference. Failure consumes none and invokes no
  * Exit/Drop, including partial native-thread creation rollback. Unlike plain
@@ -27566,6 +27761,11 @@ XRT_EXTERN_C_END
 	#error "XRT TCP support requires network engine support"
 #endif
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND))
+	#error "XRT TCP retirement waiting requires TCP and condition variables"
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FILE))
 	#error "XRT TCP file support requires TCP and file support"
@@ -27585,16 +27785,15 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) && \
-	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT Dial Future common support requires TCP and Future bridge support"
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
+	#error "XRT Dial Future common support requires TCP and Future support"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
-	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TCP Dial Future support requires TCP Dial, Future and Future bridge support"
+	 !defined(XRT_FEATURE_FUTURE))
+	#error "XRT TCP Dial Future support requires TCP Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_SYNC) && \
@@ -27890,6 +28089,16 @@ XRT_API xnetstream* xrtNetStreamConnect(
 	ptr pData
 );
 
+/* Creation-time event ownership: installs the permanent descriptor BEFORE
+ * posting connect/start work, so even an immediate Open/Close sees its owner.
+ * Success consumes exactly one Data reference; failure consumes none. Event
+ * callbacks borrow it; Drop is deferred until the Worker callback stacks have
+ * returned, with the same replacement/close rules as SetEventsOwnedV1.
+ * Descriptor and callback code must remain resident. */
+XRT_API xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+	ptr pData, const xnetstreameventsownershipv1* pPolicy);
+
 
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL)
@@ -27998,6 +28207,17 @@ XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream);
 
 /* 释放 Stream 引用；空指针视为空操作。 */
 XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Wait for CLOSED and exactly the caller's one remaining strong Stream reference.
+ * Unlike WAIT_CLOSE this includes native/control/send/owned-event callback tails.
+ * Does not request close, retain the Stream or consume the caller owner. Keep that
+ * owner alive through all concurrent waits; stop other API/ref entries before
+ * treating success as final retirement or destroying it. Extra caller aliases
+ * also keep the result pending. Any worker of the same Engine is rejected.
+ * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+#endif
 
 
 
@@ -31073,6 +31293,39 @@ XRT_API void xrtTlsSessionDestroy(xtlssession* pSession);
 
 
 
+/* Trace actual pool leases and immutable byte owners in all four queues.
+ * This is ONLY a buffer-edge walker, not an ownership certificate for Context,
+ * role state, verifier/identity callbacks or the session itself. The caller
+ * must separately own those resources, exclude session/queue mutation and keep
+ * visited owners stable (normally under ownership Freeze). The visitor must
+ * not mutate them. Borrowed buffers and opaque release callbacks return false.
+ * No allocation, hold/release, release callback or thread-error modification.
+ * NULL session/visitor returns false; visitor false stops enumeration, so a
+ * failed walk may have already delivered edges. Multiplicity is preserved. */
+XRT_API bool xrtTlsSessionBufferOwnershipTrace(
+	const xtlssession* pSession,
+	xrtownershipvisitor pVisit,
+	ptr pContext
+);
+
+/* Managed-owner graph of a uniquely owned, quiescent built-in session:
+ * the four buffer queues AND the verified-client role's actual Verifier slot.
+ * Inert native parameters, built-in key material, DER and resume bytes have
+ * no outgoing callback/language owners, even when shared by native references.
+ * A server's opaque external signer REFUSES this walk; it is not a leaf.
+ * Raw internal base sessions have no role-owned counted references.
+ * Borrowed server selector/resume callback data are NOT owning slots and must
+ * remain covered by the embedding owner's own graph and code residency.
+ * Same freeze/visitor/failure rules as BufferOwnershipTrace. This does not
+ * admit the reported children: an opaque legacy Verifier remains opaque. */
+XRT_API bool xrtTlsSessionOwnershipTrace(
+	const xtlssession* pSession,
+	xrtownershipvisitor pVisit,
+	ptr pContext
+);
+
+
+
 /* 返回会话的客户端或服务端角色；失败返回零并设置错误。 */
 XRT_API xtlsrole xrtTlsSessionRole(const xtlssession* pSession);
 
@@ -31903,6 +32156,16 @@ typedef enum xx509error {
 	X509_ERROR_NAME_CONSTRAINTS
 } xx509error;
 
+/* A completed validation decision is not an operation failure. Rejected and
+ * unsupported candidates may be considered by a path search; ERROR must stop
+ * it even when no allocated diagnostic is available. */
+typedef enum xx509check {
+	X509_CHECK_ERROR = -1,
+	X509_CHECK_REJECTED = 0,
+	X509_CHECK_VALID = 1,
+	X509_CHECK_UNSUPPORTED = 2
+} xx509check;
+
 
 
 /* AlgorithmIdentifier 的全部视图都借用原 DER；Parameters 保存完整 TLV。 */
@@ -32436,6 +32699,17 @@ typedef struct xx509pathconfig {
 	ptr UserData;
 } xx509pathconfig;
 
+/* Published only for completed checks. Reason is zero for a valid path;
+ * Depth is the target-first certificate index, or SIZE_MAX if no individual
+ * certificate applies. Message is borrowed static diagnostic text (NULL when
+ * valid), not a machine-readable control contract. Completed decisions do not
+ * mutate the input views/configuration or the current thread error. */
+typedef struct xx509pathdecision {
+	xx509error Reason;
+	size_t Depth;
+	cstr Message;
+} xx509pathdecision;
+
 #endif
 
 
@@ -32573,6 +32847,14 @@ XRT_API bool xrtX509ExtensionFind(
 	const void* pOid,
 	size_t iOidSize,
 	xx509ext* pExtension
+);
+
+
+
+/* 严格解析独立 SPKI；成功视图借用完整 Der，失败输出保持不变。 */
+XRT_API bool xrtX509PublicKeyParse(
+	xbytesview Der,
+	xx509pubkey* pPublicKey
 );
 
 
@@ -33106,13 +33388,24 @@ XRT_API bool xrtX509PathValidate(
 	const xx509pathconfig* pConfig
 );
 
+/* No diagnostic allocation for ordinary validation rejection. ERROR preserves
+ * the original operation/callback error and leaves pDecision unchanged. */
+XRT_API xx509check xrtX509PathCheck(
+	const xx509cert* const* ppCertificates,
+	size_t iCount,
+	const xx509anchor* pAnchor,
+	const xx509pathconfig* pConfig,
+	xx509pathdecision* pDecision
+);
+
 #endif
 
 
 
 #if defined(XRT_FEATURE_X509_PATH_BUILD)
 
-/* 在候选发行者和信任锚中回溯构建并验证路径；结果仅在成功时发布。 */
+/* 在候选发行者和信任锚中回溯构建并验证路径；结果仅在成功时发布。
+ * 合法的空锚集合是无可信路径的完成拒绝，不是参数或资源错误。 */
 XRT_API bool xrtX509PathBuild(
 	const xx509cert* pTarget,
 	const xx509pathsource* pSource,
@@ -33120,6 +33413,36 @@ XRT_API bool xrtX509PathBuild(
 	const xx509cert** ppPath,
 	size_t iCapacity,
 	xx509pathresult* pResult
+);
+
+/* ppPath is search scratch. pResult is published only for VALID; pDecision
+ * is published for completed decisions only. Any ERROR terminates the search. */
+XRT_API xx509check xrtX509PathBuildCheck(
+	const xx509cert* pTarget,
+	const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig,
+	const xx509cert** ppPath,
+	size_t iCapacity,
+	xx509pathresult* pResult,
+	xx509pathdecision* pDecision
+);
+
+/* Bound deterministic search work, not elapsed time. Each candidate or anchor
+ * visit costs one step (including duplicates/nonmatches); a full path evaluation
+ * additionally costs its certificate count. Charge before doing the work.
+ * Zero explicitly disables the limit. Exhaustion is ERROR/XERR_RANGE, never a
+ * completed rejection; pResult and pDecision remain unchanged. Input admission,
+ * one comparison/verification and application callbacks are not preempted.
+ * No public type/layout or time contract is changed. */
+XRT_API xx509check xrtX509PathBuildCheckLimit(
+	const xx509cert* pTarget,
+	const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig,
+	const xx509cert** ppPath,
+	size_t iCapacity,
+	size_t iMaxSteps,
+	xx509pathresult* pResult,
+	xx509pathdecision* pDecision
 );
 
 #endif
@@ -33130,6 +33453,11 @@ XRT_API bool xrtX509PathBuild(
 
 /* 创建空信任库。 */
 XRT_API xx509store* xrtX509StoreCreate(void);
+
+
+
+/* 深复制全部 DER 和索引；结果不借用源信任库，源须在调用期间保持不变。 */
+XRT_API xx509store* xrtX509StoreClone(const xx509store* pSource);
 
 
 
@@ -33152,11 +33480,31 @@ XRT_API xx509result xrtX509StoreAdd(
 
 
 
+/* 事务式复制合并源条目，精确去重；失败不发布 pAdded，源不变。 */
+XRT_API bool xrtX509StoreMerge(
+	xx509store* pStore,
+	const xx509store* pSource,
+	size_t* pAdded
+);
+
+
+
 /* 事务式导入全部 CERTIFICATE PEM 块；pAdded 可选。 */
 XRT_API bool xrtX509StoreAddPem(
 	xx509store* pStore,
 	cstr sText,
 	size_t iSize,
+	size_t* pAdded
+);
+
+/* Auto-detect one DER certificate or a PEM certificate bundle using the same
+ * native rule as file import. Input is borrowed for this call only; accepted
+ * DER is owned by the store. Failure leaves store entries and pAdded unchanged.
+ * Empty input is a format error; duplicate-only input succeeds with zero added.
+ * Input size is exact, not a C-string length or a truncating resource limit. */
+XRT_API bool xrtX509StoreAddData(
+	xx509store* pStore,
+	xbytesview Data,
 	size_t* pAdded
 );
 
@@ -33178,7 +33526,7 @@ XRT_API const xx509anchor* xrtX509StoreAnchor(
 
 
 
-/* 把外部候选发行者与信任库锚组成可直接建链的借用源。 */
+/* 把外部候选发行者与信任库锚组成可直接建链的借用源；允许空库和零候选。 */
 XRT_API bool xrtX509StoreSource(
 	const xx509store* pStore,
 	const xx509cert* const* ppIssuers,
@@ -33230,7 +33578,9 @@ XRT_API xx509result xrtX509MatchDns(
 
 
 
-/* 在 SAN 的 DNS-ID 或 IP-ID 中匹配引用主机；pName 为空时只返回结果。 */
+/* 在 SAN 的 DNS-ID 或 IP-ID 中匹配引用主机；pName 为空时只返回结果。
+ * Host 是精确长度视图，不含 C 终止符，内嵌 NUL 拒绝；不进行 DNS 查询。
+ * 匹配后的名称借用证书数据；DONE / ERROR 不修改 pName。 */
 XRT_API xx509result xrtX509MatchHost(
 	const xx509cert* pCert,
 	xstrview Host,
@@ -33343,6 +33693,39 @@ typedef struct xtlsverifierconfig {
 	bool AllowSha1;
 } xtlsverifierconfig;
 
+/* Resident authority for the ONE Context reference adopted by an owned
+ * verifier. Every callback must equal the corresponding config slot. Ops
+ * identifies that same physical Context node, not a flattened set of values.
+ * Policy, Ops and callback code remain immutable/resident until every native
+ * consumer and collector pin releases the verifier. Drop runs once OUTSIDE
+ * ownership mutation/freeze. Legacy Create contexts remain graph-opaque. */
+typedef struct xtlsverifiercontextownershipv1 {
+	size_t size;
+	xtlsverifyproc Verify;
+	xtlsverifypolicyproc Policy;
+	xtlsverifytimeproc Time;
+	xtlsverifyreleaseproc Drop;
+	const xrtownershipops* Ops;
+} xtlsverifiercontextownershipv1;
+
+
+/* Explicit resource limits. Zero disables that particular limit. Legacy
+ * verifier/peer entry points remain unlimited; Init supplies bounded defaults.
+ * Byte limits count complete DER, not prefixes or allocation capacities. */
+typedef struct xtlsverifylimits {
+	size_t MaxPeerCertificates;
+	size_t MaxPeerBytes;
+	size_t MaxPathCertificates;
+	size_t MaxSearchSteps;
+	size_t MaxTrustCertificates;
+	size_t MaxTrustBytes;
+} xtlsverifylimits;
+
+/* Recheck the actual saved certificate chain with this verifier whenever a
+ * server selects a resumption PSK. A missing chain falls back to a full
+ * handshake, unless the client explicitly requires resumption. */
+#define XTLS_VERIFY_RESUME_PEER_V1 UINT32_C(1)
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -33353,10 +33736,66 @@ XRT_EXTERN_C_BEGIN
 XRT_API void xrtTlsVerifierConfigInit(xtlsverifierconfig* pConfig);
 
 
+/* Initialize finite peer/path/work/trust budgets without allocating. */
+XRT_API void xrtTlsVerifyLimitsInit(xtlsverifylimits* pLimits);
+
+
 
 /* 创建可跨线程共享的验证器；成功后接管自定义上下文。 */
 XRT_API xtlsverifier* xrtTlsVerifierCreate(
 	const xtlsverifierconfig* pConfig
+);
+
+
+/* Copy explicit limits and trust data. Context is adopted only on success.
+ * Limits is required; an all-zero value deliberately requests no limits. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateLimited(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits
+);
+
+/* Config, Limits and Policy are required. Success consumes exactly ONE
+ * Context reference; failure consumes none and invokes no callback/Drop.
+ * This does not change trust/identity rules or grant a language callback API.
+ * Normal verification pins the actual verifier and marks its whole call busy,
+ * including the clock, verification, policy and cleanup tails. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy
+);
+
+/* Immutable verification options; unknown bits fail before adopting Context.
+ * The existing factories retain their flags=0 behavior. Limits is required. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	uint32 iFlags
+);
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy,
+	uint32 iFlags
+);
+XRT_API uint32 xrtTlsVerifierFlagsV1(const xtlsverifier* pVerifier);
+
+/* Read under the complete graph's freeze. Admission requires the exact
+ * registered resident policy identity BEFORE its fields are followed. Opaque
+ * legacy verifiers, active calls, unknown policies and cleared nodes refuse
+ * admission, leaving the preparation output unchanged. Claim quarantines new
+ * verification calls; Restore reopens them. Clear only marks the node, and
+ * Finish drops the actual Context and unique trust store outside freeze.
+ * A failed cleanup is retained and reported on retry, never repeated. Native
+ * Context/Session/Stream owners must also report EACH actual verifier slot;
+ * these functions alone do not certify a complete consumer graph. */
+XRT_API xrtownershipref xrtTlsVerifierOwnership(const xtlsverifier* pVerifier);
+XRT_API const xrtownershipquiescencev1* xrtTlsVerifierOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsVerifierOwnershipAdapterV1(
+	xrtownershipref Reference,
+	const xtlsverifiercontextownershipv1* const* pPolicies,
+	size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation
 );
 
 
@@ -33377,6 +33816,17 @@ XRT_API void xrtTlsVerifierRelease(xtlsverifier* pVerifier);
 XRT_API bool xrtTlsPeerVerify(
 	const xtlspeer* pPeer,
 	const xx509store* pStore,
+	xtlsverifypolicyproc pPolicy,
+	ptr pContext
+);
+
+
+/* Same modern path/name rules with explicit budgets; no input is truncated.
+ * Peer limits apply before custom policy or path work. Limits is required. */
+XRT_API bool xrtTlsPeerVerifyLimited(
+	const xtlspeer* pPeer,
+	const xx509store* pStore,
+	const xtlsverifylimits* pLimits,
 	xtlsverifypolicyproc pPolicy,
 	ptr pContext
 );
@@ -33646,7 +34096,8 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig);
 
 
 
-/* 创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。 */
+/* 创建客户端会话；默认要求 Verifier，无验证器时必须启用 ResumeOnly。
+ * 未启用 client_resume 时显式拒绝非空 Resume 或 ResumeOnly，不静默忽略。 */
 XRT_API xtlssession* xrtTlsClientCreate(
 	const xtlsclientconfig* pConfig,
 	xnetbufpool* pPool
@@ -33661,7 +34112,8 @@ XRT_API xtlsresult xrtTlsClientDrive(xtlssession* pSession);
 
 #if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 
-/* 返回完整握手中已经深复制并验证的对端证书数量。 */
+/* 返回完整握手的证书链，或恢复票据共享的只读证书链数量。
+ * RESUME_PEER 验证器在接受恢复时重新验证该链；握手成功仍须检查 Ready。 */
 XRT_API size_t xrtTlsClientCertificateCount(
 	const xtlssession* pSession
 );
@@ -33686,12 +34138,32 @@ XRT_API xtlsresult xrtTlsClientKeyUpdate(
 
 
 
-#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
-
-/* 返回服务端是否接受了本次创建时提供的恢复对象。 */
+/* 返回服务端是否接受了本次创建时提供的恢复对象。
+ * 这是基础角色查询；未编译恢复能力时，合法客户端会话返回 false。 */
 XRT_API bool xrtTlsClientResumed(const xtlssession* pSession);
 
 
+
+#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+
+/* Make a NEW immutable credential with an owned copy of the supplied chain.
+ * Only Raw DER is read; parsed fields and PeerIdentity do not establish trust.
+ * Limits is required; only MaxPeerCertificates/MaxPeerBytes apply (0=unlimited).
+ * The current RESUME_PEER verifier rechecks this chain during resumption.
+ * Neither the original credential nor the input certificate views are changed. */
+XRT_API xtlsresume* xrtTlsResumeWithPeerCertificatesV1(
+	const xtlsresume* pResume,
+	const xbytesview* pCertificates,
+	size_t iCount,
+	const xtlsverifylimits* pLimits
+);
+
+/* Views borrow the immutable credential. Missing chains have count=0; an
+ * out-of-range index fails checked. No certificate getter makes a trust claim. */
+XRT_API size_t xrtTlsResumePeerCertificateCountV1(const xtlsresume* pResume);
+XRT_API const xx509cert* xrtTlsResumePeerCertificateV1(
+	const xtlsresume* pResume, size_t iIndex
+);
 
 /* 返回等待调用方接管的恢复对象数量。 */
 XRT_API size_t xrtTlsClientResumeCount(const xtlssession* pSession);
@@ -34046,6 +34518,9 @@ typedef struct xtlsserverchoice {
 	const xtlsidentity* Identity;
 	size_t Protocol;
 	uint64 Cookie;
+	/* 框架私有的回调期身份引用，只由 SetIdentityV1 和框架管理。
+	 * 不可直接修改、复制或在回调返回后保存本结构。 */
+	xtlsidentity* IdentityOwnerV1;
 } xtlsserverchoice;
 
 
@@ -34083,6 +34558,18 @@ typedef const xtlsresume* (*xtlsserverresumeproc)(
 
 
 
+/* 拥有式查找：调用前 *ppResume 为 NULL；true + NULL 表示缓存未命中，
+ * false 表示查找失败（诊断可为 NULL）。写入的独立引用在所有返回路径上
+ * 都转交框架，框架使用后或失败时恰好 release 一次。回调不得再释放它。
+ * 允许临时语言结果；不需要回调返回后的借用存活窗口。 */
+typedef bool (*xtlsserverresumeownedprocV1)(
+	ptr pContext,
+	const xtlsserverresumerequest* pRequest,
+	xtlsresume** ppResume
+);
+
+
+
 /* 创建期间借用配置；会话持有身份、深复制协议，两个回调上下文借用到首航结束。 */
 typedef struct xtlsserverconfig {
 	const xtlscontext* Context;
@@ -34095,6 +34582,8 @@ typedef struct xtlsserverconfig {
 	xtlsserverresumeproc Resume;
 	ptr ResumeContext;
 	uint32 ResumeAgeTolerance;
+	/* 与 Resume 互斥，共用 ResumeContext；结构布局变化需重编译 C 单元。 */
+	xtlsserverresumeownedprocV1 ResumeOwnedV1;
 } xtlsserverconfig;
 
 
@@ -34105,6 +34594,15 @@ XRT_EXTERN_C_BEGIN
 
 /* 初始化默认上下文、无身份、无 ALPN 和无动态选择器的服务端配置。 */
 XRT_API void xrtTlsServerConfigInit(xtlsserverconfig* pConfig);
+
+/* 仅在 Select 回调中使用：独立 retain 身份，允许调用方随后立即释放
+ * 自己的引用。替换时释放前次设置的引用；回调成功或失败后，框架统一
+ * 释放最后的临时引用。失败保留原选择（旧身份析构报错时替换已提交）。
+ * 直接赋 Identity 仍是原有借用合同，不隐式转移引用。 */
+XRT_API bool xrtTlsServerChoiceSetIdentityV1(
+	xtlsserverchoice* pChoice,
+	const xtlsidentity* pIdentity
+);
 
 
 
@@ -34145,12 +34643,13 @@ XRT_API bool xrtTlsServerCookie(
 
 
 
-#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
-
-/* 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。 */
+/* 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
+ * 这是基础角色查询；未编译恢复能力时，合法服务端会话返回 false。 */
 XRT_API bool xrtTlsServerResumed(const xtlssession* pSession);
 
 
+
+#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 
 /* 用调用方票据签发 TLS 1.3 NewSessionTicket；TLS 1.2 会话返回不支持。 */
 XRT_API xtlsresult xrtTlsServerTicket(
@@ -34224,8 +34723,8 @@ XRT_EXTERN_C_END
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Future bridge"
+	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON))
+	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER) && \
@@ -34367,6 +34866,35 @@ typedef struct xtlsstreamevents {
 	void (*Ticket)(xtlsstream* pStream, ptr pData);
 } xtlsstreamevents;
 
+/* One real owner for event data AND every borrowed callback/configuration
+ * context used by this session. The descriptor/code stays resident; Ops must
+ * enumerate actual references, including shared owner records (never flatten
+ * a shared native callback owner twice). Native TLS objects may borrow Data
+ * through session destruction. Success consumes ONE Data reference; failure
+ * consumes none. Events/Data are immutable in this mode. Unknown borrowed
+ * sessions created through the legacy factories are not ownership-certified. */
+typedef struct xtlsstreamownershipv1 {
+	size_t size;
+	xtlsstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlsstreamownershipv1;
+
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL)
+/* One aggregate owner for Done, final Stream events and every borrowed TLS
+ * configuration context. Success takes one Data reference, failure takes none.
+ * Stream events are permanent; the delivered Stream retains this owner until
+ * its Session is destroyed. Callback Data is the original Data; StreamData is
+ * a private aggregate context and must not be cast by applications. */
+typedef struct xtlsdialownershipv1 {
+	size_t size;
+	xtlsstreamevents StreamEvents;
+	xtlsdialproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlsdialownershipv1;
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
@@ -34393,6 +34921,17 @@ typedef struct xtlslistenerevents {
 		const xerror* pError, ptr pData);
 	void (*Close)(xtlslistener* pListener, ptr pData);
 } xtlslistenerevents;
+
+/* Permanent aggregate context. Data owns every borrowed event/selector/TLS
+ * configuration context; child records retain the Listener while sessions may
+ * still borrow it. Success takes one Data reference, failure takes none. */
+typedef struct xtlslistenerownershipv1 {
+	size_t size;
+	xtlslistenerevents Events;
+	xtlsstreamevents StreamEvents;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlslistenerownershipv1;
 
 
 
@@ -34442,6 +34981,29 @@ XRT_API void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig);
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
 /* 初始化单 IPv4 动态端口、有界握手与有界完成队列。 */
 XRT_API void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig);
+
+XRT_API xtlslistener* xrtTlsListenerStartOwnedV1(xnetengine* pEngine,
+	const xtlslistenerconfig* pConfig, ptr pData, const xtlslistenerownershipv1* pPolicy);
+XRT_API xrtownershipref xrtTlsListenerOwnership(const xtlslistener* pListener);
+XRT_API const xnetruntimeownershipv1* xrtTlsListenerRuntimeOwnershipV1Get(void);
+XRT_API const xnetlistenereventsownershipv1* xrtTlsListenerTransportOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamPushOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerOwnershipAdapterV1(xrtownershipref Reference,
+	const xtlslistenerownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerStreamRecordOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershippreparationv1** ppPreparation);
+#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+XRT_API const xfutureproducerownershipv1* xrtTlsListenerFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsListenerFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsListenerFutureStreamPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershippreparationv1** ppPreparation);
+#endif
 
 
 
@@ -34531,6 +35093,23 @@ XRT_API xtlsstream* xrtTlsListenerAcceptWait(
 /* 初始化 TCP 拨号、TLS Stream 和总超时策略。 */
 XRT_API void xrtTlsDialConfigInit(xtlsdialconfig* pConfig);
 
+/* Uses owned TCP Dial with no borrowed Stream events, then installs the
+ * permanent TLS event context on its actual Worker. No event-table swap. */
+XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsdialownershipv1* pPolicy);
+XRT_API xrtownershipref xrtTlsDialOwnership(const xtlsdial* pDial);
+XRT_API const xnetruntimeownershipv1* xrtTlsDialRuntimeOwnershipV1Get(void);
+XRT_API const xnettimerownershipv1* xrtTlsDialTimerOwnershipV1Get(void);
+XRT_API const xnetdialownershipv1* xrtTlsDialTransportOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsDialStreamOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsDialStreamPushOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsdialownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 解析主机、竞争 TCP 地址并完成 TLS 握手；成功 Stream 引用转移给完成回调。 */
@@ -34550,6 +35129,11 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xtlsdial* xrtTlsDialProxyOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, ptr pData,
+	const xtlsdialownershipv1* pPolicy);
+XRT_API const xnetproxydialownershipv1* xrtTlsDialProxyTransportOwnershipV1Get(void);
 /* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -34583,6 +35167,30 @@ XRT_API xfuture* xrtTlsDialAsync(
 	const xtlsstreamevents* pStreamEvents,
 	ptr pStreamData
 );
+/* Same success1/failure0 Data transfer as Stream ownership. Completion before
+ * submission publication returns immediately rather than blocking a Worker. */
+XRT_API xfuture* xrtTlsDialAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xfuture* xrtTlsDialProxyAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#endif
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPolicyV1Get(void);
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPushPolicyV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtTlsDialFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsDialFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsDialFuturePayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureContextOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureContextOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 #endif
 
 
@@ -34687,6 +35295,52 @@ XRT_API xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 /* 释放 TLS Stream 引用；关闭必须另行请求。 */
 XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream);
 
+/* Owned counterparts preserve ordinary constructor/transfer/time contracts.
+ * Only the explicit Data credit is additional. Attach still requires exclusive
+ * session/transport IO access; the descriptor covers all session callbacks. */
+XRT_API xtlsstream* xrtTlsStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pTransport,
+	const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+XRT_API bool xrtTlsStreamAttachOwnedV1(xnetstream* pTransport,
+	xtlssession* pSession, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+XRT_API bool xrtTlsStreamClientOwnedV1(xnetstream* pTransport,
+	const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+XRT_API bool xrtTlsStreamAcceptOwnedV1(xnetstream* pTransport,
+	const xtlsserverconfig* pTls, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+
+XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream);
+/* One-time, exclusive Worker handoff of OPEN stream events. The original
+ * session/configuration Data owner is retained unchanged. Success consumes
+ * one additional event Data credit; failure consumes none. No active callback
+ * or pending read may overlap. Both exact policies participate in tracing. */
+XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* pStream, ptr pData,
+	const xtlsstreamownershipv1* pPolicy);
+XRT_API const xnetruntimeownershipv1* xrtTlsStreamRuntimeOwnershipV1Get(void);
+XRT_API const xnetstreameventsownershipv1* xrtTlsStreamTransportOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsStreamOwnershipQuiescenceV1Get(void);
+/* Frozen view, exact resident context-policy identities, outputs unchanged on
+ * refusal. Preparation requests real TCP shutdown; Clear/Finish retire owned
+ * resources with all graph targets pinned, outside user callback stacks. */
+XRT_API const xrtownershipadapterv1* xrtTlsStreamOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+/* Actual async activation, cancellation-context and result policies. Admission
+ * of a policy never admits an unknown Stream or transitive child. Preparation
+ * waits for normal source retirement; it does not prematurely close a Future. */
+XRT_API const xfutureproducerownershipv1* xrtTlsStreamFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsStreamFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsStreamFutureBytesPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsStreamFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsStreamFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+#endif
+
 
 
 /*
@@ -34718,6 +35372,19 @@ XRT_API xtlsresult xrtTlsStreamSendVec(
 	size_t iCount,
 	size_t* pWritten
 );
+
+
+
+/*
+	On the owning Worker, flush ciphertext already queued in an OPEN TLS
+	session (for example NewSessionTicket or KeyUpdate), without writing any
+	application data. OK means accepted by TCP, not delivered or drained.
+	AGAIN retains the ciphertext for the normal transport-driven retry; do
+	not repeat the operation that produced it. An empty queue is an allocation-
+	free, idempotent OK. CLOSED is terminal; other invalid states are errors.
+	This is a new public submission and cannot bypass an ownership claim.
+*/
+XRT_API xtlsresult xrtTlsStreamFlush(xtlsstream* pStream);
 
 
 
@@ -35070,6 +35737,18 @@ typedef struct xwsstreamevents {
 	);
 } xwsstreamevents;
 
+/* Permanent native descriptor. Success of an owned Attach consumes exactly
+ * one Data credit; failures consume none. Ops traces every actual Data edge.
+ * Retire, if present, only disables application callbacks through atomic
+ * native state; it must not call user code, allocate, wait or release edges. */
+typedef struct xwsstreamownershipv1 {
+	size_t size;
+	xwsstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+	void (*Retire)(const void* pData);
+} xwsstreamownershipv1;
+
 #endif
 
 
@@ -35103,6 +35782,18 @@ XRT_API xwsstream* xrtWsStreamAttach(
 	ptr pData
 );
 
+/* Attach after an HTTP reader has already consumed the Upgrade header.
+ * Initial is an exclusive, owned buffer, delivered before transport input.
+ * Success consumes its blocks; failure leaves it intact. No payload copy or
+ * allocation is introduced for this handoff. Call on the transport Worker. */
+XRT_API xwsstream* xrtWsStreamAttachBuffered(
+	xnetstream* pTransport,
+	xnetbuf* pInitial,
+	const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents,
+	ptr pData
+);
+
 
 
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
@@ -35118,12 +35809,40 @@ XRT_API xwsstream* xrtWsStreamAttachTls(
 	const xwsstreamevents* pEvents,
 	ptr pData
 );
+
+XRT_API xwsstream* xrtWsStreamAttachTlsBuffered(
+	xtlsstream* pTransport,
+	xnetbuf* pInitial,
+	const xwsstreamconfig* pConfig,
+	const xwsstreamevents* pEvents,
+	ptr pData
+);
 #endif
 
 
 
 /* 增加 Stream 引用并返回原指针。 */
 XRT_API xwsstream* xrtWsStreamRef(xwsstream* pStream);
+
+/* Owned, transactional protocol handoff. Initial may be NULL or an exclusive
+ * owned byte buffer. Prepare all allocations/ready work before rebinding
+ * callbacks; success takes transport/Data credits and Initial blocks. */
+XRT_API xwsstream* xrtWsStreamAttachOwnedV1(xnetstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	ptr pData, const xwsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
+XRT_API xwsstream* xrtWsStreamAttachTlsOwnedV1(xtlsstream* pTransport,
+	xnetbuf* pInitial, const xwsstreamconfig* pConfig,
+	ptr pData, const xwsstreamownershipv1* pPolicy);
+XRT_API const xtlsstreamownershipv1* xrtWsStreamTlsEventsOwnershipV1Get(void);
+#endif
+XRT_API xrtownershipref xrtWsStreamOwnership(const xwsstream* pStream);
+XRT_API const xnetstreameventsownershipv1* xrtWsStreamTcpEventsOwnershipV1Get(void);
+XRT_API const xnetruntimeownershipv1* xrtWsStreamRuntimeOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtWsStreamOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtWsStreamOwnershipAdapterV1(
+	xrtownershipref Reference, const xwsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 
 
 
@@ -35192,6 +35911,13 @@ XRT_API size_t xrtWsStreamPending(const xwsstream* pStream);
 /* 返回普通数据当前仍可受理的硬预算快照。 */
 XRT_API size_t xrtWsStreamWritable(const xwsstream* pStream);
 
+/* Permanent ordinary-data budget after control reserve, including the TCP
+ * hard limit. SendSize uses the same framing/masking/TLS budget calculation
+ * as Send, so callers can await sufficient capacity without guessing it. */
+XRT_API size_t xrtWsStreamWriteLimit(const xwsstream* pStream);
+XRT_API bool xrtWsStreamSendSize(const xwsstream* pStream, size_t iPayload,
+	size_t* pRequired);
+
 
 
 /* 在当前消息分块结束后暂停应用数据事件。 */
@@ -35235,6 +35961,13 @@ XRT_API xnetresult xrtWsStreamSendRef(
 	xwsopcode Opcode,
 	const xnetref* pRef
 );
+
+/* Retain the exact immutable NetBytes range only on OK. Unmasked TCP servers
+ * retain the payload in the native typed send graph; clients mask and TLS
+ * copies into the record layer. Empty ranges still send an empty message.
+ * Call on the connection Worker. The caller retains its NetBytes reference. */
+XRT_API xnetresult xrtWsStreamSendBytes(xwsstream* pStream, xwsopcode Opcode,
+	xnetbytes* pBytes, size_t iOffset, size_t iSize);
 
 
 
@@ -36465,9 +37198,7 @@ XRT_API bool xrtWsUpgradeStreamConfig(
 
 
 
-#if defined(XRT_FEATURE_WEBSOCKET_UPGRADE)
 XRT_EXTERN_C_END
-#endif
 
 #endif
 
@@ -36524,9 +37255,7 @@ XRT_API xhttp1status xrtHttp1ResponseParseBuffer(
 
 
 
-#if defined(XRT_FEATURE_HTTP1_NET)
 XRT_EXTERN_C_END
-#endif
 
 #endif
 
@@ -36583,9 +37312,7 @@ XRT_API xhttp1status xrtHttp1ResponseParseTls(
 
 
 
-#if defined(XRT_FEATURE_HTTP1_TLS)
 XRT_EXTERN_C_END
-#endif
 
 #endif
 
@@ -37995,6 +38722,69 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: include/xrt/tls_client_auth.h */
+/* ========================================================================== */
+
+#ifndef XRT_TLS_CLIENT_AUTH_H
+#define XRT_TLS_CLIENT_AUTH_H
+
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH) && \
+	(!defined(XRT_FEATURE_TLS_CLIENT_VERIFY) || \
+	 !defined(XRT_FEATURE_TLS_IDENTITY) || \
+	 !defined(XRT_FEATURE_TLS_MESSAGES_WRITE) || \
+	 !defined(XRT_FEATURE_X509_PROFILE) || !defined(XRT_FEATURE_X509_NAME))
+	#error "XRT_FEATURE_TLS_CLIENT_AUTH requires verified client, identity, message writers and X.509 profile/name"
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+
+#define XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT 16u
+#define XTLS_CLIENT_AUTH_CERTIFICATES_MAX 256u
+#define XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT (64u * 1024u)
+#define XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT (1024u * 1024u)
+#define XTLS_CLIENT_AUTH_BYTES_MAX (16u * 1024u * 1024u)
+#define XTLS_CLIENT_AUTH_AUTHORITIES_MAX 256u
+#define XTLS_CLIENT_AUTH_OID_FILTERS_MAX 64u
+#define XTLS_CLIENT_AUTH_OID_VALUES_MAX 128u
+
+/* Borrowed for Create only. The session retains Identity and snapshots limits.
+ * RequireCertificate rejects absent/incompatible certificate requests instead
+ * of completing a handshake without the configured local identity. */
+typedef struct xtlsclientauthconfigv1 {
+	size_t Size;
+	const xtlsidentity* Identity;
+	size_t MaxCertificates;
+	size_t MaxCertificateBytes;
+	size_t MaxTranscriptBytes;
+	bool RequireCertificate;
+} xtlsclientauthconfigv1;
+
+XRT_EXTERN_C_BEGIN
+
+XRT_API void xrtTlsClientAuthConfigInitV1(xtlsclientauthconfigv1* pConfig);
+
+/* Full TLS 1.2/1.3 certificate handshakes. The old client config ABI is unchanged.
+ * This first auth contract rejects Resume/ResumeOnly and disables ticket
+ * retention until local-identity binding of resumed credentials is available.
+ * Signers run synchronously on the session owner and must not reenter/destroy
+ * that session. A NULL session config has the existing client defaults. */
+XRT_API xtlssession* xrtTlsClientCreateAuthV1(
+	const xtlsclientconfig* pSession,
+	const xtlsclientauthconfigv1* pAuth,
+	xnetbufpool* pPool
+);
+
+/* True after a nonempty local Certificate/proof flight is queued. This is not
+ * transport delivery or proof of the server's authentication decision. */
+XRT_API bool xrtTlsClientCertificateQueuedV1(const xtlssession* pSession);
+
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: include/xrt/net_file.h */
 /* ========================================================================== */
 
@@ -38036,6 +38826,8 @@ XRT_API xfile xrtNetFileOpen(
 /*
 	从绝对偏移读取到调用方缓冲，返回非零操作标识。
 	只能在所属 Worker 执行；文件、缓冲和 Completion 保持到唯一终态。
+	文件结束是 OK、Bytes = 0，不是传输错误。
+	受理后该轮端口拥有图保持不透明，直到端口退休；本入口不认证调用方拥有权。
 */
 XRT_API uint64 xrtNetFileRead(
 	xnetworker* pWorker,
@@ -38051,6 +38843,7 @@ XRT_API uint64 xrtNetFileRead(
 /*
 	把调用方缓冲写入绝对偏移，返回非零操作标识。
 	热路径不复制载荷；文件、缓冲和 Completion 保持到唯一终态。
+	受理后与原生端口借用相同，拒绝 Engine 的闭合拥有图认证；失败不改变此状态。
 */
 XRT_API uint64 xrtNetFileWrite(
 	xnetworker* pWorker,
@@ -38075,6 +38868,76 @@ XRT_API bool xrtNetFileCancel(
 
 XRT_EXTERN_C_END
 
+#endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/net_file_future.h */
+/* ========================================================================== */
+
+#ifndef XRT_NET_FILE_FUTURE_H
+#define XRT_NET_FILE_FUTURE_H
+
+#if defined(XRT_FEATURE_NET_FILE_FUTURE) && (!defined(XRT_FEATURE_NET_FILE) || \
+    !defined(XRT_FEATURE_FUTURE_BRIDGE) || !defined(XRT_FEATURE_BUFFER))
+#error "native owned files require net_file, future_bridge and buffer"
+#endif
+
+#if defined(XRT_FEATURE_NET_FILE_FUTURE)
+typedef struct xnetfile xnetfile;
+/* One immutable input-owner reference. Bytes remain stable through completion;
+ * descriptors/code outlive graph pins. Success consumes one owner, failure none.
+ * This is a closed resident contract, not a public arbitrary callback adapter. */
+typedef struct xnetfiledataownershipv1 {
+    size_t size;
+    void (*Drop)(ptr Data);
+    const xrtownershipops* Ops;
+} xnetfiledataownershipv1;
+
+XRT_EXTERN_C_BEGIN
+/* Query the actual started worker's FILE_IO capability before creating or
+ * truncating. No fallback backend, helper thread or task-pool dispatch.
+ * Explicit Close is required; Destroy drops a reference and never blocks.
+ * The Engine owns a real runtime registration until physical close. */
+XRT_API xnetfile* xrtNetFileCreate(xnetengine* Engine, uint32 Worker,
+    cstr Path, const xfileoptions* Options);
+XRT_API xnetfile* xrtNetFileRef(xnetfile* File);
+XRT_API void xrtNetFileDestroy(xnetfile* File);
+/* Read returns an owned xbuffer payload (borrow with xrtFutureValue), including
+ * empty EOF. Write returns an unowned uintptr_t byte count. No shared cursor.
+ * Zero length still checks state/access/offset; UINT64/size overflow rejects.
+ * Pre-cancelled calls perform no I/O. Accepted cancel requests retain all OS
+ * duties until the unique real terminal event; completed I/O may win the race. */
+XRT_API xfuture* xrtNetFileReadFuture(xnetfile* File, uint64 Offset,
+    size_t Size, xcancel* Cancel);
+XRT_API xfuture* xrtNetFileWriteFuture(xnetfile* File, uint64 Offset,
+    xbytesview Input, xcancel* Cancel);
+XRT_API xfuture* xrtNetFileWriteRefPolicyV1(xnetfile* File, uint64 Offset,
+    xbytesview Input, ptr Owner, const xnetfiledataownershipv1* Policy, xcancel* Cancel);
+/* Reject new submissions, request cancellation of accepted I/O and observe the
+ * same preallocated close Future on every call. Physical close waits for real
+ * terminal events; cleanup failure rejects that Future, never aborts or hides.
+ * On scheduling refusal, NULL reports error and a later Close can retry. */
+XRT_API xfuture* xrtNetFileCloseFuture(xnetfile* File);
+XRT_API xrtownershipref xrtNetFileOwnership(const xnetfile* File);
+XRT_API const xnetruntimeownershipv1* xrtNetFileRuntimeOwnershipV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtNetFileFutureProducerPolicyV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtNetFileCloseProducerPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtNetFileFutureBytesPayloadPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtNetFileFutureCancelPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetFileOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtNetFileFutureOwnershipQuiescenceV1Get(void);
+/* Exact native identities are checked before any client input policy or Ops.
+ * Unknown input policies refuse unchanged. A proven-unreachable claimed File
+ * can authorize its existing runtime slot to perform real native close; no
+ * synthetic result cancellation or extra root replaces OS completion. */
+XRT_API const xrtownershipadapterv1* xrtNetFileOwnershipAdapterV1(xrtownershipref Ref,
+    const xrtownershippreparationv1** Preparation);
+XRT_API const xrtownershipadapterv1* xrtNetFileFutureOwnershipAdapterV1(xrtownershipref Ref,
+    const xnetfiledataownershipv1* const* Policies, size_t Count,
+    const xrtownershippreparationv1** Preparation);
+XRT_EXTERN_C_END
+#endif
 #endif
 
 
@@ -40684,6 +41547,39 @@ typedef xjsonvisitaction (*xjsonvisitproc)(
 	ptr pUserData
 );
 
+/* Separate lexical event domain; existing decoded visitor enums stay stable. */
+typedef enum xjsonscantype {
+	XJSON_SCAN_NULL = 0,
+	XJSON_SCAN_BOOL,
+	XJSON_SCAN_NUMBER,
+	XJSON_SCAN_STRING,
+	XJSON_SCAN_ARRAY_BEGIN,
+	XJSON_SCAN_ARRAY_END,
+	XJSON_SCAN_OBJECT_BEGIN,
+	XJSON_SCAN_OBJECT_END
+} xjsonscantype;
+
+/* Lossless Scan event. All views point into the caller's input and remain
+ * valid as long as that input remains alive and unchanged. Name includes its
+ * JSON quotes/escapes; it is present for object children. Index identifies an
+ * array child. Raw includes the complete scalar lexeme; strings include their
+ * quotes. Container BEGIN Raw is its opening byte; END Raw is the complete
+ * container span, with the same parent Name/Index as BEGIN. Location is the
+ * token's first byte, except END where it is the closing byte. Numbers always
+ * use XJSON_SCAN_NUMBER; no int/double conversion or range narrowing occurs.
+ * No string/key is unescaped or copied; UTF-8/escape grammar is still checked. */
+typedef struct xjsonscanevent {
+	xjsonscantype Type;
+	xjsonlocation Location;
+	size_t Depth;
+	bool HasName;
+	xstrview Name;
+	size_t Index;
+	xstrview Raw;
+} xjsonscanevent;
+
+typedef xjsonvisitaction (*xjsonscanproc)(const xjsonscanevent* pEvent, ptr pUserData);
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -40718,6 +41614,26 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 	xstrview Text,
 	const xjsonreadconfig* pConfig,
 	xjsonvisitproc pVisitor,
+	ptr pUserData
+);
+
+/* Scan one complete bounded JSON document without heap allocation, payload
+ * copying or native numeric conversion on success (visitor costs are separate).
+ * Uses the existing read limits, including decoded-byte MaxStringBytes even
+ * though decoded strings are not materialized. Comments/trailing commas remain
+ * opt-in. Duplicate policy and BigInteger conversion policy are DOM/Visit
+ * concerns: Scan emits every member and every valid numeric lexeme. Callers
+ * enforce application-level duplicate rules from raw names. Config values
+ * must still be valid. All input must be a real readable, nonwrapping span.
+ * NEXT/STOP/FAIL have the same semantics as Visit. STOP does not validate the
+ * remaining document. Callbacks may precede trailing syntax failure; publish a
+ * complete result only after DONE. Success preserves the ambient error except
+ * for callback changes. Cold diagnostic allocation may fall back to XERR_MEMORY.
+ * The event object is callback-scoped; its raw views borrow the caller input. */
+XRT_API xjsonvisitresult xrtJsonScan(
+	xstrview Text,
+	const xjsonreadconfig* pConfig,
+	xjsonscanproc pVisitor,
 	ptr pUserData
 );
 
@@ -42993,6 +43909,28 @@ XRT_API bool xrtLogSetLevel(xlogger* pLogger, xloglevel Level);
 /* 创建可被多个 Logger 和包装 Sink 共享的自定义 Sink。 */
 XRT_API xlogsink* xrtLogSinkCreate(const xlogsinkconfig* pConfig);
 
+/* Bind once before publication, with exactly one caller reference. Trace
+ * declares EACH strong userdata slot; Drop performs only physical release.
+ * The payload and every mutation of its owning slots participate in this
+ * XRT instance's ownership domain. The descriptor/code remains resident.
+ * Inspectors separately admit exact policy identity BEFORE calling Trace.
+ * Binding does not add a reference or change legacy C sink behaviour. */
+typedef struct xlogsinkownershipv1 {
+ size_t size;
+ bool (*Trace)(const void* pUserData,xrtownershipvisitor pVisit,ptr pContext);
+ /* Optional cold-path capability. NULL conservatively refuses worker use. */
+ bool (*WorkerSafe)(const void* pUserData);
+} xlogsinkownershipv1;
+XRT_API bool xrtLogSinkBindOwnershipV1(xlogsink*,const xlogsinkownershipv1*);
+XRT_API const xlogsinkownershipv1* xrtLogSinkOwnershipPolicyV1Get(const xlogsink*);
+XRT_API bool xrtLogSinkWorkerSafe(const xlogsink*);
+XRT_API xrtownershipref xrtLogOwnership(const xlogger*);
+XRT_API xrtownershipref xrtLogSinkOwnership(const xlogsink*);
+XRT_API const xrtownershipadapterv1* xrtLogOwnershipAdapterV1(xrtownershipref);
+XRT_API const xrtownershipadapterv1* xrtLogSinkOwnershipAdapterV1(xrtownershipref,
+ const xlogsinkownershipv1* const*,size_t);
+
+
 
 
 /* 增加或释放 Sink 引用。 */
@@ -43602,6 +44540,9 @@ XRT_API bool xrtLogAsyncConfigInit(xlogasyncconfig* pConfig);
 
 
 /* 创建调用方拥有的异步包装 Sink；目标 Sink 只增加引用，不转移调用方引用。 */
+XRT_API const xlogsinkownershipv1* xrtLogAsyncSinkOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtLogAsyncOwnershipAdapterV1(xrtownershipref);
+
 XRT_API xlogsink* xrtLogAsync(
 	xlogsink* pTarget,
 	const xlogasyncconfig* pConfig
@@ -43698,6 +44639,9 @@ XRT_API bool xrtLogRingConfigInit(xlogringconfig* pConfig);
 
 
 /* 创建高吞吐 Ring 包装 Sink；目标只增加引用，不转移调用方引用。 */
+XRT_API const xlogsinkownershipv1* xrtLogRingSinkOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtLogRingOwnershipAdapterV1(xrtownershipref);
+
 XRT_API xlogsink* xrtLogRing(
 	xlogsink* pTarget,
 	const xlogringconfig* pConfig
@@ -46351,6 +47295,64 @@ XRT_EXTERN_C_END
 #endif
 
 #endif
+
+
+/* ========================================================================== */
+/* public: include/xrt/event_waiter.h */
+/* ========================================================================== */
+
+#ifndef XRT_EVENT_WAITER_H
+#define XRT_EVENT_WAITER_H
+#if defined(XRT_FEATURE_EVENT_WAITER) && !defined(XRT_FEATURE_EVENT)
+#error "XRT_FEATURE_EVENT_WAITER requires XRT_FEATURE_EVENT"
+#endif
+#if defined(XRT_FEATURE_EVENT_WAITER)
+#if defined(_WIN32) || defined(_WIN64)
+#define XRT_EVENT_WAITER_STORAGE_SIZE 40u
+#else
+#define XRT_EVENT_WAITER_STORAGE_SIZE 32u
+#endif
+typedef union xeventwaiter {uint64 Alignment;uint8 Storage[XRT_EVENT_WAITER_STORAGE_SIZE];} xeventwaiter;
+typedef enum xeventwaiterbackend {
+    XEVENT_WAITER_PLATFORM=0,XEVENT_WAITER_WINDOWS_HIGH_RESOLUTION,
+    XEVENT_WAITER_WINDOWS_STANDARD,XEVENT_WAITER_POSIX_MONOTONIC
+} xeventwaiterbackend;
+#define XRT_EVENT_WAITER_REQUIRE_PRECISE UINT32_C(1)
+typedef struct xeventwaiterinfo {size_t StorageBytes;xeventwaiterbackend Backend;uint32 NativeTimers;} xeventwaiterinfo;
+XRT_EXTERN_C_BEGIN
+/* Caller-owned reusable deadline context borrowing one initialized event through
+ * Unit. Init succeeds only into uninitialized storage, which must not overlap the
+ * event. Failure preserves storage/borrowed event and releases all new resources.
+ * WaitFor belongs to the native Init thread; signals use ordinary EventSet from
+ * any thread. No new thread, callback, shared runtime or requested heap allocation.
+ * Windows owns one reusable nonperiodic timer, preferring a high-resolution timer
+ * without changing global/process timer resolution. Unsupported precise backends
+ * fall back only with Flags=0; REQUIRE_PRECISE rejects that fallback. POSIX reuses
+ * the event's monotonic condition where available. Inspect the actual backend;
+ * precision selection is not a bound on OS scheduling/wake latency.
+ * Other flag bits are invalid. Success/normal timeout preserve ambient error.
+ * Diagnostics can fall back to MEMORY under diagnostic OOM. Error domain is
+ * xrt.event_waiter (clock failures may retain xrt.time). No API grants concurrent
+ * Unit/reinitialization, destruction of the borrowed event or escaping its storage. */
+XRT_API bool xrtEventWaiterInit(xeventwaiter* Waiter,xevent* Event,uint32 Flags);
+/* Caller-exclusive, no live WaitFor. May run on another thread after a physical
+ * handoff/join. Releases only its timer/context, never the borrowed event. Owner
+ * error-handler reentry during a wait is BUSY. Successful Unit clears storage. */
+XRT_API bool xrtEventWaiterUnit(xeventwaiter* Waiter);
+/* Relative signed milliseconds, -1 forever, 0 poll. One original monotonic budget
+ * survives backend/spurious wakeups. Ready event wins over timeout, and automatic
+ * reset consumes exactly one signal. Windows timer signals never consume the
+ * borrowed event. Timers are rearmed/reset per finite wait and cancelled after an
+ * event wins. Invalid timeout/owner transfers no event signal. Backend errors may
+ * consume a ready signal; they are observable errors, not a successful timeout. */
+XRT_API xwaitresult xrtEventWaiterWaitFor(xeventwaiter* Waiter,int64 Timeout);
+/* Immutable capability/layout metadata; output must be disjoint from both public
+ * storage objects. No concurrent Init/Unit; metadata can otherwise be inspected
+ * by another thread while the owner waits. */
+XRT_API bool xrtEventWaiterGet(const xeventwaiter* Waiter,xeventwaiterinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY
@@ -46719,6 +47721,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_EVENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER)
+#undef XRT_FEATURE_EVENT_WAITER
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR)
 #undef XRT_FEATURE_EXECUTOR
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR
@@ -47075,6 +48081,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_NET_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE)
+#undef XRT_FEATURE_NET_FILE_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME)
 #undef XRT_FEATURE_NET_FRAME
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME
@@ -47182,6 +48192,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE)
 #undef XRT_FEATURE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#undef XRT_FEATURE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #undef XRT_FEATURE_NET_TCP_SERVER
@@ -47498,6 +48512,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT)
 #undef XRT_FEATURE_TLS_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH)
+#undef XRT_FEATURE_TLS_CLIENT_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_RESUME)
 #undef XRT_FEATURE_TLS_CLIENT_RESUME
@@ -48283,6 +49301,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_EVENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER)
+#undef XRT_MODULE_EVENT_WAITER
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_EVENT_WAITER
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR)
 #undef XRT_MODULE_EXECUTOR
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_EXECUTOR
@@ -48639,6 +49661,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE)
+#undef XRT_MODULE_NET_FILE_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FILE_FUTURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FRAME)
 #undef XRT_MODULE_NET_FRAME
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_FRAME
@@ -48746,6 +49772,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE)
 #undef XRT_MODULE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE)
+#undef XRT_MODULE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SERVER)
 #undef XRT_MODULE_NET_TCP_SERVER
@@ -49062,6 +50092,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT)
 #undef XRT_MODULE_TLS_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH)
+#undef XRT_MODULE_TLS_CLIENT_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_AUTH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_CLIENT_RESUME)
 #undef XRT_MODULE_TLS_CLIENT_RESUME
@@ -49493,6 +50527,16 @@ XRT_EXTERN_C_END
 /* 此文件由 tools/generate_features.py 生成，请勿直接修改。 */
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
+
+/* event_waiter 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EVENT_WAITER)
+#ifndef XRT_FEATURE_EVENT_WAITER
+#define XRT_FEATURE_EVENT_WAITER
+#endif
+#ifndef XRT_MODULE_EVENT
+#define XRT_MODULE_EVENT
+#endif
+#endif
 
 /* regex 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_REGEX)
@@ -50842,19 +51886,6 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* net_dial_future_common 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
-#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
-#endif
-#ifndef XRT_MODULE_NET_TCP
-#define XRT_MODULE_NET_TCP
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
-#endif
-#endif
-
 /* tls_stream_dial_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_DIAL_FUTURE
@@ -50863,11 +51894,21 @@ XRT_EXTERN_C_END
 #ifndef XRT_MODULE_TLS_STREAM_DIAL
 #define XRT_MODULE_TLS_STREAM_DIAL
 #endif
+#ifndef XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#define XRT_MODULE_NET_DIAL_FUTURE_COMMON
+#endif
+#endif
+
+/* net_dial_future_common 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_DIAL_FUTURE_COMMON)
+#ifndef XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#define XRT_FEATURE_NET_DIAL_FUTURE_COMMON
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
 #ifndef XRT_MODULE_FUTURE
 #define XRT_MODULE_FUTURE
-#endif
-#ifndef XRT_MODULE_FUTURE_BRIDGE
-#define XRT_MODULE_FUTURE_BRIDGE
 #endif
 #endif
 
@@ -51011,6 +52052,19 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* net_tcp_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_RETIRE)
+#ifndef XRT_FEATURE_NET_TCP_RETIRE
+#define XRT_FEATURE_NET_TCP_RETIRE
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#endif
+
 /* net_tcp_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_FUTURE)
 #ifndef XRT_FEATURE_NET_TCP_FUTURE
@@ -51056,6 +52110,22 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* net_file_future 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE_FUTURE)
+#ifndef XRT_FEATURE_NET_FILE_FUTURE
+#define XRT_FEATURE_NET_FILE_FUTURE
+#endif
+#ifndef XRT_MODULE_NET_FILE
+#define XRT_MODULE_NET_FILE
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_BUFFER
+#define XRT_MODULE_BUFFER
+#endif
+#endif
+
 /* net_file 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_FILE)
 #ifndef XRT_FEATURE_NET_FILE
@@ -51071,6 +52141,28 @@ XRT_EXTERN_C_END
 #ifndef XRT_MODULE_NET_PORT_URING
 #define XRT_MODULE_NET_PORT_URING
 #endif
+#endif
+#endif
+
+/* tls_client_auth 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_CLIENT_AUTH)
+#ifndef XRT_FEATURE_TLS_CLIENT_AUTH
+#define XRT_FEATURE_TLS_CLIENT_AUTH
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY
+#define XRT_MODULE_TLS_IDENTITY
+#endif
+#ifndef XRT_MODULE_TLS_MESSAGES_WRITE
+#define XRT_MODULE_TLS_MESSAGES_WRITE
+#endif
+#ifndef XRT_MODULE_X509_PROFILE
+#define XRT_MODULE_X509_PROFILE
+#endif
+#ifndef XRT_MODULE_X509_NAME
+#define XRT_MODULE_X509_NAME
 #endif
 #endif
 

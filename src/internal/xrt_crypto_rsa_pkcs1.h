@@ -7,6 +7,11 @@
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PKCS1)
 
+xrt_crypto_check __xrtRsaPkcs1Check(
+	const xrsapublickey* pKey, xcryptohash iHash, const void* pHash,
+	const void* pSignature, size_t iSignatureSize
+);
+
 /* 选择摘要对应的规范 DigestInfo 前缀和长度。 */
 bool __xrtRsaDigestInfo(
 	xcryptohash iHash,

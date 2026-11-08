@@ -30,6 +30,25 @@ void __xrtEd25519Error(
 /* 验证展开签名密钥的完整性标记。 */
 bool __xrtEd25519ValidateKey(const xed25519key* pKey);
 
+/* Shared argument predicate: checking a context must not allocate diagnostics. */
+static inline bool __xrtEd25519ContextValid(
+	xed25519mode Mode, const void* Context, size_t Size
+)
+{
+	return (Mode >= XED25519_PURE) && (Mode <= XED25519_PREHASH) &&
+		(Size <= XRT_ED25519_CONTEXT_MAX_SIZE) &&
+		((Context != NULL) || (Size == 0)) &&
+		((Mode != XED25519_PURE) || (Size == 0));
+}
+
+#if defined(XRT_FEATURE_CRYPTO_ED25519_VERIFY)
+xrt_crypto_check __xrtEd25519Check(
+	const void* pPublic, xed25519mode iMode, const void* pContext,
+	size_t iContextSize, const void* pMessage, size_t iMessageSize,
+	const void* pSignature
+);
+#endif
+
 
 
 /* 初始化带 RFC 8032 域分离前缀的 SHA-512 状态。 */

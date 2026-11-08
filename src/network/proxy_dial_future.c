@@ -11,9 +11,11 @@ static bool __xrtNetProxyDialFutureCancel(ptr operation)
 { return xrtNetProxyDialCancel(operation); }
 static xrtownershipref __xrtNetProxyDialFutureTraceOperation(const void* operation)
 { return xrtNetProxyDialOwnership(operation); }
+static void __xrtNetProxyDialFutureAbortValue(ptr value) { (void)xrtNetStreamAbort(value); }
 static const xrt_net_dial_future_policy __xrtNetProxyDialFutureOperations = {
     __xrtNetProxyDialFutureRef, __xrtNetProxyDialFutureDestroy,
-    __xrtNetProxyDialFutureCancel, __xrtNetProxyDialFutureTraceOperation
+    __xrtNetProxyDialFutureCancel, __xrtNetProxyDialFutureTraceOperation,
+    &__xrtNetStreamDialFuturePayloadPolicy, __xrtNetProxyDialFutureAbortValue, NULL
 };
 static void __xrtNetProxyDialFutureDone(xnetproxydial* dial, xnetresult result,
     xnetstream* stream, const xerror* failure, ptr data)

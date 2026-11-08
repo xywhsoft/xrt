@@ -584,6 +584,7 @@
 				"docs/api/task.md"
 			]
 		},
+
 		{
 			"name": "executor_ownership_tests",
 			"state": "implemented",
@@ -2003,7 +2004,8 @@
 				"src/internal/xrt_websocket_stream.h"
 			],
 			"sources": [
-				"src/websocket/stream.c"
+				"src/websocket/stream.c",
+				"src/websocket/stream_ownership.c"
 			],
 			"tests": [
 				"tests/websocket/test_stream.c",
@@ -2011,7 +2013,10 @@
 				"tests/websocket/test_stream_invalid.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_websocket_stream.c"
+				"tests/single/test_single_websocket_stream.c",
+				"tests/single/test_single_websocket_buffered.c",
+				"tests/single/test_single_websocket_owned.c",
+				"tests/single/test_single_websocket_attach_oom.c"
 			],
 			"examples": [
 				"examples/websocket/stream_tour/main.c"
@@ -2040,7 +2045,8 @@
 				"tests/websocket/test_stream.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_websocket_stream.c"
+				"tests/single/test_single_websocket_stream.c",
+				"tests/single/test_single_websocket_owned_bytes.c"
 			],
 			"examples": [
 				"examples/websocket/stream_ref/main.c"
@@ -5103,10 +5109,12 @@
 			],
 			"tests": [
 				"tests/x509/test_x509_parse.c",
-				"tests/x509/test_x509_parse_oom.c"
+				"tests/x509/test_x509_parse_oom.c",
+				"tests/x509/test_x509_spki.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_x509_parse.c"
+				"tests/single/test_single_x509_parse.c",
+				"tests/single/test_single_x509_spki.c"
 			],
 			"examples": [
 				"examples/x509/inspect/main.c",
@@ -7166,13 +7174,16 @@
 				"src/concurrency/executor_ownership.c"
 			],
 			"tests": [
-				"tests/concurrency/test_executor.c"
+				"tests/concurrency/test_executor.c",
+				"tests/concurrency/test_executor_current.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_executor.c"
+				"tests/single/test_single_executor.c",
+				"tests/single/test_single_executor_current.c"
 			],
 			"examples": [
 				"examples/concurrency/executor/main.c",
+				"examples/concurrency/executor_current/main.c",
 				"examples/concurrency/executor_tour/main.c"
 			],
 			"benchmarks": [
@@ -8220,6 +8231,19 @@
 			]
 		},
 		{
+			"name": "tls_session_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_session", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_session_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_session_ownership.c"],
+			"examples": [],
+			"docs": ["docs/design/tls-session.md"]
+		},
+		{
 			"name": "tls_session_record_tests",
 			"state": "implemented",
 			"feature": null,
@@ -8452,7 +8476,8 @@
 			],
 			"single_tests": [
 				"tests/single/test_single_tls_client.c",
-				"tests/single/test_single_tls_client_server_hello.c"
+				"tests/single/test_single_tls_client_server_hello.c",
+				"tests/single/test_single_tls_client_certificate_request.c"
 			],
 			"examples": [],
 			"docs": []
@@ -8741,6 +8766,34 @@
 			"docs": []
 		},
 		{
+			"name": "tls_client_auth",
+			"state": "developing",
+			"feature": "XRT_FEATURE_TLS_CLIENT_AUTH",
+			"depends": ["tls_client_verify", "tls_identity", "tls_messages_write", "x509_profile", "x509_name"],
+			"public_headers": ["include/xrt/tls_client_auth.h"],
+			"internal_headers": ["src/internal/xrt_tls_client.h", "src/internal/xrt_tls_client_auth.h"],
+			"sources": ["src/tls/client_auth.c", "src/tls/client_auth_select.c", "src/tls/client_auth12.c"],
+			"tests": [], "single_tests": [], "examples": [],
+			"docs": ["docs/api/tls.md", "docs/design/tls-session.md"]
+		},
+		{
+			"name": "tls_client_auth_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_client_auth", "tls_client_tests", "tls_server_tests", "tls_auth_messages_write", "memory_debug"],
+			"public_headers": [], "internal_headers": [], "sources": [],
+			"tests": ["tests/tls/test_tls_client_auth.c", "tests/tls/test_tls_client_auth12.c"],
+			"single_tests": ["tests/single/test_single_tls_client_auth.c", "tests/single/test_single_tls_client_auth12.c"],
+			"examples": [], "docs": []
+		},
+		{
+			"name": "tls_client_auth_examples",
+			"state": "implemented", "feature": null,
+			"depends": ["tls_client_auth", "tls_identity_builtin", "tls_key_exchange_x25519", "tls_record_aes", "tls_schedule_sha256"],
+			"public_headers": [], "internal_headers": [], "sources": [], "tests": [], "single_tests": [],
+			"examples": ["examples/tls/client_auth/main.c"], "docs": []
+		},
+		{
 			"name": "tls_server",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_TLS_SERVER",
@@ -8821,14 +8874,18 @@
 			"sources": [],
 			"tests": [
 				"tests/tls/test_tls_server.c",
+				"tests/tls/test_tls_server_choice_identity.c",
 				"tests/tls/test_tls_server12.c",
 				"tests/tls/test_tls_server_alert.c",
 				"tests/tls/test_tls_server_resume.c",
+				"tests/tls/test_tls_server_resume_owned.c",
 				"tests/tls/test_tls_server_limits.c",
 				"tests/tls/test_tls_server_oom.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_tls_server.c"
+				"tests/single/test_single_tls_server.c",
+				"tests/single/test_single_tls_server_choice_identity.c",
+				"tests/single/test_single_tls_client12_certificate_request.c"
 			],
 			"examples": [
 				"examples/tls/server/main.c"
@@ -9093,7 +9150,8 @@
 				"include/xrt/net.h"
 			],
 			"internal_headers": [
-				"src/internal/xrt_net_port.h"
+				"src/internal/xrt_net_port.h",
+				"src/internal/xrt_net_iocp_timer.h"
 			],
 			"sources": [
 				"src/network/port_iocp.c"
@@ -9102,10 +9160,13 @@
 				"tests/network/test_net_port_iocp.c",
 				"tests/network/test_net_port_threads.c",
 				"tests/network/test_net_port_iocp_oom.c",
+				"tests/network/test_net_port_iocp_timer.c",
 				"tests/network/test_net_port_iocp_stress.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_net_port_iocp.c"
+				"tests/single/test_single_net_port_iocp.c",
+				"tests/single/test_single_net_port_iocp_timer.c",
+				"tests/single/test_single_net_port_iocp_deadline.c"
 			],
 			"examples": [
 				"examples/network/port_iocp/main.c"
@@ -9173,6 +9234,7 @@
 			"single_tests": [
 				"tests/single/test_single_net_engine.c"
 			],
+			"benchmarks": ["dev/bench/network/bench_net_timer.c"],
 			"examples": [
 				"examples/network/engine/main.c",
 				"examples/network/engine_tour/main.c"
@@ -9197,7 +9259,7 @@
 			"public_headers": [
 				"include/xrt/net_file.h"
 			],
-			"internal_headers": [],
+			"internal_headers": ["src/internal/xrt_net_file.h"],
 			"sources": [
 				"src/network/file.c"
 			],
@@ -9213,6 +9275,19 @@
 			"docs": [
 				"docs/api/net-file.md"
 			]
+		},
+		{
+			"name": "net_file_future",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_FILE_FUTURE",
+			"depends": ["net_file", "future_bridge", "buffer"],
+			"public_headers": ["include/xrt/net_file_future.h"],
+			"internal_headers": [],
+			"sources": ["src/network/file_future.c"],
+			"tests": ["tests/network/test_net_file_future.c"],
+			"single_tests": ["tests/single/test_single_net_file_future.c"],
+			"examples": [],
+			"docs": ["docs/api/net-file.md"]
 		},
 		{
 			"name": "task_net",
@@ -9372,6 +9447,35 @@
 				"tests/single/test_single_net_stream_events_ownership.c"
 			],
 			"examples": [],
+			"docs": [
+				"docs/api/tcp.md"
+			]
+		},
+		{
+			"name": "net_tcp_retire",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_NET_TCP_RETIRE",
+			"depends": [
+				"net_tcp",
+				"cond"
+			],
+			"public_headers": [
+				"include/xrt/tcp.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_tcp.h"
+			],
+			"sources": [
+				"src/network/tcp_retire.c"
+			],
+			"tests": [
+				"tests/network/test_net_tcp_retire.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_net_tcp_retire.c"
+			],
+			"examples": [],
+			"benchmarks": [],
 			"docs": [
 				"docs/api/tcp.md"
 			]
@@ -9850,15 +9954,13 @@
 			"feature": "XRT_FEATURE_TLS_STREAM_DIAL_FUTURE",
 			"depends": [
 				"tls_stream_dial",
-				"future",
-				"future_bridge"
+				"net_dial_future_common"
 			],
 			"public_headers": [
 				"include/xrt/tls_stream.h"
 			],
 			"internal_headers": [
-				"src/internal/xrt_tls_stream.h",
-				"src/internal/xrt_future_bridge.h"
+				"src/internal/xrt_tls_stream.h"
 			],
 			"sources": [
 				"src/tls/stream_dial_future.c"
@@ -10145,6 +10247,137 @@
 			]
 		},
 		{
+			"name": "tls_transport_handoff_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream",
+				"tls_client_resume",
+				"tls_server_resume",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"net_tcp_future",
+				"tls_stream_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_transport_handoff.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_transport_handoff.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-transport-handoff.md"
+			]
+		},
+		{
+			"name": "tls_stream_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream",
+				"tls_client_resume",
+				"tls_server_resume",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"pem",
+				"net_tcp_future",
+				"tls_stream_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_stream_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_stream_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-stream-ownership.md"
+			]
+		},
+		{
+			"name": "tls_stream_future_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream_ownership_tests"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_stream_future_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_stream_future_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-stream-future-ownership.md"
+			]
+		},
+		{
+			"name": "tls_listener_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream_future_ownership_tests",
+				"tls_stream_listener_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_listener_ownership.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_listener_ownership.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/design/tls-listener-ownership.md"
+			]
+		},
+		{
+			"name": "tls_dial_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_listener_ownership_tests", "tls_stream_dial"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_dial_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_dial_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls.md"]
+		},
+		{
+			"name": "tls_dial_future_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_dial_ownership_tests", "tls_stream_dial_future", "tls_stream_dial_proxy", "net_proxy_dial_future", "net_tcp_dial_future", "net_proxy_http_connect", "net_proxy_socks5"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_dial_future_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_dial_future_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls.md"]
+		},
+		{
 			"name": "tls_stream_tests",
 			"state": "implemented",
 			"feature": null,
@@ -10314,7 +10547,7 @@
 			"name": "net_dial_future_common",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_NET_DIAL_FUTURE_COMMON",
-			"depends": ["net_tcp", "future_bridge"],
+			"depends": ["net_tcp", "future"],
 			"public_headers": [],
 			"internal_headers": ["src/internal/xrt_dial_future.h"],
 			"sources": ["src/network/dial_future.c"],
@@ -13375,12 +13608,19 @@
 			],
 			"tests": [
 				"tests/json/test_json_read.c",
-				"tests/json/test_json_read_oom.c"
+				"tests/json/test_json_read_oom.c",
+				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
+				"tests/package/test_json_scan_consumer.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_json_read.c"
+				"tests/single/test_single_json_read.c",
+				"tests/single/test_single_json_scan.c"
 			],
 			"examples": [],
+			"benchmarks": [
+				"dev/bench/json/bench_json_scan.c"
+			],
 			"docs": [
 				"docs/api/json.md",
 				"docs/design/json-xlon.md"
@@ -13462,12 +13702,16 @@
 				"tests/json/test_json_read.c",
 				"tests/json/test_json_read_oom.c",
 				"tests/json/test_json_write.c",
+				"tests/json/test_json_scan.c",
+				"tests/json/test_json_header.c",
+				"tests/package/test_json_scan_consumer.c",
 				"tests/json/test_json_write_oom.c",
 				"tests/json/test_json_file.c"
 			],
 			"single_tests": [
 				"tests/single/test_single_json_read.c",
 				"tests/single/test_single_json_write.c",
+				"tests/single/test_single_json_scan.c",
 				"tests/single/test_single_json_file.c"
 			],
 			"examples": [
@@ -14711,7 +14955,8 @@
 				"tests/logging/test_logger_ring_return.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_logger_ring.c"
+				"tests/single/test_single_logger_ring.c",
+				"tests/single/test_single_logger_ownership.c"
 			],
 			"examples": [
 				"examples/logging/ring_async/main.c"
@@ -15706,6 +15951,241 @@
 			"single_tests": ["tests/single/test_single_task_group_prepare.c"],
 			"examples": [],
 			"docs": ["docs/api/task.md", "docs/api/future.md"]
+		},
+		{
+			"name": "x509_verification_decision_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_verify_rsa",
+				"x509_verify_ecdsa",
+				"x509_verify_ed25519",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/x509/test_x509_verification_decisions.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_verification_decisions.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/verification-decisions.md"
+			]
+		},
+		{
+			"name": "x509_path_decision_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_path_build", "x509_verify_rsa", "x509_verify_ecdsa", "x509_verify_ed25519", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_path_decisions.c"],
+			"single_tests": ["tests/single/test_single_x509_path_decisions.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "x509_path_decision_no_backend_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_path_build", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_path_decisions_no_backend.c"],
+			"single_tests": ["tests/single/test_single_x509_path_decisions_no_backend.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "x509_store_snapshot_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"x509_store",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/x509/test_x509_store_snapshot.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_x509_store_snapshot.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/x509.md"
+			]
+		},
+		{
+			"name": "x509_path_empty_store_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_store", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_path_empty_store.c"],
+			"single_tests": ["tests/single/test_single_x509_path_empty_store.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "x509_path_work_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_path_build", "x509_verify_rsa", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_path_work.c"],
+			"single_tests": ["tests/single/test_single_x509_path_work.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "x509_store_input_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_store_file", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_store_input.c"],
+			"single_tests": ["tests/single/test_single_x509_store_input.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "x509_identity_span_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["x509_identity", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/x509/test_x509_identity_span.c"],
+			"single_tests": ["tests/single/test_single_x509_identity_span.c"],
+			"examples": [],
+			"docs": ["docs/api/x509.md"]
+		},
+		{
+			"name": "tls_session_verifier_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_client_verify", "tls_key_exchange_x25519", "tls_record_aes", "tls_schedule_sha256", "x509_verify_rsa", "memory_debug", "tls_stream_listener", "tls_identity_rsa", "pem"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_session_verifier_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_session_verifier_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls-verifier-ownership.md"]
+		},
+		{
+			"name": "tls_verify_ownership_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_verify", "x509_verify_rsa", "thread", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_verify_ownership.c"],
+			"single_tests": ["tests/single/test_single_tls_verify_ownership.c"],
+			"examples": [],
+			"docs": ["docs/api/tls-verifier-ownership.md"]
+		},
+		{
+			"name": "tls_verify_limits_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["tls_verify", "x509_verify_rsa", "memory_debug"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/tls/test_tls_verify_limits.c"],
+			"single_tests": ["tests/single/test_single_tls_verify_limits.c"],
+			"examples": [],
+			"docs": [
+				"docs/api/tls.md"
+			]
+		},
+		{
+			"name": "executor_current_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": ["executor", "memory_stats"],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/concurrency/test_executor_current.c"],
+			"single_tests": ["tests/single/test_single_executor_current.c"],
+			"examples": [],
+			"benchmarks": [],
+			"docs": ["docs/api/executor.md"]
+		},
+		{
+			"name": "event_waiter",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_EVENT_WAITER",
+			"depends": [
+				"event"
+			],
+			"public_headers": [
+				"include/xrt/event_waiter.h"
+			],
+			"internal_headers": [],
+			"sources": [
+				"src/concurrency/event_waiter.c"
+			],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"examples": [
+				"examples/concurrency/event_waiter/main.c"
+			],
+			"benchmarks": ["dev/bench/event_waiter/bench_event_waiter.c"],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
+		},
+		{
+			"name": "event_waiter_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"event_waiter",
+				"thread",
+				"memory_stats"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/concurrency/test_event_waiter.c",
+				"tests/whitebox/test_event_waiter_native.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_event_waiter.c"
+			],
+			"single_test_owners": {
+				"tests/single/test_single_event_waiter.c": "event_waiter"
+			},
+			"examples": [],
+			"benchmarks": [],
+			"docs": [
+				"docs/api/event_waiter.md"
+			]
 		}
 	]
 }

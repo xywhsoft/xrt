@@ -209,7 +209,7 @@ static bool __xrtEcdsaDecodeInteger(
 
 
 /* 严格解码规范 DER ECDSA 签名为定宽 raw r||s。 */
-XRT_API bool xrtEcdsaDerDecode(
+xrt_crypto_check __xrtEcdsaDerDecodeCheck(
 	const void* pDer,
 	size_t iDerSize,
 	void* pRaw,
@@ -224,8 +224,7 @@ XRT_API bool xrtEcdsaDerDecode(
 
 	if ( (pDer == NULL) || (pRaw == NULL) || (iScalarSize == 0) ||
 		(iScalarSize > XRT_ECDSA_DER_SCALAR_MAX_SIZE) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	bValid = (iOffset < iDerSize) && (pInput[iOffset++] == 0x30u) &&
 		__xrtEcdsaReadLength(pInput, iDerSize, &iOffset, &iSequenceSize) &&
@@ -239,12 +238,30 @@ XRT_API bool xrtEcdsaDerDecode(
 		(iOffset == iDerSize);
 	if ( !bValid ) {
 		xrtSecureZero(Output, sizeof(Output));
-		__xrtEcdsaError("ecdsa-der-decode", "the ECDSA signature is not canonical DER");
-		return false;
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 	memcpy(pRaw, Output, iScalarSize * 2u);
 	xrtSecureZero(Output, sizeof(Output));
-	return true;
+	return XRT_CRYPTO_CHECK_VALID;
+}
+
+XRT_API bool xrtEcdsaDerDecode(
+	const void* pDer, size_t iDerSize, void* pRaw, size_t iScalarSize
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaDerDecodeCheck(
+		pDer, iDerSize, pRaw, iScalarSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEcdsaError("ecdsa-der-decode", "the ECDSA signature is not canonical DER");
+	}
+	return false;
 }
 
 #endif

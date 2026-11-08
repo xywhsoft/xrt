@@ -1664,6 +1664,7 @@ typedef struct xtlsserverchoice {
 	const xtlsidentity* Identity;
 	size_t Protocol;
 	uint64 Cookie;
+	xtlsidentity* IdentityOwnerV1; /* 框架私有；回调不可直接读写或复制。 */
 } xtlsserverchoice;
 ```
 
@@ -1672,6 +1673,7 @@ typedef struct xtlsserverchoice {
 | `Identity` | `const xtlsidentity*` | Identity |
 | `Protocol` | `size_t` | Protocol |
 | `Cookie` | `uint64` | Cookie |
+| `IdentityOwnerV1` | `xtlsidentity*` | 框架管理的回调期独立引用；仅由下述 setter 管理 |
 
 
 ### `xtlsserverresumerequest`
@@ -7985,6 +7987,25 @@ const xtlscontext* xrtTlsSessionContext(const xtlssession* pSession)
 ```
 
 
+### `xrtTlsSessionBufferOwnershipTrace`
+
+```c
+bool xrtTlsSessionBufferOwnershipTrace(
+    const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+);
+```
+
+只读枚举 Feed、Send、Plain、Scratch 四条队列真实持有的池块租约与不可变
+NetBytes 引用，包括独立预留块。每条拥有边分别交付，不去重；默认池指针
+只是借用。调用方须排除会话与队列变更，并保持被访问对象稳定（通常整体
+拥有域 Freeze）；访问器不得修改资源。接口不分配、不持有／释放对象、
+不执行释放回调，也不修改线程错误槽。
+
+返回 false 表示 NULL 参数、访问器主动停止或遇到无法认证的外部／借用
+节点；失败前可能已交付部分边。它不认证会话本体、Context、角色私有状态、
+验证器或身份回调，不能把成功结果当作完整会话的叶／退役证明。详细边界见
+[队列拥有边](../design/tls-session.md#队列拥有边)。
+
 ### `xrtTlsSessionDestroy`
 
 销毁会话、释放队列并归还上下文引用；空指针无操作。
@@ -9618,6 +9639,10 @@ uint64 xrtTlsClientResumeDropped(const xtlssession* pSession)
 
 返回服务端是否接受了本次创建时提供的恢复对象。
 
+此查询属于基础 `tls_client` 模块，不会启用票据或恢复握手实现。
+未编译 `tls_client_resume` 时，对合法客户端会话返回 `false`；
+启用恢复能力时读取会话的真实状态。调用方仍须遵守会话线程和生命周期合同。
+
 ```c
 bool xrtTlsClientResumed(const xtlssession* pSession)
 ```
@@ -9820,7 +9845,7 @@ xtlsresult Result = xrtTlsClientKeyUpdate(
 
 服务端可以不选择 PSK，此时客户端安全回退到完整证书握手。服务端选择时只接受 identity `0`，套件摘要必须与票据一致且仍必须提供有效 key share；接受后客户端跳过 Certificate/CertificateVerify，直接校验服务端 Finished，再按正常路径发送客户端 Finished 并切换应用 epoch。恢复连接的 ALPN 必须与票据绑定完全一致，后续新票据继承原来已经认证的 `PeerIdentity`。`xrtTlsClientResumed()` 在服务端 ServerHello 接受 identity `0` 后返回 `true`；它报告协商选择，不把后续握手成功状态混入同一个查询。
 
-当前门禁已经覆盖证书认证和 PSK+DHE 恢复型 TLS 1.3 客户端从 ClientHello 到持续 READY 的主路径：独立复算 binder、双方 Finished、应用流量秘密、resumption master 与 ticket PSK，验证恢复回退、错误 identity、缺失 key share、ALPN 绑定、双向应用数据、认证关闭、KeyUpdate 两种请求、主动更新、旧/新 epoch 顺序、票据分片/聚合/有界淘汰/深拷贝路由域、应用及输出背压、非法消息、目标 OOM、GCC、TinyCC x86 和单头文件。客户端同时支持带 extended master secret 的 TLS 1.2 ECDHE 证书完整握手、ALPN、双向应用数据与认证关闭；TLS 1.2 不提供会话恢复、重新协商或 KeyUpdate。非 ResumeOnly 配置缺少 verifier 时在创建期拒绝。客户端与服务端支持单次 HRR；TLS 1.3 应用写入会在记录用量临界点自动换钥。CertificateRequest、客户端证书认证和 0-RTT 未实现。对应门禁位于 `tests/tls/test_tls_client.c`、`tests/tls/test_tls_client_server_hello.c`、`tests/tls/test_tls_server12.c`、`tests/tls/test_tls_client_oom.c`、`tests/single/test_single_tls_client.c` 和 `tests/single/test_single_tls_client_server_hello.c`。
+当前门禁已经覆盖证书认证和 PSK+DHE 恢复型 TLS 1.3 客户端从 ClientHello 到持续 READY 的主路径：独立复算 binder、双方 Finished、应用流量秘密、resumption master 与 ticket PSK，验证恢复回退、错误 identity、缺失 key share、ALPN 绑定、双向应用数据、认证关闭、KeyUpdate 两种请求、主动更新、旧/新 epoch 顺序、票据分片/聚合/有界淘汰/深拷贝路由域、应用及输出背压、非法消息、目标 OOM、GCC、TinyCC x86 和单头文件。客户端同时支持带 extended master secret 的 TLS 1.2 ECDHE 证书完整握手、ALPN、双向应用数据与认证关闭；TLS 1.2 不提供会话恢复、重新协商或 KeyUpdate。非 ResumeOnly 配置缺少 verifier 时在创建期拒绝。客户端与服务端支持单次 HRR；TLS 1.3 应用写入会在记录用量临界点自动换钥。初始 CertificateRequest 已支持无身份客户端按标准发送空证书链；TLS 1.3 请求上下文必须为空，重复、乱序和畸形请求会被拒绝，完整响应受发送限额与背压约束。客户端证书签名认证和 0-RTT 仍未实现；详细边界及互操作命令见 [无身份客户端的证书请求应答](../development/tls-client-certificate-request.md)。对应门禁位于 `tests/tls/test_tls_client.c`、`tests/tls/test_tls_client_server_hello.c`、`tests/tls/test_tls_server12.c`、`tests/tls/test_tls_client_oom.c`、`tests/single/test_single_tls_client.c` 和 `tests/single/test_single_tls_client_server_hello.c`。
 
 
 
@@ -9892,6 +9917,28 @@ bool xrtTlsServerCookie(const xtlssession* pSession, uint64* pCookie)
 		(void)xrtTlsServerCookie(pServer, &Cookie);
 ```
 
+
+### `xrtTlsServerChoiceSetIdentityV1`
+
+仅在 `xtlsserverselectproc` 回调期间使用：为选择结果独立 retain 身份。
+设置成功后，回调可以立即释放自己的身份引用，或销毁提供该身份的临时
+语言对象。多次调用会释放上次设置的引用。XRT 在验证选择并取得会话的
+独立引用之后统一释放临时引用；拒绝、checked 错误和后续失败同样释放。
+
+```c
+bool xrtTlsServerChoiceSetIdentityV1(
+    xtlsserverchoice* choice, const xtlsidentity* identity);
+```
+
+`choice` 必须是框架传给当前回调的实际选择对象，不得自行复制或在回调
+返回后保存。`IdentityOwnerV1` 是框架私有字段，不得直接读写。输入为空、
+已有错误或 retain 失败时不修改选择；若替换后的旧身份析构报错，替换
+已经提交，函数返回 false，框架仍负责释放新引用。拒绝选择时保留回调的
+首个错误，不用通用的 TLS 拒绝诊断覆盖它。
+
+直接给 `choice->Identity` 赋值仍遵守原来的借用合同，不隐式消费调用方
+引用。需要把临时结果交给框架时，应调用此 setter，而非返回即释放的裸指针。
+本次给选择对象增加了私有字段，所有使用其布局的 C 编译单元需要重编译。
 
 ### `xrtTlsServerCreate`
 
@@ -10207,6 +10254,10 @@ bool xrtTlsServerPsk(xbytesview Data, uint16* pSelected)
 ### `xrtTlsServerResumed`
 
 返回本次连接是否接受了客户端提供的 TLS 1.3 会话票据。
+
+此查询属于基础 `tls_server` 模块，不会启用票据或恢复握手实现。
+未编译 `tls_server_resume` 时，对合法服务端会话返回 `false`；
+启用恢复能力时读取会话的真实状态。调用方仍须遵守会话线程和生命周期合同。
 
 ```c
 bool xrtTlsServerResumed(const xtlssession* pSession)
@@ -10640,6 +10691,133 @@ xrtTlsVerifierRelease(Verifier);
 `xtlsverifydecision` 是自定义 `xtlsverifyproc` 的完整结果域：`XTLS_VERIFY_ACCEPT` 接管信任，`XTLS_VERIFY_REJECT` 明确拒绝，`XTLS_VERIFY_DEFAULT` 回退到不可变 store，`XTLS_VERIFY_ERROR` 报告本次回调产生的结构化错误。回退时没有 store 会明确失败；错误结果必须在本次回调内设置错误，验证器隔离回调前后的错误槽并把本次错误保留为 cause。接受结果不会再调用只适用于默认路径的 `Policy`，但仍不能跳过 CertificateVerify 和 Finished。
 
 `xtlsverifytimeproc` 为路径和附加策略提供同一个确定时间；省略时使用 `xrtNow()`。`Verify`、`Policy`、`Time` 可以并发调用，不能依赖线程局部的可变共享状态。配置的 `Context` 只在 `xrtTlsVerifierCreate()` 成功后转移所有权；最后一个引用释放时，`xtlsverifyreleaseproc` 恰好调用一次。
+
+### `xtlsverifylimits`
+
+显式资源预算，六个 `size_t` 字段均以 0 表示关闭该项限制：
+
+| 字段 | `xrtTlsVerifyLimitsInit` 默认值 | 单位与含义 |
+|---|---|---|
+| `MaxPeerCertificates` | 64 | 对端完整证书数，在遍历 DER 视图前检查 |
+| `MaxPeerBytes` | 16777216 | 对端全部 DER 的累计字节，不按前缀截断 |
+| `MaxPathCertificates` | 64 | 建链允许的证书深度，不包括独立 trust anchor |
+| `MaxSearchSteps` | 100000 | `xrtX509PathBuildCheckLimit` 的确定性工作单位 |
+| `MaxTrustCertificates` | 4096 | 来源信任库证书数，创建快照前检查 |
+| `MaxTrustBytes` | 67108864 | 来源信任库完整 DER 累计字节，创建快照前检查 |
+
+计数／字节／深度／搜索工作预算耗尽为 `XERR_RANGE`；完成的证书路径策略
+拒绝为 TLS `XERR_PROTOCOL`。累计字节溢出同样 checked 拒绝。
+配额是失败边界，不交付截断证书或部分路径。自定义 `Verify` 返回接受也不能
+绕过对端数量和字节预算；自定义信任回调自行负责其内部计算的资源上限，
+`MaxPathCertificates` 和 `MaxSearchSteps` 仅约束默认建链。
+
+新接口不改变 `xtlsverifierconfig`、`xtlspeer` 的布局，也不改变时间单位或
+旧 `xrtTlsVerifierCreate`／`xrtTlsPeerVerify` 的无限额行为。预算不涵盖 DER
+解析前的输入分配，调用方还须在握手／消息接收层限制输入字节。
+
+### `xrtTlsVerifyLimitsInit`
+
+初始化有限预算；不分配内存。
+
+```c
+void xrtTlsVerifyLimitsInit(xtlsverifylimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pLimits` | 输出 | 非空 | 完整覆盖为上述默认值 |
+
+#### 返回值
+
+无。
+
+#### 错误
+
+空指针设置 `XERR_ARGUMENT`，不写入。
+
+#### 范例
+
+[验证器的创建与释放](../../examples/tls/verify/main.c)。有限预算用法：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+```
+
+### `xrtTlsVerifierCreateLimited`
+
+创建复制信任数据和显式预算的不可变共享验证器。来源 store 的并发修改仍由
+调用方同步；创建成功后不再借用它。Context 仅在成功后接管。
+
+```c
+xtlsverifier* xrtTlsVerifierCreateLimited(const xtlsverifierconfig* pConfig, const xtlsverifylimits* pLimits)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pConfig` | 输入 | 非空 | 与原创建入口相同的回调、时钟、信任合同 |
+| `pLimits` | 输入 | 非空 | 按值复制；全零显式请求无限额 |
+
+#### 返回值
+
+成功返回拥有的验证器引用，失败返回 `NULL`，调用方仍拥有 Context。
+
+#### 错误
+
+`XERR_ARGUMENT` 为非法配置；`XERR_RANGE` 为信任配额或计数溢出；
+`XERR_MEMORY` 为快照／验证器分配失败，已分配资源回滚。
+
+#### 范例
+
+[验证器的创建与释放](../../examples/tls/verify/main.c)。有限预算用法：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+xtlsverifier* Verifier = xrtTlsVerifierCreateLimited(&VerifyConfig, &Limits);
+```
+
+### `xrtTlsPeerVerifyLimited`
+
+按显式时间、完整证书链及信任库执行受限默认建链、用途和名称验证。
+附加 Policy 仅在全部默认验证成功后读取完整的借用路径。
+
+```c
+bool xrtTlsPeerVerifyLimited(const xtlspeer* pPeer, const xx509store* pStore, const xtlsverifylimits* pLimits, xtlsverifypolicyproc pPolicy, ptr pContext)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pPeer` | 输入 | 非空 | 与原入口相同的角色、时间和借用证书合同 |
+| `pStore` | 输入 | 非空 | 调用期间不可并发修改 |
+| `pLimits` | 输入 | 非空 | 六项显式预算；全零关闭配额 |
+| `pPolicy` | 输入 | 可空 | 默认路径成功后的附加策略 |
+| `pContext` | 输入 | 借用 | 仅同步传递给 Policy，不接管 |
+
+#### 返回值
+
+仅完整验证与附加策略均通过时返回 `true`。路径失败不调用附加策略，不发布半成品。
+
+#### 错误
+
+参数、数量／字节／工作预算、内存和验证错误见上；资源错误保留结构化 cause。
+完整路径拒绝不会把调用前错误槽中的无关错误当作其原因。
+
+#### 范例
+
+[验证器用法](../../examples/tls/verify/main.c)。同步受限验证：
+
+```c
+xtlsverifylimits Limits;
+xrtTlsVerifyLimitsInit(&Limits);
+bool Accepted = xrtTlsPeerVerifyLimited(&Peer, Store, &Limits, NULL, NULL);
+```
 
 `xrtTls13CertificateVerifySignature()` 是公开的协议验签原语。它构造标准的 64 个空格、角色上下文、零分隔符和 transcript hash，严格区分 `rsae` / `pss` 密钥、P-256 / P-384 方案和 Ed25519，并拒绝 TLS 1.3 禁止的 PKCS#1 方案。它不执行证书路径验证，调用方若直接使用原语必须先完成信任决策。
 
@@ -13396,3 +13574,298 @@ Future 发布前已经 OPEN、保留引用后销毁 Future 不关闭连接、DNS
 协作取消、全过程超时、结构化原因链、Select/IOCP/io_uring 后端包装与通用协程
 Await；公共桥接器的监听安装 OOM 由
 `tests/concurrency/test_future_bridge_oom.c` 确定性覆盖。
+
+### 显式拥有的 TLS Stream（V1，核心阶段）
+
+`xrtTlsStreamConnectOwnedV1`、`xrtTlsStreamAttachOwnedV1`、
+`xrtTlsStreamClientOwnedV1`、`xrtTlsStreamAcceptOwnedV1` 使用永久
+`xtlsstreamownershipv1` 策略。成功接管一个 Data 引用，失败不接管；
+Attach 的 TCP／Session 接管合同不变。Data 必须真实拥有所有事件和
+Session 所借用的回调上下文，直到 Session 销毁后才释放。此模式的
+Events／Data 不可替换，旧借用式工厂不自动获得图认证。
+
+`xrtTlsStreamOwnership` 返回真实引用；
+`xrtTlsStreamRuntimeOwnershipV1Get`、
+`xrtTlsStreamTransportOwnershipV1Get`、
+`xrtTlsStreamOwnershipQuiescenceV1Get` 返回永久策略身份。
+`xrtTlsStreamOwnershipAdapterV1` 接收策略地址白名单和 preparation 输出；
+拒绝时不修改输出。操作中的对象、未知 Listener 管理上下文和仍有旧式
+异步节点的对象目前不获认证，不能据此宣称整个 TLS 组合图已完成。
+
+Claim 隔离新提交；Prepare 推进真实 TCP 停止，待定时器、命令、运行时
+和回调静止后，在 Freeze 外释放未读 Session 缓冲，再重新发现全图。
+Clear 不执行回调；Finish 在图目标有真实 pin 的前提下于 Freeze 外
+释放 Session、TCP、Data，保留清理错误并支持重复检查，不重复析构。
+此阶段未改变任何时间单位或支持后端。
+
+完整引用边、失败原子性和退役约束见
+[TLS Stream 拥有图设计](../design/tls-stream-ownership.md)。仅运行普通
+固定密钥本机回环与生命周期检查，不以此代替安全专项或发布验收。
+
+### TLS Stream Future 拥有图
+
+pending TLS Future 不再作为未知裸回调节点拒绝：激活节点真实拥有 Stream、
+Promise、Owned CancelWatch 和缓存 Engine 租约，构造／FIFO、producer、
+取消上下文各持有一个引用。接收 bytes 结果通过拥有策略发布。
+
+永久身份由 `xrtTlsStreamFutureProducerPolicyV1Get`、
+`xrtTlsStreamFutureCancelPolicyV1Get`、
+`xrtTlsStreamFutureBytesPayloadPolicyV1Get`、
+`xrtTlsStreamFutureOwnershipQuiescenceV1Get` 返回；
+`xrtTlsStreamFutureOwnershipAdapterV1` 返回 Adapter 与 mandatory preparation，
+拒绝时不修改输出。每个子节点仍需独立准入，旧借用式 Stream 不因此获得
+认证。节点 Prepare 等待真实源完成，不能提前关闭已有 producer 的 Future。
+
+节点完成时即脱离缓存 Engine 租约，保留惰性收集 pin 不阻塞 Engine 退役。
+Claim 仍拒绝公开新提交；原生已受理读写保留正确 Worker 上的内部通道，
+不解除 Claim，不绕过 Clear／写入／关闭／取消门，也不改变时间单位。
+具体引用、发布和退役顺序见
+[Future 激活图](../design/tls-stream-future-ownership.md)。
+
+### TLS Listener 拥有图
+
+`xrtTlsListenerStartOwnedV1` 接受永久 `xtlslistenerownershipv1`，成功消费一个
+Data 引用，失败不消费。Data 必须覆盖 Listener、配置选择器及子连接借用
+的全部回调上下文。Context／Identity 另行保留，ALPN 深复制；拥有模式
+事件表不可替换。回调仍收到原始 Data，子 Stream 的 `xrtTlsStreamData`
+则是私有组合记录，应用不能把它强转成原始 Data。
+
+`xrtTlsListenerOwnership` 提供真实引用视图。永久身份入口包括
+`xrtTlsListenerRuntimeOwnershipV1Get`、
+`xrtTlsListenerTransportOwnershipV1Get`、
+`xrtTlsListenerStreamOwnershipV1Get`、
+`xrtTlsListenerStreamPushOwnershipV1Get`；pull 与 push Read 策略分开，
+不以空转回调改变 Stream 模式。Root 与子连接记录分别使用
+`xrtTlsListenerOwnershipQuiescenceV1Get`／
+`xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get` 和
+`xrtTlsListenerOwnershipAdapterV1`／
+`xrtTlsListenerStreamRecordOwnershipAdapterV1`。Adapter 输出 preparation，
+拒绝时不修改输出；每个目标必须独立准入，不认证旧借用式配置。
+
+accept Future 的永久入口为
+`xrtTlsListenerFutureProducerPolicyV1Get`、
+`xrtTlsListenerFutureCancelPolicyV1Get`、
+`xrtTlsListenerFutureStreamPayloadPolicyV1Get`、
+`xrtTlsListenerFutureOwnershipQuiescenceV1Get` 和
+`xrtTlsListenerFutureOwnershipAdapterV1`。等待节点实际持有 Listener、
+Promise、Owned CancelWatch；交付 Stream 使用拥有 payload，而非裸析构
+函数。Prepare 等待真实关闭推进，不提前伪造 Future 终态。
+
+普通 Close 停止接入并退役未交付连接，不关闭已经交付的连接。全图退役
+须分别准备这些子 Stream；所有目标保留 pin 直到全部 Finish 完成。
+Clear 不执行用户回调；Finish 在 Freeze／Mutation 外释放配置和 Data，
+保留首次清理错误和已有线程错误，重复检查不重复析构。时间 ABI 不变。
+详见 [Listener 组合拥有图](../design/tls-listener-ownership.md)。
+
+### TLS Dial 拥有图
+
+`xrtTlsDialOwnedV1` 使用永久 `xtlsdialownershipv1`：成功接管一个 Data
+引用，失败不接管；Data 覆盖 Done、最终 Stream 事件与 Session 借用的
+配置上下文。已有 owned TCP Dial 先完成连接，再在实际 Worker 上 Attach
+拥有式 TLS Stream，不安装借用 TCP 事件或在 Open 时替换 TLS 事件表。
+Open 先于成功 Done；成功回调接管已有 Stream 创建信用，Stream 反向
+保留 Dial 上下文，直到 Session 销毁后释放。回调 Data 是原始 Data，
+StreamData 是私有组合上下文，应用不得强转。
+
+永久身份与图入口为 `xrtTlsDialOwnership`、
+`xrtTlsDialRuntimeOwnershipV1Get`、`xrtTlsDialTimerOwnershipV1Get`、
+`xrtTlsDialTransportOwnershipV1Get`、`xrtTlsDialStreamOwnershipV1Get`、
+`xrtTlsDialStreamPushOwnershipV1Get`、
+`xrtTlsDialOwnershipQuiescenceV1Get`、`xrtTlsDialOwnershipAdapterV1`。
+Adapter 只接受显式准入的策略地址，提供 mandatory preparation，拒绝时
+不改变输出；每个传递节点仍须独立准入。
+
+取消通过所属 Worker 访问阶段槽，独立锁串行发布与 runtime 信用的唯一
+转移；ownership Mutation 本身不是线程互斥。总期限 Timer、TCP Done 和
+回调帧分别保留实际引用。Claim 拒绝新公开取消，Prepare 请求真实停止，
+不伪造终态。Clear 无用户回调，Finish 在全图 pin 下于域外销毁 Session／
+原生资源／Data，保留首次清理错误与已有线程错误，重复检查不重复析构。
+原生相对毫秒与固定快照绝对微秒合同分别按其声明处理，不改时间 ABI。
+
+完整引用与发布规则见 [Dial 阶段拥有图](../design/tls-dial-ownership.md)。
+旧借用 Dial、Proxy 和 Future 桥接不因这些入口自动获得认证。
+
+### TLS Dial Future 与拥有式 Proxy
+
+新增 `xrtTlsDialAsyncOwnedV1`、`xrtTlsDialProxyOwnedV1` 和
+`xrtTlsDialProxyAsyncOwnedV1`，成功消费一份 Data 信用，失败不消费。
+Data 的拥有范围必须包括配置和事件所借用的全部上下文。配置由独立
+owner record 持有；Future 完成后，已交付 Stream 仍可使用它。
+
+永久策略和图入口包括 `xrtTlsDialFutureDialPolicyV1Get`、
+`xrtTlsDialFutureDialPushPolicyV1Get`、
+`xrtTlsDialFutureProducerPolicyV1Get`、`xrtTlsDialFutureCancelPolicyV1Get`、
+`xrtTlsDialFuturePayloadPolicyV1Get`、
+`xrtTlsDialFutureOwnershipQuiescenceV1Get`、
+`xrtTlsDialFutureOwnershipAdapterV1`、
+`xrtTlsDialFutureContextOwnershipQuiescenceV1Get`、
+`xrtTlsDialFutureContextOwnershipAdapterV1`，以及
+`xrtTlsDialProxyTransportOwnershipV1Get`。各传递目标须独立准入和保留 pin。
+
+Future 发布不阻塞 Worker：提前完成保存真实结果信用并返回，发布后由
+唯一处理者完成 Promise；发布前取消不丢失。TLS payload 使用 TLS 的
+Drop／Trace，不冒充 TCP Stream。Proxy 握手后在同一 Worker Attach TLS，
+外层总期限覆盖全部阶段。Clear 不运行用户回调；Finish 域外释放资源，
+持久保存首次清理错误，重复检查不重复析构。
+
+旧 `xrtTlsDialAsync` 也移除阻塞等待，但保留借用语义，不自动认证其图。
+本批保持两边各自时间 ABI，完整合同和验收范围见
+[Dial Future 与 Proxy 拥有图](../design/tls-dial-future-ownership.md)。
+
+### 服务端恢复查找的拥有式结果
+
+`xtlsserverconfig.ResumeOwnedV1` 使用 `xtlsserverresumeownedprocV1`，与原来的
+借用式 `Resume` 互斥，共用 `ResumeContext`。回调接收借用请求和初始为 NULL
+的 `xtlsresume**` 输出槽；写入的独立引用在所有返回路径上均转交框架：
+
+- `true + 非 NULL`：使用该拥有对象检查绑定并复制所需 PSK，随后恰好 release 一次。
+- `true + NULL`：普通缓存未命中，可以继续完整证书握手。
+- `false`：查找失败，终止当前握手，不能解释成缓存未命中。即使写入了对象也由框架释放。
+- 回调返回 true 但留下错误同样失败；原始诊断保持为首错，失败清理不替换它。
+
+查找回调可以不提供诊断；输出释放仍不得制造替代错误。会话层沿用既有合同：
+没有根诊断时提供通用 `fail-tls-session` 错误，而不是降级握手。
+请求的 SNI、完整 ALPN、Ticket、Age 仍只借用到回调返回，保存时必须复制。
+拥有式结果关闭了“临时语言值销毁后，原生才 retain”的借用窗口，不采用隐藏缓存。
+
+原来的 `Resume` 返回借用对象并保留原有立即 retain 合同；它留下错误时也明确
+失败，不会因为返回 NULL 就忽略错误。未编入 `TLS_SERVER_RESUME` 时，Session 和
+Listener 都明确拒绝两种查找配置；同时提供两种回调则是参数错误。
+
+这是 `xtlsserverconfig` 的布局扩展，嵌入它的 Listener 配置也受影响，相关 C 单元
+必须整体重编译。既有函数签名、两边时间 ABI 和票据毫秒线路年龄转换均不升级。
+`tools/test_tls_server_resume_owned.py` 只运行正常固定材料的内存握手、拥有权、
+分配失败和无恢复能力配置检查；不运行既有畸形 PSK/binder 安全专项。
+该原生前置不等于语言层票据接口或 shipping 已验收。
+
+### 恢复时重新执行当前验证策略
+
+带 `XTLS_VERIFY_RESUME_PEER_V1` 的不可变验证器在恢复时重新验证票据共享的
+实际证书链。缺链凭据按可选／required 分别完整握手／checked 拒绝；允许显式
+复制补链但不将导入当作认证。参见 [恢复凭据与当前策略](../design/tls-resume-peer.md)。
+
+## 客户端证书认证（V1）
+
+### `xtlsclientauthconfigv1`
+
+可裁剪模块 `tls_client_auth` 使用单独的 `xtlsclientauthconfigv1`，旧
+`xtlsclientconfig` 布局不变。配置包含 `Size`、`Identity`、`MaxCertificates`、
+`MaxCertificateBytes`、`MaxTranscriptBytes` 和 `RequireCertificate`；工厂
+保留身份并快照标量。默认要求服务端请求兼容身份；false 允许不发身份或空链。
+TLS 1.2/1.3 遵守签名算法、证书类型、CA 名称和 TLS 1.3 OID 条件。
+
+默认常量为 `XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT`（16）、
+`XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT`（64 KiB）和
+`XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT`（1 MiB）。硬上限是
+`XTLS_CLIENT_AUTH_CERTIFICATES_MAX`（256）、`XTLS_CLIENT_AUTH_BYTES_MAX`
+（16 MiB）、`XTLS_CLIENT_AUTH_AUTHORITIES_MAX`（256）、
+`XTLS_CLIENT_AUTH_OID_FILTERS_MAX`（64）与 `XTLS_CLIENT_AUTH_OID_VALUES_MAX`
+（128）。Context 的握手／发送上限仍生效，整个航班须能原子排队。
+
+本入口拒绝 `Resume`／`ResumeOnly` 并关闭票据保留，等待恢复凭据加入本地
+身份绑定；不支持握手后认证。签名器同步运行在会话所有者线程，不得重入或
+销毁该会话，须遵守既有并发及失败原子合同。详见
+[协议、成本与独立 OpenSSL 运行方式](../development/tls-client-auth.md)。
+
+### `xrtTlsClientAuthConfigInitV1`
+
+```c
+void xrtTlsClientAuthConfigInitV1(xtlsclientauthconfigv1* pConfig)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pConfig` | 输出 | 非空 | 完整 V1 配置 |
+
+#### 返回值
+
+无。设置 Size 与上述默认上限，Identity 为 NULL，RequireCertificate 为 true。
+
+#### 错误
+
+NULL 输出设置参数错误。
+
+#### 范例
+
+[可运行的工厂与引用示例](../../examples/tls/client_auth/main.c)。
+
+```c
+xtlsclientauthconfigv1 auth;
+xrtTlsClientAuthConfigInitV1(&auth);
+auth.Identity = identity;
+```
+
+### `xrtTlsClientCreateAuthV1`
+
+```c
+xtlssession* xrtTlsClientCreateAuthV1(const xtlsclientconfig* pSession, const xtlsclientauthconfigv1* pAuth, xnetbufpool* pPool)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pSession` | 输入 | 可空 | 原有客户端配置；NULL 使用原有默认值，验证器／路由约束沿用原合同 |
+| `pAuth` | 输入 | 非空 | 正确 Size、Identity 和非零有界上限，仅借用到返回 |
+| `pPool` | 输入 | 可空 | 原有缓冲池，生命周期遵守普通客户端工厂合同 |
+
+#### 返回值
+
+成功返回由调用方销毁的原生会话，失败为 NULL；失败不消费调用方身份。
+成功后可释放调用方的 Identity、Context、Verifier 引用，工厂已保留它们。
+证书 DER 复用身份中的不可变视图；驱动和输入／输出使用已有 Session API。
+
+#### 错误
+
+无效配置为参数错误，超过证书或 Context 上限为范围错误，不兼容证书用途
+为权限错误，显式恢复为不支持；内存／后端错误保留原因。握手时缺少所要求
+的兼容请求会失败；服务器仍可在本地 TLS 1.3 READY 后发来拒绝告警。
+
+#### 范例
+
+[工厂示例](../../examples/tls/client_auth/main.c)；完整认证互操作运行方式见上述合同。
+
+```c
+xtlsclientauthconfigv1 auth;
+xrtTlsClientAuthConfigInitV1(&auth);
+auth.Identity = identity;
+xtlssession* session = xrtTlsClientCreateAuthV1(&client_config, &auth, NULL);
+if (session) {
+    xrtTlsIdentityRelease(identity);
+    identity = NULL;
+    /* 用 Session 循环推进；最终调用 xrtTlsSessionDestroy(session)。 */
+}
+```
+
+### `xrtTlsClientCertificateQueuedV1`
+
+```c
+bool xrtTlsClientCertificateQueuedV1(const xtlssession* pSession)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+| --- | --- | --- | --- |
+| `pSession` | 输入 | 可空 | 所有者线程访问的有效会话；NULL 返回 false |
+
+#### 返回值
+
+非空本地 Certificate／proof 已交给会话队列时为 true。普通客户端、服务端
+和空链为 false；不代表传输完成或服务器已经接受身份。
+
+#### 错误
+
+纯查询不设置错误。不得传入已经销毁的会话。
+
+#### 范例
+
+[查询与释放示例](../../examples/tls/client_auth/main.c)。
+
+```c
+bool queued = xrtTlsClientCertificateQueuedV1(session);
+/* 无论 queued 状态如何，都继续接收并处理服务器告警和关闭。 */
+(void)queued;
+```

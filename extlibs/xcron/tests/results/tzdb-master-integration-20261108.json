@@ -1,0 +1,480 @@
+{
+  "schema": 1,
+  "stage": "integrate eight independent master commits after named TZif snapshot delivery",
+  "date": "2026-11-08",
+  "feature_commit": "dc6914b23e5608ccbe1783f7d4f08401607d74e4",
+  "incoming_master": "a01b4a13f0c1b82e4a428236800230671bcbd6aa",
+  "incoming_commits": [
+    "a01b4a13f0c1b82e4a428236800230671bcbd6aa Avoid reentering serialized event sinks during callback recovery",
+    "187f38ce1e70975e5d25dea16ae407a32df8daa3 Recover planning and result-projection allocation failures in place",
+    "0398c7a40fca695808494aefb558eb0368e8834e Retain initial session appends and recover checkpoint storage safely",
+    "e8647219c7832be827a32577c992935a2abc295f Recover safe allocation and persistence boundaries without replaying tools",
+    "94109c4a5b1420caa1bed17d1259fd7b9c9d48b8 feat(xwork): add host-controlled recovery at safe operation boundaries",
+    "0a44e3f80091be178c802c231a37e4f2733fd9fb build(value): refresh read-view declaration header",
+    "0e90f84f1a7155ed1c44b715f74bb9e1266baa4b feat(value): add allocation-free scoped container read views",
+    "e2a0b36d3092bf7eb667ba565fd2bd7f6e45af4f fix(value): permit post-commit field writes during finalization"
+  ],
+  "merge_conflicts": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "scope": [
+    "Normal non-fast-forward integration in the feature worktree; preserve all value/xwork/xllm-session master commits without overwriting or rewriting history. Primary checkout must be clean on master before final fast-forward.",
+    "No xcron implementation or selected Core runtime source changed relative to the feature commit. The generated Core single/decl headers changed. xrpc selects the changed Core value_container implementation; xredis/xmqtt selected runtime sources are unchanged.",
+    "Run the changed Core object-post-commit/scoped-read repro with actual memory-debug accounting, full xrpc and xcron modular/single suites on both platforms; WSL uses O2 ASan/UBSan/leak-halt. Verify xcron static/shared consumers against the integrated Core. Check Core and all four extension generated singles."
+  ],
+  "integrity": {
+    "protected_inputs_count": 2905,
+    "windows_wsl_maps_equal": true,
+    "map_canonical_sha256": "9ed9347a57c33ad15fb1278d8c0c947fac51709584bb1582279c6cf4c3f3c872",
+    "verified_before_after_each_command": true,
+    "feature_measurement_map_changed_paths": {
+      "include/xrt/value.h": {
+        "feature_sha256": "26f9a53fc1bf71dead8b55864cf091c954c8832a93f5cb0c5c08967abec94874",
+        "integrated_sha256": "53a080dcb36dd12dcb5945d53c49e71cae113b66343e5c1274cc4cee0dbd58ee"
+      },
+      "single/xrt.h": {
+        "feature_sha256": "14afd7c681efe005d055c0f435995e17843377aaca1fbcb52ba5c48b4f562369",
+        "integrated_sha256": "9d929c22ae9ef7c708e7f467d9ce2deda5995a63e4f3733ca7dbacf78b2caaef"
+      },
+      "single/xrt_decl.h": {
+        "feature_sha256": "55ee58d0b45eeaf48a01532af481213b901781d5b99e4dc573bdb35b66b1121c",
+        "integrated_sha256": "eb945b05f1e161611d5fd8d753b7999f9b4ca458567f4c876118a3b403c53169"
+      },
+      "src/value/value_container.c": {
+        "feature_sha256": "977fcb8995d3b7ace86cfe341b820e94a5482d5d7acf5063404af5bbd3d9e26c",
+        "integrated_sha256": "ae16ae763970c62d20e00a848a9ea82888d8d8ffe6ffaf928a6f7ff6ccad834f"
+      },
+      "tests/value/test_value_object_post_commit.c": {
+        "feature_sha256": "8d160467ee3cb7db3535024ed27da487a8bcab3722183c32cb6942623e76c6af",
+        "integrated_sha256": "b1e24fc25a0fdc3f1ec6b7b40eb684b865f5ecd325fcc75ca5a847a17772ae44"
+      }
+    },
+    "incoming_paths": [
+      "docs/api/value.md",
+      "extlibs/xllm-session/include/xllm-session/api.h",
+      "extlibs/xllm-session/src/session/xllm_session_compact.c",
+      "extlibs/xllm-session/tests/test_xllm_session.c",
+      "extlibs/xwork/README.md",
+      "extlibs/xwork/include/xwork/api.h",
+      "extlibs/xwork/src/internal/xwork_internal.h",
+      "extlibs/xwork/src/work/xwork_agent.c",
+      "extlibs/xwork/src/work/xwork_core.c",
+      "extlibs/xwork/src/work/xwork_schedule.c",
+      "extlibs/xwork/tests/test_xwork.c",
+      "include/xrt/value.h",
+      "single/extlibs/xllm-session.h",
+      "single/extlibs/xllm-session_decl.h",
+      "single/extlibs/xwork.h",
+      "single/extlibs/xwork_decl.h",
+      "single/xrt.h",
+      "single/xrt_decl.h",
+      "src/value/value_container.c",
+      "tests/value/test_value_object_post_commit.c"
+    ],
+    "closure_recipe_sha256": "0a04840f39e52bfc7f9e60a3119655ce0711eba3805cd2769e96cecf06a74bef",
+    "runner_sha256": "2d7f331977491573203f4892c0dfc2dcbd4f7a70a2696b5eb59a9fb1c6ba867e",
+    "scope": "Tracked C/H/JSON/Python inputs in Core/tools/tests/four service extensions/all singles are captured. Markdown and the newly written integration evidence are outside this execution map. Original Nov5 functional/performance evidence remains on its original source identity; it is not rewritten as an integrated measurement."
+  },
+  "selected_closures": {
+    "xredis": {
+      "windows": {
+        "source_count": 155,
+        "modular_programs": 15,
+        "single_programs": 15,
+        "changed_compiled_sources": []
+      },
+      "linux": {
+        "source_count": 155,
+        "modular_programs": 15,
+        "single_programs": 15,
+        "changed_compiled_sources": []
+      }
+    },
+    "xrpc": {
+      "windows": {
+        "source_count": 198,
+        "modular_programs": 16,
+        "single_programs": 16,
+        "changed_compiled_sources": [
+          "src/value/value_container.c"
+        ]
+      },
+      "linux": {
+        "source_count": 198,
+        "modular_programs": 16,
+        "single_programs": 16,
+        "changed_compiled_sources": [
+          "src/value/value_container.c"
+        ]
+      }
+    },
+    "xmqtt": {
+      "windows": {
+        "source_count": 39,
+        "modular_programs": 7,
+        "single_programs": 7,
+        "changed_compiled_sources": []
+      },
+      "linux": {
+        "source_count": 39,
+        "modular_programs": 7,
+        "single_programs": 7,
+        "changed_compiled_sources": []
+      }
+    },
+    "xcron": {
+      "windows": {
+        "source_count": 41,
+        "modular_programs": 11,
+        "single_programs": 12,
+        "changed_compiled_sources": []
+      },
+      "linux": {
+        "source_count": 41,
+        "modular_programs": 11,
+        "single_programs": 12,
+        "changed_compiled_sources": []
+      }
+    }
+  },
+  "platforms": {
+    "windows": {
+      "validation_sha256": "23e40f22a6108ceba644738be110bcc259225f067d115823fcdaf5739982c55f",
+      "receipts": [
+        {
+          "label": "core-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xredis-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xrpc-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xmqtt-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xcron-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "value-post-commit",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "value_container,memory_debug",
+            "--test",
+            "test_value_object_post_commit",
+            "--no-single",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0e79ad26a35a1ce01a0d6b1fbc4f1d5714e0e8ab988a83b31d9ad32a0a122239"
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "73a1f168fc0d11e723933fb98eb9b975c055b9ccc20a83362792a2433f707a82"
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3e3b86031e26e817c41fce05daeea098fce1f08ac9d855882aae6bdddfeb96c2"
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "cfc69a0650bf7d03b20898e617a32520d83a0015fb5697e6f5b179650cd9bed7"
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4dccc122cdd4e700c667cf61655935bb233e027071f24a9034447b08933460d5"
+        }
+      ],
+      "program_executions": {
+        "core-single": 0,
+        "xredis-single": 0,
+        "xrpc-single": 0,
+        "xmqtt-single": 0,
+        "xcron-single": 0,
+        "value-post-commit": 1,
+        "xrpc-suite": 32,
+        "xcron-suite": 23,
+        "xcron-static": 0,
+        "xcron-shared": 0
+      },
+      "retained_initial_receipts_sha256": "f11f7b15dca22c96757319c8bf90458df44a4745a5d6caa7cd5e60cc24a3ca14",
+      "retained_initial_selector_failure_log_sha256": "95b865a92090d7fede3776aefbc25995b247937a96d1ff59c19b2780427ca0d6"
+    },
+    "wsl": {
+      "validation_sha256": "4594029f8f81f6278fdb3436f7cd1ac9272c0ee5b2e8dd611b7dd040c7312bec",
+      "receipts": [
+        {
+          "label": "value-post-commit",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "value_container,memory_debug",
+            "--test",
+            "test_value_object_post_commit",
+            "--no-single",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "bcd64c04be1f780e9f1beae5b2ac7b3bba049334f43f3789b0966b045eae6e00"
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "01cbc359038214006120c8f404509018da6d0e590ff1dd7ac71946cf5dbd1fd1"
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "762612b436a2347790ee87cf20e06f01fe8b6851b847577c23ecc808dbaabbdc"
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d30998fb870dc4f4aaf2fe819419f0f0ffaa934aaf0836c4e658aa1e9cac4d65"
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8ac4d3921198306117fbbc803443de01f0b628002e77c76c442c461af38bc2c0"
+        }
+      ],
+      "program_executions": {
+        "value-post-commit": 1,
+        "xrpc-suite": 32,
+        "xcron-suite": 23,
+        "xcron-static": 0,
+        "xcron-shared": 0
+      },
+      "retained_initial_receipts_sha256": "775e85da46335687f9e881d31cbdbaef3e72ab7dc063c375acffc0a3d13420fe",
+      "retained_initial_selector_failure_log_sha256": "ab27537f25b1d5185ff5aed418522bfebee514b87c6a71137959104f85d4ed8c"
+    }
+  },
+  "validation_limits": [
+    "Initial integration harness chose value instead of value_container for a test owned by the latter. Both commands exited at test selection before compiling/running that repro. Fix only the ignored runner, archive initial failure receipts/logs, verify unchanged input map and reuse only successful generated checks with exact command/log hashes.",
+    "No extra performance rerun: selected xcron implementation/runtime inputs are unchanged and the original failed noise samples remain. No post-merge performance qualification is inferred from the functional results.",
+    "No new TSan, layout or independent-oracle execution is claimed for this merge. Their feature-stage evidence and exact original identity remain intact. WSL is not native Linux, and >=72h/production acceptance remains open.",
+    "Windows symbolic-link creation was skipped in the original feature tests (1314); integration does not claim to close that native coverage gap."
+  ],
+  "local_evidence_directory": "out/service-extensions/xcron-tzdb/integration/"
+}

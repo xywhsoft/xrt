@@ -1,6 +1,118 @@
 /* 仅供外部互操作测试使用的 C ABI 桥；不属于 XRT 模块或生成单头。 */
 #include <xrt.h>
 #include <string.h>
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include "../../src/internal/xrt_tls_client_auth.h"
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+typedef struct test_tls_client_signer {
+	xtlsidentity* Identity;
+	unsigned Queries;
+	unsigned Signs;
+} test_tls_client_signer;
+
+static bool testTlsClientSign(ptr pContext, xtlsversion Version, xtlssignature Signature,
+	xbytesview Message, void* pOutput, size_t iCapacity, size_t* pSize)
+{
+	test_tls_client_signer* signer = (test_tls_client_signer*)pContext;
+	if (pOutput) signer->Signs++; else signer->Queries++;
+	return xrtTlsIdentitySign(signer->Identity, Version, Signature, Message, pOutput, iCapacity, pSize);
+}
+
+static bool testTlsClientSignSupports(ptr pContext, xtlsversion Version, xtlssignature Signature)
+{
+	return xrtTlsIdentityCanSign(((test_tls_client_signer*)pContext)->Identity, Version, Signature);
+}
+
+static void testTlsClientSignRelease(ptr pContext)
+{
+	test_tls_client_signer* signer = (test_tls_client_signer*)pContext;
+	xrtTlsIdentityRelease(signer->Identity);
+	xrtFree(signer);
+}
+
+xtlssession* xrtTestTlsCreateAuth(int iVersion, uint16 iCipher, uint16 iSignature, int iRequire,
+	const char* sName, const void* pCertificate, size_t iCertificateSize,
+	const void* pPrivateKey, size_t iPrivateKeySize, const void* pRoot, size_t iRootSize)
+{
+	xtlsversion version = iVersion == 13 ? XTLS_VERSION_13 : XTLS_VERSION_12;
+	xtlscipher cipher = (xtlscipher)iCipher;
+	xtlssignature signatures[] = { XTLS_SIGNATURE_RSA_PSS_RSAE_SHA256, (xtlssignature)iSignature };
+	uint16 groups[] = { XTLS_GROUP_X25519, XTLS_GROUP_SECP256R1, XTLS_GROUP_SECP384R1 };
+	xtlspolicy policy;
+	xrtTlsPolicyInit(&policy);
+	policy.Versions = &version; policy.VersionCount = 1;
+	policy.Ciphers = &cipher; policy.CipherCount = 1;
+	policy.Signatures = signatures; policy.SignatureCount = iSignature == signatures[0] ? 1u : 2u;
+	policy.Groups = groups; policy.GroupCount = 3;
+	xtlscontextconfig context_config;
+	xrtTlsContextConfigInit(&context_config);
+	context_config.Policy = &policy;
+	xtlscontext* context = xrtTlsContextCreate(&context_config);
+	xtlssession* session = NULL;
+	xtlsidentity* backing = NULL;
+	xtlsidentity* identity = NULL;
+	xtlsverifier* verifier = NULL;
+	xx509store* store = NULL;
+	if (!context) return NULL;
+	xbytesview certificate = { pCertificate, iCertificateSize };
+	xbytesview key = { pPrivateKey, iPrivateKeySize };
+	switch (iSignature) {
+		case XTLS_SIGNATURE_ECDSA_SECP256R1_SHA256: backing = xrtTlsIdentityP256(&certificate, 1u, key); break;
+		case XTLS_SIGNATURE_ECDSA_SECP384R1_SHA384: backing = xrtTlsIdentityP384(&certificate, 1u, key); break;
+		case XTLS_SIGNATURE_ED25519: backing = xrtTlsIdentityEd25519(&certificate, 1u, key); break;
+		default: backing = xrtTlsIdentityRsa(&certificate, 1u, key); break;
+	}
+	if (!backing) goto done;
+	test_tls_client_signer* signer = (test_tls_client_signer*)xrtCalloc(1, sizeof(*signer));
+	if (!signer) goto done;
+	signer->Identity = backing;
+	backing = NULL;
+	xtlsidentityconfig identity_config;
+	memset(&identity_config, 0, sizeof(identity_config));
+	identity_config.Certificates = &certificate; identity_config.CertificateCount = 1;
+	identity_config.Type = xrtTlsIdentityType(signer->Identity);
+	identity_config.Supports = testTlsClientSignSupports;
+	identity_config.Sign = testTlsClientSign; identity_config.Release = testTlsClientSignRelease;
+	identity_config.Context = signer;
+	identity = xrtTlsIdentityCreate(&identity_config);
+	if (!identity) { testTlsClientSignRelease(signer); goto done; }
+	store = xrtX509StoreCreate();
+	if (!store || xrtX509StoreAdd(store, pRoot, iRootSize) != X509_VALUE) goto done;
+	xtlsverifierconfig verify;
+	xrtTlsVerifierConfigInit(&verify);
+	verify.Store = store;
+	verifier = xrtTlsVerifierCreate(&verify);
+	if (!verifier) goto done;
+	xtlsclientconfig config;
+	xrtTlsClientConfigInit(&config);
+	config.Context = context; config.Verifier = verifier;
+	config.ServerName = (xstrview) { sName, strlen(sName) };
+	xstrview protocol = XRT_STR_LITERAL("xrt-interop");
+	config.Protocols = &protocol; config.ProtocolCount = 1;
+	xtlsclientauthconfigv1 auth;
+	xrtTlsClientAuthConfigInitV1(&auth);
+	auth.Identity = identity; auth.RequireCertificate = iRequire != 0;
+	session = xrtTlsClientCreateAuthV1(&config, &auth, NULL);
+done:
+	xrtTlsIdentityRelease(backing);
+	xrtTlsIdentityRelease(identity);
+	xrtTlsVerifierRelease(verifier);
+	xrtX509StoreFree(store);
+	xrtTlsContextRelease(context);
+	return session;
+}
+
+int xrtTestTlsAuthInfo(const xtlssession* pSession, unsigned* pQueries, unsigned* pSigns)
+{
+	const xtlsclientauthstate* auth = __xrtTlsClientAuthStateOf(pSession);
+	if (!auth || auth->Identity->ExternalSign != testTlsClientSign) return -1;
+	test_tls_client_signer* signer = (test_tls_client_signer*)auth->Identity->ExternalContext;
+	*pQueries = signer->Queries; *pSigns = signer->Signs;
+	return xrtTlsClientCertificateQueuedV1(pSession) ? 1 : 0;
+}
+#endif
 
 xtlssession* xrtTestTlsCreate(int iServer, int iVersion, uint16 iCipher,
 	uint16 iSignature, int iP256, const char* sName,

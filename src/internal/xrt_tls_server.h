@@ -101,6 +101,7 @@ typedef struct xtlsserverstate {
 	bool RetrySeen;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		xtlsserverresumeproc Resume;
+		xtlsserverresumeownedprocV1 ResumeOwnedV1;
 		ptr ResumeContext;
 		uint32 ResumeAgeTolerance;
 		bool ResumptionReady;

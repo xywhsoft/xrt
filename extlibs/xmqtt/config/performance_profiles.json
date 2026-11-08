@@ -1,0 +1,2073 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xmqtt/config/modules.json",
+  "defaults": {
+    "repeats": 5,
+    "warmups": 1,
+    "timeout_seconds": 120,
+    "policy": "baseline-unpinned",
+    "cflags": [
+      "-O2"
+    ],
+    "ldflags": [],
+    "max_relative_mad": 0.03,
+    "max_relative_central_range": 0.06,
+    "regression": {
+      "higher": 0.05,
+      "lower": 0.1
+    }
+  },
+  "profiles": [
+    {
+      "name": "xmqtt_wire",
+      "system": "wire",
+      "description": "Bounded framing, UTF-8 topic field and fixed-header writing; no packet/session completeness or production parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_wire",
+          "source": "extlibs/xmqtt/bench/bench_wire.c",
+          "suite": "xmqtt_wire,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "frames_per_sec": {
+              "direction": "higher",
+              "unit": "frames/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_properties",
+      "system": "properties",
+      "description": "MQTT 5 property-section decode/encode into caller storage; no packet/client or performance parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_properties",
+          "source": "extlibs/xmqtt/bench/bench_properties.c",
+          "suite": "xmqtt_properties,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "sections_per_sec": {
+              "direction": "higher",
+              "unit": "sections/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_packet",
+      "system": "packet",
+      "description": "Private already-UTF8-validated ASCII filter grammar only; no subscription or codec throughput claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_packet",
+          "source": "extlibs/xmqtt/bench/bench_packet.c",
+          "suite": "xmqtt_packet,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "filters_per_sec": {
+              "direction": "higher",
+              "unit": "filters/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_codec5",
+      "system": "codec5",
+      "description": "Full MQTT5 QoS1 PUBLISH property/PFI decode and atomic encode in caller storage; no network/session/queueing/durability parity claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_codec5",
+          "source": "extlibs/xmqtt/bench/bench_codec5.c",
+          "suite": "xmqtt_codec5,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "packets_per_sec": {
+              "direction": "higher",
+              "unit": "packets/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_codec311",
+      "system": "codec311",
+      "description": "Full MQTT311 binary QoS1 PUBLISH decode/atomic encode in caller storage; no network/session or cross-protocol performance claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_codec311",
+          "source": "extlibs/xmqtt/bench/bench_codec311.c",
+          "suite": "xmqtt_codec311,time",
+          "args": [
+            "1000000"
+          ],
+          "smoke_args": [
+            "10000"
+          ],
+          "metrics": {
+            "packets_per_sec": {
+              "direction": "higher",
+              "unit": "packets/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_negotiation",
+      "system": "negotiation",
+      "description": "Two validated handshake descriptors and one outbound packet check per cycle; dual version, no network/session/capacity/comparator claim",
+      "benchmarks": [
+        {
+          "name": "xmqtt_negotiation_5",
+          "source": "extlibs/xmqtt/bench/bench_negotiation.c",
+          "suite": "xmqtt_negotiation,time",
+          "args": [
+            "1000000",
+            "5"
+          ],
+          "smoke_args": [
+            "10000",
+            "5"
+          ],
+          "metrics": {
+            "negotiation_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_negotiation_4",
+          "source": "extlibs/xmqtt/bench/bench_negotiation.c",
+          "suite": "xmqtt_negotiation,time",
+          "args": [
+            "1000000",
+            "4"
+          ],
+          "smoke_args": [
+            "10000",
+            "4"
+          ],
+          "metrics": {
+            "negotiation_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_qos1",
+      "system": "client",
+      "description": "Single loopback connection to an in-process local fixture, closed-loop 32-inflight QoS1 application-observed PUBACK latency/throughput; separate heap-instrumented variants include client plus peer and first lazy id-table allocation. Excludes connect/close; not broker/comparator/production parity.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_qos1_5",
+          "source": "extlibs/xmqtt/bench/bench_client_qos1.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_qos1_4",
+          "source": "extlibs/xmqtt/bench/bench_client_qos1.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_qos1_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos1.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_qos1_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos1.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_receive",
+      "system": "client",
+      "description": "Combined QoS1 publish/echo, application-observed PUBACK plus receive completion and final peer-observed receiver PUBACKs. One local fixture, two IO workers, observer, window32/payload32. Includes cold sender/receiver tables and peer costs; not receiver-only, broker parity or production acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_echo_5",
+          "source": "extlibs/xmqtt/bench/bench_client_receive.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_echo_4",
+          "source": "extlibs/xmqtt/bench/bench_client_receive.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_echo_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_receive.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_echo_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_receive.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_disconnect",
+      "system": "client",
+      "description": "Whole connection/error/physical-retirement cycles on a persistent local Engine: construction, CONNECT/CONNACK, malformed header, MQTT5 diagnostic close or 311 abort, observer waits and destruction. Client plus fixture costs, cold first cache use; not isolated close latency or broker parity.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_close_5",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "5",
+            "0"
+          ],
+          "smoke_args": [
+            "3",
+            "5",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_4",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "4",
+            "0"
+          ],
+          "smoke_args": [
+            "3",
+            "4",
+            "0"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "5",
+            "1"
+          ],
+          "smoke_args": [
+            "3",
+            "5",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_cycle": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_cycle": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_close_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_disconnect.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "100",
+            "4",
+            "1"
+          ],
+          "smoke_args": [
+            "3",
+            "4",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_cycle": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_cycle": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_sender",
+      "system": "client",
+      "description": "Closed-loop full QoS2 sender on one in-process fixture/connection, window32/payload32; separate hot uninstrumented and cold/hot XRT heap-instrumented variants. Echo latency includes peer-observed final receiver ACK. CPU includes observer/fixture; no broker, comparator, open-loop, durability, native Linux or production acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_qos2_sender_5_hot",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "0",
+            "0",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "0",
+            "0",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_5_cold_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "2",
+            "32",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_5_hot_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "2",
+            "32",
+            "0",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "0",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_4_hot",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "0",
+            "0",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "0",
+            "0",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_4_cold_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "2",
+            "32",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_4_hot_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "2",
+            "32",
+            "0",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "0",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_echo",
+      "system": "client",
+      "description": "Closed-loop full QoS2 echo on one in-process fixture/connection, window32/payload32; separate hot uninstrumented and cold/hot XRT heap-instrumented variants. Echo latency includes peer-observed final receiver ACK. CPU includes observer/fixture; no broker, comparator, open-loop, durability, native Linux or production acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_qos2_echo_5_hot",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "1",
+            "0",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "1",
+            "0",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_5_cold_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "2",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_5_hot_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "2",
+            "32",
+            "1",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "1",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_4_hot",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "1",
+            "0",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "1",
+            "0",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_4_cold_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "2",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_4_hot_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "2",
+            "32",
+            "1",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "1",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_resolution",
+      "system": "client",
+      "description": "Predeclared 10x operation-count extension of the eight instrumented QoS2 sender/echo variants to reduce process CPU accounting quantization. Same runtime, source, 32-slot/32-byte workload, warmup, instrumentation and gates; prior 20k observations retained. Not product optimization or pinned acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_qos2_sender_5_cold_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_5_hot_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "0",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "0",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_4_cold_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_sender_4_hot_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "0",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "0",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_5_cold_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_5_hot_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "5",
+            "2",
+            "32",
+            "1",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "2",
+            "8",
+            "1",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_4_cold_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        },
+        {
+          "name": "xmqtt_qos2_echo_4_hot_alloc_long",
+          "source": "extlibs/xmqtt/bench/bench_client_qos2.c",
+          "suite": "xmqtt_client,time,memory_stats",
+          "inputs": [
+            "dev/bench/bench_common.h"
+          ],
+          "args": [
+            "200000",
+            "4",
+            "2",
+            "32",
+            "1",
+            "1",
+            "4096"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "2",
+            "8",
+            "1",
+            "1",
+            "16"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "exchange/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "process_cpu_ns_per_exchange": {
+              "direction": "lower",
+              "unit": "ns/exchange"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT blocks/exchange"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "XRT requested block bytes/exchange"
+            }
+          },
+          "facts": [
+            "mqtt_version",
+            "qos",
+            "window",
+            "echo",
+            "instrumented",
+            "measured_ops",
+            "warmup_ops",
+            "payload_bytes",
+            "phase_completion",
+            "process_cpu_clock",
+            "wire_frames_per_exchange",
+            "wire_bytes_per_exchange",
+            "affinity_policy",
+            "memory_stats_compiled",
+            "latency_completion"
+          ]
+        }
+      ]
+    }
+  ]
+}

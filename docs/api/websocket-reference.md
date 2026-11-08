@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [websocket.md](websocket.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `104` 个函数、`138` 个常量或宏、
-`40` 个公共类型。
+当前登记 `117` 个函数、`138` 个常量或宏、
+`41` 个公共类型。
 
 ## `include/xrt/websocket.h`
 
@@ -223,11 +223,15 @@
 
 [查看带契约注释的公共头](../../include/xrt/websocket_stream.h)
 
-### 函数 (38)
+### 函数 (51)
 
 - `xrtWsStreamAbort`
 - `xrtWsStreamAttach`
+- `xrtWsStreamAttachBuffered`
+- `xrtWsStreamAttachOwnedV1`
 - `xrtWsStreamAttachTls`
+- `xrtWsStreamAttachTlsBuffered`
+- `xrtWsStreamAttachTlsOwnedV1`
 - `xrtWsStreamBinary`
 - `xrtWsStreamBinaryCompressed`
 - `xrtWsStreamBinaryRef`
@@ -239,6 +243,9 @@
 - `xrtWsStreamDeflate`
 - `xrtWsStreamDestroy`
 - `xrtWsStreamError`
+- `xrtWsStreamOwnership`
+- `xrtWsStreamOwnershipAdapterV1`
+- `xrtWsStreamOwnershipQuiescenceV1Get`
 - `xrtWsStreamPause`
 - `xrtWsStreamPaused`
 - `xrtWsStreamPending`
@@ -248,21 +255,27 @@
 - `xrtWsStreamRef`
 - `xrtWsStreamResume`
 - `xrtWsStreamRole`
+- `xrtWsStreamRuntimeOwnershipV1Get`
 - `xrtWsStreamSend`
+- `xrtWsStreamSendBytes`
 - `xrtWsStreamSendCompressed`
 - `xrtWsStreamSendRef`
+- `xrtWsStreamSendSize`
 - `xrtWsStreamSendTake`
 - `xrtWsStreamState`
 - `xrtWsStreamTcp`
+- `xrtWsStreamTcpEventsOwnershipV1Get`
 - `xrtWsStreamTcpRef`
 - `xrtWsStreamText`
 - `xrtWsStreamTextCompressed`
 - `xrtWsStreamTextRef`
 - `xrtWsStreamTextTake`
 - `xrtWsStreamTls`
+- `xrtWsStreamTlsEventsOwnershipV1Get`
 - `xrtWsStreamTlsRef`
 - `xrtWsStreamWorker`
 - `xrtWsStreamWritable`
+- `xrtWsStreamWriteLimit`
 
 ### 常量与宏 (23)
 
@@ -290,7 +303,7 @@
 - `XWS_STREAM_OPEN`
 - `XWS_STREAM_SEND_LIMIT_DEFAULT`
 
-### 类型 (7)
+### 类型 (8)
 
 - `xwsstream`
 - `xwsstreamclose`
@@ -298,6 +311,7 @@
 - `xwsstreamconfig`
 - `xwsstreamerror`
 - `xwsstreamevents`
+- `xwsstreamownershipv1`
 - `xwsstreamstate`
 
 ## `include/xrt/websocket_upgrade.h`

@@ -172,6 +172,74 @@ static unsigned testOomPrefixes(void)
 }
 #endif
 
+static void postCommitFinalizer(xvalue* pObject, ptr pData)
+{
+	unsigned* pCalls = pData;
+	++*pCalls;
+	testRequire(xrtValueRetain(pObject) == NULL, "finalizer receiver cannot be retained");
+	testRequire(xrtGetError() != NULL, "resurrection is rejected"); xrtClearError();
+	testRequire(xrtValueObjectSetNewPostCommit(pObject, (xstrview){"value", 5}, xrtValueInt(0)),
+		"borrowed finalizer may replace a field after commit");
+	int64 iValue = -1;
+	testRequire(xrtValueGetInt(xrtValueObjectGet(pObject, (xstrview){"value", 5}), &iValue) && iValue == 0,
+		"finalizer observes the committed replacement");
+	testRequire(xrtValueRetain(pObject) == NULL, "field write does not revive receiver");
+	xrtClearError();
+}
+static void testFinalizerBorrow(void)
+{
+	unsigned iCalls = 0;
+	xvalue* pObject = xrtValueObject();
+	testRequire(pObject && xrtValueObjectSetNew(pObject, (xstrview){"value", 5}, xrtValueInt(1)) &&
+		xrtValueObjectFinalizerBind(pObject, postCommitFinalizer, &iCalls), "prepare finalizer field write");
+	xrtValueRelease(pObject);
+	testRequire(iCalls == 1 && !xrtGetError(), "exactly one finalizer, no borrowed shell release");
+}
+
+static void testReadScope(void)
+{
+    xvalue* pArray = xrtValueArray();
+    xvalue* pObject = xrtValueObject();
+    const xstrview Key = {"n\0k", 3};
+    testRequire(pArray && pObject && xrtValueArrayAppendNew(pArray, xrtValueInt(7)) &&
+        xrtValueObjectSetNew(pObject, Key, xrtValueInt(9)), "read scope fixture");
+    xvalue* pAlias = xrtValueClone(pArray);
+    testRequire(pAlias != NULL, "independent COW shell");
+    xvalueviewv1 Array = {0}, Object = {0};
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+    xmemdebugsnapshot Before = {0}, After = {0};
+    xrtMemDebugSnapshot(&Before);
+#endif
+    testRequire(xrtValueViewBeginV1(pArray, &Array) && xrtValueViewBeginV1(pObject, &Object),
+        "borrow wire containers without allocation");
+    int64 iValue = 0; xstrview Found = {0};
+    testRequire(xrtValueViewCountV1(&Array) == 1 &&
+        xrtValueGetInt(xrtValueViewAtV1(&Array, 0, NULL), &iValue) && iValue == 7,
+        "read original array slot");
+    testRequire(xrtValueGetInt(xrtValueViewFindV1(&Object, Key), &iValue) && iValue == 9,
+        "exact embedded NUL lookup");
+    testRequire(xrtValueViewAtV1(&Object, 0, &Found) != NULL && Found.Size == 3 &&
+        !memcmp(Found.Data, Key.Data, 3), "borrow insertion-ordered key");
+    testRequire(!xrtValueViewFindV1(&Object, (xstrview){"missing", 7}) && !xrtGetError(), "missing is not failure");
+    xvalueviewv1 Copied = Array;
+    testRequire(!xrtValueViewEndV1(&Copied), "copied scope cannot unguard original"); xrtClearError();
+    testRequire(xrtValueRetain(pArray) == NULL, "guarded shell retain refused"); xrtClearError();
+    xrtValueRelease(pArray); testRequire(xrtGetError() != NULL, "guarded shell release refused"); xrtClearError();
+    testRequire(!xrtValueViewAtV1(&Array, 1, NULL), "view checks bounds"); xrtClearError();
+    testRequire(xrtValueViewEndV1(&Object) && xrtValueViewEndV1(&Array) &&
+        xrtValueViewEndV1(&Array), "read scope ends once and cleared End is harmless");
+#if defined(XRT_FEATURE_MEMORY_DEBUG)
+    xrtMemDebugSnapshot(&After);
+    testRequire(Before.AllocCount == After.AllocCount && Before.FreeCount == After.FreeCount,
+        "read, guard, lookup and end allocate and free nothing");
+#endif
+    testRequire(xrtValueViewBeginV1(pArray, &Array), "scope reusable after End");
+    testRequire(xrtValueArrayAppendNew(pAlias, xrtValueInt(11)), "independent alias separates by COW");
+    testRequire(xrtValueViewCountV1(&Array) == 1 && xrtValueViewEndV1(&Array), "borrow sees original backing");
+    testRequire(!xrtValueViewAtV1(&Array, 0, NULL), "expired scope refused"); xrtClearError();
+    xrtValueRelease(pAlias); xrtValueRelease(pArray); xrtValueRelease(pObject);
+}
+
 int main(void)
 {
 #if defined(XRT_FEATURE_MEMORY_DEBUG)
@@ -180,6 +248,8 @@ int main(void)
 	xmemdebugsnapshot Before = {0}, After = {0};
 	xrtMemDebugSnapshot(&Before);
 #endif
+	testReadScope();
+	testFinalizerBorrow();
 	testBackReferences();
 	testCowAndErrors();
 	testReceiverPin();

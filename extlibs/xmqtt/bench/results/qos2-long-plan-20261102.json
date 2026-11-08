@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "base_commit": "d418f4ce11f0407e76bce52102a23955eb85e523",
+  "runtime_commit": "77036057cdc6ca6577cf2056b54b5e119cbd3f89",
+  "prior_profile_sha256": "c6edf545d7d63e8dc0bb190762361c75bb972e169cea6f22082d9eaa9a278a9a",
+  "profile_sha256": "a127835b878c35ac091f7fc07e9ac7a4082c7dd5d0247bdb456a586afbe80966",
+  "workload_sha256": "690108d05a4ca4057cfc814b8b6e8e23fea36baff427b7274cd5d8a3256acb0f",
+  "prior_observation_sha256": "5c29a3d7883a97d8220a61181c30f258073aa610585bed42dbc29cf714ca28f6",
+  "change": "Only eight new instrumented variants, 20000 to 200000 operations. Original profiles and observations unchanged.",
+  "hypothesis": "The observed Windows 15625000 ns process-CPU step is amortized over 10x more operations; throughput/P99 may still fail noise quality.",
+  "old_cpu_step_ns_per_op": 781.25,
+  "new_cpu_step_ns_per_op": 78.125,
+  "thresholds": {
+    "relative_mad": 0.03,
+    "relative_central_range": 0.06,
+    "throughput_regression": 0.05,
+    "p99_regression": 0.1
+  },
+  "policy": "Exactly one frozen collection per OS, serial Windows then WSL; retain all warmups/samples and failures, no best-run selection.",
+  "variants": [
+    {
+      "name": "xmqtt_qos2_sender_5_cold_alloc_long",
+      "args": [
+        "200000",
+        "5",
+        "2",
+        "32",
+        "0",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_sender_5_hot_alloc_long",
+      "args": [
+        "200000",
+        "5",
+        "2",
+        "32",
+        "0",
+        "1",
+        "4096"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_sender_4_cold_alloc_long",
+      "args": [
+        "200000",
+        "4",
+        "2",
+        "32",
+        "0",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_sender_4_hot_alloc_long",
+      "args": [
+        "200000",
+        "4",
+        "2",
+        "32",
+        "0",
+        "1",
+        "4096"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_echo_5_cold_alloc_long",
+      "args": [
+        "200000",
+        "5",
+        "2",
+        "32",
+        "1",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_echo_5_hot_alloc_long",
+      "args": [
+        "200000",
+        "5",
+        "2",
+        "32",
+        "1",
+        "1",
+        "4096"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_echo_4_cold_alloc_long",
+      "args": [
+        "200000",
+        "4",
+        "2",
+        "32",
+        "1",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "name": "xmqtt_qos2_echo_4_hot_alloc_long",
+      "args": [
+        "200000",
+        "4",
+        "2",
+        "32",
+        "1",
+        "1",
+        "4096"
+      ]
+    }
+  ]
+}

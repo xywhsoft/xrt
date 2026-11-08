@@ -1,113 +1,165 @@
-#include <xrt/detail/wait.h>
 #include "../internal/xllm_internal.h"
 #include <stdio.h>
 
 #define XLLM_MAX_ATTEMPTS 8u
 
-static char* xllm__normalize_url(const char* sBaseUrl, const xllm_dialect_ops* pDialect)
+static char *xllm__normalize_url(const char *sBaseUrl, const xllm_dialect_ops *pDialect)
 {
-    const char* sSuffix = pDialect->sPathSuffix;
+    const char *sSuffix = pDialect->sPathSuffix;
     size_t iSuffixLen = strlen(sSuffix);
     size_t iLen;
-    char* sUrl;
-    if ( !sBaseUrl || !sBaseUrl[0] ) { return NULL; }
-    if ( strstr(sBaseUrl, sSuffix) ) { return xllm__strdup(sBaseUrl); }
+    char *sUrl;
+    if (!sBaseUrl || !sBaseUrl[0])
+    {
+        return NULL;
+    }
+    if (strstr(sBaseUrl, sSuffix))
+    {
+        return xllm__strdup(sBaseUrl);
+    }
     iLen = strlen(sBaseUrl);
-    while ( iLen && sBaseUrl[iLen - 1u] == '/' ) { --iLen; }
+    while (iLen && sBaseUrl[iLen - 1u] == '/')
+    {
+        --iLen;
+    }
     /* "https://host/v1" + "/v1/messages" must not double the version. */
-    if ( iSuffixLen > 4u && memcmp(sSuffix, "/v1/", 4u) == 0 && iLen >= 3u &&
-         iLen >= 3u && memcmp(sBaseUrl + iLen - 3u, "/v1", 3u) == 0 ) {
+    if (iSuffixLen > 4u && memcmp(sSuffix, "/v1/", 4u) == 0 && iLen >= 3u && iLen >= 3u &&
+        memcmp(sBaseUrl + iLen - 3u, "/v1", 3u) == 0)
+    {
         iLen -= 3u;
     }
-    sUrl = (char*)xllm__malloc(iLen + iSuffixLen + 1u);
-    if ( !sUrl ) { return NULL; }
+    sUrl = (char *)xllm__malloc(iLen + iSuffixLen + 1u);
+    if (!sUrl)
+    {
+        return NULL;
+    }
     memcpy(sUrl, sBaseUrl, iLen);
     memcpy(sUrl + iLen, sSuffix, iSuffixLen + 1u);
     return sUrl;
 }
 
-static uint32_t xllm__parse_retry_after_ms(const char* sValue, uint32_t uMultiplier)
+static uint32_t xllm__parse_retry_after_ms(const char *sValue, uint32_t uMultiplier)
 {
     unsigned long long uValue;
-    char* sEnd = NULL;
-    if ( !sValue || !sValue[0] ) { return 0u; }
+    char *sEnd = NULL;
+    if (!sValue || !sValue[0])
+    {
+        return 0u;
+    }
     uValue = strtoull(sValue, &sEnd, 10);
-    if ( sEnd == sValue ) { return 0u; }
-    while ( *sEnd && isspace((unsigned char)*sEnd) ) { ++sEnd; }
-    if ( *sEnd || uValue > (unsigned long long)UINT32_MAX / uMultiplier ) { return 0u; }
+    if (sEnd == sValue)
+    {
+        return 0u;
+    }
+    while (*sEnd && isspace((unsigned char)*sEnd))
+    {
+        ++sEnd;
+    }
+    if (*sEnd || uValue > (unsigned long long)UINT32_MAX / uMultiplier)
+    {
+        return 0u;
+    }
     return (uint32_t)(uValue * uMultiplier);
 }
 
-static const xhttpfield* xllm__header(const xhttp1head* pHead, const char* sName)
+static const xhttpfield *xllm__header(const xhttp1head *pHead, const char *sName)
 {
-    return pHead ? xrtHttp1Field(pHead, (xstrview){ sName, strlen(sName) }) : NULL;
+    return pHead ? xrtHttp1Field(pHead, (xstrview){sName, strlen(sName)}) : NULL;
 }
 
-static void xllm__capture_diagnostics(xllm_call* pCall, xllm_diagnostics* pOut)
+static void xllm__capture_diagnostics(xllm_call *pCall, xllm_diagnostics *pOut)
 {
-    const xllm_transport_diagnostics* pHttp;
-    if ( !pOut ) { return; }
+    const xllm_transport_diagnostics *pHttp;
+    if (!pOut)
+    {
+        return;
+    }
     memset(pOut, 0, sizeof(*pOut));
-    if ( !pCall ) { return; }
+    if (!pCall)
+    {
+        return;
+    }
     pHttp = &pCall->tHttpDiagnostics;
     pOut->uAttemptCount = pCall->uAttempt ? pCall->uAttempt : 1u;
     pOut->uMaxAttempts = pCall->pClient ? pCall->pClient->uMaxAttempts : 1u;
     pOut->uRetryAfterMs = pCall->uRetryAfterMs;
     pOut->bResponseStarted = pCall->uHttpStatus != 0u;
-    pOut->bModelDataDelivered = pCall->bSawEvent || pCall->pResponse != NULL || pCall->bResponseTaken;
+    pOut->bModelDataDelivered =
+        pCall->bSawEvent || pCall->pResponse != NULL || pCall->bResponseTaken;
+    pOut->bIdempotencyKeyPresent = pCall->bIdempotencyKeyPresent;
     pOut->bReusedConnection = pHttp->bReusedConnection;
     pOut->bToolCallDropped = pHttp->bToolCallDropped;
     pOut->bContextAttached = pCall->bScopeAttached;
     pOut->iTransportStatus = (int32_t)pHttp->eResult;
     pOut->iSystemError = pHttp->iSystemError;
-    pOut->uStartedMs = 0;
-    pOut->uConnectedMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0) : 0;
-    pOut->uRequestSentMs = pHttp->uRequestSentMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uRequestSentMs - pHttp->uStartedMs) * 1000.0) : 0;
-    pOut->uFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0) : 0;
-    pOut->uFirstTokenMs = pHttp->uFirstTokenMs > pHttp->uStartedMs ?
-        (pHttp->uFirstTokenMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pOut->uHeadersMs = pHttp->uHeadersMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uHeadersMs - pHttp->uStartedMs) * 1000.0) : 0;
-    pOut->uCompletedMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (uint64_t)((pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0) : 0;
-    pOut->uConnectDurationMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pOut->uTimeToFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pOut->uTransferDurationMs = pHttp->uCompletedMs > pHttp->uHeadersMs ? (pHttp->uCompletedMs - pHttp->uHeadersMs) * 1000.0 : 0u;
-    pOut->uTotalDurationMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pOut->uStartedMs = pHttp->uStartedMs;
+    pOut->uConnectedMs = pHttp->uConnectedMs;
+    pOut->uRequestSentMs = pHttp->uRequestSentMs;
+    pOut->uFirstByteMs = pHttp->uFirstByteMs;
+    pOut->uFirstTokenMs =
+        pHttp->uFirstTokenMs > pHttp->uStartedMs ? pHttp->uFirstTokenMs - pHttp->uStartedMs : 0u;
+    pOut->uHeadersMs = pHttp->uHeadersMs;
+    pOut->uCompletedMs = pHttp->uCompletedMs;
+    pOut->uConnectDurationMs =
+        pHttp->uConnectedMs > pHttp->uStartedMs ? pHttp->uConnectedMs - pHttp->uStartedMs : 0u;
+    pOut->uTimeToFirstByteMs =
+        pHttp->uFirstByteMs > pHttp->uStartedMs ? pHttp->uFirstByteMs - pHttp->uStartedMs : 0u;
+    pOut->uTransferDurationMs =
+        pHttp->uCompletedMs > pHttp->uHeadersMs ? pHttp->uCompletedMs - pHttp->uHeadersMs : 0u;
+    pOut->uTotalDurationMs =
+        pHttp->uCompletedMs > pHttp->uStartedMs ? pHttp->uCompletedMs - pHttp->uStartedMs : 0u;
     pOut->uRequestBytes = pHttp->uRequestBytes;
     pOut->uResponseBodyBytes = pHttp->uResponseBodyBytes;
-    pOut->uContextDeadlineMs = pCall->uScopeDeadline == INFINITY ? 0u : (uint64_t)__xrtWaitRemaining(pCall->uScopeDeadline);
+    pOut->uContextDeadlineMs =
+        pCall->uScopeDeadline == XLLM_DEADLINE_NEVER ? 0u : pCall->uScopeDeadline / UINT64_C(1000);
     pOut->uEffectiveTimeoutMs = pHttp->uEffectiveTimeoutMs;
     xllm__copy_text(pOut->sTransportError, sizeof(pOut->sTransportError), pHttp->sError);
-    if ( pCall->bScopeAttached && pHttp->eResult == XLLM_TRANSPORT_TIMEOUT ) {
-        xllm__copy_text(pOut->sTransportError,
-            sizeof(pOut->sTransportError), "deadline_exceeded");
+    if (pCall->bScopeAttached && pHttp->eResult == XLLM_TRANSPORT_TIMEOUT)
+    {
+        xllm__copy_text(pOut->sTransportError, sizeof(pOut->sTransportError), "deadline_exceeded");
     }
     xllm__copy_text(pOut->sTransportPhase, sizeof(pOut->sTransportPhase), pHttp->sPhase);
-    xllm__copy_text(pOut->sContextStatus, sizeof(pOut->sContextStatus),
-        !pCall->bScopeAttached ? "none" :
-        (pHttp->eResult == XLLM_TRANSPORT_CANCELLED ? "cancelled" :
-        (pHttp->eResult == XLLM_TRANSPORT_TIMEOUT ? "deadline_exceeded" : "active")));
-    if ( pCall->pDialect ) {
+    xllm__copy_text(
+        pOut->sContextStatus, sizeof(pOut->sContextStatus),
+        !pCall->bScopeAttached
+            ? "none"
+            : (pHttp->eResult == XLLM_TRANSPORT_CANCELLED
+                   ? "cancelled"
+                   : (pHttp->eResult == XLLM_TRANSPORT_TIMEOUT ? "deadline_exceeded" : "active")));
+    if (pCall->pDialect)
+    {
         xllm__copy_text(pOut->sDialect, sizeof(pOut->sDialect), pCall->pDialect->sName);
     }
 }
 
-static void xllm__capture_stats(xllm_call* pCall, xllm_response* pResponse)
+static void xllm__capture_stats(xllm_call *pCall, xllm_response *pResponse)
 {
-    xllm_stats* pStats;
-    const xllm_transport_diagnostics* pHttp;
-    if ( !pCall || !pResponse ) { return; }
+    xllm_stats *pStats;
+    const xllm_transport_diagnostics *pHttp;
+    if (!pCall || !pResponse)
+    {
+        return;
+    }
     pStats = &pResponse->tStats;
     pHttp = &pCall->tHttpDiagnostics;
     pStats->tUsage = pResponse->tUsage;
-    pStats->uConnectMs = pHttp->uConnectedMs > pHttp->uStartedMs ? (pHttp->uConnectedMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pStats->uFirstByteMs = pHttp->uFirstByteMs > pHttp->uStartedMs ? (pHttp->uFirstByteMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pStats->uFirstTokenMs = pHttp->uFirstTokenMs > pHttp->uStartedMs ? (pHttp->uFirstTokenMs - pHttp->uStartedMs) * 1000.0 : 0u;
-    pStats->uTotalMs = pHttp->uCompletedMs > pHttp->uStartedMs ? (pHttp->uCompletedMs - pHttp->uStartedMs) * 1000.0 : 0u;
+    pStats->uConnectMs =
+        pHttp->uConnectedMs > pHttp->uStartedMs ? pHttp->uConnectedMs - pHttp->uStartedMs : 0u;
+    pStats->uFirstByteMs =
+        pHttp->uFirstByteMs > pHttp->uStartedMs ? pHttp->uFirstByteMs - pHttp->uStartedMs : 0u;
+    pStats->uFirstTokenMs =
+        pHttp->uFirstTokenMs > pHttp->uStartedMs ? pHttp->uFirstTokenMs - pHttp->uStartedMs : 0u;
+    pStats->uTotalMs =
+        pHttp->uCompletedMs > pHttp->uStartedMs ? pHttp->uCompletedMs - pHttp->uStartedMs : 0u;
     pStats->fOutputTokensPerSec = 0.0;
-    if ( pResponse->tUsage.uOutputTokens && pHttp->uFirstTokenMs &&
-         pHttp->uCompletedMs > pHttp->uFirstTokenMs ) {
-        double fSeconds = pHttp->uCompletedMs - pHttp->uFirstTokenMs;
-        if ( fSeconds > 0.0 ) { pStats->fOutputTokensPerSec = (double)pResponse->tUsage.uOutputTokens / fSeconds; }
+    if (pResponse->tUsage.uOutputTokens && pHttp->uFirstTokenMs &&
+        pHttp->uCompletedMs > pHttp->uFirstTokenMs)
+    {
+        double fSeconds = (double)(pHttp->uCompletedMs - pHttp->uFirstTokenMs) / 1000.0;
+        if (fSeconds > 0.0)
+        {
+            pStats->fOutputTokensPerSec = (double)pResponse->tUsage.uOutputTokens / fSeconds;
+        }
     }
     pStats->uRequestBytes = pHttp->uRequestBytes;
     pStats->uResponseBytes = pHttp->uResponseBodyBytes;
@@ -115,75 +167,292 @@ static void xllm__capture_stats(xllm_call* pCall, xllm_response* pResponse)
     pStats->bReusedConnection = pHttp->bReusedConnection;
 }
 
-static xllm_result xllm__scope_result(xcancel* pCancel, double uDeadline, xllm_error* pError)
+static xllm_result xllm__scope_result(xcancel *pCancel, uint64_t uDeadline, xllm_error *pError)
 {
-    if ( pError && (pCancel || uDeadline != INFINITY) ) {
+    if (pError && (pCancel || uDeadline != XLLM_DEADLINE_NEVER))
+    {
         pError->tDiagnostics.bContextAttached = true;
-        pError->tDiagnostics.uContextDeadlineMs = uDeadline == INFINITY ? 0u : (uint64_t)__xrtWaitRemaining(uDeadline);
+        pError->tDiagnostics.uContextDeadlineMs =
+            uDeadline == XLLM_DEADLINE_NEVER ? 0u : uDeadline / UINT64_C(1000);
         xllm__copy_text(pError->tDiagnostics.sTransportPhase,
-            sizeof(pError->tDiagnostics.sTransportPhase), "prepare");
+                        sizeof(pError->tDiagnostics.sTransportPhase), "prepare");
     }
-    if ( pCancel && xrtCancelRequested(pCancel) ) {
+    if (pCancel && xrtCancelRequested(pCancel))
+    {
         xllm__error_set(pError, XLLM_ERROR_CANCELLED, "model operation was cancelled");
-        if ( pError ) {
+        if (pError)
+        {
             xllm__copy_text(pError->tDiagnostics.sContextStatus,
-                sizeof(pError->tDiagnostics.sContextStatus), "cancelled");
+                            sizeof(pError->tDiagnostics.sContextStatus), "cancelled");
             xllm__copy_text(pError->tDiagnostics.sTransportError,
-                sizeof(pError->tDiagnostics.sTransportError), "cancelled");
+                            sizeof(pError->tDiagnostics.sTransportError), "cancelled");
         }
         return XLLM_RESULT_CANCELLED;
     }
-    if ( uDeadline != INFINITY && __xrtWaitExpired(uDeadline) ) {
+    if (uDeadline != XLLM_DEADLINE_NEVER && xllmDeadlineExpired(uDeadline))
+    {
         xllm__error_set(pError, XLLM_ERROR_TIMEOUT, "model operation deadline was exceeded");
-        if ( pError ) {
+        if (pError)
+        {
             xllm__copy_text(pError->tDiagnostics.sContextStatus,
-                sizeof(pError->tDiagnostics.sContextStatus), "deadline_exceeded");
+                            sizeof(pError->tDiagnostics.sContextStatus), "deadline_exceeded");
             xllm__copy_text(pError->tDiagnostics.sTransportError,
-                sizeof(pError->tDiagnostics.sTransportError), "deadline_exceeded");
+                            sizeof(pError->tDiagnostics.sTransportError), "deadline_exceeded");
         }
         return XLLM_RESULT_TIMEOUT;
     }
     return XLLM_RESULT_OK;
 }
 
-static bool xllm__scope_sleep(xcancel* pCancel, double uDeadline, uint32_t uDelayMs)
+static bool xllm__scope_sleep(xcancel *pCancel, uint64_t uDeadline, uint32_t uDelayMs)
 {
-    double uEnd = __xrtWaitAfter(uDelayMs);
-    if ( uDeadline != INFINITY && uEnd > uDeadline ) uEnd = uDeadline;
-    for ( ;; ) {
-        double uNow;
-        int64 uRemaining;
+    uint64_t uEnd = xllmClockUs() + (uint64_t)uDelayMs * UINT64_C(1000);
+    if (uDeadline != XLLM_DEADLINE_NEVER && uEnd > uDeadline)
+        uEnd = uDeadline;
+    for (;;)
+    {
+        uint64_t uNow;
+        uint64_t uRemaining;
         uint32_t uSlice;
-        if ( pCancel && xrtCancelRequested(pCancel) ) return false;
-        uNow = xrtTimer();
-        if ( uNow >= uEnd ) { return true; }
-        uRemaining = __xrtWaitRemaining(uEnd);
-        if (uRemaining < 0) return false;
-        uSlice = uRemaining > 20 ? 20u : (uint32_t)uRemaining;
-        if ( !uSlice ) { uSlice = 1u; }
+        if (pCancel && xrtCancelRequested(pCancel))
+            return false;
+        uNow = xllmClockUs();
+        if (uNow >= uEnd)
+        {
+            return true;
+        }
+        uRemaining = uEnd - uNow;
+        uSlice = uRemaining > UINT64_C(20000) ? 20u : (uint32_t)((uRemaining + 999u) / 1000u);
+        if (!uSlice)
+        {
+            uSlice = 1u;
+        }
         xrtSleep(uSlice);
     }
 }
 
-static uint32_t xllm__retry_delay_ms(const xllm_client* pClient, uint32_t uAttempt, uint32_t uRetryAfterMs)
+static uint32_t xllm__retry_delay_ms(const xllm_client *pClient, uint32_t uAttempt,
+                                     uint32_t uRetryAfterMs)
 {
     uint64_t uDelay;
     uint32_t i;
-    if ( !pClient ) { return 0u; }
+    if (!pClient)
+    {
+        return 0u;
+    }
     uDelay = pClient->uRetryBaseDelayMs;
-    for ( i = 1u; i < uAttempt && uDelay < pClient->uRetryMaxDelayMs; ++i ) {
+    for (i = 1u; i < uAttempt && uDelay < pClient->uRetryMaxDelayMs; ++i)
+    {
         uDelay *= 2u;
     }
-    if ( uDelay < uRetryAfterMs ) { uDelay = uRetryAfterMs; }
-    if ( pClient->uRetryMaxDelayMs > 0u && uDelay > pClient->uRetryMaxDelayMs ) {
+    if (uDelay < uRetryAfterMs)
+    {
+        uDelay = uRetryAfterMs;
+    }
+    if (pClient->uRetryMaxDelayMs > 0u && uDelay > pClient->uRetryMaxDelayMs)
+    {
         uDelay = pClient->uRetryMaxDelayMs;
     }
     return uDelay > UINT32_MAX ? UINT32_MAX : (uint32_t)uDelay;
 }
 
-void xllmClientConfigInit(xllm_client_config* pConfig)
+static bool xllm__ascii_space(char c)
 {
-    if ( !pConfig ) { return; }
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
+}
+
+static unsigned char xllm__ascii_lower(unsigned char c)
+{
+    return c >= (unsigned char)'A' && c <= (unsigned char)'Z'
+               ? (unsigned char)(c + ((unsigned char)'a' - (unsigned char)'A'))
+               : c;
+}
+
+static bool xllm__ascii_equal(const char *sLeft, const char *sRight, size_t iSize)
+{
+    size_t i;
+    for (i = 0u; i < iSize; ++i)
+    {
+        if (xllm__ascii_lower((unsigned char)sLeft[i]) !=
+            xllm__ascii_lower((unsigned char)sRight[i]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool xllm__proxy_pattern_matches(const char *sPattern, size_t iPattern, const char *sHost,
+                                        size_t iHost)
+{
+    bool bLeading = false;
+    bool bTrailing = false;
+    size_t i;
+    if (iPattern != 0u && sPattern[0] == '*')
+    {
+        bLeading = true;
+        ++sPattern;
+        --iPattern;
+    }
+    if (iPattern != 0u && sPattern[iPattern - 1u] == '*')
+    {
+        bTrailing = true;
+        --iPattern;
+    }
+    if (iPattern == 0u)
+    {
+        return bLeading || bTrailing;
+    }
+    /* Only edge wildcards are part of the public grammar. Treat an interior
+     * '*' as an invalid, non-matching entry instead of expanding it. */
+    if (memchr(sPattern, '*', iPattern) != NULL || iPattern > iHost)
+    {
+        return false;
+    }
+    if (!bLeading && !bTrailing)
+    {
+        return iPattern == iHost && xllm__ascii_equal(sPattern, sHost, iHost);
+    }
+    if (!bLeading)
+    {
+        return xllm__ascii_equal(sPattern, sHost, iPattern);
+    }
+    if (!bTrailing)
+    {
+        return xllm__ascii_equal(sPattern, sHost + iHost - iPattern, iPattern);
+    }
+    for (i = 0u; i + iPattern <= iHost; ++i)
+    {
+        if (xllm__ascii_equal(sPattern, sHost + i, iPattern))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool xllm__proxy_bypassed(const char *sBypass, const char *sHost)
+{
+    const char *pEntry;
+    const char *pEnd;
+    size_t iHost;
+    if (!sBypass || !sBypass[0] || !sHost || !sHost[0])
+    {
+        return false;
+    }
+    iHost = strlen(sHost);
+    pEntry = sBypass;
+    while (*pEntry)
+    {
+        while (*pEntry == ',' || *pEntry == ';' || xllm__ascii_space(*pEntry))
+        {
+            ++pEntry;
+        }
+        pEnd = pEntry;
+        while (*pEnd && *pEnd != ',' && *pEnd != ';')
+        {
+            ++pEnd;
+        }
+        while (pEnd > pEntry && xllm__ascii_space(pEnd[-1]))
+        {
+            --pEnd;
+        }
+        if (pEnd > pEntry &&
+            xllm__proxy_pattern_matches(pEntry, (size_t)(pEnd - pEntry), sHost, iHost))
+        {
+            return true;
+        }
+        pEntry = pEnd;
+        while (*pEntry == ',' || *pEntry == ';')
+        {
+            ++pEntry;
+        }
+    }
+    return false;
+}
+
+static bool xllm__proxy_text(const char *sValue) { return sValue && sValue[0]; }
+
+static bool xllm__proxy_requested(const xllm_client_config *pConfig)
+{
+    return pConfig->eProxyKind != XLLM_PROXY_NONE || xllm__proxy_text(pConfig->sProxyHost) ||
+           pConfig->uProxyPort != 0u || xllm__proxy_text(pConfig->sProxyUser) ||
+           xllm__proxy_text(pConfig->sProxyPass);
+}
+
+static bool xllm__proxy_config_valid(const xllm_client_config *pConfig, xllm_error *pError)
+{
+    if (!xllm__proxy_requested(pConfig))
+    {
+        return true;
+    }
+    if ((pConfig->eProxyKind != XLLM_PROXY_SOCKS5 &&
+         pConfig->eProxyKind != XLLM_PROXY_HTTP_CONNECT) ||
+        !xllm__proxy_text(pConfig->sProxyHost) || pConfig->uProxyPort == 0u)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "proxy kind, host, and port must be configured together");
+        return false;
+    }
+    return true;
+}
+
+static bool xllm__proxy_configure(xllm_client *pClient, const xllm_client_config *pConfig,
+                                  xllm_error *pError)
+{
+    xnetproxyconfig tProxy;
+    const xerror *pXrtError;
+
+    if (pConfig->sProxyBypass && pConfig->sProxyBypass[0])
+    {
+        pClient->sProxyBypass = xllm__strdup(pConfig->sProxyBypass);
+        if (!pClient->sProxyBypass)
+        {
+            xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY,
+                            "failed to store proxy bypass policy");
+            return false;
+        }
+    }
+    if (!xllm__proxy_requested(pConfig))
+    {
+        return true;
+    }
+    if (!pClient->bTls)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "outbound proxy requires an HTTPS base URL");
+        return false;
+    }
+    xrtNetProxyConfigInit(&tProxy);
+    tProxy.Type =
+        pConfig->eProxyKind == XLLM_PROXY_SOCKS5 ? XNET_PROXY_SOCKS5 : XNET_PROXY_HTTP_CONNECT;
+    tProxy.Host.Data = pConfig->sProxyHost;
+    tProxy.Host.Size = strlen(pConfig->sProxyHost);
+    tProxy.Port = pConfig->uProxyPort;
+    tProxy.Username.Data = (const uint8 *)(pConfig->sProxyUser ? pConfig->sProxyUser : "");
+    tProxy.Username.Size = pConfig->sProxyUser ? strlen(pConfig->sProxyUser) : 0u;
+    tProxy.Password.Data = (const uint8 *)(pConfig->sProxyPass ? pConfig->sProxyPass : "");
+    tProxy.Password.Size = pConfig->sProxyPass ? strlen(pConfig->sProxyPass) : 0u;
+    pClient->pProxy = xrtNetProxyCreate(&tProxy);
+    if (pClient->pProxy)
+    {
+        return true;
+    }
+    pXrtError = xrtGetError();
+    xllm__error_set(pError,
+                    pXrtError && xrtErrorKind(pXrtError) == XERR_MEMORY
+                        ? XLLM_ERROR_OUT_OF_MEMORY
+                        : XLLM_ERROR_INVALID_ARGUMENT,
+                    "failed to create outbound proxy configuration");
+    return false;
+}
+
+void xllmClientConfigInit(xllm_client_config *pConfig)
+{
+    if (!pConfig)
+    {
+        return;
+    }
     memset(pConfig, 0, sizeof(*pConfig));
     pConfig->sReasoningEffort = "max";
     pConfig->sUserAgent = "xllm/3.0";
@@ -194,78 +463,134 @@ void xllmClientConfigInit(xllm_client_config* pConfig)
     pConfig->uRetryBaseDelayMs = 250u;
     pConfig->uRetryMaxDelayMs = 30000u;
     pConfig->uMaxIdleConnections = 4u;
+    pConfig->uMaxHttpHeadBytes = XLLM_HTTP_HEAD_LIMIT;
+    pConfig->uMaxResponseBodyBytes = XLLM_MAX_FALLBACK_BODY;
+    pConfig->uMaxSseLineBytes = 1024u * 1024u;
+    pConfig->uMaxSseEventBytes = 16u * 1024u * 1024u;
     pConfig->bVerifyPeer = true;
     pConfig->eProvider = XLLM_PROVIDER_OPENAI_COMPAT;
 }
 
-xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pError)
+xllm_client *xllmClientCreate(const xllm_client_config *pConfig, xllm_error *pError)
 {
-    xllm_client* pClient = NULL;
-    const xllm_model_profile* pProfile;
-    const xllm_dialect_ops* pDialect;
-    const char* sModel;
-    if ( pError ) { xllmErrorInit(pError); }
+    xllm_client *pClient = NULL;
+    const xllm_model_profile *pProfile;
+    const xllm_dialect_ops *pDialect;
+    const char *sModel;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
     pProfile = pConfig ? pConfig->pModelProfile : NULL;
-    pDialect = xllm__dialect_ops_for(pProfile ? pProfile->eProvider : (pConfig ? pConfig->eProvider : XLLM_PROVIDER_OPENAI_COMPAT));
-    if ( !pDialect ) {
-        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "provider has no wire dialect in this build");
+    pDialect = xllm__dialect_ops_for(
+        pProfile ? pProfile->eProvider
+                 : (pConfig ? pConfig->eProvider : XLLM_PROVIDER_OPENAI_COMPAT));
+    if (!pDialect)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "provider has no wire dialect in this build");
         return NULL;
     }
     sModel = pConfig && pConfig->sModel && pConfig->sModel[0]
-        ? pConfig->sModel : (pProfile ? pProfile->sModel : NULL);
-    if ( !pConfig || !pConfig->sBaseUrl || !pConfig->sBaseUrl[0] || !sModel || !sModel[0] ) {
+                 ? pConfig->sModel
+                 : (pProfile ? pProfile->sModel : NULL);
+    if (!pConfig || !pConfig->sBaseUrl || !pConfig->sBaseUrl[0] || !sModel || !sModel[0])
+    {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "base URL and model are required");
         return NULL;
     }
-    if ( pProfile ) {
-        if ( !xllmModelProfileValidate(pProfile, pError) ) return NULL;
-        if ( pConfig->sModel && pConfig->sModel[0] &&
-             strcmp(pConfig->sModel, pProfile->sModel) != 0 ) {
-            xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client model does not match the model profile");
+    if (pConfig->uMaxHttpHeadBytes > XLLM_HTTP_HEAD_LIMIT ||
+        pConfig->uMaxResponseBodyBytes > XLLM_MAX_FALLBACK_BODY ||
+        pConfig->uMaxSseLineBytes > 1024u * 1024u ||
+        pConfig->uMaxSseEventBytes > 16u * 1024u * 1024u)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "parser limit exceeds the library hard ceiling");
+        return NULL;
+    }
+    if (!xllm__proxy_config_valid(pConfig, pError))
+    {
+        return NULL;
+    }
+    if (pProfile)
+    {
+        if (!xllmModelProfileValidate(pProfile, pError))
+            return NULL;
+        if (pConfig->sModel && pConfig->sModel[0] && strcmp(pConfig->sModel, pProfile->sModel) != 0)
+        {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "client model does not match the model profile");
             return NULL;
         }
-        if ( pConfig->uMaxOutputTokens > pProfile->uMaxOutputTokens ) {
-            xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client output limit exceeds the model profile");
+        if (pConfig->uMaxOutputTokens > pProfile->uMaxOutputTokens)
+        {
+            xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "client output limit exceeds the model profile");
             return NULL;
         }
     }
-    pClient = (xllm_client*)xllm__calloc(1u, sizeof(*pClient));
-    if ( !pClient ) goto oom;
+    pClient = (xllm_client *)xllm__calloc(1u, sizeof(*pClient));
+    if (!pClient)
+        goto oom;
+    pClient->bConfigMutexInit = xrtMutexInit(&pClient->ConfigMutex);
+    if (!pClient->bConfigMutexInit)
+        goto oom;
     pClient->pDialect = pDialect;
     pClient->pNetEngine = pConfig->pNetEngine;
     pClient->bEngineOwned = false;
     pClient->sBaseUrl = xllm__normalize_url(pConfig->sBaseUrl, pDialect);
     pClient->sApiKey = xllm__strdup(pConfig->sApiKey ? pConfig->sApiKey : "");
     pClient->sModel = xllm__strdup(sModel);
-    pClient->sReasoningEffort = xllm__strdup(pConfig->sReasoningEffort ? pConfig->sReasoningEffort : "");
+    pClient->sReasoningEffort =
+        xllm__strdup(pConfig->sReasoningEffort ? pConfig->sReasoningEffort : "");
     pClient->sUserAgent = xllm__strdup(pConfig->sUserAgent ? pConfig->sUserAgent : "xllm/3.0");
     pClient->uMaxOutputTokens = pConfig->uMaxOutputTokens
-        ? pConfig->uMaxOutputTokens : (pProfile ? pProfile->uMaxOutputTokens : 65536u);
+                                    ? pConfig->uMaxOutputTokens
+                                    : (pProfile ? pProfile->uMaxOutputTokens : 65536u);
     pClient->uTimeoutMs = pConfig->uTimeoutMs;
     pClient->uIdleTimeoutMs = pConfig->uIdleTimeoutMs;
     pClient->uMaxAttempts = pConfig->uMaxAttempts ? pConfig->uMaxAttempts : 1u;
-    if ( pClient->uMaxAttempts > XLLM_MAX_ATTEMPTS ) { pClient->uMaxAttempts = XLLM_MAX_ATTEMPTS; }
+    if (pClient->uMaxAttempts > XLLM_MAX_ATTEMPTS)
+    {
+        pClient->uMaxAttempts = XLLM_MAX_ATTEMPTS;
+    }
     pClient->uRetryBaseDelayMs = pConfig->uRetryBaseDelayMs;
     pClient->uRetryMaxDelayMs = pConfig->uRetryMaxDelayMs;
+    pClient->uMaxHttpHeadBytes =
+        pConfig->uMaxHttpHeadBytes ? pConfig->uMaxHttpHeadBytes : XLLM_HTTP_HEAD_LIMIT;
+    pClient->uMaxResponseBodyBytes =
+        pConfig->uMaxResponseBodyBytes ? pConfig->uMaxResponseBodyBytes : XLLM_MAX_FALLBACK_BODY;
+    pClient->uMaxSseLineBytes =
+        pConfig->uMaxSseLineBytes ? pConfig->uMaxSseLineBytes : 1024u * 1024u;
+    pClient->uMaxSseEventBytes =
+        pConfig->uMaxSseEventBytes ? pConfig->uMaxSseEventBytes : 16u * 1024u * 1024u;
     pClient->uMaxIdleConnections = pConfig->uMaxIdleConnections ? pConfig->uMaxIdleConnections : 4u;
-    if ( pClient->uMaxIdleConnections > XLLM_MAX_IDLE_CONNECTIONS ) {
+    if (pClient->uMaxIdleConnections > XLLM_MAX_IDLE_CONNECTIONS)
+    {
         pClient->uMaxIdleConnections = XLLM_MAX_IDLE_CONNECTIONS;
     }
     pClient->bVerifyPeer = pConfig->bVerifyPeer;
     pClient->sCaPem = xllm__strdup(pConfig->sCaPem ? pConfig->sCaPem : "");
     pClient->pX509Store = pConfig->pX509Store;
     pClient->eProvider = pProfile ? pProfile->eProvider : pConfig->eProvider;
-    if ( pProfile ) {
+    if (pProfile)
+    {
         pClient->sProfileId = xllm__strdup(pProfile->sId);
         pClient->tModelProfile = *pProfile;
         pClient->tModelProfile.sId = pClient->sProfileId;
         pClient->tModelProfile.sModel = pClient->sModel;
         pClient->bHasModelProfile = true;
     }
-    if ( !pClient->sBaseUrl || !pClient->sApiKey || !pClient->sModel ||
-         !pClient->sReasoningEffort || !pClient->sUserAgent || !pClient->sCaPem ||
-         (pProfile && !pClient->sProfileId) ) goto oom;
-    if ( !xllm__transport_client_init(pClient, pError) ) {
+    if (!pClient->sBaseUrl || !pClient->sApiKey || !pClient->sModel || !pClient->sReasoningEffort ||
+        !pClient->sUserAgent || !pClient->sCaPem || (pProfile && !pClient->sProfileId))
+        goto oom;
+    if (!xllm__transport_client_init(pClient, pError))
+    {
+        xllmClientDestroy(pClient);
+        return NULL;
+    }
+    if (!xllm__proxy_configure(pClient, pConfig, pError))
+    {
         xllmClientDestroy(pClient);
         return NULL;
     }
@@ -276,22 +601,44 @@ oom:
     return NULL;
 }
 
-void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks)
+void xllmClientSetHooks(xllm_client *pClient, const xllm_hooks *pHooks)
 {
-    if ( !pClient ) { return; }
-    pClient->pHooks = pHooks;
+    if (!pClient || !pClient->bConfigMutexInit || !xrtMutexLock(&pClient->ConfigMutex))
+    {
+        return;
+    }
+    if (pHooks)
+    {
+        pClient->tHooks = *pHooks;
+        pClient->bHasHooks = true;
+    }
+    else
+    {
+        memset(&pClient->tHooks, 0, sizeof(pClient->tHooks));
+        pClient->bHasHooks = false;
+    }
+    (void)xrtMutexUnlock(&pClient->ConfigMutex);
 }
 
-void xllmClientDestroy(xllm_client* pClient)
+void xllmClientDestroy(xllm_client *pClient)
 {
     size_t i;
-    if ( !pClient ) { return; }
+    if (!pClient)
+    {
+        return;
+    }
     xllm__transport_client_unit(pClient);
+    xrtNetProxyRelease(pClient->pProxy);
+    pClient->pProxy = NULL;
     xllm__free(pClient->sBaseUrl);
-    if ( pClient->sApiKey ) {
-        volatile char* pSecret = (volatile char*)pClient->sApiKey;
+    if (pClient->sApiKey)
+    {
+        volatile char *pSecret = (volatile char *)pClient->sApiKey;
         i = strlen(pClient->sApiKey);
-        while ( i-- ) { pSecret[i] = 0; }
+        while (i--)
+        {
+            pSecret[i] = 0;
+        }
     }
     xllm__free(pClient->sApiKey);
     xllm__free(pClient->sModel);
@@ -299,32 +646,76 @@ void xllmClientDestroy(xllm_client* pClient)
     xllm__free(pClient->sUserAgent);
     xllm__free(pClient->sProfileId);
     xllm__free(pClient->sCaPem);
+    xllm__free(pClient->sProxyBypass);
     xllm__free(pClient->sHost);
     xllm__free(pClient->sTarget);
     xllm__free(pClient->sHostHeader);
     xllm__free(pClient->sPrefixCacheInner);
+    if (pClient->bConfigMutexInit)
+    {
+        (void)xrtMutexUnit(&pClient->ConfigMutex);
+    }
     xllm__free(pClient);
 }
 
-bool xllmClientGetModelProfile(const xllm_client* pClient, xllm_model_profile* pProfile)
+bool xllmClientGetModelProfile(const xllm_client *pClient, xllm_model_profile *pProfile)
 {
-    if ( !pClient || !pProfile || !pClient->bHasModelProfile ) return false;
-    *pProfile = pClient->tModelProfile;
-    return true;
+    xllm_client *pMutable = (xllm_client *)pClient;
+    bool bFound = false;
+    if (!pMutable || !pProfile || !pMutable->bConfigMutexInit ||
+        !xrtMutexLock(&pMutable->ConfigMutex))
+        return false;
+    if (pMutable->bHasModelProfile)
+    {
+        pMutable->bConfigSealed = true;
+        *pProfile = pMutable->tModelProfile;
+        bFound = true;
+    }
+    (void)xrtMutexUnlock(&pMutable->ConfigMutex);
+    return bFound;
 }
 
-bool xllmClientSetModelProfile(xllm_client* pClient, const xllm_model_profile* pProfile, xllm_error* pError)
+bool xllmClientSetModelProfile(xllm_client *pClient, const xllm_model_profile *pProfile,
+                               xllm_error *pError)
 {
-    char* sId;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pClient || !pProfile ) {
+    char *sId;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pClient || !pProfile)
+    {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client and profile are required");
         return false;
     }
-    if ( !xllmModelProfileValidate(pProfile, pError) ) { return false; }
+    if (!xllmModelProfileValidate(pProfile, pError))
+    {
+        return false;
+    }
+    if (pProfile->eProvider != pClient->eProvider)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "profile provider must match the client's fixed wire dialect");
+        return false;
+    }
     sId = xllm__strdup(pProfile->sId);
-    if ( !sId ) {
+    if (!sId)
+    {
         xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to store the profile id");
+        return false;
+    }
+    if (!pClient->bConfigMutexInit || !xrtMutexLock(&pClient->ConfigMutex))
+    {
+        xllm__free(sId);
+        xllm__error_set(pError, XLLM_ERROR_PROTOCOL, "client configuration lock failed");
+        return false;
+    }
+    if (pClient->bConfigSealed)
+    {
+        (void)xrtMutexUnlock(&pClient->ConfigMutex);
+        xllm__free(sId);
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "model profile is immutable after the client is first used");
         return false;
     }
     /* Mirror the create-time convention: the id becomes client-owned storage
@@ -335,52 +726,94 @@ bool xllmClientSetModelProfile(xllm_client* pClient, const xllm_model_profile* p
     pClient->tModelProfile = *pProfile;
     pClient->tModelProfile.sId = sId;
     pClient->tModelProfile.sModel = pClient->sModel;
-    pClient->eProvider = pProfile->eProvider;
     pClient->bHasModelProfile = true;
+    pClient->iPrefixCacheLen = 0u;
+    pClient->iPrefixCacheMessages = 0u;
+    pClient->pPrefixCacheOwner = NULL;
+    (void)xrtMutexUnlock(&pClient->ConfigMutex);
     return true;
 }
 
-static bool xllm__call_enter(xllm_call* pCall)
+static bool xllm__client_begin_operation(xllm_client *pClient, const xllm_hooks *pRequestHooks,
+                                         xllm_hooks *pHooks, bool *pbHasHooks, xllm_error *pError)
 {
-    if ( !pCall ) { return false; }
+    if (!pClient || !pHooks || !pbHasHooks || !pClient->bConfigMutexInit ||
+        !xrtMutexLock(&pClient->ConfigMutex))
+    {
+        xllm__error_set(pError, XLLM_ERROR_PROTOCOL, "client configuration lock failed");
+        return false;
+    }
+    pClient->bConfigSealed = true;
+    *pbHasHooks = false;
+    memset(pHooks, 0, sizeof(*pHooks));
+    if (pRequestHooks)
+    {
+        *pHooks = *pRequestHooks;
+        *pbHasHooks = true;
+    }
+    else if (pClient->bHasHooks)
+    {
+        *pHooks = pClient->tHooks;
+        *pbHasHooks = true;
+    }
+    (void)xrtMutexUnlock(&pClient->ConfigMutex);
+    return true;
+}
+
+static bool xllm__call_enter(xllm_call *pCall)
+{
+    if (!pCall)
+    {
+        return false;
+    }
     (void)xllm__atomic_add(&pCall->iCallbackActive, 1);
-    if ( xllm__atomic_load(&pCall->iClosing) != 0 ) {
+    if (xllm__atomic_load(&pCall->iClosing) != 0)
+    {
         (void)xllm__atomic_add(&pCall->iCallbackActive, -1);
         return false;
     }
     return true;
 }
 
-static void xllm__call_leave(xllm_call* pCall)
+static void xllm__call_leave(xllm_call *pCall)
 {
     (void)xllm__atomic_add(&pCall->iCallbackActive, -1);
 }
 
-bool xllm__transport_headers(xllm_call* pCall, const xhttp1head* pHead)
+bool xllm__transport_headers(xllm_call *pCall, const xhttp1head *pHead)
 {
-    const xhttpfield* pHeader;
+    const xhttpfield *pHeader;
     char sRetryAfter[64];
     xllm_event tEvent;
     bool bOk = true;
-    if ( !xllm__call_enter(pCall) ) { return false; }
+    if (!xllm__call_enter(pCall))
+    {
+        return false;
+    }
     pCall->uHttpStatus = pHead ? pHead->Status : 0u;
     pHeader = xllm__header(pHead, "x-request-id");
-    if ( !pHeader ) pHeader = xllm__header(pHead, "request-id");
-    if ( pHeader ) xllm__copy_view(pCall->sRequestId, sizeof(pCall->sRequestId), pHeader->Value);
+    if (!pHeader)
+        pHeader = xllm__header(pHead, "request-id");
+    if (pHeader)
+        xllm__copy_view(pCall->sRequestId, sizeof(pCall->sRequestId), pHeader->Value);
     pHeader = xllm__header(pHead, "content-type");
-    if ( pHeader ) xllm__copy_view(pCall->sContentType, sizeof(pCall->sContentType), pHeader->Value);
+    if (pHeader)
+        xllm__copy_view(pCall->sContentType, sizeof(pCall->sContentType), pHeader->Value);
     pHeader = xllm__header(pHead, "retry-after-ms");
     sRetryAfter[0] = 0;
-    if ( pHeader ) xllm__copy_view(sRetryAfter, sizeof(sRetryAfter), pHeader->Value);
+    if (pHeader)
+        xllm__copy_view(sRetryAfter, sizeof(sRetryAfter), pHeader->Value);
     pCall->uRetryAfterMs = xllm__parse_retry_after_ms(sRetryAfter, 1u);
-    if ( pCall->uRetryAfterMs == 0u ) {
+    if (pCall->uRetryAfterMs == 0u)
+    {
         pHeader = xllm__header(pHead, "retry-after");
         sRetryAfter[0] = 0;
-        if ( pHeader ) xllm__copy_view(sRetryAfter, sizeof(sRetryAfter), pHeader->Value);
+        if (pHeader)
+            xllm__copy_view(sRetryAfter, sizeof(sRetryAfter), pHeader->Value);
         pCall->uRetryAfterMs = xllm__parse_retry_after_ms(sRetryAfter, 1000u);
     }
-    pCall->bSse = pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u &&
-        pCall->bStreamWanted && xllm__contains_ci(pCall->sContentType, "text/event-stream");
+    pCall->bSse = pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u && pCall->bStreamWanted &&
+                  xllm__contains_ci(pCall->sContentType, "text/event-stream");
     memset(&tEvent, 0, sizeof(tEvent));
     tEvent.eKind = XLLM_EVENT_RESPONSE_START;
     tEvent.as.tResponse.uHttpStatus = pCall->uHttpStatus;
@@ -390,26 +823,42 @@ bool xllm__transport_headers(xllm_call* pCall, const xhttp1head* pHead)
     return bOk;
 }
 
-bool xllm__transport_body(xllm_call* pCall, const void* pData, size_t iLen)
+bool xllm__transport_body(xllm_call *pCall, const void *pData, size_t iLen)
 {
     bool bOk = true;
-    if ( !xllm__call_enter(pCall) ) { return false; }
-    if ( pCall->bSse && !pCall->bDeferParse ) {
+    if (!xllm__call_enter(pCall))
+    {
+        return false;
+    }
+    if (pCall->bSse && !pCall->bDeferParse)
+    {
         bOk = xllm__sse_feed(pCall, pData, iLen);
-    } else {
-        if ( pCall->tRawBody.iLen > XLLM_MAX_FALLBACK_BODY || iLen > XLLM_MAX_FALLBACK_BODY - pCall->tRawBody.iLen ) {
-            xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL, "provider response exceeds the fallback body limit");
+    }
+    else
+    {
+        size_t iLimit =
+            pCall->uMaxResponseBodyBytes ? pCall->uMaxResponseBodyBytes : XLLM_MAX_FALLBACK_BODY;
+        if (pCall->tRawBody.iLen > iLimit || iLen > iLimit - pCall->tRawBody.iLen)
+        {
+            xllm__error_set(&pCall->tError, XLLM_ERROR_LIMIT,
+                            "provider response exceeds the configured body limit");
             bOk = false;
-        } else {
+        }
+        else
+        {
             bOk = xllm__buf_append(&pCall->tRawBody, pData, iLen);
-            if ( !bOk ) {
-                xllm__error_set(&pCall->tError, XLLM_ERROR_OUT_OF_MEMORY, "failed to buffer provider response");
-            } else if ( !pCall->bSse &&
-                        pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u &&
-                        pCall->bStreamWanted &&
-                        pCall->tRawBody.iLen >= 5u && memcmp(pCall->tRawBody.pData, "data:", 5u) == 0 ) {
+            if (!bOk)
+            {
+                xllm__error_set(&pCall->tError, XLLM_ERROR_OUT_OF_MEMORY,
+                                "failed to buffer provider response");
+            }
+            else if (!pCall->bSse && pCall->uHttpStatus >= 200u && pCall->uHttpStatus < 300u &&
+                     pCall->bStreamWanted && pCall->tRawBody.iLen >= 5u &&
+                     memcmp(pCall->tRawBody.pData, "data:", 5u) == 0)
+            {
                 pCall->bSse = true;
-                if ( !pCall->bDeferParse ) {
+                if (!pCall->bDeferParse)
+                {
                     bOk = xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen);
                     xllm__buf_reset(&pCall->tRawBody);
                 }
@@ -420,17 +869,22 @@ bool xllm__transport_body(xllm_call* pCall, const void* pData, size_t iLen)
     return bOk;
 }
 
-static void xllm__map_http_error(xllm_call* pCall)
+static void xllm__map_http_error(xllm_call *pCall)
 {
     xllm_error_code eCode = XLLM_ERROR_UPSTREAM;
-    const char* sMessage = "provider returned an HTTP error";
-    if ( pCall->uHttpStatus == 401u || pCall->uHttpStatus == 403u ) {
+    const char *sMessage = "provider returned an HTTP error";
+    if (pCall->uHttpStatus == 401u || pCall->uHttpStatus == 403u)
+    {
         eCode = XLLM_ERROR_AUTH;
         sMessage = "provider authentication failed";
-    } else if ( pCall->uHttpStatus == 404u ) {
+    }
+    else if (pCall->uHttpStatus == 404u)
+    {
         eCode = XLLM_ERROR_MODEL_NOT_FOUND;
         sMessage = "provider endpoint or model was not found";
-    } else if ( pCall->uHttpStatus == 429u ) {
+    }
+    else if (pCall->uHttpStatus == 429u)
+    {
         eCode = XLLM_ERROR_RATE_LIMIT;
         sMessage = "provider rate limit exceeded";
     }
@@ -438,25 +892,55 @@ static void xllm__map_http_error(xllm_call* pCall)
     pCall->tError.iHttpStatus = (int32_t)pCall->uHttpStatus;
     xllm__copy_text(pCall->tError.sRequestId, sizeof(pCall->tError.sRequestId), pCall->sRequestId);
     pCall->pDialect->FillProviderError(pCall,
-        (xstrview){ pCall->tRawBody.pData, pCall->tRawBody.iLen });
+                                       (xstrview){pCall->tRawBody.pData, pCall->tRawBody.iLen});
     pCall->tError.eCode = eCode;
-    if ( !pCall->tError.sMessage[0] ) { xllm__copy_text(pCall->tError.sMessage, sizeof(pCall->tError.sMessage), sMessage); }
+    if (!pCall->tError.sMessage[0])
+    {
+        xllm__copy_text(pCall->tError.sMessage, sizeof(pCall->tError.sMessage), sMessage);
+    }
 }
 
-static bool xllm__call_copy_extra_headers(xllm_call* pCall, const xllm_request* pRequest)
+static bool xllm__call_copy_extra_headers(xllm_call *pCall, const xllm_request *pRequest)
 {
     size_t i;
-    if ( !pRequest->iExtraHeaderCount ) { return true; }
-    pCall->pExtraHeaderNames = (char**)xllm__calloc(pRequest->iExtraHeaderCount, sizeof(char*));
-    pCall->pExtraHeaderValues = (char**)xllm__calloc(pRequest->iExtraHeaderCount, sizeof(char*));
-    if ( !pCall->pExtraHeaderNames || !pCall->pExtraHeaderValues ) { return false; }
+    if (!pRequest->iExtraHeaderCount)
+    {
+        return true;
+    }
+    pCall->pExtraHeaderNames = (char **)xllm__calloc(pRequest->iExtraHeaderCount, sizeof(char *));
+    pCall->pExtraHeaderValues = (char **)xllm__calloc(pRequest->iExtraHeaderCount, sizeof(char *));
+    if (!pCall->pExtraHeaderNames || !pCall->pExtraHeaderValues)
+    {
+        return false;
+    }
     pCall->iExtraHeaderCount = pRequest->iExtraHeaderCount;
-    for ( i = 0u; i < pRequest->iExtraHeaderCount; ++i ) {
-        const xllm_header* pHeader = &pRequest->pExtraHeaders[i];
-        if ( !pHeader->sName || !pHeader->sName[0] || !pHeader->sValue ) { return false; }
+    for (i = 0u; i < pRequest->iExtraHeaderCount; ++i)
+    {
+        const xllm_header *pHeader = &pRequest->pExtraHeaders[i];
+        const char *sName;
+        const char *sExpected = "Idempotency-Key";
+        if (!pHeader->sName || !pHeader->sName[0] || !pHeader->sValue)
+        {
+            return false;
+        }
+        sName = pHeader->sName;
+        while (*sName && *sExpected &&
+               (unsigned char)tolower((unsigned char)*sName) ==
+                   (unsigned char)tolower((unsigned char)*sExpected))
+        {
+            ++sName;
+            ++sExpected;
+        }
+        if (*sName == '\0' && *sExpected == '\0' && pHeader->sValue[0] != '\0')
+        {
+            pCall->bIdempotencyKeyPresent = true;
+        }
         pCall->pExtraHeaderNames[i] = xllm__strdup(pHeader->sName);
         pCall->pExtraHeaderValues[i] = xllm__strdup(pHeader->sValue);
-        if ( !pCall->pExtraHeaderNames[i] || !pCall->pExtraHeaderValues[i] ) { return false; }
+        if (!pCall->pExtraHeaderNames[i] || !pCall->pExtraHeaderValues[i])
+        {
+            return false;
+        }
     }
     return true;
 }
@@ -464,10 +948,13 @@ static bool xllm__call_copy_extra_headers(xllm_call* pCall, const xllm_request* 
 /* Deep request copy for the pOnRequest seam: every owned field is
  * duplicated; borrowed storage (headers, cancel, deadline, hooks) rides
  * along as borrowed. Freed on call destroy. */
-bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc)
+bool xllm__request_clone(xllm_request *pDst, const xllm_request *pSrc)
 {
     size_t i;
-    if ( !pDst || !pSrc ) { return false; }
+    if (!pDst || !pSrc)
+    {
+        return false;
+    }
     xllmRequestInit(pDst);
     /* The prefix stamp does not survive cloning: pOnRequest may mutate any
      * message, and the cached prefix bytes would no longer match. */
@@ -487,54 +974,69 @@ bool xllm__request_clone(xllm_request* pDst, const xllm_request* pSrc)
     pDst->pExtraHeaders = pSrc->pExtraHeaders;
     pDst->iExtraHeaderCount = pSrc->iExtraHeaderCount;
     pDst->pCancel = pSrc->pCancel;
+    pDst->uDeadline = pSrc->uDeadline;
     pDst->iTimeout = pSrc->iTimeout;
     pDst->pHooks = pSrc->pHooks;
-    if ( (pSrc->sModel && !(pDst->sModel = xllm__strdup(pSrc->sModel))) ||
-         (pSrc->sReasoningEffort && !(pDst->sReasoningEffort = xllm__strdup(pSrc->sReasoningEffort))) ||
-         (pSrc->sNamedTool && !(pDst->sNamedTool = xllm__strdup(pSrc->sNamedTool))) ||
-         (pSrc->sStop && !(pDst->sStop = xllm__strdup(pSrc->sStop))) ||
-         (pSrc->sExtraBodyJson && !(pDst->sExtraBodyJson = xllm__strdup(pSrc->sExtraBodyJson))) ) {
+    if ((pSrc->sModel && !(pDst->sModel = xllm__strdup(pSrc->sModel))) ||
+        (pSrc->sReasoningEffort &&
+         !(pDst->sReasoningEffort = xllm__strdup(pSrc->sReasoningEffort))) ||
+        (pSrc->sNamedTool && !(pDst->sNamedTool = xllm__strdup(pSrc->sNamedTool))) ||
+        (pSrc->sStop && !(pDst->sStop = xllm__strdup(pSrc->sStop))) ||
+        (pSrc->sExtraBodyJson && !(pDst->sExtraBodyJson = xllm__strdup(pSrc->sExtraBodyJson))))
+    {
         xllmRequestUnit(pDst);
         return false;
     }
-    for ( i = 0u; i < pSrc->iMessageCount; ++i ) {
-        if ( !xllmRequestAddMessage(pDst, &pSrc->pMessages[i]) ) { xllmRequestUnit(pDst); return false; }
+    for (i = 0u; i < pSrc->iMessageCount; ++i)
+    {
+        if (!xllmRequestAddMessage(pDst, &pSrc->pMessages[i]))
+        {
+            xllmRequestUnit(pDst);
+            return false;
+        }
     }
-    for ( i = 0u; i < pSrc->iToolCount; ++i ) {
-        const xllm_tool* pTool = &pSrc->pTools[i];
-        if ( !xllmRequestAddTool(pDst, pTool->sName, pTool->sDescription,
-                pTool->sParametersJson, pTool->bStrict) ) { xllmRequestUnit(pDst); return false; }
+    for (i = 0u; i < pSrc->iToolCount; ++i)
+    {
+        const xllm_tool *pTool = &pSrc->pTools[i];
+        if (!xllmRequestAddTool(pDst, pTool->sName, pTool->sDescription, pTool->sParametersJson,
+                                pTool->bStrict))
+        {
+            xllmRequestUnit(pDst);
+            return false;
+        }
     }
     return true;
 }
 
 /* Wire replacement contract: NUL-terminated, no embedded NUL. */
-static bool xllm__wire_valid(const xllm_wire* pWire)
+static bool xllm__wire_valid(const xllm_wire *pWire)
 {
     return pWire->sBody != NULL && pWire->iBodySize == strlen(pWire->sBody) &&
-        pWire->sBody[pWire->iBodySize] == '\0';
+           pWire->sBody[pWire->iBodySize] == '\0';
 }
 
-static xllm_call* xllm__client_start(xllm_client* pClient,
-    const xllm_request* pRequest, const xllm_stream_callbacks* pCallbacks,
-    uint32_t uAttempt, double Scope, xllm_error* pError);
+static xllm_call *xllm__client_start(xllm_client *pClient, const xllm_request *pRequest,
+                                     const xllm_stream_callbacks *pCallbacks, uint32_t uAttempt,
+                                     xllm_error *pError);
 
 /* Wire-prefix serialization (尾账 #3): with a stamped view request and a
  * prefix-safe dialect, the cached messages-array bytes are reused and only
  * the delta is serialized; the accumulator persists across calls. Any miss
  * (owner/stamp/monotonic-count) falls back to a full rebuild through the
  * same incremental op with an empty prefix. */
-char* xllm__client_serialize_body(xllm_client* pClient,
-    const xllm_request* pRequest, xllm_error* pError)
+char *xllm__client_serialize_body(xllm_client *pClient, const xllm_request *pRequest,
+                                  xllm_error *pError)
 {
-    char* sBody;
-    if ( pClient->pDialect->BuildRequestCached && pRequest->pStablePrefixOwner ) {
+    char *sBody;
+    if (pClient->pDialect->BuildRequestCached && pRequest->pStablePrefixOwner)
+    {
         bool bHit = pClient->pPrefixCacheOwner == pRequest->pStablePrefixOwner &&
-            pClient->uPrefixCacheStamp == pRequest->uStablePrefixStamp &&
-            pClient->iPrefixCacheMessages <= pRequest->iStableMessages;
+                    pClient->uPrefixCacheStamp == pRequest->uStablePrefixStamp &&
+                    pClient->iPrefixCacheMessages <= pRequest->iStableMessages;
         xllm_buf tInner;
-        if ( !bHit ) {
-            pClient->iPrefixCacheLen = 0u;   /* accumulator resets; buffer kept */
+        if (!bHit)
+        {
+            pClient->iPrefixCacheLen = 0u; /* accumulator resets; buffer kept */
             pClient->iPrefixCacheMessages = 0u;
             pClient->pPrefixCacheOwner = pRequest->pStablePrefixOwner;
             pClient->uPrefixCacheStamp = pRequest->uStablePrefixStamp;
@@ -542,9 +1044,10 @@ char* xllm__client_serialize_body(xllm_client* pClient,
         tInner.pData = pClient->sPrefixCacheInner;
         tInner.iLen = pClient->iPrefixCacheLen;
         tInner.iCap = pClient->iPrefixCacheCap;
-        sBody = pClient->pDialect->BuildRequestCached(pClient, pRequest,
-            &tInner, pClient->iPrefixCacheMessages, pError);
-        if ( !sBody ) {
+        sBody = pClient->pDialect->BuildRequestCached(pClient, pRequest, &tInner,
+                                                      pClient->iPrefixCacheMessages, pError);
+        if (!sBody)
+        {
             /* Failure may have appended a partial delta to the accumulator;
              * the byte length is no longer trustworthy. Invalidate the count
              * so the next call rebuilds from scratch instead of sending a
@@ -561,7 +1064,8 @@ char* xllm__client_serialize_body(xllm_client* pClient,
         pClient->iPrefixCacheMessages = pRequest->iStableMessages;
         return sBody;
     }
-    if ( pClient->sPrefixCacheInner ) {
+    if (pClient->sPrefixCacheInner)
+    {
         pClient->iPrefixCacheLen = 0u;
         pClient->iPrefixCacheMessages = 0u;
         pClient->pPrefixCacheOwner = NULL;
@@ -569,44 +1073,43 @@ char* xllm__client_serialize_body(xllm_client* pClient,
     return pClient->pDialect->BuildRequest(pClient, pRequest, pError);
 }
 
-xllm_call* xllmClientStart(
-    xllm_client* pClient,
-    const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks,
-    xllm_error* pError
-)
+static xllm_call *xllm__client_start(xllm_client *pClient, const xllm_request *pRequest,
+                                     const xllm_stream_callbacks *pCallbacks, uint32_t uAttempt,
+                                     xllm_error *pError)
 {
-    return xllm__client_start(pClient, pRequest, pCallbacks, 1u, __xrtWaitAfter(pRequest ? pRequest->iTimeout : 0), pError);
-}
-
-static xllm_call* xllm__client_start(
-    xllm_client* pClient, const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks, uint32_t uAttempt, double Scope, xllm_error* pError
-)
-{
-    if (!__xrtWaitValid(Scope)) { xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid timeout"); return NULL; }
-
-    xllm_call* pCall = NULL;
-    char* sBody = NULL;
-    const char* sModel;
-    double tTimeout = INFINITY;
-    const xllm_hooks* pHooks = pRequest && pRequest->pHooks ? pRequest->pHooks : pClient->pHooks;
-    xllm_request* pClone = NULL;
-    const xllm_request* pEffective = pRequest;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pClient || !pRequest ) {
+    xllm_call *pCall = NULL;
+    char *sBody = NULL;
+    const char *sModel;
+    uint64_t tTimeout = XLLM_DEADLINE_NEVER;
+    xllm_hooks tHooks;
+    bool bHasHooks = false;
+    const xllm_hooks *pHooks = NULL;
+    xllm_request *pClone = NULL;
+    const xllm_request *pEffective = pRequest;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pClient || !pRequest)
+    {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client and request are required");
         return NULL;
     }
-    if ( pHooks && pHooks->pOnRequest ) {
-        pClone = (xllm_request*)xllm__calloc(1u, sizeof(*pClone));
-        if ( !pClone ||
-             !xllm__request_clone(pClone, pRequest) ) {
+    if (!xllm__client_begin_operation(pClient, pRequest->pHooks, &tHooks, &bHasHooks, pError))
+        return NULL;
+    pHooks = bHasHooks ? &tHooks : NULL;
+    if (pHooks && pHooks->pOnRequest)
+    {
+        pClone = (xllm_request *)xllm__calloc(1u, sizeof(*pClone));
+        if (!pClone || !xllm__request_clone(pClone, pRequest))
+        {
             xllm__free(pClone);
-            xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to clone the request for the pOnRequest hook");
+            xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY,
+                            "failed to clone the request for the pOnRequest hook");
             return NULL;
         }
-        if ( !pHooks->pOnRequest(pClient, pClone, pHooks->pUserData) ) {
+        if (!pHooks->pOnRequest(pClient, pClone, pHooks->pUserData))
+        {
             xllmRequestUnit(pClone);
             xllm__free(pClone);
             xllm__error_set(pError, XLLM_ERROR_HOOK, "request rejected by the pOnRequest hook");
@@ -614,105 +1117,173 @@ static xllm_call* xllm__client_start(
         }
         pEffective = pClone;
     }
-    if ( pClient->bHasModelProfile &&
-         !xllmModelProfileValidateRequest(&pClient->tModelProfile, pEffective, pError) ) {
-        if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+    if (!xrtMutexLock(&pClient->ConfigMutex))
+    {
+        if (pClone)
+        {
+            xllmRequestUnit(pClone);
+            xllm__free(pClone);
+        }
+        xllm__error_set(pError, XLLM_ERROR_PROTOCOL, "client configuration lock failed");
+        return NULL;
+    }
+    if (pClient->bHasModelProfile &&
+        !xllmModelProfileValidateRequest(&pClient->tModelProfile, pEffective, pError))
+    {
+        (void)xrtMutexUnlock(&pClient->ConfigMutex);
+        if (pClone)
+        {
+            xllmRequestUnit(pClone);
+            xllm__free(pClone);
+        }
         return NULL;
     }
     sBody = xllm__client_serialize_body(pClient, pEffective, pError);
-    if ( !sBody ) {
-        if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+    (void)xrtMutexUnlock(&pClient->ConfigMutex);
+    if (!sBody)
+    {
+        if (pError && pError->eCode == XLLM_ERROR_NONE)
+        {
+            xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to serialize model request");
+        }
+        if (pClone)
+        {
+            xllmRequestUnit(pClone);
+            xllm__free(pClone);
+        }
         return NULL;
     }
-    if ( pHooks && pHooks->pOnRequestBody ) {
+    if (pHooks && pHooks->pOnRequestBody)
+    {
         xllm_wire tWire;
         memset(&tWire, 0, sizeof(tWire));
         tWire.uAttempt = uAttempt;
         tWire.sBody = sBody;
         tWire.iBodySize = strlen(sBody);
         tWire.iBodyCapacity = tWire.iBodySize + 1u;
-        if ( !pHooks->pOnRequestBody(pClient, &tWire, pHooks->pUserData) ||
-             !xllm__wire_valid(&tWire) ) {
-            if ( tWire.sBody && tWire.sBody != sBody ) { xllm__free(tWire.sBody); }
-            else if ( tWire.sBody == sBody && !xllm__wire_valid(&tWire) ) { /* in-place corruption: keep old */ }
+        if (!pHooks->pOnRequestBody(pClient, &tWire, pHooks->pUserData) ||
+            !xllm__wire_valid(&tWire))
+        {
+            if (tWire.sBody && tWire.sBody != sBody)
+            {
+                xllm__free(tWire.sBody);
+            }
+            xllm__free(sBody);
+            sBody = NULL;
             xllm__error_set(pError, XLLM_ERROR_HOOK,
-                "request body rejected or malformed after the pOnRequestBody hook");
-            if ( pClone ) { xllmRequestUnit(pClone); xllm__free(pClone); }
+                            "request body rejected or malformed after the pOnRequestBody hook");
+            if (pClone)
+            {
+                xllmRequestUnit(pClone);
+                xllm__free(pClone);
+            }
             return NULL;
         }
-        if ( tWire.sBody != sBody ) {
+        if (tWire.sBody != sBody)
+        {
             xllm__free(sBody);
             sBody = tWire.sBody;
         }
     }
-    pCall = (xllm_call*)xllm__calloc(1u, sizeof(*pCall));
-    if ( !pCall ) goto oom;
+    pCall = (xllm_call *)xllm__calloc(1u, sizeof(*pCall));
+    if (!pCall)
+        goto oom;
     pCall->pClient = pClient;
     pCall->pDialect = pClient->pDialect;
+    pCall->bOpMutexInit = xrtMutexInit(&pCall->OpMutex);
+    pCall->bTransportMutexInit = xrtMutexInit(&pCall->TransportMutex);
     pCall->uAttempt = uAttempt;
     pCall->bStreamWanted = pEffective->bStream;
-    pCall->pHooks = pHooks;
+    pCall->uMaxHttpHeadBytes = pClient->uMaxHttpHeadBytes;
+    pCall->uMaxResponseBodyBytes = pClient->uMaxResponseBodyBytes;
+    pCall->uMaxSseLineBytes = pClient->uMaxSseLineBytes;
+    pCall->uMaxSseEventBytes = pClient->uMaxSseEventBytes;
+    if (bHasHooks)
+    {
+        pCall->tHooks = tHooks;
+        pCall->bHasHooks = true;
+    }
     pCall->pClonedRequest = pClone;
     pCall->bDeferParse = pHooks && pHooks->pOnResponseBody != NULL;
     pClone = NULL;
-    if ( pCallbacks ) { pCall->tCallbacks = *pCallbacks; }
+    if (pCallbacks)
+    {
+        pCall->tCallbacks = *pCallbacks;
+    }
     xllmErrorInit(&pCall->tError);
     sModel = (pEffective->sModel && pEffective->sModel[0]) ? pEffective->sModel : pClient->sModel;
     pCall->sSelectedModel = xllm__strdup(sModel);
     pCall->sRequestBody = sBody;
     sBody = NULL;
-    pCall->uScopeDeadline = Scope;
-    pCall->bScopeAttached = pEffective->pCancel != NULL ||
-        Scope != INFINITY;
+    pCall->uScopeDeadline = pEffective->uDeadline;
+    pCall->bScopeAttached =
+        pEffective->pCancel != NULL || pEffective->uDeadline != XLLM_DEADLINE_NEVER;
     pCall->pCancel = xrtCancelChild(pEffective->pCancel);
-    if ( pClient->uTimeoutMs ) {
-        tTimeout = __xrtWaitAfter(pClient->uTimeoutMs);
+    if (pClient->uTimeoutMs)
+    {
+        tTimeout = xllmDeadlineAfterUs((uint64)pClient->uTimeoutMs * UINT64_C(1000));
     }
-    pCall->uDeadline = Scope;
-    if ( tTimeout != INFINITY &&
-         (pCall->uDeadline == INFINITY || tTimeout < pCall->uDeadline) ) {
+    pCall->uDeadline = pEffective->uDeadline;
+    if (tTimeout != XLLM_DEADLINE_NEVER &&
+        (pCall->uDeadline == XLLM_DEADLINE_NEVER || tTimeout < pCall->uDeadline))
+    {
         pCall->uDeadline = tTimeout;
     }
-    if ( pCall->uDeadline != INFINITY ) {
-        pCall->tHttpDiagnostics.uEffectiveTimeoutMs = __xrtWaitRemaining(pCall->uDeadline);
+    if (pCall->uDeadline != XLLM_DEADLINE_NEVER)
+    {
+        pCall->tHttpDiagnostics.uEffectiveTimeoutMs =
+            xllmDeadlineRemainingUs(pCall->uDeadline) / UINT64_C(1000);
     }
-    if ( !pCall->sSelectedModel || !pCall->pCancel ||
-         !xllm__call_copy_extra_headers(pCall, pEffective) ) goto oom;
-    pCall->pPromise = xrtPromiseCreate(&pCall->pFuture, pCall->pCancel);
-    if ( !pCall->pPromise ) goto oom;
+    if (!pCall->bOpMutexInit || !pCall->bTransportMutexInit || !pCall->sSelectedModel ||
+        !pCall->pCancel || !xllm__call_copy_extra_headers(pCall, pEffective))
+        goto oom;
     xllm__free(sBody);
     sBody = NULL;
-    if ( pHooks && pHooks->pOnResponseBody ) {
+    if (pHooks && pHooks->pOnResponseBody)
+    {
         /* Pre-send probe: sBody arrives NULL. Assigning a body short-
          * circuits the network entirely (offline replay); leaving it NULL
          * lets the call proceed and the hook fires again post-receive. */
         xllm_wire tProbe;
         memset(&tProbe, 0, sizeof(tProbe));
         tProbe.uAttempt = uAttempt;
-        if ( !pHooks->pOnResponseBody(pClient, &tProbe, pHooks->pUserData) ) {
-            if ( tProbe.sBody ) { xllm__free(tProbe.sBody); }
+        if (!pHooks->pOnResponseBody(pClient, &tProbe, pHooks->pUserData))
+        {
+            if (tProbe.sBody)
+            {
+                xllm__free(tProbe.sBody);
+            }
             xllm__error_set(pError, XLLM_ERROR_HOOK,
-                "response body rejected before send by the pOnResponseBody hook");
+                            "response body rejected before send by the pOnResponseBody hook");
             xllmCallDestroy(pCall);
             return NULL;
         }
-        if ( tProbe.sBody && xllm__wire_valid(&tProbe) ) {
+        if (tProbe.sBody && xllm__wire_valid(&tProbe))
+        {
             pCall->tRawBody.pData = tProbe.sBody;
             pCall->tRawBody.iLen = tProbe.iBodySize;
             pCall->tRawBody.iCap = tProbe.iBodySize + 1u;
             pCall->uHttpStatus = 200u;
             pCall->bOfflineBody = true;
             pCall->tHttpDiagnostics.eResult = XLLM_TRANSPORT_OK;
-        } else if ( tProbe.sBody ) {
+        }
+        else if (tProbe.sBody)
+        {
             xllm__free(tProbe.sBody);
             xllm__error_set(pError, XLLM_ERROR_HOOK,
-                "offline response body is malformed after the pOnResponseBody hook");
+                            "offline response body is malformed after the pOnResponseBody hook");
             xllmCallDestroy(pCall);
             return NULL;
         }
     }
-    if ( pCall->bOfflineBody ) {
-        (void)xrtPromiseResolve(pCall->pPromise, NULL);
+    if (!pCall->bOfflineBody && !xllm__transport_arm_cancel(pCall))
+        goto oom;
+    pCall->pPromise = xrtPromiseCreate(&pCall->pFuture, pCall->pCancel);
+    if (!pCall->pPromise)
+        goto oom;
+    if (pCall->bOfflineBody)
+    {
+        xllm__transport_finish(pCall, XLLM_TRANSPORT_OK);
         return pCall;
     }
     xllm__transport_begin(pCall);
@@ -720,22 +1291,32 @@ static xllm_call* xllm__client_start(
 oom:
     xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to allocate model call");
     xllm__free(sBody);
+    if (pClone)
+    {
+        xllmRequestUnit(pClone);
+        xllm__free(pClone);
+    }
     xllmCallDestroy(pCall);
     return NULL;
 }
 
-xfuture* xllmCallFuture(xllm_call* pCall)
-{
-    return pCall ? pCall->pFuture : NULL;
-}
+xfuture *xllmCallFuture(xllm_call *pCall) { return pCall ? pCall->pFuture : NULL; }
 
-xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_error* pError)
+xllm_result xllmCallWait(xllm_call *pCall, xllm_response **ppResponse, xllm_error *pError)
 {
     xllm_result eResult = XLLM_RESULT_ERROR;
     bool bParsed = false;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( ppResponse ) { *ppResponse = NULL; }
-    if ( !pCall || !ppResponse || pCall->bWaited ) {
+    const xllm_hooks *pHooks = pCall && pCall->bHasHooks ? &pCall->tHooks : NULL;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (ppResponse)
+    {
+        *ppResponse = NULL;
+    }
+    if (!pCall || !ppResponse || pCall->bWaited)
+    {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "call can only be waited once");
         return XLLM_RESULT_ERROR;
     }
@@ -744,36 +1325,41 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
      * deadline and cancel token. A timeout or cancellation aborts the
      * in-flight transport before returning. */
     {
-        xwaitresult eWait = __xrtFutureWaitUntilCancel(pCall->pFuture,
-            pCall->uDeadline, pCall->pCancel);
-        if ( eWait == XWAIT_TIMEOUT ) {
+        xwaitresult eWait = xrtFutureWaitForCancel(
+            pCall->pFuture, xllmDeadlineWaitMs(pCall->uDeadline), pCall->pCancel);
+        if (eWait == XWAIT_TIMEOUT)
+        {
             xllm__transport_abort(pCall);
             /* The watchdog may not have landed first; unify the transport
              * result so diagnostics and retry policy see a deadline hit. */
-            if ( pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_TIMEOUT ) {
+            if (pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_TIMEOUT)
+            {
                 pCall->tHttpDiagnostics.eResult = XLLM_TRANSPORT_TIMEOUT;
                 xllm__copy_text(pCall->tHttpDiagnostics.sError,
-                    sizeof(pCall->tHttpDiagnostics.sError), "timeout");
+                                sizeof(pCall->tHttpDiagnostics.sError), "timeout");
             }
-            if ( pCall->tError.eCode == XLLM_ERROR_NONE ) {
-                xllm__error_set(&pCall->tError, XLLM_ERROR_TIMEOUT,
-                    "model request timed out");
+            if (pCall->tError.eCode == XLLM_ERROR_NONE)
+            {
+                xllm__error_set(&pCall->tError, XLLM_ERROR_TIMEOUT, "model request timed out");
             }
             pCall->eTransportResult = XLLM_TRANSPORT_TIMEOUT;
             eResult = XLLM_RESULT_TIMEOUT;
             goto done;
         }
-        if ( eWait == XWAIT_CANCELLED ) {
+        if (eWait == XWAIT_CANCELLED)
+        {
             xllm__transport_abort(pCall);
-            if ( pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_CANCELLED &&
-                 pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_OK ) {
+            if (pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_CANCELLED &&
+                pCall->tHttpDiagnostics.eResult != XLLM_TRANSPORT_OK)
+            {
                 pCall->tHttpDiagnostics.eResult = XLLM_TRANSPORT_CANCELLED;
                 xllm__copy_text(pCall->tHttpDiagnostics.sError,
-                    sizeof(pCall->tHttpDiagnostics.sError), "cancelled");
+                                sizeof(pCall->tHttpDiagnostics.sError), "cancelled");
             }
-            if ( pCall->tError.eCode == XLLM_ERROR_NONE ) {
+            if (pCall->tError.eCode == XLLM_ERROR_NONE)
+            {
                 xllm__error_set(&pCall->tError, XLLM_ERROR_CANCELLED,
-                    "model request was cancelled");
+                                "model request was cancelled");
             }
             pCall->eTransportResult = XLLM_TRANSPORT_CANCELLED;
             eResult = XLLM_RESULT_CANCELLED;
@@ -781,95 +1367,122 @@ xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_erro
         }
     }
 
-    if ( pCall->bCallbackCancelled ) {
+    if (pCall->bCallbackCancelled)
+    {
         eResult = XLLM_RESULT_CANCELLED;
         goto done;
     }
-    if ( pCall->tError.eCode != XLLM_ERROR_NONE ) {
-        eResult = pCall->tError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED : XLLM_RESULT_ERROR;
+    if (pCall->tError.eCode != XLLM_ERROR_NONE)
+    {
+        eResult =
+            pCall->tError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED : XLLM_RESULT_ERROR;
         goto done;
     }
-    if ( pCall->eTransportResult != XLLM_TRANSPORT_OK ) {
+    if (pCall->eTransportResult != XLLM_TRANSPORT_OK)
+    {
         pCall->tError.iTransportStatus = (int32_t)pCall->eTransportResult;
-        if ( pCall->eTransportResult == XLLM_TRANSPORT_TIMEOUT ) {
+        if (pCall->eTransportResult == XLLM_TRANSPORT_TIMEOUT)
+        {
             xllm__error_set(&pCall->tError, XLLM_ERROR_TIMEOUT, "model request timed out");
             eResult = XLLM_RESULT_TIMEOUT;
-        } else if ( pCall->eTransportResult == XLLM_TRANSPORT_CANCELLED ) {
+        }
+        else if (pCall->eTransportResult == XLLM_TRANSPORT_CANCELLED)
+        {
             xllm__error_set(&pCall->tError, XLLM_ERROR_CANCELLED, "model request was cancelled");
             eResult = XLLM_RESULT_CANCELLED;
-        } else {
+        }
+        else
+        {
             xllm__error_set(&pCall->tError, XLLM_ERROR_NETWORK, "model request failed");
         }
         goto done;
     }
-    if ( pCall->uHttpStatus < 200u || pCall->uHttpStatus >= 300u ) {
+    if (pCall->uHttpStatus < 200u || pCall->uHttpStatus >= 300u)
+    {
         xllm__map_http_error(pCall);
         goto done;
     }
-    if ( pCall->bOfflineBody && pCall->bStreamWanted &&
-         pCall->tRawBody.iLen >= 5u && memcmp(pCall->tRawBody.pData, "data:", 5u) == 0 ) {
+    if (pCall->bOfflineBody && pCall->bStreamWanted && pCall->tRawBody.iLen >= 5u &&
+        memcmp(pCall->tRawBody.pData, "data:", 5u) == 0)
+    {
         pCall->bSse = true; /* canned SSE replay parses through the same path */
     }
-    if ( pCall->pHooks && pCall->pHooks->pOnResponseBody && !pCall->bOfflineBody ) {
+    if (pHooks && pHooks->pOnResponseBody && !pCall->bOfflineBody)
+    {
         xllm_wire tWire;
-        char* sOld = pCall->tRawBody.pData;
+        char *sOld = pCall->tRawBody.pData;
         memset(&tWire, 0, sizeof(tWire));
         tWire.uAttempt = pCall->uAttempt;
         tWire.uHttpStatus = pCall->uHttpStatus;
-        tWire.sBody = sOld ? sOld : (char*)"";
+        tWire.sBody = sOld ? sOld : (char *)"";
         tWire.iBodySize = pCall->tRawBody.iLen;
-        if ( !pCall->pHooks->pOnResponseBody(pCall->pClient, &tWire,
-                pCall->pHooks->pUserData) || !xllm__wire_valid(&tWire) ) {
-            if ( tWire.sBody && tWire.sBody != sOld ) { xllm__free(tWire.sBody); }
+        if (!pHooks->pOnResponseBody(pCall->pClient, &tWire, pHooks->pUserData) ||
+            !xllm__wire_valid(&tWire))
+        {
+            if (tWire.sBody && tWire.sBody != sOld)
+            {
+                xllm__free(tWire.sBody);
+            }
             xllm__error_set(&pCall->tError, XLLM_ERROR_HOOK,
-                "response body rejected or malformed after the pOnResponseBody hook");
+                            "response body rejected or malformed after the pOnResponseBody hook");
             goto done;
         }
-        if ( tWire.sBody != sOld ) {
+        if (tWire.sBody != sOld)
+        {
             xllm__free(sOld);
             pCall->tRawBody.pData = tWire.sBody;
             pCall->tRawBody.iLen = tWire.iBodySize;
             pCall->tRawBody.iCap = tWire.iBodySize + 1u;
         }
     }
-    if ( pCall->bSse ) {
-        if ( pCall->bDeferParse && pCall->tRawBody.iLen &&
-             !xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen) ) {
+    if (pCall->bSse)
+    {
+        if (pCall->bDeferParse && pCall->tRawBody.iLen &&
+            !xllm__sse_feed(pCall, pCall->tRawBody.pData, pCall->tRawBody.iLen))
+        {
             bParsed = false;
-        } else {
+        }
+        else
+        {
             bParsed = xllm__sse_finish(pCall);
             /* EOF only completes HTTP framing. A model stream must carry a
              * terminal event; otherwise even syntactically valid partial
              * tool arguments must never be dispatched. Chat-compatible
              * providers may omit [DONE] after an explicit finish_reason. */
             if (bParsed && !pCall->bDone &&
-                !(pCall->pDialect == xllm__dialect_completions() &&
-                  pCall->pResponse && pCall->pResponse->sFinishReason &&
-                  pCall->pResponse->sFinishReason[0])) {
+                !(pCall->pDialect == xllm__dialect_completions() && pCall->pResponse &&
+                  pCall->pResponse->sFinishReason && pCall->pResponse->sFinishReason[0]))
+            {
                 xllm__error_set(&pCall->tError, XLLM_ERROR_INCOMPLETE_RESPONSE,
-                    "provider event stream ended before its terminal event");
+                                "provider event stream ended before its terminal event");
                 bParsed = false;
             }
         }
-    } else if ( pCall->tRawBody.iLen ) {
-        bParsed = pCall->pDialect->DecodeJsonBody(pCall,
-            (xstrview){ pCall->tRawBody.pData, pCall->tRawBody.iLen });
     }
-    if ( !bParsed ) {
-        if ( pCall->tError.eCode == XLLM_ERROR_NONE ) {
-            xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL, "provider returned no usable response payload");
+    else if (pCall->tRawBody.iLen)
+    {
+        bParsed = pCall->pDialect->DecodeJsonBody(
+            pCall, (xstrview){pCall->tRawBody.pData, pCall->tRawBody.iLen});
+    }
+    if (!bParsed)
+    {
+        if (pCall->tError.eCode == XLLM_ERROR_NONE)
+        {
+            xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL,
+                            "provider returned no usable response payload");
         }
         goto done;
     }
-    if ( !xllm__assemble_finalize(pCall) ) {
+    if (!xllm__assemble_finalize(pCall))
+    {
         eResult = pCall->bCallbackCancelled ? XLLM_RESULT_CANCELLED : XLLM_RESULT_ERROR;
         goto done;
     }
-    if ( pCall->pHooks && pCall->pHooks->pOnResponse && pCall->pResponse &&
-         !pCall->pHooks->pOnResponse(pCall->pClient, pCall->pResponse,
-             pCall->pHooks->pUserData) ) {
+    if (pHooks && pHooks->pOnResponse && pCall->pResponse &&
+        !pHooks->pOnResponse(pCall->pClient, pCall->pResponse, pHooks->pUserData))
+    {
         xllm__error_set(&pCall->tError, XLLM_ERROR_HOOK,
-            "response rejected by the pOnResponse hook");
+                        "response rejected by the pOnResponse hook");
         eResult = XLLM_RESULT_ERROR;
         goto done;
     }
@@ -882,7 +1495,8 @@ done:
     xllm__capture_diagnostics(pCall, &pCall->tError.tDiagnostics);
     pCall->tError.iTransportStatus = pCall->tError.tDiagnostics.iTransportStatus;
     pCall->tError.tDiagnostics.bRetryable = xllmErrorRetryable(&pCall->tError);
-    if ( ppResponse && *ppResponse ) {
+    if (ppResponse && *ppResponse)
+    {
         memcpy(&(*ppResponse)->tDiagnostics, &pCall->tError.tDiagnostics, sizeof(xllm_diagnostics));
         xllm__capture_stats(pCall, *ppResponse);
     }
@@ -890,36 +1504,42 @@ done:
     return eResult;
 }
 
-bool xllmCallCancel(xllm_call* pCall)
+bool xllmCallCancel(xllm_call *pCall)
 {
-    if ( !pCall || !pCall->pCancel ) { return false; }
+    if (!pCall || !pCall->pCancel)
+    {
+        return false;
+    }
     return xrtCancelRequest(pCall->pCancel);
 }
 
-void xllmCallDestroy(xllm_call* pCall)
+void xllmCallDestroy(xllm_call *pCall)
 {
     size_t i;
-    if ( !pCall ) { return; }
-    xllm__atomic_store(&pCall->iClosing, 1);
-    if ( pCall->pCancel ) { (void)xrtCancelRequest(pCall->pCancel); }
-    xllm__transport_abort(pCall);
-    if ( pCall->pOpFuture ) {
-        if ( pCall->pOpWatchNode ) {
-            xrtFutureWatchRemove(pCall->pOpFuture,
-                (xfuturewatch*)pCall->pOpWatchNode);
-            pCall->pOpWatchNode = NULL;
-        }
-        xrtFutureDestroy(pCall->pOpFuture);
-        pCall->pOpFuture = NULL;
+    if (!pCall)
+    {
+        return;
     }
-    if ( pCall->pCancelWatch ) {
+    xllm__atomic_store(&pCall->iClosing, 1);
+    if (pCall->pCancel)
+    {
+        (void)xrtCancelRequest(pCall->pCancel);
+    }
+    xllm__transport_abort(pCall);
+    xllm__op_disarm(pCall);
+    if (pCall->pCancelWatch)
+    {
         (void)xrtCancelUnwatch(pCall->pCancelWatch);
         pCall->pCancelWatch = NULL;
     }
-    while ( xllm__atomic_load(&pCall->iTransportActive) != 0 ||
-            xllm__atomic_load(&pCall->iCallbackActive) != 0 ||
-            xllm__atomic_load(&pCall->iTimerRefs) != 0 ) { xrtSleep(1u); }
-    if ( pCall->pClonedRequest ) {
+    while (xllm__atomic_load(&pCall->iTransportActive) != 0 ||
+           xllm__atomic_load(&pCall->iCallbackActive) != 0 ||
+           xllm__atomic_load(&pCall->iTimerRefs) != 0)
+    {
+        xrtSleep(1u);
+    }
+    if (pCall->pClonedRequest)
+    {
         xllmRequestUnit(pCall->pClonedRequest);
         xllm__free(pCall->pClonedRequest);
     }
@@ -932,16 +1552,26 @@ void xllmCallDestroy(xllm_call* pCall)
     xllm__free(pCall->pBlockState);
     xllm__free(pCall->pBlockMap);
     xllm__free(pCall->pItemMap);
-    if ( pCall->pExtraHeaderNames ) {
-        for ( i = 0u; i < pCall->iExtraHeaderCount; ++i ) { xllm__free(pCall->pExtraHeaderNames[i]); }
+    if (pCall->pExtraHeaderNames)
+    {
+        for (i = 0u; i < pCall->iExtraHeaderCount; ++i)
+        {
+            xllm__free(pCall->pExtraHeaderNames[i]);
+        }
         xllm__free(pCall->pExtraHeaderNames);
     }
-    if ( pCall->pExtraHeaderValues ) {
-        for ( i = 0u; i < pCall->iExtraHeaderCount; ++i ) {
-            if ( pCall->pExtraHeaderValues[i] ) {
-                volatile char* pSecret = (volatile char*)pCall->pExtraHeaderValues[i];
+    if (pCall->pExtraHeaderValues)
+    {
+        for (i = 0u; i < pCall->iExtraHeaderCount; ++i)
+        {
+            if (pCall->pExtraHeaderValues[i])
+            {
+                volatile char *pSecret = (volatile char *)pCall->pExtraHeaderValues[i];
                 size_t iLen = strlen(pCall->pExtraHeaderValues[i]);
-                while ( iLen-- ) { pSecret[iLen] = 0; }
+                while (iLen--)
+                {
+                    pSecret[iLen] = 0;
+                }
             }
             xllm__free(pCall->pExtraHeaderValues[i]);
         }
@@ -952,93 +1582,135 @@ void xllmCallDestroy(xllm_call* pCall)
     xllm__free(pCall->sSelectedModel);
     xllm__free(pCall->sRequestHeader);
     xllm__buf_reset(&pCall->tWire);
-    if ( pCall->pPromise ) { xrtPromiseDestroy(pCall->pPromise); }
-    if ( pCall->pFuture ) { xrtFutureDestroy(pCall->pFuture); }
+    if (pCall->pPromise)
+    {
+        xrtPromiseDestroy(pCall->pPromise);
+    }
+    if (pCall->pFuture)
+    {
+        xrtFutureDestroy(pCall->pFuture);
+    }
+    if (pCall->bTransportMutexInit)
+    {
+        (void)xrtMutexUnit(&pCall->TransportMutex);
+    }
+    if (pCall->bOpMutexInit)
+    {
+        (void)xrtMutexUnit(&pCall->OpMutex);
+    }
     xllm__free(pCall);
 }
 
-xllm_result xllmClientComplete(
-    xllm_client* pClient,
-    const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks,
-    xllm_response** ppResponse,
-    xllm_error* pError
-)
+static xllm_result xllm__client_complete(xllm_client *pClient, const xllm_request *pRequest,
+                                         const xllm_stream_callbacks *pCallbacks,
+                                         xllm_response **ppResponse, xllm_error *pError)
 {
-    xllm_call* pCall;
+    xllm_call *pCall;
     xllm_error tAttemptError;
     xllm_result eResult = XLLM_RESULT_ERROR;
     uint32_t uAttempt;
     uint32_t uMaxAttempts;
-    double Scope;
-    if ( ppResponse ) { *ppResponse = NULL; }
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pClient || !pRequest || !ppResponse ) {
-        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client, request, and response output are required");
+    xllm_request tOperationRequest;
+    xllm_hooks tOperationHooks;
+    bool bHasOperationHooks = false;
+    if (ppResponse)
+    {
+        *ppResponse = NULL;
+    }
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pClient || !pRequest || !ppResponse)
+    {
+        xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                        "client, request, and response output are required");
         return XLLM_RESULT_ERROR;
     }
-    Scope = __xrtWaitAfter(pRequest->iTimeout);
-    if (!__xrtWaitValid(Scope)) { xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "invalid timeout"); return XLLM_RESULT_ERROR; }
+    if (!xllm__client_begin_operation(pClient, pRequest->pHooks, &tOperationHooks,
+                                      &bHasOperationHooks, pError))
+    {
+        return XLLM_RESULT_ERROR;
+    }
+    tOperationRequest = *pRequest;
+    tOperationRequest.pHooks = bHasOperationHooks ? &tOperationHooks : NULL;
+    pRequest = &tOperationRequest;
     uMaxAttempts = pClient->uMaxAttempts ? pClient->uMaxAttempts : 1u;
-    for ( uAttempt = 1u; uAttempt <= uMaxAttempts; ++uAttempt ) {
+    for (uAttempt = 1u; uAttempt <= uMaxAttempts; ++uAttempt)
+    {
         uint32_t uDelayMs;
         bool bCanRetry;
         bool bWillRetry;
         xllmErrorInit(&tAttemptError);
-        if ( xllm__scope_result(pRequest->pCancel, Scope, &tAttemptError) != XLLM_RESULT_OK ) {
+        if (xllm__scope_result(pRequest->pCancel, pRequest->uDeadline, &tAttemptError) !=
+            XLLM_RESULT_OK)
+        {
             xllm__error_copy(pError, &tAttemptError);
-            return tAttemptError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED : XLLM_RESULT_TIMEOUT;
+            return tAttemptError.eCode == XLLM_ERROR_CANCELLED ? XLLM_RESULT_CANCELLED
+                                                               : XLLM_RESULT_TIMEOUT;
         }
-        pCall = xllm__client_start(pClient, pRequest, pCallbacks, uAttempt, Scope, &tAttemptError);
-        if ( !pCall ) {
+        pCall = xllm__client_start(pClient, pRequest, pCallbacks, uAttempt, &tAttemptError);
+        if (!pCall)
+        {
             xllm__error_copy(pError, &tAttemptError);
             return XLLM_RESULT_ERROR;
         }
         pCall->uAttempt = uAttempt;
         eResult = xllmCallWait(pCall, ppResponse, &tAttemptError);
         xllmCallDestroy(pCall);
-        if ( eResult == XLLM_RESULT_OK ) {
+        if (eResult == XLLM_RESULT_OK)
+        {
             xllm__error_copy(pError, &tAttemptError);
             return eResult;
         }
-        if ( (pRequest->pCancel && xrtCancelRequested(pRequest->pCancel)) ||
-             (Scope != INFINITY &&
-              __xrtWaitExpired(Scope)) ) {
+        if ((pRequest->pCancel && xrtCancelRequested(pRequest->pCancel)) ||
+            (pRequest->uDeadline != XLLM_DEADLINE_NEVER &&
+             xllmDeadlineExpired(pRequest->uDeadline)))
+        {
             tAttemptError.tDiagnostics.bContextAttached = true;
             tAttemptError.tDiagnostics.uContextDeadlineMs =
-                Scope == INFINITY ? 0u :
-                (uint64_t)__xrtWaitRemaining(Scope);
+                pRequest->uDeadline == XLLM_DEADLINE_NEVER ? 0u
+                                                           : pRequest->uDeadline / UINT64_C(1000);
             xllm__copy_text(tAttemptError.tDiagnostics.sContextStatus,
-                sizeof(tAttemptError.tDiagnostics.sContextStatus),
-                pRequest->pCancel && xrtCancelRequested(pRequest->pCancel) ?
-                    "cancelled" : "deadline_exceeded");
+                            sizeof(tAttemptError.tDiagnostics.sContextStatus),
+                            pRequest->pCancel && xrtCancelRequested(pRequest->pCancel)
+                                ? "cancelled"
+                                : "deadline_exceeded");
             xllm__error_copy(pError, &tAttemptError);
-            return pRequest->pCancel && xrtCancelRequested(pRequest->pCancel) ?
-                XLLM_RESULT_CANCELLED : XLLM_RESULT_TIMEOUT;
+            return pRequest->pCancel && xrtCancelRequested(pRequest->pCancel)
+                       ? XLLM_RESULT_CANCELLED
+                       : XLLM_RESULT_TIMEOUT;
         }
-        bCanRetry = xllmErrorRetryable(&tAttemptError) ||
-            (pClient->pDialect->IsRetryableProviderError &&
-             pClient->pDialect->IsRetryableProviderError(&tAttemptError));
+        bCanRetry = !tAttemptError.tDiagnostics.bModelDataDelivered &&
+                    (xllmErrorRetryable(&tAttemptError) ||
+                     (pClient->pDialect->IsRetryableProviderError &&
+                      pClient->pDialect->IsRetryableProviderError(&tAttemptError)));
         bWillRetry = bCanRetry && uAttempt < uMaxAttempts;
-        if ( bWillRetry ) {
-            const xllm_hooks* pHooks = pRequest->pHooks ? pRequest->pHooks : pClient->pHooks;
-            if ( pHooks && pHooks->pOnRetry &&
-                 !pHooks->pOnRetry(pClient, &tAttemptError.tDiagnostics,
-                     uAttempt + 1u, pHooks->pUserData) ) {
+        if (bWillRetry)
+        {
+            const xllm_hooks *pHooks = pRequest->pHooks;
+            if (pHooks && pHooks->pOnRetry &&
+                !pHooks->pOnRetry(pClient, &tAttemptError.tDiagnostics, uAttempt + 1u,
+                                  pHooks->pUserData))
+            {
                 tAttemptError.tDiagnostics.bRetryable = false;
                 xllm__error_copy(pError, &tAttemptError);
                 return eResult;
             }
         }
         tAttemptError.tDiagnostics.bRetryable = bWillRetry;
-        tAttemptError.tDiagnostics.bRetryExhausted = bCanRetry && !bWillRetry && uAttempt >= uMaxAttempts;
-        if ( !bWillRetry ) {
+        tAttemptError.tDiagnostics.bRetryExhausted =
+            bCanRetry && !bWillRetry && uAttempt >= uMaxAttempts;
+        if (!bWillRetry)
+        {
             xllm__error_copy(pError, &tAttemptError);
             return eResult;
         }
-        uDelayMs = xllm__retry_delay_ms(pClient, uAttempt, tAttemptError.tDiagnostics.uRetryAfterMs);
-        if ( uDelayMs > 0u && !xllm__scope_sleep(pRequest->pCancel, Scope, uDelayMs) ) {
-            eResult = xllm__scope_result(pRequest->pCancel, Scope, &tAttemptError);
+        uDelayMs =
+            xllm__retry_delay_ms(pClient, uAttempt, tAttemptError.tDiagnostics.uRetryAfterMs);
+        if (uDelayMs > 0u && !xllm__scope_sleep(pRequest->pCancel, pRequest->uDeadline, uDelayMs))
+        {
+            eResult = xllm__scope_result(pRequest->pCancel, pRequest->uDeadline, &tAttemptError);
             xllm__error_copy(pError, &tAttemptError);
             return eResult;
         }
@@ -1047,12 +1719,70 @@ xllm_result xllmClientComplete(
     return eResult;
 }
 
-char* xllmClientBuildRequestJson(xllm_client* pClient, const xllm_request* pRequest, xllm_error* pError)
+char *xllmClientBuildRequestJson(xllm_client *pClient, const xllm_request *pRequest,
+                                 xllm_error *pError)
 {
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pClient || !pRequest ) {
+    char *sBody;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pClient || !pRequest)
+    {
         xllm__error_set(pError, XLLM_ERROR_INVALID_ARGUMENT, "client and request are required");
         return NULL;
     }
-    return pClient->pDialect->BuildRequest(pClient, pRequest, pError);
+    if (!pClient->bConfigMutexInit || !xrtMutexLock(&pClient->ConfigMutex))
+    {
+        xllm__error_set(pError, XLLM_ERROR_PROTOCOL, "client configuration lock failed");
+        return NULL;
+    }
+    pClient->bConfigSealed = true;
+    if (pClient->bHasModelProfile &&
+        !xllmModelProfileValidateRequest(&pClient->tModelProfile, pRequest, pError))
+    {
+        (void)xrtMutexUnlock(&pClient->ConfigMutex);
+        return NULL;
+    }
+    sBody = xllm__client_serialize_body(pClient, pRequest, pError);
+    (void)xrtMutexUnlock(&pClient->ConfigMutex);
+    if (!sBody && pError && pError->eCode == XLLM_ERROR_NONE)
+    {
+        xllm__error_set(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to serialize model request");
+    }
+    return sBody;
+}
+
+static xllm_request xllm__relative_request(const xllm_request *request)
+{
+    xllm_request effective = *request;
+    if (effective.iTimeout >= 0)
+    {
+        uint64_t ms = (uint64_t)effective.iTimeout;
+        uint64_t end =
+            xllmDeadlineAfterUs(ms > (UINT64_MAX - 1u) / 1000u ? UINT64_MAX - 1u : ms * 1000u);
+        if (effective.uDeadline == XLLM_DEADLINE_NEVER || end < effective.uDeadline)
+            effective.uDeadline = end;
+    }
+    effective.iTimeout = XRT_WAIT_FOREVER;
+    return effective;
+}
+xllm_call *xllmClientStart(xllm_client *client, const xllm_request *request,
+                           const xllm_stream_callbacks *callbacks, xllm_error *error)
+{
+    xllm_request effective;
+    if (!request)
+        return xllm__client_start(client, request, callbacks, 1u, error);
+    effective = xllm__relative_request(request);
+    return xllm__client_start(client, &effective, callbacks, 1u, error);
+}
+xllm_result xllmClientComplete(xllm_client *client, const xllm_request *request,
+                               const xllm_stream_callbacks *callbacks, xllm_response **response,
+                               xllm_error *error)
+{
+    xllm_request effective;
+    if (!request)
+        return xllm__client_complete(client, request, callbacks, response, error);
+    effective = xllm__relative_request(request);
+    return xllm__client_complete(client, &effective, callbacks, response, error);
 }

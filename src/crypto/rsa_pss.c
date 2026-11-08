@@ -174,7 +174,7 @@ static bool __xrtRsaPssFail(cstr sMessage, int iCode)
 
 
 /* 严格验证 EMSA-PSS 签名，可分别指定消息摘要与 MGF1 摘要。 */
-bool xrtRsaPssVerify(
+xrt_crypto_check __xrtRsaPssCheck(
 	const xrsapublickey* pKey,
 	xcryptohash iHash,
 	xcryptohash iMaskHash,
@@ -202,20 +202,15 @@ bool xrtRsaPssVerify(
 	uint8 iUnusedBits;
 	__xrt_rsa_result iPower;
 	bool bValid = false;
+	xrt_crypto_check Result = XRT_CRYPTO_CHECK_SIGNATURE;
 
 	if ( (pKey == NULL) || (pHash == NULL) || (pSignature == NULL) ||
 		 (iHashSize == 0) || (iMaskHashSize == 0) ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS arguments are invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	if ( (iSignatureSize != pKey->ModulusSize) ||
 		 (iSignatureSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature length is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	iPower = __xrtRsaPower(
@@ -225,16 +220,11 @@ bool xrtRsaPssVerify(
 		Encoded
 	);
 	if ( iPower == XRT_RSA_RESULT_KEY ) {
-		return __xrtRsaPssFail(
-			"the RSA public key is invalid",
-			XCRYPTO_ERROR_KEY
-		);
+		Result = XRT_CRYPTO_CHECK_KEY;
+		goto cleanup;
 	}
 	if ( iPower != XRT_RSA_RESULT_OK ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature representative is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		goto cleanup;
 	}
 
 	iModulusBits = __xrtRsaModulusBits(pKey);
@@ -270,6 +260,7 @@ bool xrtRsaPssVerify(
 		pDatabase,
 		iDatabaseSize
 	) ) {
+		Result = XRT_CRYPTO_CHECK_ERROR;
 		goto cleanup;
 	}
 	if ( iUnusedBits != 0 ) {
@@ -310,6 +301,7 @@ bool xrtRsaPssVerify(
 		iActualSalt,
 		Expected
 	) ) {
+		Result = XRT_CRYPTO_CHECK_ERROR;
 		goto cleanup;
 	}
 	bValid = xrtConstTimeEqual(Expected, pEncodedHash, iHashSize);
@@ -317,13 +309,30 @@ bool xrtRsaPssVerify(
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
 	xrtSecureZero(Expected, sizeof(Expected));
-	if ( !bValid ) {
-		return __xrtRsaPssFail(
-			"the RSA-PSS signature is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+	return bValid ? XRT_CRYPTO_CHECK_VALID : Result;
+}
+
+bool xrtRsaPssVerify(
+	const xrsapublickey* pKey, xcryptohash iHash, xcryptohash iMaskHash,
+	size_t iSaltSize, const void* pHash, const void* pSignature,
+	size_t iSignatureSize
+)
+{
+	xrt_crypto_check Result = __xrtRsaPssCheck(
+		pKey, iHash, iMaskHash, iSaltSize, pHash, pSignature, iSignatureSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
 	}
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return false;
+	}
+	return __xrtRsaPssFail(
+		Result == XRT_CRYPTO_CHECK_KEY ? "the RSA public key is invalid" :
+		"the RSA-PSS signature or arguments are invalid",
+		Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+	);
 }
 
 #endif

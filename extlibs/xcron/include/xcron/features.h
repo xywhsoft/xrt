@@ -1,0 +1,150 @@
+/* 此文件由 tools/generate_extension_features.py 生成，请勿直接修改。 */
+#ifndef XCRON_FEATURES_H
+#define XCRON_FEATURES_H
+
+/* xcron 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON)
+#ifndef XCRON_FEATURE_XCRON
+#define XCRON_FEATURE_XCRON
+#endif
+#ifndef XCRON_MODULE_XCRON_EXPRESSION
+#define XCRON_MODULE_XCRON_EXPRESSION
+#endif
+#ifndef XCRON_MODULE_XCRON_CALENDAR
+#define XCRON_MODULE_XCRON_CALENDAR
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XCRON_MODULE_XCRON_EXECUTOR
+#define XCRON_MODULE_XCRON_EXECUTOR
+#endif
+#ifndef XCRON_MODULE_XCRON_SERVICE
+#define XCRON_MODULE_XCRON_SERVICE
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB_FILE
+#define XCRON_MODULE_XCRON_TZDB_FILE
+#endif
+#endif
+
+/* xcron_tzdb_file 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB_FILE)
+#ifndef XCRON_FEATURE_XCRON_TZDB_FILE
+#define XCRON_FEATURE_XCRON_TZDB_FILE
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
+/* xcron_tzdb 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB)
+#ifndef XCRON_FEATURE_XCRON_TZDB
+#define XCRON_FEATURE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
+#endif
+
+/* xcron_service 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_SERVICE)
+#ifndef XCRON_FEATURE_XCRON_SERVICE
+#define XCRON_FEATURE_XCRON_SERVICE
+#endif
+#ifndef XCRON_MODULE_XCRON_EXECUTOR
+#define XCRON_MODULE_XCRON_EXECUTOR
+#endif
+#ifndef XRT_MODULE_COND
+#define XRT_MODULE_COND
+#endif
+#ifndef XRT_MODULE_EVENT_WAITER
+#define XRT_MODULE_EVENT_WAITER
+#endif
+#endif
+
+/* xcron_executor 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_EXECUTOR)
+#ifndef XCRON_FEATURE_XCRON_EXECUTOR
+#define XCRON_FEATURE_XCRON_EXECUTOR
+#endif
+#ifndef XCRON_MODULE_XCRON_SCHEDULER
+#define XCRON_MODULE_XCRON_SCHEDULER
+#endif
+#ifndef XRT_MODULE_EXECUTOR
+#define XRT_MODULE_EXECUTOR
+#endif
+#endif
+
+/* xcron_scheduler 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_SCHEDULER)
+#ifndef XCRON_FEATURE_XCRON_SCHEDULER
+#define XCRON_FEATURE_XCRON_SCHEDULER
+#endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
+#endif
+
+/* xcron_zoned 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_ZONED)
+#ifndef XCRON_FEATURE_XCRON_ZONED
+#define XCRON_FEATURE_XCRON_ZONED
+#endif
+#ifndef XCRON_MODULE_XCRON_CALENDAR
+#define XCRON_MODULE_XCRON_CALENDAR
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#endif
+
+/* xcron_timezone 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TIMEZONE)
+#ifndef XCRON_FEATURE_XCRON_TIMEZONE
+#define XCRON_FEATURE_XCRON_TIMEZONE
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#endif
+
+/* xcron_calendar 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_CALENDAR)
+#ifndef XCRON_FEATURE_XCRON_CALENDAR
+#define XCRON_FEATURE_XCRON_CALENDAR
+#endif
+#ifndef XCRON_MODULE_XCRON_EXPRESSION
+#define XCRON_MODULE_XCRON_EXPRESSION
+#endif
+#ifndef XRT_MODULE_TIME
+#define XRT_MODULE_TIME
+#endif
+#endif
+
+/* xcron_expression 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_EXPRESSION)
+#ifndef XCRON_FEATURE_XCRON_EXPRESSION
+#define XCRON_FEATURE_XCRON_EXPRESSION
+#endif
+#endif
+
+#endif /* XCRON_FEATURES_H */

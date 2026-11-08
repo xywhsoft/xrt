@@ -1,29 +1,16 @@
 #include "../test.h"
 #include <xrt/detail/wait.h>
-#include <xrt/future_bridge.h>
+#include "../../src/internal/xrt_dial_future.h"
 
-/* Exercise the actual shared producer before constructor publication.
- * This is a resident implementation seam, not a fabricated native graph. */
-static xatomic32 Entered;
-static unsigned Released;
-static uint8 DialMarker;
-static bool testDialBridgeWait(const xfuturebridge* bridge)
-{
-    xrtAtomic32Store(&Entered, 1, XMEMORY_RELEASE);
-    return xrtFutureBridgeWait(bridge);
-}
-static void testDialRelease(ptr operation)
-{
-    if (!operation) return;
-    testRequire(operation == &DialMarker, "released an unpublished operation");
-    ++Released;
-}
-
-#define xrtFutureBridgeWait testDialBridgeWait
+/* Run the real shared constructor with a resident submit seam. Completion
+ * must RETURN while Submit has not returned; the old wait gate deadlocks here. */
 #define __xrtNetStreamDialFutureOps testPublishedDialOps
+#define __xrtNetStreamDialFuturePayloadPolicy testPublishedDialPayloadPolicy
 #define __xrtNetStreamDialFutureDrop testPublishedDialDrop
 #define __xrtNetStreamDialFutureComplete testPublishedDialComplete
 #define __xrtNetStreamDialFutureCreate testPublishedDialCreate
+#define __xrtNetStreamDialFutureCreateOwned testPublishedDialCreateOwned
+#define __xrtNetStreamDialFutureOwner testPublishedDialOwner
 #define __xrtNetStreamDialFutureProducerPolicyV1Get testPublishedDialProducer
 #define __xrtNetStreamDialFutureCancelPolicyV1Get testPublishedDialCancel
 #define __xrtNetStreamDialFuturePayloadPolicyV1Get testPublishedDialPayload
@@ -35,46 +22,72 @@ static void testDialRelease(ptr operation)
 #undef __xrtNetStreamDialFuturePayloadPolicyV1Get
 #undef __xrtNetStreamDialFutureCancelPolicyV1Get
 #undef __xrtNetStreamDialFutureProducerPolicyV1Get
+#undef __xrtNetStreamDialFutureOwner
+#undef __xrtNetStreamDialFutureCreateOwned
 #undef __xrtNetStreamDialFutureCreate
 #undef __xrtNetStreamDialFutureComplete
 #undef __xrtNetStreamDialFutureDrop
+#undef __xrtNetStreamDialFuturePayloadPolicy
 #undef __xrtNetStreamDialFutureOps
-#undef xrtFutureBridgeWait
 
-static int32 testDialCompleteBeforePublish(ptr data)
+static uint8 DialMarker;
+static unsigned Released, Returned, OperationRefs;
+static ptr CancelContext;
+static ptr refDial(ptr dial) { testRequire(dial==&DialMarker&&OperationRefs,"wrong operation");OperationRefs++;return dial; }
+static void releaseDial(ptr dial) { if(dial){testRequire(dial==&DialMarker&&OperationRefs,"wrong release");OperationRefs--;Released++;} }
+static bool cancelDial(ptr dial) {
+    testRequire(dial==&DialMarker&&CancelContext,"wrong cancel");
+    testPublishedDialComplete(CancelContext,XNET_RESULT_CANCELLED,NULL,NULL);testPublishedDialDrop(CancelContext);CancelContext=NULL;return true;
+}
+static xrtownershipref ownershipDial(const void* dial) { (void)dial;return (xrtownershipref){0}; }
+static void abortValue(ptr value) { (void)value; }
+static void freeBytes(ptr value,ptr data){testRequire(!data,"unexpected payload context");xrtNetBytesDestroy(value);}
+static bool traceBytes(const void* value,const void* data,xrtownershipvisitor visit,ptr arg)
+{return value&&!data&&visit&&visit(xrtNetBytesOwnership(value),arg);}
+static const xfuturepayloadownershipv1 bytesPayload={sizeof(bytesPayload),freeBytes,traceBytes};
+static const xrt_net_dial_future_policy policy={refDial,releaseDial,cancelDial,ownershipDial,
+    &bytesPayload,abortValue,NULL};
+static int32 completeBeforePublish(ptr context)
 {
-    testPublishedDialComplete(data, XNET_RESULT_CLOSED, NULL, NULL);
-    testPublishedDialDrop(data); /* actual owned Done-context callback tail */
+    testPublishedDialComplete(context,XNET_RESULT_CLOSED,NULL,NULL);
+    testPublishedDialDrop(context);Returned++;
     return 0;
+}
+static ptr submitBeforePublish(ptr context,const void* data)
+{
+    unsigned mode=*(const unsigned*)data;OperationRefs=1;
+    if(mode==3){
+        xrt_net_stream_dial_future* c=context;CancelContext=context;xcancel* token=xrtPromiseCancelToken(c->Promise);
+        testRequire(token&&xrtCancelRequest(token),"prepublication cancel failed");xrtCancelDestroy(token);Returned++;
+    }else if(mode==2){
+        xnetbytes* bytes=xrtNetBytesCopy("a\0b",3);testRequire(bytes!=NULL,"bytes allocation");
+        testPublishedDialComplete(context,XNET_RESULT_OK,bytes,NULL);testPublishedDialDrop(context);Returned++;
+    }else if(mode==1){
+        xthread* thread=xrtThreadCreate(completeBeforePublish,context,0);
+        testRequire(thread&&xrtThreadWaitFor(thread,5000)==XWAIT_OK,
+            "completion blocked waiting for the constructor");
+        xrtThreadDestroy(thread);
+    }else (void)completeBeforePublish(context);
+    testRequire(Returned==1,"completion did not return before publication");
+    return &DialMarker;
 }
 int main(void)
 {
-    static const xrt_net_dial_future_policy policy = {NULL, testDialRelease, NULL, NULL};
-    xrt_net_stream_dial_future* context = xrtCalloc(1, sizeof(*context));
-    testRequire(context != NULL, "publication context allocation failed");
-    xfuture* future = xrtFutureBridgeCreate(&context->Bridge, NULL);
-    testRequire(future != NULL && xrtMutexInit(&context->Lock), "publication setup failed");
-    context->References = 2; context->Publishing = true; context->Policy = &policy;
-    context->Promise = xrtFutureBridgePromise(&context->Bridge);
-    xrtAtomic32Init(&Entered, 0);
-    xthread* thread = xrtThreadCreate(testDialCompleteBeforePublish, context, 0);
-    testRequire(thread != NULL, "publication thread creation failed");
-    double due = __xrtWaitAfter(5000);
-    while (!xrtAtomic32Load(&Entered, XMEMORY_ACQUIRE)) {
-        testRequire(!__xrtWaitExpired(due), "callback did not reach publication gate");
-        xrtThreadYield();
+    testRequire(xrtMemDebugEnable(true),"debug setup");
+    xmemdebugsnapshot before,after;xrtMemDebugSnapshot(&before);
+    for(unsigned i=0;i<4;i++){
+        Released=Returned=OperationRefs=0;CancelContext=NULL;
+        xfuture* f=testPublishedDialCreate(&policy,submitBeforePublish,&i);
+        testRequire(f&&Released==(i==3?2u:1u)&&!OperationRefs&&Returned==1&&
+            xrtFutureState(f)==(i==2?XFUTURE_RESOLVED:i==3?XFUTURE_CANCELLED:XFUTURE_CLOSED),
+            "publication lost its operation credit or terminal result");
+        if(i==2){xbytesview bytes=xrtNetBytesView(xrtFutureValue(f));testRequire(bytes.Size==3&&!memcmp(bytes.Data,"a\0b",3),"owned early result lost bytes");}
+        xrtFutureDestroy(f);xrtClearError();
     }
-    xrtownershipscope scope = {0};
-    __xrtNetStreamDialFutureBegin(context, &scope);
-    context->Dial = &DialMarker; context->Publishing = false;
-    __xrtNetStreamDialFutureEnd(context, &scope);
-    testRequire(xrtFutureBridgeReady(&context->Bridge), "publication failed");
-    testPublishedDialDrop(context);
-    testRequire(xrtThreadWaitFor(thread, 5000) == XWAIT_OK, "publication callback did not finish");
-    xrtThreadDestroy(thread);
-    testRequire(Released == 1 && xrtFutureState(future) == XFUTURE_CLOSED,
-        "completion lost the published operation or terminal result");
-    xrtFutureDestroy(future); xrtClearError();
-    puts("[PASS] shared Dial completion before setup publication releases its reference");
+    xrtMemDebugSnapshot(&after);
+    testRequire(before.LiveCount==after.LiveCount&&before.LiveBytes==after.LiveBytes&&
+        after.AllocCount-before.AllocCount==after.FreeCount-before.FreeCount,"publication leak");
+    testRequire(xrtMemDebugReset(),"debug reset");
+    puts("[PASS] shared Dial inline/threaded completion, early owned result and prepublication cancel; balanced");
     return 0;
 }

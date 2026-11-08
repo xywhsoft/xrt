@@ -3,10 +3,23 @@
 #include "../internal/xrt_file.h"
 #include "../internal/xrt_net_port.h"
 #include "../internal/xrt_net_engine.h"
+#include "../internal/xrt_net_file.h"
 
 
 
 #if defined(XRT_FEATURE_NET_FILE)
+
+/* Public caller-owned completions are not a closed ownership family. The
+ * current Worker remains active (not OwnershipParked) across submission, so
+ * Engine quiescence rejects inspection until this publication has completed.
+ * Never hold global mutation admission over an OS/backend submission. */
+static void __xrtNetFileExposeCompletion(xnetworker* pWorker)
+{
+	xrtownershipscope Mutation = {0};
+	if ( !xrtOwnershipMutationBegin(&Mutation) ) abort();
+	pWorker->OwnershipPortExposed = true;
+	if ( !xrtOwnershipScopeEnd(&Mutation) ) abort();
+}
 
 /* 校验文件访问、异步打开方式和 Worker 线程归属。 */
 static bool __xrtNetFileCheck(
@@ -87,13 +100,14 @@ XRT_API xfile xrtNetFileOpen(
 
 
 /* 在 Worker 端口提交一次无复制定位读取。 */
-XRT_API uint64 xrtNetFileRead(
+uint64 __xrtNetFileSubmit(
 	xnetworker* pWorker,
 	xfile File,
 	uint64 iOffset,
 	void* pData,
 	size_t iSize,
-	xnetcompletion* pCompletion
+	xnetcompletion* pCompletion,
+	bool bWrite
 )
 {
 	uint64 Id;
@@ -103,19 +117,19 @@ XRT_API uint64 xrtNetFileRead(
 	if ( !__xrtNetFileCheck(
 		pWorker,
 		File,
-		XFILE_READ,
+		bWrite ? XFILE_WRITE : XFILE_READ,
 		pCompletion
 	) ) {
 		return 0;
 	}
-	if ( !__xrtNetFileRange(iOffset, pData, iSize, "read-file") ) {
+	if ( !__xrtNetFileRange(iOffset, pData, iSize, bWrite ? "write-file" : "read-file") ) {
 		return 0;
 	}
 	pPort = __xrtNetWorkerPortBorrow(pWorker);
 	if ( (pPort == NULL) ||
 		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
 		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
-			"read-file", "network worker has no native file I/O capability", 0);
+			bWrite ? "write-file" : "read-file", "network worker has no native file I/O capability", 0);
 		return 0;
 	}
 	if ( !__xrtFileAsyncBind(
@@ -126,21 +140,21 @@ XRT_API uint64 xrtNetFileRead(
 		return 0;
 	}
 	Id = xrtNetWorkerOperationId(pWorker);
-	if ( (Id == 0) || !__xrtNetPortFileRead(
-		pPort,
-		xrtFileNative(File),
-		iOffset,
-		pData,
-		iSize,
-		Id,
-		pCompletion,
-		pAssociated
-	) ) {
-		return 0;
-	}
-	return Id;
+	if ( Id == 0 ) return 0;
+	bool bSubmitted = bWrite ? __xrtNetPortFileWrite(pPort, xrtFileNative(File),
+		iOffset, pData, iSize, Id, pCompletion, pAssociated) :
+		__xrtNetPortFileRead(pPort, xrtFileNative(File),
+		iOffset, pData, iSize, Id, pCompletion, pAssociated);
+	return bSubmitted ? Id : 0;
 }
 
+XRT_API uint64 xrtNetFileRead(xnetworker* pWorker, xfile File,
+	uint64 iOffset, void* pData, size_t iSize, xnetcompletion* pCompletion)
+{
+	uint64 Id = __xrtNetFileSubmit(pWorker, File, iOffset, pData, iSize, pCompletion, false);
+	if (Id) __xrtNetFileExposeCompletion(pWorker);
+	return Id;
+}
 
 
 /* 在 Worker 端口提交一次无复制定位写入。 */
@@ -153,48 +167,8 @@ XRT_API uint64 xrtNetFileWrite(
 	xnetcompletion* pCompletion
 )
 {
-	uint64 Id;
-	xnetport* pPort;
-	bool* pAssociated;
-
-	if ( !__xrtNetFileCheck(
-		pWorker,
-		File,
-		XFILE_WRITE,
-		pCompletion
-	) ) {
-		return 0;
-	}
-	if ( !__xrtNetFileRange(iOffset, pData, iSize, "write-file") ) {
-		return 0;
-	}
-	pPort = __xrtNetWorkerPortBorrow(pWorker);
-	if ( (pPort == NULL) ||
-		((xrtNetPortCapabilities(pPort) & XNET_PORT_CAP_FILE_IO) == 0u) ) {
-		__xrtNetSetError(XERR_UNSUPPORTED, XNET_ERROR_PORT_SUBMIT,
-			"write-file", "network worker has no native file I/O capability", 0);
-		return 0;
-	}
-	if ( !__xrtFileAsyncBind(
-		File,
-		__xrtNetPortOwner(pPort),
-		&pAssociated
-	) ) {
-		return 0;
-	}
-	Id = xrtNetWorkerOperationId(pWorker);
-	if ( (Id == 0) || !__xrtNetPortFileWrite(
-		pPort,
-		xrtFileNative(File),
-		iOffset,
-		pData,
-		iSize,
-		Id,
-		pCompletion,
-		pAssociated
-	) ) {
-		return 0;
-	}
+	uint64 Id = __xrtNetFileSubmit(pWorker, File, iOffset, (void*)pData, iSize, pCompletion, true);
+	if (Id) __xrtNetFileExposeCompletion(pWorker);
 	return Id;
 }
 

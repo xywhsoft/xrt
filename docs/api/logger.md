@@ -4221,3 +4221,35 @@ no user callback is invoked while the default lock is held.
 #### 范例
 
 参见已注册的 [examples/logging/core/main.c](../../examples/logging/core/main.c)，结合本节参数和生存期规则使用。
+
+## Checked ownership integration
+
+`xrtLogOwnership` exposes the actual Logger control block. Its single snapshot
+reference leads to a separately counted immutable snapshot, which visits every
+owned Sink slot once. `xrtLogSinkOwnership` exposes only a sink whose callback
+payload has been explicitly declared with `xrtLogSinkBindOwnershipV1` before
+publication. Binding consumes no reference and is rejected after publication,
+a previous binding, or a collector claim.
+
+A `xlogsinkownershipv1` descriptor declares every strong payload edge and,
+optionally, whether its callback can execute on a worker. The payload, descriptor
+and callback code must stay resident. The caller admits exact descriptor
+identity with `xrtLogSinkOwnershipAdapterV1` before running Count or Trace;
+an undeclared sink remains usable by ordinary C code but fails graph admission.
+An empty Trace is valid only after auditing the complete payload as native data.
+`xrtLogSinkWorkerSafe` is conservative for undeclared or thread-affine callbacks.
+Async and Ring policies follow their separately counted state and target; a
+running worker contributes its actual state reference, not a synthetic root.
+
+Count/Trace and Claim/Restore/Clear require a whole ownership freeze and external
+lifecycle exclusion. Every ownership counter, snapshot publication and target
+transfer participates in the same XRT instance's mutation domain. Native submit
+and flush activations hold a real temporary receiver reference. No logger lock
+or ownership mutation spans a user write/flush callback. Clear quarantines;
+Finish detaches and releases native edges outside Freeze, once, and is safe to
+retry. Native payload Drop is physical release, not a new user finalizer.
+
+`tests/single/test_single_logger_ownership.c` checks exact policy rejection,
+physical counts, internal-root reachability, real pins, claim admission,
+at-most-once Finish and Async/Ring worker-state ownership. The ordinary logger
+thread, reentry and allocation-failure suites remain required.

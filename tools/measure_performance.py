@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import ctypes
 from datetime import datetime, timezone
 import json
@@ -132,6 +133,11 @@ def _benchmark_contract(benchmark: object, names: set[str]) -> None:
 			isinstance(item, str) for item in value
 		):
 			raise SystemExit(f"invalid performance benchmark {field}: {name}")
+	inputs = benchmark.get("inputs", [])
+	if not isinstance(inputs, list) or not all(isinstance(item, str) and item for item in inputs):
+		raise SystemExit(f"invalid performance benchmark inputs: {name}")
+	if len(inputs) != len(set(inputs)):
+		raise SystemExit(f"duplicate performance benchmark input: {name}")
 	facts = benchmark.get("facts", [])
 	if not isinstance(facts, list) or not all(
 		isinstance(item, str) and item for item in facts
@@ -335,7 +341,7 @@ def _benchmark_fingerprint(
 	profiles: list[dict],
 	profile_path: Path = PROFILE_PATH,
 ) -> str:
-	"""散列 runner、配置、公共计时实现和本次使用的基准源码。"""
+	"""散列 runner、配置、计时、基准源码及显式夹具输入。"""
 
 	paths = [
 		profile_path,
@@ -351,6 +357,7 @@ def _benchmark_fingerprint(
 	for profile_value in profiles:
 		for benchmark in profile_value["benchmarks"]:
 			paths.append(ROOT / benchmark["source"])
+			paths.extend(ROOT / value for value in benchmark.get("inputs", []))
 	return release_identity.fingerprint_paths(ROOT, paths)
 
 
@@ -443,6 +450,22 @@ def _metric_summary(samples: list[float]) -> dict[str, float | list[float]]:
 		"central_range": central_range,
 		"relative_central_range": relative_central_range,
 	}
+
+
+
+def _report_text(result: dict) -> str:
+	"""用显式字符串记录无限相对离散度，保留内存中的门禁判定。"""
+
+	report = copy.deepcopy(result)
+	for profile in report["profiles"].values():
+		for benchmark in profile["benchmarks"].values():
+			for metric in benchmark["metrics"].values():
+				for field in (
+					"relative_mad", "relative_range", "relative_central_range",
+				):
+					if metric.get(field) == math.inf:
+						metric[field] = "inf"
+	return json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
 
 
@@ -865,6 +888,7 @@ def main() -> int:
 					)
 			profile_result["benchmarks"][benchmark["name"]] = {
 				"source": benchmark["source"],
+				"inputs": list(benchmark.get("inputs", [])),
 				"suite": benchmark["suite"],
 				"args": run_args,
 				"facts": facts_result or {},
@@ -888,7 +912,7 @@ def main() -> int:
 	report_path.parent.mkdir(parents=True, exist_ok=True)
 	write_utf8(
 		report_path,
-		json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
+		_report_text(result),
 	)
 	print(f"[pass] performance-report={_display_path(report_path)}")
 	for profile_name, profile_value in result["profiles"].items():

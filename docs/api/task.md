@@ -3147,3 +3147,10 @@ typedef struct xtasknetdataownershipv1 {
 | `Proc` | `xtasknetproc` | 非空任务过程，借用亲和 Worker、取消令牌和 Data，按任务合同写入结果。 |
 | `Drop` | `xfuturefreeproc` | 非空释放过程，以 Drop(Data,NULL) 消费被受理的用户引用。 |
 | `Ops` | `const xrtownershipops*` | 非空真实 Count/Trace 操作表；描述符和代码驻留至所有拥有图 pin 释放。 |
+### 清理阶段的工作线程身份
+
+`xrtTaskPoolIsCurrentWorkerV1(pool)` 查询当前线程是否仍属于该池，包含任务函数返回后的 ThreadKey 析构与退出回调。调用者必须持有真实池引用。它不执行 join、不转移所有权；无效状态仍报告 checked 错误。
+
+非阻塞清理驱动应先检查该身份，在所属工作线程上保留未完成状态，交给外部控制线程继续清理。语言任务的活动计数结束不代表系统线程已经退出。`xrtTaskPoolTryJoinV1` 的原有约束保持不变：同池线程直接尝试 join 自身仍是调用错误；该查询不把错误静默转换成成功。
+
+原生 `test_task_pool_worker_exit.c` 保留自 join 拒绝测试，并验证退出回调仍具有工作线程身份。

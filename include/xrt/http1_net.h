@@ -48,8 +48,6 @@ XRT_API xhttp1status xrtHttp1ResponseParseBuffer(
 
 
 
-#if defined(XRT_FEATURE_HTTP1_NET)
 XRT_EXTERN_C_END
-#endif
 
 #endif

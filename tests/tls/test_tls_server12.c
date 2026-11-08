@@ -1,4 +1,6 @@
 #include "../fixtures/tls_server.h"
+#include "../../src/internal/xrt_tls_client.h"
+#include "../../src/internal/xrt_tls_server.h"
 
 
 
@@ -49,6 +51,274 @@ static xtlscontext* testTlsServer12Context(void)
 	Config.Limits.RecordBudget = 4u;
 	Config.Limits.HandshakeBudget = 4u;
 	return xrtTlsContextCreate(&Config);
+}
+
+
+
+/* Give the client a handshake split independently from the peer's records. */
+static xtlsresult testTlsClient12RequestFeed(
+	xtlssession* pClient,
+	xbytesview Message
+)
+{
+	uint8 Wire[4096];
+	size_t iWire = xrtTlsRecordSize(Message.Size);
+	xtlsresult Result = XTLS_AGAIN;
+
+	testRequire((iWire <= sizeof(Wire)) && xrtTlsRecordEncode(
+		XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12, Message, Wire, sizeof(Wire)
+	), "TLS 1.2 request fixture record encoding failed");
+	for ( size_t i = 0; i < iWire; i++ ) {
+		testRequire(xrtTlsSessionFeed(pClient, Wire + i, 1u) == XTLS_OK,
+			"TLS 1.2 request fixture feed failed");
+		Result = xrtTlsClientDrive(pClient);
+		if ( Result == XTLS_ERROR ) {
+			break;
+		}
+	}
+	return Result;
+}
+
+
+
+/* The native server does not implement client authentication. This wire
+ * fixture inserts CertificateRequest before ServerHelloDone, then checks and
+ * consumes only the empty client Certificate on the server's behalf. Both
+ * Finished messages and the EMS schedule still use the complete transcript. */
+static void testTlsClient12RequestAlert(xtlssession* pClient, xtlsalert Expected)
+{
+	xnetspan Span;
+	xtlsrecord Record;
+	xtlsalertlevel Level;
+	xtlsalert Alert;
+
+	testRequire(xrtTlsSessionSendFront(pClient, &Span) &&
+		(xrtTlsRecordParse((xbytesview) { Span.Data, Span.Size }, &Record, NULL) == XTLS_OK) &&
+		(Record.EncodedSize == Span.Size) && (Record.Type == XTLS_RECORD_ALERT) &&
+		xrtTlsAlertParse(Record.Payload, &Level, &Alert) &&
+		(Level == XTLS_ALERT_FATAL) && (Alert == Expected),
+		"TLS 1.2 rejected request fatal alert code differs");
+}
+
+
+
+static void testTlsClient12CertificateRequest(
+	const xtlsclientconfig* pClientConfig,
+	const xtlsserverconfig* pServerConfig,
+	size_t iMode
+)
+{
+	static const uint8 EmptyCertificate[] = { 11u, 0, 0, 3u, 0, 0, 0 };
+	uint8 Body[] = { 1u, 1u, 0, 2u, 8u, 4u, 0, 0 };
+	uint8 Request[32];
+	uint8 Wire[8192];
+	uint8 Forward[256];
+	uint8 Before[32];
+	uint8 After[32];
+	xtlssession* pClient = xrtTlsClientCreate(pClientConfig, NULL);
+	xtlssession* pServer = xrtTlsServerCreate(pServerConfig, NULL);
+	xtlsclientstate* pState;
+	xtlsserverstate* pServerState;
+	xtlstranscript Transcript;
+	test_tls_server_rng Rng = { UINT32_C(0xCE2712) };
+	xnetspan Span;
+	xtlsrecord Record;
+	xtlshandshake Message;
+	size_t iRequest = xrtTlsHandshakeSize(sizeof(Body));
+	bool bInserted = false;
+	bool bCertificate = false;
+
+	testRequire((pClient != NULL) && (pServer != NULL),
+		"TLS 1.2 request fixture creation failed");
+	pState = (xtlsclientstate*)__xrtTlsSessionRoleData(pClient);
+	pServerState = (xtlsserverstate*)__xrtTlsSessionRoleData(pServer);
+	if ( iMode == 2u ) {
+		Body[1] = 99u;
+		Body[4] = 0xFEu;
+		Body[5] = 0xFEu;
+	} else if ( iMode == 4u ) {
+		Body[0] = 0;
+	} else if ( iMode == 5u ) {
+		Body[3] = 1u;
+	} else if ( iMode == 6u ) {
+		Body[7] = 1u;
+	}
+	testRequire(xrtTlsHandshakeEncode(XTLS_HANDSHAKE_CERTIFICATE_REQUEST,
+		(xbytesview) { Body, sizeof(Body) }, Request, sizeof(Request)) &&
+		__xrtTlsTranscriptInit(&Transcript, XCRYPTO_HASH_SHA256) &&
+		xrtTlsSessionSendFront(pClient, &Span) &&
+		(xrtTlsRecordParse((xbytesview) { Span.Data, Span.Size },
+			&Record, NULL) == XTLS_OK) &&
+		__xrtTlsTranscriptUpdate(&Transcript, Record.Payload) &&
+		(xrtTlsSessionFeed(pServer, Span.Data, Span.Size) == XTLS_OK) &&
+		xrtTlsSessionSendConsume(pClient, Span.Size) &&
+		(xrtTlsServerDrive(pServer) == XTLS_OK),
+		"TLS 1.2 request fixture ClientHello failed");
+	while ( xrtTlsSessionSendSize(pServer) != 0 ) {
+		size_t iWire;
+		size_t iOffset = 0;
+
+		testRequire(xrtTlsSessionSendFront(pServer, &Span) &&
+			(Span.Size <= sizeof(Wire)), "TLS 1.2 server flight is too large");
+		iWire = Span.Size;
+		memcpy(Wire, Span.Data, iWire);
+		testRequire(xrtTlsSessionSendConsume(pServer, iWire),
+			"TLS 1.2 server flight consume failed");
+		while ( iOffset < iWire ) {
+			size_t iMessage = 0;
+
+			testRequire(xrtTlsRecordParse((xbytesview) { Wire + iOffset,
+				iWire - iOffset }, &Record, NULL) == XTLS_OK,
+				"TLS 1.2 server record parse failed");
+			iOffset += Record.EncodedSize;
+			while ( iMessage < Record.Payload.Size ) {
+				xbytesview Encoded;
+
+				testRequire(xrtTlsHandshakeParse((xbytesview) {
+					Record.Payload.Data + iMessage, Record.Payload.Size - iMessage
+				}, &Message, NULL) == XTLS_OK,
+					"TLS 1.2 server message parse failed");
+				Encoded = (xbytesview) { Record.Payload.Data + iMessage,
+					Message.EncodedSize };
+				iMessage += Message.EncodedSize;
+				if ( (Message.Type == XTLS_HANDSHAKE_SERVER_HELLO_DONE) ||
+					((iMode == 7u) && (Message.Type == XTLS_HANDSHAKE_SERVER_KEY_EXCHANGE)) ) {
+					xtlsresult Result = testTlsClient12RequestFeed(pClient,
+						(xbytesview) { Request, iRequest });
+
+					if ( (iMode >= 4u) && (iMode <= 7u) ) {
+						testRequire((Result == XTLS_ERROR) &&
+							(xrtTlsSessionState(pClient) == XTLS_STATE_FAILED) &&
+							!pState->CertificateRequested &&
+							(xrtErrorKind(xrtGetError()) == XERR_PROTOCOL),
+							"TLS 1.2 accepted a malformed or early request");
+						testTlsClient12RequestAlert(pClient, iMode == 7u ?
+							XTLS_ALERT_UNEXPECTED_MESSAGE : XTLS_ALERT_DECODE_ERROR);
+						goto cleanup;
+					}
+					testRequire((Result == XTLS_OK) && pState->CertificateRequested,
+						"TLS 1.2 optional request failed");
+					if ( iMode == 3u ) {
+						testRequire(testTlsClient12RequestFeed(pClient,
+							(xbytesview) { Request, iRequest }) == XTLS_ERROR,
+							"TLS 1.2 accepted a duplicate request");
+						testTlsClient12RequestAlert(pClient, XTLS_ALERT_UNEXPECTED_MESSAGE);
+						goto cleanup;
+					}
+					testRequire(__xrtTlsTranscriptUpdate(&Transcript,
+						(xbytesview) { Request, iRequest }),
+						"TLS 1.2 request transcript failed");
+					bInserted = true;
+					if ( iMode == 8u ) {
+						size_t iForward = xrtTlsRecordSize(Encoded.Size);
+
+						testRequire(xrtTlsRecordEncode(XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12,
+							Encoded, Forward, sizeof(Forward)) &&
+							(xrtTlsSessionFeed(pClient, Forward, iForward) == XTLS_OK) &&
+							__xrtTlsTranscriptDigest(&pState->Transcript, Before, sizeof(Before)) &&
+							xrtMemDebugFailAfter(0), "TLS 1.2 request output OOM setup failed");
+						Result = xrtTlsClientDrive(pClient);
+						testRequire(xrtMemDebugFailTriggered(),
+							"TLS 1.2 request output OOM did not reach an allocation");
+						xrtMemDebugFailClear();
+						testRequire((Result == XTLS_ERROR) &&
+							(xrtTlsSessionState(pClient) == XTLS_STATE_FAILED) &&
+							!pClient->WriteKey.Ready && !pState->PendingReadKey.Ready &&
+							(xrtErrorIs(xrtGetError(), XERR_MEMORY) != NULL) &&
+							__xrtTlsTranscriptDigest(&pState->Transcript, After, sizeof(After)) &&
+							(memcmp(Before, After, sizeof(Before)) == 0),
+							"TLS 1.2 request output OOM committed transcript or epoch");
+						goto cleanup;
+					} else if ( iMode == 1u ) {
+						const xtlslimits* pLimits = xrtTlsContextLimits(pClientConfig->Context);
+						/* X25519 + AES-128-GCM: 100 wire bytes including Certificate. */
+						size_t iFill = pLimits->SendLimit - 99u;
+						bytes pFill = (bytes)xrtMalloc(iFill);
+
+						testRequire(pFill != NULL, "TLS 1.2 filler allocation failed");
+						memset(pFill, 0xA5, iFill);
+						testRequire((__xrtTlsSessionSend(pClient, pFill, iFill) == XTLS_OK) &&
+							__xrtTlsTranscriptDigest(&pState->Transcript, Before, sizeof(Before)),
+							"TLS 1.2 output backpressure setup failed");
+						xrtFree(pFill);
+						testRequire((testTlsClient12RequestFeed(pClient, Encoded) == XTLS_AGAIN) &&
+							(pState->Step == XTLS_CLIENT_WAIT_SERVER_HELLO_DONE) &&
+							(pState->RecordOffset == 0) && !pClient->WriteKey.Ready &&
+							(xrtTlsSessionSendSize(pClient) == iFill) &&
+							__xrtTlsTranscriptDigest(&pState->Transcript, After, sizeof(After)) &&
+							(memcmp(Before, After, sizeof(Before)) == 0) &&
+							xrtTlsSessionSendConsume(pClient, iFill) &&
+							(xrtTlsClientDrive(pClient) == XTLS_OK),
+							"TLS 1.2 output backpressure changed transcript or epoch");
+					} else {
+						testRequire(testTlsClient12RequestFeed(pClient, Encoded) == XTLS_OK,
+							"TLS 1.2 ServerHelloDone after request failed");
+					}
+				} else {
+					testRequire(testTlsClient12RequestFeed(pClient, Encoded) == XTLS_OK,
+						"TLS 1.2 server flight before request failed");
+				}
+				testRequire(__xrtTlsTranscriptUpdate(&Transcript, Encoded),
+					"TLS 1.2 server transcript rebuild failed");
+			}
+		}
+	}
+	testRequire(bInserted, "TLS 1.2 fixture omitted the request");
+	__xrtTlsTranscriptClear(&pServerState->Transcript);
+	pServerState->Transcript = Transcript;
+	memset(&Transcript, 0, sizeof(Transcript));
+	while ( xrtTlsSessionSendSize(pClient) != 0 ) {
+		size_t iWire;
+		size_t iOffset = 0;
+
+		testRequire(xrtTlsSessionSendFront(pClient, &Span) &&
+			(Span.Size <= sizeof(Wire)), "TLS 1.2 client flight is too large");
+		iWire = Span.Size;
+		memcpy(Wire, Span.Data, iWire);
+		testRequire(xrtTlsSessionSendConsume(pClient, iWire),
+			"TLS 1.2 client flight consume failed");
+		while ( iOffset < iWire ) {
+			xbytesview Forwarded;
+
+			testRequire(xrtTlsRecordParse((xbytesview) { Wire + iOffset,
+				iWire - iOffset }, &Record, NULL) == XTLS_OK,
+				"TLS 1.2 client record parse failed");
+			Forwarded = (xbytesview) { Wire + iOffset, Record.EncodedSize };
+			iOffset += Record.EncodedSize;
+			if ( !bCertificate ) {
+				testRequire((Record.Type == XTLS_RECORD_HANDSHAKE) &&
+					(Record.Payload.Size > sizeof(EmptyCertificate)) &&
+					(memcmp(Record.Payload.Data, EmptyCertificate, sizeof(EmptyCertificate)) == 0) &&
+					(xrtTlsHandshakeParse((xbytesview) {
+						Record.Payload.Data + sizeof(EmptyCertificate),
+						Record.Payload.Size - sizeof(EmptyCertificate)
+					}, &Message, NULL) == XTLS_OK) &&
+					(Message.Type == XTLS_HANDSHAKE_CLIENT_KEY_EXCHANGE) &&
+					(Message.EncodedSize + sizeof(EmptyCertificate) == Record.Payload.Size) &&
+					__xrtTlsTranscriptUpdate(&pServerState->Transcript,
+						(xbytesview) { EmptyCertificate, sizeof(EmptyCertificate) }) &&
+					xrtTlsRecordEncode(XTLS_RECORD_HANDSHAKE, XTLS_VERSION_12,
+						(xbytesview) { Record.Payload.Data + sizeof(EmptyCertificate),
+							Message.EncodedSize }, Forward, sizeof(Forward)),
+					"TLS 1.2 did not send exactly one empty Certificate before ClientKeyExchange");
+				Forwarded = (xbytesview) { Forward, xrtTlsRecordSize(Message.EncodedSize) };
+				bCertificate = true;
+			}
+			testRequire((xrtTlsSessionFeed(pServer, Forwarded.Data, Forwarded.Size) == XTLS_OK) &&
+				(xrtTlsServerDrive(pServer) == XTLS_OK),
+				"TLS 1.2 peer rejected EMS or client Finished after empty Certificate");
+		}
+	}
+	testRequire(bCertificate && testTlsServerHandshake(pClient, pServer, &Rng) &&
+		testTlsServerTransfer(pClient, pServer, true, "request client", 14u, &Rng) &&
+		testTlsServerTransfer(pServer, pClient, false, "request server", 14u, &Rng),
+		"TLS 1.2 request handshake or application keys differ");
+
+cleanup:
+	__xrtTlsTranscriptClear(&Transcript);
+	xrtTlsSessionDestroy(pServer);
+	xrtTlsSessionDestroy(pClient);
+	xrtClearError();
 }
 
 
@@ -158,6 +428,7 @@ static void testTlsServer12Renegotiation(
 /* 验证 TLS 1.2 完整握手、协商快照、数据、版本边界和认证关闭。 */
 int main(void)
 {
+	testRequire(xrtMemDebugEnable(true), "TLS 1.2 memory fault instrumentation failed");
 	static const xstrview Protocols[] = {
 		XRT_STR_INIT("h2"),
 		XRT_STR_INIT("http/1.1")
@@ -202,6 +473,9 @@ int main(void)
 	ServerConfig.ProtocolCount = sizeof(Protocols) / sizeof(Protocols[0]);
 	ServerConfig.Select = testTlsServer12Select;
 	ServerConfig.RequireProtocol = true;
+	for ( size_t i = 0; i < 9u; i++ ) {
+		testTlsClient12CertificateRequest(&ClientConfig, &ServerConfig, i);
+	}
 	testTlsServer12Renegotiation(&ClientConfig, &ServerConfig);
 	pClient = xrtTlsClientCreate(&ClientConfig, NULL);
 	pServer = xrtTlsServerCreate(&ServerConfig, NULL);

@@ -8,7 +8,7 @@ static xllm_session* test_numeric_load(const char* sFields, xllm_error* pError)
 {
     char sJson[8192];
     int iSize = snprintf(sJson, sizeof(sJson),
-        "{\"format\":\"xllm-session\",\"version\":3,%s}", sFields);
+        "{\"format\":\"xllm-session\",\"version\":2,%s}", sFields);
     xllmErrorInit(pError);
     if ( iSize < 0 || (size_t)iSize >= sizeof(sJson) ||
          !xrtFileWriteAll(sNumericSnapshot, (xbytesview){ (const uint8*)sJson, (size_t)iSize }) ) {
@@ -22,7 +22,7 @@ static bool test_numeric_journal(const char* sSequence, const char* sOperation, 
 {
     char sJson[8192];
     int iSize = snprintf(sJson, sizeof(sJson),
-        "{\"format\":\"xllm-session-journal\",\"version\":3,\"journal_sequence\":%s,"
+        "{\"format\":\"xllm-session-journal\",\"version\":2,\"journal_sequence\":%s,"
         "\"operation\":\"%s\",%s}\n", sSequence, sOperation, sFields);
     bool bOk = iSize > 0 && (size_t)iSize < sizeof(sJson) &&
         xrtFileWriteAll(sNumericJournal, (xbytesview){ (const uint8*)sJson, (size_t)iSize });
@@ -83,6 +83,7 @@ static void test_persistence_numeric_types(void)
         tConfig.uContextWindowTokens = aWindows[i];
         tConfig.uJournalMaxBytes = aWindows[i];
         tConfig.uMaxOutputTokens = tConfig.uOutputReserveTokens = tConfig.uSafetyReserveTokens = 1u;
+        tConfig.uSummaryMinTokens = 1u;
         pSession = xllmSessionCreate(&tConfig, &tError);
         SESSION_CHECK(pSession && xllmSessionSave(pSession, sNumericSnapshot, &tError),
             "full-width unsigned config snapshot saves");
@@ -289,15 +290,15 @@ static void test_numeric_compaction_endpoints(void)
         "\"summary_generation\":4294967294,\"entries\":[{\"sequence\":1,\"turn\":1,\"role\":1,\"content\":\"%s\"},"
         "{\"sequence\":2,\"turn\":2,\"role\":1,\"content\":\"recent\"}]", sLarge);
     pSession = test_numeric_load(sFields, &tError);
-    pPending = pSession ? xllmSessionPrepareCompaction(pSession, true, &tError) : NULL;
-    SESSION_CHECK(pPending != NULL, "valid prefix prepares just before the last generation");
-    tProbe.pPending = pPending;
     tHooks.pOnEvent = test_numeric_counter_event;
     tHooks.pUserData = &tProbe;
     SESSION_CHECK(pSession && xllmSessionSetHooks(pSession, &tHooks), "numeric counter observer installs");
     (void)xrtFileDelete(sNumericJournal);
-    SESSION_CHECK(pSession && xllmSessionEnableJournal(pSession, sNumericJournal, &tError) &&
-        xllmSessionOverflowLadder(pSession, &tError) && xllmSessionGetStats(pSession, &tStats) &&
+    SESSION_CHECK(pSession && xllmSessionEnableJournal(pSession, sNumericJournal, &tError), "numeric journal attaches before compaction");
+    pPending = pSession ? xllmSessionPrepareCompaction(pSession, true, &tError) : NULL;
+    SESSION_CHECK(pPending != NULL, "valid prefix prepares just before the last generation");
+    tProbe.pPending = pPending;
+    SESSION_CHECK(pSession && xllmSessionOverflowLadder(pSession, &tError) && xllmSessionGetStats(pSession, &tStats) &&
         tStats.uSummaryGeneration == UINT32_MAX,
         "first truncation from floor zero reaches the last generation");
     SESSION_CHECK(tProbe.bAttempted && tProbe.bRejected,

@@ -54,6 +54,10 @@ int main(void)
 		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
 		"TLS stream null send error mismatch");
 	xrtClearError();
+	testRequire((xrtTlsStreamFlush(NULL) == XTLS_ERROR) &&
+		(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
+		"TLS stream null flush error mismatch");
+	xrtClearError();
 	iWritten = 1u;
 	testRequire((xrtTlsStreamSendVec(
 		NULL, &InvalidSpan, 1u, &iWritten

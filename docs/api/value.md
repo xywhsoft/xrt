@@ -6830,3 +6830,19 @@ uint32 xrtValueScalarDomainV1(const xvalue* pValue);
 #### 范例
 
 [同模块资源的基础组合示例](../../examples/value/basic/main.c)。本接口的策略身份、回调及生命周期限制见上述契约。
+
+## Scoped read views
+
+`xrtValueViewBeginV1(value, &view)` borrows a wire Array or Object into zeroed
+`xvalueviewv1` stack storage. `xrtValueViewCountV1`, `xrtValueViewAtV1`, and
+`xrtValueViewFindV1` observe original slots and byte-span keys. Call
+`xrtValueViewEndV1` before releasing the actual owner. No scope operation
+allocates, clones, copies elements, or increments reference counts. The receiver
+is guarded against reentrant mutation and retirement. Other shells retain COW
+semantics. Serialize same-receiver access; never copy, suspend, transfer threads,
+or retain a view/borrow after End. Open a separate scope for a container child
+before code that can mutate that child. This adds no fields to xvalue/backings.
+
+Post-commit field assignment during an Object finalizer uses the finalizer's
+existing last-live receiver borrow. It still rejects retaining or resurrecting
+the receiver, and retires replaced fields outside the mutation scope.

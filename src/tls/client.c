@@ -1,4 +1,7 @@
 #include "../internal/xrt_tls_client.h"
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#include "../internal/xrt_tls_client_auth.h"
+#endif
 
 
 
@@ -474,7 +477,7 @@ static bool __xrtTlsClientConfigValid(
 			);
 		}
 	#else
-		if ( pConfig->ResumeOnly ) {
+		if ( pConfig->ResumeOnly || (pConfig->Resume != NULL) ) {
 			return __xrtTlsClientError(
 				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "create-tls-client",
 				"TLS client build has no session resumption support"
@@ -1056,11 +1059,16 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 
 	(void)pSession;
 	if ( pState != NULL ) {
+		#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+			xtlsclientauthstate* auth = pState->Auth;
+			pState->Auth = NULL;
+			__xrtTlsClientAuthClear(auth);
+		#endif
 		xrtTlsHandshakeReaderUnit(&pState->Reader);
 		__xrtTlsTranscriptClear(&pState->Transcript);
 		__xrtTlsRecordKeyClear(&pState->PendingReadKey);
 		#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
-			xrtFree(pState->Peer);
+			__xrtTlsClientPeerRelease(pState->Peer);
 			xrtTlsVerifierRelease(pState->Verifier);
 		#endif
 		if ( pState->RetryStorage != NULL ) {
@@ -1081,6 +1089,35 @@ static void __xrtTlsClientClean(xtlssession* pSession, ptr pRole)
 
 
 
+#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+bool __xrtTlsClientVerifierOwnershipTrace(
+	const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+)
+{
+	if (!pSession || !pVisit || pSession->Role != XTLS_CLIENT) return false;
+	/* Internal base sessions have no role tail. Never infer a layout from the
+	 * Role enum alone, nor follow an unknown internal cleanup callback. */
+	if (!pSession->Clean) return true;
+	if (pSession->Clean != __xrtTlsClientClean) return false;
+	const xtlsclientstate* pState = (const xtlsclientstate*)(pSession + 1);
+	if (pState->Verifier && !pVisit(xrtTlsVerifierOwnership(pState->Verifier), pContext)) return false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+		return __xrtTlsClientAuthOwnershipLeaf(pState->Auth);
+	#else
+		return true;
+	#endif
+}
+#endif
+
+#if defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+const xtlsclientauthstate* __xrtTlsClientAuthStateOf(const xtlssession* pSession)
+{
+	if (!pSession || pSession->Role != XTLS_CLIENT || pSession->Clean != __xrtTlsClientClean ||
+		pSession->AllocationSize < sizeof(*pSession) + sizeof(xtlsclientstate)) return NULL;
+	return ((const xtlsclientstate*)(pSession + 1))->Auth;
+}
+#endif
+
 /* 初始化不借用任何外部资源的客户端配置。 */
 XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
 {
@@ -1097,9 +1134,7 @@ XRT_API void xrtTlsClientConfigInit(xtlsclientconfig* pConfig)
 
 
 
-#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
-
-/* 验证公共证书查询确实指向客户端会话。 */
+/* 验证公共角色查询确实指向完整的客户端私有状态。 */
 static xtlsclientstate* __xrtTlsClientQueryState(
 	const xtlssession* pSession,
 	cstr sOperation
@@ -1115,12 +1150,14 @@ static xtlsclientstate* __xrtTlsClientQueryState(
 		return NULL;
 	}
 	if ( (pSession->Role != XTLS_CLIENT) ||
-		(pSession->AllocationSize <= sizeof(*pSession)) ) {
+		(pSession->AllocationSize < sizeof(*pSession)) ||
+		(pSession->AllocationSize - sizeof(*pSession) <
+		 sizeof(xtlsclientstate)) ) {
 		(void)__xrtTlsClientError(
 			XERR_STATE,
 			XTLS_ERROR_STATE,
 			sOperation,
-			"TLS session is not a verified client"
+			"TLS session does not contain a client role state"
 		);
 		return NULL;
 	}
@@ -1128,6 +1165,27 @@ static xtlsclientstate* __xrtTlsClientQueryState(
 }
 
 
+
+/* 状态观察不应启用票据、PSK binder 或恢复握手实现。 */
+XRT_API bool xrtTlsClientResumed(const xtlssession* pSession)
+{
+	xtlsclientstate* pState = __xrtTlsClientQueryState(
+		pSession, "get-tls-client-resumed"
+	);
+
+	if ( pState == NULL ) {
+		return false;
+	}
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		return pState->Resumed;
+	#else
+		return false;
+	#endif
+}
+
+
+
+#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
 
 /* 返回完整证书握手保留的对端证书数量。 */
 XRT_API size_t xrtTlsClientCertificateCount(
@@ -1223,6 +1281,20 @@ XRT_API xtlssession* xrtTlsClientCreate(
 			&Config, &ResumeProtocol, &ResumeInfo, &iResumeAge
 		) ) {
 			return NULL;
+		}
+		if (Config.Resume && Config.Verifier &&
+			(xrtTlsVerifierFlagsV1(Config.Verifier) & XTLS_VERIFY_RESUME_PEER_V1) &&
+			!__xrtTlsResumePeer(Config.Resume)) {
+			if (Config.ResumeOnly) {
+				(void)__xrtTlsClientError(XERR_STATE, XTLS_ERROR_RESUME,
+					"create-tls-client", "Required TLS resume has no peer certificate chain");
+				return NULL;
+			}
+			/* Keep inherited name/ALPN, but do not offer this PSK. The normal
+			 * certificate flight will make the current trust decision. */
+			Config.Resume = NULL;
+			memset(&ResumeInfo, 0, sizeof(ResumeInfo));
+			iResumeAge = 0;
 		}
 	#endif
 	if ( !__xrtTlsClientConfigValid(pConfig, &iProtocolBytes) ) {

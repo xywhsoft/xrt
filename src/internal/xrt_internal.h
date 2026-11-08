@@ -123,6 +123,12 @@
 
 #include <xrt.h>
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Borrow only from the current native XRT thread after exact entry identity.
+ * Proc/Data are immutable throughout that thread body and its exit cleanup. */
+ptr __xrtThreadCurrentDataFor(xthreadproc Proc);
+#endif
+
 /* A private body preserves its existing early-return/error contract while one
  * outer scope covers the COMPLETE edge/count transition, before any object
  * lock and through callback/rollback tails. The failure value is explicit:

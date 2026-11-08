@@ -93,6 +93,39 @@ typedef struct xtlsverifierconfig {
 	bool AllowSha1;
 } xtlsverifierconfig;
 
+/* Resident authority for the ONE Context reference adopted by an owned
+ * verifier. Every callback must equal the corresponding config slot. Ops
+ * identifies that same physical Context node, not a flattened set of values.
+ * Policy, Ops and callback code remain immutable/resident until every native
+ * consumer and collector pin releases the verifier. Drop runs once OUTSIDE
+ * ownership mutation/freeze. Legacy Create contexts remain graph-opaque. */
+typedef struct xtlsverifiercontextownershipv1 {
+	size_t size;
+	xtlsverifyproc Verify;
+	xtlsverifypolicyproc Policy;
+	xtlsverifytimeproc Time;
+	xtlsverifyreleaseproc Drop;
+	const xrtownershipops* Ops;
+} xtlsverifiercontextownershipv1;
+
+
+/* Explicit resource limits. Zero disables that particular limit. Legacy
+ * verifier/peer entry points remain unlimited; Init supplies bounded defaults.
+ * Byte limits count complete DER, not prefixes or allocation capacities. */
+typedef struct xtlsverifylimits {
+	size_t MaxPeerCertificates;
+	size_t MaxPeerBytes;
+	size_t MaxPathCertificates;
+	size_t MaxSearchSteps;
+	size_t MaxTrustCertificates;
+	size_t MaxTrustBytes;
+} xtlsverifylimits;
+
+/* Recheck the actual saved certificate chain with this verifier whenever a
+ * server selects a resumption PSK. A missing chain falls back to a full
+ * handshake, unless the client explicitly requires resumption. */
+#define XTLS_VERIFY_RESUME_PEER_V1 UINT32_C(1)
+
 
 
 XRT_EXTERN_C_BEGIN
@@ -103,10 +136,66 @@ XRT_EXTERN_C_BEGIN
 XRT_API void xrtTlsVerifierConfigInit(xtlsverifierconfig* pConfig);
 
 
+/* Initialize finite peer/path/work/trust budgets without allocating. */
+XRT_API void xrtTlsVerifyLimitsInit(xtlsverifylimits* pLimits);
+
+
 
 /* 创建可跨线程共享的验证器；成功后接管自定义上下文。 */
 XRT_API xtlsverifier* xrtTlsVerifierCreate(
 	const xtlsverifierconfig* pConfig
+);
+
+
+/* Copy explicit limits and trust data. Context is adopted only on success.
+ * Limits is required; an all-zero value deliberately requests no limits. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateLimited(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits
+);
+
+/* Config, Limits and Policy are required. Success consumes exactly ONE
+ * Context reference; failure consumes none and invokes no callback/Drop.
+ * This does not change trust/identity rules or grant a language callback API.
+ * Normal verification pins the actual verifier and marks its whole call busy,
+ * including the clock, verification, policy and cleanup tails. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy
+);
+
+/* Immutable verification options; unknown bits fail before adopting Context.
+ * The existing factories retain their flags=0 behavior. Limits is required. */
+XRT_API xtlsverifier* xrtTlsVerifierCreateFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	uint32 iFlags
+);
+XRT_API xtlsverifier* xrtTlsVerifierCreateOwnedFlagsV1(
+	const xtlsverifierconfig* pConfig,
+	const xtlsverifylimits* pLimits,
+	const xtlsverifiercontextownershipv1* pPolicy,
+	uint32 iFlags
+);
+XRT_API uint32 xrtTlsVerifierFlagsV1(const xtlsverifier* pVerifier);
+
+/* Read under the complete graph's freeze. Admission requires the exact
+ * registered resident policy identity BEFORE its fields are followed. Opaque
+ * legacy verifiers, active calls, unknown policies and cleared nodes refuse
+ * admission, leaving the preparation output unchanged. Claim quarantines new
+ * verification calls; Restore reopens them. Clear only marks the node, and
+ * Finish drops the actual Context and unique trust store outside freeze.
+ * A failed cleanup is retained and reported on retry, never repeated. Native
+ * Context/Session/Stream owners must also report EACH actual verifier slot;
+ * these functions alone do not certify a complete consumer graph. */
+XRT_API xrtownershipref xrtTlsVerifierOwnership(const xtlsverifier* pVerifier);
+XRT_API const xrtownershipquiescencev1* xrtTlsVerifierOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsVerifierOwnershipAdapterV1(
+	xrtownershipref Reference,
+	const xtlsverifiercontextownershipv1* const* pPolicies,
+	size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation
 );
 
 
@@ -127,6 +216,17 @@ XRT_API void xrtTlsVerifierRelease(xtlsverifier* pVerifier);
 XRT_API bool xrtTlsPeerVerify(
 	const xtlspeer* pPeer,
 	const xx509store* pStore,
+	xtlsverifypolicyproc pPolicy,
+	ptr pContext
+);
+
+
+/* Same modern path/name rules with explicit budgets; no input is truncated.
+ * Peer limits apply before custom policy or path work. Limits is required. */
+XRT_API bool xrtTlsPeerVerifyLimited(
+	const xtlspeer* pPeer,
+	const xx509store* pStore,
+	const xtlsverifylimits* pLimits,
 	xtlsverifypolicyproc pPolicy,
 	ptr pContext
 );

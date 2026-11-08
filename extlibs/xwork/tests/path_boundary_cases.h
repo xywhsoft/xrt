@@ -91,7 +91,7 @@ static void test_path_boundaries(void)
                 "external file symlink created");
             xrtFree(target);
             xworkToolOutputInit(&output);
-            CHECK(read_tool && read_tool->OnExecute(read_tool->pUserData, &context,
+            CHECK(read_tool && test_entry_execute(read_tool, read_tool->pUserData, &context,
                 "{\"path\":\"file-alias\"}", &output, &error) == XWORK_RESULT_OK &&
                 !output.bSuccess && error.eCode == XWORK_ERROR_POLICY,
                 "read rejects a symlink leaf pointing outside the workspace");
@@ -105,13 +105,13 @@ static void test_path_boundaries(void)
             free(resolved);
         }
         xworkToolOutputInit(&output);
-        CHECK(read_tool && read_tool->OnExecute(read_tool->pUserData, &context,
+        CHECK(read_tool && test_entry_execute(read_tool, read_tool->pUserData, &context,
             "{\"path\":\"escape/secret.txt\"}", &output, &error) == XWORK_RESULT_OK &&
             !output.bSuccess && error.eCode == XWORK_ERROR_POLICY,
             "read rejects a directory symlink escaping the workspace");
         xworkToolOutputUnit(&output);
         xworkToolOutputInit(&output);
-        CHECK(write_tool && write_tool->OnExecute(write_tool->pUserData, &context,
+        CHECK(write_tool && test_entry_execute(write_tool, write_tool->pUserData, &context,
             "{\"path\":\"escape/new/deep.txt\",\"content\":\"blocked\"}", &output, &error) == XWORK_RESULT_OK &&
             !output.bSuccess && error.eCode == XWORK_ERROR_POLICY &&
             !xrtFileExists("tests/tmp_xwork_path_boundary_outside/new/deep.txt"),
@@ -124,7 +124,7 @@ static void test_path_boundaries(void)
             "internal symlink resolves to its physical target for new paths");
         free(resolved);
         xworkToolOutputInit(&output);
-        CHECK(read_tool && read_tool->OnExecute(read_tool->pUserData, &context,
+        CHECK(read_tool && test_entry_execute(read_tool, read_tool->pUserData, &context,
             "{\"path\":\"inside-alias/safe.txt\"}", &output, &error) == XWORK_RESULT_OK &&
             output.bSuccess && output.sContent && strstr(output.sContent, "inside-sentinel"),
             "internal symlink reads remain supported");

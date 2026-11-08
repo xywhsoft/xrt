@@ -23,11 +23,19 @@
 
 TCC 的 Windows shared 模式没有可移植 import library，当前只承诺静态包验证。Clang 的 Linux C 驱动、Apple Clang 和 Windows clang-cl 分属不同平台证据；其中 Linux Clang 18 是固定基础线，不能用 sanitizer、fuzz 或 clang-cl 的成功代替。
 
+## 待验证模块
+
+核心与 xhttp 清单中所有 `developing` 节点必须在本节完整列出；有本地测试证据不等于通过生产级验收。
+
+- `tls_client_auth`
+
+TLS 客户端证书认证目前覆盖完整 TLS 1.2/1.3 握手；身份绑定的恢复、握手后认证和最终生产验收仍未完成，状态保持 `developing`。详见[认证契约](development/tls-client-auth.md)。CI 的 `Run developing Core runtime gates` 在 Linux 执行模块、单头和独立 TLS 对端回归；这些运行检查与下方 io_uring 的受限环境编译检查分别维护。
+
 ## io_uring 门禁
 
 GitHub 托管 Linux runner 可能因 seccomp 禁用 io_uring；在这类环境中，相关检查只保留编译与链接证据。需要 io_uring 的发布候选必须在支持该功能的真实 Linux 内核上运行网络、TLS、取消、超时和关闭测试。显式选择 io_uring 时不得把其他后端的结果当作等价运行证据。
 
-核心与 xhttp 的模块清单当前没有 `developing` 状态的 io_uring 节点。若未来出现待验证节点，应在本节以 `- \`模块名\`` 的形式列出，并在完成真实运行验证后更新清单和本页。
+核心与 xhttp 的模块清单当前没有 `developing` 状态的 io_uring 节点。若未来出现待验证节点，应在上方待验证模块一节以 `- \`模块名\`` 的形式列出，并在完成真实运行验证后更新清单和本页。
 
 ## 平台与后端选择
 

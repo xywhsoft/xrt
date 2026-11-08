@@ -35,6 +35,23 @@ class ApiReferenceTest(unittest.TestCase):
 			self.assertIn("client-features", headers)
 			self.assertIn("server-features", headers)
 
+	def test_manifest_includes_types_only_header_and_its_enum_constants(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			(root / "types.h").write_text(
+				"typedef enum xrpcvaluekind { XRPC_VALUE_NULL = 1 } xrpcvaluekind;\n",
+				encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"modules": [{"public_headers": ["types.h"]}],
+				"api_reference": {"title": "xrpc", "function_prefix": "xrpc",
+				"constant_prefix": "XRPC_", "type_prefix": "xrpc", "guide": "guide.md",
+				"output": "reference.md"}}), encoding="utf-8")
+			with patch.object(reference, "ROOT", root):
+				_, output = reference._generate_manifest(manifest)
+			self.assertIn("`xrpcvaluekind`", output)
+			self.assertIn("`XRPC_VALUE_NULL`", output)
+			self.assertIn("types.h", output)
+
 	def test_xrudp_exports_are_included_without_comment_phantoms(self) -> None:
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)

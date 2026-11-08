@@ -1,8 +1,12 @@
-# xwork v2
+# xwork v3.11
 
-`xwork` is the C agent-runtime layer between `xllm-session` and product hosts such as `xcode`.
+xwork is the C runtime above xllm-session: runtime/agent/run lifetimes, immutable
+catalogs, tool permissions, bounded tool results, asynchronous tasks, subagents,
+MCP transports, durable recovery, scheduling, events and host-owned artifacts.
 
-The v2 mainline is deliberately small. It implements a reliable governed agent loop, including bounded read-only delegation, before the project grows remote workers or database-backed scheduling again. The previous broad implementation remains under `dev/v1` as design and implementation reference.
+The public API is in `include/xwork/api.h`. ABI version is 10; event schema is 3.
+This replaces the v2 public record layouts. Recompile hosts and SDK consumers
+when adopting it; an existing v2 binary must not load a v3 library.
 
 ## Boundary
 
@@ -183,19 +187,134 @@ themselves with the ordinary file tools, following the notes-file convention:
 The former `xllm-memory` library (record store, lexical search, sensitivity
 gates) was removed from the tree; its framing text and protected-path check
 survive as the two APIs above. Archive tag: `pre-xllm-memory-removal`.
+Hosts may handle `XWORK_AGENT_EXTENSION_RECOVERY` to retain a safe failed
+request-build, checkpoint or compaction boundary while resources recover.
+Opt in explicitly with `bRecoveryHandled` and a delay. Cancellation/deadlines
+always win. The runtime never repeats a tool to recover an allocation failure;
+its uncertain effects are returned for inspection. Storage recovery does not
+send its own notice back into the failed event sink. Unhandled hosts retain
+their original bounded error behavior.
 
 ## Build and test
 
-依赖闭包由 `config/modules.json` 声明，公共入口是 `include/xwork.h`，实现位于 `src/`，每个 `.c` 独立编译。构建、测试、单头生成与 CI 均使用仓库根目录的统一工具；目录规范见 [扩展库开发说明](../README.md)。
+Run from the XRT repository root:
 
-从仓库根目录执行（Windows 与 POSIX 使用同一入口）：
-
-```sh
-python tools/build.py --compiler gcc --manifest extlibs/xwork/config/modules.json --suite xwork --jobs 4
-python tools/package.py --compiler gcc --manifest extlibs/xwork/config/modules.json --suite xwork --kind static --verify
-python tools/amalgamate.py --manifest extlibs/xwork/config/modules.json
+```text
+python tools/build.py --compiler gcc --manifest extlibs/xwork/config/modules.json --suite xwork --no-examples
+python tools/amalgamate.py --manifest extlibs/xwork/config/modules.json --check
 ```
 
-单头实现与声明分别生成到 `single/extlibs/xwork.h` 和 `single/extlibs/xwork_decl.h`，只包含本库代码。调用方先提供核心 XRT，再按依赖顺序提供扩展；见 [构建说明](../../docs/BUILD.md)。
+Core XRT, xllm, xllm-session and the HTTP products remain separate libraries.
+Single-header consumers select dependency features before XRT declarations and
+provide implementations in dependency order: XRT, xhttp, xhttp-policy,
+xhttp-client, xllm, xllm-session, xwork. See
+`tests/single/test_single_xwork.c` for a complete example. Never embed another
+old XRT implementation through a transport bridge.
 
-The optimized warning-as-error suite covers operation-deadline propagation, bounded read-only delegation and internal-path isolation, a forced context compaction followed by a multi-turn workflow using the built-in tools, transactional multi-file editing and rollback, managed-process stdin/output, artifact spill, session persistence, interrupted parallel-tool recovery, duplicate-prompt rejection, a rejected workspace escape, dynamic registry replacement, and a real local MCP stdio handshake/discovery/call lifecycle.
+`test_single_xwork_mdo` adds the migrated v3 runtime/recovery fault fixtures.
+Its selectors include `--request-tokens`, `--result-files`,
+`--utf8-tool-output`, `--artifact-publication`, `--user-image` and
+`--resume-effects`. Run these from the repository root. The TLS/provider and
+session migration/OOM fixtures are registered with their respective manifests.
+
+## Runtime and ownership
+
+An explicit runtime owns catalogs, tasks, MCP definitions, schedules, artifacts
+and audit events. Agents retain that runtime and an immutable definition.
+A run retains its agent until completion. Dynamic tools can retain callback
+owners; publication either retains the complete candidate or leaves the old
+catalog intact. Session/client bindings retain the host's aggregate owner when
+the host supplies the owner callbacks. See [DESIGN.md](DESIGN.md).
+
+Only one run mutates an agent/session at a time. Immutable snapshots remain
+readable across subsequent catalog, task and schedule changes. Follow each
+snapshot's retain/release contract instead of keeping borrowed internal entries.
+
+## Tools and permission effects
+
+The default catalog contains `read`, `ls`, `glob`, `grep`, `write`, `edit`,
+`exec`, `spawn`, `status`, `wait`, `stdin` and `stop`. Registered subagent
+and MCP catalogs add their own tools. Legacy names are canonicalized at the
+runtime boundary; new hosts should use canonical names.
+
+A v2 tool callback declares an effects mask, discovers its resources before
+execution and returns bounded text/images through a callback-bound result
+writer. Read-only trust does not follow from an arbitrary tool name or MCP
+annotation. Independent tools may run concurrently only under their declared
+resource and serialization rules. Results enter the session in original call
+order even when execution completes out of order.
+
+Process tools return structured JSON. `status` observes a task; `wait` waits for
+completion. Host APIs independently wait for tasks, read their output using
+byte cursors and release terminal entries. Polling status does not consume the
+host's output cursor or release its task. The optional process-owner callbacks
+pair native process lifetimes with a product host's ownership registry.
+
+## Time and persistence
+
+Product-facing absolute deadlines use monotonic microseconds. Persisted civil
+timestamps use Unix microseconds. Conversion to native XRT signed relative
+milliseconds occurs only at waits. `UINT64_MAX` means no operation deadline;
+use the explicit initializers for public records. Do not pass native XRT civil
+timestamps or millisecond waits directly into these product fields.
+
+Sessions preserve the user's durable sequence and complete multimodal messages.
+Effectful interrupted tools require an explicit recovery decision. Hosts may
+opt recoverable reads into completed-result receipts. A receipt is published
+before the completion event and ledger append; reopening verifies its exact
+identity, file size and SHA-256 before reusing the completed result.
+
+## Artifacts, result files and external request identities
+
+An `xwork_artifact_store` retains an independently anchored directory selected
+by the host. It does not expand normal workspace permissions. Immutable files
+are flushed to exclusive temporary files and atomically published with a root-
+relative hard link; unsupported filesystems fail instead of overwriting history.
+Only the caller-owned temporary path is removed during failure cleanup.
+
+`xworkToolResultWriterSaveArtifact` publishes full tool text while the model
+receives a bounded preview/index. The existing `read` tool can page the current
+session's read-only `@results/...` namespace. Byte offsets align with complete
+UTF-8 scalars. See [result-files.md](docs/result-files.md).
+
+`xworkToolResultWriterPrepareRequest` persists an opaque request identity for a
+host-declared recoverable read. Service/account scope and exact call identity
+bind the record. Damaged records or changed scope fail closed. It supports an
+external service's idempotency protocol; it does not make arbitrary POSTs or
+mutating tools safe to replay, nor guarantee exactly-once execution by itself.
+
+## MCP and schedules
+
+MCP supports stdio and Streamable HTTP with bounded discovery, retained dynamic
+catalogs and explicit authorization callbacks. HTTP errors preserve their real
+status and cannot accept an error-body `result` as success. Only a valid matched
+protocol header rejection permits the designated routing refresh/retry.
+
+Schedules support atomic replacement, rollback of unpersisted replacement,
+explicit run-now triggers, misfire/overlap policy and durable task restoration.
+Hosts own persistence and execution admission; cancellation remains cooperative.
+
+## SDK export
+
+Hosts can implement `XWORK_AGENT_EXTENSION_RECOVERY` and explicitly opt in at
+safe boundaries. `xworkAgentWaitRecovery` retains the caller's pending operation;
+it never executes a tool or model. A policy chooses active backoff or retained
+waiting, and can probe an external condition without repeating work. Stop and
+explicit deadlines always interrupt waiting. Checkpoints, request construction,
+compaction commits, and already completed results are retried independently.
+Unknown journal outcomes still require explicit receipt recovery.
+For a callback already inside the serialized event/hook lock, use the stage
+`callback_quiet` or `callback_resource_quiet`: these retain cancellation and
+policy waiting without recursively entering the same event sink.
+
+Compaction first keeps the existing safe-prefix/split-turn planning. If a final
+candidate has adequate content but missing headings, the session library can
+normalize its format without dropping candidate text and applies the same
+quality gate again. Short/oversized candidates cannot be padded into acceptance.
+Hosts decide how to wait after rejected candidates; the library does not start
+unlimited batches of paid summarization calls on its own.
+
+`tools/export_agent_libraries.py --xserver <checkout>` generates the flat XS/TCC
+layout from committed canonical sources. `--check` verifies the exact mapping.
+The export changes guards, DLL annotations and include spellings, preserving
+implementation bodies and leaving the host's XRT/HTTP bridges in place.

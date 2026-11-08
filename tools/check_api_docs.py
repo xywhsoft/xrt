@@ -78,7 +78,7 @@ def _manifest_files(
 			", ".join(str(path.relative_to(root)) for path in missing)
 		)
 	headers = [path for path in headers
-		if "XRT_API" in _header_code(path.read_text(encoding="utf-8"))]
+		if _is_public_api_header(path.read_text(encoding="utf-8"))]
 	return headers, docs, config
 
 
@@ -95,7 +95,18 @@ def _header_code(text: str) -> str:
 		text, flags=re.DOTALL)
 	text = re.sub(r"^[ \t]*#[ \t]*include(?:_next)?\b[^\n]*", "",
 		text, flags=re.MULTILINE)
-	return re.sub(r"\b(?:XHTTP(?:_(?:CLIENT|SERVER|POLICY))?|XWS(?:_(?:CLIENT|SERVER|GROUP))?|XRUDP)_API\b", "XRT_API", text)
+	return re.sub(r"\b(?:XHTTP(?:_(?:CLIENT|SERVER|POLICY))?|XWS(?:_(?:CLIENT|SERVER|GROUP))?|XRUDP|XREDIS|XRPC|XMQTT|XCRON)_API\b", "XRT_API", text)
+
+
+
+def _is_public_api_header(text: str) -> bool:
+	"""Include shared typedef/enum headers even without exported functions.
+
+	Feature selectors and comment-only exports remain outside the API inventory.
+	"""
+
+	code = _header_code(text)
+	return "XRT_API" in code or re.search(r"\btypedef\b", code) is not None
 
 
 

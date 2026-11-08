@@ -368,16 +368,39 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		/* A successful CAS above two cannot publish the final caller-only state.
+		 * It therefore needs no wait lock or notification. Serialize 2->1 and
+		 * 1->0 through the same lock as waiters: no lost wake or freed notifier
+		 * tail may follow publication of retirement. No access follows fast CAS. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Observed = __xrtAtomicRefCompareExchange(&pStream->References,Count-1,Count);
+				if (Observed == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Observed;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		pStream->EventOwner || pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail ||
 		xrtAtomic32Load(&pStream->EventDropPending, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 &&
+			!xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if ( !bLast ) {
 		return;
 	}
 	#if defined(XRT_FEATURE_NET_TCP_FUTURE)
 		__xrtSpinUnit(&pStream->WaitLock);
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
 	#endif
 	xrtErrorFree(pStream->Error);
 	__xrtNetStreamReleaseEngine(pStream);
@@ -621,9 +644,9 @@ static void __xrtNetStreamWakeLifecycle(xnetstream* pStream)
 
 
 /* 进入跨线程发送提交区，阻止关闭过程越过已开始的提交。 */
-static bool __xrtNetStreamBeginSend(xnetstream* pStream)
+static bool __xrtNetStreamBeginSendMode(xnetstream* pStream, bool bSubmission)
 {
-	if (!__xrtNetStreamOwnershipEnter(pStream, true)) return false;
+	if (!__xrtNetStreamOwnershipEnter(pStream, bSubmission)) return false;
 	/* A terminal shell can outlive its Engine; do not consult Worker then. */
 	if (xrtNetStreamState(pStream) == XNET_STREAM_CLOSED) {
 		__xrtNetStreamOwnershipLeave(pStream);
@@ -650,6 +673,9 @@ static bool __xrtNetStreamBeginSend(xnetstream* pStream)
 	}
 	return true;
 }
+
+static bool __xrtNetStreamBeginSend(xnetstream* pStream)
+{ return __xrtNetStreamBeginSendMode(pStream, true); }
 
 
 
@@ -2529,6 +2555,14 @@ static xnetstream* __xrtNetStreamCreate(
 		__xrtNetEngineObjectRelease(pEngine);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {
+			xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+		if (!xrtCondInit(&pStream->RetirementReady)) {
+			xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);__xrtNetEngineObjectRelease(pEngine);return NULL;
+		}
+	#endif
 	pStream->References = 2;
 	xrtAtomic32Init(&pStream->EventDropPending, 0);
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
@@ -2705,7 +2739,8 @@ static xnetstream* __xrtNetStreamConnectCreate(
 	const xnetstreamevents* pEvents,
 	ptr pData,
 	const void* pControl,
-	bool bDeferred
+	bool bDeferred,
+	__xrt_net_stream_events_owner* pOwner
 )
 {
 	xnetstreamconfig Config;
@@ -2778,6 +2813,9 @@ static xnetstream* __xrtNetStreamConnectCreate(
 		xrtErrorFree(pError);
 		return NULL;
 	}
+	/* Construction is still marked active. Publish the ONE actual context
+	 * credit before any Worker can enter a callback, never after Post. */
+	pStream->EventOwner = pOwner;
 	pStream->Remote = *pRemote;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if ( pControl != NULL ) {
@@ -2800,6 +2838,8 @@ static xnetstream* __xrtNetStreamConnectCreate(
 	) ) {
 		pError = xrtTakeError();
 		pStream->StartPending = false;
+		/* No startup task was accepted: return the context credit intact. */
+		pStream->EventOwner = NULL;
 		pStream->Socket = NULL;
 		(void)xrtNetSocketClose(Socket);
 		xrtAtomic32Store(
@@ -2838,8 +2878,21 @@ XRT_API xnetstream* xrtNetStreamConnect(
 		pEvents,
 		pData,
 		NULL,
-		false
+		false,
+		NULL
 	);
+}
+
+XRT_API xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+	ptr pData, const xnetstreameventsownershipv1* pPolicy)
+{
+	__xrt_net_stream_events_owner* pOwner = __xrtNetStreamEventsPrepare(pData, pPolicy);
+	if (!pOwner) return NULL;
+	xnetstream* pStream = __xrtNetStreamConnectCreate(pEngine, pRemote,
+		iAffinity, pConfig, &pPolicy->Events, pData, NULL, false, pOwner);
+	if (!pStream) xrtFree(pOwner); /* creation failure consumes no Data credit */
+	return pStream;
 }
 
 
@@ -2868,7 +2921,8 @@ xnetstream* __xrtNetStreamCreateControlled(
 		NULL,
 		NULL,
 		pControl,
-		true
+		true,
+		NULL
 	);
 }
 
@@ -4112,9 +4166,10 @@ XRT_API xnetresult xrtNetStreamSendBytesVec(xnetstream* pStream,
 
 
 /* Prepare first, then atomically transfer and publish a complete chain. */
-XRT_API xnetresult xrtNetStreamSendBuffer(
+static xnetresult __xrtNetStreamSendBufferImpl(
 	xnetstream* pStream,
-	xnetbuf* pBuffer
+	xnetbuf* pBuffer,
+	bool bSubmission
 )
 {
 	__xrt_net_stream_buffer* pBatch;
@@ -4125,7 +4180,7 @@ XRT_API xnetresult xrtNetStreamSendBuffer(
 		__xrtErrorSetInvalidArgument();
 		return XNET_RESULT_ERROR;
 	}
-	if (!__xrtNetStreamBeginSend(pStream)) return XNET_RESULT_CLOSED;
+	if (!__xrtNetStreamBeginSendMode(pStream, bSubmission)) return XNET_RESULT_CLOSED;
 	if ( (pBuffer == &pStream->WriteBuffer) ||
 		(pBuffer->Reserved != NULL) || pBuffer->ReservedNew ) {
 		__xrtNetStreamSetError(
@@ -4175,6 +4230,17 @@ XRT_API xnetresult xrtNetStreamSendBuffer(
 	__xrtNetStreamEndSend(pStream);
 	__xrtNetStreamActiveLeave(pStream);
 	return Result;
+}
+
+XRT_API xnetresult xrtNetStreamSendBuffer(xnetstream* stream, xnetbuf* buffer)
+{ return __xrtNetStreamSendBufferImpl(stream, buffer, true); }
+
+xnetresult __xrtNetStreamSendBufferAccepted(xnetstream* stream, xnetbuf* buffer)
+{
+	if (!stream) { __xrtErrorSetInvalidArgument(); return XNET_RESULT_ERROR; }
+	if (xrtNetStreamState(stream) == XNET_STREAM_CLOSED) return XNET_RESULT_CLOSED;
+	if (!xrtNetWorkerIsCurrent(stream->Worker)) { __xrtErrorSetInvalidState(); return XNET_RESULT_ERROR; }
+	return __xrtNetStreamSendBufferImpl(stream, buffer, false);
 }
 
 

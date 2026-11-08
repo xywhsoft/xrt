@@ -14,7 +14,6 @@ static bool __xrtEd25519VerifyMessage(
 	if ( ((pMessage == NULL) && (iMessageSize != 0)) ||
 		 ((iMode == XED25519_PREHASH) &&
 		  (iMessageSize != XRT_ED25519_PREHASH_SIZE)) ) {
-		__xrtErrorSetInvalidArgument();
 		return false;
 	}
 	return true;
@@ -23,7 +22,7 @@ static bool __xrtEd25519VerifyMessage(
 
 
 /* 严格验证 RFC 8032 指定模式的签名。 */
-XRT_API bool xrtEd25519VerifyMode(
+xrt_crypto_check __xrtEd25519Check(
 	const void* pPublic,
 	xed25519mode iMode,
 	const void* pContext,
@@ -46,30 +45,25 @@ XRT_API bool xrtEd25519VerifyMode(
 	__xrted25519point Product;
 	__xrted25519point RightPoint;
 	bool bResult = false;
+	xrt_crypto_check Result = XRT_CRYPTO_CHECK_ERROR;
 
-	if ( (pPublic == NULL) || (pSignature == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+	if ( (pPublic == NULL) || (pSignature == NULL) ||
+		!__xrtEd25519ContextValid(iMode, pContext, iContextSize) ||
+		!__xrtEd25519VerifyMessage(iMode, pMessage, iMessageSize) ) {
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
-	if ( !__xrtEd25519VerifyMessage(iMode, pMessage, iMessageSize) ||
-		 !__xrtEd25519HashInit(&Hash, iMode, pContext, iContextSize) ) {
-		return false;
+	if ( !__xrtEd25519HashInit(&Hash, iMode, pContext, iContextSize) ) {
+		return XRT_CRYPTO_CHECK_ERROR;
 	}
 	if ( !__xrtEd25519PointDecode(&Public, pPublicBytes) ||
 		 __xrtEd25519PointIdentity(&Public) ||
 		 !__xrtEd25519PointMainSubgroup(&Public) ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 public key is not a canonical main-subgroup point",
-			XCRYPTO_ERROR_KEY
-		);
+		Result = XRT_CRYPTO_CHECK_KEY;
 		goto cleanup;
 	}
 	if ( !__xrtEd25519ScalarCanonical(pSignatureBytes + 32u) ||
 		 !__xrtEd25519PointDecode(&Nonce, pSignatureBytes) ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 signature encoding is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		Result = XRT_CRYPTO_CHECK_SIGNATURE;
 		goto cleanup;
 	}
 	if ( !xrtSha512Update(&Hash, pSignatureBytes, 32u) ||
@@ -85,12 +79,7 @@ XRT_API bool xrtEd25519VerifyMode(
 	__xrtEd25519PointEncode(Left, &LeftPoint);
 	__xrtEd25519PointEncode(Right, &RightPoint);
 	bResult = xrtConstTimeEqual(Left, Right, sizeof(Left));
-	if ( !bResult ) {
-		__xrtEd25519Error(
-			"ed25519-verify", "the Ed25519 signature does not match the message and public key",
-			XCRYPTO_ERROR_SIGNATURE
-		);
-	}
+	Result = bResult ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
 
 cleanup:
 	xrtSecureZero(&Hash, sizeof(Hash));
@@ -103,7 +92,31 @@ cleanup:
 	xrtSecureZero(&LeftPoint, sizeof(LeftPoint));
 	xrtSecureZero(&Product, sizeof(Product));
 	xrtSecureZero(&RightPoint, sizeof(RightPoint));
-	return bResult;
+	return Result;
+}
+
+XRT_API bool xrtEd25519VerifyMode(
+	const void* pPublic, xed25519mode iMode, const void* pContext,
+	size_t iContextSize, const void* pMessage, size_t iMessageSize,
+	const void* pSignature
+)
+{
+	xrt_crypto_check Result = __xrtEd25519Check(
+		pPublic, iMode, pContext, iContextSize, pMessage, iMessageSize, pSignature
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEd25519Error(
+			"ed25519-verify", "the Ed25519 signature or public key is invalid",
+			Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+		);
+	}
+	return false;
 }
 
 

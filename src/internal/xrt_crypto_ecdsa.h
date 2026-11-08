@@ -16,6 +16,12 @@ void __xrtEcdsaError(cstr sOperation, cstr sMessage);
 
 #if defined(XRT_FEATURE_CRYPTO_ECDSA_VERIFY)
 
+xrt_crypto_check __xrtEcdsaCheck(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pSignature, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize
+);
+
 /* 验证固定 NIST 曲线和任意非空摘要上的 raw r||s 签名。 */
 bool __xrtEcdsaVerify(
 	int iCurve,
@@ -76,6 +82,12 @@ void __xrtEcdsaAdd(
 
 #if defined(XRT_FEATURE_CRYPTO_ECDSA_VERIFY_DER)
 
+xrt_crypto_check __xrtEcdsaCheckDer(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pDer, size_t iDerSize, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize
+);
+
 /* 严格解码 DER 后调用固定曲线的 raw ECDSA 验证层。 */
 bool __xrtEcdsaVerifyDer(
 	int iCurve,
@@ -89,6 +101,12 @@ bool __xrtEcdsaVerifyDer(
 	cstr sOperation
 );
 
+#endif
+
+#if defined(XRT_FEATURE_CRYPTO_ECDSA_DER)
+xrt_crypto_check __xrtEcdsaDerDecodeCheck(
+	const void* pDer, size_t iDerSize, void* pRaw, size_t iScalarSize
+);
 #endif
 
 

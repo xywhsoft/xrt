@@ -17,7 +17,7 @@ import time
 from test_protocol_fuzz import _closure
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = ("tls_client_resume", "tls_server_resume", "tls_identity_builtin",
+MODULES = ("tls_client_resume", "tls_server_resume", "tls_identity_builtin", "tls_client_auth",
 	"tls_schedule_sha256", "tls_schedule_sha384", "tls_record_aes", "tls_record_chacha",
 	"tls_key_exchange_x25519", "tls_key_exchange_p256", "tls_key_exchange_p384")
 
@@ -36,7 +36,7 @@ def build(compiler: str, output: Path) -> None:
 	subprocess.run(command, check=True, timeout=240)
 
 
-def fixtures(directory: Path):
+def fixtures(directory: Path, *, client_auth=False, padding=0):
 	from cryptography import x509
 	from cryptography.hazmat.primitives import hashes, serialization as s
 	from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
@@ -44,7 +44,8 @@ def fixtures(directory: Path):
 
 	now = datetime.now(timezone.utc)
 	root_key = rsa.generate_private_key(65537, 2048)
-	root_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "XRT ephemeral test CA")])
+	root_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,
+		"XRT ephemeral client CA" if client_auth else "XRT ephemeral test CA")])
 	root = (x509.CertificateBuilder().subject_name(root_name).issuer_name(root_name)
 		.public_key(root_key.public_key()).serial_number(x509.random_serial_number())
 		.not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=2))
@@ -60,15 +61,20 @@ def fixtures(directory: Path):
 		"ed25519": ed25519.Ed25519PrivateKey.generate()}
 	for name, key in keys.items():
 		leaf_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
-		cert = (x509.CertificateBuilder().subject_name(leaf_name).issuer_name(root_name)
+		builder = (x509.CertificateBuilder().subject_name(leaf_name).issuer_name(root_name)
 			.public_key(key.public_key()).serial_number(x509.random_serial_number())
 			.not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
 			.add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
 			.add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
-			.add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+			.add_extension(x509.ExtendedKeyUsage([
+				ExtendedKeyUsageOID.CLIENT_AUTH if client_auth else ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
 			.add_extension(x509.KeyUsage(True, False, name == "rsa", False, False, False, False, False, False), critical=True)
-			.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(root_key.public_key()), critical=False)
-			.sign(root_key, hashes.SHA256()))
+			.add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(root_key.public_key()), critical=False))
+		if padding:
+			from cryptography.x509.oid import ObjectIdentifier
+			value = b"\x04\x82" + padding.to_bytes(2, "big") + bytes(padding)
+			builder = builder.add_extension(x509.UnrecognizedExtension(ObjectIdentifier("1.3.6.1.4.1.57264.1"), value), critical=False)
+		cert = builder.sign(root_key, hashes.SHA256())
 		cert_path, key_path = directory / (name + ".pem"), directory / (name + ".key")
 		cert_path.write_bytes(cert.public_bytes(s.Encoding.PEM))
 		key_path.write_bytes(key.private_bytes(s.Encoding.PEM, s.PrivateFormat.PKCS8, s.NoEncryption()))
@@ -95,15 +101,34 @@ def configure(dll):
 	dll.xrtErrorMessage.restype = c.c_char_p
 	dll.xrtErrorCause.argtypes = [c.c_void_p]
 	dll.xrtErrorCause.restype = c.c_void_p
+	dll.xrtErrorKind.argtypes = [c.c_void_p]
+	dll.xrtTlsSessionPeerAlert.argtypes = [c.c_void_p, c.POINTER(c.c_int), c.POINTER(c.c_int)]
+	dll.xrtTlsSessionPeerAlert.restype = c.c_bool
+	if hasattr(dll, "xrtTestTlsCreateAuth"):
+		dll.xrtTestTlsCreateAuth.argtypes = [c.c_int, c.c_uint16, c.c_uint16, c.c_int,
+			c.c_char_p, c.c_void_p, c.c_size_t, c.c_void_p, c.c_size_t, c.c_void_p, c.c_size_t]
+		dll.xrtTestTlsCreateAuth.restype = c.c_void_p
+		dll.xrtTestTlsAuthInfo.argtypes = [c.c_void_p, c.POINTER(c.c_uint), c.POINTER(c.c_uint)]
 
 
 def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
-	hrr=False, bad_name=False):
+	hrr=False, bad_name=False, client_auth=None, local_identity=None,
+	local_require=True, client_root_pem=None, expect_local_refusal=False):
+	if client_auth is not None and (server or client_auth not in ("optional", "required")):
+		raise ValueError("client_auth requires an OpenSSL server and optional/required")
 	cert_path, key_path, cert_der, key_der = fixture
 	signature = {"rsa": 0x0804, "p256": 0x0403, "p384": 0x0503, "ed25519": 0x0807}[algorithm]
 	name = b"wrong.invalid" if bad_name else b"localhost"
-	peer = dll.xrtTestTlsCreate(server, version, cipher, signature, server and hrr,
-		name, cert_der, len(cert_der), key_der, len(key_der), root, len(root))
+	if local_identity is None:
+		peer = dll.xrtTestTlsCreate(server, version, cipher, signature, server and hrr,
+			name, cert_der, len(cert_der), key_der, len(key_der), root, len(root))
+	else:
+		assert not server
+		local_algorithm, local_fixture = local_identity
+		local_signature = {"rsa": 0x0804, "p256": 0x0403, "p384": 0x0503, "ed25519": 0x0807}[local_algorithm]
+		local_der, local_key = local_fixture[2:]
+		peer = dll.xrtTestTlsCreateAuth(version, cipher, local_signature, local_require,
+			name, local_der, len(local_der), local_key, len(local_key), root, len(root))
 	assert peer, dll.xrtErrorMessage(dll.xrtGetError())
 	context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT if server else ssl.PROTOCOL_TLS_SERVER)
 	context.minimum_version = context.maximum_version = (
@@ -117,6 +142,9 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 		context.load_verify_locations(cadata=root_pem.decode())
 	else:
 		context.load_cert_chain(cert_path, key_path)
+		if client_auth is not None:
+			context.load_verify_locations(cadata=(client_root_pem or root_pem).decode())
+			context.verify_mode = (ssl.CERT_REQUIRED if client_auth == "required" else ssl.CERT_OPTIONAL)
 		if hrr:
 			context.set_ecdh_curve("prime256v1")
 	incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
@@ -126,6 +154,14 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 	wire, python_data, xrt_data = bytearray(), bytearray(), bytearray()
 	ready, closed, closing, xrt_state = False, False, False, 0
 	deadline = time.monotonic() + 30
+
+	def auth_info():
+		if local_identity is None:
+			return {}
+		queries, signs = c.c_uint(), c.c_uint()
+		queued = dll.xrtTestTlsAuthInfo(peer, c.byref(queries), c.byref(signs))
+		assert queued >= 0
+		return {"certificate_queued": bool(queued), "sign_queries": queries.value, "sign_calls": signs.value}
 
 	def pump(done):
 		nonlocal ready, closed, xrt_state
@@ -170,7 +206,17 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 
 	try:
 		pump(lambda: ready and xrt_state == 1)
+		assert not expect_local_refusal, "local required-certificate policy was bypassed"
+		assert client_auth != "required" or local_identity is not None, "OpenSSL accepted a missing required client certificate"
 		assert not bad_name, "wrong-host certificate was accepted"
+		if client_auth == "optional":
+			assert (python.getpeercert() is None) == (local_identity is None), "client certificate decision differs"
+		if local_identity is not None:
+			info = auth_info()
+			assert info["certificate_queued"] == (client_auth is not None)
+			assert info["sign_calls"] == (1 if client_auth is not None else 0)
+			if client_auth is not None:
+				assert python.getpeercert(binary_form=True) == local_der
 		assert python.selected_alpn_protocol() == "xrt-interop" and dll.xrtTestTlsAlpn(peer, cipher)
 		payload = b"independent TLS peer\x00" * 1000
 		for turn in range(2 if version == 13 else 1):
@@ -190,12 +236,38 @@ def exchange(dll, root, root_pem, fixture, algorithm, version, cipher, server,
 		assert dll.xrtTlsSessionClose(peer) == 0
 		closing = True
 		pump(lambda: closed and xrt_state == 2)
+		return {"result": "accepted", "application_rounds": 2 if version == 13 else 1,
+			"close_notify": True, **auth_info()}
 	except ssl.SSLCertVerificationError as error:
 		if not bad_name or error.verify_code != 62:
 			raise
+	except ssl.SSLError as error:
+		if client_auth != "required" or error.reason != "PEER_DID_NOT_RETURN_A_CERTIFICATE":
+			raise
+		# Deliver the real peer's fatal alert too. TLS 1.3 local READY can precede
+		# the server's certificate decision; it is not proof of peer acceptance.
+		wire.extend(outgoing.read())
+		nout, nplain = c.c_size_t(len(output)), c.c_size_t(len(plain))
+		xrt_state = dll.xrtTestTlsStep(peer, False, bytes(wire), len(wire),
+			output, c.byref(nout), plain, c.byref(nplain))
+		level, alert = c.c_int(), c.c_int()
+		assert xrt_state < 0 and dll.xrtTlsSessionPeerAlert(peer, c.byref(level), c.byref(alert))
+		assert level.value == 2 and alert.value == (116 if version == 13 else 40), (level.value, alert.value)
+		assert nplain.value == 0
+		return {"result": "rejected_by_server", "reason": error.reason,
+			"peer_alert": alert.value, "plaintext_bytes": 0}
 	except RuntimeError as error:
+		if expect_local_refusal:
+			assert dll.xrtErrorKind(dll.xrtGetError()) == 10  # Stable public XERR_PERMISSION.
+			info = auth_info()
+			assert info["sign_calls"] == 0 and not info["certificate_queued"]
+			return {"result": "local_refusal", **info}
 		if not bad_name or not any(word in str(error).lower() for word in ("name", "identity")):
 			raise
+		info = auth_info()
+		if local_identity is not None:
+			assert info["sign_calls"] == 0 and info["sign_queries"] == 0 and not info["certificate_queued"]
+		return {"result": "server_name_rejected", **info}
 	finally:
 		dll.xrtTlsSessionDestroy(peer)
 		dll.xrtClearError()

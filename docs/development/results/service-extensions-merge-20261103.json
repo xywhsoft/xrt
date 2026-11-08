@@ -1,0 +1,997 @@
+{
+  "schema": 1,
+  "stage": "service extensions merge into master",
+  "date": "2026-11-03",
+  "target": "master",
+  "strategy": "two-parent no-ff merge",
+  "audit": {
+    "master_parent": "93347eb5ae6beba8cf7ee3558708cc4f628fdd07",
+    "service_parent": "6960e77821bb404c240920ab6b9b6c864e79b018",
+    "merge_base": "1d4109aff9d52d0452742669e81caa8bef626922",
+    "exclusive_commits": [
+      "10",
+      "83"
+    ],
+    "master_unique_files": 100,
+    "service_unique_files": 617,
+    "generated_declaration_exceptions": [
+      "single/extlibs/xacme_decl.h",
+      "single/extlibs/xcron_decl.h",
+      "single/extlibs/xhttp-client_decl.h",
+      "single/extlibs/xhttp-policy_decl.h",
+      "single/extlibs/xhttp-server_decl.h",
+      "single/extlibs/xhttp_decl.h",
+      "single/extlibs/ximap_decl.h",
+      "single/extlibs/xjwt_decl.h",
+      "single/extlibs/xllm-session_decl.h",
+      "single/extlibs/xllm_decl.h",
+      "single/extlibs/xmail_decl.h",
+      "single/extlibs/xmqtt_decl.h",
+      "single/extlibs/xoauth2_decl.h",
+      "single/extlibs/xpop3_decl.h",
+      "single/extlibs/xredis_decl.h",
+      "single/extlibs/xrpc_decl.h",
+      "single/extlibs/xrudp_decl.h",
+      "single/extlibs/xruntime_decl.h",
+      "single/extlibs/xsmtp_decl.h",
+      "single/extlibs/xssh_decl.h",
+      "single/extlibs/xwork_decl.h",
+      "single/extlibs/xws-client_decl.h",
+      "single/extlibs/xws-group_decl.h",
+      "single/extlibs/xws-server_decl.h",
+      "single/extlibs/xws_decl.h"
+    ],
+    "corrective_source_exceptions": [
+      "src/websocket/stream.c",
+      "src/websocket/stream_ref.c",
+      "tools/test_release_status.py"
+    ],
+    "other_unique_source_preservation": true,
+    "manifest_modules": 596,
+    "manifest_three_way_audit": true
+  },
+  "environments": {
+    "windows": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "python": "3.12.10",
+      "compiler": "gcc.EXE (GCC) 16.2.0"
+    },
+    "wsl": {
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "python": "3.14.4",
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+    }
+  },
+  "conflicts_resolved": [
+    "config/modules.json",
+    "tools/test_api_reference.py",
+    "docs/api/net-reference.md",
+    "single/xrt.h"
+  ],
+  "resolution": [
+    "Retain all independently changed modules and both API reference regression methods.",
+    "Regenerate root feature selection, Core implementation/declaration headers and the network API reference.",
+    "Refresh 25 extension declaration headers for EVENT_WAITER and NET_TCP_RETIRE feature preservation."
+  ],
+  "corrective_fix": {
+    "origin": "reproduced on pre-merge master 93347eb5",
+    "exception": "Windows access violation 0xc0000005",
+    "location": "xrtWsStreamBinaryRef via ownership metadata probe before range validation",
+    "files": [
+      "src/websocket/stream.c",
+      "src/websocket/stream_ref.c",
+      "tests/websocket/test_stream.c",
+      "single/xrt.h"
+    ],
+    "behavior": "Check the connection span before reading ownership policy in all affected stream wrappers; invalid spans retain existing argument error paths.",
+    "regression": "New wrapping-connection checks cover pause, resume, retain, text, binary, ping, pong, close, abort, reference and immutable-byte sends. Existing reference ownership and OOM lifecycle checks remain active.",
+    "cost": "A range predicate before ownership metadata; no new allocation, copy, synchronization primitive or public API. Performance was not qualified."
+  },
+  "frozen_inputs": {
+    "count": 2149,
+    "canonical_map_sha256": "7b1ceea926e243b276790bebcc4a777ab7d42648b3becb16f6c4cf4604ffe854",
+    "local_map": "out/service-extensions-merge/windows-runtime-inputs.json",
+    "baseline_runtime_maps_equal": true,
+    "current_C_H_hashes_unchanged": true,
+    "post_runtime_metadata_input_changes": [
+      "tools/test_release_status.py"
+    ],
+    "current_validation_map": "out/service-extensions-merge/windows-inputs.json",
+    "C_H_input_count": 1941
+  },
+  "verification": {
+    "windows": {
+      "complete": true,
+      "mode": "modular and single-header",
+      "optimization": "-O2",
+      "sanitizers": [],
+      "program_counts": {
+        "xcron": 16,
+        "xmqtt": 14,
+        "xredis": 30,
+        "xrpc": 30,
+        "event_waiter_tests": 3,
+        "executor_current_tests": 2,
+        "task_pool_exit_tests": 2,
+        "logger_ring": 6,
+        "websocket_stream": 7,
+        "websocket_stream_ref": 3,
+        "net_file_future": 2,
+        "net_tcp": 11
+      },
+      "total_program_executions": 126,
+      "receipts": [
+        {
+          "label": "xcron",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "cd6b461dd5ffd6ffc539677faae904823ffb6c295da02cdcf03e2fec11fe50f2"
+        },
+        {
+          "label": "xmqtt",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "201279d424f191de69a168bb1d68df5f74695771ef88b54efd3a2db53d497fe0"
+        },
+        {
+          "label": "xredis",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4754923044dc4df99cfbc44bab644c0e8214994974861b4d2ca4eda7fab716ef"
+        },
+        {
+          "label": "xrpc",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "b5706b0b70641efc97331efced80c4bf69af61157193ac6afb872b6494b87ec1"
+        },
+        {
+          "label": "event_waiter_tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "event_waiter_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c18f9a2f3ff09b69b17b5ad6589597b7414af013a2682117eaa5fe22abb7d0fa"
+        },
+        {
+          "label": "executor_current_tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "executor_current_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0c97bee3d01021978404a97495d7ab2ef30b5054e06e89e1274382ef5b117a24"
+        },
+        {
+          "label": "task_pool_exit_tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "task_pool_exit_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1b36e44ada5b63da80a818debebccd05eb744347c3cc4e650860164cd775fa85"
+        },
+        {
+          "label": "logger_ring",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "logger_ring",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8765b3c1d3b69c17932e2fb3caff3a7bf680a873353fe8fba7440e0dbdfa82f8"
+        },
+        {
+          "label": "websocket_stream",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "websocket_stream",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "96576f11184d8700334a69eece16e887b3103e7d1bbefa3efbf66f0f40d715f3"
+        },
+        {
+          "label": "websocket_stream_ref",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "websocket_stream_ref",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2957e4d64d14ebc59d367da9169332dcd21e9cc0c7d1f0d28d9c7560e6e10b88"
+        },
+        {
+          "label": "net_file_future",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "net_file_future",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5244894cb7be85ddb7b492b3631d2870863bce7b84f0408ac00b080f6c5470de"
+        },
+        {
+          "label": "net_tcp",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--suite",
+            "net_tcp",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "de8b576e666f08b48684e65fdec98f8c988a1814d8aa9fbb027b3b5a2bfe9d4f"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_features.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "dc13349ca84e3edf80028bd0b76441a06a4bb498f8d4d51c748183acea42ef8f"
+        },
+        {
+          "label": "amalgamate",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--all",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "net-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--family",
+            "net",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c469d5346552dbe31cd0b743c6021934669dce26fb5cfccfea88edf0058c6df0"
+        },
+        {
+          "label": "xredis-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533"
+        },
+        {
+          "label": "xredis-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xredis-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92"
+        },
+        {
+          "label": "xrpc-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c1dd669472228fc3a2f1f46af77b72c6b7c54fee393648702082b1b57da35e1c"
+        },
+        {
+          "label": "xrpc-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xrpc-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa"
+        },
+        {
+          "label": "xmqtt-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+        },
+        {
+          "label": "xmqtt-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xmqtt-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+        },
+        {
+          "label": "xcron-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+        },
+        {
+          "label": "xcron-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "xcron-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_api_reference",
+            "tools.test_extension_layout",
+            "tools.test_extension_header_coverage",
+            "tools.test_extension_single",
+            "tools.test_public_abi",
+            "tools.test_scope",
+            "tools.test_release_status",
+            "tools.test_build",
+            "tools.test_package"
+          ],
+          "exit_code": 0,
+          "log_sha256": "53cef64b396c14420baa792578b5d5baf8c7d5129683b95da9b00f38c047702b"
+        }
+      ],
+      "python_tool_tests": 104,
+      "python_tool_tests_skipped": 0
+    },
+    "wsl": {
+      "complete": true,
+      "mode": "modular for baseline suites; modular and single-header for supplementary TLS authentication gate",
+      "optimization": "-O2",
+      "sanitizers": [
+        "address",
+        "undefined",
+        "leak detection enabled"
+      ],
+      "program_counts": {
+        "xcron": 8,
+        "xmqtt": 7,
+        "xredis": 15,
+        "xrpc": 15,
+        "event_waiter_tests": 2,
+        "executor_current_tests": 1,
+        "task_pool_exit_tests": 1,
+        "logger_ring": 4,
+        "websocket_stream": 3,
+        "websocket_stream_ref": 1,
+        "net_file_future": 1,
+        "net_tcp": 10,
+        "tls_client_auth_tests": 4
+      },
+      "total_program_executions": 72,
+      "receipts": [
+        {
+          "label": "xcron",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "481842acb92adecddb20a06916effa83689fb1c8ba784b85d3522930c268a1f7"
+        },
+        {
+          "label": "xmqtt",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d44ee1905a7e2220f148438c76d028a36c874b62e6ba810086bb84bf037d2916"
+        },
+        {
+          "label": "xredis",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e41467b00369b0c6a37b594a997f638307a6b0c42a0c3194f23fd057b1adafe3"
+        },
+        {
+          "label": "xrpc",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "578995395dd064ba4e7c14c5f7cc6470ed90515400ee5ac9be65d963f6b7060f"
+        },
+        {
+          "label": "event_waiter_tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "event_waiter_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "74e2f957289c6c17fcbb460a1b005346a8eb6b6e187471354e1dd130f2d355aa"
+        },
+        {
+          "label": "executor_current_tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "executor_current_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a8eec90bc86db2175ce84f06364736fde656f12e61f72054ca7b1177953616ff"
+        },
+        {
+          "label": "task_pool_exit_tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "task_pool_exit_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "dc007dc877f04f8dbd22a56db9395bb5e2541f1f79306167ace0df8a28db7b98"
+        },
+        {
+          "label": "logger_ring",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "logger_ring",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4e218d014d70ca7c0fc66a87c80e748b3730b53a88c4d04364df60d54249bab2"
+        },
+        {
+          "label": "websocket_stream",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "websocket_stream",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "9507d97befec5620d13cb099a5717f40932bdf9e0a62ea33ab68ccc235f94ad4"
+        },
+        {
+          "label": "websocket_stream_ref",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "websocket_stream_ref",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "68f77cac6d61450b98c4af378ae44a3ddea1947aeb680025fa56bda63500fff4"
+        },
+        {
+          "label": "net_file_future",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "net_file_future",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6d42d12d8af3816ac1b5f9fbf26ecb60eed8c7260179e54929281936d37f1d5a"
+        },
+        {
+          "label": "net_tcp",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "net_tcp",
+            "--no-examples",
+            "--cflag=-O2",
+            "--no-single",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "7c7fa0ac2f10168ee78345e6d99891a054557887765209aa47b6d91254fcbc23"
+        }
+      ],
+      "supplementary_tls_auth": {
+        "complete": true,
+        "receipts": [
+          {
+            "label": "tls_client_auth_tests",
+            "command": [
+              "python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--suite",
+              "tls_client_auth_tests",
+              "--no-examples",
+              "--cflag=-O2",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "log_sha256": "4f59a5ec6a0eb79ad9c5e46230a5cc71e7388e67cb6444f15c099ede4fcd100c"
+          },
+          {
+            "label": "tls-client-auth-interop",
+            "command": [
+              "python3",
+              "-X",
+              "utf8",
+              "tools/test_tls_client_auth.py",
+              "--compiler",
+              "gcc",
+              "--regression",
+              "--report",
+              "out/service-extensions-merge/wsl-tls-client-auth-interop.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "da33c78531852a5eda9dfd499382564ce17b0e2450677df1c6638ab42ee6a26a",
+            "report_sha256": "39e141e356b25bb21c7a62f7592fdf6b7b68611a1baf2b280bd9ced576495346"
+          }
+        ],
+        "program_executions": 4,
+        "independent_auth_cases": 34,
+        "independent_peer_regressions": 60,
+        "openssl": "OpenSSL 3.5.5 27 Jan 2026"
+      }
+    }
+  },
+  "baseline_evidence": {
+    "baseline-master-websocket.log": {
+      "local_path": "out/service-extensions-merge/baseline-master-websocket.log",
+      "sha256": "cf4185467f88e869ae2eadb22c2beb884973a8f2304ade780c47540857582568"
+    },
+    "baseline-master-websocket-gdb.log": {
+      "local_path": "out/service-extensions-merge/baseline-master-websocket-gdb.log",
+      "sha256": "c3741c4b343a48a87de44e424ab6c5698ec53548dee36d22bf6a410a4912ed9f"
+    },
+    "websocket-gdb.log": {
+      "local_path": "out/service-extensions-merge/websocket-gdb.log",
+      "sha256": "72fcffbaa7b0fd946eb96e06600ff0ecb2a1921ca4119d5997b4124e2fd35b26"
+    }
+  },
+  "metadata_followup": {
+    "reason": "After C runtime validation, correct release documentation and separate native TLS-auth runtime gates from restricted io_uring compile gates. No C/H or manifest changes.",
+    "changed_validation_inputs": {
+      "tools/test_release_status.py": {
+        "before": "a4bc6a18f62d2288fe6f2ff175c0ac769d781ddd6823a16e87c9482cb250a44c",
+        "after": "695012e15419b04ddd9d73514c2e3687c2babfb9264b139c0cbadced0011b20f"
+      }
+    },
+    "files": {
+      "tools/test_release_status.py": {
+        "before_git_blob": "a176bcae5184205ff5a84b514b84222bc9697e5f",
+        "after_sha256": "695012e15419b04ddd9d73514c2e3687c2babfb9264b139c0cbadced0011b20f"
+      },
+      "docs/RELEASE_STATUS.md": {
+        "before_git_blob": "ff22afd1aaf060500dbb86ba88d0bf2cfcb11e29",
+        "after_sha256": "986127ca7dc8484fbd2423e7ae121c036307de4dc30e2f4772dd5cb7056a5b11"
+      },
+      ".github/workflows/ci.yml": {
+        "before_git_blob": "483b7dc33bfac8b170b06b7a5fe2926b036b396f",
+        "after_sha256": "105335a530552170d93d62969b26eb0ac12033010deb51bc59879fb6e3c9b543"
+      }
+    },
+    "initial_failure_evidence": {
+      "local_path": "out/service-extensions-merge/pre-metadata-tools.log",
+      "sha256": "c8d21ee75f8d4db549ca8a412971836a971d6c6fdd5b77116fabe6bfb413371a"
+    }
+  },
+  "local_evidence": "out/service-extensions-merge",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "duration_72h_accepted": false,
+  "remote_push": false,
+  "long_term_goal": "active; remaining implementation and acceptance gates unchanged"
+}

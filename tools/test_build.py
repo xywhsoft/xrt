@@ -237,6 +237,36 @@ class AggregateAssetTest(unittest.TestCase):
 				self.assertFalse(any(path.startswith("tests/") for path in singles
 					if not path.endswith("test_single_dir_create_diagnostic.c")))
 
+	def test_service_product_commands_actually_select_documented_examples(self) -> None:
+		"""A passing empty root suite must not masquerade as example execution."""
+
+		for product in ("xredis", "xcron", "xrpc", "xmqtt"):
+			manifest = xrt_build.ROOT / "extlibs" / product / "config/modules.json"
+			expected = {path.relative_to(xrt_build.ROOT).as_posix()
+				for path in (manifest.parent.parent / "examples").rglob("main.c")}
+			self.assertTrue(expected)
+			for platform in ("windows", "linux"):
+				with self.subTest(product=product, platform=platform):
+					# Redis's certificate-file example selects an optional RSA
+					# identity implementation through its documented example root.
+					suite = "xredis_examples" if product == "xredis" else product
+					_, _, _, examples, *_ = xrt_build._load_modules(suite, [manifest], platform=platform)
+					self.assertEqual(set(examples), expected)
+
+	def test_redis_example_root_does_not_expand_library_dependencies(self) -> None:
+		"""All runnable examples select their helper closure separately from the library."""
+
+		manifest = xrt_build.ROOT / "extlibs/xredis/config/modules.json"
+		for platform in ("windows", "linux"):
+			with self.subTest(platform=platform):
+				library = xrt_build._load_modules("xredis", [manifest], platform=platform)
+				helper = xrt_build._load_modules("xredis_tls_auth_examples", [manifest], platform=platform)
+				examples = xrt_build._load_modules("xredis_examples", [manifest], platform=platform)
+				self.assertNotIn("XRT_FEATURE_TLS_IDENTITY_RSA", library[4])
+				self.assertIn("XRT_FEATURE_TLS_IDENTITY_RSA", examples[4])
+				self.assertEqual(set(examples[0]), set(library[0]) | set(helper[0]))
+				self.assertEqual(examples[1:3], ([], []))
+
 	def test_collects_only_same_product_dependency_assets(self) -> None:
 		"""聚合节点应收集闭包内同前缀模块，并保留显式根资产。"""
 

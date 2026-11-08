@@ -1,4 +1,5 @@
 #include "../internal/xrt_tls_server.h"
+#include "../internal/xrt_tls_identity.h"
 
 
 
@@ -29,6 +30,34 @@ bool __xrtTlsServerCause(cstr sOperation, cstr sMessage)
 		sOperation, sMessage, SIZE_MAX, pCause
 	);
 	return false;
+}
+
+
+
+/* 回调期选择结果拥有独立身份引用，消除临时返回对象销毁后的借用窗口。 */
+XRT_API bool xrtTlsServerChoiceSetIdentityV1(
+	xtlsserverchoice* pChoice,
+	const xtlsidentity* pIdentity
+)
+{
+	if ( xrtGetError() != NULL ) {
+		return false;
+	}
+	if ( (pChoice == NULL) || (pIdentity == NULL) ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT, "set-server-choice-identity",
+			"TLS server choice or identity is null"
+		);
+	}
+	xtlsidentity* pOwned = xrtTlsIdentityRetain(pIdentity);
+	if ( pOwned == NULL ) {
+		return false;
+	}
+	xtlsidentity* pPrevious = pChoice->IdentityOwnerV1;
+	pChoice->IdentityOwnerV1 = pOwned;
+	pChoice->Identity = pOwned;
+	xrtTlsIdentityRelease(pPrevious);
+	return xrtGetError() == NULL;
 }
 
 
@@ -253,6 +282,15 @@ static void __xrtTlsServerClean(xtlssession* pSession, ptr pRole)
 	pState->Identity = NULL;
 }
 
+bool __xrtTlsServerIdentityOwnershipLeaf(const xtlssession* pSession)
+{
+	if (!pSession || pSession->Role != XTLS_SERVER) return false;
+	if (!pSession->Clean) return true;
+	if (pSession->Clean != __xrtTlsServerClean) return false;
+	const xtlsserverstate* pState = (const xtlsserverstate*)(pSession + 1);
+	return !pState->Identity || __xrtTlsIdentityOwnershipLeaf(pState->Identity);
+}
+
 
 
 /* 初始化不借用任何外部资源的服务端配置。 */
@@ -296,6 +334,22 @@ XRT_API xtlssession* xrtTlsServerCreate(
 		Config = *pConfig;
 	}
 	pConfig = &Config;
+	if ( (pConfig->Resume != NULL) && (pConfig->ResumeOwnedV1 != NULL) ) {
+		(void)__xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_RESUME, "create-tls-server",
+			"TLS server borrowed and owned resume lookups are mutually exclusive"
+		);
+		return NULL;
+	}
+	#if !defined(XRT_FEATURE_TLS_SERVER_RESUME)
+		if ( (pConfig->Resume != NULL) || (pConfig->ResumeOwnedV1 != NULL) ) {
+			(void)__xrtTlsServerError(
+				XERR_UNSUPPORTED, XTLS_ERROR_RESUME, "create-tls-server",
+				"TLS server resumption support is not enabled"
+			);
+			return NULL;
+		}
+	#endif
 	if ( (pConfig->Identity == NULL) && (pConfig->Select == NULL) ) {
 		(void)__xrtTlsServerError(
 			XERR_ARGUMENT, XTLS_ERROR_IDENTITY, "create-tls-server",
@@ -367,6 +421,7 @@ XRT_API xtlssession* xrtTlsServerCreate(
 	pState->RequireProtocol = pConfig->RequireProtocol;
 	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
 		pState->Resume = pConfig->Resume;
+		pState->ResumeOwnedV1 = pConfig->ResumeOwnedV1;
 		pState->ResumeContext = pConfig->ResumeContext;
 		pState->ResumeAgeTolerance = pConfig->ResumeAgeTolerance;
 	#endif
@@ -458,6 +513,41 @@ XRT_API bool xrtTlsServerCookie(
 	}
 	*pCookie = pState->Cookie;
 	return true;
+}
+
+
+
+/* 状态观察属于基础角色；关闭恢复实现时不需要任何票据依赖。 */
+XRT_API bool xrtTlsServerResumed(const xtlssession* pSession)
+{
+	if ( pSession == NULL ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"get-tls-server-resumed", "TLS server session is null"
+		);
+	}
+	if ( xrtTlsSessionRole(pSession) != XTLS_SERVER ) {
+		return __xrtTlsServerError(
+			XERR_ARGUMENT, XTLS_ERROR_ARGUMENT,
+			"get-tls-server-resumed", "TLS session is not a server"
+		);
+	}
+	if ( (pSession->AllocationSize < sizeof(*pSession)) ||
+		(pSession->AllocationSize - sizeof(*pSession) <
+		 sizeof(xtlsserverstate)) ) {
+		return __xrtTlsServerError(
+			XERR_STATE, XTLS_ERROR_STATE,
+			"get-tls-server-resumed", "TLS session does not contain a server role state"
+		);
+	}
+	#if defined(XRT_FEATURE_TLS_SERVER_RESUME)
+		const xtlsserverstate* pState =
+			(const xtlsserverstate*)(pSession + 1);
+
+		return pState->Resumed;
+	#else
+		return false;
+	#endif
 }
 
 

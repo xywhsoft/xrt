@@ -17,7 +17,13 @@ static void testRingReturnYield(void)
 #define xrtLogRingStop testRingStop
 #define xrtLogRingStats testRingStats
 #define xrtLogRingLastError testRingLastError
+#define xrtLogRingSinkOwnershipV1Get testRingSinkOwnershipV1Get
+#define xrtLogRingOwnershipAdapterV1 testRingOwnershipAdapterV1
+XRT_API const xlogsinkownershipv1* testRingSinkOwnershipV1Get(void);
+XRT_API const xrtownershipadapterv1* testRingOwnershipAdapterV1(xrtownershipref);
 #include "../../src/logging/logger_ring.c"
+#undef xrtLogRingSinkOwnershipV1Get
+#undef xrtLogRingOwnershipAdapterV1
 #undef xrtThreadYield
 #undef xrtLogRingConfigInit
 #undef xrtLogRing

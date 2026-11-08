@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xredis/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xredis_command",
+      "system": "command",
+      "suite": "xredis_command",
+      "description": "Only command encoding and required core closure"
+    },
+    {
+      "name": "xredis_reader",
+      "system": "reader",
+      "suite": "xredis_reader",
+      "description": "Only incremental reply parsing and required core closure"
+    },
+    {
+      "name": "xredis_reply",
+      "system": "reply",
+      "suite": "xredis_reply",
+      "description": "Owned replies and reader/atomic/number_float closure, excluding networking and executors",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTcp",
+        "xrtThread",
+        "xrtTask",
+        "xrtFuture"
+      ]
+    },
+    {
+      "name": "xredis_client",
+      "system": "client",
+      "suite": "xredis_client",
+      "description": "TCP requests and bounded connection initialization with public core closure, excluding TLS, HTTP, Dial and task executors",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xrtNetResolveOp",
+        "xredisClientDial",
+        "xrtTask"
+      ]
+    },
+    {
+      "name": "xredis_dial",
+      "system": "dial",
+      "suite": "xredis_dial",
+      "description": "Optional hostname/resolved-endpoint setup and XRT Resolver/Dial closure; excludes TLS, HTTP, WebSocket and task executors",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask"
+      ]
+    },
+    {
+      "name": "xredis_tls",
+      "system": "tls",
+      "suite": "xredis_tls",
+      "description": "Verified TLS client/records/session plus existing NetDial, excluding HTTP/WebSocket/task executors, extra TLS-Dial wrappers and fixture RSA identity creation",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtTlsDial",
+        "xrtTlsIdentityRsa"
+      ]
+    },
+    {
+      "name": "xredis_tls_auth",
+      "system": "tls_auth",
+      "suite": "xredis_tls_auth",
+      "description": "Native client certificate authentication; private signing backends and fixture process launcher remain separate",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtTlsDial",
+        "xrtTlsIdentityRsa",
+        "xrtTlsIdentityP256",
+        "xrtTlsIdentityP384",
+        "xrtTlsIdentityEd25519",
+        "xrtProcess"
+      ]
+    },
+    {
+      "name": "xredis_transaction",
+      "system": "transaction",
+      "suite": "xredis_transaction",
+      "description": "Managed atomic transaction runtime; optional DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
+    },
+    {
+      "name": "xredis_watch",
+      "system": "watch",
+      "suite": "xredis_watch",
+      "description": "Exclusive WATCH/read/decision/commit scopes on the existing client; DNS/TLS/signers/process/HTTP remain optional",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
+    },
+    {
+      "name": "xredis_pool",
+      "system": "pool",
+      "suite": "xredis_pool",
+      "description": "Fixed-membership exclusive lease pool with hard aggregate physical command quotas; optional DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtNetDial"
+      ]
+    },
+    {
+      "name": "xredis_pool_transaction",
+      "system": "pool_transaction",
+      "suite": "xredis_pool_transaction",
+      "description": "Native leased staged transactions; nested WATCH, DNS/TLS and other runtimes excluded",
+      "forbid_symbols": [
+        "xredisWatch",
+        "xredisLeaseWatch",
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
+    },
+    {
+      "name": "xredis_pool_watch",
+      "system": "pool_watch",
+      "suite": "xredis_pool_watch",
+      "description": "Native nested WATCH scopes with parent lease barrier/quota; independent DNS/TLS/private signer/process/HTTP runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
+    },
+    {
+      "name": "xredis_pool_connect",
+      "system": "pool_connect",
+      "suite": "xredis_pool_connect",
+      "description": "Automatic bounded pool setup/repair with optional factory transport; DNS/TLS/HTTP/task/process runtimes excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
+    }
+  ]
+}

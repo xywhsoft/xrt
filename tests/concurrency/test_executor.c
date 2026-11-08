@@ -1,4 +1,5 @@
 #include "../test.h"
+#include "test_executor_shutdown.h"
 
 
 
@@ -64,6 +65,7 @@ static void testExecutorDestroy(ptr pData, ptr pContext)
 /* 验证批量原子提交、并发执行、背压、关闭和取消所有权。 */
 int main(void)
 {
+	testExecutorShutdown();
 	xexecutorconfig Config = { 4, 32, 0 };
 	test_executor_context Context;
 	xexecutoritem Items[16];

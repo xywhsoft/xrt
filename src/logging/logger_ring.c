@@ -54,6 +54,9 @@ typedef struct xlogringflush {
 /* Ring 状态把生产者原子字段与冷路径管理锁明确分开。 */
 typedef struct xlogringstate {
 	volatile int32 RefCount;
+	const void* OwnershipClaim;
+	bool OwnershipCleared;
+	bool OwnershipFinished;
 	xlogringconfig Config;
 	xlogsink* Target;
 	xthread* Thread;
@@ -84,6 +87,8 @@ typedef struct xlogringstate {
 	xerror* LastError;
 	xlogringflush Flush;
 } xlogringstate;
+
+static const xrtownershipops __xrtLogRingStateOps;
 
 
 
@@ -440,7 +445,7 @@ static int32 __xrtLogRingWorker(ptr pData)
 /* 释放状态；正常路径此时队列已经排空，扫描仍兜底释放错误字段引用。 */
 static void __xrtLogRingStateRelease(xlogringstate* pState)
 {
-	if ( xrtRefRelease(&pState->RefCount) != 0 ) {
+	if ( xrtOwnershipRefRelease(&pState->RefCount) != 0 ) {
 		return;
 	}
 	for ( size_t i = 0; i < pState->Capacity; i++ ) {
@@ -840,7 +845,7 @@ XRT_API xlogsink* xrtLogRing(
 		}
 	}
 
-	(void)xrtRefRetain(&pState->RefCount);
+	(void)xrtOwnershipRefRetain(&pState->RefCount);
 	pState->Thread = xrtThreadCreate(
 		__xrtLogRingWorker,
 		pState,
@@ -863,8 +868,9 @@ XRT_API xlogsink* xrtLogRing(
 	SinkConfig.Drop = __xrtLogRingDrop;
 	SinkConfig.UserData = pState;
 	pSink = xrtLogSinkCreate(&SinkConfig);
-	if ( pSink != NULL ) {
-		return pSink;
+	if (pSink != NULL) {
+		if (xrtLogSinkBindOwnershipV1(pSink,xrtLogRingSinkOwnershipV1Get())) return pSink;
+		xerror* Error=xrtTakeError(); xrtLogSinkFree(pSink); __xrtErrorSetOwned(Error); return NULL;
 	}
 
 	pCause = xrtTakeError();
@@ -1016,5 +1022,66 @@ XRT_API xerror* xrtLogRingLastError(const xlogsink* pSink)
 	(void)xrtMutexUnlock(&pState->ErrorLock);
 	return pError;
 }
+
+
+/* The sink and worker each own one actual state reference. A running worker
+ * remains an external root; queued records contain only copied native data.
+ * Target is immutable until checked Finish, after the worker root is gone. */
+static bool __xrtLogRingStateCount(const void* Data,size_t* Count)
+{
+ const xlogringstate* State=Data;
+ if(!State||!Count||State->OwnershipCleared||State->RefCount<=0)return false;
+ *Count=(size_t)State->RefCount;return true;
+}
+static bool __xrtLogRingStateTrace(const void* Data,xrtownershipvisitor Visit,void* Context)
+{
+ const xlogringstate* State=Data;
+ if(!State||!Visit)return false;
+ if(!State->Target)return true;
+ xrtownershipref Ref=xrtLogSinkOwnership(State->Target);
+ return Ref.Ops && Visit(Ref,Context);
+}
+static bool __xrtLogRingStateHold(const void* Data)
+{ return xrtOwnershipRefRetain(&((xlogringstate*)Data)->RefCount)>0; }
+static void __xrtLogRingStateDrop(const void* Data) { __xrtLogRingStateRelease((xlogringstate*)Data); }
+static bool __xrtLogRingStateClaim(const void* Data,const void* Token)
+{
+ xlogringstate* State=(xlogringstate*)Data;
+ if(!Token||State->OwnershipCleared||(State->OwnershipClaim&&State->OwnershipClaim!=Token))return false;
+ State->OwnershipClaim=Token;return true;
+}
+static void __xrtLogRingStateRestore(const void* Data,const void* Token)
+{
+ xlogringstate* State=(xlogringstate*)Data;
+ if(State->OwnershipClaim!=Token||State->OwnershipCleared)abort();
+ State->OwnershipClaim=NULL;
+}
+static void __xrtLogRingStateClear(const void* Data,const void* Token)
+{
+ xlogringstate* State=(xlogringstate*)Data;
+ if(State->OwnershipClaim!=Token||State->OwnershipCleared)abort();
+ State->OwnershipCleared=true;
+}
+static bool __xrtLogRingStateFinish(const void* Data,const void* Token)
+{
+ xlogringstate* State=(xlogringstate*)Data;xlogsink* Target=NULL;
+ xrtownershipscope Scope={0};
+ if(!xrtOwnershipMutationBegin(&Scope))return false;
+ if(State->OwnershipClaim!=Token||!State->OwnershipCleared)abort();
+ if(!State->OwnershipFinished){Target=State->Target;State->Target=NULL;State->OwnershipFinished=true;}
+ (void)xrtOwnershipScopeEnd(&Scope);
+ xrtLogSinkFree(Target);return true;
+}
+static const xrtownershipops __xrtLogRingStateOps={__xrtLogRingStateCount,__xrtLogRingStateTrace};
+static const xrtownershipadapterv1 __xrtLogRingStateAdapter={sizeof(xrtownershipadapterv1),
+ __xrtLogRingStateHold,__xrtLogRingStateDrop,__xrtLogRingStateClaim,__xrtLogRingStateRestore,NULL,__xrtLogRingStateClear,__xrtLogRingStateFinish};
+static bool __xrtLogRingStatePayload(const void* Data,xrtownershipvisitor Visit,void* Context)
+{ return Data && Visit && Visit((xrtownershipref){Data,&__xrtLogRingStateOps},Context); }
+static bool __xrtLogRingStateWorkerSafe(const void* Data)
+{ return Data && xrtLogSinkWorkerSafe(((const xlogringstate*)Data)->Target); }
+XRT_API const xlogsinkownershipv1* xrtLogRingSinkOwnershipV1Get(void)
+{ static const xlogsinkownershipv1 Policy={sizeof(Policy),__xrtLogRingStatePayload,__xrtLogRingStateWorkerSafe};return &Policy; }
+XRT_API const xrtownershipadapterv1* xrtLogRingOwnershipAdapterV1(xrtownershipref Ref)
+{ return Ref.Data && Ref.Ops==&__xrtLogRingStateOps ? &__xrtLogRingStateAdapter : NULL; }
 
 #endif

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [net.md](net.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `497` 个函数、`288` 个常量或宏、
-`139` 个公共类型。
+当前登记 `516` 个函数、`288` 个常量或宏、
+`141` 个公共类型。
 
 ## `include/xrt/net.h`
 
@@ -512,6 +512,35 @@
 - `xrtNetFileRead`
 - `xrtNetFileWrite`
 
+## `include/xrt/net_file_future.h`
+
+[查看带契约注释的公共头](../../include/xrt/net_file_future.h)
+
+### 函数 (17)
+
+- `xrtNetFileCloseFuture`
+- `xrtNetFileCloseProducerPolicyV1Get`
+- `xrtNetFileCreate`
+- `xrtNetFileDestroy`
+- `xrtNetFileFutureBytesPayloadPolicyV1Get`
+- `xrtNetFileFutureCancelPolicyV1Get`
+- `xrtNetFileFutureOwnershipAdapterV1`
+- `xrtNetFileFutureOwnershipQuiescenceV1Get`
+- `xrtNetFileFutureProducerPolicyV1Get`
+- `xrtNetFileOwnership`
+- `xrtNetFileOwnershipAdapterV1`
+- `xrtNetFileOwnershipQuiescenceV1Get`
+- `xrtNetFileReadFuture`
+- `xrtNetFileRef`
+- `xrtNetFileRuntimeOwnershipV1Get`
+- `xrtNetFileWriteFuture`
+- `xrtNetFileWriteRefPolicyV1`
+
+### 类型 (2)
+
+- `xnetfile`
+- `xnetfiledataownershipv1`
+
 ## `include/xrt/net_frame.h`
 
 [查看带契约注释的公共头](../../include/xrt/net_frame.h)
@@ -686,7 +715,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/tcp.h)
 
-### 函数 (100)
+### 函数 (102)
 
 - `xrtNetConnect`
 - `xrtNetDial`
@@ -741,6 +770,7 @@
 - `xrtNetStreamConfigInit`
 - `xrtNetStreamConfigValid`
 - `xrtNetStreamConnect`
+- `xrtNetStreamConnectOwnedV1`
 - `xrtNetStreamConsume`
 - `xrtNetStreamData`
 - `xrtNetStreamDestroy`
@@ -779,6 +809,7 @@
 - `xrtNetStreamWaitAsync`
 - `xrtNetStreamWaitAvailable`
 - `xrtNetStreamWaitAvailableAsync`
+- `xrtNetStreamWaitRetired`
 - `xrtNetStreamWorker`
 - `xrtNetStreamWritable`
 - `xrtNetStreamWriteLimit`
