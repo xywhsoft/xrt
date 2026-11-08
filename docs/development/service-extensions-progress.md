@@ -7626,3 +7626,84 @@ maps, closure recipes and logs are under the feature's ignored `integration/`
 directory. Final synchronization is a clean-primary-checkout fast-forward only;
 no remote push is authorized or performed. Continue nominal DST delivery and
 durable recovery, plus the remaining Redis/RPC/MQTT scopes; goal stays active.
+
+### 2026-11-08: explicit complete nominal-label selection
+
+Added the developing `xcron_delivery` calculation leaf and public
+`xcronDeliveryResolve`. It resolves one floating label completely, then applies
+ALL/FIRST/LAST/REJECT fold selection and SKIP/REJECT missing-label handling.
+The complete candidate count remains available independently of selected output
+capacity. Global first/last selection does not change when a later query window
+excludes earlier instants. Unknown coverage cannot be waived by selection.
+Valid civil labels outside the representable timeline are missing under this API.
+Fractions, more than two candidates, negative/zero/half-hour DST and the full
+signed-int64 timestamp endpoints are covered. Structural failures preserve every
+output; typed policy/zone errors survive diagnostic OOM. No new owned resource,
+thread, timer, filesystem, network or shared runtime is introduced.
+
+This is the single-label foundation for nominal delivery. It does not implement
+expression matching, recurring policy search, gap shift/compensation, physical
+delivery metadata or persistence. Existing actual-instant zoned/kernel/service
+semantics and implementations are unchanged. These remaining stages are still
+required by the full goal, not removed from its scope.
+
+Both Windows and WSL pass 25 full modular/single programs, the offline example,
+static/shared real consumers and direct/generated declaration layouts (policy8,
+issue16 on both x64 platforms). WSL uses O2 ASan/UBSan/leak-halt and additionally
+passes two O1 TSan selection units. Windows 85 tooling tests and generated/docs
+checks pass; the public reference now contains 68 functions, 181 constants and
+77 types. The first prototype test compile's misleading-indentation error is
+fixed before the accepted window; original failure logs are retained.
+
+A raw independently authored TZif constructs 256 simultaneous valid candidates
+with a shared designation and known future footer. Independent UTC stepping
+checks 768 labels through 64 arbitrary histories under all eight policies,
+including required capacity and unchanged output tails. Tests cover global
+unknown completeness, aliases/wrapped spans, typed strict errors under OOM,
+20000 warmed calls with unchanged allocation/error identity and four concurrent
+retained owners. The IANA oracle independently uses zoneinfo states, stored/footer
+offsets and explicit RFC unknown coverage, checking all eight policies after
+source-byte retirement. Each OS checks the same 422 frozen 2026e zones, 188532
+labels and 1508256 calls: 946736 FOUND, 207712 NONE, 102040 AMBIGUOUS, 207712
+MISSING and 44056 UNKNOWN. Their complete portable oracle JSONs agree exactly.
+
+One 258-timestamp selection scratch remains in addition to the underlying
+resolver's temporary; normal operations request no heap. ALL+SKIP delegates the
+original complete resolver after its own checks. Selected paths copy only their
+accepted result after capacity checks. O2 assembly retains separate helpers:
+Windows main/selected static stack subtractions are 184/2176 bytes; WSL main has
+120 and an additional8-byte subtraction, selected2136. These are static local
+frame instructions excluding pushes/callees, not a whole-call stack maximum.
+Repeated validation/calls/copies and complete unknown checks are real costs.
+
+Both platforms pass single/static/shared size profiles and forbidden symbols.
+Single objects include their Core closure; static/shared own xcron only and use
+a separate companion XRT. The original performance configuration incorrectly
+used a facts dictionary: the tool rejected it before compiling any benchmark.
+The failed log/config/runner are retained. Only that JSON metadata changes after
+the functional window, to a list of fact names. Product/tests/generated source
+bytes are identical; original functional/size maps and receipts are preserved.
+The final 2505-input measurement maps agree between platforms and are verified
+before/after measurement; 13 targeted performance-tool tests also pass.
+
+Four sequential-platform O2 profiles time original resolution, ALL, FIRST and
+LAST in 32-call batches, five repeats plus one warmup, retaining P50/P95/P99/P99.9
+and original MAD3%/central6% plus 5% throughput/10% P99 defaults. Both reports
+exit1 on noise and remain unaccepted; no baseline is rewritten or force paired.
+Windows raw throughput medians are 7.152M/6.164M/6.026M/5.679M labels/s and batch
+P99 6.7/6.4/8.9/9.3us respectively. WSL records
+6.072M/5.541M/5.348M/5.605M and 8.2/9.6/10.3/9.4us. These are unqualified
+observations for a precompiled two-fold POSIX label, excluding cold work,
+binary-history throughput, unknown/errors, recurring search, queueing and bodies.
+The identical-result ALL path's observed raw throughput ratios are about 0.862
+and 0.913; this is not a qualified regression bound or a causal estimate. Source
+review identifies duplicate output validation even with no requested Issue.
+Optimize that path next while preserving all alias/typed-error/unknown contracts;
+the raw current samples are the archived before state, not an accepted baseline.
+
+Portable evidence: `extlibs/xcron/tests/results/delivery-selection-20261108.json`.
+Raw commands, source maps, probes, oracle reports, prototype/config failures,
+assembly and samples remain under `out/service-extensions/xcron-delivery/`.
+Native Linux, production performance, >=72h, recurring selection/compensation,
+durability and the remaining Redis/RPC/MQTT scopes stay open. All four products
+remain developing and the overall goal stays active.

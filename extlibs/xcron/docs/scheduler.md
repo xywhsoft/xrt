@@ -56,7 +56,9 @@ Begin/End are an explicit inclusive XRT millisecond window, with the usual
 XCRON_SEARCH_EXCLUSIVE Begin option. XRT epoch is 0001-01-01; use
 XRT_TIME_UNIX_EPOCH for Unix epoch. Recurrence uses actual zoned instants:
 all folds participate in UTC order, missing labels do not fire. Configurable
-nominal gap compensation and fold selection are still pending.
+nominal gap compensation and recurring fold selection are still pending. The
+separate [nominal-label selection primitive](delivery.md) resolves explicit
+single labels; it does not reconfigure this kernel's existing jobs.
 
 Poll accepts equal/increasing monotonic samples and rejects regression atomically.
 Wall samples may jump either direction. A forward jump creates policy-controlled

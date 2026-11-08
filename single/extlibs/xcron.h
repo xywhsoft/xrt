@@ -91,6 +91,19 @@
 #ifndef XCRON_MODULE_XCRON_TZDB_FILE
 #define XCRON_MODULE_XCRON_TZDB_FILE
 #endif
+#ifndef XCRON_MODULE_XCRON_DELIVERY
+#define XCRON_MODULE_XCRON_DELIVERY
+#endif
+#endif
+
+/* xcron_delivery 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_DELIVERY)
+#ifndef XCRON_FEATURE_XCRON_DELIVERY
+#define XCRON_FEATURE_XCRON_DELIVERY
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
 #endif
 
 /* xcron_tzdb_file 及其直接依赖。 */
@@ -1187,6 +1200,62 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/delivery.h */
+/* ========================================================================== */
+
+#ifndef XCRON_DELIVERY_H
+#define XCRON_DELIVERY_H
+#if defined(XCRON_FEATURE_XCRON_DELIVERY) && !defined(XCRON_FEATURE_XCRON_TIMEZONE)
+#error "cron delivery requires timezone"
+#endif
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+typedef enum xcronfoldpolicy {XCRON_FOLD_ALL=0,XCRON_FOLD_FIRST,XCRON_FOLD_LAST,XCRON_FOLD_REJECT} xcronfoldpolicy;
+typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT} xcronmissingpolicy;
+typedef struct xcrondeliverypolicy {xcronfoldpolicy Fold;xcronmissingpolicy Missing;} xcrondeliverypolicy;
+typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1} xcrondeliverystatus;
+typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING} xcrondeliveryerror;
+/* Candidates is the complete actual multiplicity, before selection, when known.
+ * Zone applies to ZONE errors. Count below is the SELECTED required capacity. */
+typedef struct xcrondeliveryissue {xcrondeliveryerror Code;xcronzoneerror Zone;size_t Candidates;} xcrondeliveryissue;
+XRT_EXTERN_C_BEGIN
+/* Resolve ONE floating nominal civil label, then apply explicit policies to its
+ * COMPLETE ascending candidate set. ALL keeps every candidate (including more
+ * than two); FIRST/LAST keep the global earliest/latest, not the first one within
+ * a later query window. REJECT fails AMBIGUOUS when multiplicity exceeds one.
+ * Offset/IsDST/derived civil fields are ignored as in ZoneResolve. Fractions and
+ * the full signed-int64 timestamp domain are supported. Missing SKIP returns
+ * NONE/Count0; REJECT fails MISSING. Missing includes an otherwise valid civil
+ * label outside the representable timestamp domain. UNKNOWN coverage remains a
+ * typed ZONE/UNKNOWN error even if a subset of known candidates might suffice.
+ * No silent UTC fallback, gap shifting, expression matching, recurrence search,
+ * clock/misfire/overlap/executor/storage or existing-job reconfiguration occurs.
+ * Those scheduling/delivery stages remain separate and developing.
+ *
+ * Caller holds the exact immutable Zone and stable Local for the synchronous
+ * call. No retention, mutation, heap/IO/lock on normal FOUND/NONE/CAPACITY.
+ * Capacity0/CandidatesNULL is a sizing query. FOUND writes Count and selected
+ * candidates; CAPACITY writes required selected Count/Issue and leaves the
+ * candidate array intact. ERROR preserves Count/array. Invalid structural args,
+ * policies/spans/aliases preserve EVERY output, including Issue. Other errors
+ * publish typed Issue independently of diagnostic allocation. All output spans
+ * must avoid Local, the whole zone/footer ownership graph and one another.
+ * Normal results preserve the ambient error; diagnostics may allocate.
+ *
+ * ALL+SKIP delegates one original complete Resolve directly. Other policies
+ * use one258-timestamp stack scratch, in addition to Resolve's own temporary,
+ * and copy only selected results after checking capacity. Complete resolution
+ * still enumerates known offset types and checks unknown coverage; this is a
+ * synchronous calculation primitive, not a bounded owner-turn search budget.
+ * Existing actual-occurrence APIs and scheduler semantics are unchanged.
+ * Error domain: xrt.cron.delivery. */
+XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Zone,const xdatetime* Local,xcrondeliverypolicy Policy,
+    xtime* Candidates,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -1212,6 +1281,10 @@ XRT_EXTERN_C_END
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_ZONED)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_ZONED"
+#endif
+
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_DELIVERY)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_DELIVERY"
 #endif
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_SCHEDULER)
@@ -4380,6 +4453,54 @@ XCRON_API bool xcronTzdbLoadRoot(xcrontzdb* D,xroot Root,xstrview Version,const 
     if(!Root){xrtSetErrorInfo(XERR_ARGUMENT,"xrt.cron.tzdb",XCRON_TZDB_ARGUMENT,"cron tzdb requires a live explicit root");return false;}
     xcrontzdbsource Source={.Names=Names,.Count=Count,.Read=xcronTzdbReadRoot,.Context=Root};
     return xcronTzdbLoadSource(D,Version,&Source,Expected,Revision,Issue);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/delivery/delivery.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+#include <string.h>
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+static xcrondeliverystatus xcronDeliveryFail(xcrondeliveryerror Code,xcronzoneerror Zone,size_t Candidates,xcrondeliveryissue* Issue)
+{
+    if(Issue)*Issue=(xcrondeliveryissue){Code,Zone,Candidates};
+    xrtSetErrorInfo(Code==XCRON_DELIVERY_ARGUMENT?XERR_ARGUMENT:Code==XCRON_DELIVERY_ZONE && Zone==XCRON_ZONE_UNKNOWN?XERR_STATE:XERR_VALUE,
+        "xrt.cron.delivery",Code,"cron nominal label selection failed");return XCRON_DELIVERY_ERROR;
+}
+static xcrondeliverystatus xcronDeliverySelected(const xcronzone* Z,const xdatetime* Local,xcrondeliverypolicy P,
+    xtime* Out,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue)
+{
+    /* TZif has at most256 types plus two footer offsets; POSIX has at most two.
+     * Keep completeness before selecting, including conservative UNKNOWN checks. */
+    xtime Values[258];size_t N=0;xcronzoneissue Work={0};
+    xcronzonestatus Status=xcronZoneResolve(Z,Local,Values,258,&N,&Work);
+    if(Status==XCRON_ZONE_ERROR)return xcronDeliveryFail(XCRON_DELIVERY_ZONE,Work.Code,0,Issue);
+    if(Status==XCRON_ZONE_CAPACITY)return xcronDeliveryFail(XCRON_DELIVERY_LIMIT,XCRON_ZONE_LIMIT,N,Issue);
+    if(!N && P.Missing==XCRON_MISSING_REJECT)return xcronDeliveryFail(XCRON_DELIVERY_MISSING,XCRON_ZONE_OK,0,Issue);
+    if(N>1 && P.Fold==XCRON_FOLD_REJECT)return xcronDeliveryFail(XCRON_DELIVERY_AMBIGUOUS,XCRON_ZONE_OK,N,Issue);
+    size_t Required=P.Fold==XCRON_FOLD_ALL?N:N?1:0;
+    if(Issue)*Issue=(xcrondeliveryissue){Required>Capacity?XCRON_DELIVERY_LIMIT:XCRON_DELIVERY_OK,XCRON_ZONE_OK,N};
+    *Count=Required;
+    if(Required>Capacity)return XCRON_DELIVERY_CAPACITY;
+    if(Required)memcpy(Out,Values+(P.Fold==XCRON_FOLD_LAST?N-1:0),Required*sizeof(*Out));
+    return Required?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
+}
+XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Z,const xdatetime* Local,xcrondeliverypolicy P,
+    xtime* Out,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue)
+{
+    void* O[]={Out,Count,Issue};size_t S[]={Capacity<=SIZE_MAX/sizeof(*Out)?Capacity*sizeof(*Out):0,Count?sizeof(*Count):0,Issue?sizeof(*Issue):0};
+    if(!Local || !Count || Capacity>SIZE_MAX/sizeof(*Out) || (!Out && Capacity) ||
+        P.Fold<XCRON_FOLD_ALL || P.Fold>XCRON_FOLD_REJECT || P.Missing<XCRON_MISSING_SKIP || P.Missing>XCRON_MISSING_REJECT ||
+        !xcronZoneOutputs(Z,Local,sizeof(*Local),O,S,3))return xcronDeliveryFail(XCRON_DELIVERY_ARGUMENT,XCRON_ZONE_OK,0,NULL);
+    if(P.Fold!=XCRON_FOLD_ALL || P.Missing!=XCRON_MISSING_SKIP)return xcronDeliverySelected(Z,Local,P,Out,Capacity,Count,Issue);
+    xcronzoneissue Work={0};xcronzonestatus Status=xcronZoneResolve(Z,Local,Out,Capacity,Count,&Work);
+    if(Status==XCRON_ZONE_ERROR)return xcronDeliveryFail(XCRON_DELIVERY_ZONE,Work.Code,0,Issue);
+    if(Issue)*Issue=(xcrondeliveryissue){Status==XCRON_ZONE_CAPACITY?XCRON_DELIVERY_LIMIT:XCRON_DELIVERY_OK,XCRON_ZONE_OK,*Count};
+    return Status==XCRON_ZONE_CAPACITY?XCRON_DELIVERY_CAPACITY:Status==XCRON_ZONE_FOUND?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
 }
 #endif
 #endif

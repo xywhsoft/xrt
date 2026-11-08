@@ -15,7 +15,9 @@ labels have no actual occurrence, and all repeated instants are eligible,
 including multi-fold histories with more than two instances. This actual-time
 predicate corresponds to the matching model described in the upstream
 [Cronie crontab manual](https://github.com/cronie-crond/cronie/blob/master/man/crontab.5).
-Nominal-time gap compensation, choosing a subset of folds and delivery after
+The separate [delivery leaf](delivery.md) can select all/first/last or reject a
+single nominal label after complete resolution. It does not change this ordered
+actual-occurrence search. Nominal-time gap compensation, recurring fold selection and delivery after
 clock jumps/misfires remain explicit scheduler policy work; this primitive
 neither invents shifted labels nor implements execution.
 

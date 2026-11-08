@@ -108,5 +108,11 @@ int main(void)
 	xrtClearError();
 	if (!consumerService()) return 20;
 	if (!consumerTzdb()) return 28;
+	xcronzone* DeliveryZone=NULL;
+	if (!xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&DeliveryZone,NULL)) return 29;
+	xdatetime Local={.Year=2024,.Month=11,.Day=3,.Hour=1,.Minute=30};xtime Selected;size_t SelectedCount;xcrondeliveryissue DeliveryIssue;
+	bool DeliveryOK=xcronDeliveryResolve(DeliveryZone,&Local,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Selected,1,&SelectedCount,&DeliveryIssue)==XCRON_DELIVERY_FOUND && SelectedCount==1 && DeliveryIssue.Candidates==2;
+	xcronZoneRelease(DeliveryZone);
+	if (!DeliveryOK) return 30;
 	return 0;
 }

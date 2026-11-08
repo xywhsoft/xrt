@@ -785,6 +785,190 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xcron_delivery_raw",
+      "system": "delivery",
+      "description": "Complete repeated-label resolution: raw; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_raw",
+          "source": "extlibs/xcron/bench/bench_delivery.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "path"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_delivery_all",
+      "system": "delivery",
+      "description": "Complete repeated-label resolution: all; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_all",
+          "source": "extlibs/xcron/bench/bench_delivery.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "path"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_delivery_first",
+      "system": "delivery",
+      "description": "Complete repeated-label resolution: first; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_first",
+          "source": "extlibs/xcron/bench/bench_delivery.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "2"
+          ],
+          "smoke_args": [
+            "100",
+            "2"
+          ],
+          "facts": [
+            "batch_size",
+            "path"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_delivery_last",
+      "system": "delivery",
+      "description": "Complete repeated-label resolution: last; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_last",
+          "source": "extlibs/xcron/bench/bench_delivery.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "3"
+          ],
+          "smoke_args": [
+            "100",
+            "3"
+          ],
+          "facts": [
+            "batch_size",
+            "path"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

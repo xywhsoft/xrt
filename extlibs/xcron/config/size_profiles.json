@@ -147,6 +147,28 @@
         "_xcronSchedulerCreate",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_delivery",
+      "system": "delivery",
+      "suite": "xcron_delivery",
+      "description": "Explicit nominal-label selection and complete timezone dependency closure; no calendar/filesystem/network/scheduler",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronCalendarNext",
+        "xcronSchedulerCreate",
+        "xrtRootOpen",
+        "xrtFileOpen",
+        "xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronCalendarNext",
+        "_xcronSchedulerCreate",
+        "_xrtRootOpen",
+        "_xrtFileOpen",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

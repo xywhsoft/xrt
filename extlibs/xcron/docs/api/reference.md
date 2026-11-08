@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `67` 个函数、`164` 个常量或宏、
-`71` 个公共类型。
+当前登记 `68` 个函数、`181` 个常量或宏、
+`77` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -49,6 +49,46 @@
 - `xcroncalendarstatus`
 - `xcronexpression`
 - `xcronfield`
+
+## `extlibs/xcron/include/xcron/delivery.h`
+
+[查看带契约注释的公共头](../../include/xcron/delivery.h)
+
+### 函数 (1)
+
+- `xcronDeliveryResolve`
+
+### 常量与宏 (18)
+
+- `XCRON_DELIVERY_AMBIGUOUS`
+- `XCRON_DELIVERY_ARGUMENT`
+- `XCRON_DELIVERY_CAPACITY`
+- `XCRON_DELIVERY_ERROR`
+- `XCRON_DELIVERY_FOUND`
+- `XCRON_DELIVERY_LIMIT`
+- `XCRON_DELIVERY_MISSING`
+- `XCRON_DELIVERY_NONE`
+- `XCRON_DELIVERY_OK`
+- `XCRON_DELIVERY_ZONE`
+- `XCRON_FEATURE_XCRON_DELIVERY`
+- `XCRON_FEATURE_XCRON_TIMEZONE`
+- `XCRON_FOLD_ALL`
+- `XCRON_FOLD_FIRST`
+- `XCRON_FOLD_LAST`
+- `XCRON_FOLD_REJECT`
+- `XCRON_MISSING_REJECT`
+- `XCRON_MISSING_SKIP`
+
+### 类型 (8)
+
+- `xcrondeliveryerror`
+- `xcrondeliveryissue`
+- `xcrondeliverypolicy`
+- `xcrondeliverystatus`
+- `xcronfoldpolicy`
+- `xcronmissingpolicy`
+- `xcronzone`
+- `xcronzoneerror`
 
 ## `extlibs/xcron/include/xcron/executor.h`
 
@@ -193,7 +233,7 @@
 - `XCRON_SCHEDULER_OK`
 - `XCRON_SCHEDULER_STALE`
 
-### 类型 (18)
+### 类型 (17)
 
 - `xcronclock`
 - `xcronjobconfig`
@@ -210,7 +250,6 @@
 - `xcronschedulerissue`
 - `xcronschedulerstats`
 - `xcronwake`
-- `xcronzone`
 - `xcronzonedbudget`
 - `xcronzonedissue`
 
@@ -295,9 +334,8 @@
 - `xcronZoneRetain`
 - `xcronZoneSplit`
 
-### 常量与宏 (22)
+### 常量与宏 (21)
 
-- `XCRON_FEATURE_XCRON_TIMEZONE`
 - `XCRON_ZONE_ARGUMENT`
 - `XCRON_ZONE_CAPACITY`
 - `XCRON_ZONE_DATE`
@@ -320,9 +358,8 @@
 - `XCRON_ZONE_TZIF_MAX`
 - `XCRON_ZONE_UNKNOWN`
 
-### 类型 (6)
+### 类型 (5)
 
-- `xcronzoneerror`
 - `xcronzonegrammar`
 - `xcronzoneissue`
 - `xcronzonestate`

@@ -31,6 +31,20 @@ it measures only this leaf. The calendar leaf has its own search workload.
 The later zone/kernel/executor/service sections cover implemented runtime stages;
 durable recovery and native server performance qualification remain open.
 
+## Nominal-label selection foundation (developing)
+
+The separate [delivery leaf](delivery.md) adds explicit all/first/last/reject
+fold selection and skip/reject missing labels after complete zone resolution.
+`test_delivery.c` constructs256 real candidates in a shared-designation TZif,
+then verifies every policy, required selected capacity and untouched output tails.
+Independent UTC stepping checks768 labels through64 arbitrary16-transition
+histories under all8 policies, including strict error/capacity results. Golden
+negative/half-hour/zero-delta DST, fractions, full-int64 endpoints, globally unknown
+coverage, aliased/wrapped outputs, diagnostic OOM and20000 warmed zero-heap/error-
+preserving calls accompany concurrent immutable owners. Modular/single, runnable
+example and real external static/shared consumers exercise the new public API.
+This does not change scheduler selection or implement gap compensation yet.
+
 ## Gregorian calendar contracts
 
 The [calendar guide](calendar.md) defines exact fractional-second and interval

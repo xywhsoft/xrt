@@ -82,6 +82,13 @@
         "source_roots": [
           "tzdb_file"
         ]
+      },
+      {
+        "name": "delivery",
+        "state": "retained",
+        "source_roots": [
+          "delivery"
+        ]
       }
     ]
   },
@@ -116,7 +123,8 @@
         "xcron_executor",
         "xcron_service",
         "xcron_tzdb",
-        "xcron_tzdb_file"
+        "xcron_tzdb_file",
+        "xcron_delivery"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -315,6 +323,39 @@
       ]
     },
     {
+      "name": "xcron_delivery",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_DELIVERY",
+      "depends": [
+        "xcron_timezone"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/delivery.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/delivery/delivery.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_delivery.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_delivery.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/delivery/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_delivery.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/delivery.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
       "name": "xcron_zoned",
       "state": "developing",
       "feature": "XCRON_FEATURE_XCRON_ZONED",
@@ -483,7 +524,8 @@
         "extlibs/xcron/tests/test_executor.c",
         "extlibs/xcron/tests/test_service.c",
         "extlibs/xcron/tests/test_tzdb.c",
-        "extlibs/xcron/tests/test_tzdb_file.c"
+        "extlibs/xcron/tests/test_tzdb_file.c",
+        "extlibs/xcron/tests/test_delivery.c"
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
@@ -496,7 +538,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_service.c",
         "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c",
         "extlibs/xcron/tests/single/test_single_xcron_tzdb.c",
-        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c"
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c",
+        "extlibs/xcron/tests/single/test_single_xcron_delivery.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -514,7 +557,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service",
         "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c": "xcron_service",
         "extlibs/xcron/tests/single/test_single_xcron_tzdb.c": "xcron_tzdb",
-        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c": "xcron_tzdb_file"
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c": "xcron_tzdb_file",
+        "extlibs/xcron/tests/single/test_single_xcron_delivery.c": "xcron_delivery"
       }
     }
   ]

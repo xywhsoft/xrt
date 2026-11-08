@@ -115,3 +115,8 @@ compilation/calendar benchmark is workload evidence, not scheduler throughput or
 latency acceptance. The [full goal](../../docs/development/service-extensions-plan.md)
 and [progress ledger](../../docs/development/service-extensions-progress.md)
 preserve the remaining delivery scope.
+
+The developing `xcron_delivery` leaf provides explicit single-label fold/missing
+selection after complete resolution. Run its [offline example](examples/delivery/README.md)
+and read [selection semantics/costs](docs/delivery.md). Existing recurring kernel/
+service policies are unchanged; gap compensation and recurring selection remain.
