@@ -7518,3 +7518,81 @@ the unresolved original performance gates remain required. Continue named-zone
 database/reload, nominal DST delivery, durability and the full Redis/RPC/MQTT
 scopes; all four libraries remain developing with native/performance/>=72h gates
 open. No recurring benchmark rerun is treated as new product completion.
+
+### 2026-11-08: xcron named TZif snapshots and explicit root reload
+
+Implemented `xcron_tzdb` and optional `xcron_tzdb_file` as developing leaves,
+with11 public operations and runnable memory/file examples. Exact case-sensitive
+names select independently decoded immutable TZif zones; no process TZ, implicit
+directory, worker, download or shared runtime is introduced. Cold builders copy
+and heapsort the manifest outside the publication mutex, then atomically publish
+a complete version with expected-revision checks. Readers retain snapshots and
+independent zones across reload/close/manager destruction. Existing jobs retain
+their original zone until explicit replacement; no cursor or lease is rebased.
+
+One Core allocation quota charges manager, all candidate/current/retired catalog
+arenas, zones/footer rules and temporary load allocations until physically freed.
+Builder/name/byte limits reject excess work. The fixed quota-control allocation,
+native mutex, allocator backing/headers, caller root/inputs and final diagnostic
+remain outside the requested-byte cap; inner lower-level diagnostics are charged.
+Normal Find performs bounded validation/binary search and a retained zone result,
+without heap/IO/publication lock. Acquire adds a mutex/refcount. Aliases are
+decoded separately; no zero-overhead/deduplication claim is made.
+
+Root loading accepts an explicit trusted immutable release root/name manifest,
+regular files <=16MiB, full read/EOF and second metadata check. Observable change,
+missing/escaping/invalid input rejects the whole candidate and rolls it back.
+Publication is atomic, but reading a mutable directory is not a filesystem-wide
+transaction or authenticated release check. Destroy requires Close, zero builders
+and caller-enforced physical exclusion/join of every database call; Loading0
+alone is insufficient. Old external owners can be released afterward.
+
+Functional verification ran November5 before the requested pause; resume-time
+hash checks on November8 confirm identical product/tests/generated source bytes.
+Both Windows and WSL pass23 modular/single programs, both examples, six actual
+IO-wrapper failure paths and static/shared consumers invoking all11 operations.
+WSL additionally passes O2 ASan/UBSan/leak-halt and two O1 TSan units. Windows85
+tool tests and feature/single/reference/docs checks pass. Public reference now
+lists67 functions,164 constants and71 types. Direct/generated declarations agree
+on new public layouts16/32/48/40/64; existing service136/384 layouts are unchanged.
+
+Behavioral tests include286 quota boundaries (all8 footer/history allocation
+positions), malformed-input diagnostic OOM, exact old/candidate quota accounting,
+snapshot/zone lifetime,10000 positive plus10000 negative no-allocation lookups,
+reference/revision saturation, held builders/CAS/close rollback and four readers
+through250 real publications. Each OS imports one422-zone2026e snapshot and
+checks54173 independent offset/state/name queries after input/root/manager
+destruction. Separate3798 named loads/lookups then serve63180 real public cursor
+Next calls and218700 legacy Match calls, with680 expected coverage errors.
+Windows symlink creation is skipped with native error1314; WSL exercises actual
+contained aliases and escape to an existing valid outside file. Wrapped close
+faults consume the file before reporting failure; this does not prove every
+native failed-close scenario. Setup/probe compile failures and their logs remain.
+
+Only benchmark post-sort output/profile metadata changed after the functional
+window, adding batch P50/P95/P99.9 and explicit batch/name/acquisition facts.
+The timed loop and product bytes are unchanged. Final Windows/WSL measurement
+maps agree on2495 captured inputs and match current source. A targeted13-tool-
+test rerun and docs/single checks pass on resume. The original functional map is
+retained, with exactly those two benchmark-only differences recorded separately.
+
+Four O2 profiles retain5 repeats/1 warmup, MAD3%/central-range6% noise and original
+5% throughput/10% P99 defaults. Both initial and expanded reports still exit1 on
+noise; neither is accepted or force paired with another baseline. Final raw
+medians for16/1024 names are Windows11.270M/7.201M lookups/s on a held snapshot,
+8.679M/5.398M with Acquire per lookup; WSL18.854M/7.458M and11.472M/5.943M.
+Whole128-lookup batch P99 medians are17.8/31.3us and26.1/41.0us on Windows,
+13.4/34.8us and23.5/38.3us on WSL. They exclude cold load/IO/concurrent reload/
+workers/body and are not per-lookup or production latency claims. Single/static/
+shared size checks pass for memory and file leaves; single includes the XRT
+closure, whereas static/shared figures own xcron only with separate companion
+XRT. Their sizes cannot be compared as equivalent artifacts.
+
+Portable evidence: `extlibs/xcron/tests/results/tzdb-snapshots-20261108.json`.
+Raw frozen maps, accepted/failed receipts, commands, binaries, logs, reference
+corpus identities and both performance windows remain under
+`out/service-extensions/xcron-tzdb/`. This stage is based on0a35e1d2; the eight
+new independent master commits will be integrated with separate closure evidence.
+Native Linux, original performance acceptance, >=72h runs, nominal DST delivery,
+durability and the remaining Redis/RPC/MQTT scope stay open. All four products
+remain developing and the overall goal remains active.

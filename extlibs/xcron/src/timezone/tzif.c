@@ -233,6 +233,10 @@ bool xcronZoneHistoryOverlap(const xcronzone* Z,const void* Output,size_t Size)
 {const xcronzone* F=Z->History->Footer;return F && xrtMemRangesOverlap(Output,Size,F,F->Bytes);}
 void xcronZoneHistoryRelease(const xcronzone* Z)
 {xcronZoneRelease(Z->History->Footer);}
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+size_t xcronZoneOwnedBytes(const xcronzone* Z)
+{return Z->Bytes+(Z->History && Z->History->Footer?Z->History->Footer->Bytes:0);}
+#endif
 bool xcronZoneHistoryRepeat(const xcronzone* Z,xtime Begin,xtime* First)
 {
     const xcronzonehistory* H=Z->History;

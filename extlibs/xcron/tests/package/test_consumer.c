@@ -2,6 +2,7 @@
 #include <xcron.h>
 #include <string.h>
 #include <xrt/thread.h>
+#include <stdio.h>
 
 static xcronrunresult consumerExecute(const xcronrun* Run,const xcronexecution* Token,ptr Context)
 {(void)Run;(void)Context;return xcronExecutionCancelled(Token)?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED;}
@@ -23,6 +24,22 @@ static bool consumerService(void)
     return xcronServiceReapStopped(S,&Retired,&Found,NULL) && Found && Retired.Id==R.Job && xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
 }
 
+static bool consumerTzdb(void)
+{
+    static const uint8 UTC[54]={[0]='T',[1]='Z',[2]='i',[3]='f',[39]=1,[43]=4,[50]='U',[51]='T',[52]='C'};
+    xcrontzdbconfig C={8,1,1024*1024};xcrontzdb* D=NULL;xcrontzdbsnapshot *Old=NULL,*New=NULL;xcronzone *A=NULL,*B=NULL;uint64 Revision=0;
+    xcrontzdbentry E={XRT_STR_LITERAL("UTC"),{UTC,sizeof(UTC)}};
+    if(!xcronTzdbCreate(&C,&D,NULL) || !xcronTzdbLoad(D,XRT_STR_LITERAL("package-a"),&E,1,0,&Revision,NULL) || !xcronTzdbAcquire(D,&Old,NULL) || !xcronTzdbSnapshotRetain(Old))return false;
+    xcronTzdbSnapshotRelease(Old);xcrontzdbsnapshotinfo Info;xcrontzdbstats Stats;
+    if(!xcronTzdbSnapshotInfo(Old,&Info,NULL) || Info.Revision!=1 || !xcronTzdbInspect(D,&Stats,NULL) || Stats.Names!=1 || xcronTzdbFind(Old,E.Name,&A,NULL)!=XCRON_TZDB_FOUND)return false;
+    char Name[96];int N=snprintf(Name,sizeof(Name),".xcron-tzdb-consumer-%lld-%lld",(long long)xrtNow(),(long long)(xrtTimer()*1000000));if(N<=0 || (size_t)N>=sizeof(Name))return false;
+    xroot Root=xrtRootOpen(".");xfileoptions O={XFILE_WRITE|XFILE_CREATE|XFILE_EXCLUSIVE,0600,XFILE_SHARE_ALL};if(!Root)return false;
+    xfile F=xrtRootFileOpen(Root,Name,&O);if(!F)return false;bool Written=xrtWriteFull(F,UTC,sizeof(UTC),NULL),Closed=xrtClose(F);if(!Written || !Closed)return false;
+    xstrview Key={Name,(size_t)N};if(!xcronTzdbLoadRoot(D,Root,XRT_STR_LITERAL("package-b"),&Key,1,1,&Revision,NULL) || Revision!=2 || !xcronTzdbAcquire(D,&New,NULL) || xcronTzdbFind(New,Key,&B,NULL)!=XCRON_TZDB_FOUND)return false;
+    if(!xrtRootRemove(Root,Name) || !xrtRootClose(Root) || !xcronTzdbClose(D,NULL) || !xcronTzdbDestroy(D,NULL))return false;
+    xcronzonestate S;bool OK=xcronZoneAt(A,XRT_TIME_UNIX_EPOCH,&S,NULL) && !S.Offset && xcronZoneAt(B,XRT_TIME_UNIX_EPOCH,&S,NULL) && !S.Offset;
+    xcronZoneRelease(A);xcronZoneRelease(B);xcronTzdbSnapshotRelease(Old);xcronTzdbSnapshotRelease(New);return OK;
+}
 int main(void)
 {
 	xcronexpression Expression; xcronexpressionissue Issue;
@@ -90,5 +107,6 @@ int main(void)
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.cron") != 0) return 4;
 	xrtClearError();
 	if (!consumerService()) return 20;
+	if (!consumerTzdb()) return 28;
 	return 0;
 }

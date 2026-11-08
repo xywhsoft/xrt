@@ -50,6 +50,10 @@ xcronzonestatus xcronZoneHistoryNext(const xcronzone* Zone,xtime After,xcronzone
 xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Zone,const xdatetime* Date,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue);
 bool xcronZoneHistoryOverlap(const xcronzone* Zone,const void* Output,size_t Size);
 void xcronZoneHistoryRelease(const xcronzone* Zone);
+/* Requested bytes owned by this zone, including an independently owned footer. */
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+size_t xcronZoneOwnedBytes(const xcronzone* Zone);
+#endif
 /* Fraction stays nonnegative at the asymmetric signed-int64 millisecond ends. */
 static inline bool xcronZoneSecondValue(int64 Seconds,int Milli,xtime* Out)
 {

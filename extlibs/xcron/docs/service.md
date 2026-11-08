@@ -139,8 +139,9 @@ observed cold allocation prefixes and warmed dispatch. The fixed-arrival benchma
 records scheduled-to-worker start lateness without deleting slow samples, plus
 owner-sample-to-worker delay, at millisecond clock precision. Its rate is an input,
 not measured maximum throughput. Unpinned smoke is no performance acceptance.
-Named-zone database/reload, durable recovery, nominal DST compensation, native
-Linux and the full long-run/performance gates remain open.
+Explicit [named-zone snapshots/reload](tzdb.md) are available; existing jobs keep
+their retained rules. Durable recovery, nominal DST compensation, native Linux
+and the full long-run/performance gates remain open.
 
 ## Reusable deadline backend
 

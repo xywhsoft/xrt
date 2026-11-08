@@ -111,6 +111,42 @@
         "_xrtTimeLocal",
         "_xrtTimeFromLocal"
       ]
+    },
+    {
+      "name": "xcron_tzdb",
+      "system": "tzdb",
+      "suite": "xcron_tzdb",
+      "description": "Named snapshot/CAS/quota closure with no filesystem dependency",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronSchedulerCreate",
+        "xrtNetEngineCreate",
+        "xrtRootOpen",
+        "xrtFileOpen",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronSchedulerCreate",
+        "_xrtNetEngineCreate",
+        "_xrtRootOpen",
+        "_xrtFileOpen"
+      ]
+    },
+    {
+      "name": "xcron_tzdb_file",
+      "system": "tzdb_file",
+      "suite": "xcron_tzdb_file",
+      "description": "Named snapshot/CAS/quota closure and explicit anchored-file loader",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronSchedulerCreate",
+        "xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronSchedulerCreate",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

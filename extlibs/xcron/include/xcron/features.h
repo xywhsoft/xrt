@@ -28,6 +28,38 @@
 #ifndef XCRON_MODULE_XCRON_SERVICE
 #define XCRON_MODULE_XCRON_SERVICE
 #endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB_FILE
+#define XCRON_MODULE_XCRON_TZDB_FILE
+#endif
+#endif
+
+/* xcron_tzdb_file 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB_FILE)
+#ifndef XCRON_FEATURE_XCRON_TZDB_FILE
+#define XCRON_FEATURE_XCRON_TZDB_FILE
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
+/* xcron_tzdb 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB)
+#ifndef XCRON_FEATURE_XCRON_TZDB
+#define XCRON_FEATURE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
 #endif
 
 /* xcron_service 及其直接依赖。 */

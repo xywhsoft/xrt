@@ -97,8 +97,9 @@ the library matcher or its segment algorithm. Frozen version/hashes are checked.
 Separate dense/fold/full-cycle smoke profiles measure precompiled queries, with
 an isolated-size profile excluding ambient local-time/network/thread symbols.
 They do not establish production throughput, P99, cold costs, native Linux or
-long-duration acceptance. Database reload, leap-aware conversion and the complete
-scheduler/executor/persistence/policy layers remain pending.
+long-duration acceptance. Explicit [database reload](tzdb.md), the
+[scheduler](scheduler.md) and [executor](executor.md) are available. Leap-aware
+conversion, nominal policies, durability and full product qualification remain.
 
 ## Resumable ordered search
 
@@ -163,5 +164,7 @@ unknown-boundary errors, copies/identity/aliases, snapshots, explicit owner
 handoff and diagnostic OOM. The frozen IANA label-enumeration oracle also drives
 the real cursor with varied budgets. Dedicated dense/fold/full-cycle cursor
 profiles at budgets1 and16 include Init, every Step and result inspection.
-They measure query work; live scheduler admission/advancement still needs this
-incremental engine integrated with command fairness and cancellation.
+They measure query work. The [scheduler](scheduler.md) and [live owner](service.md)
+use the shared typed engine with global budgets, fair queries and cancellation.
+The [named database](tzdb.md) supplies explicit retained zones without changing
+the occurrence engine or silently rebasing existing jobs.

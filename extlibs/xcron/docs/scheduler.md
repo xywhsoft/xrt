@@ -146,8 +146,9 @@ including batch P99 (the whole batch, not divided into fictitious per-job latenc
 They exclude threads/timers/storage and do not establish production/performance
 acceptance. Native Linux, mixed load, adversarial P99 and >=72h qualification remain.
 
-Named database/reload and leap-aware conversion, nominal DST delivery choices
-and durable crash recovery remain incomplete. The borrowed Executor adapter and
+Leap-aware conversion, nominal DST delivery choices and durable crash recovery
+remain incomplete. The [named database](tzdb.md) supplies explicit snapshots/reload;
+existing jobs keep their retained rules. The borrowed Executor adapter and
 live owner have separate [execution](executor.md) and [service](service.md)
 contracts, including cancellation and no-effect rejection recovery. The module
 and root stay developing; no scheduler-product completion is claimed.

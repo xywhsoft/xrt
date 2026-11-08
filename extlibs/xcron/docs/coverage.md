@@ -2,9 +2,10 @@
 
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
-provides explicit POSIX rules and owned non-leap TZif history. Database lookup/
-reload, leap-aware conversion, nominal delivery policies and persistence are
-pending. Live service and executor stages are described below. Expression syntax
+provides explicit POSIX rules and owned non-leap TZif history. Explicit named
+database snapshots/reload are available. Leap-aware conversion, nominal delivery
+policies and persistence are pending. Live service and executor stages are
+described below. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
 Implementation follows the public [Cronie manual](https://www.man7.org/linux/man-pages/man5/crontab.5.html)
 independently; no reference scheduler code is embedded.
@@ -112,8 +113,8 @@ at and after its boundary, with additional historical/future random dates.
 Raw RFC coverage is checked separately because zoneinfo otherwise extends the
 last table type when a footer is missing. Unknown/partial outcomes are verified
 as such; they are not counted as successful complete resolutions. No upstream
-implementation source is read or embedded. Full database/time-scale/scheduler
-qualification remains pending.
+implementation source is read or embedded. Explicit named database coverage is
+described below; full time-scale/scheduler/production qualification remains pending.
 
 ## Ordered actual zoned occurrences (developing)
 
@@ -178,6 +179,19 @@ deferred unknown-coverage failure leaves no job/body/retirement duty. Existing
 service adversarial, OOM, metadata-credit and concurrency tests run on this path.
 
 # Actual executor adapter stage
+
+The [named database](tzdb.md) has separate memory/file leaves. Tests cover exact
+case-sensitive names, in-place sorted lookup, copied input/version, old snapshots
+and independent zones surviving replacement/manager destruction, CAS races,
+bounded builders, close during cold work, aggregate old+candidate quotas, typed
+diagnostic OOM, reference/revision exhaustion and warmed zero-heap lookup.
+Four actual readers also query coherent snapshots during250 real publications.
+Root tests load real files and contained aliases, reject escape/missing/invalid/
+nonregular/oversize members and keep old publication on failure. A separate
+modular link-wrap unit injects Core read/trailer/metadata/stat/close outcomes;
+it asserts every injected branch ran and checks publication/resource rollback.
+These fault injections are distinct from real native filesystem behavior and
+do not certify native failed-close resource handling or production acceptance.
 
 The developing `xcron_executor` leaf adds real public-XRT worker execution,
 bounded preallocation/ID lookup/completion publication, cooperative cancellation,

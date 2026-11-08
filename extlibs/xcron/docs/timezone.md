@@ -2,7 +2,8 @@
 
 The timezone leaf compiles POSIX TZ strings, TZif-v3 extended rule strings,
 and owned RFC9636 application/tzif v1..4 binary histories independently.
-Named database lookup/reload and leap-aware conversion are pending. The separate
+The separate [named database](tzdb.md) supplies explicit lookup/reload; leap-aware
+conversion remains pending. The separate
 [zoned leaf](zoned.md) provides actual-occurrence cron search.
 No host TZ environment, libc global timezone state or installed data is consulted.
 
@@ -19,7 +20,8 @@ corrections. Leap labels are
 outside this timescale. Diagnostics do not determine semantic status.
 
 Rules follow [RFC 9636](https://www.rfc-editor.org/rfc/rfc9636.html), section 3.3,
-and its POSIX TZ reference. Full database/time-scale integration and production qualification
+and its POSIX TZ reference. Named snapshots/import/reload live in the separate
+[database leaves](tzdb.md). Time-scale integration and production qualification
 remain required by the four-library plan. This leaf stays developing.
 
 ## Explicit rule bounds and costs
@@ -65,7 +67,7 @@ zero-overhead claim.
 
 `xcronZoneCreateTzif` takes an `xbytesview`, copies/decode its authoritative
 history and retains nothing from the input. The application chooses and pins
-the data source; the extension does no pathname lookup, IO or installed-database
+the data source; this timezone leaf does no pathname lookup, IO or installed-database
 fallback. [The offline binary example](../examples/tzif/README.md) demonstrates
 input retirement and exact UTC resolution.
 
@@ -112,5 +114,6 @@ allocation/error-preserving queries and concurrent retained owners. A frozen
 IANA 2026e corpus is compared independently with Python zoneinfo and explicit
 RFC coverage rules, including unknown and incomplete resolutions. Portable
 evidence is recorded in the progress ledger/results. The separate 4096-change
-benchmark measures decoded-history lookup only. Database reload, nominal delivery
-policies, full scheduler workloads and performance/production acceptance remain.
+benchmark measures decoded-history lookup only. See the separate [database](tzdb.md)
+for explicit reload. Nominal delivery policies, durable/full scheduler workloads
+and performance/production acceptance remain.

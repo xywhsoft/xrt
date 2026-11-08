@@ -85,6 +85,38 @@
 #ifndef XCRON_MODULE_XCRON_SERVICE
 #define XCRON_MODULE_XCRON_SERVICE
 #endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB_FILE
+#define XCRON_MODULE_XCRON_TZDB_FILE
+#endif
+#endif
+
+/* xcron_tzdb_file 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB_FILE)
+#ifndef XCRON_FEATURE_XCRON_TZDB_FILE
+#define XCRON_FEATURE_XCRON_TZDB_FILE
+#endif
+#ifndef XCRON_MODULE_XCRON_TZDB
+#define XCRON_MODULE_XCRON_TZDB
+#endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#endif
+
+/* xcron_tzdb 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_TZDB)
+#ifndef XCRON_FEATURE_XCRON_TZDB
+#define XCRON_FEATURE_XCRON_TZDB
+#endif
+#ifndef XCRON_MODULE_XCRON_TIMEZONE
+#define XCRON_MODULE_XCRON_TIMEZONE
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
 #endif
 
 /* xcron_service 及其直接依赖。 */
@@ -1027,6 +1059,134 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/tzdb.h */
+/* ========================================================================== */
+
+#ifndef XCRON_TZDB_H
+#define XCRON_TZDB_H
+#if defined(XCRON_FEATURE_XCRON_TZDB) && (!defined(XCRON_FEATURE_XCRON_TIMEZONE) || !defined(XRT_FEATURE_MUTEX))
+#error "cron tzdb requires timezone and mutex"
+#endif
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+#define XCRON_TZDB_NAMES_MAX 65535u
+#define XCRON_TZDB_NAME_MAX 255u
+#define XCRON_TZDB_VERSION_MAX 64u
+#define XCRON_TZDB_LOADS_MAX 1024u
+#define XCRON_TZDB_ANY_REVISION UINT64_MAX
+#define XCRON_TZDB_NO_INDEX SIZE_MAX
+typedef struct xcrontzdb xcrontzdb;
+typedef struct xcrontzdbsnapshot xcrontzdbsnapshot;
+typedef enum xcrontzdbstatus {XCRON_TZDB_ERROR=-1,XCRON_TZDB_NONE=0,XCRON_TZDB_FOUND=1} xcrontzdbstatus;
+typedef enum xcrontzdberror {
+    XCRON_TZDB_OK=0,XCRON_TZDB_ARGUMENT=7001,XCRON_TZDB_NAME,XCRON_TZDB_VERSION,
+    XCRON_TZDB_DUPLICATE,XCRON_TZDB_LIMIT,XCRON_TZDB_MEMORY,XCRON_TZDB_ZONE,
+    XCRON_TZDB_IO,XCRON_TZDB_STALE,XCRON_TZDB_EMPTY,XCRON_TZDB_CLOSED,XCRON_TZDB_BUSY,XCRON_TZDB_SYSTEM
+} xcrontzdberror;
+/* Index is the original input position (not sorted order), or NO_INDEX. Zone
+ * keeps typed parser failures even if its diagnostic allocation fails. Cause/
+ * SystemCode describe a failed underlying IO operation when available. */
+typedef struct xcrontzdbissue {xcrontzdberror Code;size_t Index;xcronzoneissue Zone;xerrkind Cause;int32 SystemCode;} xcrontzdbissue;
+typedef struct xcrontzdbconfig {uint32 NamesLimit,LoadLimit;size_t BytesLimit;} xcrontzdbconfig;
+/* Name is an exact case-sensitive identifier; Tzif is borrowed only during Load. */
+typedef struct xcrontzdbentry {xstrview Name;xbytesview Tzif;} xcrontzdbentry;
+/* Version borrows this retained snapshot. Bytes includes its arena/decoded zones. */
+typedef struct xcrontzdbsnapshotinfo {uint64 Revision;size_t Names,Bytes;xstrview Version;} xcrontzdbsnapshotinfo;
+typedef struct xcrontzdbstats {
+    uint64 Revision;uint32 Loading,Names;size_t BytesLimit,LiveBytes,PeakBytes,LiveAllocations;uint64 Rejections;bool Closed;
+} xcrontzdbstats;
+XRT_EXTERN_C_BEGIN
+/* Explicit named TZif database; no embedded data, ambient TZ, filesystem, worker
+ * or timer. Limits are positive and bounded by the constants above. One shared
+ * XRT quota charges manager, all candidate/published/retired snapshot arenas,
+ * decoded zones/footer rules and temporary allocations until actually freed,
+ * including zones retained independently after snapshot release. One fixed Core
+ * quota-control allocation, mutex native state, allocator backing/headers and
+ * final outward diagnostics are outside BytesLimit. Lower-level diagnostics
+ * built inside a load DO consume quota until released. Explicit quota replaces the caller's
+ * ambient quota while constructing database-owned data (XRT innermost rule).
+ * Invalid spans/aliases preserve every output; other failures publish typed
+ * Issue even under diagnostic OOM and preserve other outputs. Success/NONE
+ * preserve ambient error. Outputs cannot overlap manager/snapshot arena, each
+ * other or inputs; caller keeps them disjoint from all borrowed/retained zones
+ * and any other retained snapshots. Error domain: xrt.cron.tzdb. */
+XCRON_API bool xcronTzdbCreate(const xcrontzdbconfig* Config,xcrontzdb** Database,xcrontzdbissue* Issue);
+/* Build/validate/copy all input names, version and decoded TZif off the publish
+ * lock. Names are1..255 ASCII letters/digits/_/./-/+ with slash separators;
+ * empty/dot/dotdot components, leading/trailing slash, components starting '-'
+ * or ending '.' are rejected. Legacy names such as Etc/GMT+5 remain valid.
+ * Version is1..64 visible ASCII bytes. Input descriptors and bytes stay stable
+ * throughout this synchronous call. Empty input publishes an empty snapshot.
+ * Duplicate exact names fail atomically; names are not locale/case normalized.
+ * ExpectedRevision is0 for initial publication, the prior revision for CAS, or
+ * ANY_REVISION for deliberate last-publication-wins. Revision never wraps or
+ * uses the ANY sentinel. Failures/stale/close leave the current snapshot and
+ * Revision output intact. LoadLimit bounds admitted concurrent builders; excess
+ * calls fail LIMIT rather than wait for a builder slot. Close stops subsequent
+ * build entries/publication; it cannot interrupt a current syscall/decode.
+ * This is cold work: run it outside a latency-sensitive scheduler owner. */
+XCRON_API bool xcronTzdbLoad(xcrontzdb* Database,xstrview Version,const xcrontzdbentry* Entries,size_t Count,
+    uint64 ExpectedRevision,uint64* Revision,xcrontzdbissue* Issue);
+/* Acquire takes the publication mutex once and retains a coherent immutable
+ * snapshot; EMPTY before first publication, CLOSED after Close. Retain/Release
+ * permit explicit cross-thread ownership. Snapshot readers need no database or
+ * publication lock and may outlive its physical destruction. */
+XCRON_API bool xcronTzdbAcquire(xcrontzdb* Database,xcrontzdbsnapshot** Snapshot,xcrontzdbissue* Issue);
+XCRON_API bool xcronTzdbSnapshotRetain(const xcrontzdbsnapshot* Snapshot);
+XCRON_API void xcronTzdbSnapshotRelease(const xcrontzdbsnapshot* Snapshot);
+XCRON_API bool xcronTzdbSnapshotInfo(const xcrontzdbsnapshot* Snapshot,xcrontzdbsnapshotinfo* Info,xcrontzdbissue* Issue);
+/* Exact bounded binary search. FOUND returns one retained zone, independently
+ * releasable with ZoneRelease; NONE preserves Zone and publishes OK Issue.
+ * No IO/allocation/lock on normal lookup. New snapshots affect new lookups only;
+ * existing scheduler jobs/leases keep their immutable zone, never silently
+ * rebase consumed occurrences. A caller explicitly replaces jobs when desired. */
+XCRON_API xcrontzdbstatus xcronTzdbFind(const xcrontzdbsnapshot* Snapshot,xstrview Name,xcronzone** Zone,xcrontzdbissue* Issue);
+/* Revision/name/closed/loading are one publication-state sample; quota gauges
+ * are independently synchronized and can include concurrent cold build/free.
+ * LiveBytes includes the manager itself and every retained generation. */
+XCRON_API bool xcronTzdbInspect(xcrontzdb* Database,xcrontzdbstats* Stats,xcrontzdbissue* Issue);
+/* Idempotent, rejects new loads/acquires and releases the current reference
+ * outside the lock. Old snapshots/zones remain usable. Release may be O(names).
+ * Destroy requires Close and zero admitted builders, else BUSY; caller must also
+ * physically exclude/join ALL concurrent database calls before Destroy. A failed
+ * native mutex cleanup keeps the closed object live for retry. */
+XCRON_API bool xcronTzdbClose(xcrontzdb* Database,xcrontzdbissue* Issue);
+XCRON_API bool xcronTzdbDestroy(xcrontzdb* Database,xcrontzdbissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/tzdb_file.h */
+/* ========================================================================== */
+
+#ifndef XCRON_TZDB_FILE_H
+#define XCRON_TZDB_FILE_H
+#if defined(XCRON_FEATURE_XCRON_TZDB_FILE) && (!defined(XCRON_FEATURE_XCRON_TZDB) || !defined(XRT_FEATURE_FILE_ROOT))
+#error "cron tzdb file requires tzdb and file-root"
+#endif
+#if defined(XCRON_FEATURE_XCRON_TZDB_FILE)
+XRT_EXTERN_C_BEGIN
+/* Explicit manifest of names under a borrowed anchored XRT root. Uses secure
+ * RootFileOpen (including contained relative aliases), regular files only and
+ * one <=16MiB temporary file at a time inside the SAME aggregate database quota.
+ * Version/names/CAS/output rules are Load's. Caller owns Root for the full call,
+ * and supplies a trusted immutable release directory/manifest: publication is
+ * atomic, but reads across several files are not a filesystem-wide transaction.
+ * File size/identity/time are rechecked after reading, and growth/short reads
+ * fail; these checks alone cannot prove an immutable source or authenticate it.
+ * No default directory, TZ environment, download, directory walk or leap-scale
+ * fallback is guessed. Missing/invalid/escaping files reject the entire reload.
+ * Root resolution/open/read/stat/close allocations/syscalls are cold costs.
+ * Root itself and its native directory handle are caller-owned, outside quota. */
+XCRON_API bool xcronTzdbLoadRoot(xcrontzdb* Database,xroot Root,xstrview Version,const xstrview* Names,size_t Count,
+    uint64 ExpectedRevision,uint64* Revision,xcrontzdbissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -1044,6 +1204,10 @@ XRT_EXTERN_C_END
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_TIMEZONE)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_TIMEZONE"
+#endif
+
+#if defined(XCRON_FEATURE_XCRON) && (!defined(XCRON_FEATURE_XCRON_TZDB) || !defined(XCRON_FEATURE_XCRON_TZDB_FILE))
+#error "XCRON_FEATURE_XCRON requires tzdb and tzdb_file"
 #endif
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_ZONED)
@@ -1155,6 +1319,10 @@ xcronzonestatus xcronZoneHistoryNext(const xcronzone* Zone,xtime After,xcronzone
 xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Zone,const xdatetime* Date,xtime* Candidates,size_t Capacity,size_t* Count,xcronzoneissue* Issue);
 bool xcronZoneHistoryOverlap(const xcronzone* Zone,const void* Output,size_t Size);
 void xcronZoneHistoryRelease(const xcronzone* Zone);
+/* Requested bytes owned by this zone, including an independently owned footer. */
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+size_t xcronZoneOwnedBytes(const xcronzone* Zone);
+#endif
 /* Fraction stays nonnegative at the asymmetric signed-int64 millisecond ends. */
 static inline bool xcronZoneSecondValue(int64 Seconds,int Milli,xtime* Out)
 {
@@ -1224,6 +1392,31 @@ xcronzonedstatus xcronZonedValueStep(xcronzonedvalue* V,const xcronzone* Z,xcron
 typedef enum xcronadmissionstatus {XCRON_ADMISSION_REJECTED=-1,XCRON_ADMISSION_PENDING=0,XCRON_ADMISSION_ACCEPTED=1} xcronadmissionstatus;
 bool xcronSchedulerBeginAdmission(xcronscheduler* S,const xcronjobconfig* C,xcronjobid* Id,xcronschedulerissue* Issue);
 xcronadmissionstatus xcronSchedulerFinishAdmission(xcronscheduler* S,xcronjobid Id,bool Cancel,xcronschedulerissue* Issue);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xcron/src/tzdb/tzdb_internal.h */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+#ifndef XCRON_TZDB_INTERNAL_H
+#define XCRON_TZDB_INTERNAL_H
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+#define XCRON_TZDB_MAGIC UINT32_C(0x58434431)
+#define XCRON_TZDB_SNAPSHOT_MAGIC UINT32_C(0x58434453)
+typedef struct xcrontzdbrow {xstrview Name;xcronzone* Zone;uint32 Index;} xcrontzdbrow;
+struct xcrontzdbsnapshot {uint32 Magic;xatomic32 Refs;size_t ArenaBytes,Bytes,Count;uint64 Revision;xstrview Version;xcrontzdbrow Rows[];};
+struct xcrontzdb {uint32 Magic;xcrontzdbconfig Config;xallocationbudget* Budget;xmutex Mutex;xcrontzdbsnapshot* Current;uint64 Revision;uint32 Loading;xatomic32 Closed;};
+/* Product-private cold reader. Allocates only with xrtMalloc; success returns a
+ * borrowed view and optional buffer released by the common builder. Failure
+ * closes/frees its own partial resources and fills typed Work without publishing
+ * an application diagnostic. No callback occurs under the publication lock. */
+typedef bool (*xcrontzdbread)(ptr Context,xstrview Name,xbytesview* Data,ptr* Owned,xcrontzdbissue* Work);
+typedef struct xcrontzdbsource {const xcrontzdbentry* Entries;const xstrview* Names;size_t Count;xcrontzdbread Read;ptr Context;} xcrontzdbsource;
+bool xcronTzdbLoadSource(xcrontzdb* DB,xstrview Version,const xcrontzdbsource* Source,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue);
 #endif
 #endif
 #endif
@@ -2416,6 +2609,10 @@ bool xcronZoneHistoryOverlap(const xcronzone* Z,const void* Output,size_t Size)
 {const xcronzone* F=Z->History->Footer;return F && xrtMemRangesOverlap(Output,Size,F,F->Bytes);}
 void xcronZoneHistoryRelease(const xcronzone* Z)
 {xcronZoneRelease(Z->History->Footer);}
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+size_t xcronZoneOwnedBytes(const xcronzone* Z)
+{return Z->Bytes+(Z->History && Z->History->Footer?Z->History->Footer->Bytes:0);}
+#endif
 bool xcronZoneHistoryRepeat(const xcronzone* Z,xtime Begin,xtime* First)
 {
     const xcronzonehistory* H=Z->History;
@@ -3924,6 +4121,265 @@ XCRON_API bool xcronServiceDestroy(xcronservice* S,xcronserviceissue* Issue)
     if(!xcronServiceWaiterRelease(S))return xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);
     if(!xcronSchedulerDestroy(S->Kernel,NULL))return xcronServiceFail(XCRON_SERVICE_KERNEL,xrtErrorKind(xrtGetError()),Issue);
     xrtThreadDestroy(S->Thread);xrtErrorFree(S->FatalError);xrtEventUnit(&S->Wake);xrtCondUnit(&S->Changed);xrtMutexUnit(&S->Mutex);S->Magic=0;xrtFree(S);xcronServiceOK(Issue);return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/tzdb/tzdb.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+#include <string.h>
+#if defined(XCRON_FEATURE_XCRON_TZDB)
+static xcrontzdbissue xcronTzdbWork(xcrontzdberror Code,size_t Index)
+{return (xcrontzdbissue){.Code=Code,.Index=Index};}
+static bool xcronTzdbReport(xcrontzdbissue Work,xcrontzdbissue* Issue)
+{
+    if(Issue)*Issue=Work;
+    xerrkind Kind=Work.Code==XCRON_TZDB_ARGUMENT?XERR_ARGUMENT:Work.Code==XCRON_TZDB_MEMORY?XERR_MEMORY:
+        Work.Code==XCRON_TZDB_LIMIT?XERR_RANGE:Work.Code==XCRON_TZDB_IO?XERR_IO:
+        (Work.Code==XCRON_TZDB_NAME || Work.Code==XCRON_TZDB_VERSION || Work.Code==XCRON_TZDB_DUPLICATE || Work.Code==XCRON_TZDB_ZONE)?XERR_VALUE:XERR_STATE;
+    xrtSetErrorInfo(Kind,"xrt.cron.tzdb",Work.Code,"cron named timezone database operation failed");return false;
+}
+static bool xcronTzdbFail(xcrontzdberror Code,xcrontzdbissue* Issue)
+{return xcronTzdbReport(xcronTzdbWork(Code,XCRON_TZDB_NO_INDEX),Issue);}
+static void xcronTzdbOK(xcrontzdbissue* Issue)
+{if(Issue)*Issue=xcronTzdbWork(XCRON_TZDB_OK,XCRON_TZDB_NO_INDEX);}
+static bool xcronTzdbOutputs(const void* Owner,size_t Bytes,const void* Input,size_t InputBytes,void* const* O,const size_t* N,size_t Count)
+{
+    if(!xrtMemRangeValid(Owner,Bytes) || !xrtMemRangeValid(Input,InputBytes))return false;
+    for(size_t I=0;I<Count;++I){
+        if(!xrtMemRangeValid(O[I],N[I]) || xrtMemRangesOverlap(Owner,Bytes,O[I],N[I]) || xrtMemRangesOverlap(Input,InputBytes,O[I],N[I]))return false;
+        for(size_t J=0;J<I;++J)if(xrtMemRangesOverlap(O[I],N[I],O[J],N[J]))return false;
+    }
+    return true;
+}
+static bool xcronTzdbHandle(const xcrontzdb* D)
+{return D && xrtMemRangeValid(D,sizeof(*D)) && D->Magic==XCRON_TZDB_MAGIC;}
+static bool xcronTzdbSnapshotHandle(const xcrontzdbsnapshot* S)
+{return S && xrtMemRangeValid(S,sizeof(*S)) && S->Magic==XCRON_TZDB_SNAPSHOT_MAGIC && xrtMemRangeValid(S,S->ArenaBytes);}
+static bool xcronTzdbArgs(const xcrontzdb* D,void* Output,size_t Bytes,xcrontzdbissue* Issue)
+{void* O[]={Output,Issue};size_t N[]={Bytes,Issue?sizeof(*Issue):0};return xcronTzdbHandle(D) && xcronTzdbOutputs(D,sizeof(*D),NULL,0,O,N,2);}
+static bool xcronTzdbName(xstrview Name)
+{
+    if(!Name.Size || Name.Size>XCRON_TZDB_NAME_MAX)return false;
+    size_t Start=0;
+    for(size_t I=0;I<=Name.Size;++I){
+        unsigned C=I==Name.Size?'/':(unsigned char)Name.Data[I];
+        if(C=='/'){
+            if(I==Start || Name.Data[Start]=='-' || Name.Data[I-1]=='.' ||
+                (I-Start==1 && Name.Data[Start]=='.') || (I-Start==2 && Name.Data[Start]=='.' && Name.Data[Start+1]=='.'))return false;
+            Start=I+1;
+        }
+        else if(!((C>='A' && C<='Z') || (C>='a' && C<='z') || (C>='0' && C<='9') || C=='_' || C=='.' || C=='-' || C=='+'))return false;
+    }
+    return true;
+}
+static bool xcronTzdbVersion(xstrview V)
+{if(!V.Size || V.Size>XCRON_TZDB_VERSION_MAX)return false;for(size_t I=0;I<V.Size;++I)if((unsigned char)V.Data[I]<0x21 || (unsigned char)V.Data[I]>0x7e)return false;return true;}
+static int xcronTzdbCompare(xstrview A,xstrview B)
+{size_t N=A.Size<B.Size?A.Size:B.Size;int C=memcmp(A.Data,B.Data,N);return C?C:(A.Size>B.Size)-(A.Size<B.Size);}
+static void xcronTzdbSwap(xcrontzdbrow* A,xcrontzdbrow* B)
+{xcrontzdbrow T=*A;*A=*B;*B=T;}
+static void xcronTzdbDown(xcrontzdbrow* Rows,size_t Count,size_t At)
+{
+    while(At<Count/2){size_t Child=At*2+1;
+        if(Child+1<Count && xcronTzdbCompare(Rows[Child].Name,Rows[Child+1].Name)<0)++Child;
+        if(xcronTzdbCompare(Rows[At].Name,Rows[Child].Name)>=0)break;
+        xcronTzdbSwap(&Rows[At],&Rows[Child]);At=Child;
+    }
+}
+static void xcronTzdbSort(xcrontzdbsnapshot* S)
+{for(size_t I=S->Count/2;I;--I)xcronTzdbDown(S->Rows,S->Count,I-1);for(size_t I=S->Count;I>1;--I){xcronTzdbSwap(&S->Rows[0],&S->Rows[I-1]);xcronTzdbDown(S->Rows,I-1,0);}}
+static bool xcronTzdbRetainValue(xcrontzdbsnapshot* S)
+{uint32 N=xrtAtomic32Load(&S->Refs,XMEMORY_RELAXED);while(N && N<UINT32_MAX/2u)if(xrtAtomic32CompareExchange(&S->Refs,&N,N+1,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;return false;}
+XCRON_API bool xcronTzdbSnapshotRetain(const xcrontzdbsnapshot* S)
+{if(!xcronTzdbSnapshotHandle(S))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);return xcronTzdbRetainValue((xcrontzdbsnapshot*)S) || xcronTzdbFail(XCRON_TZDB_LIMIT,NULL);}
+XCRON_API void xcronTzdbSnapshotRelease(const xcrontzdbsnapshot* Raw)
+{
+    xcrontzdbsnapshot* S=(xcrontzdbsnapshot*)Raw;
+    if(S && xrtAtomic32FetchSub(&S->Refs,1,XMEMORY_ACQ_REL)==1){S->Magic=0;for(size_t I=0;I<S->Count;++I)xcronZoneRelease(S->Rows[I].Zone);xrtFree(S);}
+}
+XCRON_API bool xcronTzdbCreate(const xcrontzdbconfig* C,xcrontzdb** Out,xcrontzdbissue* Issue)
+{
+    void* O[]={Out,Issue};size_t N[]={sizeof(*Out),Issue?sizeof(*Issue):0};
+    if(!C || !Out || !xcronTzdbOutputs(NULL,0,C,sizeof(*C),O,N,2) || !C->NamesLimit || C->NamesLimit>XCRON_TZDB_NAMES_MAX || !C->LoadLimit || C->LoadLimit>XCRON_TZDB_LOADS_MAX || !C->BytesLimit)return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    if(C->BytesLimit<sizeof(xcrontzdb))return xcronTzdbFail(XCRON_TZDB_LIMIT,Issue);
+    xallocationbudget* Budget=NULL;if(!xrtAllocationBudgetCreate(C->BytesLimit,&Budget))return xcronTzdbFail(XCRON_TZDB_MEMORY,Issue);
+    xallocationscope Scope={0};if(!xrtAllocationBudgetEnter(Budget,&Scope)){xrtAllocationBudgetFree(Budget);return xcronTzdbFail(XCRON_TZDB_MEMORY,Issue);}
+    xcrontzdb* D=xrtMalloc(sizeof(*D));if(D){memset(D,0,sizeof(*D));D->Config=*C;D->Budget=Budget;xrtAtomic32Init(&D->Closed,0);}
+    xcrontzdberror Code=D?XCRON_TZDB_OK:Scope.Rejections?XCRON_TZDB_LIMIT:XCRON_TZDB_MEMORY;
+    if(D && !xrtMutexInit(&D->Mutex)){xrtFree(D);D=NULL;Code=XCRON_TZDB_SYSTEM;}
+    (void)xrtAllocationBudgetLeave(&Scope);
+    if(!D){xrtAllocationBudgetFree(Budget);return xcronTzdbFail(Code,Issue);}
+    D->Magic=XCRON_TZDB_MAGIC;*Out=D;xcronTzdbOK(Issue);return true;
+}
+static xstrview xcronTzdbSourceName(const xcrontzdbsource* S,size_t I)
+{return S->Entries?S->Entries[I].Name:S->Names[I];}
+bool xcronTzdbLoadSource(xcrontzdb* D,xstrview Version,const xcrontzdbsource* Source,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue)
+{
+    void* O[]={Revision,Issue};size_t N[]={sizeof(*Revision),Issue?sizeof(*Issue):0};size_t Count=Source->Count;
+    size_t Stride=Source->Entries?sizeof(*Source->Entries):sizeof(*Source->Names);const void* Items=Source->Entries?(const void*)Source->Entries:(const void*)Source->Names;
+    if(!xcronTzdbHandle(D) || !Revision || Count>XCRON_TZDB_NAMES_MAX || !xcronTzdbOutputs(D,sizeof(*D),Items,Count*Stride,O,N,2) || !xcronTzdbOutputs(NULL,0,Version.Data,Version.Size,O,N,2))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    for(size_t I=0;I<Count;++I){xstrview Name=xcronTzdbSourceName(Source,I);
+        if(!xcronTzdbOutputs(NULL,0,Name.Data,Name.Size,O,N,2) || (Source->Entries && !xcronTzdbOutputs(NULL,0,Source->Entries[I].Tzif.Data,Source->Entries[I].Tzif.Size,O,N,2)))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);}
+    if(Count>D->Config.NamesLimit)return xcronTzdbFail(XCRON_TZDB_LIMIT,Issue);
+    if(!xcronTzdbVersion(Version))return xcronTzdbFail(XCRON_TZDB_VERSION,Issue);
+    size_t Bytes=sizeof(xcrontzdbsnapshot)+Count*sizeof(xcrontzdbrow)+Version.Size+1;
+    for(size_t I=0;I<Count;++I){xstrview Name=xcronTzdbSourceName(Source,I);if(!xcronTzdbName(Name))return xcronTzdbReport(xcronTzdbWork(XCRON_TZDB_NAME,I),Issue);Bytes+=Name.Size+1;}
+    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xcrontzdberror Code=xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED)?XCRON_TZDB_CLOSED:
+        (Expected!=XCRON_TZDB_ANY_REVISION && Expected!=D->Revision)?XCRON_TZDB_STALE:
+        (D->Loading>=D->Config.LoadLimit || D->Revision==UINT64_MAX-1)?XCRON_TZDB_LIMIT:XCRON_TZDB_OK;
+    if(Code==XCRON_TZDB_OK)++D->Loading;
+    (void)xrtMutexUnlock(&D->Mutex);if(Code!=XCRON_TZDB_OK)return xcronTzdbFail(Code,Issue);
+    xerror* Ambient=xrtTakeError();
+    xcrontzdbissue Work=xcronTzdbWork(XCRON_TZDB_OK,XCRON_TZDB_NO_INDEX);xallocationscope Scope={0};xcrontzdbsnapshot *S=NULL,*Old=NULL;uint64 Published=0;
+    bool Entered=xrtAllocationBudgetEnter(D->Budget,&Scope);
+    if(!Entered)Work.Code=XCRON_TZDB_MEMORY;
+    else {
+        S=xrtMalloc(Bytes);
+        if(!S)Work.Code=XCRON_TZDB_MEMORY;
+        else {memset(S,0,Bytes);S->Magic=XCRON_TZDB_SNAPSHOT_MAGIC;xrtAtomic32Init(&S->Refs,1);S->ArenaBytes=S->Bytes=Bytes;S->Count=Count;
+            char* Text=(char*)(S->Rows+Count);memcpy(Text,Version.Data,Version.Size);S->Version=(xstrview){Text,Version.Size};Text+=Version.Size+1;
+            for(size_t I=0;I<Count;++I){xstrview Name=xcronTzdbSourceName(Source,I);memcpy(Text,Name.Data,Name.Size);S->Rows[I].Name=(xstrview){Text,Name.Size};S->Rows[I].Index=(uint32)I;Text+=Name.Size+1;}
+            xcronTzdbSort(S);
+            for(size_t I=1;I<Count;++I)if(!xcronTzdbCompare(S->Rows[I-1].Name,S->Rows[I].Name)){Work=xcronTzdbWork(XCRON_TZDB_DUPLICATE,S->Rows[I].Index);break;}
+            for(size_t I=0;I<Count && Work.Code==XCRON_TZDB_OK;++I){
+                size_t Index=S->Rows[I].Index;xbytesview Data={0};ptr Owned=NULL;Work.Zone=(xcronzoneissue){0};Work.Cause=XERR_NONE;Work.SystemCode=0;
+                if(xrtAtomic32Load(&D->Closed,XMEMORY_ACQUIRE)){Work=xcronTzdbWork(XCRON_TZDB_CLOSED,Index);break;}
+                bool Read=true;if(Source->Entries)Data=Source->Entries[Index].Tzif;else Read=Source->Read(Source->Context,S->Rows[I].Name,&Data,&Owned,&Work);
+                if(Read){Work.Zone=(xcronzoneissue){0};if(!xcronZoneCreateTzif(Data,&S->Rows[I].Zone,&Work.Zone))Work.Code=XCRON_TZDB_ZONE;
+                    else S->Bytes+=xcronZoneOwnedBytes(S->Rows[I].Zone);}
+                xrtFree(Owned);if(Work.Code!=XCRON_TZDB_OK)Work.Index=Index;
+            }
+        }
+    }
+    if(Entered && Scope.Rejections && (Work.Code==XCRON_TZDB_MEMORY || (Work.Code==XCRON_TZDB_ZONE && Work.Zone.Code==XCRON_ZONE_MEMORY))){Work.Code=XCRON_TZDB_LIMIT;Work.Cause=XERR_MEMORY;}
+    if(Work.Code==XCRON_TZDB_OK){
+        if(!xrtMutexLock(&D->Mutex))Work.Code=XCRON_TZDB_SYSTEM;
+        else {
+            Work.Code=xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED)?XCRON_TZDB_CLOSED:
+                (Expected!=XCRON_TZDB_ANY_REVISION && Expected!=D->Revision)?XCRON_TZDB_STALE:D->Revision==UINT64_MAX-1?XCRON_TZDB_LIMIT:XCRON_TZDB_OK;
+            if(Work.Code==XCRON_TZDB_OK){Published=++D->Revision;S->Revision=Published;Old=D->Current;D->Current=S;S=NULL;}
+            (void)xrtMutexUnlock(&D->Mutex);
+        }
+    }
+    xcronTzdbSnapshotRelease(S);xcronTzdbSnapshotRelease(Old);
+    if(Entered)(void)xrtAllocationBudgetLeave(&Scope);
+    (void)xrtMutexLock(&D->Mutex);--D->Loading;(void)xrtMutexUnlock(&D->Mutex);
+    if(Work.Code!=XCRON_TZDB_OK){xrtErrorFree(Ambient);return xcronTzdbReport(Work,Issue);}
+    xrtSetErrorTake(Ambient);*Revision=Published;xcronTzdbOK(Issue);return true;
+}
+XCRON_API bool xcronTzdbLoad(xcrontzdb* D,xstrview Version,const xcrontzdbentry* Entries,size_t Count,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue)
+{xcrontzdbsource Source={.Entries=Entries,.Count=Count};return xcronTzdbLoadSource(D,Version,&Source,Expected,Revision,Issue);}
+XCRON_API bool xcronTzdbAcquire(xcrontzdb* D,xcrontzdbsnapshot** Out,xcrontzdbissue* Issue)
+{
+    if(!Out || !xcronTzdbArgs(D,Out,sizeof(*Out),Issue))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xcrontzdberror Code=xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED)?XCRON_TZDB_CLOSED:!D->Current?XCRON_TZDB_EMPTY:!xcronTzdbRetainValue(D->Current)?XCRON_TZDB_LIMIT:XCRON_TZDB_OK;
+    xcrontzdbsnapshot* S=D->Current;(void)xrtMutexUnlock(&D->Mutex);
+    if(Code!=XCRON_TZDB_OK)return xcronTzdbFail(Code,Issue);
+    *Out=S;xcronTzdbOK(Issue);return true;
+}
+XCRON_API bool xcronTzdbSnapshotInfo(const xcrontzdbsnapshot* S,xcrontzdbsnapshotinfo* Info,xcrontzdbissue* Issue)
+{
+    void* O[]={Info,Issue};size_t N[]={sizeof(*Info),Issue?sizeof(*Issue):0};
+    if(!Info || !xcronTzdbSnapshotHandle(S) || !xcronTzdbOutputs(S,S->ArenaBytes,NULL,0,O,N,2))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    *Info=(xcrontzdbsnapshotinfo){S->Revision,S->Count,S->Bytes,S->Version};xcronTzdbOK(Issue);return true;
+}
+XCRON_API xcrontzdbstatus xcronTzdbFind(const xcrontzdbsnapshot* S,xstrview Name,xcronzone** Zone,xcrontzdbissue* Issue)
+{
+    void* O[]={Zone,Issue};size_t N[]={sizeof(*Zone),Issue?sizeof(*Issue):0};
+    if(!Zone || !xcronTzdbSnapshotHandle(S) || !xcronTzdbOutputs(S,S->ArenaBytes,Name.Data,Name.Size,O,N,2)){xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);return XCRON_TZDB_ERROR;}
+    if(!xcronTzdbName(Name)){xcronTzdbFail(XCRON_TZDB_NAME,Issue);return XCRON_TZDB_ERROR;}
+    size_t Low=0,High=S->Count;
+    while(Low<High){size_t Mid=Low+(High-Low)/2;int C=xcronTzdbCompare(Name,S->Rows[Mid].Name);
+        if(C<0)High=Mid;else if(C>0)Low=Mid+1;else {
+            if(!xcronZoneOutputs(S->Rows[Mid].Zone,Name.Data,Name.Size,O,N,2)){xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);return XCRON_TZDB_ERROR;}
+            if(!xcronZoneRetain(S->Rows[Mid].Zone)){xcronTzdbFail(XCRON_TZDB_LIMIT,Issue);return XCRON_TZDB_ERROR;}
+            *Zone=S->Rows[Mid].Zone;xcronTzdbOK(Issue);return XCRON_TZDB_FOUND;
+        }
+    }
+    xcronTzdbOK(Issue);return XCRON_TZDB_NONE;
+}
+XCRON_API bool xcronTzdbInspect(xcrontzdb* D,xcrontzdbstats* Stats,xcrontzdbissue* Issue)
+{
+    if(!Stats || !xcronTzdbArgs(D,Stats,sizeof(*Stats),Issue))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xcrontzdbstats Value={.Revision=D->Revision,.Loading=D->Loading,.Names=D->Current?(uint32)D->Current->Count:0,.BytesLimit=D->Config.BytesLimit,.Closed=xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED)!=0};
+    xallocationbudgetinfo Q={.Size=sizeof(Q)};bool OK=xrtAllocationBudgetInfo(D->Budget,&Q);(void)xrtMutexUnlock(&D->Mutex);
+    if(!OK)return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    Value.LiveBytes=Q.LiveBytes;Value.PeakBytes=Q.PeakBytes;Value.LiveAllocations=Q.LiveCount;Value.Rejections=Q.Rejections;
+    *Stats=Value;xcronTzdbOK(Issue);return true;
+}
+XCRON_API bool xcronTzdbClose(xcrontzdb* D,xcrontzdbissue* Issue)
+{
+    if(!xcronTzdbArgs(D,NULL,0,Issue))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xrtAtomic32Store(&D->Closed,1,XMEMORY_RELEASE);xcrontzdbsnapshot* Old=D->Current;D->Current=NULL;(void)xrtMutexUnlock(&D->Mutex);
+    xcronTzdbSnapshotRelease(Old);xcronTzdbOK(Issue);return true;
+}
+XCRON_API bool xcronTzdbDestroy(xcrontzdb* D,xcrontzdbissue* Issue)
+{
+    if(!xcronTzdbArgs(D,NULL,0,Issue))return xcronTzdbFail(XCRON_TZDB_ARGUMENT,NULL);
+    if(!xrtMutexLock(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    bool Busy=!xrtAtomic32Load(&D->Closed,XMEMORY_RELAXED) || D->Loading;(void)xrtMutexUnlock(&D->Mutex);
+    if(Busy)return xcronTzdbFail(XCRON_TZDB_BUSY,Issue);
+    if(!xrtMutexUnit(&D->Mutex))return xcronTzdbFail(XCRON_TZDB_SYSTEM,Issue);
+    xallocationbudget* Budget=D->Budget;D->Magic=0;xrtFree(D);xrtAllocationBudgetFree(Budget);xcronTzdbOK(Issue);return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/tzdb_file/tzdb_file.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_TZDB_FILE)
+#if defined(XCRON_FEATURE_XCRON_TZDB_FILE)
+static void xcronTzdbFileError(xcrontzdbissue* W,xcrontzdberror Code)
+{W->Code=Code;W->Cause=xrtErrorKind(xrtGetError());W->SystemCode=xrtErrorSystemCode(xrtGetError());}
+static bool xcronTzdbFileSame(const xfileinfo* A,const xfileinfo* B)
+{
+    if(A->Type!=B->Type || !(B->Available&XFILE_INFO_SIZE) || A->Size!=B->Size)return false;
+    if((A->Available&XFILE_INFO_IDENTITY) && (!(B->Available&XFILE_INFO_IDENTITY) || A->Identity!=B->Identity || A->Device!=B->Device))return false;
+    if((A->Available&XFILE_INFO_MODIFY_TIME) && (!(B->Available&XFILE_INFO_MODIFY_TIME) || A->Modified!=B->Modified))return false;
+    if((A->Available&XFILE_INFO_CHANGE_TIME) && (!(B->Available&XFILE_INFO_CHANGE_TIME) || A->Changed!=B->Changed))return false;
+    return true;
+}
+static bool xcronTzdbReadRoot(ptr Raw,xstrview Name,xbytesview* Data,ptr* Owned,xcrontzdbissue* Work)
+{
+    xroot Root=Raw;xfileoptions Options={XFILE_READ,0,XFILE_SHARE_READ|XFILE_SHARE_DELETE};
+    xfile File=xrtRootFileOpen(Root,Name.Data,&Options);
+    if(!File){xcronTzdbFileError(Work,XCRON_TZDB_IO);return false;}
+    xfileinfo Before,After;bool OK=xrtFileStat(File,&Before);ptr Buffer=NULL;size_t Size=0;
+    if(!OK)xcronTzdbFileError(Work,XCRON_TZDB_IO);
+    else if(Before.Type!=XFILE_TYPE_FILE || !(Before.Available&XFILE_INFO_SIZE)){Work->Code=XCRON_TZDB_IO;OK=false;}
+    else if(Before.Size>XCRON_ZONE_TZIF_MAX){Work->Code=XCRON_TZDB_LIMIT;OK=false;}
+    else {
+        Size=(size_t)Before.Size;Buffer=xrtMalloc(Size?Size:1);
+        if(!Buffer){Work->Code=XCRON_TZDB_MEMORY;OK=false;}
+        else if(!xrtReadFull(File,Buffer,Size,NULL)){xcronTzdbFileError(Work,XCRON_TZDB_IO);OK=false;}
+        else {uint8 Extra;size_t Read=0;
+            if(!xrtRead(File,&Extra,1,&Read) || !xrtFileStat(File,&After)){xcronTzdbFileError(Work,XCRON_TZDB_IO);OK=false;}
+            else if(Read || !xcronTzdbFileSame(&Before,&After)){Work->Code=XCRON_TZDB_IO;OK=false;}
+        }
+    }
+    xerror* Error=OK?NULL:xrtTakeError();bool Closed=xrtClose(File);
+    if(!Closed && OK){xcronTzdbFileError(Work,XCRON_TZDB_IO);OK=false;}
+    if(Error)xrtSetErrorTake(Error);
+    if(!OK){xrtFree(Buffer);return false;}
+    *Data=(xbytesview){Buffer,Size};*Owned=Buffer;return true;
+}
+XCRON_API bool xcronTzdbLoadRoot(xcrontzdb* D,xroot Root,xstrview Version,const xstrview* Names,size_t Count,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue)
+{
+    if(!Root){xrtSetErrorInfo(XERR_ARGUMENT,"xrt.cron.tzdb",XCRON_TZDB_ARGUMENT,"cron tzdb requires a live explicit root");return false;}
+    xcrontzdbsource Source={.Names=Names,.Count=Count,.Read=xcronTzdbReadRoot,.Context=Root};
+    return xcronTzdbLoadSource(D,Version,&Source,Expected,Revision,Issue);
 }
 #endif
 #endif

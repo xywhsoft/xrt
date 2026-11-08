@@ -5,9 +5,18 @@ Independent pure-C scheduling extension using public XRT APIs.
 implemented.** An explicit POSIX/TZif-footer rule core now supports DST state,
 transitions and gap/fold resolution; see [timezone contracts](docs/timezone.md).
 Owned non-leap TZif v1..4 binary history loading is implemented, including
-unknown/truncated coverage and more than two fold candidates. Named database
-lookup/reload, leap-aware conversion and durable
-recovery remain pending; production/performance acceptance is not claimed.
+unknown/truncated coverage and more than two fold candidates. Explicit named
+database snapshots/reload are available; leap-aware conversion and durable
+recovery remain pending. Production/performance acceptance is not claimed.
+
+`XCRON_MODULE_XCRON_TZDB` provides exact named lookup, immutable retained snapshots,
+CAS publication and one aggregate quota across current/old/candidate generations.
+`XCRON_MODULE_XCRON_TZDB_FILE` additionally loads an explicit immutable release
+manifest under an anchored XRT directory root. Existing jobs keep their original
+zone; new lookups use the new publication. See [source/lifetime/cost contracts](docs/tzdb.md)
+and the runnable [snapshot](examples/tzdb/README.md) and [file](examples/tzdb_file/README.md)
+examples. The root module selects both leaves; timezone/scheduler leaves keep their
+file-free dependency closure.
 
 `XCRON_MODULE_XCRON_SCHEDULER` adds a bounded explicit-clock pull kernel with
 catch-up/skip/coalesced misfires, wait/allow/skip overlap, fair work budgets,
@@ -27,7 +36,7 @@ reserved completion output, no-effect overload retries, self-wait protection,
 controlled clock-failure shutdown and explicit post-stop Data retirement are
 implemented. See [live contracts/costs](docs/service.md) and
 [runnable real-UTC example](examples/service/README.md). Nominal DST delivery,
-named database/reload, durable recovery and final native/performance/long-run
+durable recovery and final native/performance/long-run
 qualification remain pending. Actual owner admission/advancement now share global
 segment/month/rule-year budgets, with provisional ADD rollback and independent
 command progress. See the live guide for costs, stats ABI and remaining cold scans.

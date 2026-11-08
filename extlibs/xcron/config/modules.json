@@ -68,6 +68,20 @@
         "source_roots": [
           "service"
         ]
+      },
+      {
+        "name": "tzdb",
+        "state": "retained",
+        "source_roots": [
+          "tzdb"
+        ]
+      },
+      {
+        "name": "tzdb_file",
+        "state": "retained",
+        "source_roots": [
+          "tzdb_file"
+        ]
       }
     ]
   },
@@ -100,7 +114,9 @@
         "xcron_zoned",
         "xcron_scheduler",
         "xcron_executor",
-        "xcron_service"
+        "xcron_service",
+        "xcron_tzdb",
+        "xcron_tzdb_file"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -228,6 +244,74 @@
         "extlibs/xcron/docs/timezone.md",
         "extlibs/xcron/docs/coverage.md",
         "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xcron_tzdb",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_TZDB",
+      "depends": [
+        "xcron_timezone",
+        "mutex"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/tzdb.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xcron/src/tzdb/tzdb_internal.h"
+      ],
+      "sources": [
+        "extlibs/xcron/src/tzdb/tzdb.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_tzdb.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/tzdb/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_tzdb.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/tzdb.md",
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/docs/coverage.md"
+      ]
+    },
+    {
+      "name": "xcron_tzdb_file",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_TZDB_FILE",
+      "depends": [
+        "xcron_tzdb",
+        "file_root"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/tzdb_file.h",
+        "extlibs/xcron/include/xcron/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xcron/src/tzdb_file/tzdb_file.c"
+      ],
+      "tests": [
+        "extlibs/xcron/tests/test_tzdb_file.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/tzdb_file/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xcron/docs/tzdb.md",
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/docs/coverage.md"
       ]
     },
     {
@@ -397,7 +481,9 @@
         "extlibs/xcron/tests/test_zoned.c",
         "extlibs/xcron/tests/test_scheduler.c",
         "extlibs/xcron/tests/test_executor.c",
-        "extlibs/xcron/tests/test_service.c"
+        "extlibs/xcron/tests/test_service.c",
+        "extlibs/xcron/tests/test_tzdb.c",
+        "extlibs/xcron/tests/test_tzdb_file.c"
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
@@ -408,7 +494,9 @@
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c",
         "extlibs/xcron/tests/single/test_single_xcron_executor.c",
         "extlibs/xcron/tests/single/test_single_xcron_service.c",
-        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c"
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb.c",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -424,7 +512,9 @@
         "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "xcron_scheduler",
         "extlibs/xcron/tests/single/test_single_xcron_executor.c": "xcron_executor",
         "extlibs/xcron/tests/single/test_single_xcron_service.c": "xcron_service",
-        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c": "xcron_service"
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c": "xcron_service",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb.c": "xcron_tzdb",
+        "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c": "xcron_tzdb_file"
       }
     }
   ]

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `56` 个函数、`139` 个常量或宏、
-`62` 个公共类型。
+当前登记 `67` 个函数、`164` 个常量或宏、
+`71` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -328,6 +328,74 @@
 - `xcronzonestate`
 - `xcronzonestatus`
 - `xcronzonetransition`
+
+## `extlibs/xcron/include/xcron/tzdb.h`
+
+[查看带契约注释的公共头](../../include/xcron/tzdb.h)
+
+### 函数 (10)
+
+- `xcronTzdbAcquire`
+- `xcronTzdbClose`
+- `xcronTzdbCreate`
+- `xcronTzdbDestroy`
+- `xcronTzdbFind`
+- `xcronTzdbInspect`
+- `xcronTzdbLoad`
+- `xcronTzdbSnapshotInfo`
+- `xcronTzdbSnapshotRelease`
+- `xcronTzdbSnapshotRetain`
+
+### 常量与宏 (24)
+
+- `XCRON_FEATURE_XCRON_TZDB`
+- `XCRON_TZDB_ANY_REVISION`
+- `XCRON_TZDB_ARGUMENT`
+- `XCRON_TZDB_BUSY`
+- `XCRON_TZDB_CLOSED`
+- `XCRON_TZDB_DUPLICATE`
+- `XCRON_TZDB_EMPTY`
+- `XCRON_TZDB_ERROR`
+- `XCRON_TZDB_FOUND`
+- `XCRON_TZDB_IO`
+- `XCRON_TZDB_LIMIT`
+- `XCRON_TZDB_LOADS_MAX`
+- `XCRON_TZDB_MEMORY`
+- `XCRON_TZDB_NAME`
+- `XCRON_TZDB_NAMES_MAX`
+- `XCRON_TZDB_NAME_MAX`
+- `XCRON_TZDB_NONE`
+- `XCRON_TZDB_NO_INDEX`
+- `XCRON_TZDB_OK`
+- `XCRON_TZDB_STALE`
+- `XCRON_TZDB_SYSTEM`
+- `XCRON_TZDB_VERSION`
+- `XCRON_TZDB_VERSION_MAX`
+- `XCRON_TZDB_ZONE`
+
+### 类型 (9)
+
+- `xcrontzdb`
+- `xcrontzdbconfig`
+- `xcrontzdbentry`
+- `xcrontzdberror`
+- `xcrontzdbissue`
+- `xcrontzdbsnapshot`
+- `xcrontzdbsnapshotinfo`
+- `xcrontzdbstats`
+- `xcrontzdbstatus`
+
+## `extlibs/xcron/include/xcron/tzdb_file.h`
+
+[查看带契约注释的公共头](../../include/xcron/tzdb_file.h)
+
+### 函数 (1)
+
+- `xcronTzdbLoadRoot`
+
+### 常量与宏 (1)
+
+- `XCRON_FEATURE_XCRON_TZDB_FILE`
 
 ## `extlibs/xcron/include/xcron/zoned.h`
 

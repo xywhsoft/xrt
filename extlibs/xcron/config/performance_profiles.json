@@ -589,6 +589,202 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_tzdb_16_snapshot",
+      "system": "tzdb",
+      "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_16_snapshot",
+          "source": "extlibs/xcron/bench/bench_tzdb.c",
+          "suite": "xcron_tzdb",
+          "args": [
+            "10000",
+            "16",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "16",
+            "0"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "batch_size",
+            "names",
+            "acquire_per_lookup"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xcron_tzdb_16_acquire",
+      "system": "tzdb",
+      "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_16_acquire",
+          "source": "extlibs/xcron/bench/bench_tzdb.c",
+          "suite": "xcron_tzdb",
+          "args": [
+            "10000",
+            "16",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "16",
+            "1"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "batch_size",
+            "names",
+            "acquire_per_lookup"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xcron_tzdb_1024_snapshot",
+      "system": "tzdb",
+      "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; one retained snapshot for the run; no IO/reload/worker/production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_1024_snapshot",
+          "source": "extlibs/xcron/bench/bench_tzdb.c",
+          "suite": "xcron_tzdb",
+          "args": [
+            "10000",
+            "1024",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "1024",
+            "0"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "batch_size",
+            "names",
+            "acquire_per_lookup"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xcron_tzdb_1024_acquire",
+      "system": "tzdb",
+      "description": "Exact named immutable TZif lookup and retained zone release;128-lookups per timed batch; snapshot acquisition per lookup; no IO/reload/worker/production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_1024_acquire",
+          "source": "extlibs/xcron/bench/bench_tzdb.c",
+          "suite": "xcron_tzdb",
+          "args": [
+            "10000",
+            "1024",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1024",
+            "1"
+          ],
+          "metrics": {
+            "lookups_per_sec": {
+              "direction": "higher",
+              "unit": "lookups/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "batch_size",
+            "names",
+            "acquire_per_lookup"
+          ]
+        }
+      ]
     }
   ]
 }

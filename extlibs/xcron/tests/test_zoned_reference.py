@@ -57,6 +57,7 @@ def main():
     p.add_argument("--probe", required=True)
     p.add_argument("--data", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--database", action="store_true", help="use actual named-root loader and retained zone after database destruction")
     args = p.parse_args()
     manifest = json.loads((args.data / "manifest.json").read_text())
     totals = {"match": 0, "next": 0, "zone_errors": 0, "found": 0, "none": 0}
@@ -136,7 +137,8 @@ def main():
             lines = []
             for case in cases:
                 lines.append(f"M {case[1] + XRT_EPOCH}\n" if case[0] == "M" else f"N {case[1] + XRT_EPOCH} {case[2] + XRT_EPOCH} {case[3]}\n")
-            result = subprocess.run([args.probe, "--tzif", str(path), str(profile[1]), profile[0]], input="".join(lines), text=True, capture_output=True, timeout=120, check=True)
+            source = ["--database", str(args.data), name] if args.database else ["--tzif", str(path)]
+            result = subprocess.run([args.probe, *source, str(profile[1]), profile[0]], input="".join(lines), text=True, capture_output=True, timeout=120, check=True)
             output = result.stdout.splitlines()
             assert len(output) == len(cases), (name, result.stderr)
             for case, line in zip(cases, output):
@@ -161,6 +163,9 @@ def main():
             zone_cases += len(cases)
         reports.append({"zone": name, "sha256": digest, "queries": zone_cases})
     report = {"schema": 1, "oracle": "zoneinfo label enumeration and independent UTC sorting/RFC coverage", "version": manifest["version"], "zones": len(reports), "totals": totals, "files": reports}
+    if args.database:
+        report["source"] = "named-root LoadRoot/Acquire/Find, queries after root/snapshot/database destruction"
+        report["named_loads_and_lookups"] = len(reports) * len(PROFILES)
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     print(f"[PASS] zoned IANA {manifest['version']}: {len(reports)} zones, {totals}")
 
