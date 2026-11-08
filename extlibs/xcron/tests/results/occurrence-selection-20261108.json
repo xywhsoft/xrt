@@ -1204,7 +1204,8 @@
         }
       ]
     },
-    "all_four_extension_migration_evidence": "docs/development/service-extensions-mainline-20261108.json"
+    "all_four_extension_migration_evidence": "docs/development/service-extensions-mainline-20261108.json",
+    "inputs_phase": "Initial full-suite identity; final harness-only delta and four reruns are recorded in post_validation_consumer_guard."
   },
   "performance": {
     "windows": {
@@ -3940,5 +3941,124 @@
     "Existing kernel/service job policy integration, missing-label shift/compensation, physical delivery/durable recovery and remaining Redis/RPC/MQTT scope remain required. Migration/testing does not mark the long-term goal complete."
   ],
   "local_evidence_directory": "out/service-extensions/xcron-occurrence/",
-  "mainline_evidence_directory": "out/service-extensions/mainline-migration-20261108/"
+  "mainline_evidence_directory": "out/service-extensions/mainline-migration-20261108/",
+  "post_validation_consumer_guard": {
+    "reason": "Final review found a test-harness failure path could use Selected after a failed preceding DeliveryOK check. Add a short-circuit guard; no production library behavior changes. No initial product failure is erased.",
+    "path": "extlibs/xcron/tests/package/test_consumer.c",
+    "delta": {
+      "windows": {
+        "extlibs/xcron/tests/package/test_consumer.c": {
+          "before": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+          "after": "783e65ff7112f90cf4d3073304ac7056ba47c25034e8b76fd550422960566528"
+        }
+      },
+      "wsl": {
+        "extlibs/xcron/tests/package/test_consumer.c": {
+          "before": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+          "after": "783e65ff7112f90cf4d3073304ac7056ba47c25034e8b76fd550422960566528"
+        }
+      }
+    },
+    "receipts": {
+      "windows": [
+        {
+          "kind": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0166d5f4b3b774be7a5862ac6f53aac546abecafde2c1dd0581747646f0d2e63"
+        },
+        {
+          "kind": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3fa0384f39cf938e804886b6461ca3171f16eb350905db7c454bb6095d7c6b61"
+        }
+      ],
+      "wsl": [
+        {
+          "kind": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a47f2bd874719176cfd44001a0738527656f023548cac44ff23210ea915f7e93"
+        },
+        {
+          "kind": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f6617d7ead5fd8b159508e771e44faa4b4ccbc03b01000d5d509a0719cce87bd"
+        }
+      ]
+    },
+    "final_input_map_canonical_sha256": "72f8c438d60af19568477fed0efd729fdc5a14c64f3bb9f79de312b6f521a227",
+    "reused_scope": "All initial full suites/other checks retain their original input identities. Only this one consumer changes; unaffected command/log hashes and absence of consumer compilation verified. Both platforms root static/shared consumer verifications rerun against final source.",
+    "recipe_sha256": "f059cca8ffbb65a07b9a88b214233619ae343eb061eb4f507347764f22d8a6b5"
+  }
 }

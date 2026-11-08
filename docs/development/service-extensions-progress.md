@@ -8007,8 +8007,13 @@ units pass. Windows86 tooling tests and all4 products' feature/single/API/
 docs checks pass. Existing Windows symbolic-link fixture skips1314 remain recorded.
 
 Both final mainline execution maps agree on2891 source/config/tool inputs.
-The feature and migration evidence JSONs are published after validation; no
-production C/H or test-driver edits follow the captured input identity. Historical
+The feature and migration evidence JSONs record the initial full-suite identity.
+Final review adds only a package-consumer short-circuit guard, avoiding an
+uninitialized Selected read after a preceding failure. Both platforms root
+static/shared xcron consumers pass again; all other command/log hashes and absence
+of that consumer compilation are verified before reuse. Exact initial/final maps,
+the sole consumer delta and all four rerun receipts remain. Production C/H and
+other test drivers are unchanged. Historical
 performance reports remain labelled c2-based pre-migration measurements, with
 all failed noise gates preserved. They are not relabelled as performance results
 for the integrated master Core. The sequential always-gap rejection performance

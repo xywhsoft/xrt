@@ -184,7 +184,7 @@
   "transfer_log_sha256": "0e6be4e4de91e366399e26d80cf031e566a09006b43770a808c57cf32b36436b",
   "workflow_document": "docs/development/parallel-branch-integration.md",
   "feature_evidence_path": "extlibs/xcron/tests/results/occurrence-selection-20261108.json",
-  "feature_evidence_sha256": "74c3edc00e7fdde6e9f0d305f5ca720969eebec0d64e4fec61b6f1607c9784cc",
+  "feature_evidence_sha256": "f479329da6ed008eeb33c2ac9882b76de845cf8675e2c513ed543763303a5b59",
   "input_map_canonical_sha256": "31ac01068f499d5d0416f9289598994e57c455ceb265fb3a4632083529ed1c80",
   "input_files": 2891,
   "mainline_validation": {
@@ -1305,13 +1305,147 @@
   "limitations": [
     "Historical37 cache junctions were already dangling before transfer; preserved as-is and no missing targets introduced.8425 existing regular evidence files were hash-verified.",
     "Historical performance failures remain failed and are not current-mainline measurements. Production/native Linux/>=72h qualification remains open.",
-    "This report and the feature evidence are published after commands; publication JSON/Markdown is outside the captured execution-input set. No production C/H or test-driver edits follow the captured source identity."
+    "This report and the feature evidence are published after commands; publication JSON/Markdown is outside the captured execution-input set. A final consumer-only short-circuit guard follows the initial suite identity; its exact delta and four affected package reruns are recorded separately. Production C/H and other test drivers are unchanged."
   ],
   "recipes_sha256": {
     "build_probe.py": "815af5ae2c8a847ef4e764147165030ebf7f46f2af5fd79f90296475ab8f4a39",
     "layout.c": "70d5bef083c2eee24f7c1cddfffb58fda0399521408bc33787874981aba5bf27",
     "publish_evidence.py": "795985c6bf5ed8ff5b83441ec87486226848ccb69bb6c2be53bc482c0fdf751f",
     "test_mainline.py": "f8bcb33047e21a9892202132773dc9d856740248d5fb85567e7b3dfcfd1eab90",
-    "verify_leaf.py": "5ae84f3d942760f94196b67219723722acf6c432047edf32a75ac06beee9ac0a"
+    "verify_leaf.py": "5ae84f3d942760f94196b67219723722acf6c432047edf32a75ac06beee9ac0a",
+    "apply-consumer-guard-failed.py": "4c5d7a65e2252c3b27f6419cfb2447ad8d8cdb2f77ba5bd2298ec0f6e1fa69a1",
+    "apply_consumer_guard_evidence.py": "f059cca8ffbb65a07b9a88b214233619ae343eb061eb4f507347764f22d8a6b5",
+    "consumer-before-guard.c": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+    "test_consumer_guard.py": "ad4e14a8f4b37c8118fbe927fee785c739e18384dedc0b64d3e86a3d2b7bb026"
+  },
+  "post_validation_consumer_guard": {
+    "reason": "Final review found a test-harness failure path could use Selected after a failed preceding DeliveryOK check. Add a short-circuit guard; no production library behavior changes. No initial product failure is erased.",
+    "path": "extlibs/xcron/tests/package/test_consumer.c",
+    "delta": {
+      "windows": {
+        "extlibs/xcron/tests/package/test_consumer.c": {
+          "before": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+          "after": "783e65ff7112f90cf4d3073304ac7056ba47c25034e8b76fd550422960566528"
+        }
+      },
+      "wsl": {
+        "extlibs/xcron/tests/package/test_consumer.c": {
+          "before": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+          "after": "783e65ff7112f90cf4d3073304ac7056ba47c25034e8b76fd550422960566528"
+        }
+      }
+    },
+    "receipts": {
+      "windows": [
+        {
+          "kind": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0166d5f4b3b774be7a5862ac6f53aac546abecafde2c1dd0581747646f0d2e63"
+        },
+        {
+          "kind": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3fa0384f39cf938e804886b6461ca3171f16eb350905db7c454bb6095d7c6b61"
+        }
+      ],
+      "wsl": [
+        {
+          "kind": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a47f2bd874719176cfd44001a0738527656f023548cac44ff23210ea915f7e93"
+        },
+        {
+          "kind": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f6617d7ead5fd8b159508e771e44faa4b4ccbc03b01000d5d509a0719cce87bd"
+        }
+      ]
+    },
+    "final_input_map_canonical_sha256": "72f8c438d60af19568477fed0efd729fdc5a14c64f3bb9f79de312b6f521a227",
+    "reused_scope": "All initial full suites/other checks retain their original input identities. Only this one consumer changes; unaffected command/log hashes and absence of consumer compilation verified. Both platforms root static/shared consumer verifications rerun against final source.",
+    "recipe_sha256": "f059cca8ffbb65a07b9a88b214233619ae343eb061eb4f507347764f22d8a6b5"
+  },
+  "final_input_map_canonical_sha256": "72f8c438d60af19568477fed0efd729fdc5a14c64f3bb9f79de312b6f521a227",
+  "metadata_publication_correction": {
+    "stage": "metadata publication only",
+    "error_type": "SyntaxError",
+    "message": "unterminated string literal (detected at line 14)",
+    "line": 14,
+    "script_sha256": "4c5d7a65e2252c3b27f6419cfb2447ad8d8cdb2f77ba5bd2298ec0f6e1fa69a1",
+    "product_tests_affected": false,
+    "source_commit": "05dc625df2a0c6c0f34f8f79b612777dd09e0d17",
+    "scope": "The tested guard was included in the source commit. This follow-up fixes only the missing phase documentation and provenance; no production or test C/H changes."
   }
 }
