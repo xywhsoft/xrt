@@ -27785,8 +27785,8 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) && \
-	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT Dial Future common support requires TCP and Future bridge support"
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
+	#error "XRT Dial Future common support requires TCP and Future support"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
