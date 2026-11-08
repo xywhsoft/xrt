@@ -251,7 +251,7 @@ static void testHttpClientContractConfig(xnetengine* pEngine)
 	xhttpclient* pClient;
 
 	xrtHttpClientConfigInit(pUnaligned);
-	memcpy(&Config, pUnaligned, sizeof(Config));
+	memcpy(&Config, (const void*)pUnaligned, sizeof(Config));
 	testRequire(
 		(Config.Timeout ==
 		 XHTTP_CLIENT_TIMEOUT_DEFAULT) &&
@@ -374,7 +374,7 @@ static void testHttpClientContractSubmit(
 		"HTTP client invalid request fixture failed"
 	);
 	xrtHttpCallOptionsInit(pUnaligned);
-	memcpy(&Options, pUnaligned, sizeof(Options));
+	memcpy(&Options, (const void*)pUnaligned, sizeof(Options));
 	testRequire(
 		(Options.Timeout == 0) &&
 		(Options.IdleTimeout == 0) &&
@@ -445,6 +445,11 @@ static void testHttpClientContractPreCancel(
 	xhttpcall* pCall;
 	xcancel* pCancel;
 	const xerror* pError;
+	union {
+		uint64 Alignment;
+		uint8 Bytes[sizeof(xhttpcallinfo) + 2u];
+	} InfoStorage;
+	xhttpcallinfo Info;
 
 	memset(&State, 0, sizeof(State));
 	xrtAtomic32Init(&State.Completed, 0);
@@ -510,6 +515,23 @@ static void testHttpClientContractPreCancel(
 		!xrtHttpCallResume(pCall) &&
 		!xrtHttpCallPaused(pCall),
 		"HTTP client terminal Call accepted pause control"
+	);
+	memset(&InfoStorage, 0xA5, sizeof(InfoStorage));
+	testRequire(
+		xrtHttpCallInfo(
+			pCall,
+			(xhttpcallinfo*)(void*)(InfoStorage.Bytes + 1u)
+		) &&
+		(InfoStorage.Bytes[0] == 0xA5) &&
+		(InfoStorage.Bytes[sizeof(InfoStorage.Bytes) - 1u] == 0xA5),
+		"HTTP client unaligned Call info storage mismatch"
+	);
+	memcpy(&Info, InfoStorage.Bytes + 1u, sizeof(Info));
+	testRequire(
+		(Info.State == XHTTP_CALL_CANCELLED) &&
+		(Info.Result == XNET_RESULT_CANCELLED) &&
+		(Info.Error == XHTTP_CLIENT_ERROR_CANCELLED),
+		"HTTP client unaligned Call info terminal mismatch"
 	);
 	xrtHttpCallDestroy(pCall);
 	xrtCancelDestroy(pCancel);

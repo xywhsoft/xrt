@@ -736,7 +736,7 @@ static inline bool __xwsClientConnEventsSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	return true;
 }
 
@@ -763,7 +763,7 @@ static inline bool __xwsClientClientConfigSnapshot(
 	) ) {
 		return false;
 	}
-	memcpy(pOutput, pInput, sizeof(*pOutput));
+	memcpy(pOutput, (const void*)pInput, sizeof(*pOutput));
 	#if !defined(XWS_CLIENT_FEATURE_WEBSOCKET_CLIENT_DEFLATE)
 		if (pOutput->EnableDeflate || pOutput->RequireDeflate) {
 			__xwsClientHandshakeError(XERR_VALUE, XWS_HANDSHAKE_ERROR_EXTENSION, sOperation, "WebSocket compression support is not selected");
@@ -1521,7 +1521,7 @@ XWS_CLIENT_API void xrtWsClientConfigInit(
 		Config.Http.Redirect =
 			XHTTP_REDIRECT_MANUAL;
 	#endif
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -1837,7 +1837,7 @@ XWS_CLIENT_API bool xrtWsClientCheck(
 		Selected = pProtocol->Value;
 	}
 	Handshake.Protocol = Selected;
-	memcpy(pHandshake, &Handshake, sizeof(Handshake));
+	memcpy((void*)pHandshake, &Handshake, sizeof(Handshake));
 	return true;
 }
 
@@ -2485,6 +2485,7 @@ static bool __xrtWsClientFutureWatch(
 )
 {
 	xerror* pError;
+	xhttpcall* pCall;
 
 	if ( xrtFutureBridgeWatch(
 		&pContext->Bridge,
@@ -2495,8 +2496,13 @@ static bool __xrtWsClientFutureWatch(
 		return true;
 	}
 	pError = xrtTakeError();
+	/* Failure publication lets completion retire the context immediately.
+	 * Transfer its caller Call reference before opening that gate. */
+	pCall = pContext->Call;
+	pContext->Call = NULL;
 	xrtFutureBridgeFail(&pContext->Bridge);
-	(void)xrtHttpCallCancel(pContext->Call);
+	(void)xrtHttpCallCancel(pCall);
+	xrtHttpCallDestroy(pCall);
 	xrtFutureDestroy(pFuture);
 	if ( pError != NULL ) {
 		xrtSetError(pError);

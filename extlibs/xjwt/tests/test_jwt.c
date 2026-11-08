@@ -250,11 +250,18 @@ static bool rsa_private_der_rejected(const void* pDer, size_t iSize)
 	return encoded && !accepted;
 }
 
+#include "critical_header_cases.h"
+#include "jwks_policy_cases.h"
+#include "claims_validation_cases.h"
+
 int main(void)
 {
 	xallocator tProbeAlloc = { NULL, probe_alloc, probe_realloc, probe_free };
 	xrtSetAllocator(&tProbeAlloc);
 	g_fuzzKey = xjwtKeyParse(K_RSA_PUB);
+	jwt_test_critical_headers();
+	jwt_test_jwks_policy();
+	jwt_test_audience_types();
 	/* ---- HS256 往返 ---- */
 	{
 		xvalue* claims = xrtValueObject();
@@ -626,7 +633,7 @@ int main(void)
 			xvalue* claims = xrtValueObject();
 			xjwtconfig cfg;
 			bool armed = true, closed = true, unchanged = true;
-			bool completed = false, verified = false;
+			bool completed = false, verified = false, memory_preserved = true;
 			int injected = 0;
 			xrtValueObjectSetNew(claims, xrtStrView("sub"),
 				xrtValueString(xrtStrView("original")));
@@ -648,6 +655,7 @@ int main(void)
 				xrtMemDebugFailClear();
 				if ( hit ) {
 					injected++;
+					if ( xrtErrorKind(xrtGetError()) != XERR_MEMORY ) memory_preserved = false;
 					if ( token != NULL ) {
 						printf("OOM issued token: alg=%d point=%llu\n",
 							algorithms[alg], (unsigned long long)point);
@@ -676,6 +684,7 @@ int main(void)
 			CHECK(armed && completed && verified && injected > 0,
 				"JWT HS/RS/ES OOM sweep reaches valid signing");
 			CHECK(closed, "JWT HS/RS/ES OOM never issues partial token");
+			CHECK(memory_preserved, "JWT HS/RS/ES signing preserves the allocation failure");
 			CHECK(unchanged, "JWT HS/RS/ES OOM leaves caller claims intact");
 			xrtValueRelease(claims);
 		}
@@ -2400,7 +2409,7 @@ int main(void)
 			ck.Audience = "not-in-list";
 			CHECK(xjwtVerify(token, "k", &ck) == NULL,
 				"aud array: no-match rejected");
-			/* 非字符串元素混入数组：其余元素命中仍应通过（宽容解析） */
+			/* 重复验证同一字符串数组，结果保持稳定。 */
 			xrtClearError();
 			ck.Audience = "myapp-web";
 			out = xjwtVerify(token, "k", &ck);

@@ -340,7 +340,7 @@ static void testHttpRouteMemoryContracts(void)
 	testRequire(pFound == (const xhttprouteparam*)(const void*)(
 		ParamsStorage + 1u + sizeof(xhttprouteparam)
 	), "HTTP route lookup returned the wrong unaligned descriptor");
-	memcpy(&Found, pFound, sizeof(Found));
+	memcpy(&Found, (const void*)pFound, sizeof(Found));
 	testRequire(testHttpRouteViewEqual(
 		Found.Value, XRT_STR_LITERAL("a/b")
 	), "HTTP route lookup returned invalid borrowed data");

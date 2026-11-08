@@ -18,6 +18,7 @@
 #else
 	#include "../test.h"
 #endif
+#include "../../../../tests/network/engine_test.h"
 
 
 
@@ -534,6 +535,19 @@ static void testWsHttpRequest(
 	ptr pData
 )
 {
+	static const xstrview Reserved[] = {
+		XRT_STR_INIT("Connection"),
+		XRT_STR_INIT("Upgrade"),
+		XRT_STR_INIT("Sec-WebSocket-Accept"),
+		XRT_STR_INIT("Sec-WebSocket-Protocol"),
+		XRT_STR_INIT("Sec-WebSocket-Extensions"),
+		XRT_STR_INIT("Content-Length"),
+		XRT_STR_INIT("Transfer-Encoding"),
+		XRT_STR_INIT("Trailer"),
+		XRT_STR_INIT("Sec-WebSocket-Key"),
+		XRT_STR_INIT("sEc-WeBsOcKeT-vErSiOn"),
+		XRT_STR_INIT("Sec-WebSocket-Experimental")
+	};
 	test_ws_http* pTest = (test_ws_http*)pData;
 	xwsserverconfig Config;
 	xwsserverhandshake Handshake;
@@ -572,38 +586,31 @@ static void testWsHttpRequest(
 		"WebSocket server handshake check failed"
 	);
 	pHeaders = xrtHttpHeadersCreate(NULL);
-	testRequire(
-		(pHeaders != NULL) &&
-		xrtHttpHeadersAdd(
-			pHeaders,
-			XRT_STR_LITERAL("Sec-WebSocket-Accept"),
-			XRT_STR_LITERAL("forbidden")
-		),
-		"WebSocket application Header creation failed"
-	);
-	testRequire(
-		(xrtWsUpgradeAccept(
-			pHttp,
-			&Config,
-			&Handshake,
-			pHeaders,
-			&pTest->WsEvents,
-			pTest,
-			pDone,
-			pTest
-		 ) == XNET_RESULT_ERROR) &&
-		(xrtErrorCode(xrtGetError()) ==
-		 XWS_HANDSHAKE_ERROR_OUTPUT),
-		"WebSocket reserved application Header was accepted"
-	);
-	xrtClearError();
-	xrtHttpHeadersClear(pHeaders);
+	testRequire(pHeaders != NULL, "WebSocket application Headers creation failed");
+	for (size_t i = 0; i < sizeof(Reserved) / sizeof(Reserved[0]); i++) {
+		bool Rejected;
+		testRequire(xrtHttpHeadersAdd(pHeaders, Reserved[i],
+			XRT_STR_LITERAL("forbidden")), "WebSocket reserved Header creation failed");
+		Rejected = xrtWsUpgradeAccept(pHttp, &Config, &Handshake, pHeaders,
+			&pTest->WsEvents, pTest, pDone, pTest) == XNET_RESULT_ERROR &&
+			xrtErrorKind(xrtGetError()) == XERR_VALUE &&
+			xrtErrorCode(xrtGetError()) == XWS_HANDSHAKE_ERROR_OUTPUT;
+		printf("[%s] WebSocket reserved application Header %.*s\n",
+			Rejected ? "PASS" : "FAIL", (int)Reserved[i].Size, Reserved[i].Data);
+		testRequire(Rejected, "WebSocket reserved application Header was accepted");
+		xrtClearError();
+		xrtHttpHeadersClear(pHeaders);
+	}
 	testRequire(
 		xrtHttpHeadersAdd(
 			pHeaders,
 			XRT_STR_LITERAL("X-Xrt-WebSocket"),
 			XRT_STR_LITERAL("accepted")
-		),
+		) &&
+		xrtHttpHeadersAdd(pHeaders, XRT_STR_LITERAL("Sec-WebSocket"),
+			XRT_STR_LITERAL("ordinary")) &&
+		xrtHttpHeadersAdd(pHeaders, XRT_STR_LITERAL("X-Sec-WebSocket-Experimental"),
+			XRT_STR_LITERAL("ordinary")),
 		"WebSocket custom application Header creation failed"
 	);
 	pTest->ServerSubmitting = true;
@@ -775,6 +782,17 @@ static void testWsHttpClientDone(
 		),
 		"WebSocket client completion mismatch"
 	);
+	{
+		static const xstrview Ordinary[] = {
+			XRT_STR_INIT("Sec-WebSocket"),
+			XRT_STR_INIT("X-Sec-WebSocket-Experimental")
+		};
+		for (size_t i = 0; i < sizeof(Ordinary) / sizeof(Ordinary[0]); i++) {
+			const xhttpfield* pField = xrtHttpResponseHeader(pResponse, Ordinary[i]);
+			testRequire(pField != NULL && testWsHttpTextEqual(pField->Value,
+				XRT_STR_LITERAL("ordinary")), "WebSocket rejected an ordinary near-prefix Header");
+		}
+	}
 	pTest->CallbackCall = pCall;
 	pTest->Response = pResponse;
 	xrtAtomicPtrStore(
@@ -1543,7 +1561,7 @@ int main(void)
 		xrtTlsContextRelease(pTlsContext);
 	#endif
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket HTTP engine destroy failed"
 	);
 	printf(

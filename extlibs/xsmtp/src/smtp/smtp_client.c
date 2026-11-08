@@ -536,6 +536,19 @@ void __xrtSmtpClientAuthComplete(xsmtpclient* pClient)
 
 
 
+#if defined(XSMTP_FEATURE_SMTP_AUTH)
+/* 中止尚在等待 SASL 响应的认证交换，保留原始错误和最后响应。 */
+void __xrtSmtpClientAuthFailed(xsmtpclient* pClient)
+{
+	if ( (pClient != NULL) && (pClient->State == XSMTP_CLIENT_READY) &&
+		(pClient->ReplyCode == 334) ) {
+		(void)__xrtSmtpClientFailed(pClient);
+	}
+}
+#endif
+
+
+
 /* 取得最后响应。 */
 XRT_API bool xrtSmtpClientLastReply(
 	const xsmtpclient* pClient,
@@ -659,9 +672,11 @@ XRT_API bool __xrtSmtpClientReceive(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientCommandMode(pClient, false) ) {
 		return false;
 	}
 	return __xrtSmtpClientReceiveMode(
@@ -886,6 +901,10 @@ XRT_API bool __xrtSmtpClientDataWrite(
 		__xrtSmtpClientError(XERR_STATE, "SMTP DATA write requires DATA state");
 		return false;
 	}
+	if ( !xrtMemRangeValid(Data.Data, Data.Size) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
 	Sink.Client = pClient;
 	Sink.Deadline = iDeadline;
 	Sink.Cancel = pCancel;
@@ -1035,11 +1054,13 @@ XRT_API bool __xrtSmtpClientBdatWrite(
 	xcancel* pCancel
 )
 {
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
+
 	if ( !__xrtSmtpClientUsable(pClient) ||
 		(pClient->State != XSMTP_CLIENT_CHUNK) ||
 		!pClient->ChunkActive ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
-
 		__xrtSmtpClientError(XERR_STATE, "SMTP BDAT write requires a block");
 		return false;
 	}
@@ -1234,9 +1255,11 @@ XRT_API bool __xrtSmtpClientClose(
 	double iDeadline
 )
 {
-	if ( !__xrtSmtpClientUsable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtSmtpClientUsable(pClient) ) {
 		return false;
 	}
 	if ( !__xrtMailTransportClose(&pClient->Transport, iDeadline) ) {

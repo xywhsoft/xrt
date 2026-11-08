@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 #include <xrt/http_bridge.h>
 #include "../../../xhttp-client/src/internal/xrt_http_client_runtime.h"
 
@@ -616,7 +617,7 @@ static void testWsClientInvalidRun(
 	xrtNetStreamDestroy(Test.Server);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"invalid WebSocket engine destroy failed"
 	);
 }
@@ -840,7 +841,7 @@ static void testWsClientRanges(void)
 	memset(HandshakeStorage, 0xD4, sizeof(HandshakeStorage));
 	memset(KeyStorage, 0xE5, sizeof(KeyStorage));
 	xrtWsClientConfigInit(pConfig);
-	memcpy(&Config, pConfig, sizeof(Config));
+	memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	testRequire(
 		(ConfigStorage[0] == UINT8_C(0xC3)) &&
 		(ConfigStorage[sizeof(ConfigStorage) - 1u] ==

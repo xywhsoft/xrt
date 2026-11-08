@@ -292,7 +292,7 @@ XWS_API xnetresult xrtWsConnSendRef(
 		);
 		return XNET_RESULT_ERROR;
 	}
-	memcpy(&Ref, pRef, sizeof(Ref));
+	memcpy(&Ref, (const void*)pRef, sizeof(Ref));
 	if ( !xrtMemRangeValid(Ref.Data, Ref.Size) ||
 		(Ref.Size == 0) || (Ref.Release == NULL) ||
 		xrtMemRangesOverlap(

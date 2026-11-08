@@ -3,6 +3,7 @@
 typedef struct xwork_subagent_policy
 {
     const xwork_readonly_subagent_config *pConfig;
+    const xwork_agent *pAgent;
 } xwork_subagent_policy;
 
 /* ------------------------------------------------------------------ */
@@ -995,10 +996,18 @@ xwork__subagent_permission(void *pUserData, const xwork_permission_request *pReq
     }
     for (i = 0u; i < pRequest->iResourceCount; ++i)
     {
-        if (pRequest->pResources[i].eKind == XWORK_RESOURCE_PATH &&
-            xworkPathIsProtected(pRequest->pResources[i].sResource))
-        {
-            return XWORK_PERMISSION_DENY;
+        if (pRequest->pResources[i].eKind == XWORK_RESOURCE_PATH) {
+            const char *sPath = pRequest->pResources[i].sResource;
+            char *sResolved, *sRelative;
+            bool bDenied;
+            if (xworkPathIsProtected(sPath) || !pPolicy || !pPolicy->pAgent)
+                return XWORK_PERMISSION_DENY;
+            sResolved = xwork__resolve_path(pPolicy->pAgent, sPath, NULL);
+            if (!sResolved) return XWORK_PERMISSION_DENY;
+            sRelative = xwork__relative_path(pPolicy->pAgent, sResolved);
+            bDenied = !sRelative || xworkPathIsProtected(sRelative);
+            free(sRelative); free(sResolved);
+            if (bDenied) return XWORK_PERMISSION_DENY;
         }
     }
     if (pPolicy && pPolicy->pConfig && pPolicy->pConfig->OnPermission)
@@ -1175,6 +1184,7 @@ xwork_result xworkAgentRunReadOnlySubagent(xwork_agent *pParent,
     pChild = xworkAgentCreate(&tAgentConfig, pError);
     if (!pChild)
         goto cleanup;
+    tPolicy.pAgent = pChild;
     if (!xworkAgentSetProcessOwner(pChild, pParent->OnProcessAcquire, pParent->OnProcessRelease,
                                    pParent->pProcessOwnerData, pError))
         goto cleanup;

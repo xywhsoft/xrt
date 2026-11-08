@@ -353,9 +353,10 @@ int main(int argc, char** argv)
 	xmemdebugsnapshot before, memory;
 	char *ca, *upload = NULL;
 	int64 timeout_ms = 3000;
+	double exchange_started;
 	bool bounded, large_body, send_failure, head_failure, body_failure;
 	bool headers, header_oom, link_fields, expected, ok, result;
-	bool request_max, url_failure;
+	bool request_max, url_failure, budget_mode, budget_retry, budget_timeout, operation_scope;
 	xacmehttpheader extra[94];
 	char names[94][24];
 	const xerror* error;
@@ -417,11 +418,19 @@ int main(int argc, char** argv)
 	} else if(strcmp(argv[3], "header-oom-link-fields") == 0) {
 		header_oom = true; HeaderFaultSize = sizeof("</issuer>; rel=\"up\", </alternate>; rel=\"alternate\"");
 	}
+	operation_scope = strncmp(argv[3], "operation-", 10u) == 0;
+	const char* budget_name = operation_scope ? argv[3] + 10u : argv[3];
+	budget_retry = strncmp(budget_name, "budget-retry-", 13u) == 0;
+	budget_timeout = strcmp(budget_name, "budget-timeout") == 0 || strcmp(budget_name, "budget-retry-timeout") == 0;
+	budget_mode = budget_timeout || strcmp(budget_name, "budget-control") == 0 || strcmp(budget_name, "budget-retry-control") == 0;
 	request_max = strcmp(argv[3], "request-max") == 0;
 	url_failure = strcmp(argv[3], "url-failure") == 0;
-	expected = strcmp(argv[3], "success") == 0 || bounded || large_body || headers || link_fields || request_max;
-	if(!expected && !send_failure && !head_failure && !body_failure && !header_oom && !url_failure &&
+	expected = strcmp(argv[3], "success") == 0 || bounded || large_body || headers || link_fields || request_max || (budget_mode && !budget_timeout);
+	if(!expected && !send_failure && !head_failure && !body_failure && !header_oom && !url_failure && !budget_mode &&
 		strcmp(argv[3], "failure") != 0) return 2;
+	/* The 8 MiB extension workload checks memory bounds, including -O0 coverage.
+	 * Keep its budget finite and separate from the deadline cases below. */
+	if(bounded) timeout_ms = 15000;
 	if(argc == 5) {
 		char* end;
 		unsigned long long parsed;
@@ -434,9 +443,10 @@ int main(int argc, char** argv)
 	if(!xrtMemDebugEnable(true)) return 3;
 	ca = read_ca(argv[2]);
 	if(ca == NULL) return 3;
-	ok = xacmeHttpInit(&http, NULL, ca, timeout_ms);
+	ok = xacmeHttpInit(&http, NULL, ca, operation_scope ? 30000 : timeout_ms);
 	free(ca);
 	if(!ok) return 4;
+	if(operation_scope) {http.bOperationDeadline = true; http.OperationDeadline = __xrtWaitAfter(timeout_ms);}
 	xrtMemDebugSnapshot(&before);
 	if(send_failure) {
 		upload = (char*)malloc(8u * 1024u * 1024u);
@@ -453,9 +463,11 @@ int main(int argc, char** argv)
 		}
 	}
 	xrtClearError();
-	ok = xacmeHttpExchangeOnceV(&http, send_failure || request_max ? "POST" : "GET", url,
-		send_failure || request_max ? "text/plain" : NULL,
-		request_max ? XRT_STR_LITERAL("request") :
+	exchange_started = xrtTimer();
+	ok = (budget_mode ? xacmeHttpExchangeV : xacmeHttpExchangeOnceV)(&http,
+		send_failure || request_max || (budget_mode && !budget_retry) ? "POST" : "GET", url,
+		send_failure || request_max || (budget_mode && !budget_retry) ? "text/plain" : NULL,
+		request_max || (budget_mode && !budget_retry) ? XRT_STR_LITERAL("request") :
 		(xstrview){ upload, send_failure ? 8u * 1024u * 1024u : 0u },
 		request_max ? extra : NULL, request_max ? 94u : 0u, &response);
 	free(upload);
@@ -469,6 +481,9 @@ int main(int argc, char** argv)
 	} else {
 		result = !ok && response_empty(&response) && error != NULL;
 	}
+	if(budget_timeout) result = result && xrtErrorKind(error) == XERR_TIMEOUT &&
+		http.bWriteUncertain == !budget_retry;
+	if(budget_mode && !budget_timeout) result = result && !http.bWriteUncertain;
 	if(headers || bounded || header_oom) {
 		if(header_oom) result = result && HeaderFaultFired && error == HeaderFaultError &&
 			xrtErrorKind(error) == XERR_MEMORY;
@@ -494,14 +509,27 @@ int main(int argc, char** argv)
 		xrtErrorCode(xrtErrorCause(error)) == XACME_HTTP_ERROR_SEND;
 	if(bounded) {
 		xrtMemDebugSnapshot(&memory);
-		fprintf(stderr, "TLS chunked memory: before=%zu peak=%zu\n", before.PeakBytes, memory.PeakBytes);
+		fprintf(stderr, "TLS chunked memory: before=%zu peak=%zu elapsed=%.3f budget_ms=%lld\n",
+			before.PeakBytes, memory.PeakBytes, xrtTimer() - exchange_started, (long long)timeout_ms);
 		result = result && memory.PeakBytes >= before.PeakBytes &&
 			memory.PeakBytes - before.PeakBytes <= 4u * 1024u * 1024u;
 	}
-	if(!result) fprintf(stderr, "ACME HTTP interop: ok=%d status=%u size=%zu kind=%d code=%d error=%s\n",
-		(int)ok, (unsigned)response.iStatus, response.iBodySize, xrtErrorKind(error),
-		xrtErrorCode(error), error != NULL ? xrtErrorMessage(error) : "none");
-	if(send_failure) {
+	if(!result) {
+		const xerror* cause = error;
+		fprintf(stderr, "ACME HTTP interop: ok=%d status=%u size=%zu kind=%d code=%d error=%s elapsed=%.3f budget_ms=%lld\n",
+			(int)ok, (unsigned)response.iStatus, response.iBodySize, xrtErrorKind(error),
+			xrtErrorCode(error), error != NULL ? xrtErrorMessage(error) : "none",
+			xrtTimer() - exchange_started, (long long)timeout_ms);
+		for(unsigned depth = 0u; cause != NULL && depth < 16u; depth++) {
+			const char* domain = xrtErrorDomain(cause);
+			const char* operation = xrtErrorOperation(cause);
+			fprintf(stderr, "ACME HTTP cause[%u]: domain=%s operation=%s kind=%d code=%d system=%d\n",
+				depth, domain != NULL ? domain : "none", operation != NULL ? operation : "none",
+				xrtErrorKind(cause), xrtErrorCode(cause), xrtErrorSystemCode(cause));
+			cause = xrtErrorCause(cause);
+		}
+	}
+	if(send_failure || budget_timeout) {
 		puts("RETURNED"); fflush(stdout);
 		if(getchar() != '\n') result = false;
 	}

@@ -2070,14 +2070,14 @@ XWS_GROUP_API bool xrtWsGroupOpResult(
 	if ( pItem->Future == NULL ) {
 		Result.State = XWS_GROUP_OP_REJECTED;
 		Result.Error = pItem->Error;
-		memcpy(pResult, &Result, sizeof(Result));
+		memcpy((void*)pResult, &Result, sizeof(Result));
 		return true;
 	}
 	State = xrtFutureState(pItem->Future);
 	Result.State = __xrtWsGroupOpState(State);
 	Result.Error = State == XFUTURE_FAILED ?
 		xrtFutureError(pItem->Future) : NULL;
-	memcpy(pResult, &Result, sizeof(Result));
+	memcpy((void*)pResult, &Result, sizeof(Result));
 	return true;
 }
 
@@ -2662,7 +2662,7 @@ XWS_GROUP_API xwsgroupop* xrtWsGroupSendRefAsync(
 		);
 		return NULL;
 	}
-	memcpy(&Ref, pRef, sizeof(Ref));
+	memcpy(&Ref, (const void*)pRef, sizeof(Ref));
 	if ( (Ref.Data == NULL) ||
 		(Ref.Size == 0) ||
 		(Ref.Release == NULL) ||

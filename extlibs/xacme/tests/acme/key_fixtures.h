@@ -1,0 +1,35 @@
+#ifndef XACME_TEST_KEY_FIXTURES_H
+#define XACME_TEST_KEY_FIXTURES_H
+
+/* External RSA fixture shared by CSR vectors and retirement probes. */
+static const char* testCsrRsaPem =
+"-----BEGIN PRIVATE KEY-----\n"
+"MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDhfQJQhol1x3wi\n"
+"wLKZZz56Q8be7hRYkjjHid8mD3YHFPVv9J+dDX5uV85XxHi0PMLlAzE4Gu6q4FVk\n"
+"ES2REcAknG/hL44A84MOoSVE7TcDOS9ydAlFi3olu4E+lYcudZft89uDcJjJ6NnD\n"
+"xmUhIb9e7sOSSRh94fO03Q0JQIDguVbto9GLa1K5sllnrmNybjiy4kI2+NpZOGmH\n"
+"PhX+H/ES3vpPqA8gh5W+IEKzfYeO6FqS0macT4jmztJPkNxsyUxitJUyVAQU5fLe\n"
+"yjZrZAzVZMotXfp26cdDw1AGRcgpziHS76DUPcnLn2ncekyITTNr/d4M2iMkpJrL\n"
+"Z9KDoMQXAgMBAAECggEACsHSdvH8I8zI/MVxn8Tfo6iRF7iG6vTK1aYbqa6qJEtZ\n"
+"LCag6Laole4Fb4V1dq/BYniFBBaw1SEPoc75/AY7QuPdqIICxcPYOD3yz7d7XOGB\n"
+"BHZJrPIq+RrZXxl2Ef7VKSptifc4qsU7gk34LBz2irpcRSHMk9DQNgwnn43euBm4\n"
+"gRgjE2uk8bdoG4TQaUsXYzzBgwGcSXMHzSJW08oOuGClVvWu33ZJv3/pX/z7ZTHg\n"
+"9VoKgwwhWPg+Yn/SZg3vf5mCtkiT8z8UPGChf3zByDPaVEglFId3Le2WWN694uoz\n"
+"IC7gQM+c4KFOfgIQxubukG9FdnZPl1bOXl+2cN9IrQKBgQD0OQob7dZzUGvrVSBM\n"
+"D1tSNqc+BKkokvbUpWuK6jBD0ZOFD9mnlM0D+ncT0g8a06cUhAfbOo7CetgsaHCh\n"
+"H2zD3PmGq67Ui1GRiJYI0wpbLlQ5QHKTUk8cIX6P2AUvtnCXRjrBob0YC/+NV92R\n"
+"pr/QkN8azlSpOk0KjGXzleoy3QKBgQDsXLCfQeXnnFcGdWQ3EOgFXkqYIiu5jFct\n"
+"dAzDe7BCZ/QS0eumS6TaktjOmNsXB2GvlUfAT3tjycqRNUOcypIUNT3A9fqw4eKz\n"
+"WAQf1FkZRqOfCfLIkRekbaip3yX2mcKpGclt2+zC7HBmyetk3jgRuRy5W8V2LXOh\n"
+"rAZZNd9hgwKBgGB4p6WgrbWfbwHm/nsNFeXD8QxuiuOcKiSVs4WMPMSNZNiLCk9I\n"
+"WDPaHG+X6p+OO9G+1dujpgDsxbfFCbib0TsNbwPjjYwn/HCgo6OYud6KznpPGvNW\n"
+"8CkMkhIAIwxV5OPcuhkC6s807h3HN57xX5Pjpj3Qg2DVxtkD3MH71ieBAoGBALY5\n"
+"Z7oAdh0wPS+vhYmmsRqibWQIxCkS94sFc2mqjGNF/bgcu07D9t7EY/4zfoWsnTVf\n"
+"I6gyHvD5/AAjTnMtAZ4uxeNkQNfp7ntSGivn7KE+Apt0cgcLRWzxVh1Q+tW6CYeR\n"
+"Z+gYq9pDqwy0E5T6dcPEMU7+X6gStpkoJOTWUde9AoGBANphL9EwLUthDngddXDa\n"
+"P9cmnA39Nz39EBbR/06Po8s4hId4eq5NVXYGTys5NR6+XcnhLKQPW1U1VKsMoDI5\n"
+"dLXI39ldba82xefXKdEA+BSkTgGtXKXPNQwHlQIistXszAeuOND78MUq3u5uzy5g\n"
+"MlMSMneEUcUd3VBrrRZNp3hO\n"
+"-----END PRIVATE KEY-----\n";
+
+#endif

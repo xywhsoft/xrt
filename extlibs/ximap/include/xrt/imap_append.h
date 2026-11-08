@@ -86,7 +86,10 @@ XRT_API bool xrtImapClientAppendWrite(
 
 
 
-/* 结束 literal，消费命令响应并解析可选 APPENDUID。 */
+/*
+	结束 literal，消费命令响应并解析可选 APPENDUID；pResult 可为 NULL。
+	非法输出范围返回 XERR_ARGUMENT，保留活动上传供更正参数后继续。
+*/
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
@@ -96,7 +99,10 @@ XRT_API bool xrtImapClientAppendEnd(
 
 
 
-/* 对已经完整驻留内存的消息执行一次 APPEND。 */
+/*
+	对已经完整驻留内存的消息执行一次 APPEND；pResult 可为 NULL。
+	非法输出范围在开始事务前返回 XERR_ARGUMENT，不发送命令或正文。
+*/
 XRT_API bool xrtImapClientAppend(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,

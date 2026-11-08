@@ -6,13 +6,27 @@
 			"name": "imap_protocol",
 			"system": "imap_protocol",
 			"suite": "imap",
-			"description": "IMAP 协议纯解析与写出"
+			"description": "IMAP 协议纯解析与写出",
+			"forbid_symbols": [
+				"xrtImapClient",
+				"xrtMailNet",
+				"xrtMailTree",
+				"xrtNet",
+				"xrtTls"
+			]
 		},
 		{
 			"name": "ximap",
 			"system": "imap_protocol",
 			"suite": "ximap",
-			"description": "ximap 当前完整扩展闭包"
+			"description": "ximap 当前完整扩展闭包",
+			"forbid_symbols": [
+				"xrtPop3",
+				"xrtSmtp",
+				"xrtAcme",
+				"xrtWs",
+				"xrtTlsIdentityRsa"
+			]
 		}
 	],
 	"default_growth": {

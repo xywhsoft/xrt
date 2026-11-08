@@ -135,7 +135,10 @@ XWS_SERVER_API bool xrtWsServerCheck(
 
 
 
-/* 从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。 */
+/*
+	从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。
+	握手要求构建中未选中的压缩能力时返回错误。
+*/
 XWS_SERVER_API xhttpreply* xrtWsServerReply(
 	const xwsserverhandshake* pHandshake
 );
@@ -157,6 +160,7 @@ XWS_SERVER_API xnetresult xrtWsServerReject(
 	提交已经通过 xrtWsServerCheck 的 WebSocket 握手。
 	Headers 可以为空；非空时只追加普通响应字段，Upgrade、Connection、
 	Sec-WebSocket-* 以及正文分帧字段由协议层独占，不能覆盖。
+	压缩快照必须满足配置的启用和强制策略。
 	Handshake 和 Headers 只在调用期间借用，配置、事件和子协议会在返回前快照。
 	该入口适合鉴权后追加 Cookie、追踪标识或应用自定义 Header；同步失败不调用 Proc。
 */

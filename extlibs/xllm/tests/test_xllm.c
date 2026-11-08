@@ -818,6 +818,98 @@ static int32 test_concurrent_thread(ptr pData)
     return 0;
 }
 
+static bool test_json_text_equals(xvalue* pObject, const char* sKey, const char* sExpected)
+{
+    xstrview tText;
+    xvalue* pValue = pObject ? xrtValueObjectGet(pObject, xrtStrView(sKey)) : NULL;
+    return pValue && xrtValueGetString(pValue, &tText) &&
+        tText.Size == strlen(sExpected) && memcmp(tText.Data, sExpected, tText.Size) == 0;
+}
+
+static void test_anthropic_history_replay(void)
+{
+    xllm_client* pClient = test_make_client("http://127.0.0.1:1/v1", XLLM_PROVIDER_ANTHROPIC);
+    xllm_request tRequest;
+    xllm_message tMessage;
+    xllm_error tError;
+    char* sJson;
+    unsigned i;
+    CHECK(pClient != NULL, "assistant replay fixture client creates");
+    if ( !pClient ) return;
+    for ( i = 0u; i < 2u; ++i ) {
+        xllmRequestInit(&tRequest);
+        xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
+        CHECK(xllmMessageSetContent(&tMessage, "quoted \"answer\"\n中文") &&
+            (!i || xllmMessageAddToolCall(&tMessage, "replay-call", "inspect", "{}")) &&
+            xllmRequestAddMessage(&tRequest, &tMessage), "plain assistant replay input creates");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson && xrtJsonValid(xrtStrView(sJson)),
+            "assistant text with or without tool calls produces valid JSON");
+        xllmFree(sJson);
+        xllmMessageUnit(&tMessage);
+        xllmRequestUnit(&tRequest);
+    }
+    {
+        xllm_part tLegacy = {0};
+        xllmRequestInit(&tRequest);
+        xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
+        tLegacy.eKind = XLLM_PART_NATIVE;
+        tLegacy.sNativeType = "thinking_signature";
+        tLegacy.sText = "legacy-signature";
+        CHECK(xllmMessageSetReasoning(&tMessage, "legacy thought") &&
+            xllmMessageAddPart(&tMessage, &tLegacy) && xllmRequestAddMessage(&tRequest, &tMessage),
+            "legacy signed-thinking message creates");
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        CHECK(sJson && xrtJsonValid(xrtStrView(sJson)) &&
+            strstr(sJson, "\"thinking\":\"legacy thought\",\"signature\":\"legacy-signature\""),
+            "legacy signature-only parts retain their aggregated reasoning fallback");
+        xllmFree(sJson);
+        xllmMessageUnit(&tMessage);
+        xllmRequestUnit(&tRequest);
+    }
+    {
+        char sThought[32] = "first thought";
+        xllm_block aBlocks[4] = {
+            { XLLM_BLOCK_REASONING, sThought, 0u, "sig-one" },
+            { XLLM_BLOCK_TEXT, "first answer", 0u, NULL },
+            { XLLM_BLOCK_REASONING, "second thought", 0u, "sig-two" },
+            { XLLM_BLOCK_TEXT, "second answer", 0u, NULL }
+        };
+        xllm_response tResponse = {0};
+        xvalue* pRoot;
+        xvalue* pMessages;
+        xvalue* pAssistant;
+        xvalue* pContent;
+        tResponse.sContent = "first answersecond answer";
+        tResponse.sReasoningContent = "first thoughtsecond thought";
+        tResponse.pBlocks = aBlocks;
+        tResponse.iBlockCount = 4u;
+        CHECK(xllmMessageFromResponse(&tResponse, &tMessage), "signed response converts to an owned message");
+        memcpy(sThought, "overwritten", sizeof("overwritten"));
+        xllmRequestInit(&tRequest);
+        CHECK(xllmRequestAddMessage(&tRequest, &tMessage), "signed replay message copies into a request");
+        xllmMessageUnit(&tMessage);
+        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
+        pRoot = sJson ? xrtJsonParse(xrtStrView(sJson)) : NULL;
+        pMessages = pRoot ? xrtValueObjectGet(pRoot, xrtStrView("messages")) : NULL;
+        pAssistant = pMessages ? xrtValueArrayGet(pMessages, 0u) : NULL;
+        pContent = pAssistant ? xrtValueObjectGet(pAssistant, xrtStrView("content")) : NULL;
+        CHECK(pContent && xrtValueCount(pContent) == 4u,
+            "signed replay retains both thinking and both text blocks");
+        CHECK(test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 0u) : NULL, "thinking", "first thought") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 0u) : NULL, "signature", "sig-one") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 1u) : NULL, "text", "first answer") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 2u) : NULL, "thinking", "second thought") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 2u) : NULL, "signature", "sig-two") &&
+            test_json_text_equals(pContent ? xrtValueArrayGet(pContent, 3u) : NULL, "text", "second answer"),
+            "each thinking signature stays paired with its own text in arrival order");
+        xrtValueRelease(pRoot);
+        xllmFree(sJson);
+        xllmRequestUnit(&tRequest);
+    }
+    xllmClientDestroy(pClient);
+}
+
 static void test_keepalive_and_concurrency(void)
 {
     test_server_ctx tServerCtx = {0};
@@ -1209,7 +1301,7 @@ static void test_lifecycle_hooks(void)
     }
 
 cleanup:
-    xrtFree(tState.sBodySeen);
+    xllm__free(tState.sBodySeen);
     xllmClientDestroy(pClient);
     test_server_stop(&tServerCtx);
 }
@@ -1263,6 +1355,9 @@ static void test_history_container(void)
 
 /* Allocator fault sweeps live in test_xllm_mdo.inc; their allocator is
  * installed before constructing any client or request. */
+
+
+
 
 
 
@@ -1736,6 +1831,7 @@ static void test_audit_hardening(void)
         xllmPartInit(&tPart, XLLM_PART_TEXT);
         CHECK(xllmPartSetText(&tPart, "\360\237\230\200emoji"),
             "part text accepts a valid 4-byte sequence");
+        xllmPartUnit(&tPart);
         xllmMessageUnit(&tMessage);
     }
     /* Timer lifetime: a deadline call destroyed mid-flight must drain the
@@ -1765,6 +1861,43 @@ static void test_audit_hardening(void)
         }
         test_server_stop(&tServerCtx);
     }
+}
+
+static void test_utf8_boundaries(void)
+{
+    static const char* aInvalid[] = {
+        "\xe0\x80\x80", "\xe0\x9f\xbf", "\xe0\x80\xaf",
+        "\xf0\x80\x80\x80", "\xf0\x8f\xbf\xbf", "\xf0\x80\x80\xaf",
+        "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xf5\x80\x80\x80",
+        "\xc0\x80", "\xc1\xbf", "\x80", "\xe2\x82", "\xf0\x9f\x92"
+    };
+    static const char* aValid[] = {
+        "ASCII", "\xc2\x80", "\xdf\xbf", "\xe0\xa0\x80", "\xef\xbf\xbf",
+        "\xf0\x90\x80\x80", "\xf4\x8f\xbf\xbf"
+    };
+    xllm_message tMessage;
+    xllm_part tPart;
+    size_t i;
+    xllmMessageInit(&tMessage, XLLM_ROLE_USER);
+    xllmPartInit(&tPart, XLLM_PART_TEXT);
+    for ( i = 0u; i < sizeof(aInvalid) / sizeof(aInvalid[0]); ++i ) {
+        bool bSeed = xllmMessageSetContent(&tMessage, "kept") &&
+            xllmMessageSetReasoning(&tMessage, "kept") && xllmPartSetText(&tPart, "kept");
+        bool bContent = xllmMessageSetContent(&tMessage, aInvalid[i]);
+        bool bReasoning = xllmMessageSetReasoning(&tMessage, aInvalid[i]);
+        bool bPart = xllmPartSetText(&tPart, aInvalid[i]);
+        CHECK(bSeed && !bContent && !bReasoning && !bPart &&
+            strcmp(tMessage.sContent, "kept") == 0 && strcmp(tMessage.sReasoningContent, "kept") == 0 &&
+            strcmp(tPart.sText, "kept") == 0,
+            "noncanonical UTF-8 is rejected without replacing existing text");
+    }
+    for ( i = 0u; i < sizeof(aValid) / sizeof(aValid[0]); ++i ) {
+        CHECK(xllmMessageSetContent(&tMessage, aValid[i]) &&
+            xllmMessageSetReasoning(&tMessage, aValid[i]) && xllmPartSetText(&tPart, aValid[i]),
+            "UTF-8 scalar boundaries retain their valid encodings");
+    }
+    xllmPartUnit(&tPart);
+    xllmMessageUnit(&tMessage);
 }
 
 static void test_fragmented_parser(void)
@@ -2106,11 +2239,12 @@ int main(void)
     test_v3_model();
     test_v3_blocks_and_refusal();
     test_dialect_anthropic();
+    test_anthropic_history_replay();
     test_dialect_responses();
     test_keepalive_and_concurrency();
     test_async_engine();
-
     test_audit_hardening();
+    test_utf8_boundaries();
     test_wire_store_flags();
     test_lifecycle_hooks();
     test_history_container();

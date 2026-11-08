@@ -77,10 +77,12 @@
 			],
 			"tests": [
 				"extlibs/xws-server/tests/websocket/test_http_handshake.c",
-				"extlibs/xws-server/tests/websocket/test_http_handoff.c"
+				"extlibs/xws-server/tests/websocket/test_http_handoff.c",
+				"extlibs/xws-server/tests/websocket/test_server_optional_deflate.c"
 			],
 			"single_tests": [
-				"extlibs/xws-server/tests/single/test_single_websocket_server.c"
+				"extlibs/xws-server/tests/single/test_single_websocket_server.c",
+				"extlibs/xws-server/tests/single/test_single_websocket_server_optional_deflate.c"
 			],
 			"examples": [],
 			"docs": [
@@ -707,6 +709,50 @@
 			"legacy": []
 		},
 		{
+			"name": "websocket_server_future_setup_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server_future",
+				"memory_debug"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-server/tests/websocket/test_server_future_setup.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-server/docs/api/websocket.md"
+			],
+			"legacy": []
+		},
+		{
+			"name": "websocket_loopback_smoke_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_server",
+				"websocket_client_future",
+				"websocket_connection_future"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"extlibs/xws-server/tests/websocket/test_loopback_smoke.c",
+				"extlibs/xws-server/tests/websocket/test_benchmark_atomic.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"extlibs/xws-server/README.md"
+			],
+			"legacy": []
+		},
+		{
 			"name": "xws_server_tests",
 			"state": "implemented",
 			"feature": null,
@@ -730,7 +776,9 @@
 				"websocket_reconnect_stress_tests",
 				"websocket_reconnect_iocp_tests",
 				"websocket_connection_tour",
-				"websocket_http_iocp_tests"
+				"websocket_http_iocp_tests",
+				"websocket_server_future_setup_tests",
+				"websocket_loopback_smoke_tests"
 			],
 			"public_headers": [],
 			"internal_headers": [],
@@ -760,7 +808,11 @@
 				"extlibs/xws-server/tests/websocket/test_http_tls_deflate_iocp.c",
 				"extlibs/xws-server/tests/websocket/test_interop_peer.c",
 				"extlibs/xws-server/tests/websocket/test_http_reconnect.c",
-				"extlibs/xws-server/tests/websocket/test_http_reconnect_iocp.c"
+				"extlibs/xws-server/tests/websocket/test_http_reconnect_iocp.c",
+				"extlibs/xws-server/tests/websocket/test_server_future_setup.c",
+				"extlibs/xws-server/tests/websocket/test_server_optional_deflate.c",
+				"extlibs/xws-server/tests/websocket/test_loopback_smoke.c",
+				"extlibs/xws-server/tests/websocket/test_benchmark_atomic.c"
 			],
 			"single_tests": [
 				"extlibs/xws-server/tests/single/test_single_websocket_server.c",
@@ -775,7 +827,8 @@
 				"extlibs/xws-server/tests/single/test_single_websocket_http_deflate.c",
 				"extlibs/xws-server/tests/single/test_single_websocket_http_tls.c",
 				"extlibs/xws-server/tests/single/test_single_websocket_http_tls_deflate.c",
-				"extlibs/xws-server/tests/single/test_single_xws_server.c"
+				"extlibs/xws-server/tests/single/test_single_xws_server.c",
+				"extlibs/xws-server/tests/single/test_single_websocket_server_optional_deflate.c"
 			],
 			"examples": [],
 			"docs": [
@@ -795,7 +848,8 @@
 				"extlibs/xws-server/tests/single/test_single_websocket_http_deflate.c": "websocket_http_deflate_tests",
 				"extlibs/xws-server/tests/single/test_single_websocket_http_tls.c": "websocket_http_tls_tests",
 				"extlibs/xws-server/tests/single/test_single_websocket_http_tls_deflate.c": "websocket_http_tls_deflate_tests",
-				"extlibs/xws-server/tests/single/test_single_xws_server.c": "xws_server"
+				"extlibs/xws-server/tests/single/test_single_xws_server.c": "xws_server",
+				"extlibs/xws-server/tests/single/test_single_websocket_server_optional_deflate.c": "websocket_server"
 			},
 			"collect_dependency_assets": [
 				"examples"

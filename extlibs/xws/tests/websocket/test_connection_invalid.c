@@ -5,7 +5,10 @@
 /* 验证默认配置、空参数和不持有传输的查询边界。 */
 int main(void)
 {
-	uint8 ConfigStorage[sizeof(xwsconnconfig) + 2u];
+	union {
+		xwsconnconfig Alignment;
+		uint8 Bytes[sizeof(xwsconnconfig) + 2u];
+	} ConfigStorage;
 	xwsconnconfig Config;
 	xwsconnclose Close;
 	xwsconn* pWrapping = (xwsconn*)(uintptr_t)(UINTPTR_MAX - 1u);
@@ -14,17 +17,17 @@ int main(void)
 		xwsdeflate Deflate;
 	#endif
 
-	memset(ConfigStorage, 0xA5, sizeof(ConfigStorage));
+	memset(ConfigStorage.Bytes, 0xA5, sizeof(ConfigStorage.Bytes));
 	xrtWsConnConfigInit(
-		(xwsconnconfig*)(void*)(ConfigStorage + 1u)
+		(xwsconnconfig*)(void*)(ConfigStorage.Bytes + 1u)
 	);
-	memcpy(&Config, ConfigStorage + 1u, sizeof(Config));
+	memcpy(&Config, ConfigStorage.Bytes + 1u, sizeof(Config));
 	testRequire(
-		(ConfigStorage[0] == 0xA5) &&
-		(ConfigStorage[sizeof(ConfigStorage) - 1u] == 0xA5) &&
+		(ConfigStorage.Bytes[0] == 0xA5) &&
+		(ConfigStorage.Bytes[sizeof(ConfigStorage.Bytes) - 1u] == 0xA5) &&
 		xrtWsConnConfigValid(
 			(const xwsconnconfig*)(const void*)(
-				ConfigStorage + 1u
+				ConfigStorage.Bytes + 1u
 			)
 		) &&
 		(Config.Role == XWS_ROLE_SERVER) &&

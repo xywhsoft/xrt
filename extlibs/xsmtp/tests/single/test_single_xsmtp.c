@@ -31,6 +31,12 @@ int main(void)
 	!defined(XMAIL_FEATURE_MAIL_COMPOSE))
 		#error "XSMTP_MODULE_XSMTP dependency closure is incomplete"
 	#endif
+	#if defined(XRT_FEATURE_CRYPTO_RSA_PRIVATE) || \
+		defined(XRT_FEATURE_CRYPTO_RSA_PSS_SIGN) || \
+		defined(XRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN) || \
+		defined(XRT_FEATURE_TLS_IDENTITY_RSA)
+		#error "xsmtp production root retained TLS fixture signing dependencies"
+	#endif
 
 	return xrtSmtpReplyLineParse(
 		XRT_STR_LITERAL("250-SIZE 10485760"),

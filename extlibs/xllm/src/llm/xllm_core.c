@@ -20,33 +20,13 @@ bool xllm__utf8_valid(const char *sText)
     {
         unsigned char c = *p;
         size_t iExtra;
-        size_t iSequenceExtra;
         uint32_t cp;
-        if (c < 0x80u)
-        {
-            ++p;
-            continue;
-        }
-        if (c >= 0xC2u && c <= 0xDFu)
-        {
-            iExtra = 1u;
-            cp = c & 0x1Fu;
-        }
-        else if (c >= 0xE0u && c <= 0xEFu)
-        {
-            iExtra = 2u;
-            cp = c & 0x0Fu;
-        }
-        else if (c >= 0xF0u && c <= 0xF4u)
-        {
-            iExtra = 3u;
-            cp = c & 0x07u;
-        }
-        else
-        {
-            return false;
-        }
-        iSequenceExtra = iExtra;
+        uint32_t uMinimum;
+        if ( c < 0x80u ) { ++p; continue; }
+        if ( c >= 0xC2u && c <= 0xDFu ) { iExtra = 1u; cp = c & 0x1Fu; uMinimum = 0x80u; }
+        else if ( c >= 0xE0u && c <= 0xEFu ) { iExtra = 2u; cp = c & 0x0Fu; uMinimum = 0x800u; }
+        else if ( c >= 0xF0u && c <= 0xF4u ) { iExtra = 3u; cp = c & 0x07u; uMinimum = 0x10000u; }
+        else { return false; }
         ++p;
         while (iExtra--)
         {
@@ -57,18 +37,7 @@ bool xllm__utf8_valid(const char *sText)
             cp = (cp << 6u) | (unsigned char)(*p & 0x3Fu);
             ++p;
         }
-        if ((cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu)
-        {
-            return false;
-        }
-        if (iSequenceExtra == 2u && cp < 0x800u)
-        {
-            return false;
-        }
-        if (iSequenceExtra == 3u && cp < 0x10000u)
-        {
-            return false;
-        }
+        if ( cp < uMinimum || (cp >= 0xD800u && cp <= 0xDFFFu) || cp > 0x10FFFFu ) { return false; }
     }
     return true;
 }

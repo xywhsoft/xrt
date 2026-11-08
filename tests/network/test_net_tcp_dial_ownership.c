@@ -273,7 +273,7 @@ static void owned(xnetportbackend backend,unsigned order,bool cancel)
         xnetstream* client=xrtAtomicPtrLoad(&graph.state->client,XMEMORY_ACQUIRE);CHECK(client);
         CHECK(xrtNetStreamSend(client,"a\0b",3)==XNET_RESULT_OK);
         size_t offset=0;while(offset<3){xnetbytes* bytes=xrtNetStreamRecv(graph.server,3-offset,5000,NULL);CHECK(bytes);
-            xbytesview view=xrtNetBytesView(bytes);CHECK(view.Size&&view.Size<=3-offset&&!memcmp(view.Data,"a\0b"+offset,view.Size));offset+=view.Size;xrtNetBytesDestroy(bytes);}
+            xbytesview view=xrtNetBytesView(bytes);CHECK(view.Size&&view.Size<=3-offset&&!memcmp(view.Data,&"a\0b"[offset],view.Size));offset+=view.Size;xrtNetBytesDestroy(bytes);}
         ++ordinary;
     }
     collect(&graph,order);balanced(&before);

@@ -382,7 +382,7 @@ int main(void)
 	xrtNetServerDestroy(pNetwork);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP multi-endpoint engine destroy failed"
 	);
 	printf("[PASS] HTTP server multi-endpoint runtime\n");

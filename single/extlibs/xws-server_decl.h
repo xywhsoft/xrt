@@ -3847,7 +3847,10 @@ XWS_SERVER_API bool xrtWsServerCheck(
 
 
 
-/* 从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。 */
+/*
+	从完整、允许未对齐的已验证握手快照创建拥有型 101 Reply。
+	握手要求构建中未选中的压缩能力时返回错误。
+*/
 XWS_SERVER_API xhttpreply* xrtWsServerReply(
 	const xwsserverhandshake* pHandshake
 );
@@ -3869,6 +3872,7 @@ XWS_SERVER_API xnetresult xrtWsServerReject(
 	提交已经通过 xrtWsServerCheck 的 WebSocket 握手。
 	Headers 可以为空；非空时只追加普通响应字段，Upgrade、Connection、
 	Sec-WebSocket-* 以及正文分帧字段由协议层独占，不能覆盖。
+	压缩快照必须满足配置的启用和强制策略。
 	Handshake 和 Headers 只在调用期间借用，配置、事件和子协议会在返回前快照。
 	该入口适合鉴权后追加 Cookie、追踪标识或应用自定义 Header；同步失败不调用 Proc。
 */
@@ -4077,10 +4081,7 @@ XRT_EXTERN_C_END
 
 #if defined(XWS_SERVER_FEATURE_WEBSOCKET_SERVER_FUTURE)
 
-/*
-	连接建立结果拥有 WebSocket Connection。
-	客户端 Future 启用时，成功结果还拥有对应的 101 Response。
-*/
+/* 连接建立结果拥有服务端 WebSocket Connection。 */
 typedef struct xwsserverresult xwsserverresult;
 
 
@@ -4109,7 +4110,7 @@ XWS_SERVER_API xwsserverresult* xrtWsServerResultRef(
 
 /*
 	释放结果引用。
-	最后一个引用会中止尚未取走的 Connection，并销毁尚未取走的 Response。
+	最后一个引用会中止并释放尚未取走的 Connection。
 	NULL 是空操作；非空但无效的对象范围会记录参数错误。
 */
 XWS_SERVER_API void xrtWsServerResultDestroy(

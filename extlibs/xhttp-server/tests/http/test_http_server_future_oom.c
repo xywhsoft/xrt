@@ -750,7 +750,7 @@ int main(void)
 	);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server Future OOM retained Engine ownership"
 	);
 	testRequire(

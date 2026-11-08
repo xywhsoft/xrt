@@ -53,6 +53,18 @@ int xacmeDnsResponseFuzzerTestOneInput(const uint8* pData, size_t iSize)
 		__xacmeDnsFuzzContract(arrRecords, iCount, 4u);
 	}
 	xrtClearError();
+
+	/* Exact comparison must publish no positive result on malformed input,
+	 * including when a matching record preceded a corrupt trailing section. */
+	{
+		bool bFound = true;
+		xbytesview Expected = { pData, (iSize < 43u) ? iSize : 43u };
+		if(!xacmeTxtResponseContains(pData, iSize, uExpectId, Expected, &bFound) && bFound)
+			abort();
+		bFound = true;
+		if(!xacmeTxtResponseContains(pData, iSize, 0x1234u, XRT_BYTES_LITERAL("probe"), &bFound) && bFound)
+			abort();
+	}
 	return 0;
 }
 

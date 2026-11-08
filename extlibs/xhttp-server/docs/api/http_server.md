@@ -46,6 +46,9 @@ accept 队列和 reuse-port 配置。`xrtHttpServerEndpointCount`、
 - `Error` 对一个连接最多发布一次稳定错误，`Close` 只发布一次终态，
   传输失败时固定按 `Error -> Close` 顺序发布；`Shutdown` 在 Server 全部连接
   的协议对象、传输所有权和内部运行时退出，且已经受理的 Upgrade 交接回调返回后发布。
+  尚未被 Close/Upgrade 适配器取走的内部上下文在所属 Worker 上清理后才退出运行时。
+  调用方保留的已关闭/升级 Connection 引用不延迟这项清理；最终释放引用不会重复清理。
+
 
 `xrtHttpConnInform` 提交 `100..199` 信息响应，`101` 除外。信息响应和最终响应
 使用同一短写、背压和写超时线路；有正文的请求会暂停读取，无正文的请求可以

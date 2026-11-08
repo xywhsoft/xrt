@@ -502,7 +502,7 @@ int main(void)
 		"HTTP server Future task pool destroy failed"
 	);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server Future source engine destroy failed"
 	);
 	printf(

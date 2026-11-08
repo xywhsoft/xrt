@@ -387,7 +387,7 @@ int main(void)
 	xrtHttpServerDestroy(NULL);
 	xrtHttpConnDestroy(NULL);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server invalid test engine destroy failed"
 	);
 	printf("[PASS] HTTP server invalid boundaries\n");

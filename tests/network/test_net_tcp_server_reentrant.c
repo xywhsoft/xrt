@@ -11,6 +11,7 @@ typedef struct testtcpserverreentrant {
 	xatomic32 Accepts;
 	xatomic32 Closes;
 	xatomic32 Valid;
+	xatomic32 ReleaseClose;
 } testtcpserverreentrant;
 
 
@@ -56,6 +57,11 @@ static void testTcpServerReentrantClose(
 		 (xrtNetServerListener(pServer, 0) != NULL) ) {
 		xrtAtomic32Store(&pContext->Valid, 0, XMEMORY_RELEASE);
 	}
+	/* Hold the real notification after CLOSED is visible, so the caller
+	 * cannot accidentally substitute a state poll for callback completion. */
+	while ( xrtAtomic32Load(&pContext->ReleaseClose, XMEMORY_ACQUIRE) == 0u ) {
+		xrtThreadYield();
+	}
 	(void)xrtAtomic32FetchAdd(
 		&pContext->Closes,
 		1,
@@ -65,17 +71,22 @@ static void testTcpServerReentrantClose(
 
 
 
-/* 等待 Server 与指定 Stream 全部进入关闭终态。 */
+/* 等待关闭终态；指定 Context 时还需等待真实 Accept/Close 回调完成。 */
 static void testTcpServerReentrantWait(
 	xnetserver* pServer,
 	xnetstream* const* ppStreams,
-	size_t iCount
+	size_t iCount,
+	const testtcpserverreentrant* pContext
 )
 {
 	double iDeadline = __xrtWaitAfter(5000);
 
 	for ( ;; ) {
 		bool bDone = xrtNetServerState(pServer) == XNET_SERVER_CLOSED;
+		if ( bDone && pContext != NULL ) {
+			bDone = xrtAtomic32Load(&pContext->Accepts, XMEMORY_ACQUIRE) != 0u &&
+				xrtAtomic32Load(&pContext->Closes, XMEMORY_ACQUIRE) != 0u;
+		}
 
 		for ( size_t i = 0; bDone && (i < iCount); i++ ) {
 			bDone = xrtNetStreamState(ppStreams[i]) ==
@@ -156,7 +167,8 @@ static void testTcpServerQueueLimit(xnetengine* pEngine)
 	testTcpServerReentrantWait(
 		pServer,
 		aClients,
-		TEST_TCP_SERVER_CLIENTS
+		TEST_TCP_SERVER_CLIENTS,
+		NULL
 	);
 	xrtNetStreamDestroy(pAccepted);
 	for ( size_t i = 0; i < TEST_TCP_SERVER_CLIENTS; i++ ) {
@@ -217,9 +229,12 @@ int main(void)
 	);
 	testRequire(pClient != NULL,
 		"TCP server reentrant client create failed");
-	testTcpServerReentrantWait(pServer, NULL, 0);
+	testTcpServerReentrantWait(pServer, NULL, 0, NULL);
+	testRequire(xrtAtomic32Load(&Context.Closes, XMEMORY_ACQUIRE) == 0u,
+		"TCP server state poll completed the gated callback");
+	xrtAtomic32Store(&Context.ReleaseClose, 1u, XMEMORY_RELEASE);
 	(void)xrtNetStreamAbort(pClient);
-	testTcpServerReentrantWait(pServer, &pClient, 1);
+	testTcpServerReentrantWait(pServer, &pClient, 1, &Context);
 	testRequire((xrtAtomic32Load(
 		&Context.Valid,
 		XMEMORY_ACQUIRE

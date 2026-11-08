@@ -71,7 +71,7 @@ static bool __xrtHttpServerTlsProtocolsCopy(
 		);
 		return false;
 	}
-	memcpy(&Protocol, pConfig->Protocols, sizeof(Protocol));
+	memcpy(&Protocol, (const void*)pConfig->Protocols, sizeof(Protocol));
 	if ( !__xrtHttpServerTlsProtocolValid(Protocol) ) {
 		__xrtHttpServerSetError(
 			XERR_ARGUMENT,
@@ -125,7 +125,7 @@ XHTTP_SERVER_API void xrtHttpServerTlsConfigInit(
 	Config.Handshake.ProtocolCount =
 		sizeof(__xrtHttpServerTlsProtocols) /
 		sizeof(__xrtHttpServerTlsProtocols[0]);
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -150,7 +150,7 @@ static bool __xrtHttpServerTlsConfigRead(
 		);
 		return false;
 	}
-	memcpy(pConfig, pInput, sizeof(*pConfig));
+	memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	return true;
 }
 

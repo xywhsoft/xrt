@@ -163,7 +163,7 @@ int main(void)
 		"acme jose ec thumbprint mismatch"
 	);
 
-	/* JWS 紧凑序列化全量对照（openssl 独立验签过的值）。 */
+	/* JWS 扁平 JSON 序列化全量对照（openssl 独立验签过的值）。 */
 	{
 		xacmejwsheader H;
 		str s = NULL;
@@ -205,6 +205,35 @@ int main(void)
 				(xrtErrorKind(xrtGetError()) == XERR_ARGUMENT),
 			"acme jose eab null argument mismatch"
 		);
+	}
+
+	/* A signing failure must retain the actual crypto diagnostic, rather than
+	 * report that JSON allocation failed. Use a valid public point with d=0. */
+	{
+		xacmees256key Invalid = Key;
+		xacmejwsheader H;
+		uint8 Digest[XRT_SHA256_SIZE] = {0};
+		uint8 Signature[XRT_ECDSA_P256_SIGNATURE_SIZE];
+		xerror* expected;
+		str result;
+		memset(Invalid.Private, 0, sizeof(Invalid.Private));
+		xrtClearError();
+		testRequire(!xrtEcdsaP256Sign(XCRYPTO_HASH_SHA256, Digest, Invalid.Private, Signature),
+			"acme jose invalid scalar control unexpectedly signed");
+		expected = xrtErrorRef(xrtGetError());
+		testRequire(expected != NULL, "acme jose crypto control needs a diagnostic");
+		xrtClearError();
+		H.Nonce = XRT_STR_LITERAL("n");
+		H.Url = XRT_STR_LITERAL("https://example.com/acme/new-order");
+		H.Kid = XRT_STR_LITERAL("https://example.com/acme/account/1");
+		result = xacmeJwsEs256(&Invalid, &H, XRT_STR_LITERAL("{}"));
+		testRequire(result == NULL && xrtErrorKind(xrtGetError()) == xrtErrorKind(expected) &&
+			xrtErrorCode(xrtGetError()) == xrtErrorCode(expected) &&
+			strcmp(xrtErrorDomain(xrtGetError()), xrtErrorDomain(expected)) == 0 &&
+			strcmp(xrtErrorOperation(xrtGetError()), xrtErrorOperation(expected)) == 0,
+			"acme jose signing must retain the crypto key diagnostic");
+		xrtFree(result);
+		xrtErrorFree(expected);
 	}
 
 	/* 参数错误语义。 */

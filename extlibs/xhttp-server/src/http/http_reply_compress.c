@@ -59,7 +59,7 @@ static void __xrtHttpReplyCompressPublish(
 	xhttpreply* pOutput
 )
 {
-	memcpy(ppOutput, &pOutput, sizeof(pOutput));
+	memcpy((void*)ppOutput, &pOutput, sizeof(pOutput));
 }
 
 
@@ -85,7 +85,7 @@ static bool __xrtHttpReplyCompressConfigResolve(
 			);
 			return false;
 		}
-		memcpy(pConfig, pInput, sizeof(*pConfig));
+		memcpy(pConfig, (const void*)pInput, sizeof(*pConfig));
 	}
 	if ( ((pConfig->Codings &
 		  ~XRT_HTTP_REPLY_COMPRESS_CODINGS) != 0) ||
@@ -580,7 +580,7 @@ XHTTP_SERVER_API void xrtHttpReplyCompressConfigInit(
 	Config.Level = XDEFLATE_LEVEL_DEFAULT;
 	Config.Strategy = XDEFLATE_STRATEGY_DEFAULT;
 	Config.OutputLimit = XDEFLATE_OUTPUT_UNLIMITED;
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -648,7 +648,7 @@ XHTTP_SERVER_API xhttpreplycompressstatus xrtHttpReplyCompress(
 		);
 		return XHTTP_REPLY_COMPRESS_ERROR;
 	}
-	memcpy(&Accept, pAccept, sizeof(Accept));
+	memcpy(&Accept, (const void*)pAccept, sizeof(Accept));
 	if ( !xrtHttpAcceptEncodingValid(&Accept) ) {
 		__xrtHttpReplyCompressError(
 			XERR_ARGUMENT,

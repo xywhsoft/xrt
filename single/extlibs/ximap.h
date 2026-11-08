@@ -1017,6 +1017,7 @@ XRT_API bool xrtImapClientLastResponse(
 /*
 	直接发送显式 tag 的完整命令行，不创建临时拼接缓冲。
 	低层调用方可连续发送多个命令，并用 Receive 按 tag 关联完成响应。
+	小于 -1 的超时在发送前拒绝，保留会话和最近响应。
 */
 XRT_API bool xrtImapClientSend(
 	ximapclient* pClient,
@@ -1032,6 +1033,7 @@ XRT_API bool xrtImapClientSend(
 /*
 	直接发送由独立参数片组成的显式 tag 命令；各片之间自动插入一个空格，
 	不创建参数拼接缓冲。空参数数组表示无参数命令。
+	小于 -1 的超时在发送前拒绝，保留会话和最近响应。
 */
 XRT_API bool xrtImapClientSendParts(
 	ximapclient* pClient,
@@ -1045,7 +1047,10 @@ XRT_API bool xrtImapClientSendParts(
 
 
 
-/* 发送原始命令续传字节，用于 APPEND literal 等协议扩展。 */
+/*
+	发送原始命令续传字节，用于 APPEND literal 等协议扩展。
+	小于 -1 的超时在 I/O 前拒绝，零字节也适用，保留活跃命令和上传进度。
+*/
 XRT_API bool xrtImapClientWrite(
 	ximapclient* pClient,
 	const void* pData,
@@ -1056,7 +1061,10 @@ XRT_API bool xrtImapClientWrite(
 
 
 
-/* 发送一条不带 tag 的 continuation 数据并自动追加 CRLF。 */
+/*
+	发送一条不带 tag 的 continuation 数据并自动追加 CRLF。
+	小于 -1 的超时不发送数据或 CRLF，保留活跃命令。
+*/
 XRT_API bool xrtImapClientContinue(
 	ximapclient* pClient,
 	xstrview Data,
@@ -1070,6 +1078,7 @@ XRT_API bool xrtImapClientContinue(
 	读取下一个响应首行或 literal 后续片段；遇到 literal 后必须先读取全部
 	literal，才能继续接收下一事件。低层流式接口不设置 literal 大小上限；
 	调用方可检查 pEvent->Literal.Size，并在超出自身预算时立即 Abort。
+	状态响应和 continuation 的说明文本即使以花括号结尾，也不声明 literal。
 */
 XRT_API bool xrtImapClientReceive(
 	ximapclient* pClient,
@@ -1227,7 +1236,8 @@ XRT_API bool xrtImapAuthConfigValid(const ximapauthconfig* pConfig);
 
 
 
-/* 在 NOT_AUTHENTICATED 会话上执行配置的认证机制。 */
+/* 在 NOT_AUTHENTICATED 会话上认证。非 IR 凭据超限在命令前拒绝；意外 literal
+ * 或未完成的 LOGIN 取消终止会话。已完成的拒绝/取消保留可复用状态和主错误。 */
 XRT_API bool xrtImapClientAuth(
 	ximapclient* pClient,
 	const ximapauthconfig* pConfig,
@@ -1308,7 +1318,8 @@ XRT_API void xrtImapMailboxInfoInit(ximapmailboxinfo* pInfo);
 
 
 
-/* 把一条 SELECT、EXAMINE 或未请求更新合并到邮箱摘要。 */
+/* 合并一条邮箱更新。摘要须与响应对象及 Source/Text 借用范围分离；拒绝时摘要不变。
+ * 已知 UID/序号/计数按 uint32 数值域校验，泛型数字和 MODSEQ 保留 uint64。 */
 XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	const ximapresponseview* pResponse,
 	ximapmailboxinfo* pInfo
@@ -1325,7 +1336,7 @@ XRT_API bool xrtImapClientNoop(
 
 
 
-/* 选择可写邮箱，并返回零分配状态摘要。 */
+/* 选择可写邮箱并返回零分配摘要。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientSelect(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -1336,7 +1347,7 @@ XRT_API bool xrtImapClientSelect(
 
 
 
-/* 以只读方式选择邮箱，并返回零分配状态摘要。 */
+/* 以只读方式选择邮箱。开始命令失败时输出不变；后续错误可保留部分摘要。 */
 XRT_API bool xrtImapClientExamine(
 	ximapclient* pClient,
 	xstrview Mailbox,
@@ -1483,13 +1494,18 @@ XRT_API bool xrtImapClientBeginExpunge(
 	xcancel* pCancel
 );
 
-/* 开始 IDLE；收到 continuation 后可读取事件，结束时发送 DONE。 */
+/* 开始 IDLE；调用方通过 Next 接收 continuation 和后续事件。 */
 XRT_API bool xrtImapClientBeginIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
 	xcancel* pCancel
 );
 
+/*
+	发送 DONE；调用方仍须通过 Next 消费 tagged completion。
+	小于 -1 的超时保持同一 IDLE 会话可再次 EndIdle，不提前记录 DONE。
+	未读完 literal 或其后续 fragment 时返回 XERR_STATE，读完后可重试。
+*/
 XRT_API bool xrtImapClientEndIdle(
 	ximapclient* pClient,
 	int64 iTimeout,
@@ -1679,7 +1695,10 @@ XRT_API bool xrtImapClientAppendWrite(
 
 
 
-/* 结束 literal，消费命令响应并解析可选 APPENDUID。 */
+/*
+	结束 literal，消费命令响应并解析可选 APPENDUID；pResult 可为 NULL。
+	非法输出范围返回 XERR_ARGUMENT，保留活动上传供更正参数后继续。
+*/
 XRT_API bool xrtImapClientAppendEnd(
 	ximapclient* pClient,
 	ximapappendresult* pResult,
@@ -1689,7 +1708,10 @@ XRT_API bool xrtImapClientAppendEnd(
 
 
 
-/* 对已经完整驻留内存的消息执行一次 APPEND。 */
+/*
+	对已经完整驻留内存的消息执行一次 APPEND；pResult 可为 NULL。
+	非法输出范围在开始事务前返回 XERR_ARGUMENT，不发送命令或正文。
+*/
 XRT_API bool xrtImapClientAppend(
 	ximapclient* pClient,
 	const ximapappendconfig* pConfig,
@@ -2293,6 +2315,13 @@ bool __xrtImapClientProtocolFail(
 	ximapclient* pClient,
 	cstr sMessage
 );
+
+
+
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
+bool __xrtImapClientFailPreserveError(ximapclient* pClient);
+#endif
 
 
 
@@ -5904,9 +5933,11 @@ XRT_API bool __xrtImapClientSend(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -5939,9 +5970,11 @@ XRT_API bool __xrtImapClientSendParts(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( pClient->Active || (pClient->LiteralRemaining != 0) ||
@@ -5973,9 +6006,11 @@ XRT_API bool __xrtImapClientWrite(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapClientWritable(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapClientWritable(pClient) ) {
 		return false;
 	}
 	if ( !xrtMemRangeValid(pData, iSize) ) {
@@ -6101,7 +6136,13 @@ XRT_API bool __xrtImapClientReceive(
 			return __xrtImapClientFailed(pClient);
 		}
 	}
-	Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	/* Status and continuation resp-text may end in braces without a literal. */
+	Literal = XMAIL_NEXT_END;
+	if ( (pEvent->Kind == XIMAP_EVENT_FRAGMENT) ||
+		((pEvent->Response.Kind == XIMAP_RESPONSE_UNTAGGED) &&
+		 (pEvent->Response.Status == XIMAP_STATUS_NONE)) ) {
+		Literal = xrtImapLiteralParse(Line, &pEvent->Literal);
+	}
 	if ( Literal == XMAIL_NEXT_ERROR ) {
 		return __xrtImapClientFailed(pClient);
 	}
@@ -6413,6 +6454,17 @@ bool __xrtImapClientProtocolFail(
 
 
 
+#if defined(XIMAP_FEATURE_IMAP_AUTH) || defined(XIMAP_FEATURE_IMAP_COMMAND) || \
+	defined(XIMAP_FEATURE_IMAP_APPEND)
+/* 上层已设置主错误；只终止会话，保留原错误的 domain/code。 */
+bool __xrtImapClientFailPreserveError(ximapclient* pClient)
+{
+	return __xrtImapClientFailed(pClient);
+}
+#endif
+
+
+
 /* 把刚开始的顺序命令标记为 IDLE。 */
 bool __xrtImapClientIdleStart(ximapclient* pClient)
 {
@@ -6434,7 +6486,8 @@ bool __xrtImapClientIdleStart(ximapclient* pClient)
 bool __xrtImapClientIdleEnd(ximapclient* pClient)
 {
 	if ( !__xrtImapClientUsable(pClient) || !pClient->Active ||
-		!pClient->Idle || pClient->IdleDone ) {
+		!pClient->Idle || pClient->IdleDone ||
+		(pClient->LiteralRemaining != 0) || pClient->ExpectFragment ) {
 		return __xrtImapClientError(
 			XERR_STATE,
 			"IMAP IDLE command is not waiting for DONE"
@@ -6826,6 +6879,7 @@ static __ximapauthnext __xrtImapAuthNext(
 				XERR_PROTOCOL,
 				"unexpected IMAP literal during authentication"
 			);
+			(void)__xrtImapClientFailPreserveError(pClient);
 			return __XIMAP_AUTH_ERROR;
 		}
 		if ( (Event.Kind == XIMAP_EVENT_RESPONSE) &&
@@ -6952,7 +7006,17 @@ static bool __xrtImapAuthLogin(
 		) ) {
 			return false;
 		}
-		(void)__xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		Next = __xrtImapAuthNext(pClient, &Status, iDeadline, pCancel);
+		if ( Next == __XIMAP_AUTH_ERROR ) {
+			return false;
+		}
+		if ( Next != __XIMAP_AUTH_COMPLETE ) {
+			(void)__xrtImapAuthError(
+				XERR_PROTOCOL,
+				"incomplete IMAP LOGIN cancellation"
+			);
+			return __xrtImapClientFailPreserveError(pClient);
+		}
 		return __xrtImapAuthError(
 			XERR_PROTOCOL,
 			"unexpected continuation for IMAP LOGIN"
@@ -7044,6 +7108,12 @@ static bool __xrtImapAuthSasl(
 	}
 	bInitial = pConfig->InitialResponse &&
 		((xrtImapClientCapabilities(pClient) & XIMAP_CAP_SASL_IR) != 0);
+	if ( !bInitial &&
+		(iEncoded > xrtImapClientCommandLimit(pClient) - 2u) ) {
+		__xrtMailSetInvalidArgument();
+		__xrtMailAuthFree(sEncoded, iEncoded + 1u);
+		return false;
+	}
 	if ( bInitial ) {
 		sArguments = __xrtImapAuthArguments(
 			Mechanism,
@@ -7470,6 +7540,23 @@ static bool __xrtImapCommandNumber(xstrview Text, uint64* pValue)
 
 
 
+/* 已知 UID/计数使用 uint32 范围；泛型数字和 MODSEQ 保留 uint64。 */
+static bool __xrtImapCommandMailboxNumber(uint64 iValue, bool bNonzero)
+{
+	if ( bNonzero && (iValue == 0) ) {
+		return __xrtImapCommandError(
+			XERR_PROTOCOL,
+			"IMAP mailbox number must be nonzero"
+		);
+	}
+	return (iValue <= UINT32_MAX) || __xrtImapCommandError(
+		XERR_RANGE,
+		"IMAP mailbox number exceeds uint32"
+	);
+}
+
+
+
 /* 合并 SELECT/EXAMINE 的方括号响应码。 */
 static xmailnext __xrtImapCommandMailboxCode(
 	xstrview Text,
@@ -7513,6 +7600,10 @@ static xmailnext __xrtImapCommandMailboxCode(
 			XERR_PROTOCOL,
 			"invalid numeric IMAP mailbox response code"
 		);
+		return XMAIL_NEXT_ERROR;
+	}
+	if ( !__xrtMailAsciiEqualI(Code.Name, XRT_STR_LITERAL("HIGHESTMODSEQ")) &&
+		!__xrtImapCommandMailboxNumber(iValue, true) ) {
 		return XMAIL_NEXT_ERROR;
 	}
 	if ( __xrtMailAsciiEqualI(Code.Name, XRT_STR_LITERAL("UNSEEN")) ) {
@@ -7573,6 +7664,9 @@ static bool __xrtImapCommandFinish(
 			if ( (pInfo != NULL) &&
 				(xrtImapMailboxInfoUpdate(&Final, pInfo) ==
 				 XMAIL_NEXT_ERROR) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP mailbox response code"
@@ -7597,6 +7691,9 @@ static bool __xrtImapCommandFinish(
 			(Event.Kind == XIMAP_EVENT_RESPONSE) &&
 			(xrtImapMailboxInfoUpdate(&Event.Response, pInfo) ==
 			 XMAIL_NEXT_ERROR) ) {
+			if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+				return __xrtImapClientFailPreserveError(pClient);
+			}
 			return __xrtImapClientProtocolFail(
 				pClient,
 				"invalid IMAP mailbox status response"
@@ -7685,6 +7782,12 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 			sizeof(*pResponse),
 			pInfo,
 			sizeof(*pInfo)
+		) || !xrtMemRangeValid(pResponse->Source.Data, pResponse->Source.Size) ||
+		!xrtMemRangeValid(pResponse->Text.Data, pResponse->Text.Size) ||
+		xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Source.Data, pResponse->Source.Size
+		) || xrtMemRangesOverlap(
+			pInfo, sizeof(*pInfo), pResponse->Text.Data, pResponse->Text.Size
 		) ) {
 		__xrtMailSetInvalidArgument();
 		return XMAIL_NEXT_ERROR;
@@ -7702,17 +7805,33 @@ XRT_API xmailnext xrtImapMailboxInfoUpdate(
 	if ( Next != XMAIL_NEXT_ITEM ) {
 		return Next;
 	}
+	if ( (Number.Text.Size != 0) &&
+		(__xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXISTS")) ||
+		 __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("RECENT")) ||
+		 __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXPUNGE"))) ) {
+		(void)__xrtImapCommandError(XERR_PROTOCOL, "unexpected IMAP mailbox number data");
+		return XMAIL_NEXT_ERROR;
+	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXISTS")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, false) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		pInfo->Exists = Number.Number;
 		pInfo->Present |= XIMAP_MAILBOX_EXISTS;
 		return XMAIL_NEXT_ITEM;
 	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("RECENT")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, false) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		pInfo->Recent = Number.Number;
 		pInfo->Present |= XIMAP_MAILBOX_RECENT;
 		return XMAIL_NEXT_ITEM;
 	}
 	if ( __xrtMailAsciiEqualI(Number.Name, XRT_STR_LITERAL("EXPUNGE")) ) {
+		if ( !__xrtImapCommandMailboxNumber(Number.Number, true) ) {
+			return XMAIL_NEXT_ERROR;
+		}
 		if ( ((pInfo->Present & XIMAP_MAILBOX_EXISTS) != 0) &&
 			(pInfo->Exists != 0) ) {
 			pInfo->Exists--;
@@ -7766,7 +7885,6 @@ static bool __xrtImapCommandSelect(
 		__xrtMailSetInvalidArgument();
 		return false;
 	}
-	xrtImapMailboxInfoInit(pInfo);
 	if ( !__xrtImapCommandBeginMailbox(
 		pClient,
 		bReadOnly ? XRT_STR_LITERAL("EXAMINE") :
@@ -7777,6 +7895,7 @@ static bool __xrtImapCommandSelect(
 	) ) {
 		return false;
 	}
+	xrtImapMailboxInfoInit(pInfo);
 	if ( !__xrtImapCommandFinish(
 		pClient,
 		pInfo,
@@ -8519,9 +8638,11 @@ XRT_API bool __xrtImapClientEndIdle(
 	xcancel* pCancel
 )
 {
-	if ( !__xrtImapCommandSelected(pClient) ) {
-    if ( !__xrtWaitValid(iDeadline) ) { return false; }
+	if ( !__xrtWaitValid(iDeadline) ) {
+		return false;
+	}
 
+	if ( !__xrtImapCommandSelected(pClient) ) {
 		return false;
 	}
 	return __xrtImapClientIdleEnd(pClient) && __xrtImapClientContinue(
@@ -8992,9 +9113,17 @@ static bool __xrtImapMessageLiteralValid(
 	if ( (pEvent->Kind != XIMAP_EVENT_RESPONSE) ||
 		(pEvent->Response.Kind != XIMAP_RESPONSE_UNTAGGED) ||
 		(pEvent->Response.Status != XIMAP_STATUS_NONE) ||
-		pEvent->Literal.Binary ||
-		!xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
+		pEvent->Literal.Binary ) {
+		return __xrtImapMessageError(
+			XERR_PROTOCOL,
+			"invalid IMAP BODY literal response"
+		);
+	}
+	if ( !xrtImapFetchParse(pEvent->Response.Text, &Fetch) ||
 		!xrtImapFetchCursorInit(&Cursor, &Fetch) ) {
+		if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+			return false;
+		}
 		return __xrtImapMessageError(
 			XERR_PROTOCOL,
 			"invalid IMAP BODY literal response"
@@ -9204,7 +9333,7 @@ XRT_API bool __xrtImapClientBodyWrite(
 			&Event,
 			Items.Response
 		) ) {
-			if ( bFound && (xrtGetError() == NULL) ) {
+			if ( bFound ) {
 				(void)__xrtImapMessageError(
 					XERR_PROTOCOL,
 					"IMAP BODY command returned multiple literals"
@@ -9217,14 +9346,16 @@ XRT_API bool __xrtImapClientBodyWrite(
 			iWritten,
 			Event.Literal.Size,
 			&iWritten
-		) || ((iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes)) ) {
-			if ( xrtGetError() == NULL ) {
-				__xrtMailError(
-					XERR_RANGE,
-					XMAIL_ERROR_LIMIT,
-					"IMAP BODY literal exceeds the byte limit"
-				);
-			}
+		) ) {
+			__xrtImapMessageItemsFree(&Items);
+			return __xrtImapMessageRecover(pClient);
+		}
+		if ( (iMaxBytes != SIZE_MAX) && (iWritten > iMaxBytes) ) {
+			__xrtMailError(
+				XERR_RANGE,
+				XMAIL_ERROR_LIMIT,
+				"IMAP BODY literal exceeds the byte limit"
+			);
 			__xrtImapMessageItemsFree(&Items);
 			return __xrtImapMessageRecover(pClient);
 		}
@@ -9267,10 +9398,11 @@ XRT_API bytes __xrtImapClientBodyBytes(
 	if ( !xrtMemRangeValid(
 		pOutputSize,
 		pOutputSize != NULL ? sizeof(*pOutputSize) : 0
-	) || !xrtBufferInit(&Buffer.Buffer) ) {
-		if ( xrtGetError() == NULL ) {
-			__xrtMailSetInvalidArgument();
-		}
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return NULL;
+	}
+	if ( !xrtBufferInit(&Buffer.Buffer) ) {
 		return NULL;
 	}
 	if ( !__xrtImapClientBodyWrite(
@@ -9807,7 +9939,11 @@ XRT_API bool __xrtImapClientAppendEnd(
 	if ( !xrtMemRangeValid(
 		pResult,
 		pResult != NULL ? sizeof(*pResult) : 0
-	) || !__xrtImapClientAppendFinish(pClient) ||
+	) ) {
+		__xrtMailSetInvalidArgument();
+		return false;
+	}
+	if ( !__xrtImapClientAppendFinish(pClient) ||
 		!__xrtImapClientWrite(pClient, "\r\n", 2u, iDeadline, pCancel) ) {
 		return false;
 	}
@@ -9844,6 +9980,9 @@ XRT_API bool __xrtImapClientAppendEnd(
 				);
 			}
 			if ( !__xrtImapAppendResult(Final.Text, &Result) ) {
+				if ( xrtErrorKind(xrtGetError()) == XERR_MEMORY ) {
+					return __xrtImapClientFailPreserveError(pClient);
+				}
 				return __xrtImapClientProtocolFail(
 					pClient,
 					"invalid IMAP APPEND completion"
@@ -9876,7 +10015,8 @@ XRT_API bool __xrtImapClientAppend(
 )
 {
 	if ( !xrtMemRangeValid(pConfig, sizeof(*pConfig)) ||
-		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ) {
+		!xrtMemRangeValid(pData, pConfig != NULL ? pConfig->Size : 0) ||
+		!xrtMemRangeValid(pResult, pResult != NULL ? sizeof(*pResult) : 0) ) {
     if ( !__xrtWaitValid(iDeadline) ) { return false; }
 
 		__xrtMailSetInvalidArgument();

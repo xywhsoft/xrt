@@ -47,9 +47,21 @@ static bool __xrtPop3MessageOutput(
 	xbytesview Data
 )
 {
+	xerror* pPrevious = xrtTakeError();
+
+	/* Only an error produced by this invocation can explain its failure.
+	 * Successful callbacks keep their new error, or restore the prior one. */
 	if ( pWrite(Data, pUserData) ) {
+		if ( pPrevious != NULL ) {
+			if ( xrtGetError() == NULL ) {
+				xrtSetErrorTake(pPrevious);
+			} else {
+				xrtErrorFree(pPrevious);
+			}
+		}
 		return true;
 	}
+	xrtErrorFree(pPrevious);
 	if ( xrtGetError() == NULL ) {
 		__xrtMailError(
 			XERR_IO,
@@ -127,15 +139,15 @@ static bool __xrtPop3MessageWrite(
 			return __xrtPop3MessageRecover(pClient);
 		}
 		if ( !__xrtMailSizeAdd(Line.Size, 2u, &iNext) ||
-			 !__xrtMailSizeAdd(iWritten, iNext, &iNext) ||
-			 ((iMaxBytes != SIZE_MAX) && (iNext > iMaxBytes)) ) {
-			if ( xrtGetError() == NULL ) {
-				__xrtMailError(
-					XERR_RANGE,
-					XMAIL_ERROR_LIMIT,
-					"POP3 message exceeds the byte limit"
-				);
-			}
+			 !__xrtMailSizeAdd(iWritten, iNext, &iNext) ) {
+			return __xrtPop3MessageRecover(pClient);
+		}
+		if ( (iMaxBytes != SIZE_MAX) && (iNext > iMaxBytes) ) {
+			__xrtMailError(
+				XERR_RANGE,
+				XMAIL_ERROR_LIMIT,
+				"POP3 message exceeds the byte limit"
+			);
 			return __xrtPop3MessageRecover(pClient);
 		}
 		if ( ((Line.Size != 0) && !__xrtPop3MessageOutput(

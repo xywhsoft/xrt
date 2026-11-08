@@ -11,7 +11,7 @@
 - 响应为有序内容块（文本/思考/工具调用按到达顺序交错）+ 便利字段
 - 流式 HTTP/SSE，支持任意网络分片；`event:` 类型化事件（Anthropic）与 typed events（Responses）
 - provider 边界严格校验 JSON，拒绝宽松解析器可接受的畸形 SSE/非流式响应
-- 文本与推理内容增量事件；Anthropic thinking 签名捕获与原生回放
+- 文本与推理内容增量事件；Anthropic thinking 签名与对应推理、回答文本的完整回放
 - 多个工具调用交错返回及 arguments 增量拼接；工具结果关联回放
 - 采样面：temperature / top_p / stop / JSON 模式 / 推理力度与预算 / 非流式开关
 - 逐请求逃生舱：额外传输头 + 原始 JSON 体浅合并

@@ -88,7 +88,7 @@ XHTTP_SERVER_API void xrtHttpServerRouteEventsInit(
 		);
 		return;
 	}
-	memcpy(pEvents, &Events, sizeof(Events));
+	memcpy((void*)pEvents, &Events, sizeof(Events));
 }
 
 
@@ -113,7 +113,7 @@ XHTTP_SERVER_API xhttpserverrouter* xrtHttpServerRouterCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	pRouter = (xhttpserverrouter*)xrtCalloc(
 		1, sizeof(*pRouter)
@@ -284,7 +284,7 @@ XHTTP_SERVER_API bool xrtHttpServerRouteEvents(
 		);
 		return false;
 	}
-	memcpy(&Events, pEvents, sizeof(Events));
+	memcpy(&Events, (const void*)pEvents, sizeof(Events));
 	if ( Events.Request == NULL ) {
 		__xrtHttpServerRouterSetError(
 			XERR_ARGUMENT,

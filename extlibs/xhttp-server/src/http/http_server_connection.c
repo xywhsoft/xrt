@@ -102,6 +102,22 @@ static void __xrtHttpConnTransportDestroy(
 
 
 
+/* Retire the remaining runtime adapter before publishing HTTP completion.
+ * Clear first: a Close/Upgrade adapter may already have taken its own data. */
+void __xrtHttpConnAdapterRelease(xhttpconn* pConnection)
+{
+	void (*pRelease)(ptr pData) = pConnection->AdapterRelease;
+	ptr pData = pConnection->AdapterData;
+
+	pConnection->AdapterData = NULL;
+	pConnection->AdapterRelease = NULL;
+	if ( pRelease != NULL ) {
+		pRelease(pData);
+	}
+}
+
+
+
 /* 释放 Connection 最终存储。 */
 XHTTP_SERVER_API void xrtHttpConnDestroy(xhttpconn* pConnection)
 {
@@ -135,9 +151,7 @@ XHTTP_SERVER_API void xrtHttpConnDestroy(xhttpconn* pConnection)
 	xrtHttp1ServerExchangeDestroy(pConnection->Exchange);
 	__xrtHttpConnTransportDestroy(pConnection, pTransport);
 	xrtErrorFree(pError);
-	if ( pConnection->AdapterRelease != NULL ) {
-		pConnection->AdapterRelease(pConnection->AdapterData);
-	}
+	__xrtHttpConnAdapterRelease(pConnection);
 	xrtHttpServerDestroy(pConnection->Server);
 	xrtSpinUnit(&pConnection->TransportLock);
 	memset(pConnection, 0, sizeof(*pConnection));
@@ -361,7 +375,7 @@ XHTTP_SERVER_API bool xrtHttpConnLocal(
 		);
 		return false;
 	}
-	memcpy(pAddress, &pConnection->Local, sizeof(*pAddress));
+	memcpy((void*)pAddress, &pConnection->Local, sizeof(*pAddress));
 	return true;
 }
 
@@ -386,7 +400,7 @@ XHTTP_SERVER_API bool xrtHttpConnRemote(
 		);
 		return false;
 	}
-	memcpy(pAddress, &pConnection->Remote, sizeof(*pAddress));
+	memcpy((void*)pAddress, &pConnection->Remote, sizeof(*pAddress));
 	return true;
 }
 
@@ -488,7 +502,7 @@ XHTTP_SERVER_API bool xrtHttpConnStats(
 			pConnection, pTransport
 		);
 	}
-	memcpy(pStats, &Stats, sizeof(Stats));
+	memcpy((void*)pStats, &Stats, sizeof(Stats));
 	return true;
 }
 
@@ -1927,6 +1941,7 @@ static void __xrtHttpConnClosed(
 		pServer, pConnection
 	);
 	if ( bReleaseRuntime ) {
+		__xrtHttpConnAdapterRelease(pConnection);
 		pConnection->RuntimeHeld = false;
 		xrtHttpConnDestroy(pConnection);
 	}

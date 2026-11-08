@@ -89,6 +89,16 @@ class DeclarationFeatureTest(unittest.TestCase):
 
 
 
+	def test_dial_future_publishers_do_not_require_bridge(self) -> None:
+		for module in ("NET_DIAL_FUTURE_COMMON", "NET_TCP_DIAL_FUTURE", "NET_PROXY_DIAL_FUTURE"):
+			for header in ("xrt.h", "xrt_decl.h"):
+				with self.subTest(module=module, header=header):
+					features = self.preprocess(f'#define XRT_MODULE_{module} 1\n#include "{header}"\n')
+					self.assertIn("XRT_FEATURE_NET_DIAL_FUTURE_COMMON", features)
+					self.assertIn("XRT_FEATURE_FUTURE", features)
+					self.assertNotIn("XRT_FEATURE_FUTURE_BRIDGE", features)
+
+
 	def test_late_selection_and_repeated_inclusion(self) -> None:
 		"""自动注入空声明后，原生包再次包含同一头仍能选择真实依赖。"""
 		for product in ("xrt", "xruntime"):

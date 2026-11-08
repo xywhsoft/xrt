@@ -296,7 +296,7 @@ XHTTP_SERVER_API void xrtHttpServerMuxConfigInit(
 		);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -321,7 +321,7 @@ XHTTP_SERVER_API xhttpservermux* xrtHttpServerMuxCreate(
 			);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (Config.MaxHosts == 0) ||
 		(Config.MaxHostBytes == 0) ) {
@@ -651,7 +651,7 @@ xhttpservermuxstatus __xrtHttpServerMuxSelect(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	if ( !xrtRWLockRead(&pMux->Lock) ) {
 		__xrtHttpServerMuxWrapError(
 			XERR_IO,
@@ -683,7 +683,7 @@ xhttpservermuxstatus __xrtHttpServerMuxSelect(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	return Status;
 }
 
@@ -718,7 +718,7 @@ XHTTP_SERVER_API xhttpservermuxstatus xrtHttpServerMuxMatch(
 		);
 		return XHTTP_SERVER_MUX_ERROR;
 	}
-	memcpy(ppRouter, &pRouter, sizeof(pRouter));
+	memcpy((void*)ppRouter, &pRouter, sizeof(pRouter));
 	if ( !__xrtHttpServerMuxParseHost(
 		Text, &Host, "match-http-server-mux"
 	) ) {
@@ -767,7 +767,7 @@ XHTTP_SERVER_API bool xrtHttpServerMuxStats(
 	Stats.HostBytes = pMux->HostBytes;
 	Stats.HasDefault = pMux->Default != NULL;
 	(void)xrtRWLockReadUnlock(&pMux->Lock);
-	memcpy(pStats, &Stats, sizeof(Stats));
+	memcpy((void*)pStats, &Stats, sizeof(Stats));
 	return true;
 }
 

@@ -61,9 +61,9 @@ static void testBodyParseError(size_t Index, bool Inject)
 static void testBodyValid(void)
 {
 	static const xstrview Inputs[] = {
-		XRT_STR_LITERAL("(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)"),
-		XRT_STR_LITERAL("((\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)(\"APPLICATION\" \"JSON\" NIL NIL NIL \"8BIT\" 2) \"MIXED\")"),
-		XRT_STR_LITERAL("(\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" 1 1 NIL (\"INLINE\" NIL) (\"en\" \"zh\") NIL (\"future\" 9))")
+		{ "(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)", sizeof("(\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)") - 1u },
+		{ "((\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)(\"APPLICATION\" \"JSON\" NIL NIL NIL \"8BIT\" 2) \"MIXED\")", sizeof("((\"TEXT\" \"PLAIN\" NIL NIL NIL \"7BIT\" 1 1)(\"APPLICATION\" \"JSON\" NIL NIL NIL \"8BIT\" 2) \"MIXED\")") - 1u },
+		{ "(\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" 1 1 NIL (\"INLINE\" NIL) (\"en\" \"zh\") NIL (\"future\" 9))", sizeof("(\"TEXT\" \"PLAIN\" (\"CHARSET\" \"UTF-8\") NIL NIL \"7BIT\" 1 1 NIL (\"INLINE\" NIL) (\"en\" \"zh\") NIL (\"future\" 9))") - 1u }
 	};
 	for ( size_t i = 0; i < sizeof(Inputs) / sizeof(Inputs[0]); i++ ) {
 		ximapbodyview Body;

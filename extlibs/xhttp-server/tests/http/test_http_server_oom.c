@@ -755,7 +755,7 @@ static void testHttpServerOomAttempt(
 	xrtNetStreamDestroy(State.Client);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testHttpServerEngineDestroy(State.Engine),
 		"HTTP server OOM engine destroy failed"
 	);
 	xrtClearError();

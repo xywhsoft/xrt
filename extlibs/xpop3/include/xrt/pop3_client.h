@@ -115,7 +115,7 @@ XRT_API bool xrtPop3ClientSend(
 
 
 
-/* 发送可超过普通命令上限的 SASL 响应或取消行。 */
+/* 发送可超过普通命令上限的 SASL 响应或取消行；无效超时在传输前拒绝并保留会话。 */
 XRT_API bool xrtPop3ClientAuthLine(
 	xpop3client* pClient,
 	xstrview Line,
@@ -125,7 +125,7 @@ XRT_API bool xrtPop3ClientAuthLine(
 
 
 
-/* 读取一条不含 CRLF 的原始线路，用于 SASL continuation 等扩展。 */
+/* 读取一条不含 CRLF 的原始线路，用于 SASL continuation 等扩展；无效超时保留会话。 */
 XRT_API bool xrtPop3ClientLine(
 	xpop3client* pClient,
 	xstrview* pLine,
@@ -188,7 +188,7 @@ XRT_API bool xrtPop3ClientStat(
 
 
 
-/* 查询一条消息的 LIST 大小。 */
+/* 查询一条消息的 LIST 大小；响应序号必须匹配请求，失败不改写结果。 */
 XRT_API bool xrtPop3ClientList(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -208,7 +208,7 @@ XRT_API bool xrtPop3ClientListAll(
 
 
 
-/* 查询一条消息的 UIDL。 */
+/* 查询一条消息的 UIDL；响应序号必须匹配请求，失败不改写结果。 */
 XRT_API bool xrtPop3ClientUidl(
 	xpop3client* pClient,
 	uint64 iMessage,
@@ -286,7 +286,7 @@ XRT_API bool xrtPop3ClientQuit(
 
 
 
-/* 不发送 QUIT，直接正常关闭传输。 */
+/* 不发送 QUIT，直接正常关闭传输。无效超时在关闭前拒绝并保留会话。 */
 XRT_API bool xrtPop3ClientClose(
 	xpop3client* pClient,
 	int64 iTimeout

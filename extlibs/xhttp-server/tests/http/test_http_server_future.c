@@ -1053,7 +1053,7 @@ int main(void)
 	);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server Future engine destroy failed"
 	);
 	printf(

@@ -114,9 +114,65 @@ static void testPop3Command(void)
 
 
 
+/* UIDL IDs are 1..70 printable ASCII octets (RFC 1939 section 7). */
+static bool testPop3UidlCase(xstrview Line, size_t Length, bool Expected)
+{
+    xpop3uidlview Item, Before;
+    bool Parsed, Valid;
+
+    memset(&Item, 0, sizeof(Item));
+    Item.Message = UINT64_MAX;
+    Item.Id = XRT_STR_LITERAL("unchanged");
+    memcpy(&Before, &Item, sizeof(Before));
+    xrtClearError();
+    Parsed = xrtPop3UidlParse(Line, &Item);
+    Valid = Parsed == Expected;
+    if (Expected) {
+        Valid = Valid && Item.Message == 1 && Item.Id.Data == Line.Data + 2 &&
+            Item.Id.Size == Length;
+    } else {
+        Valid = Valid && xrtErrorKind(xrtGetError()) == XERR_PROTOCOL &&
+            xrtErrorCode(xrtGetError()) == XMAIL_ERROR_PROTOCOL &&
+            memcmp(&Item, &Before, sizeof(Item)) == 0;
+    }
+    xrtClearError();
+    return Valid;
+}
+
+static void testPop3UidlBounds(void)
+{
+    static const size_t Lengths[] = {0, 1, 69, 70, 71, 510};
+    char Line[512];
+    bool Valid = true, BytesValid = true;
+
+    Line[0] = '1';
+    Line[1] = ' ';
+    for (size_t i = 2; i < sizeof(Line); i++) {
+        Line[i] = (char)(33u + ((i - 2u) % 94u));
+    }
+    for (size_t i = 0; i < sizeof(Lengths) / sizeof(Lengths[0]); i++) {
+        size_t Length = Lengths[i];
+        bool Passed = testPop3UidlCase(testMailViewN(Line, Length + 2u),
+            Length, Length >= 1u && Length <= 70u);
+        printf("[%s] POP3 UIDL length %zu\n", Passed ? "PASS" : "FAIL", Length);
+        Valid = Passed && Valid;
+    }
+    for (unsigned i = 0; i < 256u; i++) {
+        Line[2] = (char)i;
+        if (!testPop3UidlCase(testMailViewN(Line, 3u), 1u, i >= 33u && i <= 126u)) {
+            BytesValid = false;
+        }
+    }
+    printf("[%s] POP3 UIDL all 256 octets\n", BytesValid ? "PASS" : "FAIL");
+    testRequire(Valid && BytesValid, "POP3 UIDL length/byte contract failed");
+}
+
+
+
 /* 运行 POP3 协议原语测试。 */
 int main(void)
 {
+	testPop3UidlBounds();
 	testPop3Replies();
 	testPop3Capabilities();
 	testPop3Command();

@@ -877,7 +877,7 @@ int main(void)
 		"HTTP server Router owned route release mismatch"
 	);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testHttpServerEngineDestroy(State.Engine),
 		"HTTP server router engine destroy failed"
 	);
 	puts("[PASS] HTTP server router");

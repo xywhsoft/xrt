@@ -182,6 +182,7 @@ static bool xacmeTencentCall(
 	xacmehttpresponse R;
 
 	pCtx->Http.bWriteUncertain = false;
+	if(!xacmeDnsOperationBudget(&pCtx->Http)) return false;
 	if(!xacmeDnsTencentAuthorization(
 		pCtx->sId, pCtx->sKey, pCtx->sEndpoint, sAction, sBody,
 		xrtNow(), sAuth, sizeof(sAuth), sTimestamp, sizeof(sTimestamp)) ||
@@ -300,17 +301,25 @@ static bool xacmeTencentReadCall(xacmednstencentcontext* pCtx, cstr sAction,
 	cstr sBody, uint16* pStatus, str* pBody, size_t* pSize)
 {
 	uint32 i;
+	xerror* pFirst = NULL;
+	bool bOk = false;
 	for(i = 0u; i < 3u; i++) {
 		xerrkind Kind;
 		xrtClearError();
-		if(xacmeTencentCall(pCtx, sAction, sBody, pStatus, pBody, pSize)) return true;
+		if(xacmeTencentCall(pCtx, sAction, sBody, pStatus, pBody, pSize)) { bOk = true; goto Done; }
 		xrtFree(*pBody); *pBody = NULL;
 		Kind = xrtErrorKind(xrtGetError());
+		if(pFirst == NULL && (Kind == XERR_IO || Kind == XERR_TIMEOUT || Kind == XERR_CLOSED))
+			pFirst = xrtErrorRef(xrtGetError());
 		if(!pCtx->Http.bWriteUncertain ||
-			(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) return false;
-		if(i != 2u) xrtSleep(250u << i);
+			(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) goto Done;
+		if(i != 2u && !xacmeDnsOperationSleep(&pCtx->Http, 250u << i)) goto Done;
 	}
-	return false;
+
+Done:
+	if(!bOk) xacmeDnsRetryBudgetCause(&pCtx->Http, pFirst);
+	xrtErrorFree(pFirst);
+	return bOk;
 }
 
 static bool xacmeTencentResponseOk(const xvalue* pResponse, uint16 iStatus)
@@ -832,23 +841,34 @@ static bool xacmeTencentRemoveLocked(
 		xacmeTencentDeleteRecord, pCtx);
 }
 
-static bool xacmeTencentAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+static bool xacmeTencentAddDeadline(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt, double Deadline)
 {
 	xacmednstencentcontext* pCtx = (xacmednstencentcontext*)xacmeDnsProviderContext(pProvider);
 	bool bOk;
+	xacmednsbudgetscope Scope;
 	xacmednsownedresult Existing;
 	if(pCtx == NULL) return false;
-	if(!xrtMutexLock(&pCtx->Lock)) return false;
+	if(!xacmeDnsProviderLock(&pCtx->Lock, Deadline)) return false;
 	if(!xacmeDnsProviderReady(&pCtx->Http))
 	{
+		(void)xrtMutexUnlock(&pCtx->Lock);
+		return false;
+	}
+	if(!xacmeDnsProviderBegin(&pCtx->Http, Deadline, &Scope)) {
 		(void)xrtMutexUnlock(&pCtx->Lock);
 		return false;
 	}
 	Existing = xacmeTencentReuseOwned(pCtx, sFqdn, sTxt);
 	bOk = Existing == XACME_DNS_OWNED_VALID ||
 		(Existing == XACME_DNS_OWNED_NONE && xacmeTencentAddLocked(pProvider, sFqdn, sTxt));
+	xacmeDnsProviderEnd(&pCtx->Http, &Scope);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+static bool xacmeTencentAdd(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
+{
+	return xacmeTencentAddDeadline(pProvider, sFqdn, sTxt, INFINITY);
 }
 
 static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstrview sTxt)
@@ -865,6 +885,14 @@ static bool xacmeTencentRemove(xacmednsprovider* pProvider, xstrview sFqdn, xstr
 	bOk = xacmeTencentRemoveLocked(pProvider, sFqdn, sTxt);
 	(void)xrtMutexUnlock(&pCtx->Lock);
 	return bOk;
+}
+
+bool xacmeDnsTencentAddUntil(xacmednsprovider* pProvider,
+	xstrview Fqdn, xstrview Txt, double Deadline, bool* pMatched)
+{
+	*pMatched = pProvider != NULL && pProvider->Add == xacmeTencentAdd;
+	if(!*pMatched) return false;
+	return xacmeTencentAddDeadline(pProvider, Fqdn, Txt, Deadline);
 }
 
 void xrtAcmeDnsTencentConfigInit(xacmednstencentconfig* pConfig)

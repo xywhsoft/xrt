@@ -436,7 +436,7 @@ XHTTP_SERVER_API void xrtHttpRouterConfigInit(xhttprouterconfig* pConfig)
 		xrtSetErrorKind(XERR_ARGUMENT);
 		return;
 	}
-	memcpy(pConfig, &Config, sizeof(Config));
+	memcpy((void*)pConfig, &Config, sizeof(Config));
 }
 
 
@@ -456,7 +456,7 @@ XHTTP_SERVER_API xhttprouter* xrtHttpRouterCreate(
 			xrtSetErrorKind(XERR_ARGUMENT);
 			return NULL;
 		}
-		memcpy(&Config, pConfig, sizeof(Config));
+		memcpy(&Config, (const void*)pConfig, sizeof(Config));
 	}
 	if ( (Config.MaxRoutes == 0) ||
 		(Config.MaxNodes == 0) ||

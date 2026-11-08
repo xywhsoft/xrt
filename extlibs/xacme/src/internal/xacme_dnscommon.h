@@ -25,6 +25,134 @@
 #if defined(XACME_FEATURE_ACME_DNS) && defined(XACME_FEATURE_ACME_HTTP)
 #include "xacme_http.h"
 
+#include <xrt/detail/wait.h>
+#include <xrt/sync.h>
+#include <xrt/thread.h>
+#include "xacme_dns_budget.h"
+
+typedef struct xacmednsbudgetscope {
+	bool bPrevious;
+	double Previous;
+} xacmednsbudgetscope;
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsDeadlineBudget(double Deadline)
+{
+	xerror* pCause;
+	xerror* pError;
+	cstr Domain;
+	if(!__xrtWaitExpired(Deadline)) return true;
+	pCause = xrtErrorRef(xrtGetError());
+	Domain = xrtErrorDomain(pCause);
+	if(xrtErrorKind(pCause) != XERR_MEMORY &&
+		!(xrtErrorKind(pCause) == XERR_TIMEOUT && Domain != NULL &&
+		  strcmp(Domain, "xrt.acme.dns") == 0 &&
+		  xrtErrorCode(pCause) == XACME_DNS_ERROR_NETWORK)) {
+		if(pCause != NULL) {
+			pError = xrtErrorWrap(pCause, XERR_TIMEOUT, "xrt.acme.dns",
+				XACME_DNS_ERROR_NETWORK, "acme DNS operation budget exhausted");
+			if(pError != NULL) xrtSetErrorTake(pError);
+		} else xrtSetErrorInfo(XERR_TIMEOUT, "xrt.acme.dns",
+			XACME_DNS_ERROR_NETWORK, "acme DNS operation budget exhausted");
+	}
+	xrtErrorFree(pCause);
+	return false;
+}
+
+/* The deadline applies while waiting for the provider gate too. Its HTTP
+ * state belongs exclusively to the gate owner and is never touched here. */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsProviderLock(xmutex* pLock, double Deadline)
+{
+	if(!__xrtWaitValid(Deadline)) return false;
+	if(Deadline == INFINITY) return xrtMutexLock(pLock);
+	xrtClearError();
+	while(xacmeDnsDeadlineBudget(Deadline)) {
+		xrtClearError();
+		if(xrtMutexTryLock(pLock)) return true;
+		if(xrtGetError() != NULL) return false;
+		if(!xacmeDnsDeadlineBudget(Deadline)) return false;
+		xrtSleep(1u);
+	}
+	return false;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsProviderBegin(xacmehttp* pHttp, double Deadline,
+	xacmednsbudgetscope* pScope)
+{
+	pScope->bPrevious = pHttp->bOperationDeadline;
+	pScope->Previous = pHttp->OperationDeadline;
+	if(Deadline != INFINITY &&
+		(!pHttp->bOperationDeadline || Deadline < pHttp->OperationDeadline)) {
+		pHttp->bOperationDeadline = true;
+		pHttp->OperationDeadline = Deadline;
+	}
+	if(!pHttp->bOperationDeadline || xacmeDnsDeadlineBudget(pHttp->OperationDeadline))
+		return true;
+	pHttp->bOperationDeadline = pScope->bPrevious;
+	pHttp->OperationDeadline = pScope->Previous;
+	return false;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsProviderEnd(xacmehttp* pHttp, const xacmednsbudgetscope* pScope)
+{
+	pHttp->bOperationDeadline = pScope->bPrevious;
+	pHttp->OperationDeadline = pScope->Previous;
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsOperationBudget(const xacmehttp* pHttp)
+{
+	return !pHttp->bOperationDeadline ||
+		xacmeDnsDeadlineBudget(pHttp->OperationDeadline);
+}
+
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static bool xacmeDnsOperationSleep(const xacmehttp* pHttp, uint32 Ms)
+{
+	if(!xacmeDnsOperationBudget(pHttp)) return false;
+	if(pHttp->bOperationDeadline) {
+		int64 Remaining = __xrtWaitRemaining(pHttp->OperationDeadline);
+		if(Remaining >= 0 && Remaining < (int64)Ms) Ms = (uint32)Remaining;
+	}
+	xrtSleep(Ms);
+	return xacmeDnsOperationBudget(pHttp);
+}
+
+
+/* A later signed attempt can clear the caller error before observing expiry.
+ * The retry owner keeps its first error alive until the call settles. */
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
+static void xacmeDnsRetryBudgetCause(const xacmehttp* pHttp, const xerror* pFirst)
+{
+	const xerror* pError;
+	xerrkind Kind = xrtErrorKind(xrtGetError());
+	bool Found = false;
+	if(pFirst == NULL || !pHttp->bOperationDeadline ||
+		!__xrtWaitExpired(pHttp->OperationDeadline) ||
+		(Kind != XERR_IO && Kind != XERR_TIMEOUT && Kind != XERR_CLOSED)) return;
+	for(pError = xrtGetError(); pError != NULL; pError = xrtErrorCause(pError))
+		if(pError == pFirst) { Found = true; break; }
+	if(!Found) xrtSetError(pFirst);
+	(void)xacmeDnsOperationBudget(pHttp);
+}
+
 /* Unit is serialized by the host. Check the context before touching its lock. */
 #if defined(__GNUC__)
 __attribute__((unused))

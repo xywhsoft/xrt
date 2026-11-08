@@ -1,5 +1,18 @@
 #include <xsmtp.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 #include <stdio.h>
 #include <string.h>
 
@@ -7,10 +20,6 @@
 static inline double exampleTimerLimit(int64 Timeout)
 {
     return Timeout == XRT_WAIT_FOREVER ? INFINITY : xrtTimer() + (double)Timeout / 1000.0;
-}
-static inline bool exampleTimerExpired(double Limit)
-{
-    return xrtTimer() >= Limit;
 }
 static inline int64 exampleTimerRemaining(double Limit)
 {
@@ -211,7 +220,7 @@ Done:
 		xrtNetListenerDestroy(pListener);
 	}
 	if ( pResolver != NULL ) (void)xrtNetResolverDestroy(pResolver);
-	if ( pEngine != NULL ) (void)xrtNetEngineDestroy(pEngine);
+	if ( pEngine != NULL ) (void)exampleNetEngineDestroy(pEngine);
 	if ( !bOk ) {
 		fputs("offline SMTP submission failed\n", stderr);
 		return 1;

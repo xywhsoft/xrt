@@ -90,6 +90,30 @@ static void testHttpPoolHttpsWaitClosed(
 
 
 
+/* Close flags precede the callback's final release. Keep State and Engine
+ * alive until all operational objects drain and native Workers are joined. */
+static void testHttpPoolHttpsRetire(xnetengine* pEngine)
+{
+	double Deadline = __xrtWaitAfter(10000);
+	xnetenginestats Stats;
+
+	for ( ;; ) {
+		xnetretireresult Result = xrtNetEngineTryStop(pEngine);
+		if ( Result == XNET_RETIRE_READY ) {
+			break;
+		}
+		testRequire(Result == XNET_RETIRE_BUSY && !__xrtWaitExpired(Deadline),
+			"HTTPS pool engine retirement failed or timed out");
+		xrtThreadYield();
+	}
+	testRequire(xrtNetEngineStats(pEngine, &Stats) &&
+		Stats.LiveObjects == 0 && Stats.PendingCommands == 0 && Stats.ActiveTimers == 0 &&
+		Stats.WaitErrors == 0 && Stats.WakeErrors == 0,
+		"HTTPS pool retained resources after Worker join");
+}
+
+
+
 /* 为真实 SNI 名称返回本机 Listener 地址。 */
 static xnetaddrlist* testHttpPoolHttpsLookup(
 	cstr sHost,
@@ -415,7 +439,7 @@ int main(void)
 	xtlscontext* pContext;
 	xtlsidentity* pIdentity;
 	xtlsverifier* pVerifier;
-	xnetaddr Address;
+	xnetaddr Address = {0};
 
 	memset(&State, 0, sizeof(State));
 	memset(&ListenerEvents, 0, sizeof(ListenerEvents));
@@ -569,6 +593,7 @@ int main(void)
 	xrtHttpClientDestroy(State.Client);
 	xrtTlsStreamDestroy(State.Server);
 	xrtNetListenerDestroy(State.Listener);
+	testHttpPoolHttpsRetire(State.Engine);
 	testRequire(
 		xrtNetEngineDestroy(State.Engine),
 		"HTTPS pool engine destroy failed"

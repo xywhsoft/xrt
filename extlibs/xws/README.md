@@ -45,4 +45,18 @@ python tools/package.py --manifest extlibs/xws/config/modules.json --suite xws -
 
 事件在所属网络 Worker 上执行。消息视图仅在回调期间借用；Copy 复制数据，Ref 保留引用，Take 按原契约转移所有权。发送预算和异步队列有硬上限，控制帧预留、取消、失败清理与关闭顺序保持原行为。
 
+公开结构体参数中明确允许未对齐存储的配置、事件、Ref、Deflate 和 CloseInfo 按字节复制；调用方仍须提供完整有效范围，并遵守对应接口的重叠与所有权约束。`xws_tests` 的单头回归测试复用模块化的真实回环、失败不发布和引用释放检查。
+
+## 回环应用示例
+
+```powershell
+python tools/build.py --compiler gcc --manifest extlibs/xws/config/modules.json --suite xws_runtime_loopback_example
+```
+
+[`runtime_loopback/main.c`](examples/websocket/runtime_loopback/main.c) 在本机动态端口建立两个真实 TCP Stream，并在各自 Worker 的 Open/Accept 回调中接管连接。两端预先约定 `loopback.v1` 与 permessage-deflate 配置；HTTP Upgrade 集成由 xws-client/xws-server 提供。
+
+业务线程依次异步提交复制文本、所有权文本、压缩文本。服务端在消息回调中使用普通 Writer、引用 Writer 和压缩 Writer 分片回送；两端核对完整文本、消息顺序和压缩标志。示例还核对 Ping/Pong、双方干净关闭，以及客户端一个 Ref 和服务端两个引用分片共三次释放。关闭后释放应用引用，等待 Worker 退休并检查 `LiveObjects == 0`，再销毁 Engine 和回调上下文。等待均有十秒上限，失败返回非零。
+
+该命令同时运行模块化示例和复用相同业务过程的实现单头测试，无需外部服务。成功输出包含 `releases=3 live=0`。其余 `connection_ref`、`writer*`、`connection*_future` 目录展示供宿主调用的集成函数；`session_channel_coroutine` 展示 Channel 消费过程，它们的独立 main 只验证片段构建和初始化。
+
 详细接口见 [API 参考](docs/api/reference.md)，整体边界见 [WebSocket 拆分说明](docs/design/websocket-runtime.md)。
