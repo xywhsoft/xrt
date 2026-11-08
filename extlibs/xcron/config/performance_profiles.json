@@ -1419,6 +1419,116 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xcron_scheduler_selected_dense1",
+      "system": "scheduler",
+      "description": "Selected policy-aware owner kernel: cold admission, complete global label resolution, nominal metadata and physical completion; UTC dense batches; not production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_selected_dense1",
+          "source": "extlibs/xcron/bench/bench_scheduler_selected.c",
+          "suite": "xcron_scheduler_selected",
+          "args": [
+            "200000",
+            "1"
+          ],
+          "smoke_args": [
+            "5",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "iterations",
+            "checksum"
+          ],
+          "observations": [
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "actions"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_scheduler_selected_dense16",
+      "system": "scheduler",
+      "description": "Selected policy-aware owner kernel: cold admission, complete global label resolution, nominal metadata and physical completion; UTC dense batches; not production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_scheduler_selected_dense16",
+          "source": "extlibs/xcron/bench/bench_scheduler_selected.c",
+          "suite": "xcron_scheduler_selected",
+          "args": [
+            "200000",
+            "16"
+          ],
+          "smoke_args": [
+            "5",
+            "16"
+          ],
+          "facts": [
+            "batch_size",
+            "iterations",
+            "checksum"
+          ],
+          "observations": [
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "actions"
+          ],
+          "metrics": {
+            "dispatches_per_sec": {
+              "direction": "higher",
+              "unit": "dispatches/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -189,6 +189,24 @@
         "_xrtFileOpen",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_scheduler_selected",
+      "system": "scheduler",
+      "suite": "xcron_scheduler_selected",
+      "description": "Policy-aware lease kernel with complete recurrence resolution; no file/network/executor/service closure",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtNetEngineCreate",
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate"
+      ]
     }
   ]
 }

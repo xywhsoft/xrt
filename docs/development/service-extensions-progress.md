@@ -8176,3 +8176,96 @@ performance and>=72h gates remain open. Goal active; work stays on master.
 
 Portable evidence: extlibs/xcron/tests/results/occurrence-cursor-init-20261109.json.
 Raw evidence: out/service-extensions/xcron-cursor-tail-20261109/.
+
+### 2026-11-09: integrate selected recurrence policies into bounded job leases
+
+Added the optional developing xcron_scheduler_selected mode and five exported
+entry points for Create/Add/Poll/Job/Reap. Its implementation is guarded in the
+existing scheduler source and shares slot/lease/heap ownership; the module does
+not duplicate that source or introduce another runtime. Actual-only builds keep
+their original calculation closure. Public existing layouts remain config24,
+job config112/info96/run64/retired112 on verified x64. Baseline and current lean
+private layouts agree (owner224, hot job240, query416); enabling the optional
+capability adds16 owner bytes while preserving the hot slot/actual query. The
+selected mode preallocates792 query bytes/job. At two jobs, extended actual mode
+requests1584 bytes and selected mode2336; exact BytesLimit covers the complete
+allocation. New run/poll/info/retired types are120/48/208/224 in modular and
+generated declarations on both platforms. No zero-overhead claim is made.
+Extended actual-mode admission/poll/report calls also validate the mode flag;
+actual-only builds remove that check. Selected leases copy56 nominal bytes in
+addition to the plain run. These costs are not hidden by the unchanged public ABI.
+
+Add validates/snapshots/retains without recurrence traversal, admitting SEARCHING
+or an empty EXHAUSTED job. Initial and future mapping/fold/missing faults become
+typed job faults with full occurrence issues; admitted Data remains borrowed
+through physical retirement. This explicit admission contract differs from the
+unchanged synchronous actual Add. The actual Add/Poll/Job/Reap methods reject
+selected instances, avoiding hidden unbudgeted label checks or truncated faults.
+Complete/Cancel/Wake/Inspect/Close/Destroy share the existing owner/lease contract.
+
+Poll bounds the sum of five traversal dimensions across all jobs, plus existing
+WorkLimit/output limits. FIFO one-unit queries alternate with ready/heap work;
+eager successors receive a quantum only without older queries. Capacity zero
+advances calculations even at full lease/output capacity; zero search budgets
+can publish a previously known lease and defer its successor. Each lease copies
+canonical nominal metadata and complete multiplicity before successor mutation.
+Faults preserve live leases through Cancel/Close until physical Complete/Reap.
+Misfire/overlap discards intentionally do not enumerate interior labels; catch-up
+retains their gap validation. Tests and documentation make that choice explicit.
+Gap compensation remains separate. Existing executor submission accepts the
+embedded run; owner-side nominal metadata is not silently passed to its callback.
+
+Independent second-by-second modeling checks2048 complete job traces across32
+arbitrary8-transition histories,8 query windows and all8 fold/missing policies.
+It enumerates global candidate sets and independently derives Gregorian labels,
+earliest gap/ambiguity anchors, every lease and final physical counters. Separate
+tests cover each exhausted dimension, zero budgets/output, full-int64 endpoints,
+future global UNKNOWN beyond a label's actual mapping, active-fault lifetime,
+eight400-year searches versus a light job, sparse-query credit beside dense
+catch-up, exact byte limits, invalid modes/policies/aliases, diagnostic OOM,
+1024 warmed zero-requested-heap cycles/error identity, misfire/overlap/rollback,
+retained versus coalesced gaps and serialized pending-query native handoff.
+
+Windows/WSL each pass29 root modular/single programs, the isolated actual-mode
+leaf, selected example, root and isolated selected static/shared consumers,
+direct/generated and baseline/lean/extended layouts. Root consumers dispatch a
+selected lease through an actual XRT worker/executor and physically collect it.
+WSL root/leaf suites run O2 ASan/UBSan/leak-halt; both selected O1 TSan programs
+pass. The unchanged422-zone occurrence oracle matches prior complete metadata
+and counters (121664 queries,349582 Steps). Windows90 tool tests and features/
+single/API/docs checks pass. Existing Windows symlink fixture skips1314 remain.
+
+Initial prototypes retain two test-format warnings and one incorrect test
+expectation: misfire SKIP and overlap SKIP each discarded a range, while that
+test expected one total. Correcting the independent sum did not change production
+logic. Subsequent Windows/WSL prototypes and full validation pass. All failed
+logs remain. After both full pipelines ended, only the previously unexecuted
+benchmark validation/cleanup and one example-document registration were finalized.
+Every compiled implementation/header/test input stays identical; the exact two
+input deltas and absence of that driver from validation compiler commands are
+verified. Generated outputs remain current. Final measurement snapshots include
+the completed driver and documentation registration. No production/generated
+C/H was edited while a compiler or measurement pipeline could read it.
+
+First unpinned five-repeat profiles retain full requested metadata validation,
+admission, query advancement, physical completion and timer costs. Independent
+Gregorian arithmetic verifies their complete run/nominal checksums. Source work
+observations are deterministic: selected1 needs200001 segment/month/check/offset
+visits and400000 owner actions for200000 leases; selected16 needs3200016 visits
+and6400016 actions for3200000 leases, with zero actual rule years in fixed UTC.
+Original5%/10% regression settings and MAD3%/central6% noise gates are unchanged.
+Windows medians are4438428/6302071 selected dispatches/s for1/16 jobs, batch
+p990.3/4.2us; WSL4032160/5293084 and0.4/4.9us. Actual-only controls are recorded
+separately with their different semantics, not used as a selected speedup claim.
+Both reports retain failed noise gates and remain unqualified component baselines;
+no historical fingerprint/report is rewritten or force paired. All eight actual
+performance executables are retained with hashes. Both platforms single/static/
+shared size and no-file/network/executor/service symbol checks pass.
+
+Evidence: extlibs/xcron/tests/results/selected-scheduler-20261109.json.
+Raw inputs, prototypes, complete validation, finalization proof, measured samples,
+binaries and sizes: out/service-extensions/xcron-selected-scheduler-20261109/.
+Live-service selected commands/responses and worker nominal metadata, compensation,
+durable recovery, remaining Redis/RPC/MQTT5.0 scope/interop, controlled native
+Windows/Linux performance (including the earlier Windows p95 cause) and>=72h
+mixed-load acceptance remain open. Goal active; development stays on master.

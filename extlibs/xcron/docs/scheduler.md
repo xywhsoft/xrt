@@ -55,8 +55,10 @@ UINT64_MAX; sizes/counts are bounded by the configured slots.
 Begin/End are an explicit inclusive XRT millisecond window, with the usual
 XCRON_SEARCH_EXCLUSIVE Begin option. XRT epoch is 0001-01-01; use
 XRT_TIME_UNIX_EPOCH for Unix epoch. Recurrence uses actual zoned instants:
-all folds participate in UTC order, missing labels do not fire. Configurable
-nominal gap compensation and recurring fold selection are still pending. The
+all folds participate in UTC order, missing labels do not fire. The optional
+[selected mode](scheduler_selected.md) adds recurring fold/missing selection
+through separate factories and five-budget polling. Nominal gap compensation
+is still pending. The
 separate [nominal-label selection primitive](delivery.md) resolves explicit
 single labels; it does not reconfigure this kernel's existing jobs.
 

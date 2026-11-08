@@ -278,6 +278,11 @@ dimension, snapshots, invalid/aliased/copied/wrong-zone cursors, diagnostic OOM,
 The frozen422-zone oracle enumerates Gregorian labels and complete distinct-offset
 mappings, derives coverage from RFC metadata and independently calculates footer
 M-rule transitions. Its required probe executes both sync Issue forms and a real
-cursor, verifying all metadata/budgets/pending output bytes. Scheduler/service
-policy integration, compensation, durable recovery and performance/native/>=72h
-qualification remain open.
+cursor, verifying all metadata/budgets/pending output bytes. The optional selected
+scheduler mode integrates these calculations with actual leases and five global
+budgets. Its2048 independently enumerated history traces verify every selected
+lease and earliest fault, in addition to fairness, poisoned/aliased arguments,
+zero-budget/calculation-only turns, physical fault lifetimes, exact byte limits,
+OOM,1024 warmed no-requested-heap cycles, policy-range/rollback and native handoff
+cases. Live-service command integration, compensation, durable recovery and
+performance/native/>=72h qualification remain open.

@@ -1,0 +1,9 @@
+#define XCRON_MODULE_XCRON_SCHEDULER_SELECTED
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xcron/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XCRON_IMPLEMENTATION
+#include "../../../../single/extlibs/xcron.h"
+#include "../test_scheduler_selected.c"

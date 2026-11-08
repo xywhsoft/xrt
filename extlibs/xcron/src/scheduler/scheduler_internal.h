@@ -1,6 +1,9 @@
 #ifndef XCRON_SCHEDULER_INTERNAL_H
 #define XCRON_SCHEDULER_INTERNAL_H
 #include <xcron/scheduler.h>
+#if defined(XCRON_FEATURE_XCRON_SCHEDULER_SELECTED)
+#include <xcron/scheduler_selected.h>
+#endif
 #if defined(XCRON_FEATURE_XCRON_SCHEDULER)
 /* Owner-only provisional admission for the live service. ID is internal until
  * Finish accepts. Pending/failed/cancelled admissions cannot dispatch or Reap.

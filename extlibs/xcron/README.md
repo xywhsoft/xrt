@@ -121,6 +121,9 @@ selection after complete resolution. Run its [offline example](examples/delivery
 and read [selection semantics/costs](docs/delivery.md). The separate
 `xcron_occurrence` leaf adds budgeted complete recurring fold selection and
 transition-anchored missing-label rejection; see its [contract](docs/occurrence.md)
-and [runnable example](examples/occurrence/README.md). Existing kernel/service jobs
-are unchanged until explicit policy integration. Gap compensation and durability
-remain required.
+and [runnable example](examples/occurrence/README.md). The optional
+`xcron_scheduler_selected` mode admits policy-aware jobs and advances them with
+five global budgets; see its [contract](docs/scheduler_selected.md) and
+[offline lease example](examples/scheduler_selected/README.md). Actual-mode jobs
+keep their original semantics. Live-service command integration, gap compensation
+and durability remain required.
