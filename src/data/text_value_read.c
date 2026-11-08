@@ -205,6 +205,7 @@ static bool __xrtTextValueReadConfigValid(
 
 	return
 		(pConfig != NULL) &&
+		(!pConfig->RawEvents || pConfig->Dialect == XTEXT_VALUE_JSON) &&
 		((pConfig->Dialect == XTEXT_VALUE_JSON) ||
 		 (pConfig->Dialect == XTEXT_VALUE_XLON)) &&
 		((pConfig->Flags & ~iKnownFlags) == 0) &&
@@ -562,7 +563,7 @@ static bool __xrtTextValueParserString(
 /* 向访问器提交事件并记录正常停止状态。 */
 static bool __xrtTextValueParserEmit(
 	xtextvalueparser* pParser,
-	const xtextvalueevent* pEvent
+	xtextvalueevent* pEvent
 )
 {
 	const xerror* pPrevious;
@@ -571,6 +572,10 @@ static bool __xrtTextValueParserEmit(
 
 	if ( pParser->Visitor == NULL ) {
 		return true;
+	}
+	if ( pParser->Config.RawEvents && pEvent->Raw.Data == NULL ) {
+		pEvent->Raw.Data = pParser->Text.Data + pEvent->Location.Offset;
+		pEvent->Raw.Size = pParser->Offset - pEvent->Location.Offset;
 	}
 	pPrevious = xrtGetError();
 	pHeld = xrtErrorRef(pPrevious);
@@ -664,7 +669,7 @@ static bool __xrtTextValueParserNumber(
 	size_t iStart = pParser->Offset;
 	bool bInteger = true;
 	bool bNegative = __xrtTextValueParserPeek(pParser) == (uint8)'-';
-	bool bFits = true;
+	bool bFits = !pParser->Config.RawEvents;
 	uint64 iMagnitude = 0;
 	double fValue = 0.0;
 
@@ -759,6 +764,10 @@ static bool __xrtTextValueParserNumber(
 	}
 	pEvent->Raw.Data = pParser->Text.Data + iStart;
 	pEvent->Raw.Size = pParser->Offset - iStart;
+	if ( pParser->Config.RawEvents ) {
+		pEvent->Type = XTEXT_VALUE_EVENT_NUMBER;
+		return true;
+	}
 	if ( bInteger && bFits ) {
 		if ( !bNegative && iMagnitude > (uint64)INT64_MAX ) {
 			pEvent->Type = XTEXT_VALUE_EVENT_UINT;
@@ -822,6 +831,27 @@ static bool __xrtTextValueParserValue(
 	const xvaluekey* pKey
 );
 
+/* END retains raw parent identity and the complete container span for Scan.
+ * Materialized visitors retain their existing closing-event contract. */
+static inline bool __xrtTextValueParserClose(
+	xtextvalueparser* pParser,
+	const xtextvalueevent* pBegin,
+	xtextvalueeventtype EndType
+)
+{
+	xtextvalueevent Event;
+	memset(&Event, 0, sizeof(Event));
+	Event.Type = EndType; Event.Depth = pBegin->Depth;
+	Event.Location = __xrtTextValueParserLocation(pParser);
+	if ( pParser->Config.RawEvents ) {
+		Event.Key = pBegin->Key;
+		Event.Raw.Data = pParser->Text.Data + pBegin->Location.Offset;
+		Event.Raw.Size = pParser->Offset - pBegin->Location.Offset + 1u;
+	}
+	__xrtTextValueParserAdvance(pParser);
+	return __xrtTextValueParserEmit(pParser, &Event);
+}
+
 
 
 /* 解析数组或集合，并直接发送开始、子项和结束事件。 */
@@ -846,14 +876,7 @@ static bool __xrtTextValueParserSequence(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)']')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -932,16 +955,7 @@ static bool __xrtTextValueParserSequence(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 
@@ -968,14 +982,7 @@ static bool __xrtTextValueParserMapping(
 		!__xrtTextValueParserEnd(pParser) &&
 		(__xrtTextValueParserPeek(pParser) == (uint8)'}')
 	) {
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
+		return __xrtTextValueParserClose(pParser, pEvent, EndType);
 	}
 
 	for ( ;; ) {
@@ -1012,6 +1019,7 @@ static bool __xrtTextValueParserMapping(
 			Key.Integer = KeyEvent.Value.Integer;
 		} else {
 			xstrview Name;
+			size_t iNameStart = pParser->Offset;
 
 			if ( !__xrtTextValueParserString(
 				pParser,
@@ -1023,6 +1031,10 @@ static bool __xrtTextValueParserMapping(
 			}
 			Key.Type = XVALUE_KEY_STRING;
 			Key.String = Name;
+			if ( pParser->Config.RawEvents ) {
+				Key.String.Data = pParser->Text.Data + iNameStart;
+				Key.String.Size = pParser->Offset - iNameStart;
+			}
 		}
 		if ( !__xrtTextValueParserSpace(pParser) ) {
 			return false;
@@ -1100,16 +1112,7 @@ static bool __xrtTextValueParserMapping(
 		);
 		return false;
 	}
-	{
-		xtextvalueevent EndEvent;
-
-		memset(&EndEvent, 0, sizeof(EndEvent));
-		EndEvent.Type = EndType;
-		EndEvent.Depth = pEvent->Depth;
-		EndEvent.Location = __xrtTextValueParserLocation(pParser);
-		__xrtTextValueParserAdvance(pParser);
-		return __xrtTextValueParserEmit(pParser, &EndEvent);
-	}
+	return __xrtTextValueParserClose(pParser, pEvent, EndType);
 }
 
 

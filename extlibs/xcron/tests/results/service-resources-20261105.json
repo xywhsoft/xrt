@@ -1,0 +1,381 @@
+{
+  "schema": 1,
+  "stage": "retained component resource accounting through live service startup and stop",
+  "base_revision": "7dcc8d364867011e0640526ac1924bd6a8395724",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "previous_contract": "The previous guide explicitly described initially incomplete owner-turn provisioned snapshots and retained historical adapter bytes after stop. This stage changes that experimental semantic contract; the adapter was already physically freed.",
+  "behavior": [
+    "Publish complete kernel/adapter allocation metadata before Create returns and before any clock callback.",
+    "After physical adapter destruction, publish AdapterBytes=Executor.Bytes=0 and Bytes=ArenaBytes+KernelBytes under one mutex; preserve executor historical counters and configured limit.",
+    "A waiter cleanup failure preserves the same correct component totals while retaining its separately counted live native timer."
+  ],
+  "abi": {
+    "unchanged": true,
+    "config": 136,
+    "stats": 344,
+    "function_signatures_unchanged": true
+  },
+  "cost": "One constant startup inspection/snapshot and one constant stop publication; existing per-turn snapshot retains one mutex critical section. No added heap, storage, thread or runtime.",
+  "baseline": {
+    "log_sha256": "c16443815398b461dff0e883e774533d234d10b5893a8d18e51fde3ffe593021",
+    "expected_exit_code": 1,
+    "snapshot": [
+      "before-clock bytes=5704 arena=5704 kernel=0 adapter=0 charged=8688"
+    ]
+  },
+  "verification": {
+    "windows": {
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "97b37c472da82fe518f943a156f84cc90ef3610ee87a970e3108216576e5edfb",
+          "program_executions": 8
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0acc867ae80fc2ff2a92049845da8df2d37436f21dc7007e9031d2050a801c10",
+          "program_executions": 2
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8f1bc11c2d6830bde8e1fd245957233a2a8037c5a7a1a54c0723635d72cfeb97",
+          "program_executions": 0
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "34168f69688fd3dd2b7f05ad5e30f0d1fd56529b77f4e6bbfb8b419857a02be5",
+          "program_executions": 0
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e60971e67ec451a9056d647cfb5aaee631c541469900239f234145b18e27d028",
+          "program_executions": 1
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "program_executions": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "program_executions": 0
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "program_executions": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3e667e70a8cb7cc7bfa7ae012a45329b18f60691f93a0faeae38329fdb6134ab",
+          "program_executions": 0
+        }
+      ],
+      "snapshots": [
+        "before-clock bytes=8584 arena=5704 kernel=2256 adapter=624 charged=8688",
+        "stopped bytes=7960 adapter=0 charged=8064 dropped=624",
+        "before-clock bytes=8584 arena=5704 kernel=2256 adapter=624 charged=8688",
+        "stopped bytes=7960 adapter=0 charged=8064 dropped=624",
+        "before-clock bytes=8584 arena=5704 kernel=2256 adapter=624 charged=8688",
+        "stopped bytes=7960 adapter=0 charged=8064 dropped=624"
+      ]
+    },
+    "wsl": {
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "cc2c4c6a0596943457613136db99dbf2f72fece43500b775627bdf097f736189",
+          "program_executions": 8
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "81d0a3c1c319c345f20f555af4c9040223a4947dbc9d6af0f989da5d99afc3c4",
+          "program_executions": 2
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a4917d7f40f4bc08b8afb4b9c29eb18c096c810be6f0ce98256f91891b4bd854",
+          "program_executions": 0
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2383b1324264b3f65a6eb34e1795d2206e2f96c9d7ece6b45bfc2a413956ff25",
+          "program_executions": 0
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_service",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "93e8aca51cb4f0dde3d9b306d74e35f56dbe34a77cef275af129ec100f525350",
+          "program_executions": 1
+        },
+        {
+          "label": "tsan-native",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,event_waiter,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_service_waiter"
+          ],
+          "exit_code": 0,
+          "log_sha256": "7c0fd260a5e3db28683c41f8b7a86307e05c9a11a4f4336a847217db1a024494",
+          "program_executions": 1
+        }
+      ],
+      "snapshots": [
+        "before-clock bytes=8864 arena=5984 kernel=2256 adapter=624 charged=9008",
+        "stopped bytes=8240 adapter=0 charged=8384 dropped=624",
+        "before-clock bytes=8864 arena=5984 kernel=2256 adapter=624 charged=9008",
+        "stopped bytes=8240 adapter=0 charged=8384 dropped=624",
+        "before-clock bytes=8864 arena=5984 kernel=2256 adapter=624 charged=9008",
+        "stopped bytes=8240 adapter=0 charged=8384 dropped=624"
+      ]
+    }
+  },
+  "protected_inputs": {
+    "count": 2465,
+    "canonical_map_sha256": "734545ea2887739bf3054e53c981b4ad2e0db7971f69bd71884f0f8cacef7ac9",
+    "local_map": "out\\service-extensions\\xcron-accounting\\windows-inputs.json"
+  },
+  "limits": "Component requested bytes exclude borrowed data/zones, diagnostics, host executor, native handles and Core/thread/bootstrap charges. This is not total allocation-budget charge or process RSS.",
+  "remaining": "Bounded recurrence CPU, named-zone/recovery/nominal DST, high-resolution/pinned performance, native Linux and >=72h gates remain open; all four original products remain developing."
+}

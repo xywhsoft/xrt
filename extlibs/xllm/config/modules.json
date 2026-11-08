@@ -75,7 +75,10 @@
 				"thread",
 				"mutex",
 				"cancel",
-				"time"
+				"time",
+				"future_bridge",
+				"tls_stream_dial_proxy",
+				"json_write"
 			],
 			"public_headers": [
 				"extlibs/xllm/include/xllm.h",
@@ -84,7 +87,9 @@
 				"extlibs/xllm/include/xllm/executor.h"
 			],
 			"internal_headers": [
-				"extlibs/xllm/src/internal/xllm_internal.h"
+				"extlibs/xllm/src/internal/xllm_internal.h",
+				"extlibs/xllm/src/internal/xllm_proxy_future.h",
+				"extlibs/xllm/src/internal/xllm_time.h"
 			],
 			"sources": [
 				"extlibs/xllm/src/llm/xllm_core.c",
@@ -104,7 +109,8 @@
 				"extlibs/xllm/tests/test_xllm.c"
 			],
 			"single_tests": [
-				"extlibs/xllm/tests/single/test_single_xllm.c"
+				"extlibs/xllm/tests/single/test_single_xllm.c",
+				"extlibs/xllm/tests/single/test_single_xllm_mdo.c"
 			],
 			"examples": [
 				"extlibs/xllm/examples/agent_loop.c"

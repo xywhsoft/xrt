@@ -668,8 +668,10 @@ static void test_dialect_anthropic(void)
                 xllm_request tReplayRequest;
                 char* sReplayJson;
                 CHECK(xllmMessageFromResponse(pCall->pResponse, &tReplay) &&
-                    tReplay.iPartCount == 1u && tReplay.pParts[0].eKind == XLLM_PART_NATIVE &&
-                    strcmp(tReplay.pParts[0].sNativeType, "thinking_signature") == 0,
+                    tReplay.iPartCount == 3u && tReplay.pParts[0].eKind == XLLM_PART_REASONING &&
+                    tReplay.pParts[1].eKind == XLLM_PART_NATIVE &&
+                    strcmp(tReplay.pParts[1].sNativeType, "thinking_signature") == 0 &&
+                    tReplay.pParts[2].eKind == XLLM_PART_TEXT && strcmp(tReplay.pParts[2].sText, "Hi") == 0,
                     "response converts signed reasoning into a replayable part");
                 xllmRequestInit(&tReplayRequest);
                 xllmRequestAddMessage(&tReplayRequest, &tReplay);
@@ -1110,6 +1112,7 @@ static void test_lifecycle_hooks(void)
 
     /* 4) response-body replacement on a non-streaming call (replay) */
     tHooks.pOnResponseBody = test_hook_on_raw;
+    xllmClientSetHooks(pClient, &tHooks);
     tState.sRawReplace =
         "{\"id\":\"r\",\"model\":\"m\",\"choices\":[{\"index\":0,\"message\":"
         "{\"role\":\"assistant\",\"content\":\"replayed-body\"},\"finish_reason\":\"stop\"}],"
@@ -1258,71 +1261,10 @@ static void test_history_container(void)
     printf("  history container ok\n");
 }
 
-static long g_iFailAt = -1;
-static size_t g_iTestAllocs;
-static bool g_bSawOomError;
+/* Allocator fault sweeps live in test_xllm_mdo.inc; their allocator is
+ * installed before constructing any client or request. */
 
-static void* test_fault_alloc(size_t iSize)
-{
-    ++g_iTestAllocs;
-    if ( (long)g_iTestAllocs == g_iFailAt ) { return NULL; }
-    return malloc(iSize);
-}
-static void* test_fault_realloc(void* pMemory, size_t iSize)
-{
-    ++g_iTestAllocs;
-    if ( (long)g_iTestAllocs == g_iFailAt ) { return NULL; }
-    return realloc(pMemory, iSize);
-}
-static void test_fault_free(void* pMemory) { free(pMemory); }
 
-static void test_oom_injection(void)
-{
-    xllm_client* pClient = test_make_client("http://127.0.0.1:1/v1", XLLM_PROVIDER_OPENAI_COMPAT);
-    xllm_request tRequest;
-    xllm_message tMessage;
-    xllm_error tError;
-    xllm_allocator tFault = { test_fault_alloc, test_fault_realloc, test_fault_free };
-    char* sJson;
-    long k;
-    long iSucceeded = 0;
-    long iFailed = 0;
-    CHECK(pClient != NULL, "oom test client created");
-    xllmRequestInit(&tRequest);
-    xllmMessageInit(&tMessage, XLLM_ROLE_ASSISTANT);
-    CHECK(xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_SYSTEM, "Be terse.") &&
-        xllmMessageSetContent(&tMessage, "prior answer") &&
-        xllmMessageAddToolCall(&tMessage, "call_1", "read_file", "{}") &&
-        xllmRequestAddMessage(&tRequest, &tMessage) &&
-        xllmRequestAddToolResult(&tRequest, "call_1", "result") &&
-        xllmRequestAddTool(&tRequest, "read_file", "Read", "{\"type\":\"object\"}", true) &&
-        xllmRequestSetExtraBody(&tRequest, "{\"x\":1}"), "oom request inputs");
-    xllm__set_allocator(&tFault);
-    for ( k = 1; k <= 96; ++k ) {
-        g_iFailAt = k;
-        g_iTestAllocs = 0u;
-        g_bSawOomError = false;
-        sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-        if ( sJson ) {
-            ++iSucceeded;
-            CHECK(xrtJsonValid(xrtStrView(sJson)) || k == 0, "oom survival keeps JSON valid");
-            xllmFree(sJson);
-        } else {
-            ++iFailed;
-            if ( tError.eCode != XLLM_ERROR_OUT_OF_MEMORY ) { g_bSawOomError = true; }
-        }
-    }
-    g_iFailAt = -1;
-    xllm__set_allocator(NULL);
-    CHECK(iFailed > 0 && iSucceeded > 0, "allocation faults observed across the build path");
-    CHECK(!g_bSawOomError, "every injected failure maps to an out-of-memory error");
-    sJson = xllmClientBuildRequestJson(pClient, &tRequest, &tError);
-    CHECK(sJson != NULL && xrtJsonValid(xrtStrView(sJson)), "default allocator restored after injection");
-    xllmFree(sJson);
-    xllmMessageUnit(&tMessage);
-    xllmRequestUnit(&tRequest);
-    xllmClientDestroy(pClient);
-}
 
 #include "fixtures/xllm_tls_identity.h"
 #include "fixtures/xllm_tls_ca_identity.h"
@@ -1771,7 +1713,7 @@ static void test_audit_hardening(void)
                 memset(sFlood + sizeof(sHead) - 1u, 'A', (1024u * 1024u) + 8u);
                 CHECK(!xllm__sse_feed(pCall, sFlood,
                         sizeof(sHead) - 1u + (1024u * 1024u) + 8u) &&
-                    pCall->tError.eCode == XLLM_ERROR_PROTOCOL,
+                    pCall->tError.eCode == XLLM_ERROR_LIMIT,
                     "oversized SSE line rejected at the framing limit");
                 free(sFlood);
             }
@@ -2168,7 +2110,7 @@ int main(void)
     test_dialect_responses();
     test_keepalive_and_concurrency();
     test_async_engine();
-    test_oom_injection();
+
     test_audit_hardening();
     test_wire_store_flags();
     test_lifecycle_hooks();

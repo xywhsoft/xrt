@@ -25,6 +25,18 @@
 #ifndef XRT_MODULE_RANDOM_SECURE
 #define XRT_MODULE_RANDOM_SECURE
 #endif
+#ifndef XRT_MODULE_FILE_ROOT
+#define XRT_MODULE_FILE_ROOT
+#endif
+#ifndef XRT_MODULE_FILE_LOCK
+#define XRT_MODULE_FILE_LOCK
+#endif
+#ifndef XRT_MODULE_CRYPTO_SHA256
+#define XRT_MODULE_CRYPTO_SHA256
+#endif
+#ifndef XRT_MODULE_ONCE
+#define XRT_MODULE_ONCE
+#endif
 #endif
 
 #endif /* XLLM_SESSION_FEATURES_H */

@@ -124,6 +124,41 @@ void __xrtX509Error(
 
 
 
+/* Construct diagnostics after, never during, an ordinary validation decision. */
+bool __xrtX509DecisionRaise(const xrt_x509_decision* Decision, cstr Operation)
+{
+	xerror* Cause = NULL;
+	xerror* Error;
+	xerrordesc Desc;
+
+	if ( Decision->Result == X509_CHECK_ERROR ||
+		Decision->Result == X509_CHECK_VALID ) {
+		return false;
+	}
+	if ( Decision->CryptoCode != 0 ) {
+		Cause = xrtErrorCreate(Decision->CryptoKind, "xrt.crypto",
+			Decision->CryptoCode, Decision->Message);
+		if ( Cause == NULL ) {
+			return false;
+		}
+	}
+	memset(&Desc, 0, sizeof(Desc));
+	Desc.Kind = Decision->Result == X509_CHECK_UNSUPPORTED ?
+		XERR_UNSUPPORTED : XERR_PROTOCOL;
+	Desc.Domain = "xrt.x509";
+	Desc.Code = (int32)Decision->Reason;
+	Desc.Message = Decision->Message;
+	Desc.Operation = Operation;
+	Desc.Cause = Cause;
+	Error = xrtErrorBuild(&Desc);
+	xrtErrorFree(Cause);
+	if ( Error == NULL ) {
+		return false;
+	}
+	xrtSetErrorTake(Error);
+	return true;
+}
+
 /* 返回借用指针相对证书 DER 起点的安全偏移。 */
 size_t __xrtX509Offset(
 	const uint8* pBase,

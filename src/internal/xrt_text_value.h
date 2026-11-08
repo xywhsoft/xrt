@@ -116,7 +116,8 @@ typedef enum xtextvalueeventtype {
 	XTEXT_VALUE_EVENT_SET_END,
 	XTEXT_VALUE_EVENT_OBJECT_BEGIN,
 	XTEXT_VALUE_EVENT_OBJECT_END,
-	XTEXT_VALUE_EVENT_UINT
+	XTEXT_VALUE_EVENT_UINT,
+	XTEXT_VALUE_EVENT_NUMBER
 } xtextvalueeventtype;
 
 
@@ -179,6 +180,8 @@ typedef struct xtextvaluereadconfig {
 	xtextvaluedialect Dialect;
 	uint32 Flags;
 	bool BigIntegerFloat;
+	/* JSON Scan only: validated borrowed lexemes, no numeric/string materialization. */
+	bool RawEvents;
 	uint32 MaxDepth;
 	size_t MaxInputBytes;
 	size_t MaxStringBytes;

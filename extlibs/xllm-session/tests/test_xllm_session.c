@@ -139,6 +139,16 @@ static void test_compaction_user_bridge(void)
         "## Goal\ntoo little continuity.", &tQuality, &tError) &&
         !tQuality.bAccepted && tQuality.uMissingSections != 0u,
         "quality report rejects an incomplete compaction summary");
+    {
+        char *Normalized=NULL;
+        const char *Candidate="The implementation remains incomplete. Preserve the original requested project and exact file paths. Tool receipts show retained.txt was written once. Continue by inspecting the repository, making the remaining changes, and verifying the result. No production credentials were changed or exposed. All original decisions and evidence stay in the durable history. Do not rerun previously completed commands without first inspecting their effects.";
+        SESSION_CHECK(pCompaction && xllmCompactionNormalizeSummary(pCompaction,Candidate,&Normalized,&tError) &&
+            Normalized && strstr(Normalized,Candidate) && xllmCompactionEvaluateSummary(pCompaction,Normalized,&tQuality,&tError) && tQuality.bAccepted,
+            "format repair preserves the complete candidate and passes the same gate");
+        free(Normalized);Normalized=NULL;
+        SESSION_CHECK(!xllmCompactionNormalizeSummary(pCompaction,"incomplete",&Normalized,&tError) && !Normalized,
+            "format repair cannot pad an inadequate short candidate");
+    }
     SESSION_CHECK(pCompaction && xllmSessionCommitCompaction(pSession, pCompaction,
         test_pi_summary("Implement the requested project and preserve tool continuity."), &tError),
         "bridge compaction commits a continuation summary");
@@ -736,16 +746,16 @@ static void test_exact_governance(void)
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage feedback accepted");
     SESSION_CHECK(xllmSessionGetStats(pSession, &tStats) && tStats.bFillExactValid &&
         tStats.uFillExact == 150u && tStats.uCachedInputTokens == 60u &&
-        tStats.uIncrementMax >= 256u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
+        tStats.uIncrementMax == 0u && tStats.ePressure == XLLM_SESSION_PRESSURE_NONE,
         "exact fill recorded with a bounded increment envelope");
     /* budget = 8000 - 1000 - 500 = 6500; soft = 0.95 * 6500 = 6175 */
-    tUsage.uInputTokens = 6000u;
+    tUsage.uInputTokens = 6200u;
     tUsage.uOutputTokens = 10u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
         xllmSessionGetStats(pSession, &tStats) &&
         tStats.ePressure == XLLM_SESSION_PRESSURE_COMPACT,
         "soft threshold crosses into compact pressure");
-    tUsage.uInputTokens = 6400u;
+    tUsage.uInputTokens = 6500u;
     tUsage.uOutputTokens = 100u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage) &&
         xllmSessionGetStats(pSession, &tStats) &&
@@ -755,8 +765,8 @@ static void test_exact_governance(void)
     tUsage.uOutputTokens = 50u;
     SESSION_CHECK(xllmSessionRecordUsage(pSession, &tUsage), "usage back to sparse");
     pFork = xllmSessionFork(pSession, &tError);
-    SESSION_CHECK(pFork && xllmSessionGetStats(pFork, &tStats) && !tStats.bFillExactValid,
-        "fork invalidates the exact fill");
+    SESSION_CHECK(pFork && xllmSessionGetStats(pFork, &tStats) && tStats.bFillExactValid,
+        "unchanged fork retains the usage prefix anchor");
     xllmSessionDestroy(pFork);
     xllmSessionDestroy(pSession);
 }
@@ -878,11 +888,15 @@ static void test_ops_and_hooks(void)
 
     /* default-equivalence: NULL ops and the default table produce identical prompts */
     pA = xllmSessionPrepareCompaction(pSession, true, &tError);
+    char* default_prompt = pA ? xllm_session__strdup(xllmCompactionPrompt(pA)) : NULL;
+    xllmCompactionDestroy(pA);
+    pA = NULL;
     SESSION_CHECK(xllmSessionSetCompactionOps(pSession, xllmSessionDefaultCompactionOps()),
         "default ops table installs");
     pB = xllmSessionPrepareCompaction(pSession, true, &tError);
-    SESSION_CHECK(pA && pB && strcmp(xllmCompactionPrompt(pA), xllmCompactionPrompt(pB)) == 0,
+    SESSION_CHECK(default_prompt && pB && strcmp(default_prompt, xllmCompactionPrompt(pB)) == 0,
         "NULL ops and the default table render byte-identical prompts");
+    free(default_prompt);
     xllmCompactionDestroy(pA);
     xllmCompactionDestroy(pB);
 
@@ -1179,7 +1193,9 @@ static xllm_result test_run_script_call(void* pUserData, const xllm_request* pRe
     ++pScript->iCalls;
     if ( pRequest->iToolCount == 1u ) { pScript->bSawToolsInRequest = true; }
     if ( pScript->iCalls <= pScript->iToolRounds ) {
-        *ppResponse = test_make_tool_response("call-1", "probe", "{}");
+        char call_id[32];
+        snprintf(call_id, sizeof(call_id), "call-%u", pScript->iCalls);
+        *ppResponse = test_make_tool_response(call_id, "probe", "{}");
     } else {
         *ppResponse = test_make_response("all done", 10u, 5u);
     }
@@ -1912,10 +1928,45 @@ cleanup:
     xllmClientDestroy(pClient);
 }
 
+static void test_tool_image_text(void)
+{
+    static const unsigned char bytes[] = {0u, 255u, 65u, 0u};
+    xllm_error error;
+    xllm_session* session = xllmSessionCreate(NULL, &error);
+    xllm_request request;
+    xllm_response response = {0};
+    xllm_tool_call call = {0};
+    uint64_t turn;
+    xllmRequestInit(&request);
+    SESSION_CHECK(session != NULL, "tool image session creates");
+    if (!session) return;
+    turn = xllmSessionBeginTurn(session);
+    call.sId = "image-call"; call.sName = "read";
+    call.sArgumentsJson = "{}";
+    response.pToolCalls = &call; response.iToolCallCount = 1u;
+    SESSION_CHECK(xllmSessionAddAssistantResponse(session, turn, &response) &&
+        xllmSessionAddToolResultWithImage(session, turn, call.sId,
+            "read: source/image.png", bytes, sizeof(bytes), "image/png") &&
+        xllmSessionBuildRequest(session, &request, &error), "image result renders");
+    if (request.iMessageCount) {
+        const xllm_message* message = &request.pMessages[request.iMessageCount-1u];
+        SESSION_CHECK(message->eRole == XLLM_ROLE_TOOL && message->iPartCount == 2u &&
+            message->pParts[0].eKind == XLLM_PART_TEXT &&
+            strcmp(message->pParts[0].sText, "read: source/image.png") == 0 &&
+            message->pParts[1].eKind == XLLM_PART_IMAGE &&
+            message->pParts[1].iDataSize == sizeof(bytes) &&
+            memcmp(message->pParts[1].pData, bytes, sizeof(bytes)) == 0,
+            "image result retains text and exact binary bytes");
+    }
+    xllmRequestUnit(&request);
+    xllmSessionDestroy(session);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
     printf("xllm-session v3 tests\n");
+    test_tool_image_text();
     test_default_profile();
     test_compaction_user_bridge();
     test_add_reference();

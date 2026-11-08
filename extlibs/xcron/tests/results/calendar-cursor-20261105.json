@@ -1,0 +1,1153 @@
+{
+  "schema": 1,
+  "stage": "allocation-free resumable UTC and civil single-result calendar cursors with constant impossible-day proof",
+  "base_revision": "5675a16c09099c2da5870faebfa126014a7d5297",
+  "feature_baseline_revision": "d3cb93186a501472c588cf051de4f5780c814459",
+  "prerequisite_core_fix": "8cd1155f",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "public_api": {
+    "added": [
+      "xcronCalendarCursorInit",
+      "xcronCalendarCursorInitCivil",
+      "xcronCalendarCursorStep",
+      "xcronCalendarCursorStepCivil"
+    ],
+    "cursor_bytes": 256,
+    "cursor_alignment": 8,
+    "existing_expression_bytes": 56,
+    "existing_issue_bytes": 12,
+    "pending_status": 2,
+    "existing_values_and_layouts_preserved": true,
+    "synchronous_apis_never_return_pending": true
+  },
+  "contracts": [
+    "Init copies expression and bounds; only validation, rounding, constant ready-match and constant absence proof. No borrowed input, heap, clock, lock, worker or Unit duty.",
+    "Cursor is address bound; reject byte relocation/copies, permit serialized same-address thread handoff and exclusive reinitialization.",
+    "Positive Step month budget bounds additional visits; PENDING leaves Next unchanged, FOUND alone writes Next, terminal reads are repeatable; cumulative visits <=4801.",
+    "Structural span/alias errors preserve all outputs; argument/state errors do not advance; failed Init preserves Cursor; typed diagnostics survive error-allocation OOM.",
+    "Month/day absence proof preserves restricted DOM/DOW disjunction. MonthsExamined changes from4801 to0 for proven impossible February30 conjunction; NONE/result/ambient-error behavior is preserved."
+  ],
+  "costs": [
+    "Public context occupies256 caller bytes. Init snapshots expression56 plus dates, clears output storage and encodes private state.",
+    "Public Step decodes/encodes private state through memcpy, at most256 bytes each way, plus context/mode/span validation, bounded bitmap/date arithmetic and found-result conversion. Larger budgets amortize copies/calls.",
+    "No new heap, runtime, thread, dependency or lock. Diagnostics may allocate on failure; normal results do not. No zero-overhead or wall-clock/OS scheduling guarantee.",
+    "The old synchronous control loop remains specialized after shared cursor-state prototypes regressed common cases; bitmap/date rules and constant pruning are shared. This deliberate control-flow duplication is a maintenance cost."
+  ],
+  "regressions": [
+    "All1500 independent brute earliest-match UTC oracles also run cursor queries with varied budgets; known cases use budget1.",
+    "Independent146097-day Gregorian table checks5208 month/day/weekday conjunction/disjunction cases and validates actual found dates.",
+    "Raw typed engine independently exhausts all4801 fallback months at budget1, bypassing only the analytic Init proof to retain cap coverage.",
+    "UTC int64 millisecond and civil nonzero-int64-year endpoints, rounding, copied inputs, modes, aliases/wrapped spans, failed-init atomicity, terminal idempotence, handoff and diagnostic OOM.",
+    "Sparse Sunday leap-day absence searches94 months over94 budget1 calls, preserving all pending outputs, ambient error and requested-allocation counters.",
+    "Runnable calendar example uses budget16; external static/shared consumer executes all four new symbols."
+  ],
+  "verification": {
+    "windows": {
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "beae2f5d245631c153f910e43e4624e896b2fcc0cc057251ff39f7890ce01589",
+          "program_executions": 19
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_calendar",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "baaf8c9b47c18e9e1fd73550f51dc7f523b097911f094cae4bd51955e446af91",
+          "program_executions": 2
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8f1bc11c2d6830bde8e1fd245957233a2a8037c5a7a1a54c0723635d72cfeb97",
+          "program_executions": 1
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "34168f69688fd3dd2b7f05ad5e30f0d1fd56529b77f4e6bbfb8b419857a02be5",
+          "program_executions": 1
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope"
+          ],
+          "exit_code": 0,
+          "log_sha256": "87fe29eb2c13dffb716fc6533fcc6ba47925aa86a618689cbc866fe2f378514a",
+          "program_executions": 1
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "program_executions": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "program_executions": 0
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "program_executions": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "958862c3de067551416116ae3f0969938d4250d7df1938916aa5484b4aa6bda4",
+          "program_executions": 0
+        }
+      ],
+      "layout": [
+        {
+          "command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-I",
+            ".",
+            "-I",
+            "include",
+            "-I",
+            "extlibs/xcron/include",
+            "-DXRT_MODULE_TIME",
+            "out\\service-extensions\\xcron-calendar-cursor\\layout.c",
+            "-o",
+            "out\\service-extensions\\xcron-calendar-cursor\\windows-layout-direct.exe"
+          ],
+          "exit_code": 0,
+          "stdout": "{\"cursor\":256,\"alignment\":8,\"issue\":12,\"expression\":56,\"pending\":2}\n",
+          "binary_sha256": "41218f2944da2e1d888611bea983b8d188e8b0269dc15357ddcef3b370009e01"
+        },
+        {
+          "command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-I",
+            ".",
+            "-I",
+            "include",
+            "-I",
+            "extlibs/xcron/include",
+            "-DXRT_MODULE_TIME",
+            "-DDECLARATIONS",
+            "-DXCRON_MODULE_XCRON_CALENDAR",
+            "out\\service-extensions\\xcron-calendar-cursor\\layout.c",
+            "-o",
+            "out\\service-extensions\\xcron-calendar-cursor\\windows-layout-decl.exe"
+          ],
+          "exit_code": 0,
+          "stdout": "{\"cursor\":256,\"alignment\":8,\"issue\":12,\"expression\":56,\"pending\":2}\n",
+          "binary_sha256": "41218f2944da2e1d888611bea983b8d188e8b0269dc15357ddcef3b370009e01"
+        }
+      ]
+    },
+    "wsl": {
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "69a2ce08596d83bd30d4d18d355018bed18374a16e74a5724d5f094fe5997ab1",
+          "program_executions": 19
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_calendar",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "75f7c14b43ab6a6eae7359eb7b0d17f59d51a8e14612fa989ea0a4c2942780cf",
+          "program_executions": 2
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1bc3a1d1fadc625a9ca413af0614b9eca26af81a3670f304cc473cb650a21cc7",
+          "program_executions": 1
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a9ef3b5792f3fd4cacfe1899cd5c054764c7542cad1800ef0d4a1239364fe05e",
+          "program_executions": 1
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_calendar,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_calendar",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2fca7bfed6c10949e429afe845a4873ac5bf1a8774f9eb9aec238d0e1c482188",
+          "program_executions": 1
+        },
+        {
+          "label": "tsan-native",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_calendar,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_calendar"
+          ],
+          "exit_code": 0,
+          "log_sha256": "569afa783f770c49c1becf7495ea7eb53f21e6b2ead718f0a738d46b52f040c2",
+          "program_executions": 1
+        }
+      ],
+      "layout": [
+        {
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-I",
+            ".",
+            "-I",
+            "include",
+            "-I",
+            "extlibs/xcron/include",
+            "-DXRT_MODULE_TIME",
+            "out/service-extensions/xcron-calendar-cursor/layout.c",
+            "-o",
+            "out/service-extensions/xcron-calendar-cursor/wsl-layout-direct"
+          ],
+          "exit_code": 0,
+          "stdout": "{\"cursor\":256,\"alignment\":8,\"issue\":12,\"expression\":56,\"pending\":2}\n",
+          "binary_sha256": "6bcfc47520b30e12b3b8350912071e607708ad94341a5de123834c96df5ceeee"
+        },
+        {
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-I",
+            ".",
+            "-I",
+            "include",
+            "-I",
+            "extlibs/xcron/include",
+            "-DXRT_MODULE_TIME",
+            "-DDECLARATIONS",
+            "-DXCRON_MODULE_XCRON_CALENDAR",
+            "out/service-extensions/xcron-calendar-cursor/layout.c",
+            "-o",
+            "out/service-extensions/xcron-calendar-cursor/wsl-layout-decl"
+          ],
+          "exit_code": 0,
+          "stdout": "{\"cursor\":256,\"alignment\":8,\"issue\":12,\"expression\":56,\"pending\":2}\n",
+          "binary_sha256": "6bcfc47520b30e12b3b8350912071e607708ad94341a5de123834c96df5ceeee"
+        }
+      ]
+    }
+  },
+  "protected_inputs": {
+    "count": 2469,
+    "canonical_sha256": "0cb02c3fe51d04772a81bd2f3ad713fceb1e301746882c01dc9bc3941bb826ec",
+    "windows_wsl_identical": true,
+    "unchanged_through_all_final_checks": true,
+    "validated_file_sha256": {
+      "extlibs/xcron/include/xcron/calendar.h": "ef86dedcc138feb8d0d990e211a619d9bbea73bd1a859bdad52693b2506add9e",
+      "extlibs/xcron/src/calendar/calendar.c": "cffe8c785a07318a0c89f2aed1f0d6f42ce203dcbc4babe00f8f67bf4e3f5c9b",
+      "extlibs/xcron/src/calendar/calendar_internal.h": "98e19d4aa8509b7018d105ea83c884c96700327f9b9c7dfa7b272902803d84ca",
+      "extlibs/xcron/tests/test_calendar.c": "8ec6993185a43eebddf3c0d3a19c34dd41cf1be3f30cb58fc727b2e146b09663",
+      "extlibs/xcron/examples/calendar/main.c": "7872ec2b11fb4e10874d270931b8585277ea57af2ac73e880ab1d568c3e0fd42",
+      "extlibs/xcron/tests/package/test_consumer.c": "772ddb16edb7be4ec2e6596ec25e64dae353602c9fab0deaa96e46acc0849ade",
+      "single/extlibs/xcron.h": "3848d8edbc7ce185fa6f8a52ed9349ed1803e0e33edf7011934fa96e5838d745",
+      "single/extlibs/xcron_decl.h": "32028fefd8121c26a97d94cfe638c3279f5bdbd27d4a6fbc542afe94e89158dc"
+    }
+  },
+  "performance": {
+    "official_mixed_workload": {
+      "windows": {
+        "repeats": 3,
+        "warmups": 0,
+        "quality_thresholds": {
+          "relative_mad": 0.03,
+          "relative_central_range": 0.06
+        },
+        "phases": {
+          "before": {
+            "report_sha256": "da823fe311c94178f1e53cb72301ee80eaf958e8883a4954faad339210810ec0",
+            "source_revision": "d3cb93186a501472c588cf051de4f5780c814459",
+            "source_dirty": false,
+            "source_fingerprint": "7c3cb0b2de62d4f44932ec5f9a33e8011182b52c0d9daf584cb46c9a4e80244a",
+            "benchmark_fingerprint": "3c1a0197446f6be61495e77a62a329f4ddf8a34240915f3c94b3a9a20d1a2b04",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "arch": "native",
+            "metrics": {
+              "samples": [
+                223363.865,
+                249482.094,
+                251620.005
+              ],
+              "median": 249482.094,
+              "mean": 241488.65466666667,
+              "min": 223363.865,
+              "max": 251620.005,
+              "mad": 2137.910999999993,
+              "relative_mad": 0.008569396567594917,
+              "range": 28256.140000000014,
+              "relative_range": 0.1132591904571717,
+              "central_range": 28256.140000000014,
+              "relative_central_range": 0.1132591904571717,
+              "direction": "higher",
+              "unit": "searches/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "quality_pass": false
+          },
+          "final-after": {
+            "report_sha256": "d18605acdd2d9433524117c688c69b137612c8d679e911137cda1257982095f2",
+            "source_revision": "5675a16c09099c2da5870faebfa126014a7d5297",
+            "source_dirty": true,
+            "source_fingerprint": "b14fdafd3fb2d3152eac505aee4060f3c4c9508303b4885708cee88b4e5f0a87",
+            "benchmark_fingerprint": "3c1a0197446f6be61495e77a62a329f4ddf8a34240915f3c94b3a9a20d1a2b04",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "arch": "native",
+            "metrics": {
+              "samples": [
+                7436431.523,
+                7119038.873,
+                7604765.145
+              ],
+              "median": 7436431.523,
+              "mean": 7386745.180333334,
+              "min": 7119038.873,
+              "max": 7604765.145,
+              "mad": 168333.6219999995,
+              "relative_mad": 0.022636343988291105,
+              "range": 485726.2719999999,
+              "relative_range": 0.0653171175580258,
+              "central_range": 485726.2719999999,
+              "relative_central_range": 0.0653171175580258,
+              "direction": "higher",
+              "unit": "searches/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "quality_pass": false
+          }
+        },
+        "final_check_exit_code": 1,
+        "accepted": false
+      },
+      "wsl": {
+        "repeats": 3,
+        "warmups": 0,
+        "quality_thresholds": {
+          "relative_mad": 0.03,
+          "relative_central_range": 0.06
+        },
+        "phases": {
+          "before": {
+            "report_sha256": "8c43360a146641faea4e3f0411e6727189292872ff1ec1d5d73aad4f10c2b6c1",
+            "source_revision": "d3cb93186a501472c588cf051de4f5780c814459",
+            "source_dirty": true,
+            "source_fingerprint": "7c3cb0b2de62d4f44932ec5f9a33e8011182b52c0d9daf584cb46c9a4e80244a",
+            "benchmark_fingerprint": "3c1a0197446f6be61495e77a62a329f4ddf8a34240915f3c94b3a9a20d1a2b04",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "arch": "x64",
+            "metrics": {
+              "samples": [
+                265541.103,
+                284002.693,
+                285858.951
+              ],
+              "median": 284002.693,
+              "mean": 278467.5823333333,
+              "min": 265541.103,
+              "max": 285858.951,
+              "mad": 1856.2579999999725,
+              "relative_mad": 0.006536057740832663,
+              "range": 20317.847999999998,
+              "relative_range": 0.07154103992950517,
+              "central_range": 20317.847999999998,
+              "relative_central_range": 0.07154103992950517,
+              "direction": "higher",
+              "unit": "searches/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "quality_pass": false
+          },
+          "final-after": {
+            "report_sha256": "fa50950f011e4129782ab963ba8ba218556cdaf9b1b1d0fc15a57e0415723c0b",
+            "source_revision": "5675a16c09099c2da5870faebfa126014a7d5297",
+            "source_dirty": true,
+            "source_fingerprint": "b14fdafd3fb2d3152eac505aee4060f3c4c9508303b4885708cee88b4e5f0a87",
+            "benchmark_fingerprint": "3c1a0197446f6be61495e77a62a329f4ddf8a34240915f3c94b3a9a20d1a2b04",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "arch": "x64",
+            "metrics": {
+              "samples": [
+                7256846.443,
+                8117923.951,
+                8038016.409
+              ],
+              "median": 8038016.409,
+              "mean": 7804262.267666667,
+              "min": 7256846.443,
+              "max": 8117923.951,
+              "mad": 79907.54200000037,
+              "relative_mad": 0.009941201651508145,
+              "range": 861077.5080000004,
+              "relative_range": 0.10712562206713958,
+              "central_range": 861077.5080000004,
+              "relative_central_range": 0.10712562206713958,
+              "direction": "higher",
+              "unit": "searches/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "quality_pass": false
+          }
+        },
+        "final_check_exit_code": 1,
+        "accepted": false
+      }
+    },
+    "controlled_windows_sync_cases": {
+      "alternating_repetitions": 5,
+      "searches_per_case_per_run": 1000000,
+      "build": {
+        "before": {
+          "binary": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\before-compare.exe",
+          "binary_sha256": "5be538890e816b18af9320d2443042bba97b3e56ce469e45ec9e22555b2bfe64",
+          "source": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\legacy-calendar.c",
+          "source_sha256": "c088965ebbc1da70cedb3522539383c08c80f4f61056260b846d594e8ea23ebe",
+          "compile_command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_TIME",
+            "-DXCRON_FEATURE_XCRON_EXPRESSION",
+            "-DXCRON_FEATURE_XCRON_CALENDAR",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\include",
+            "-O2",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\include",
+            "-c",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\legacy-calendar.c",
+            "-o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\before-calendar.o",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\src\\calendar"
+          ],
+          "link_command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_TIME",
+            "-DXCRON_FEATURE_XCRON_EXPRESSION",
+            "-DXCRON_FEATURE_XCRON_CALENDAR",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\include",
+            "-O2",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\include",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\compare-calendar.c",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__core.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership_scope.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__allocator.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__heap.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__error.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__system__time.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\extlibs__xcron__src__expression__expression.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\before-calendar.o",
+            "-o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\before-compare.exe"
+          ]
+        },
+        "after": {
+          "binary": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\after-compare.exe",
+          "binary_sha256": "ba3395db06435541db2d7896d49901d6d8cf9083dc5a8da8aeff78632f30ea69",
+          "source": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\src\\calendar\\calendar.c",
+          "source_sha256": "cffe8c785a07318a0c89f2aed1f0d6f42ce203dcbc4babe00f8f67bf4e3f5c9b",
+          "compile_command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_TIME",
+            "-DXCRON_FEATURE_XCRON_EXPRESSION",
+            "-DXCRON_FEATURE_XCRON_CALENDAR",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\include",
+            "-O2",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\include",
+            "-c",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\src\\calendar\\calendar.c",
+            "-o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\after-calendar.o",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\src\\calendar"
+          ],
+          "link_command": [
+            "E:\\software\\w64devkit\\bin\\gcc.EXE",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_TIME",
+            "-DXCRON_FEATURE_XCRON_EXPRESSION",
+            "-DXCRON_FEATURE_XCRON_CALENDAR",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\include",
+            "-O2",
+            "-I",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\include",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\compare-calendar.c",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__core.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership_scope.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__allocator.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__heap.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__error.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__system__time.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\extlibs__xcron__src__expression__expression.o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\after-calendar.o",
+            "-o",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\after-compare.exe"
+          ]
+        }
+      },
+      "cases": [
+        {
+          "case": "dense",
+          "samples": {
+            "before": [
+              10041249.454,
+              12196966.372,
+              11843149.329,
+              11288146.879,
+              12805622.18
+            ],
+            "after": [
+              12614890.112,
+              12101321.948,
+              12475952.602,
+              10999176.16,
+              9976535.187
+            ]
+          },
+          "checksums": {
+            "before": [
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152
+            ],
+            "after": [
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152,
+              8504648179994345152
+            ]
+          },
+          "median_after_before": 1.0217993214328405
+        },
+        {
+          "case": "quarter-hour",
+          "samples": {
+            "before": [
+              8310949.176,
+              8232966.61,
+              8878991.774,
+              7706250.076,
+              9449384.373
+            ],
+            "after": [
+              6981119.562,
+              6762573.484,
+              8011228.538,
+              8385645.787,
+              9077144.838
+            ]
+          },
+          "checksums": {
+            "before": [
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152
+            ],
+            "after": [
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152,
+              8504649078872345152
+            ]
+          },
+          "median_after_before": 0.9639366537259643
+        },
+        {
+          "case": "leap-day",
+          "samples": {
+            "before": [
+              3874985.227,
+              3673962.299,
+              3843360.019,
+              3932623.154,
+              3928598.508
+            ],
+            "after": [
+              4058855.022,
+              3502976.654,
+              4014089.454,
+              3713550.113,
+              3495391.327
+            ]
+          },
+          "checksums": {
+            "before": [
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152
+            ],
+            "after": [
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152,
+              8630759778919345152
+            ]
+          },
+          "median_after_before": 0.9583391665921311
+        },
+        {
+          "case": "impossible-February30",
+          "samples": {
+            "before": [
+              65851.777,
+              65451.541,
+              63313.135,
+              67829.563,
+              70209.737
+            ],
+            "after": [
+              14420837.53,
+              11724621.472,
+              14586125.968,
+              16128694.079,
+              15566431.299
+            ]
+          },
+          "checksums": {
+            "before": [
+              4801000000,
+              4801000000,
+              4801000000,
+              4801000000,
+              4801000000
+            ],
+            "after": [
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "median_after_before": 221.4993525231673
+        }
+      ],
+      "qualified": false,
+      "note": "Same current Core objects/compiler/workload on both sides; legacy calendar source from feature baseline. Final calendar source hash matches. Calendar selection does not compile executor; later Core stop fix does not alter those linked source files. Unpinned samples do not qualify a no-regression claim."
+    },
+    "public_cursor_probe": {
+      "build": {
+        "command": [
+          "E:\\software\\w64devkit\\bin\\gcc.EXE",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_TIME",
+          "-DXCRON_FEATURE_XCRON_EXPRESSION",
+          "-DXCRON_FEATURE_XCRON_CALENDAR",
+          "-I",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\include",
+          "-O2",
+          "-I",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\extlibs\\xcron\\include",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.c",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__core.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__ownership_scope.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__allocator.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__memory__heap.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__core__error.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\src__system__time.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\performance\\gnu\\native\\xcron\\xcron_calendar_obj\\extlibs__xcron__src__expression__expression.o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\after-calendar.o",
+          "-o",
+          "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe"
+        ],
+        "source_sha256": "707647107c44b66400dfaab5a34dcc928d40c731a196c4ffcacf8ae1db3ae796",
+        "binary_sha256": "4fa2fdfc5f257b7b733a76c7ae5c07af333f5078fd4836fb37921e4c59152d0f"
+      },
+      "source": "#include <xcron.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <inttypes.h>\nint main(int argc,char** argv)\n{\n    uint32 Budget=argc>1?(uint32)strtoul(argv[1],NULL,10):0;\n    uint64 N=1000000,Sum=0,Calls=0;\n    const cstr Text[]={\"* * * * * *\",\"0 */15 9-17 * * MON-FRI\",\"0 0 0 29 FEB *\",\"0 0 0 30 FEB *\",\"0 0 0 29 FEB */7\"};\n    xcronexpression E[5];xtime Begin,End,Finite;\n    for(unsigned I=0;I<5;++I)\n        if(!xcronExpressionCompile((xstrview){Text[I],strlen(Text[I])},XCRON_SECONDS6,&E[I],NULL))return 1;\n    if(!xrtDateTime(2024,3,1,9,0,0,123,&Begin) || !xrtDate(2425,1,1,&End) || !xrtDateTime(2031,12,31,23,59,59,999,&Finite))return 2;\n    double Start=xrtTimer();\n    for(uint64 I=0;I<N;++I){\n        unsigned Case=(unsigned)(I%5);xtime Next=0; xcroncalendarissue Issue;xcroncalendarstatus Status;\n        if(!Budget){Status=xcronCalendarNext(&E[Case],Begin+(xtime)(I%1000),Case==4?Finite:End,0,&Next,&Issue);++Calls;}\n        else{\n            xcroncalendarcursor C;\n            if(!xcronCalendarCursorInit(&C,&E[Case],Begin+(xtime)(I%1000),Case==4?Finite:End,0,&Issue))return 3;\n            do{Status=xcronCalendarCursorStep(&C,Budget,&Next,&Issue);++Calls;}while(Status==XCRON_CALENDAR_PENDING);\n        }\n        if(Status!=(Case>=3?XCRON_CALENDAR_NONE:XCRON_CALENDAR_FOUND))return 4;\n        Sum+=(uint64)Next+Issue.MonthsExamined;\n    }\n    printf(\"searches_per_sec: %.3f\\ncalls_per_search: %.3f\\nchecksum: %\" PRIu64 \"\\n\",N/(xrtTimer()-Start),(double)Calls/N,Sum);return 0;\n}\n",
+      "runs": [
+        {
+          "repetition": 0,
+          "budget": 0,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 5597602.883,
+          "calls_per_search": 1.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 5597602.883\ncalls_per_search: 1.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 0,
+          "budget": 1,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 1266549.849,
+          "calls_per_search": 29.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 1266549.849\ncalls_per_search: 29.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 0,
+          "budget": 16,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "16"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4375628.45,
+          "calls_per_search": 2.4,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4375628.450\ncalls_per_search: 2.400\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 0,
+          "budget": 64,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "64"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4665667.592,
+          "calls_per_search": 1.2,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4665667.592\ncalls_per_search: 1.200\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 1,
+          "budget": 64,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "64"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4547629.139,
+          "calls_per_search": 1.2,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4547629.139\ncalls_per_search: 1.200\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 1,
+          "budget": 16,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "16"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4299882.399,
+          "calls_per_search": 2.4,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4299882.399\ncalls_per_search: 2.400\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 1,
+          "budget": 1,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 1315588.154,
+          "calls_per_search": 29.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 1315588.154\ncalls_per_search: 29.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 1,
+          "budget": 0,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 6229241.055,
+          "calls_per_search": 1.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 6229241.055\ncalls_per_search: 1.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 2,
+          "budget": 0,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 5633431.487,
+          "calls_per_search": 1.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 5633431.487\ncalls_per_search: 1.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 2,
+          "budget": 1,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 1236249.353,
+          "calls_per_search": 29.0,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 1236249.353\ncalls_per_search: 29.000\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 2,
+          "budget": 16,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "16"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4452659.106,
+          "calls_per_search": 2.4,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4452659.106\ncalls_per_search: 2.400\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        },
+        {
+          "repetition": 2,
+          "budget": 64,
+          "command": [
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-calendar-cursor\\cursor-probe.exe",
+            "64"
+          ],
+          "exit_code": 0,
+          "searches_per_sec": 4971317.981,
+          "calls_per_search": 1.2,
+          "checksum": 1438662592833696768,
+          "stdout": "searches_per_sec: 4971317.981\ncalls_per_search: 1.200\nchecksum: 1438662592833696768\n",
+          "stderr": ""
+        }
+      ],
+      "qualified": false,
+      "summary": {
+        "0": {
+          "median_searches_per_sec": 5633431.487,
+          "calls_per_search": 1.0
+        },
+        "1": {
+          "median_searches_per_sec": 1266549.849,
+          "calls_per_search": 29.0
+        },
+        "16": {
+          "median_searches_per_sec": 4375628.45,
+          "calls_per_search": 2.4
+        },
+        "64": {
+          "median_searches_per_sec": 4665667.592,
+          "calls_per_search": 1.2
+        }
+      }
+    },
+    "discarded_prototype_evidence": {
+      "initial-compare-results.json": "97e4a3c236ad745a9a919774bd993c60bd78d13707d14907093fe32c4b9b98d5",
+      "initial-compare-build.json": "05815fcf5c38bb72222003775ac8cad64009df105410bc0a62bd40374ebedd2a",
+      "second-compare-results.json": "6d0131f98e0fa79d7dfa79427b07a83e1e9370bc9f71ecdd3d66e52c84260b00",
+      "second-compare-build.json": "4202627c7ef15a98c195cb1521e2ece83591301f863dd14fc7684b3f2e9eac66"
+    },
+    "limits": [
+      "Both original before and final after quality failures are retained at MAD3%/central-range6%; no thresholds were relaxed and no slow samples dropped.",
+      "The mixed speedup is dominated by eliminating4801 visits for one impossible-date case. Controlled dense/quarter/leap ratios must be assessed separately.",
+      "Initial shared-control-flow implementations showed5-13% regressions on common patterns and were replaced by the final specialized synchronous loop.",
+      "Cursor API probe alternates3 runs of1M mixed dense/quarter/leap/impossible/finite94-month-none searches, budgets0(sync)/1/16/64; all checksums agree. Its shared-host values are diagnostic, not a release gate.",
+      "No maximum throughput, P99, native Linux, long-run stability or full live-owner CPU bound is accepted."
+    ]
+  },
+  "failed_intermediate_run": {
+    "windows_suite_failed": true,
+    "archived_at": "out/service-extensions/xcron-calendar-cursor/pre-executor-fix/",
+    "cause": "Natural executor physical-join deadlock; fixed and separately validated/committed in8cd1155f. Old passing WSL receipts were not reused as final-code verification.",
+    "portable_core_evidence": "tests/results/executor-stop-wake-20261105.json"
+  },
+  "remaining": [
+    "Integrate incremental ordered zone segments/transition traversal, then recurrence admission and advancement into bounded scheduler/service turns with fairness/cancellation tests.",
+    "Named database/reload, nominal DST/misfire delivery, durable recovery, protocol/interop/performance and >=72h production acceptance remain active across all four libraries."
+  ],
+  "local_evidence": "out/service-extensions/xcron-calendar-cursor/"
+}

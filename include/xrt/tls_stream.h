@@ -44,8 +44,8 @@
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Future bridge"
+	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON))
+	#error "XRT TLS Stream Dial Future support requires TLS Stream Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER) && \
@@ -187,6 +187,35 @@ typedef struct xtlsstreamevents {
 	void (*Ticket)(xtlsstream* pStream, ptr pData);
 } xtlsstreamevents;
 
+/* One real owner for event data AND every borrowed callback/configuration
+ * context used by this session. The descriptor/code stays resident; Ops must
+ * enumerate actual references, including shared owner records (never flatten
+ * a shared native callback owner twice). Native TLS objects may borrow Data
+ * through session destruction. Success consumes ONE Data reference; failure
+ * consumes none. Events/Data are immutable in this mode. Unknown borrowed
+ * sessions created through the legacy factories are not ownership-certified. */
+typedef struct xtlsstreamownershipv1 {
+	size_t size;
+	xtlsstreamevents Events;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlsstreamownershipv1;
+
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL)
+/* One aggregate owner for Done, final Stream events and every borrowed TLS
+ * configuration context. Success takes one Data reference, failure takes none.
+ * Stream events are permanent; the delivered Stream retains this owner until
+ * its Session is destroyed. Callback Data is the original Data; StreamData is
+ * a private aggregate context and must not be cast by applications. */
+typedef struct xtlsdialownershipv1 {
+	size_t size;
+	xtlsstreamevents StreamEvents;
+	xtlsdialproc Done;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlsdialownershipv1;
+#endif
+
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
@@ -213,6 +242,17 @@ typedef struct xtlslistenerevents {
 		const xerror* pError, ptr pData);
 	void (*Close)(xtlslistener* pListener, ptr pData);
 } xtlslistenerevents;
+
+/* Permanent aggregate context. Data owns every borrowed event/selector/TLS
+ * configuration context; child records retain the Listener while sessions may
+ * still borrow it. Success takes one Data reference, failure takes none. */
+typedef struct xtlslistenerownershipv1 {
+	size_t size;
+	xtlslistenerevents Events;
+	xtlsstreamevents StreamEvents;
+	void (*Drop)(const void* pData);
+	const xrtownershipops* Ops;
+} xtlslistenerownershipv1;
 
 
 
@@ -262,6 +302,29 @@ XRT_API void xrtTlsStreamConfigInit(xtlsstreamconfig* pConfig);
 #if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
 /* 初始化单 IPv4 动态端口、有界握手与有界完成队列。 */
 XRT_API void xrtTlsListenerConfigInit(xtlslistenerconfig* pConfig);
+
+XRT_API xtlslistener* xrtTlsListenerStartOwnedV1(xnetengine* pEngine,
+	const xtlslistenerconfig* pConfig, ptr pData, const xtlslistenerownershipv1* pPolicy);
+XRT_API xrtownershipref xrtTlsListenerOwnership(const xtlslistener* pListener);
+XRT_API const xnetruntimeownershipv1* xrtTlsListenerRuntimeOwnershipV1Get(void);
+XRT_API const xnetlistenereventsownershipv1* xrtTlsListenerTransportOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsListenerStreamPushOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerOwnershipAdapterV1(xrtownershipref Reference,
+	const xtlslistenerownershipv1* const* pPolicies, size_t iPolicyCount,
+	const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerStreamRecordOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershippreparationv1** ppPreparation);
+#if defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE)
+XRT_API const xfutureproducerownershipv1* xrtTlsListenerFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsListenerFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsListenerFutureStreamPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsListenerFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsListenerFutureOwnershipAdapterV1(xrtownershipref Reference,
+	const xrtownershippreparationv1** ppPreparation);
+#endif
 
 
 
@@ -351,6 +414,23 @@ XRT_API xtlsstream* xrtTlsListenerAcceptWait(
 /* 初始化 TCP 拨号、TLS Stream 和总超时策略。 */
 XRT_API void xrtTlsDialConfigInit(xtlsdialconfig* pConfig);
 
+/* Uses owned TCP Dial with no borrowed Stream events, then installs the
+ * permanent TLS event context on its actual Worker. No event-table swap. */
+XRT_API xtlsdial* xrtTlsDialOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsdialownershipv1* pPolicy);
+XRT_API xrtownershipref xrtTlsDialOwnership(const xtlsdial* pDial);
+XRT_API const xnetruntimeownershipv1* xrtTlsDialRuntimeOwnershipV1Get(void);
+XRT_API const xnettimerownershipv1* xrtTlsDialTimerOwnershipV1Get(void);
+XRT_API const xnetdialownershipv1* xrtTlsDialTransportOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsDialStreamOwnershipV1Get(void);
+XRT_API const xtlsstreamownershipv1* xrtTlsDialStreamPushOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsdialownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+
 
 
 /* 解析主机、竞争 TCP 地址并完成 TLS 握手；成功 Stream 引用转移给完成回调。 */
@@ -370,6 +450,11 @@ XRT_API xtlsdial* xrtTlsDial(
 
 
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xtlsdial* xrtTlsDialProxyOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig, ptr pData,
+	const xtlsdialownershipv1* pPolicy);
+XRT_API const xnetproxydialownershipv1* xrtTlsDialProxyTransportOwnershipV1Get(void);
 /* 经代理 CONNECT 隧道后对真实目标完成端到端 TLS；代理只在调用期间借用。 */
 XRT_API xtlsdial* xrtTlsDialProxy(
 	xnetengine* pEngine,
@@ -403,6 +488,30 @@ XRT_API xfuture* xrtTlsDialAsync(
 	const xtlsstreamevents* pStreamEvents,
 	ptr pStreamData
 );
+/* Same success1/failure0 Data transfer as Stream ownership. Completion before
+ * submission publication returns immediately rather than blocking a Worker. */
+XRT_API xfuture* xrtTlsDialAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#if defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+XRT_API xfuture* xrtTlsDialProxyAsyncOwnedV1(xnetengine* pEngine,
+	xnetresolver* pResolver, const xnetproxy* pProxy, cstr sHost, uint16 iPort,
+	const xtlsclientconfig* pTls, const xtlsdialconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+#endif
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPolicyV1Get(void);
+XRT_API const xtlsdialownershipv1* xrtTlsDialFutureDialPushPolicyV1Get(void);
+XRT_API const xfutureproducerownershipv1* xrtTlsDialFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsDialFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsDialFuturePayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+XRT_API const xrtownershipquiescencev1* xrtTlsDialFutureContextOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsDialFutureContextOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
 #endif
 
 
@@ -507,6 +616,52 @@ XRT_API xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 /* 释放 TLS Stream 引用；关闭必须另行请求。 */
 XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream);
 
+/* Owned counterparts preserve ordinary constructor/transfer/time contracts.
+ * Only the explicit Data credit is additional. Attach still requires exclusive
+ * session/transport IO access; the descriptor covers all session callbacks. */
+XRT_API xtlsstream* xrtTlsStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pTransport,
+	const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig,
+	ptr pData, const xtlsstreamownershipv1* pPolicy);
+XRT_API bool xrtTlsStreamAttachOwnedV1(xnetstream* pTransport,
+	xtlssession* pSession, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+XRT_API bool xrtTlsStreamClientOwnedV1(xnetstream* pTransport,
+	const xtlsclientconfig* pTls, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+XRT_API bool xrtTlsStreamAcceptOwnedV1(xnetstream* pTransport,
+	const xtlsserverconfig* pTls, const xtlsstreamconfig* pConfig, ptr pData,
+	const xtlsstreamownershipv1* pPolicy, xtlsstream** ppStream);
+
+XRT_API xrtownershipref xrtTlsStreamOwnership(const xtlsstream* pStream);
+/* One-time, exclusive Worker handoff of OPEN stream events. The original
+ * session/configuration Data owner is retained unchanged. Success consumes
+ * one additional event Data credit; failure consumes none. No active callback
+ * or pending read may overlap. Both exact policies participate in tracing. */
+XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* pStream, ptr pData,
+	const xtlsstreamownershipv1* pPolicy);
+XRT_API const xnetruntimeownershipv1* xrtTlsStreamRuntimeOwnershipV1Get(void);
+XRT_API const xnetstreameventsownershipv1* xrtTlsStreamTransportOwnershipV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsStreamOwnershipQuiescenceV1Get(void);
+/* Frozen view, exact resident context-policy identities, outputs unchanged on
+ * refusal. Preparation requests real TCP shutdown; Clear/Finish retire owned
+ * resources with all graph targets pinned, outside user callback stacks. */
+XRT_API const xrtownershipadapterv1* xrtTlsStreamOwnershipAdapterV1(
+	xrtownershipref Reference, const xtlsstreamownershipv1* const* pPolicies,
+	size_t iPolicyCount, const xrtownershippreparationv1** ppPreparation);
+
+#if defined(XRT_FEATURE_TLS_STREAM_FUTURE)
+/* Actual async activation, cancellation-context and result policies. Admission
+ * of a policy never admits an unknown Stream or transitive child. Preparation
+ * waits for normal source retirement; it does not prematurely close a Future. */
+XRT_API const xfutureproducerownershipv1* xrtTlsStreamFutureProducerPolicyV1Get(void);
+XRT_API const xcancelwatchownershipv1* xrtTlsStreamFutureCancelPolicyV1Get(void);
+XRT_API const xfuturepayloadownershipv1* xrtTlsStreamFutureBytesPayloadPolicyV1Get(void);
+XRT_API const xrtownershipquiescencev1* xrtTlsStreamFutureOwnershipQuiescenceV1Get(void);
+XRT_API const xrtownershipadapterv1* xrtTlsStreamFutureOwnershipAdapterV1(
+	xrtownershipref Reference, const xrtownershippreparationv1** ppPreparation);
+#endif
+
 
 
 /*
@@ -538,6 +693,19 @@ XRT_API xtlsresult xrtTlsStreamSendVec(
 	size_t iCount,
 	size_t* pWritten
 );
+
+
+
+/*
+	On the owning Worker, flush ciphertext already queued in an OPEN TLS
+	session (for example NewSessionTicket or KeyUpdate), without writing any
+	application data. OK means accepted by TCP, not delivered or drained.
+	AGAIN retains the ciphertext for the normal transport-driven retry; do
+	not repeat the operation that produced it. An empty queue is an allocation-
+	free, idempotent OK. CLOSED is terminal; other invalid states are errors.
+	This is a new public submission and cannot bypass an ownership claim.
+*/
+XRT_API xtlsresult xrtTlsStreamFlush(xtlsstream* pStream);
 
 
 

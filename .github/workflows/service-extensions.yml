@@ -1,0 +1,204 @@
+name: Service extensions (developing)
+
+on:
+  push:
+    paths:
+      - 'extlibs/xredis/**'
+      - 'single/extlibs/xredis*'
+      - 'extlibs/xcron/**'
+      - 'single/extlibs/xcron*'
+      - 'extlibs/xrpc/**'
+      - 'single/extlibs/xrpc*'
+      - 'extlibs/xmqtt/**'
+      - 'single/extlibs/xmqtt*'
+      - 'include/**'
+      - 'src/**'
+      - 'config/modules.json'
+      - 'tools/**'
+      - '.github/workflows/service-extensions.yml'
+  pull_request:
+    paths:
+      - 'extlibs/xredis/**'
+      - 'single/extlibs/xredis*'
+      - 'extlibs/xcron/**'
+      - 'single/extlibs/xcron*'
+      - 'extlibs/xrpc/**'
+      - 'single/extlibs/xrpc*'
+      - 'extlibs/xmqtt/**'
+      - 'single/extlibs/xmqtt*'
+      - 'include/**'
+      - 'src/**'
+      - 'config/modules.json'
+      - 'tools/**'
+      - '.github/workflows/service-extensions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Add the other products only when their first real modules exist. A normal
+# asset audit is intentional: unfinished product roots must remain developing.
+# This workflow is not a claim of production acceptance or pinned performance.
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: xredis
+            examples: xredis_examples
+          - product: xcron
+            examples: xcron
+          - product: xrpc
+            examples: xrpc
+          - product: xmqtt
+            examples: xmqtt
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Check assets before any generator can repair them
+        run: |
+          python tools/check_release_maturity.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+          python tools/generate_extension_features.py extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Build asset and public API inventory regression
+        if: matrix.product == 'xredis'
+        run: python -m unittest tools.test_build.AggregateAssetTest tools.test_api_docs tools.test_api_reference tools.test_extension_layout
+      - name: Shared JSON scanner and reader regression
+        if: matrix.product == 'xredis'
+        run: |
+          python tools/check_api_docs.py --module-prefix json --function-prefix xrtJson --constant-prefix XJSON_ --type-prefix xjson
+          python tools/build.py --compiler gcc --suite json_read,xlon_read,memory_stats --no-examples --cflag=-O2 --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer --ldflag=-fsanitize=address,undefined
+      - name: Modules, single header, example and trimming
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Address and undefined behavior sanitizers
+        run: >-
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json
+          --suite ${{ matrix.product }}_tests --no-examples --cflag=-O2
+          --cflag=-fsanitize=address,undefined --cflag=-fno-omit-frame-pointer
+          --ldflag=-fsanitize=address,undefined
+      - name: Check isolated MQTT 3.1.1 size closure
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
+          --report out/service-extensions/size-xmqtt-codec311-linux.json
+      - name: Check calendar dependency boundary
+        if: matrix.product == 'xcron'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
+          --report out/service-extensions/size-xcron-calendar-linux.json
+      - name: Check Redis dependency boundaries
+        if: matrix.product == 'xredis'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client,xredis_dial,xredis_tls --kind single
+          --report out/service-extensions/size-xredis-runtime-linux.json
+      - name: Independent static and shared consumers
+        run: |
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Workload smoke only
+        run: >-
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-linux-smoke.json
+      - name: Preserve workload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: service-extensions-${{ matrix.product }}-linux-smoke
+          path: out/service-extensions/*.json
+          if-no-files-found: warn
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - product: xredis
+            examples: xredis_examples
+          - product: xcron
+            examples: xcron
+          - product: xrpc
+            examples: xrpc
+          - product: xmqtt
+            examples: xmqtt
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Check assets before any generator can repair them
+        run: |
+          python tools/check_release_maturity.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+          python tools/generate_extension_features.py extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/amalgamate.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/generate_api_reference.py --manifest extlibs/${{ matrix.product }}/config/modules.json --check
+          python tools/check_api_docs.py --manifest extlibs/${{ matrix.product }}/config/modules.json
+      - name: Build asset and public API inventory regression
+        if: matrix.product == 'xredis'
+        run: python -m unittest tools.test_build.AggregateAssetTest tools.test_api_docs tools.test_api_reference tools.test_extension_layout
+      - name: Shared JSON scanner and reader regression
+        if: matrix.product == 'xredis'
+        run: |
+          python tools/check_api_docs.py --module-prefix json --function-prefix xrtJson --constant-prefix XJSON_ --type-prefix xjson
+          python tools/build.py --compiler gcc --suite json_read,xlon_read,memory_stats --no-examples --cflag=-O2
+      - name: Modules, single header, example and trimming
+        run: |
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }}_tests --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.examples }} --no-single --cflag=-O2
+          python tools/build.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --trim-only
+      - name: Check isolated MQTT 3.1.1 size closure
+        if: matrix.product == 'xmqtt'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xmqtt/config/size_profiles.json --profiles xmqtt_codec311 --kind single
+          --report out/service-extensions/size-xmqtt-codec311-windows.json
+      - name: Check calendar dependency boundary
+        if: matrix.product == 'xcron'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xcron/config/size_profiles.json --profiles xcron_calendar --kind single
+          --report out/service-extensions/size-xcron-calendar-windows.json
+      - name: Check Redis dependency boundaries
+        if: matrix.product == 'xredis'
+        run: >-
+          python tools/measure_size.py --compiler gcc
+          --config extlibs/xredis/config/size_profiles.json --profiles xredis_reply,xredis_client,xredis_dial,xredis_tls --kind single
+          --report out/service-extensions/size-xredis-runtime-windows.json
+      - name: Independent static and shared consumers
+        run: |
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind static --verify
+          python tools/package.py --compiler gcc --manifest extlibs/${{ matrix.product }}/config/modules.json --suite ${{ matrix.product }} --kind shared --verify
+      - name: Workload smoke only
+        run: >-
+          python tools/measure_performance.py --config extlibs/${{ matrix.product }}/config/performance_profiles.json
+          --smoke --repeats 1 --report out/service-extensions/performance-${{ matrix.product }}-windows-smoke.json
+      - name: Preserve workload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: service-extensions-${{ matrix.product }}-windows-smoke
+          path: out/service-extensions/*.json
+          if-no-files-found: warn

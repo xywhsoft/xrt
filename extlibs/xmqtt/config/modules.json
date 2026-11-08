@@ -1,0 +1,425 @@
+{
+  "schema": 1,
+  "product": "xmqtt",
+  "module_prefix": "XMQTT_MODULE_",
+  "package_ownership": "separate",
+  "api_macro": "XMQTT_API",
+  "single_header": "single/extlibs/xmqtt.h",
+  "declaration_header": "single/extlibs/xmqtt_decl.h",
+  "implementation_macro": "XMQTT_IMPLEMENTATION",
+  "implementation_once_macro": "XMQTT_IMPLEMENTATION_ONCE",
+  "single_guard": "XMQTT_SINGLE_HEADER_H",
+  "single_marker": "XMQTT_SINGLE_HEADER",
+  "declaration_guard": "XMQTT_DECLARATIONS_H",
+  "declaration_marker": "XMQTT_DECLARATIONS",
+  "package_consumer": "extlibs/xmqtt/tests/package/test_consumer.c",
+  "product_root": "extlibs/xmqtt",
+  "performance_config": "extlibs/xmqtt/config/performance_profiles.json",
+  "size_config": "extlibs/xmqtt/config/size_profiles.json",
+  "scope": {
+    "product": "xmqtt",
+    "external_integrations": [],
+    "systems": [
+      {
+        "name": "wire",
+        "state": "retained",
+        "source_roots": [
+          "wire"
+        ]
+      },
+      {
+        "name": "properties",
+        "state": "retained",
+        "source_roots": [
+          "properties"
+        ]
+      },
+      {
+        "name": "packet",
+        "state": "retained",
+        "source_roots": [
+          "packet"
+        ]
+      },
+      {
+        "name": "codec5",
+        "state": "retained",
+        "source_roots": [
+          "codec5"
+        ]
+      },
+      {
+        "name": "codec311",
+        "state": "retained",
+        "source_roots": [
+          "codec311"
+        ]
+      },
+      {
+        "name": "negotiation",
+        "state": "retained",
+        "source_roots": [
+          "negotiation"
+        ]
+      },
+      {
+        "name": "client",
+        "state": "retained",
+        "source_roots": [
+          "client"
+        ]
+      }
+    ]
+  },
+  "api_reference": {
+    "title": "xmqtt public API reference",
+    "function_prefix": "xmqtt",
+    "constant_prefix": "XMQTT_",
+    "type_prefix": "xmqtt",
+    "guide": "../../README.md",
+    "output": "extlibs/xmqtt/docs/api/reference.md"
+  },
+  "features_guard": "XMQTT_FEATURES_H",
+  "features_header": "extlibs/xmqtt/include/xmqtt/features.h",
+  "include_dirs": [
+    "extlibs/xmqtt/include"
+  ],
+  "header_roots": [
+    "extlibs/xmqtt/include",
+    "extlibs/xmqtt/src/internal"
+  ],
+  "umbrella_header": "xmqtt.h",
+  "modules": [
+    {
+      "name": "xmqtt",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT",
+      "depends": [
+        "xmqtt_wire",
+        "xmqtt_properties",
+        "xmqtt_codec5",
+        "xmqtt_codec311",
+        "xmqtt_negotiation",
+        "xmqtt_client"
+      ],
+      "collect_dependency_assets": [
+        "examples"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt.h",
+        "extlibs/xmqtt/include/xmqtt/features.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_wire",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_WIRE",
+      "depends": [
+        "unicode"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/wire.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_internal.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/wire/wire.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_wire.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/wire/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_wire.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/api/reference.md",
+        "extlibs/xmqtt/docs/coverage.md"
+      ]
+    },
+    {
+      "name": "xmqtt_properties",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_PROPERTIES",
+      "depends": [
+        "xmqtt_wire"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/properties.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_internal.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/properties/properties.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_properties.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/properties/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_properties.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/properties.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_packet",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_PACKET",
+      "depends": [
+        "xmqtt_wire"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/packet.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_internal.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/packet/packet.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_packet.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_packet.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/packet/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_packet.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/codec.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_codec5",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_CODEC5",
+      "depends": [
+        "xmqtt_packet",
+        "xmqtt_properties"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/codec5.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_internal.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/codec5/decode.c",
+        "extlibs/xmqtt/src/codec5/encode.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_codec5.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/codec5/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_codec5.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/codec.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_codec311",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_CODEC311",
+      "depends": [
+        "xmqtt_packet"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/codec311.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_internal.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/codec311/codec311.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_codec311.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/codec311/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_codec311.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/README.md",
+        "extlibs/xmqtt/docs/codec311.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xmqtt_negotiation",
+      "state": "implemented",
+      "feature": "XMQTT_FEATURE_XMQTT_NEGOTIATION",
+      "depends": [
+        "xmqtt_codec5",
+        "xmqtt_codec311"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/negotiation.h",
+        "extlibs/xmqtt/include/xmqtt/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/negotiation/negotiation.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_negotiation.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/negotiation/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_negotiation.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/negotiation.md",
+        "extlibs/xmqtt/docs/coverage.md",
+        "extlibs/xmqtt/docs/api/reference.md",
+        "extlibs/xmqtt/README.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT",
+      "depends": [
+        "xmqtt_negotiation",
+        "net_tcp_retire",
+        "future"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xmqtt/src/client/client.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/client/main.c",
+        "extlibs/xmqtt/examples/error_disconnect/main.c",
+        "extlibs/xmqtt/examples/graceful/main.c",
+        "extlibs/xmqtt/examples/qos2_send/main.c",
+        "extlibs/xmqtt/examples/qos2_receive/main.c",
+        "extlibs/xmqtt/examples/subscriptions/main.c",
+        "extlibs/xmqtt/examples/receive_alias/main.c",
+        "extlibs/xmqtt/examples/send_alias/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_qos1.c",
+        "extlibs/xmqtt/bench/bench_client_receive.c",
+        "extlibs/xmqtt/bench/bench_client_disconnect.c",
+        "extlibs/xmqtt/bench/bench_client_qos2.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client.md"
+      ]
+    },
+    {
+      "name": "xmqtt_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_wire.c",
+        "extlibs/xmqtt/tests/test_properties.c",
+        "extlibs/xmqtt/tests/test_packet.c",
+        "extlibs/xmqtt/tests/test_codec5.c",
+        "extlibs/xmqtt/tests/test_codec311.c",
+        "extlibs/xmqtt/tests/test_negotiation.c",
+        "extlibs/xmqtt/tests/test_client.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_packet.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/README.md"
+      ],
+      "single_test_owners": {
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c": "xmqtt_wire",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_properties.c": "xmqtt_properties",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_packet.c": "xmqtt_packet",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c": "xmqtt_codec5",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c": "xmqtt_codec311",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c": "xmqtt_negotiation",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c": "xmqtt_client"
+      }
+    }
+  ]
+}

@@ -449,6 +449,37 @@ XRT_API void xrtTlsSessionDestroy(xtlssession* pSession)
 
 
 
+/* Only physical queue edges: opaque role/context resources remain separate. */
+XRT_API bool xrtTlsSessionBufferOwnershipTrace(
+	const xtlssession* pSession,
+	xrtownershipvisitor pVisit,
+	ptr pContext
+)
+{
+	return pSession && pVisit &&
+		xrtNetBufOwnershipTrace(&pSession->Feed, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Send, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Plain, pVisit, pContext) &&
+		xrtNetBufOwnershipTrace(&pSession->Scratch, pVisit, pContext);
+}
+
+
+
+XRT_API bool xrtTlsSessionOwnershipTrace(
+	const xtlssession* pSession, xrtownershipvisitor pVisit, ptr pContext
+)
+{
+	if (!xrtTlsSessionBufferOwnershipTrace(pSession, pVisit, pContext)) return false;
+	#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+		if (pSession->Role == XTLS_CLIENT &&
+			!__xrtTlsClientVerifierOwnershipTrace(pSession, pVisit, pContext)) return false;
+	#endif
+	#if defined(XRT_FEATURE_TLS_SERVER)
+		if (pSession->Role == XTLS_SERVER && !__xrtTlsServerIdentityOwnershipLeaf(pSession)) return false;
+	#endif
+	return true;
+}
+
 /* 返回会话角色。 */
 XRT_API xtlsrole xrtTlsSessionRole(const xtlssession* pSession)
 {
@@ -2302,10 +2333,9 @@ static xtlsalert __xrtTlsSessionFailureAlert(const xerror* pError)
 
 
 /* 保留首个根错误，fatal Alert 编码或排队失败不得覆盖它。 */
-xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert)
 {
 	xerror* pRoot = xrtTakeError();
-	xtlsalert Alert = __xrtTlsSessionFailureAlert(pRoot);
 
 	if ( (pRoot == NULL) && (pSession != NULL) &&
 		(pSession->State != XTLS_STATE_FAILED) &&
@@ -2338,6 +2368,15 @@ xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
 		__xrtErrorSetOwned(pRoot);
 	}
 	return XTLS_ERROR;
+}
+
+
+
+xtlsresult __xrtTlsSessionFail(xtlssession* pSession)
+{
+	return __xrtTlsSessionFailAlert(
+		pSession, __xrtTlsSessionFailureAlert(xrtGetError())
+	);
 }
 
 

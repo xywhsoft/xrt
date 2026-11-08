@@ -4,13 +4,19 @@
 /* Bound sessions and the default meta call                            */
 /* ------------------------------------------------------------------ */
 
-xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_request* pRequest,
-    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+xllm_result xllm_session__dispatch_call(xllm_session *pSession, const xllm_request *pRequest,
+                                        const xllm_stream_callbacks *pCallbacks,
+                                        xllm_response **ppResponse, xllm_error *pError)
 {
     xllm_result eResult;
-    if ( pSession->pTestCall ) {
-        if ( !xllm_session__hook_enter(pSession, pError, "test_call") ) { return XLLM_RESULT_ERROR; }
-        eResult = pSession->pTestCall(pSession->pTestCallData, pRequest, pCallbacks, ppResponse, pError);
+    if (pSession->pTestCall)
+    {
+        if (!xllm_session__hook_enter(pSession, pError, "test_call"))
+        {
+            return XLLM_RESULT_ERROR;
+        }
+        eResult =
+            pSession->pTestCall(pSession->pTestCallData, pRequest, pCallbacks, ppResponse, pError);
         xllm_session__hook_leave(pSession);
         return eResult;
     }
@@ -19,19 +25,27 @@ xllm_result xllm_session__dispatch_call(xllm_session* pSession, const xllm_reque
 
 /* Default pSummarize stage: one non-streaming call on the bound client (or
  * the test seam) with the summary output budget. */
-bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
-    char** psSummary, xllm_usage* pUsage, xllm_error* pError)
+bool xllm_session__client_summarize(xllm_session *pSession, const char *sPrompt, char **psSummary,
+                                    xllm_usage *pUsage, xllm_error *pError)
 {
     xllm_request tRequest;
-    xllm_response* pResponse = NULL;
+    xllm_response *pResponse = NULL;
     xllm_header tHeader;
+    char sRoutingKey[40];
     xllm_result eResult;
     bool bOk = false;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !sPrompt || !psSummary ) { return false; }
-    if ( !pSession->pClient && !pSession->pTestCall ) {
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pSession || !sPrompt || !psSummary)
+    {
+        return false;
+    }
+    if (!pSession->pClient && !pSession->pTestCall)
+    {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
-            "summarization requires a bound client or a test call");
+                            "summarization requires a bound client or a test call");
         return false;
     }
     xllmRequestInit(&tRequest);
@@ -43,37 +57,51 @@ bool xllm_session__client_summarize(xllm_session* pSession, const char* sPrompt,
      * path since GAP-CACHE-HINT v2; no per-call body work here. */
     {
         unsigned char aSeed[16];
-        if ( xrtSecureRandom(aSeed, sizeof(aSeed)) ) {
-            char sKey[40];
+        if (xrtSecureRandom(aSeed, sizeof(aSeed)))
+        {
             aSeed[6] = (unsigned char)((aSeed[6] & 0x0fu) | 0x40u); /* v4 */
             aSeed[8] = (unsigned char)((aSeed[8] & 0x3fu) | 0x80u); /* variant */
-            (void)snprintf(sKey, sizeof(sKey),
+            (void)snprintf(
+                sRoutingKey, sizeof(sRoutingKey),
                 "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-                aSeed[0], aSeed[1], aSeed[2], aSeed[3], aSeed[4], aSeed[5],
-                aSeed[6], aSeed[7], aSeed[8], aSeed[9], aSeed[10], aSeed[11],
-                aSeed[12], aSeed[13], aSeed[14], aSeed[15]);
+                (unsigned)aSeed[0], (unsigned)aSeed[1], (unsigned)aSeed[2], (unsigned)aSeed[3],
+                (unsigned)aSeed[4], (unsigned)aSeed[5], (unsigned)aSeed[6], (unsigned)aSeed[7],
+                (unsigned)aSeed[8], (unsigned)aSeed[9], (unsigned)aSeed[10], (unsigned)aSeed[11],
+                (unsigned)aSeed[12], (unsigned)aSeed[13], (unsigned)aSeed[14], (unsigned)aSeed[15]);
             tHeader.sName = "xllm-routing-key";
-            tHeader.sValue = sKey;
+            /* The request borrows this storage through dispatch, so the key
+             * must live in the function scope rather than the random block. */
+            tHeader.sValue = sRoutingKey;
             tRequest.pExtraHeaders = &tHeader;
             tRequest.iExtraHeaderCount = 1u;
         }
     }
-    if ( !xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, sPrompt) ) {
-        xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to build the summary request");
+    if (!xllmRequestAddTextMessage(&tRequest, XLLM_ROLE_USER, sPrompt))
+    {
+        xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY,
+                            "failed to build the summary request");
         goto done;
     }
     eResult = xllm_session__dispatch_call(pSession, &tRequest, NULL, &pResponse, pError);
-    if ( eResult != XLLM_RESULT_OK || !pResponse ) { goto done; }
-    if ( !pResponse->sContent || !pResponse->sContent[0] ) {
+    if (eResult != XLLM_RESULT_OK || !pResponse)
+    {
+        goto done;
+    }
+    if (!pResponse->sContent || !pResponse->sContent[0])
+    {
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "the summary call returned no content");
         goto done;
     }
     *psSummary = xllm_session__strdup(pResponse->sContent);
-    if ( !*psSummary ) {
+    if (!*psSummary)
+    {
         xllm_session__error(pError, XLLM_ERROR_OUT_OF_MEMORY, "failed to store the summary");
         goto done;
     }
-    if ( pUsage ) { *pUsage = pResponse->tUsage; }
+    if (pUsage)
+    {
+        *pUsage = pResponse->tUsage;
+    }
     bOk = true;
 done:
     xllmResponseDestroy(pResponse);
@@ -81,115 +109,186 @@ done:
     return bOk;
 }
 
-xllm_session* xllmSessionCreateBound(const xllm_session_config* pConfig,
-    xllm_client* pClient, xllm_error* pError)
+xllm_session *xllmSessionCreateBound(const xllm_session_config *pConfig, xllm_client *pClient,
+                                     xllm_error *pError)
 {
     xllm_session_config tConfig;
     xllm_model_profile tProfile;
-    xllm_session* pSession;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pClient ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "a bound session requires a client");
+    xllm_session *pSession;
+    bool bHasProfile;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pClient)
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "a bound session requires a client");
         return NULL;
     }
-    if ( pConfig ) { tConfig = *pConfig; } else { xllmSessionConfigInit(&tConfig); }
-    /* D8 window provenance: an explicit zero opts into the bound client's
-     * profile (window, output ceiling, recommended reserves); the profile
-     * wins over ConfigInit's generic defaults. */
-    if ( tConfig.uContextWindowTokens == 0u && xllmClientGetModelProfile(pClient, &tProfile) ) {
-        tConfig.uContextWindowTokens = tProfile.uContextWindowTokens;
-        if ( tConfig.uMaxOutputTokens == 0u && tProfile.uMaxOutputTokens ) {
-            tConfig.uMaxOutputTokens = tProfile.uMaxOutputTokens;
-        }
-        if ( tConfig.uOutputReserveTokens == 0u && tProfile.uRecommendedOutputReserveTokens ) {
-            tConfig.uOutputReserveTokens = tProfile.uRecommendedOutputReserveTokens;
-        }
-        if ( tConfig.uSummaryMaxTokens == 32768u && tProfile.uRecommendedSummaryTokens ) {
-            tConfig.uSummaryMaxTokens = tProfile.uRecommendedSummaryTokens;
+    bHasProfile = xllmClientGetModelProfile(pClient, &tProfile);
+    if (pConfig)
+    {
+        tConfig = *pConfig;
+    }
+    else if (bHasProfile)
+    {
+        if (!xllmSessionConfigInitFromProfile(&tConfig, &tProfile, pError))
+        {
+            return NULL;
         }
     }
-    pSession = xllmSessionCreate(&tConfig, pError);
-    if ( !pSession ) { return NULL; }
+    else
+    {
+        xllmSessionConfigInit(&tConfig);
+    }
+    pSession = bHasProfile ? xllmSessionCreateForProfile(&tConfig, &tProfile, pError)
+                           : xllmSessionCreate(&tConfig, pError);
+    if (!pSession)
+    {
+        return NULL;
+    }
     pSession->pClient = pClient;
     return pSession;
 }
 
-xllm_session* xllmSessionCreateForTest(const xllm_session_config* pConfig,
-    xllm_test_call_proc pCall, void* pUserData, xllm_error* pError)
+xllm_session *xllmSessionCreateForTest(const xllm_session_config *pConfig,
+                                       xllm_test_call_proc pCall, void *pUserData,
+                                       xllm_error *pError)
 {
-    xllm_session* pSession;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pCall ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "a test session requires a call proc");
+    xllm_session *pSession;
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pCall)
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "a test session requires a call proc");
         return NULL;
     }
     pSession = xllmSessionCreate(pConfig, pError);
-    if ( !pSession ) { return NULL; }
+    if (!pSession)
+    {
+        return NULL;
+    }
     pSession->pTestCall = pCall;
     pSession->pTestCallData = pUserData;
     return pSession;
+}
+
+xllm_result xllmSessionDispatchRequest(xllm_session *pSession, const xllm_request *pRequest,
+                                       const xllm_stream_callbacks *pCallbacks,
+                                       xllm_response **ppResponse, xllm_error *pError)
+{
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (ppResponse)
+    {
+        *ppResponse = NULL;
+    }
+    if (!pSession || !pRequest || !ppResponse)
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "session, request, and response slot are required");
+        return XLLM_RESULT_ERROR;
+    }
+    if (!pSession->pClient && !pSession->pTestCall)
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "the session has no bound model driver");
+        return XLLM_RESULT_ERROR;
+    }
+    return xllm_session__dispatch_call(pSession, pRequest, pCallbacks, ppResponse, pError);
 }
 
 /* ------------------------------------------------------------------ */
 /* Convenience turns                                                    */
 /* ------------------------------------------------------------------ */
 
-xllm_result xllmSessionComplete(xllm_session* pSession, const xllm_stream_callbacks* pCallbacks,
-    xllm_response** ppResponse, xllm_error* pError)
+xllm_result xllmSessionComplete(xllm_session *pSession, const xllm_stream_callbacks *pCallbacks,
+                                xllm_response **ppResponse, xllm_error *pError)
 {
     xllm_request tRequest;
     xllm_result eResult;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !ppResponse ) {
-        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT, "session and response slot are required");
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pSession || !ppResponse)
+    {
+        xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
+                            "session and response slot are required");
         return XLLM_RESULT_ERROR;
     }
     *ppResponse = NULL;
-    if ( !pSession->pClient && !pSession->pTestCall ) {
+    if (!pSession->pClient && !pSession->pTestCall)
+    {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
-            "no bound client; use the core-layer APIs and drive the call yourself");
+                            "no bound client; use the core-layer APIs and drive the call yourself");
         return XLLM_RESULT_ERROR;
     }
     xllmRequestInit(&tRequest);
-    if ( !xllmSessionBuildRequest(pSession, &tRequest, pError) ) {
+    if (!xllmSessionBuildRequest(pSession, &tRequest, pError))
+    {
+        xllmRequestUnit(&tRequest);
+        return XLLM_RESULT_ERROR;
+    }
+    if (!xllmSessionBeginModelCall(pSession, pError))
+    {
         xllmRequestUnit(&tRequest);
         return XLLM_RESULT_ERROR;
     }
     eResult = xllm_session__dispatch_call(pSession, &tRequest, pCallbacks, ppResponse, pError);
+    (void)xllmSessionAbortModelCall(pSession, NULL);
     xllmRequestUnit(&tRequest);
     return eResult;
 }
 
-xllm_result xllmSessionSend(xllm_session* pSession, const char* sUserText,
-    const xllm_stream_callbacks* pCallbacks, xllm_response** ppResponse, xllm_error* pError)
+xllm_result xllmSessionSend(xllm_session *pSession, const char *sUserText,
+                            const xllm_stream_callbacks *pCallbacks, xllm_response **ppResponse,
+                            xllm_error *pError)
 {
     uint64_t uTurn;
     xllm_result eResult;
-    if ( pError ) { xllmErrorInit(pError); }
-    if ( !pSession || !sUserText || !ppResponse ) {
+    if (pError)
+    {
+        xllmErrorInit(pError);
+    }
+    if (!pSession || !sUserText || !ppResponse)
+    {
         xllm_session__error(pError, XLLM_ERROR_INVALID_ARGUMENT,
-            "session, user text, and response slot are required");
+                            "session, user text, and response slot are required");
         return XLLM_RESULT_ERROR;
     }
     *ppResponse = NULL;
-    if ( pSession->bInHook ) {
+    if (pSession->bInHook)
+    {
         xllm_session__error(pError, XLLM_ERROR_HOOK, "session hook re-entered a mutating API");
         return XLLM_RESULT_ERROR;
     }
     uTurn = xllmSessionBeginTurn(pSession);
-    if ( uTurn == 0u ) {
+    if (uTurn == 0u)
+    {
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to begin the session turn");
         return XLLM_RESULT_ERROR;
     }
-    if ( !xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sUserText, 0u) ) {
+    if (!xllmSessionAddText(pSession, uTurn, XLLM_ROLE_USER, sUserText, 0u))
+    {
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to record the user message");
         return XLLM_RESULT_ERROR;
     }
     eResult = xllmSessionComplete(pSession, pCallbacks, ppResponse, pError);
-    if ( eResult != XLLM_RESULT_OK ) { return eResult; }
+    if (eResult != XLLM_RESULT_OK)
+    {
+        return eResult;
+    }
     /* AddAssistantResponse records usage, which refreshes governance and may
      * raise the compaction pressure. */
-    if ( !xllmSessionAddAssistantResponse(pSession, uTurn, *ppResponse) ) {
+    if (!xllmSessionAddAssistantResponse(pSession, uTurn, *ppResponse))
+    {
         xllmResponseDestroy(*ppResponse);
         *ppResponse = NULL;
         xllm_session__error(pError, XLLM_ERROR_UPSTREAM, "failed to record the assistant response");
@@ -197,10 +296,12 @@ xllm_result xllmSessionSend(xllm_session* pSession, const char* sUserText,
     }
     {
         bool bCompact = false;
-        if ( !xllmSessionMaybeCompact(pSession, &bCompact, pError) ) {
+        if (!xllmSessionMaybeCompact(pSession, &bCompact, pError))
+        {
             /* The turn is durable; surface the compaction failure but keep
              * the response: the host can ladder or retry compaction. */
-            if ( pError && pError->eCode == XLLM_ERROR_NONE ) {
+            if (pError && pError->eCode == XLLM_ERROR_NONE)
+            {
                 pError->eCode = XLLM_ERROR_UPSTREAM;
             }
             return XLLM_RESULT_OK;
@@ -209,10 +310,21 @@ xllm_result xllmSessionSend(xllm_session* pSession, const char* sUserText,
     return XLLM_RESULT_OK;
 }
 
-bool xllmSessionSetHooks(xllm_session* pSession, const xllm_session_hooks* pHooks)
+bool xllmSessionSetHooks(xllm_session *pSession, const xllm_session_hooks *pHooks)
 {
-    if ( !pSession ) { return false; }
-    if ( pSession->pHooks != pHooks ) {
+    if (!pSession || pSession->bInHook)
+    {
+        return false;
+    }
+    if (pSession->eState == XLLM_SESSION_STATE_MODEL_IN_FLIGHT ||
+        xllm_session__state_is_compaction(pSession->eState) ||
+        pSession->eState == XLLM_SESSION_STATE_RECOVERY_REQUIRED ||
+        pSession->eState == XLLM_SESSION_STATE_CORRUPT)
+    {
+        return false;
+    }
+    if (pSession->pHooks != pHooks)
+    {
         /* Render hooks reshape request bytes; cached wire prefixes built
          * under the previous hooks must not survive the swap. */
         ++pSession->uRenderGeneration;
@@ -221,28 +333,59 @@ bool xllmSessionSetHooks(xllm_session* pSession, const xllm_session_hooks* pHook
     return true;
 }
 
-bool xllmSessionBindClient(xllm_session* pSession, xllm_client* pClient)
+bool xllmSessionBindClient(xllm_session *pSession, xllm_client *pClient)
 {
-    if ( !pSession || !pClient ) { return false; }
+    if (!pSession || !pClient || pSession->bInHook)
+    {
+        return false;
+    }
+    if (pSession->eState == XLLM_SESSION_STATE_MODEL_IN_FLIGHT ||
+        xllm_session__state_is_compaction(pSession->eState))
+    {
+        return false;
+    }
     pSession->pClient = pClient;
     return true;
 }
 
-bool xllmSessionSetTestCall(xllm_session* pSession, xllm_test_call_proc pCall, void* pUserData)
+bool xllmSessionSetTestCall(xllm_session *pSession, xllm_test_call_proc pCall, void *pUserData)
 {
-    if ( !pSession ) { return false; }
+    if (!pSession || pSession->bInHook)
+    {
+        return false;
+    }
+    if (pSession->eState == XLLM_SESSION_STATE_MODEL_IN_FLIGHT ||
+        xllm_session__state_is_compaction(pSession->eState))
+    {
+        return false;
+    }
     pSession->pTestCall = pCall;
     pSession->pTestCallData = pCall ? pUserData : NULL;
     return true;
 }
 
-bool xllmSessionForwardDriver(xllm_session* pDst, const xllm_session* pSrc)
+bool xllmSessionForwardDriver(xllm_session *pDst, const xllm_session *pSrc)
 {
-    if ( !pDst || !pSrc ) { return false; }
-    if ( pSrc->pClient ) { pDst->pClient = pSrc->pClient; }
-    if ( pSrc->pTestCall ) {
-        pDst->pTestCall = pSrc->pTestCall;
-        pDst->pTestCallData = pSrc->pTestCallData;
+    if (!pDst || !pSrc || pDst->bInHook || pSrc->bInHook)
+    {
+        return false;
     }
+    if (pDst->eState == XLLM_SESSION_STATE_MODEL_IN_FLIGHT ||
+        xllm_session__state_is_compaction(pDst->eState) ||
+        pSrc->eState == XLLM_SESSION_STATE_MODEL_IN_FLIGHT ||
+        xllm_session__state_is_compaction(pSrc->eState))
+    {
+        return false;
+    }
+    if (!pSrc->pClient && !pSrc->pTestCall)
+        return false;
+    pDst->pClient = pSrc->pClient;
+    pDst->pTestCall = pSrc->pTestCall;
+    pDst->pTestCallData = pSrc->pTestCall ? pSrc->pTestCallData : NULL;
     return true;
+}
+
+bool xllmSessionHasDriver(const xllm_session *pSession)
+{
+    return pSession && (pSession->pClient || pSession->pTestCall);
 }

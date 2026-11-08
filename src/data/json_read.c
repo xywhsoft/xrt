@@ -445,6 +445,35 @@ static xtextvaluevisitaction __xrtJsonVisitAdapter(
 	return (xtextvaluevisitaction)Action;
 }
 
+typedef struct xjsonscanadapter {
+	xjsonscanproc Visitor;
+	ptr UserData;
+} xjsonscanadapter;
+
+static xtextvaluevisitaction __xrtJsonScanAdapter(const xtextvalueevent* Source, ptr UserData)
+{
+	xjsonscanadapter* Adapter = (xjsonscanadapter*)UserData;
+	xjsonscanevent Event;
+	memset(&Event, 0, sizeof(Event));
+	switch ( Source->Type ) {
+		case XTEXT_VALUE_EVENT_NULL: Event.Type = XJSON_SCAN_NULL; break;
+		case XTEXT_VALUE_EVENT_BOOL: Event.Type = XJSON_SCAN_BOOL; break;
+		case XTEXT_VALUE_EVENT_NUMBER: Event.Type = XJSON_SCAN_NUMBER; break;
+		case XTEXT_VALUE_EVENT_STRING: Event.Type = XJSON_SCAN_STRING; break;
+		case XTEXT_VALUE_EVENT_ARRAY_BEGIN: Event.Type = XJSON_SCAN_ARRAY_BEGIN; break;
+		case XTEXT_VALUE_EVENT_ARRAY_END: Event.Type = XJSON_SCAN_ARRAY_END; break;
+		case XTEXT_VALUE_EVENT_OBJECT_BEGIN: Event.Type = XJSON_SCAN_OBJECT_BEGIN; break;
+		case XTEXT_VALUE_EVENT_OBJECT_END: Event.Type = XJSON_SCAN_OBJECT_END; break;
+		default: return XTEXT_VALUE_VISIT_FAIL;
+	}
+	Event.Location = __xrtJsonLocation(&Source->Location);
+	Event.Depth = Source->Depth; Event.Raw = Source->Raw;
+	if ( Source->Key.Type == XVALUE_KEY_STRING ) {
+		Event.HasName = true; Event.Name = Source->Key.String;
+	} else if ( Source->Key.Type == XVALUE_KEY_INDEX ) Event.Index = Source->Key.Index;
+	return (xtextvaluevisitaction)Adapter->Visitor(&Event, Adapter->UserData);
+}
+
 
 
 /* 初始化严格且带安全资源预算的 JSON 读取配置。 */
@@ -576,6 +605,23 @@ XRT_API xjsonvisitresult xrtJsonVisit(
 		true
 	);
 	return (xjsonvisitresult)Result;
+}
+
+XRT_API xjsonvisitresult xrtJsonScan(xstrview Text, const xjsonreadconfig* Config,
+	xjsonscanproc Visitor, ptr UserData)
+{
+	xjsonscanadapter Adapter;
+	xtextvaluereadconfig TextConfig;
+	if ( Visitor == NULL || !__xrtJsonReadConfigValid(Config) ||
+		(Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) ) {
+		if ( Visitor == NULL || (Text.Data == NULL && Text.Size != 0) || !xrtMemRangeValid(Text.Data, Text.Size) )
+			__xrtErrorSetInvalidArgument();
+		return XJSON_VISIT_ERROR;
+	}
+	Adapter.Visitor = Visitor; Adapter.UserData = UserData;
+	TextConfig = __xrtJsonReadTextConfig(Config); TextConfig.RawEvents = true;
+	return (xjsonvisitresult)__xrtTextValueRead(Text, &TextConfig, __xrtJsonScanAdapter,
+		&Adapter, __xrtJsonReadError, NULL, false);
 }
 
 #endif

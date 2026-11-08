@@ -18,6 +18,20 @@ import check_api_docs
 class HeaderSymbolsTest(unittest.TestCase):
 	"""验证跨行函数、常量和类型提取。"""
 
+	def test_service_extension_export_namespaces(self) -> None:
+		"""Independent extension exports must enter the generated API inventory."""
+
+		for name in ("redis", "rpc", "mqtt", "cron"):
+			with self.subTest(product=name):
+				prefix = "x" + name
+				macro = prefix.upper() + "_API"
+				source = (f"/* {macro} bool {prefix}Fake(void); */\n"
+					f"{macro} bool {prefix}Real(void);\n"
+					f'const char* text = "{macro} {prefix}Literal";\n')
+				functions, _, _ = check_api_docs._header_symbols(
+					source, prefix, prefix.upper() + "_", prefix)
+				self.assertEqual(functions, {prefix + "Real"})
+
 	def test_extracts_family_symbols(self) -> None:
 		"""只收集指定家族的导出函数，常量和类型保持完整标识符。"""
 
@@ -97,6 +111,21 @@ class HeaderSymbolsTest(unittest.TestCase):
 
 class FamilyFilesTest(unittest.TestCase):
 	"""验证模块清单范围和文件存在性。"""
+
+	def test_manifest_includes_shared_types_without_exported_functions(self) -> None:
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			(root / "types.h").write_text(
+				"typedef enum xrpcvaluekind { XRPC_VALUE_NULL = 1 } xrpcvaluekind;\n",
+				encoding="utf-8")
+			(root / "features.h").write_text(
+				"/* typedef int xrpcphantom; XRPC_API bool xrpcFake(void); */\n"
+				"#define XRPC_MODULE_ALL\n", encoding="utf-8")
+			manifest = root / "modules.json"
+			manifest.write_text(json.dumps({"api_reference": {}, "modules": [{
+				"public_headers": ["types.h", "features.h"], "docs": []}]}), encoding="utf-8")
+			headers, _, _ = check_api_docs._manifest_files(root, manifest)
+			self.assertEqual(headers, [root / "types.h"])
 
 	def test_manifest_rejects_missing_registered_header(self) -> None:
 		with tempfile.TemporaryDirectory() as temporary:

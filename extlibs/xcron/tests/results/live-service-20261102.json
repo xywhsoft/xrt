@@ -1,0 +1,529 @@
+{
+  "schema": 1,
+  "stage": "bounded live public-XRT cron service",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "long_run_qualified": false,
+  "durable_recovery": false,
+  "environments": {
+    "windows": {
+      "compiler": "gcc.EXE (GCC) 16.2.0",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "layout": {
+        "config": 136,
+        "reply": 296,
+        "completion": 80,
+        "issue": 8,
+        "stats": 320
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-02T11:11:08.389224+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "fea9d7e889f7330573ce859872c3a2251343f6ba",
+        "source_dirty": true,
+        "source_fingerprint": "38787ef9cdb6f3667b88ff6393fd0cec390edfa15f351c62f1084f78f6dfef4e",
+        "benchmark_fingerprint": "e9e9e72830444c9fe4577fea7577d8c5af7aa3262e27ff892156bb1827cabd91",
+        "profiles": {
+          "xcron_service_256": {
+            "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+            "benchmarks": {
+              "xcron_service_256": {
+                "source": "extlibs/xcron/bench/bench_service.c",
+                "inputs": [],
+                "suite": "xcron_service",
+                "args": [
+                  "1",
+                  "32"
+                ],
+                "facts": {},
+                "metrics": {
+                  "start_lateness_p99_ms": {
+                    "samples": [
+                      13.0
+                    ],
+                    "median": 13.0,
+                    "mean": 13.0,
+                    "min": 13.0,
+                    "max": 13.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "start_lateness_max_ms": {
+                    "samples": [
+                      13.0
+                    ],
+                    "median": 13.0,
+                    "mean": 13.0,
+                    "min": 13.0,
+                    "max": 13.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "owner_to_worker_p99_ms": {
+                    "samples": [
+                      0.587
+                    ],
+                    "median": 0.587,
+                    "mean": 0.587,
+                    "min": 0.587,
+                    "max": 0.587,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "fea9d7e889f7330573ce859872c3a2251343f6ba",
+        "source_dirty": true,
+        "source_fingerprint": "ad539048f6b246b5471d7764a2c505f0eebf2ad51ac13bc5497c84ea3dc3f991",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_service": {
+            "suite": "xcron_service",
+            "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 151928,
+                "data": 2392,
+                "bss": 11104,
+                "members": 1,
+                "load": 154320,
+                "file": 220008,
+                "path": "out/size/gnu/x64/xcron_service/single/xcron_single.o",
+                "compile_seconds": 4.268648900091648,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 67888,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 67888,
+                "file": 97194,
+                "path": "release/gnu/x64/xcron_service/static/libxcron.a"
+              },
+              "shared": {
+                "text": 81018,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 81162,
+                "file": 129304,
+                "path": "release/gnu/x64/xcron_service/shared/xcron.dll"
+              }
+            }
+          }
+        }
+      },
+      "binary_sha256": {
+        "out/gcc/native/xcron_tests/test_expression.exe": "ba4291a305552a2c07b34ee1f53d4a18735bb2eea5d9556e923d8eeeff919770",
+        "out/gcc/native/xcron_tests/test_single_xcron_expression.exe": "1e759608f89b6ef4c75fd4b6f7bd43c9290ae1fcb5515c8968ab121502cb1bb7",
+        "out/gcc/native/xcron_tests/test_calendar.exe": "b6b339216158abc832a15a6503100e51106aab0687ff5bab44929a42c4bfd6c3",
+        "out/gcc/native/xcron_tests/test_single_xcron_calendar.exe": "f5a8b988fd41d3e6a5da7fd28e5a7a9e3b8c04d07197fb39c3d684d1a62f7030",
+        "out/gcc/native/xcron_tests/test_timezone.exe": "e518e012f045966c01a6b9bec63bd8055b435d87b07d8b8a3c28f952edaabbe9",
+        "out/gcc/native/xcron_tests/test_single_xcron_timezone.exe": "7a18387cdd0d468025317d21f9914bae806dd532fde8b8b05a4e5763c02d1a8d",
+        "out/gcc/native/xcron_tests/test_tzif.exe": "798ad760968e15cbc59508389c4667e8dfede77010344af4b6ff265baa8f302c",
+        "out/gcc/native/xcron_tests/test_single_xcron_tzif.exe": "46b856718698855dc5268ee93cc7628978ac64d56a887b0cdb77f141c0353e63",
+        "out/gcc/native/xcron_tests/test_zoned.exe": "c2165f076faeeed439744e118eac679664ae1834fb5c7a8c8e7505eb530be4ec",
+        "out/gcc/native/xcron_tests/test_single_xcron_zoned.exe": "113ad540e67abbab05715e843cb9d6076127bed457228db5301d706cc3eed131",
+        "out/gcc/native/xcron_tests/test_scheduler.exe": "4586459e12ef2f7f4eb4ccda830477a399c63be733aa393337ca5907a1fce72a",
+        "out/gcc/native/xcron_tests/test_single_xcron_scheduler.exe": "7df858b2fbdb2c324ef945e9c4d2063295f4aaea8024301a2de2fed3da00c933",
+        "out/gcc/native/xcron_tests/test_executor.exe": "667cdd33a5d0b304f644a15e39eca6fccc7665d54a8b27dc70409b3cb6b3df3c",
+        "out/gcc/native/xcron_tests/test_single_xcron_executor.exe": "09d50f7c387980fbbc1857566344badbf4126131921786dde391937182b0d7bf",
+        "out/gcc/native/xcron_tests/test_service.exe": "47c03e1899577fe8c9b1c87f68645cd5ca75b24152af726a2c57ba24bdc28c7e",
+        "out/gcc/native/xcron_tests/test_single_xcron_service.exe": "50011658037ec16bc59941ef50bbe242688000d6200229070f7e596b246450b2",
+        "out/gcc/native/xcron_service/test_service.exe": "062d7ea2b6e943c135dd52bf429ef225950404695d012507c75a89b513de5a9e",
+        "out/gcc/native/xcron_service/test_single_xcron_service.exe": "50011658037ec16bc59941ef50bbe242688000d6200229070f7e596b246450b2",
+        "out/gcc/native/xcron/examples_calendar_main.exe": "155a18d93b7774678762b4d69b91f7400f2cfc0070aa2303d1b0b728a1e3efcb",
+        "out/gcc/native/xcron/examples_executor_main.exe": "dbd32a61a5916b6fbcf26147e427bbf8016c8ebc7e5357df470350815efee871",
+        "out/gcc/native/xcron/examples_expression_main.exe": "9489b186e050080d23e54a2902f90f08aaf8789929521ff0dd2a59cc6efc48be",
+        "out/gcc/native/xcron/examples_scheduler_main.exe": "b49fdfa345bf754b22f13178faf36b402f4bb1191438553ee9f3c2a800dfcd52",
+        "out/gcc/native/xcron/examples_service_main.exe": "86b7fd5eea3dea817eca1430b566f82804d601255a071711cd03fc5ba2eb031b",
+        "out/gcc/native/xcron/examples_timezone_main.exe": "e1c26ec4eeec7dd3d4a87255963be167ad6cd0cf2b43a87ac458de756b0f42f8",
+        "out/gcc/native/xcron/examples_tzif_main.exe": "3e4610d734497c233811c57fc014b9b4fcb1ad0486613bc60f25786f32e561fd",
+        "out/gcc/native/xcron/examples_zoned_main.exe": "50743e794614b6799aaa76c0c48a05e1d3676f801b23cff043246bd6c3be3d42",
+        "out/service-extensions/xcron-service/bin/windows-static-example.exe": "60969bc6a6d2cb363db6e6faa631ba5226ca1c959c141e0e3e65fd8a10b938f6",
+        "out/service-extensions/xcron-service/bin/windows-static-unit.exe": "db8c94b60eabccf6bdd834b8c722addf3fa0a0f6822d2629a0bb396baef13604",
+        "out/service-extensions/xcron-service/bin/windows-shared-example.exe": "9c39f113033b20198717c0e81d7a4d2f26a0dd6c7e3b07b720f21d1d5e7f5ebf",
+        "out/service-extensions/xcron-service/bin/windows-shared-unit.exe": "98e4ffdb9582226499066a26737c04e1f104e8d810e0df849b2e291198bcf610",
+        "release/gnu/x64/xcron/static/test_package_xcron.exe": "83a2945c412464ca4628fc46def2ef62edcda9a4f83badb26ecefa53de2ebdcb",
+        "release/gnu/x64/xcron/shared/test_package_xcron.exe": "9722c145bfa855f3c8853bbf5430093984ce019f3a8430f67eb3dbb7674ec96a",
+        "out/service-extensions/xcron-service/windows-layout.exe": "3c52eb3b4c0ff7e4cfc234d7d0624a6bbf05a014f17c7892762405aa8b345042"
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "layout": {
+        "config": 136,
+        "reply": 296,
+        "completion": 80,
+        "issue": 8,
+        "stats": 320
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-02T11:18:44.703894+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "38787ef9cdb6f3667b88ff6393fd0cec390edfa15f351c62f1084f78f6dfef4e",
+        "benchmark_fingerprint": "e9e9e72830444c9fe4577fea7577d8c5af7aa3262e27ff892156bb1827cabd91",
+        "profiles": {
+          "xcron_service_256": {
+            "description": "256 fixed UTC arrivals per second, 4 borrowed workers; absolute observed start lateness and owner-sample-to-worker delay, millisecond clock precision; no production/P99 acceptance",
+            "benchmarks": {
+              "xcron_service_256": {
+                "source": "extlibs/xcron/bench/bench_service.c",
+                "inputs": [],
+                "suite": "xcron_service",
+                "args": [
+                  "1",
+                  "32"
+                ],
+                "facts": {},
+                "metrics": {
+                  "start_lateness_p99_ms": {
+                    "samples": [
+                      0.0
+                    ],
+                    "median": 0.0,
+                    "mean": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "start_lateness_max_ms": {
+                    "samples": [
+                      0.0
+                    ],
+                    "median": 0.0,
+                    "mean": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "owner_to_worker_p99_ms": {
+                    "samples": [
+                      0.808
+                    ],
+                    "median": 0.808,
+                    "mean": 0.808,
+                    "min": 0.808,
+                    "max": 0.808,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "ad539048f6b246b5471d7764a2c505f0eebf2ad51ac13bc5497c84ea3dc3f991",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_service": {
+            "suite": "xcron_service",
+            "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 162445,
+                "data": 2944,
+                "bss": 10940,
+                "members": 1,
+                "load": 165389,
+                "file": 282744,
+                "path": "out/size/gnu/native/xcron_service/single/xcron_single.o",
+                "compile_seconds": 3.1110568419999822,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 72487,
+                "data": 224,
+                "bss": 0,
+                "members": 8,
+                "load": 72711,
+                "file": 123610,
+                "path": "release/gnu/native/xcron_service/static/libxcron.a"
+              },
+              "shared": {
+                "text": 84301,
+                "data": 1448,
+                "bss": 8,
+                "members": 1,
+                "load": 85749,
+                "file": 101680,
+                "path": "release/gnu/native/xcron_service/shared/libxcron.so"
+              }
+            }
+          }
+        }
+      },
+      "binary_sha256": {
+        "out/service-extensions/xcron-service/bin/wsl-static-example": "02aa57b65207f5dd0d2c97917ec30c6663dbfd19107f67e4e1a921af53d293c8",
+        "out/service-extensions/xcron-service/bin/wsl-static-unit": "152e577f8bfc6581d001c44b8c282526ac5d99a7594fac4a5658e063072e8963",
+        "out/service-extensions/xcron-service/bin/wsl-shared-example": "0916743b2de914047428a104a0d4f0a4f262fce9ba55cf9267a839d602f35ad9",
+        "out/service-extensions/xcron-service/bin/wsl-shared-unit": "0b8d3f12daf68d28ec78540a7d6f42ae02819146e68a7d7f27b570779eb3644e"
+      },
+      "tsan": {
+        "program_passed": true,
+        "binary_sha256": "79cf0f1393cd09d75fb198913206e68bfaba2a576a4d506501150ac2486ad827",
+        "compiler_limitation": "GCC does not instrument atomic_thread_fence; warning retained and allowed only with diagnostic-build -Wno-error=tsan. No fence-only synchronization, whole-Core or native-Linux qualification claim.",
+        "summary": "[PASS] live cron service: reserved outputs/commands/data duties/retry bounds/self-wait/clock failure/physical cancellation/512 concurrent commands/OOM/2048 zero-heap cycles/real clock\n"
+      }
+    }
+  },
+  "source_sha256_lf": {
+    "extlibs/xcron/src/expression/expression.c": "ee1bea08a03fdbc5f94c601a8d29125dd1f5fefa3c881a1cbbaa9d113ac65d8e",
+    "extlibs/xcron/src/calendar/calendar.c": "c088965ebbc1da70cedb3522539383c08c80f4f61056260b846d594e8ea23ebe",
+    "extlibs/xcron/src/timezone/timezone.c": "b32ea7e0174f4fe50fcd47b4c2cf6977912caaa248737e4f58794b620bb54645",
+    "extlibs/xcron/src/timezone/tzif.c": "0b44a1fbcdc7fa5ebaae8b48d5d1c1a6cecc4abdea7339ef0bc1e517ea590ab1",
+    "extlibs/xcron/src/zoned/zoned.c": "ebee9634b209e643abaebc36a0bf667ae36acea200e8f508181717cc5458f477",
+    "extlibs/xcron/src/scheduler/scheduler.c": "f5e3128f9fdd3fb84d932239a62e70b23562851a6e4686f91c2426c208d7315c",
+    "extlibs/xcron/src/executor/executor.c": "6796d72b6dcf554f76225659a485a04887068b4e443fec56acc1af57632bbdf5",
+    "extlibs/xcron/src/service/service.c": "e1b34f1b0f32cc9e0dd37ef1635614f7b92493c82b1bbbcffc79ad4e5a273f86",
+    "extlibs/xcron/bench/bench_calendar.c": "edb51402ae3e74cff8a3d34b25276b1e917ef5076739cc5b9ae13d98252cc699",
+    "extlibs/xcron/bench/bench_executor.c": "dfd16288ca2d6d917ef65c82ed9d8220190106a89faea1df877481cda48d0470",
+    "extlibs/xcron/bench/bench_expression.c": "5217777e38dd544594620e8410f48541c60054489f859961be5361282158f9c2",
+    "extlibs/xcron/bench/bench_scheduler.c": "1cbe6cb134a21d51de113c6643e117da0fffe66814d01d34ec6b223fb5c540e5",
+    "extlibs/xcron/bench/bench_service.c": "db70f29fd39639709c7935157a7c1a9df6e83e56be07cebd85c4673ee551e429",
+    "extlibs/xcron/bench/bench_timezone.c": "4240ff67041ff83291de133fcb7dae9885374b45d15955f43335ef118fabf581",
+    "extlibs/xcron/bench/bench_tzif.c": "1c885e78ec56c0af2b929fd64ee2f486f1bc513f23b27265321c928a7c50fd3d",
+    "extlibs/xcron/bench/bench_zoned.c": "89cc0fcb0973d315b1ae3f2326bb018f10dad0a491bcd7fc27dc2f49e9a40edc",
+    "extlibs/xcron/tests/test_calendar.c": "2d0fdca8f6f9f0d697921195f75ad46de27b8a303f1df6173f328451db559810",
+    "extlibs/xcron/tests/test_executor.c": "6f008fbc2aeb7b4f0611c9cf27f44b902d733e3347a6b2972875b3ee5abcc67c",
+    "extlibs/xcron/tests/test_expression.c": "d12adb14aa831933dc55305cb8309752aa93ff58a35bc4045396bd6ec03cd92e",
+    "extlibs/xcron/tests/test_scheduler.c": "c36f280a1f1991ca4655b5c3122b0fe80501fd1d674a25eaa94bf6fd907fc280",
+    "extlibs/xcron/tests/test_service.c": "1218ee353cca4f97ce8296ef969b65eca232406452cb02988e3759d0ca5c3ef7",
+    "extlibs/xcron/tests/test_timezone.c": "0477bc7d1036693a64f0250c69840ae31ca2c740214866bb3f3dda71777fc447",
+    "extlibs/xcron/tests/test_tzif.c": "869fc14ca2a80ab84932f2eafce544d695e870502578993381ce49280bb38abb",
+    "extlibs/xcron/tests/test_zoned.c": "bea0f633c0ca586b15946f9a7fa905eef31f23f350382ca02d7f28e101ae1d67",
+    "extlibs/xcron/tests/timezone_probe.c": "11f4a6a767012739e2ae25105611cfc38c14cfc56257d105863a9871102c7af0",
+    "extlibs/xcron/tests/zoned_probe.c": "41a8b45c8be6606c7ccf9ec50f368dd6ae25b87cdb33642e36c8df7601f59000",
+    "extlibs/xcron/examples/calendar/main.c": "2a35367dd6dffac62516e85232ce1e15b841d4a5e3915208c40bf707a5f91026",
+    "extlibs/xcron/examples/executor/main.c": "8f5be1e337072860b6d8ece1d7026cb6969624152be99654da492f9cf382a152",
+    "extlibs/xcron/examples/expression/main.c": "3e46802d46463d4adaf47fe9b2fa9dcc763cfed0a5f7638965c5ddff0aecd985",
+    "extlibs/xcron/examples/scheduler/main.c": "0fda41f7f4d3c9cc68edfa4487ff7334f89dae40b8cf304abeb71074f9f6a159",
+    "extlibs/xcron/examples/service/main.c": "0841fb26212f58766106d0bc5eee75bb78b1568db9ce9e554cc47a920779677e",
+    "extlibs/xcron/examples/timezone/main.c": "0f81086a077b5c7e14dad4038d8a1edb2a57195233a5a395c8310bd6925cf95e",
+    "extlibs/xcron/examples/tzif/main.c": "1cb35ad782a5fedae6f7ef58de326631e9fb41dada7abc13d1037b0d4ab8d450",
+    "extlibs/xcron/examples/zoned/main.c": "e0fe22c5e684df9092480941119fe780c256e5378b05f9a642b13bd4574abb14",
+    "extlibs/xcron/tests/package/test_consumer.c": "38ac268498374ed7b4fcb2adc021b7febddf00069d63501fff2e597d507efbfc",
+    "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "ea6362ef454f18ad2e22a21fa318b7dada0ce5aced0ad5a2a28cd3d83b4fe51e",
+    "extlibs/xcron/tests/single/test_single_xcron_executor.c": "aa01f00ffffd20c8ad5f86c491ad59a0a2b6866d64dd33297c9985c59c0e2716",
+    "extlibs/xcron/tests/single/test_single_xcron_expression.c": "c20c024ccbe918eb7f5caf7cf0b737d69f502c51fef0037a77399e426eb97332",
+    "extlibs/xcron/tests/single/test_single_xcron_scheduler.c": "ebf766b8241dc172c05fb0b52a2ba4082a06fa964b8761bb8c5e05a0af11ac7c",
+    "extlibs/xcron/tests/single/test_single_xcron_service.c": "b02e51ff202c297ad2482b08fe886ff72acc46ca90de0dd9fd312d873e295385",
+    "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "4ec6bd49c228ed775760a86a71fc2e240ad042cea4da677ff6f56d09e6e0b8a8",
+    "extlibs/xcron/tests/single/test_single_xcron_tzif.c": "73d230d73bf42a5e2530ba6425aac8883ef3bea367980d1f47090918bb8d4be3",
+    "extlibs/xcron/tests/single/test_single_xcron_zoned.c": "c575f6dc88c2fcdeeec0b0b2a039e9b2dcb740e6c99ab29289fc61761944ae63",
+    "extlibs/xcron/include/xcron.h": "b07831c25a329e575fc037b3c4a72c5a70531a13bc81b3eae1580e34f297830e",
+    "extlibs/xcron/tests/test.h": "3b359c01869d15d21294fbaf6e19320b97ca39f866738b929c37dd876743aeef",
+    "extlibs/xcron/tests/tzif_fixture.h": "73798b17e54d05de81981f7c60872fe6d173dd21d3ed220943bdddabbf33e35e",
+    "extlibs/xcron/include/xcron/calendar.h": "a2af0daf860bb6682e2959eacbae8a98bb964c760603595cf1d611b58301865a",
+    "extlibs/xcron/include/xcron/executor.h": "1229b02b86c2154f436587805beeb178930e65e481e4537bb51422d23f5f6860",
+    "extlibs/xcron/include/xcron/export.h": "236644541e0c0494a9835e83c2270d1f2858fb92dd09cc1a63e666204847ffb2",
+    "extlibs/xcron/include/xcron/expression.h": "2fccf5fd87ee9c57848dd7f5d0ea6e55f1b58305fd33a4d017e0dfc98f3b4f19",
+    "extlibs/xcron/include/xcron/features.h": "67cfbb9d4c7e54284d0de51931ad622479d982ea86b9e7595985120e14dc279c",
+    "extlibs/xcron/include/xcron/scheduler.h": "3f426d7dc07afaab08452c2fffbe8bdacf716f9968d2f26771743fd1cb217b75",
+    "extlibs/xcron/include/xcron/service.h": "08083615163992431f305e6cd0a3e3bf85e4296cbb5259f6630cec23c495a2f6",
+    "extlibs/xcron/include/xcron/timezone.h": "d02d6a0e68d453396bf60b9d61424cd7e0cc5330eeb7ea1588f425c3715e5249",
+    "extlibs/xcron/include/xcron/zoned.h": "bdc95b65f7cb8c9bfcaf5a313f3f8ec2b04c4343d9ed220df5bb1eb8712eff2b",
+    "extlibs/xcron/src/calendar/calendar_internal.h": "e59a71dc22e6a1ca1d24a78ae4cf3c44730cd6171809b0d5d8fd80667ae0228a",
+    "extlibs/xcron/src/timezone/timezone_internal.h": "90d85d0730c6721328ebc632035be49e248fb08150907aabc6db6c2e1b8f8ce6",
+    "extlibs/xcron/src/zoned/zoned_internal.h": "6b2f17a87401d41613181e30bb079cfb20641069033233e69d47b0c30a6ad427",
+    "extlibs/xcron/config/modules.json": "def962d6b8fe1d5753e314a914dbeea4f8da25ad8fe9db210377d72fc8552784",
+    "extlibs/xcron/config/performance_profiles.json": "4353ae1fdcbc24e204e3e882ac2e2ae0cf52cad76b2c57eb05dfbdbb07e07ee5",
+    "extlibs/xcron/config/size_profiles.json": "3e4e2523cc56b2d660dbcc37031e25e7aea2ef8c57681c09f51c77e2b6c077f0",
+    "single/extlibs/xcron.h": "75d654ed354dafe82d6e24a998614f6d63bb2a9dc1b6e3e04eca6cac4b4532ec",
+    "single/extlibs/xcron_decl.h": "b4414e8037b6e52f9cb5cb9c1286428ad8b9d6e41ab438b222afac078b173b2b"
+  },
+  "validation_counts": {
+    "modular_single_programs": 36,
+    "offline_examples": 16,
+    "package_consumer_runs": 12,
+    "tsan_programs": 1,
+    "tool_tests": 26,
+    "service_unit_executions": 13,
+    "concurrent_info_requests_per_unit": 512,
+    "concurrent_info_requests": 6656,
+    "close_races_per_unit": 8,
+    "close_races": 104,
+    "warm_cycles_per_unit": 2048,
+    "warm_cycles": 26624,
+    "zero_heap_asserted_units": 7,
+    "zero_heap_asserted_cycles": 14336,
+    "scheduler_model_samples": 368640
+  },
+  "notes": [
+    "Actual public-XRT dedicated live owner and borrowed Executor; 14 public APIs; no new shared runtime or private Core API. Component snapshots can lag owner turns and retain final adapter layout bytes after physical adapter release.",
+    "Native Windows GCC O2; WSL GCC O2 ASan/UBSan/leak-halt modular/single/examples; final root/leaf packages plain O2 with real consumers. Separate complete WSL GCC O1 TSan unit passes with the retained atomic_thread_fence warning.",
+    "Completion output is reserved before kernel Poll. Metadata has no Data pointer. Close and physical join can finish before replies/results/retirement are consumed; destruction never consumes caller Data duties.",
+    "Thirteen service units include four final static/shared leaf units. Every unit includes actual clocks/folds/wall jumps, retry success/attempt/elapsed bounds, held-owner queue close, unrelated-pool and owner self-wait rejection, clock failures, physical results/cancellation, racing collectors, 512 concurrent Info requests and eight four-producer Add/Close races.",
+    "All units execute 2048 warmed dispatch cycles; requested-heap zero-allocation assertions are enabled in seven memory-stats/TSan-selected units (14336 cycles), not claimed for uninstrumented package units. Observed cold creator-thread/kernel/adapter allocation prefix quotas release all live charges.",
+    "Smoke is one 32-arrival UTC tick per platform: Windows observed start P99/max 13ms, owner-sample-to-worker P99 0.587ms; WSL start P99/max 0ms at millisecond quantization, owner-to-worker P99 0.808ms. Zero means below reporting resolution, not zero latency. This is not isolated native-pool queue delay, maximum throughput or P99 acceptance. No favorable timing retries.",
+    "Initial Windows final-unit consumer build lacked the selected Core feature flags because its shared test harness includes Core before extension features. The validation harness now supplies the real leaf closure; source stayed unchanged and already-passed measurement/tool steps were reused. Production example/header/package consumers use the public module selection directly.",
+    "Size outputs were frozen before final plain-O2 package consumers; final artifacts and source hashes are checked. All final C/H inputs stayed frozen while compilers ran.",
+    "No pinned throughput/P99, native Linux, >=72h or production acceptance. Named-zone database/reload, leap-aware conversion, durable recovery, nominal DST policies and bounded recurrence CPU work remain, alongside the full MQTT/Redis/RPC scope."
+  ]
+}

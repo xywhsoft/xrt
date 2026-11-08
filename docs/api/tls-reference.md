@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [tls.md](tls.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `269` 个函数、`242` 个常量或宏、
-`101` 个公共类型。
+当前登记 `341` 个函数、`251` 个常量或宏、
+`107` 个公共类型。
 
 ## `include/xrt/tls.h`
 
@@ -425,7 +425,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_client.h)
 
-### 函数 (10)
+### 函数 (13)
 
 - `xrtTlsClientCertificate`
 - `xrtTlsClientCertificateCount`
@@ -437,18 +437,48 @@
 - `xrtTlsClientResumeDropped`
 - `xrtTlsClientResumed`
 - `xrtTlsClientTakeResume`
+- `xrtTlsResumePeerCertificateCountV1`
+- `xrtTlsResumePeerCertificateV1`
+- `xrtTlsResumeWithPeerCertificatesV1`
 
 ### 常量与宏 (2)
 
 - `XTLS_CLIENT_RESUME_LIMIT_DEFAULT`
 - `XTLS_CLIENT_RESUME_LIMIT_MAX`
 
-### 类型 (4)
+### 类型 (5)
 
 - `xtlsclientconfig`
 - `xtlsresume`
 - `xtlssession`
 - `xtlsverifier`
+- `xtlsverifylimits`
+
+## `include/xrt/tls_client_auth.h`
+
+[查看带契约注释的公共头](../../include/xrt/tls_client_auth.h)
+
+### 函数 (3)
+
+- `xrtTlsClientAuthConfigInitV1`
+- `xrtTlsClientCertificateQueuedV1`
+- `xrtTlsClientCreateAuthV1`
+
+### 常量与宏 (8)
+
+- `XTLS_CLIENT_AUTH_AUTHORITIES_MAX`
+- `XTLS_CLIENT_AUTH_BYTES_MAX`
+- `XTLS_CLIENT_AUTH_CERTIFICATES_DEFAULT`
+- `XTLS_CLIENT_AUTH_CERTIFICATES_MAX`
+- `XTLS_CLIENT_AUTH_CERTIFICATE_BYTES_DEFAULT`
+- `XTLS_CLIENT_AUTH_OID_FILTERS_MAX`
+- `XTLS_CLIENT_AUTH_OID_VALUES_MAX`
+- `XTLS_CLIENT_AUTH_TRANSCRIPT_BYTES_DEFAULT`
+
+### 类型 (2)
+
+- `xtlsclientauthconfigv1`
+- `xtlsidentity`
 
 ## `include/xrt/tls_identity.h`
 
@@ -470,9 +500,8 @@
 - `xrtTlsIdentitySign`
 - `xrtTlsIdentityType`
 
-### 类型 (5)
+### 类型 (4)
 
-- `xtlsidentity`
 - `xtlsidentityconfig`
 - `xtlsidentityreleaseproc`
 - `xtlsidentitysignproc`
@@ -501,8 +530,9 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_server.h)
 
-### 函数 (9)
+### 函数 (10)
 
+- `xrtTlsServerChoiceSetIdentityV1`
 - `xrtTlsServerConfigInit`
 - `xrtTlsServerCookie`
 - `xrtTlsServerCreate`
@@ -533,8 +563,9 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_session.h)
 
-### 函数 (29)
+### 函数 (31)
 
+- `xrtTlsSessionBufferOwnershipTrace`
 - `xrtTlsSessionCipher`
 - `xrtTlsSessionClose`
 - `xrtTlsSessionContext`
@@ -546,6 +577,7 @@
 - `xrtTlsSessionFeedRef`
 - `xrtTlsSessionFeedSize`
 - `xrtTlsSessionFeedTake`
+- `xrtTlsSessionOwnershipTrace`
 - `xrtTlsSessionPeerAlert`
 - `xrtTlsSessionPlainConsume`
 - `xrtTlsSessionPlainFront`
@@ -582,17 +614,39 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_stream.h)
 
-### 函数 (53)
+### 函数 (106)
 
 - `xrtTlsDial`
 - `xrtTlsDialAsync`
+- `xrtTlsDialAsyncOwnedV1`
 - `xrtTlsDialCancel`
 - `xrtTlsDialConfigInit`
 - `xrtTlsDialDestroy`
 - `xrtTlsDialError`
+- `xrtTlsDialFutureCancelPolicyV1Get`
+- `xrtTlsDialFutureContextOwnershipAdapterV1`
+- `xrtTlsDialFutureContextOwnershipQuiescenceV1Get`
+- `xrtTlsDialFutureDialPolicyV1Get`
+- `xrtTlsDialFutureDialPushPolicyV1Get`
+- `xrtTlsDialFutureOwnershipAdapterV1`
+- `xrtTlsDialFutureOwnershipQuiescenceV1Get`
+- `xrtTlsDialFuturePayloadPolicyV1Get`
+- `xrtTlsDialFutureProducerPolicyV1Get`
+- `xrtTlsDialOwnedV1`
+- `xrtTlsDialOwnership`
+- `xrtTlsDialOwnershipAdapterV1`
+- `xrtTlsDialOwnershipQuiescenceV1Get`
 - `xrtTlsDialProxy`
+- `xrtTlsDialProxyAsyncOwnedV1`
+- `xrtTlsDialProxyOwnedV1`
+- `xrtTlsDialProxyTransportOwnershipV1Get`
 - `xrtTlsDialRef`
+- `xrtTlsDialRuntimeOwnershipV1Get`
 - `xrtTlsDialState`
+- `xrtTlsDialStreamOwnershipV1Get`
+- `xrtTlsDialStreamPushOwnershipV1Get`
+- `xrtTlsDialTimerOwnershipV1Get`
+- `xrtTlsDialTransportOwnershipV1Get`
 - `xrtTlsDialTransportStats`
 - `xrtTlsListenerAccept`
 - `xrtTlsListenerAcceptAsync`
@@ -601,32 +655,62 @@
 - `xrtTlsListenerConfigInit`
 - `xrtTlsListenerData`
 - `xrtTlsListenerDestroy`
+- `xrtTlsListenerFutureCancelPolicyV1Get`
+- `xrtTlsListenerFutureOwnershipAdapterV1`
+- `xrtTlsListenerFutureOwnershipQuiescenceV1Get`
+- `xrtTlsListenerFutureProducerPolicyV1Get`
+- `xrtTlsListenerFutureStreamPayloadPolicyV1Get`
 - `xrtTlsListenerLocal`
+- `xrtTlsListenerOwnership`
+- `xrtTlsListenerOwnershipAdapterV1`
+- `xrtTlsListenerOwnershipQuiescenceV1Get`
 - `xrtTlsListenerRef`
+- `xrtTlsListenerRuntimeOwnershipV1Get`
 - `xrtTlsListenerStart`
+- `xrtTlsListenerStartOwnedV1`
 - `xrtTlsListenerState`
 - `xrtTlsListenerStats`
+- `xrtTlsListenerStreamOwnershipV1Get`
+- `xrtTlsListenerStreamPushOwnershipV1Get`
+- `xrtTlsListenerStreamRecordOwnershipAdapterV1`
+- `xrtTlsListenerStreamRecordOwnershipQuiescenceV1Get`
+- `xrtTlsListenerTransportOwnershipV1Get`
 - `xrtTlsStreamAbort`
 - `xrtTlsStreamAccept`
+- `xrtTlsStreamAcceptOwnedV1`
 - `xrtTlsStreamAsyncBytes`
 - `xrtTlsStreamAsyncCount`
 - `xrtTlsStreamAttach`
+- `xrtTlsStreamAttachOwnedV1`
 - `xrtTlsStreamAvailable`
+- `xrtTlsStreamBindEventsOwnedV1`
 - `xrtTlsStreamBuffer`
 - `xrtTlsStreamClient`
+- `xrtTlsStreamClientOwnedV1`
 - `xrtTlsStreamClose`
 - `xrtTlsStreamConfigInit`
 - `xrtTlsStreamConnect`
+- `xrtTlsStreamConnectOwnedV1`
 - `xrtTlsStreamConsume`
 - `xrtTlsStreamData`
 - `xrtTlsStreamDestroy`
 - `xrtTlsStreamError`
+- `xrtTlsStreamFlush`
+- `xrtTlsStreamFutureBytesPayloadPolicyV1Get`
+- `xrtTlsStreamFutureCancelPolicyV1Get`
+- `xrtTlsStreamFutureOwnershipAdapterV1`
+- `xrtTlsStreamFutureOwnershipQuiescenceV1Get`
+- `xrtTlsStreamFutureProducerPolicyV1Get`
+- `xrtTlsStreamOwnership`
+- `xrtTlsStreamOwnershipAdapterV1`
+- `xrtTlsStreamOwnershipQuiescenceV1Get`
 - `xrtTlsStreamPending`
 - `xrtTlsStreamPullup`
 - `xrtTlsStreamRead`
 - `xrtTlsStreamReadMore`
 - `xrtTlsStreamRecvAsync`
 - `xrtTlsStreamRef`
+- `xrtTlsStreamRuntimeOwnershipV1Get`
 - `xrtTlsStreamSend`
 - `xrtTlsStreamSendAsync`
 - `xrtTlsStreamSendBound`
@@ -636,6 +720,7 @@
 - `xrtTlsStreamSetEvents`
 - `xrtTlsStreamState`
 - `xrtTlsStreamTransport`
+- `xrtTlsStreamTransportOwnershipV1Get`
 - `xrtTlsStreamWaitAsync`
 
 ### 常量与宏 (26)
@@ -667,20 +752,23 @@
 - `XTLS_STREAM_WAIT_READ`
 - `XTLS_STREAM_WAIT_WRITE`
 
-### 类型 (14)
+### 类型 (17)
 
 - `xtlsdial`
 - `xtlsdialconfig`
+- `xtlsdialownershipv1`
 - `xtlsdialproc`
 - `xtlsdialstate`
 - `xtlslistener`
 - `xtlslistenerconfig`
 - `xtlslistenerevents`
+- `xtlslistenerownershipv1`
 - `xtlslistenerstate`
 - `xtlslistenerstats`
 - `xtlsstream`
 - `xtlsstreamconfig`
 - `xtlsstreamevents`
+- `xtlsstreamownershipv1`
 - `xtlsstreamstate`
 - `xtlsstreamwait`
 
@@ -688,29 +776,41 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_verify.h)
 
-### 函数 (8)
+### 函数 (18)
 
 - `xrtTls12ServerKeyExchangeVerify`
 - `xrtTls13CertificateVerifySignature`
 - `xrtTlsPeerVerify`
+- `xrtTlsPeerVerifyLimited`
 - `xrtTlsVerifierConfigInit`
 - `xrtTlsVerifierCreate`
+- `xrtTlsVerifierCreateFlagsV1`
+- `xrtTlsVerifierCreateLimited`
+- `xrtTlsVerifierCreateOwnedFlagsV1`
+- `xrtTlsVerifierCreateOwnedV1`
+- `xrtTlsVerifierFlagsV1`
+- `xrtTlsVerifierOwnership`
+- `xrtTlsVerifierOwnershipAdapterV1`
+- `xrtTlsVerifierOwnershipQuiescenceV1Get`
 - `xrtTlsVerifierRelease`
 - `xrtTlsVerifierRetain`
 - `xrtTlsVerifierVerify`
+- `xrtTlsVerifyLimitsInit`
 
-### 常量与宏 (4)
+### 常量与宏 (5)
 
 - `XTLS_VERIFY_ACCEPT`
 - `XTLS_VERIFY_DEFAULT`
 - `XTLS_VERIFY_ERROR`
 - `XTLS_VERIFY_REJECT`
+- `XTLS_VERIFY_RESUME_PEER_V1`
 
-### 类型 (8)
+### 类型 (9)
 
 - `xtlspeer`
 - `xtlsverifiedpeer`
 - `xtlsverifierconfig`
+- `xtlsverifiercontextownershipv1`
 - `xtlsverifydecision`
 - `xtlsverifypolicyproc`
 - `xtlsverifyproc`

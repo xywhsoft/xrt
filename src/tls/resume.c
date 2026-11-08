@@ -9,6 +9,9 @@ struct xtlsresume {
 	volatile int32 RefCount;
 	xtlsresumeinfo Info;
 	size_t AllocationSize;
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		struct xtlsclientpeer* Peer;
+	#endif
 };
 
 
@@ -307,9 +310,32 @@ XRT_API void xrtTlsResumeRelease(xtlsresume* pResume)
 		return;
 	}
 	iSize = pResume->AllocationSize;
+	#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+		__xrtTlsClientPeerRelease(pResume->Peer);
+	#endif
 	xrtSecureZero(pResume, iSize);
 	xrtFree(pResume);
 }
+
+#if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
+struct xtlsclientpeer* __xrtTlsResumePeer(const xtlsresume* pResume)
+{
+	return pResume ? pResume->Peer : NULL;
+}
+
+bool __xrtTlsResumePeerAttach(xtlsresume* pResume, struct xtlsclientpeer* pPeer)
+{
+	if (!pResume || pResume->Peer || !pPeer ||
+		pResume->RefCount != 1) {
+		return __xrtTlsResumeError(XERR_STATE, XTLS_ERROR_STATE,
+			"attach-tls-resume-peer", "TLS resume peer requires an unpublished ticket");
+	}
+	struct xtlsclientpeer* pHeld = __xrtTlsClientPeerRetain(pPeer);
+	if (!pHeld) return false;
+	pResume->Peer = pHeld;
+	return true;
+}
+#endif
 
 
 

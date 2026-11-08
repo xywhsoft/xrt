@@ -315,6 +315,9 @@
 #if !defined(XRT_FEATURE_EVENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT 1
 #endif
+#if !defined(XRT_FEATURE_EVENT_WAITER)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER 1
+#endif
 #if !defined(XRT_FEATURE_EXECUTOR)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR 1
 #endif
@@ -582,6 +585,9 @@
 #if !defined(XRT_FEATURE_NET_FILE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE 1
 #endif
+#if !defined(XRT_FEATURE_NET_FILE_FUTURE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE 1
+#endif
 #if !defined(XRT_FEATURE_NET_FRAME)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME 1
 #endif
@@ -662,6 +668,9 @@
 #endif
 #if !defined(XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE 1
+#endif
+#if !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE 1
 #endif
 #if !defined(XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER 1
@@ -899,6 +908,9 @@
 #endif
 #if !defined(XRT_FEATURE_TLS_CLIENT)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT 1
+#endif
+#if !defined(XRT_FEATURE_TLS_CLIENT_AUTH)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH 1
 #endif
 #if !defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_RESUME 1
@@ -1221,11 +1233,17 @@
 #if !defined(XRT_MODULE_FILE_WHOLE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_WHOLE 1
 #endif
+#if !defined(XRT_MODULE_FUTURE_BRIDGE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE_BRIDGE 1
+#endif
 #if !defined(XRT_MODULE_HTTP1_BODY)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY 1
 #endif
 #if !defined(XRT_MODULE_JSON_READ)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ 1
+#endif
+#if !defined(XRT_MODULE_JSON_WRITE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_WRITE 1
 #endif
 #if !defined(XRT_MODULE_MUTEX)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_MUTEX 1
@@ -1271,6 +1289,9 @@
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_FUTURE 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM_DIAL_PROXY)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_PROXY 1
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_FUTURE 1
@@ -1566,6 +1587,9 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT)
 #define XRT_FEATURE_EVENT 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER)
+#define XRT_FEATURE_EVENT_WAITER 1
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR)
 #define XRT_FEATURE_EXECUTOR 1
 #endif
@@ -1833,6 +1857,9 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE)
 #define XRT_FEATURE_NET_FILE 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE)
+#define XRT_FEATURE_NET_FILE_FUTURE 1
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME)
 #define XRT_FEATURE_NET_FRAME 1
 #endif
@@ -1913,6 +1940,9 @@
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE)
 #define XRT_FEATURE_NET_TCP_FUTURE 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#define XRT_FEATURE_NET_TCP_RETIRE 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #define XRT_FEATURE_NET_TCP_SERVER 1
@@ -2150,6 +2180,9 @@
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT)
 #define XRT_FEATURE_TLS_CLIENT 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH)
+#define XRT_FEATURE_TLS_CLIENT_AUTH 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_RESUME)
 #define XRT_FEATURE_TLS_CLIENT_RESUME 1
@@ -2554,6 +2587,15 @@
 #ifndef XRT_MODULE_TIME
 #define XRT_MODULE_TIME
 #endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL_PROXY
+#define XRT_MODULE_TLS_STREAM_DIAL_PROXY
+#endif
+#ifndef XRT_MODULE_JSON_WRITE
+#define XRT_MODULE_JSON_WRITE
+#endif
 #endif
 
 #endif /* XLLM_FEATURES_H */
@@ -2568,6 +2610,16 @@
 
 
 #if defined(XLLM_FEATURE_XLLM)
+
+#if !defined(XRT_FEATURE_FUTURE_BRIDGE)
+#error "xllm requires future_bridge (XRT_FEATURE_FUTURE_BRIDGE)"
+#endif
+#if !defined(XRT_FEATURE_TLS_STREAM_DIAL_PROXY)
+#error "xllm requires tls_stream_dial_proxy (XRT_FEATURE_TLS_STREAM_DIAL_PROXY)"
+#endif
+#if !defined(XRT_FEATURE_JSON_WRITE)
+#error "xllm requires json_write (XRT_FEATURE_JSON_WRITE)"
+#endif
 
 /* The selected product requires its complete declared dependency set. */
 #if !defined(XRT_FEATURE_JSON_READ)
@@ -2669,8 +2721,24 @@ extern "C" {
 #endif
 
 #define XLLM_VERSION_MAJOR 3
-#define XLLM_VERSION_MINOR 0
+#define XLLM_VERSION_MINOR 2
 #define XLLM_VERSION_PATCH 0
+
+/* Compatibility APIs remain source compatible in 3.1. Define
+ * XLLM_ENABLE_DEPRECATED_WARNINGS before including this header when migrating
+ * new code and the compiler will identify calls that belong in xllm-session
+ * or in create/request-time configuration. */
+#if defined(XLLM_ENABLE_DEPRECATED_WARNINGS)
+#  if defined(_MSC_VER)
+#    define XLLM_DEPRECATED(sMessage) __declspec(deprecated(sMessage))
+#  elif defined(__GNUC__) || defined(__clang__)
+#    define XLLM_DEPRECATED(sMessage) __attribute__((deprecated(sMessage)))
+#  else
+#    define XLLM_DEPRECATED(sMessage)
+#  endif
+#else
+#  define XLLM_DEPRECATED(sMessage)
+#endif
 
 typedef struct xllm_client xllm_client;
 typedef struct xllm_call xllm_call;
@@ -2682,7 +2750,6 @@ typedef struct xnetengine xnetengine;
 typedef struct xfuture xfuture;
 typedef struct xx509store xx509store;
 
-/* Call outcome (ok / error / timeout / cancelled). */
 typedef enum xllm_result {
     XLLM_RESULT_OK = 0,
     XLLM_RESULT_ERROR = -1,
@@ -2690,7 +2757,6 @@ typedef enum xllm_result {
     XLLM_RESULT_CANCELLED = -3
 } xllm_result;
 
-/* Stable error categories (argument, OOM, network, protocol, auth, ...). */
 typedef enum xllm_error_code {
     XLLM_ERROR_NONE = 0,
     XLLM_ERROR_INVALID_ARGUMENT,
@@ -2711,7 +2777,52 @@ typedef enum xllm_error_code {
     XLLM_ERROR_OUTPUT_LIMIT /* output cap interrupted a tool-call generation */
 } xllm_error_code;
 
-/* Retry diagnostics (attempt, limit, retry-after, retryable). */
+typedef enum xllm_error_domain {
+    XLLM_ERROR_DOMAIN_NONE = 0,
+    XLLM_ERROR_DOMAIN_API,
+    XLLM_ERROR_DOMAIN_MEMORY,
+    XLLM_ERROR_DOMAIN_TRANSPORT,
+    XLLM_ERROR_DOMAIN_PROVIDER,
+    XLLM_ERROR_DOMAIN_PARSER,
+    XLLM_ERROR_DOMAIN_HOOK,
+    XLLM_ERROR_DOMAIN_RESOURCE
+} xllm_error_domain;
+
+typedef enum xllm_error_stage {
+    XLLM_ERROR_STAGE_NONE = 0,
+    XLLM_ERROR_STAGE_VALIDATE,
+    XLLM_ERROR_STAGE_BUILD_REQUEST,
+    XLLM_ERROR_STAGE_RESOLVE,
+    XLLM_ERROR_STAGE_CONNECT,
+    XLLM_ERROR_STAGE_PROXY,
+    XLLM_ERROR_STAGE_TLS,
+    XLLM_ERROR_STAGE_WRITE,
+    XLLM_ERROR_STAGE_READ,
+    XLLM_ERROR_STAGE_HTTP,
+    XLLM_ERROR_STAGE_PARSE,
+    XLLM_ERROR_STAGE_PROVIDER,
+    XLLM_ERROR_STAGE_HOOK,
+    XLLM_ERROR_STAGE_LIMIT,
+    XLLM_ERROR_STAGE_WAIT
+} xllm_error_stage;
+
+#define XLLM_ERROR_CAUSE_VERSION 1u
+
+/* Owned inline cause snapshot. It never stores request headers, bodies,
+ * credentials, or xrt error data. Runtime kind/code are the numeric values
+ * reported by the underlying xrt error when one exists; zero means absent. */
+typedef struct xllm_error_cause {
+    uint32_t Size;
+    uint32_t Version;
+    xllm_error_domain eDomain;
+    xllm_error_stage eStage;
+    int32_t iRuntimeKind;
+    int32_t iRuntimeCode;
+    int32_t iSystemCode;
+    char sOperation[48];
+    char sMessage[192];
+} xllm_error_cause;
+
 typedef struct xllm_diagnostics {
     uint32_t uAttemptCount;
     uint32_t uMaxAttempts;
@@ -2739,14 +2850,16 @@ typedef struct xllm_diagnostics {
     uint64_t uRequestBytes;
     uint64_t uResponseBodyBytes;
     uint64_t uContextDeadlineMs;
-    int64 uEffectiveTimeoutMs;
+    uint64_t uEffectiveTimeoutMs;
     char sTransportError[32];
     char sTransportPhase[32];
     char sContextStatus[32];
     char sDialect[24];
+    /* An exact, case-insensitive Idempotency-Key extra header was present.
+     * This records caller intent; the selected provider must honor the key. */
+    bool bIdempotencyKeyPresent;
 } xllm_diagnostics;
 
-/* Full error detail with transport and HTTP status plus message. */
 typedef struct xllm_error {
     xllm_error_code eCode;
     int32_t iTransportStatus;
@@ -2757,9 +2870,9 @@ typedef struct xllm_error {
     char sProviderType[64];
     char sRequestId[160];
     xllm_diagnostics tDiagnostics;
+    xllm_error_cause tCause;
 } xllm_error;
 
-/* Chat roles (system, user, assistant, tool). */
 typedef enum xllm_role {
     XLLM_ROLE_SYSTEM = 0,
     XLLM_ROLE_USER,
@@ -2767,7 +2880,6 @@ typedef enum xllm_role {
     XLLM_ROLE_TOOL
 } xllm_role;
 
-/* Wire dialect selection (OpenAI-compatible, GLM, Responses, Anthropic). */
 typedef enum xllm_provider {
     XLLM_PROVIDER_OPENAI_COMPAT = 0,
     XLLM_PROVIDER_GLM,
@@ -2775,11 +2887,16 @@ typedef enum xllm_provider {
     XLLM_PROVIDER_ANTHROPIC
 } xllm_provider;
 
+typedef enum xllm_proxy_kind {
+    XLLM_PROXY_NONE = 0,
+    XLLM_PROXY_SOCKS5,
+    XLLM_PROXY_HTTP_CONNECT
+} xllm_proxy_kind;
+
 /* ------------------------------------------------------------------ */
 /* Multimodal content parts                                            */
 /* ------------------------------------------------------------------ */
 
-/* Multimodal part kinds (text, reasoning, image, audio, file, native). */
 typedef enum xllm_part_kind {
     XLLM_PART_TEXT = 0,   /* UTF-8 text */
     XLLM_PART_REASONING,  /* replayed assistant reasoning text */
@@ -2789,7 +2906,6 @@ typedef enum xllm_part_kind {
     XLLM_PART_NATIVE      /* provider-native JSON part, replayed verbatim */
 } xllm_part_kind;
 
-/* One multimodal part; fields are owned copies set by the Set* helpers. */
 typedef struct xllm_part {
     xllm_part_kind eKind;
     char* sText;          /* TEXT/REASONING: content; NATIVE: raw JSON object */
@@ -2801,21 +2917,16 @@ typedef struct xllm_part {
     size_t iDataSize;
 } xllm_part;
 
-/* Zero-init a part of the given kind; fill it with the xllmPartSet* helpers. */
 XRT_API void xllmPartInit(xllm_part* pPart, xllm_part_kind eKind);
 /* Release a part constructed with the xllmPartSet* helpers (deep frees). */
 XRT_API void xllmPartUnit(xllm_part* pPart);
-/* Set plain-text content; the string is copied. */
+/* Allocating setters are failure-atomic: false leaves the prior part value
+ * valid and unchanged. */
 XRT_API bool xllmPartSetText(xllm_part* pPart, const char* sText);
-/* Attach inline image bytes (copied); mediaType e.g. "image/png". */
 XRT_API bool xllmPartSetImageData(xllm_part* pPart, const void* pData, size_t iSize, const char* sMediaType);
-/* Attach an image by remote URL; mediaType e.g. "image/jpeg". */
 XRT_API bool xllmPartSetImageUrl(xllm_part* pPart, const char* sUrl, const char* sMediaType);
-/* Attach inline audio bytes (copied); mediaType e.g. "audio/wav". */
 XRT_API bool xllmPartSetAudioData(xllm_part* pPart, const void* pData, size_t iSize, const char* sMediaType);
-/* Attach inline file bytes (copied); mediaType carries the document type. */
 XRT_API bool xllmPartSetFileData(xllm_part* pPart, const void* pData, size_t iSize, const char* sMediaType);
-/* Attach a provider-native part (raw JSON); replayed verbatim on the wire. */
 XRT_API bool xllmPartSetNative(xllm_part* pPart, const char* sNativeType, const char* sJson);
 
 /* ------------------------------------------------------------------ */
@@ -2832,7 +2943,6 @@ typedef struct xllm_tool_call {
     char* sArgumentsJson;
 } xllm_tool_call;
 
-/* A chat message: role, text fast path, reasoning, tool calls, parts. */
 typedef struct xllm_message {
     xllm_role eRole;
     /* Text content must be valid UTF-8; the setters reject anything else
@@ -2853,7 +2963,6 @@ typedef struct xllm_message {
 /* Tools                                                               */
 /* ------------------------------------------------------------------ */
 
-/* A tool registration (name, description, JSON schema, strict flag). */
 typedef struct xllm_tool {
     char* sName;
     char* sDescription;
@@ -2861,7 +2970,6 @@ typedef struct xllm_tool {
     bool bStrict;
 } xllm_tool;
 
-/* Tool selection mode (auto / none / required / named). */
 typedef enum xllm_tool_choice {
     XLLM_TOOL_CHOICE_AUTO = 0,
     XLLM_TOOL_CHOICE_NONE,
@@ -2873,7 +2981,6 @@ typedef enum xllm_tool_choice {
 /* Usage, finish, response                                             */
 /* ------------------------------------------------------------------ */
 
-/* Token usage reported by the provider (input, output, cached, reasoning). */
 typedef struct xllm_usage {
     uint64_t uInputTokens;
     uint64_t uOutputTokens;
@@ -2883,7 +2990,6 @@ typedef struct xllm_usage {
     uint64_t uReasoningTokens;
 } xllm_usage;
 
-/* Why generation stopped (stop, length, tool calls, content filter). */
 typedef enum xllm_finish {
     XLLM_FINISH_STOP = 0,
     XLLM_FINISH_LENGTH,
@@ -2893,7 +2999,6 @@ typedef enum xllm_finish {
     XLLM_FINISH_OTHER
 } xllm_finish;
 
-/* Response block kinds (text, reasoning, tool call) in arrival order. */
 typedef enum xllm_block_kind {
     XLLM_BLOCK_TEXT = 0,
     XLLM_BLOCK_REASONING,
@@ -2909,7 +3014,6 @@ typedef struct xllm_block {
     char* sNative;        /* provider-native replay blob for this block */
 } xllm_block;
 
-/* Call statistics: usage plus timing milestones and byte counts. */
 typedef struct xllm_stats {
     xllm_usage tUsage;
     uint64_t uConnectMs;
@@ -2923,7 +3027,6 @@ typedef struct xllm_stats {
     bool bReusedConnection;
 } xllm_stats;
 
-/* Owned response: joined text plus ordered blocks and tool calls. */
 typedef struct xllm_response {
     char* sId;
     char* sModel;
@@ -2948,7 +3051,6 @@ typedef struct xllm_response {
 /* Streaming events                                                    */
 /* ------------------------------------------------------------------ */
 
-/* Streaming event kinds (response start, deltas, tool arguments, usage, done). */
 typedef enum xllm_event_kind {
     XLLM_EVENT_RESPONSE_START = 0,
     XLLM_EVENT_TEXT_DELTA,
@@ -2959,7 +3061,6 @@ typedef enum xllm_event_kind {
     XLLM_EVENT_RESPONSE_DONE
 } xllm_event_kind;
 
-/* One streaming event; the union payload is selected by kind. */
 typedef struct xllm_event {
     xllm_event_kind eKind;
     union {
@@ -3024,7 +3125,6 @@ typedef uint64_t xllm_capability_flags;
  * name this bit gates image, audio, and file parts alike. */
 #define XLLM_CAP_IMAGE_IN              (1ull << 11)
 
-/* Context window shape (shared context vs split input/output). */
 typedef enum xllm_window_mode {
     XLLM_WINDOW_UNSPECIFIED = 0,
     XLLM_WINDOW_SHARED_CONTEXT,
@@ -3047,65 +3147,59 @@ typedef struct xllm_model_profile {
     uint32_t uRecommendedSummaryTokens;
 } xllm_model_profile;
 
-/* Fill a model profile with safe defaults (no caps, no limits). */
 XRT_API void xllmModelProfileInit(xllm_model_profile* pProfile);
-/* Look up a built-in profile by id or model name; NULL when unknown. */
 XRT_API const xllm_model_profile* xllmModelProfileBuiltin(const char* sIdOrModel);
-/* Validate profile consistency (limits and caps); fills pError on failure. */
 XRT_API bool xllmModelProfileValidate(const xllm_model_profile* pProfile, xllm_error* pError);
-/* Test whether the profile declares every required capability bit. */
 XRT_API bool xllmModelProfileSupports(const xllm_model_profile* pProfile, xllm_capability_flags uRequired);
-/* Validate a request against the profile (model, tools, modalities, budgets). */
 XRT_API bool xllmModelProfileValidateRequest(const xllm_model_profile* pProfile,
     const xllm_request* pRequest, xllm_error* pError);
 
-/* Zero an error struct; reusable across failure paths. */
 XRT_API void xllmErrorInit(xllm_error* pError);
-/* Stable name for an error code (never NULL). */
 XRT_API const char* xllmErrorCodeName(xllm_error_code eCode);
-/* Stable name for a finish reason (never NULL). */
+XRT_API const char* xllmErrorDomainName(xllm_error_domain eDomain);
+XRT_API const char* xllmErrorStageName(xllm_error_stage eStage);
 XRT_API const char* xllmFinishReasonName(xllm_finish eFinish);
-/* Whether a call failed with this error may be retried per transport policy. */
+/* Classifies whether the failed attempt is safe for automatic replay. A
+ * post-write network failure requires bIdempotencyKeyPresent. */
 XRT_API bool xllmErrorRetryable(const xllm_error* pError);
 
 /* ------------------------------------------------------------------ */
 /* Message and request construction                                    */
 /* ------------------------------------------------------------------ */
 
-/* Start a message with the given role; add content via the Set and Add helpers. */
 XRT_API void xllmMessageInit(xllm_message* pMessage, xllm_role eRole);
-/* Deep-free a message (parts, strings, tool calls). */
 XRT_API void xllmMessageUnit(xllm_message* pMessage);
-/* Replace the text content; copied, fails only on OOM. */
+/* Setters preserve the prior logical value on allocation failure; Add*
+ * functions preserve the element count and ownership of existing entries. */
 XRT_API bool xllmMessageSetContent(xllm_message* pMessage, const char* sContent);
-/* Set the reasoning text captured from thinking models; copied. */
 XRT_API bool xllmMessageSetReasoning(xllm_message* pMessage, const char* sReasoningContent);
-/* Set the tool-call id this message answers (tool role). */
 XRT_API bool xllmMessageSetToolCallId(xllm_message* pMessage, const char* sToolCallId);
-/* Append a tool call (id, name, arguments JSON); all copied. */
 XRT_API bool xllmMessageAddToolCall(xllm_message* pMessage, const char* sId, const char* sName, const char* sArgumentsJson);
-/* Append a multimodal part; deep-copied. */
 XRT_API bool xllmMessageAddPart(xllm_message* pMessage, const xllm_part* pPart);
-/* Replace with a provider-native message body (raw JSON, replayed verbatim). */
 XRT_API bool xllmMessageSetNative(xllm_message* pMessage, const char* sNativeJson);
 
 /* Convenience: build a history assistant message from a completed response
- * (text, reasoning, tool calls; provider-native replay blobs are preserved). */
+ * (text, reasoning, tool calls). Signed thinking is stored as an ordered
+ * REASONING part followed by its opaque thinking_signature NATIVE part, with
+ * TEXT parts in original block order. Unsigned responses keep sContent. The
+ * output is independently owned; on allocation failure it is empty. Supply an
+ * uninitialized/empty output, as with xllmMessageInit. Tool calls retain order
+ * in their separate array. Other provider-native block types are not mapped. */
 XRT_API bool xllmMessageFromResponse(const xllm_response* pResponse, xllm_message* pMessage);
 
-/* JSON response mode (off or object). */
 typedef enum xllm_json_mode {
     XLLM_JSON_NONE = 0,
     XLLM_JSON_OBJECT
 } xllm_json_mode;
 
-/* Borrowed extra transport header. */
+/* Borrowed extra transport header. An Idempotency-Key header explicitly
+ * permits automatic network retry after request bytes have been written;
+ * callers must use it only with providers that honor that contract. */
 typedef struct xllm_header {
     const char* sName;
     const char* sValue;
 } xllm_header;
 
-/* Owned request: messages, tools, sampling, budgets, cancellation. */
 typedef struct xllm_request {
     xllm_message* pMessages;
     size_t iMessageCount;
@@ -3138,7 +3232,9 @@ typedef struct xllm_request {
     char* sExtraBodyJson;              /* owned raw JSON object, shallow-merged */
     /* Borrowed cancellation token; it must outlive this request's model call. */
     xcancel* pCancel;
-    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
+    /* Absolute xllmClockUs() deadline in microseconds; UINT64_MAX disables it. */
+    uint64_t uDeadline;
+    /* Relative milliseconds, resolved once when the call starts. */
     int64_t iTimeout;
     /* Borrowed per-call lifecycle hooks; replaces the client-level set. */
     const xllm_hooks* pHooks;
@@ -3151,46 +3247,33 @@ typedef struct xllm_request {
     size_t iStableMessages;
 } xllm_request;
 
-/* Zero a request and apply defaults; Unit frees everything it owns. */
 XRT_API void xllmRequestInit(xllm_request* pRequest);
-/* Deep-free the request contents (messages, tools, strings). */
 XRT_API void xllmRequestUnit(xllm_request* pRequest);
 /* Shallow-append a message whose strings the lender owns (ledger entries,
  * cached tool tables). The request must not outlive the lender; the lender
  * must not mutate the message while the request holds it. */
 XRT_API bool xllmRequestAddMessageView(xllm_request* pRequest, const xllm_message* pMessage);
-/* Attach a whole borrowed tool table (replaces any existing owned tools;
- * frees what it replaces). Same lifetime contract as AddMessageView. */
+/* Attach a whole borrowed tool table. The replacement is prepared before old
+ * owned tools are released, so false preserves the current table. Same
+ * lifetime contract as AddMessageView. */
 XRT_API bool xllmRequestSetToolsView(xllm_request* pRequest, const xllm_tool* pTools, size_t iCount);
-/* Override the model id; copied. */
 XRT_API bool xllmRequestSetModel(xllm_request* pRequest, const char* sModel);
-/* Set reasoning effort ("low"/"medium"/"high"). */
 XRT_API bool xllmRequestSetReasoningEffort(xllm_request* pRequest, const char* sEffort);
-/* Add a stop sequence (within the provider limit); copied. */
 XRT_API bool xllmRequestSetStop(xllm_request* pRequest, const char* sStop);
-/* Merge a JSON object into the wire body (top-level keys, shallow). */
 XRT_API bool xllmRequestSetExtraBody(xllm_request* pRequest, const char* sJsonObject);
-/* Bind a cancel token consulted during the call; borrowed. */
 XRT_API void xllmRequestSetCancel(xllm_request* pRequest, xcancel* pCancel);
-/* Per-call timeout in ms overriding the client default (0 keeps the default). */
 XRT_API void xllmRequestSetTimeout(xllm_request* pRequest, int64_t iTimeout);
-/* Choose tool selection mode (auto/none/required/named). */
+XRT_API void xllmRequestSetDeadline(xllm_request* pRequest, uint64_t uDeadline);
 XRT_API bool xllmRequestSetToolChoice(xllm_request* pRequest, xllm_tool_choice eChoice, const char* sNamedTool);
-/* Append a full message; deep-copied. */
 XRT_API bool xllmRequestAddMessage(xllm_request* pRequest, const xllm_message* pMessage);
-/* Convenience: append a text-only message. */
 XRT_API bool xllmRequestAddTextMessage(xllm_request* pRequest, xllm_role eRole, const char* sContent);
-/* Convenience: append a tool-role result answering a call id. */
 XRT_API bool xllmRequestAddToolResult(xllm_request* pRequest, const char* sToolCallId, const char* sContent);
-/* Register a tool (name, description, JSON schema); strict enforces the schema. */
 XRT_API bool xllmRequestAddTool(xllm_request* pRequest, const char* sName, const char* sDescription, const char* sParametersJson, bool bStrict);
 
-/* Free a response and everything it owns. */
 XRT_API void xllmResponseDestroy(xllm_response* pResponse);
 
 /* Deterministic lexical token estimates used by budget governance. */
 XRT_API uint64_t xllmEstimateTextTokens(const char* sText);
-/* Rough token estimate for budget checks; no model call. */
 XRT_API uint64_t xllmEstimateMessageTokens(const xllm_message* pMessage);
 
 /* ------------------------------------------------------------------ */
@@ -3227,44 +3310,52 @@ struct xllm_hooks {
     uint32_t uReserved[4];
 };
 
-/* Client-level default hooks (borrowed struct; NULL removes). A request may
- * carry its own pHooks which replaces the whole set for that call. */
+/* Compatibility setter for client-level default hooks. New code should set
+ * xllm_request.pHooks for each operation so concurrent calls have explicit,
+ * immutable behavior. The complete table is copied; NULL removes it.
+ * The update affects future operations and is safe while other calls run.
+ * Each call snapshots either request hooks or this default before invoking
+ * callbacks, and never invokes a callback while holding the client lock. */
+XLLM_DEPRECATED("set xllm_request.pHooks before starting the call")
 XRT_API void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks);
 
 /* ------------------------------------------------------------------ */
-/* History: a deep-copying message ledger for hand-written agents      */
+/* Compatibility history: use xllm-session for new agent code.         */
 /* ------------------------------------------------------------------ */
 
 typedef struct xllm_history xllm_history;
 
-/* Create an empty owned message history. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API xllm_history* xllmHistoryCreate(void);
-/* Free the history. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API void xllmHistoryDestroy(xllm_history* pHistory);
-/* Number of stored messages. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API size_t xllmHistoryCount(const xllm_history* pHistory);
 /* Borrowed view of one stored message; valid until the next mutation. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API const xllm_message* xllmHistoryAt(const xllm_history* pHistory, size_t iIndex);
 
-/* Append a deep copy of the message. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryAdd(xllm_history* pHistory, const xllm_message* pMessage);
-/* Convenience: append a text-only message. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryAddText(xllm_history* pHistory, xllm_role eRole, const char* sContent);
 /* Text + reasoning + tool calls from a completed response. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryAddFromResponse(xllm_history* pHistory, const xllm_response* pResponse);
-/* Convenience: append a tool-result message. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryAddToolResult(xllm_history* pHistory, const char* sCallId,
     const char* sContent);
-/* Remove iCount messages starting at iIndex; the tail shifts down. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryRemove(xllm_history* pHistory, size_t iIndex, size_t iCount);
-/* Appends every stored message into a request (deep copy again). */
+/* Appends every stored message into a request (deep copy again). Failure
+ * removes every message appended by this call and preserves the old prefix. */
+XLLM_DEPRECATED("use xllm-session")
 XRT_API bool xllmHistoryAppendInto(const xllm_history* pHistory, xllm_request* pRequest);
 
 /* ------------------------------------------------------------------ */
 /* Client lifecycle                                                    */
 /* ------------------------------------------------------------------ */
 
-/* Client setup: base URL, key, model, dialect, timeouts, retry policy. */
 typedef struct xllm_client_config {
     const char* sBaseUrl;
     const char* sApiKey;
@@ -3273,6 +3364,8 @@ typedef struct xllm_client_config {
     const char* sUserAgent;
     uint32_t uMaxOutputTokens;
     uint32_t uTimeoutMs;
+    /* Maximum age of a pooled idle connection; zero disables age expiry.
+     * Closed/failed streams are discarded regardless of this value. */
     uint32_t uIdleTimeoutMs;
     uint32_t uMaxAttempts;
     uint32_t uRetryBaseDelayMs;
@@ -3290,42 +3383,57 @@ typedef struct xllm_client_config {
     /* Optional borrowed profile. When present, model/provider/limits are
      * validated and the client retains an owned snapshot. */
     const xllm_model_profile* pModelProfile;
+    /* Optional HTTPS outbound proxy. All strings are borrowed for the create
+     * call and copied into immutable client/XRT state. A proxy kind requires
+     * a non-empty host and non-zero port; incomplete settings are rejected.
+     * Bypass entries are separated by ',' or ';', compared as ASCII without
+     * case, and may use one leading and/or trailing '*' wildcard. */
+    xllm_proxy_kind eProxyKind;
+    const char* sProxyHost;
+    uint16_t uProxyPort;
+    const char* sProxyUser;
+    const char* sProxyPass;
+    const char* sProxyBypass;
+    /* Bounded parser/transport buffers. Zero selects the documented default;
+     * values above the built-in hard ceiling are rejected at create time. */
+    uint32_t uMaxHttpHeadBytes;       /* default/hard max: 64 KiB */
+    uint32_t uMaxResponseBodyBytes;   /* default/hard max: 64 MiB */
+    uint32_t uMaxSseLineBytes;        /* default/hard max: 1 MiB */
+    uint32_t uMaxSseEventBytes;       /* default/hard max: 16 MiB */
 } xllm_client_config;
 
-/* Zero a client config with defaults (30-minute timeout, retry enabled). */
 XRT_API void xllmClientConfigInit(xllm_client_config* pConfig);
-/* Create a client; fills pError and returns NULL on failure. */
 XRT_API xllm_client* xllmClientCreate(const xllm_client_config* pConfig, xllm_error* pError);
-/* Install lifecycle hooks (wire/auth/stats seams); NULL restores defaults. */
-XRT_API void xllmClientSetHooks(xllm_client* pClient, const xllm_hooks* pHooks);
-/* Destroy the client; in-flight calls must be finished first. */
+/* Requires every call created by this client to be destroyed first and must
+ * not race another client API. Drains idle connections before engine teardown. */
 XRT_API void xllmClientDestroy(xllm_client* pClient);
-/* Copy out the effective, config-resolved model profile. */
 XRT_API bool xllmClientGetModelProfile(const xllm_client* pClient, xllm_model_profile* pProfile);
-/* Replace the client's capability profile on an existing client (custom
+/* Compatibility setter: prefer config.pModelProfile so construction is
+ * failure-atomic and the client is immutable after publication. Installs a
+ * capability profile before the client is first used (custom
  * endpoints such as self-hosted models; config.pModelProfile covers the
- * create-time path). The profile is validated first; the wire model stays
- * the client's configured sModel. */
+ * create-time path). The provider must match the client's fixed wire dialect.
+ * A successful GetModelProfile, Start, Complete, or BuildRequestJson seals the
+ * profile. Returned profile strings then remain valid until client destroy. */
+XLLM_DEPRECATED("set xllm_client_config.pModelProfile before xllmClientCreate")
 XRT_API bool xllmClientSetModelProfile(xllm_client* pClient, const xllm_model_profile* pProfile, xllm_error* pError);
 
-/* Submit a call asynchronously; returns the call and a borrowed future, or NULL with pError. */
 XRT_API xllm_call* xllmClientStart(
     xllm_client* pClient,
     const xllm_request* pRequest,
     const xllm_stream_callbacks* pCallbacks,
     xllm_error* pError
 );
+/* The client must outlive the call and client destruction is not concurrent
+ * with Start/Wait/Destroy. The request and its borrowed views only need to
+ * remain valid until Start returns. Hook tables are copied during Start. */
 /* The call's completion future; transport runs on the engine workers.
  * The returned future is borrowed: valid until xllmCallWait/Destroy. */
 XRT_API xfuture* xllmCallFuture(xllm_call* pCall);
-/* Wait once for completion; yields the owned response via ppResponse. */
 XRT_API xllm_result xllmCallWait(xllm_call* pCall, xllm_response** ppResponse, xllm_error* pError);
-/* Request cooperative cancellation; safe to call after completion. */
 XRT_API bool xllmCallCancel(xllm_call* pCall);
-/* Destroy the call handle after waiting or cancelling. */
 XRT_API void xllmCallDestroy(xllm_call* pCall);
 
-/* Blocking one-shot: start, wait, destroy; NULL response with pError on failure. */
 XRT_API xllm_result xllmClientComplete(
     xllm_client* pClient,
     const xllm_request* pRequest,
@@ -3339,7 +3447,6 @@ XRT_API xllm_result xllmClientComplete(
  * updates the client's wire-prefix cache (stamped view requests through
  * this API also bypass it) and works on any dialect. */
 XRT_API char* xllmClientBuildRequestJson(xllm_client* pClient, const xllm_request* pRequest, xllm_error* pError);
-/* Free memory returned by xllm (portable across allocator boundaries). */
 XRT_API void xllmFree(void* pMemory);
 
 #ifdef __cplusplus
@@ -3358,9 +3465,6 @@ XRT_API void xllmFree(void* pMemory);
 #ifndef XLLM_EXECUTOR_H
 #define XLLM_EXECUTOR_H
 
-
-#if defined(XLLM_FEATURE_XLLM)
-
 /*
  * xllm executor contract: "the model's hands".
  *
@@ -3378,7 +3482,11 @@ XRT_API void xllmFree(void* pMemory);
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
+#if defined(__TINYC__)
+#else
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -3386,12 +3494,16 @@ extern "C" {
 
 typedef struct xllm_executor xllm_executor;
 
+#define XLLM_EXECUTOR_ABI_VERSION 1u
+#define XLLM_EXECUTOR_RESULT_EFFECT_APPLIED (1u << 0)
+
 /* Per-call execution context, supplied by whoever drives the loop. */
 typedef struct xllm_executor_ctx {
     /* Borrowed cooperative cancel token; NULL when the host has none. */
     xcancel* pCancel;
-    /* Relative milliseconds; XRT_WAIT_FOREVER disables the timeout. */
-    int64_t iTimeout;
+    /* Absolute xllmClockUs() deadline in microseconds; 0 and UINT64_MAX both
+     * mean "no deadline" so a zero-initialized context is valid. */
+    uint64_t uDeadline;
     /* 1-based model round within the current run. */
     uint64_t uRound;
     /* Session turn the call belongs to. */
@@ -3412,8 +3524,20 @@ typedef struct xllm_executor_result {
     const unsigned char* pImageBytes;   /* NULL when no image */
     size_t iImageSize;
     const char* sImageMime;             /* "image/png" etc. */
-    uint32_t uReserved[2];
+    /* Executor-owned metadata. EFFECT_APPLIED distinguishes a successful
+     * external side effect from a presentable failure returned after an
+     * after-tool policy hook. Drivers preserve ordering; they do not infer
+     * effects from bSuccess. */
+    uint32_t uFlags;
+    uint32_t uReserved;
 } xllm_executor_result;
+
+typedef bool (*xllm_executor_execute_batch_fn)(void* pUserData,
+    const xllm_tool_call* pCalls, size_t iCallCount,
+    const xllm_executor_ctx* pCtx, xllm_executor_result* pResults);
+
+typedef void (*xllm_executor_batch_results_unit_fn)(void* pUserData,
+    xllm_executor_result* pResults, size_t iResultCount);
 
 struct xllm_executor {
     /* Append this source's tool definitions to the request (xllmRequestAddTool).
@@ -3427,14 +3551,36 @@ struct xllm_executor {
     bool (*pExecute)(void* pUserData, const xllm_tool_call* pCall,
         const xllm_executor_ctx* pCtx, xllm_executor_result* pResult);
     void* pUserData;
-    uint32_t uReserved[4];
+    /* Optional v1 batch seam. Legacy executors leave these fields zero and
+     * are driven serially through pExecute. A batch implementation may run
+     * calls concurrently, but must write pResults in input order and keep all
+     * borrowed result storage alive until pBatchResultsUnit returns. The
+     * driver commits those results in the same input order.
+     *
+     * uAbiVersion/uStructSize occupy the first two legacy reserved words, so
+     * a new driver can identify an older, smaller executor before reading the
+     * appended callback fields. */
+    uint32_t uAbiVersion;
+    uint32_t uStructSize;
+    uint32_t uReserved[2];
+    xllm_executor_execute_batch_fn pExecuteBatch;
+    xllm_executor_batch_results_unit_fn pBatchResultsUnit;
 };
+
+/* Initializes the complete versioned record. Call this before assigning
+ * callbacks so future optional fields are never read from indeterminate
+ * storage. A plain zero-initialized legacy executor remains valid. */
+static inline void xllmExecutorInit(xllm_executor* pExecutor)
+{
+    if ( !pExecutor ) return;
+    memset(pExecutor, 0, sizeof(*pExecutor));
+    pExecutor->uAbiVersion = XLLM_EXECUTOR_ABI_VERSION;
+    pExecutor->uStructSize = (uint32_t)sizeof(*pExecutor);
+}
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* selected xllm */
 
 #endif
 
@@ -3828,6 +3974,10 @@ struct xllm_executor {
 #undef XRT_FEATURE_EVENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER)
+#undef XRT_FEATURE_EVENT_WAITER
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EVENT_WAITER
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR)
 #undef XRT_FEATURE_EXECUTOR
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_EXECUTOR
@@ -4184,6 +4334,10 @@ struct xllm_executor {
 #undef XRT_FEATURE_NET_FILE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE)
+#undef XRT_FEATURE_NET_FILE_FUTURE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FILE_FUTURE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME)
 #undef XRT_FEATURE_NET_FRAME
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_FRAME
@@ -4291,6 +4445,10 @@ struct xllm_executor {
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE)
 #undef XRT_FEATURE_NET_TCP_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE)
+#undef XRT_FEATURE_NET_TCP_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SERVER)
 #undef XRT_FEATURE_NET_TCP_SERVER
@@ -4607,6 +4765,10 @@ struct xllm_executor {
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT)
 #undef XRT_FEATURE_TLS_CLIENT
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH)
+#undef XRT_FEATURE_TLS_CLIENT_AUTH
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_AUTH
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_CLIENT_RESUME)
 #undef XRT_FEATURE_TLS_CLIENT_RESUME
@@ -5036,6 +5198,10 @@ struct xllm_executor {
 #undef XRT_MODULE_FILE_WHOLE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FILE_WHOLE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE_BRIDGE)
+#undef XRT_MODULE_FUTURE_BRIDGE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE_BRIDGE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY)
 #undef XRT_MODULE_HTTP1_BODY
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HTTP1_BODY
@@ -5043,6 +5209,10 @@ struct xllm_executor {
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ)
 #undef XRT_MODULE_JSON_READ
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_READ
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_WRITE)
+#undef XRT_MODULE_JSON_WRITE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_JSON_WRITE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_MUTEX)
 #undef XRT_MODULE_MUTEX
@@ -5103,6 +5273,10 @@ struct xllm_executor {
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_FUTURE)
 #undef XRT_MODULE_TLS_STREAM_DIAL_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_FUTURE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_PROXY)
+#undef XRT_MODULE_TLS_STREAM_DIAL_PROXY
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_DIAL_PROXY
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_FUTURE)
 #undef XRT_MODULE_TLS_STREAM_FUTURE
@@ -5221,6 +5395,15 @@ struct xllm_executor {
 #endif
 #ifndef XRT_MODULE_TIME
 #define XRT_MODULE_TIME
+#endif
+#ifndef XRT_MODULE_FUTURE_BRIDGE
+#define XRT_MODULE_FUTURE_BRIDGE
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_DIAL_PROXY
+#define XRT_MODULE_TLS_STREAM_DIAL_PROXY
+#endif
+#ifndef XRT_MODULE_JSON_WRITE
+#define XRT_MODULE_JSON_WRITE
 #endif
 #endif
 

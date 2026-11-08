@@ -343,5 +343,38 @@ class OwnedSourceTest(unittest.TestCase):
 			xrt_package._owned_source_groups(["known.c"], [manifest, manifest])
 
 
+class ConsumerFeatureSelectionTest(unittest.TestCase):
+	"""A leaf consumer must see the same selected interfaces as its package."""
+
+	def test_gnu_static_and_shared_consumers_receive_features(self) -> None:
+		for kind in ("static", "shared"):
+			with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary, \
+				mock.patch.object(xrt_package, "ROOT", Path(temporary)), \
+				mock.patch.object(xrt_package.sys, "platform", "linux"), \
+				mock.patch.object(xrt_package.xrt_build, "_run_compiler") as compiler, \
+				mock.patch.object(xrt_package.subprocess, "run"):
+				root = Path(temporary)
+				xrt_package._verify_gnu("gcc", "native", "gnu", kind,
+					root / ("libtest.a" if kind == "static" else "libtest.so"), None, [], [],
+					feature_defines=["XREDIS_FEATURE_XREDIS_TRANSACTION", "XRT_FEATURE_FUTURE"])
+				command = compiler.call_args.args[0]
+				self.assertIn("-DXREDIS_FEATURE_XREDIS_TRANSACTION", command)
+				self.assertIn("-DXRT_FEATURE_FUTURE", command)
+
+	def test_msvc_static_and_shared_consumers_receive_features(self) -> None:
+		for kind in ("static", "shared"):
+			with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary, \
+				mock.patch.object(xrt_package, "ROOT", Path(temporary)), \
+				mock.patch.object(xrt_package.xrt_build, "_run_compiler") as compiler, \
+				mock.patch.object(xrt_package.subprocess, "run"):
+				root = Path(temporary)
+				xrt_package._verify_msvc("cl.exe", "x64", kind,
+					root / ("test.lib" if kind == "static" else "test.dll"), root / "test.lib", [],
+					feature_defines=["XREDIS_FEATURE_XREDIS_TRANSACTION", "XRT_FEATURE_FUTURE"])
+				command = compiler.call_args.args[0]
+				self.assertIn("/DXREDIS_FEATURE_XREDIS_TRANSACTION", command)
+				self.assertIn("/DXRT_FEATURE_FUTURE", command)
+
+
 if __name__ == "__main__":
 	unittest.main()

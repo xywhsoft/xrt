@@ -225,6 +225,16 @@ typedef enum xx509error {
 	X509_ERROR_NAME_CONSTRAINTS
 } xx509error;
 
+/* A completed validation decision is not an operation failure. Rejected and
+ * unsupported candidates may be considered by a path search; ERROR must stop
+ * it even when no allocated diagnostic is available. */
+typedef enum xx509check {
+	X509_CHECK_ERROR = -1,
+	X509_CHECK_REJECTED = 0,
+	X509_CHECK_VALID = 1,
+	X509_CHECK_UNSUPPORTED = 2
+} xx509check;
+
 
 
 /* AlgorithmIdentifier 的全部视图都借用原 DER；Parameters 保存完整 TLV。 */
@@ -758,6 +768,17 @@ typedef struct xx509pathconfig {
 	ptr UserData;
 } xx509pathconfig;
 
+/* Published only for completed checks. Reason is zero for a valid path;
+ * Depth is the target-first certificate index, or SIZE_MAX if no individual
+ * certificate applies. Message is borrowed static diagnostic text (NULL when
+ * valid), not a machine-readable control contract. Completed decisions do not
+ * mutate the input views/configuration or the current thread error. */
+typedef struct xx509pathdecision {
+	xx509error Reason;
+	size_t Depth;
+	cstr Message;
+} xx509pathdecision;
+
 #endif
 
 
@@ -895,6 +916,14 @@ XRT_API bool xrtX509ExtensionFind(
 	const void* pOid,
 	size_t iOidSize,
 	xx509ext* pExtension
+);
+
+
+
+/* 严格解析独立 SPKI；成功视图借用完整 Der，失败输出保持不变。 */
+XRT_API bool xrtX509PublicKeyParse(
+	xbytesview Der,
+	xx509pubkey* pPublicKey
 );
 
 
@@ -1428,13 +1457,24 @@ XRT_API bool xrtX509PathValidate(
 	const xx509pathconfig* pConfig
 );
 
+/* No diagnostic allocation for ordinary validation rejection. ERROR preserves
+ * the original operation/callback error and leaves pDecision unchanged. */
+XRT_API xx509check xrtX509PathCheck(
+	const xx509cert* const* ppCertificates,
+	size_t iCount,
+	const xx509anchor* pAnchor,
+	const xx509pathconfig* pConfig,
+	xx509pathdecision* pDecision
+);
+
 #endif
 
 
 
 #if defined(XRT_FEATURE_X509_PATH_BUILD)
 
-/* 在候选发行者和信任锚中回溯构建并验证路径；结果仅在成功时发布。 */
+/* 在候选发行者和信任锚中回溯构建并验证路径；结果仅在成功时发布。
+ * 合法的空锚集合是无可信路径的完成拒绝，不是参数或资源错误。 */
 XRT_API bool xrtX509PathBuild(
 	const xx509cert* pTarget,
 	const xx509pathsource* pSource,
@@ -1442,6 +1482,36 @@ XRT_API bool xrtX509PathBuild(
 	const xx509cert** ppPath,
 	size_t iCapacity,
 	xx509pathresult* pResult
+);
+
+/* ppPath is search scratch. pResult is published only for VALID; pDecision
+ * is published for completed decisions only. Any ERROR terminates the search. */
+XRT_API xx509check xrtX509PathBuildCheck(
+	const xx509cert* pTarget,
+	const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig,
+	const xx509cert** ppPath,
+	size_t iCapacity,
+	xx509pathresult* pResult,
+	xx509pathdecision* pDecision
+);
+
+/* Bound deterministic search work, not elapsed time. Each candidate or anchor
+ * visit costs one step (including duplicates/nonmatches); a full path evaluation
+ * additionally costs its certificate count. Charge before doing the work.
+ * Zero explicitly disables the limit. Exhaustion is ERROR/XERR_RANGE, never a
+ * completed rejection; pResult and pDecision remain unchanged. Input admission,
+ * one comparison/verification and application callbacks are not preempted.
+ * No public type/layout or time contract is changed. */
+XRT_API xx509check xrtX509PathBuildCheckLimit(
+	const xx509cert* pTarget,
+	const xx509pathsource* pSource,
+	const xx509pathconfig* pConfig,
+	const xx509cert** ppPath,
+	size_t iCapacity,
+	size_t iMaxSteps,
+	xx509pathresult* pResult,
+	xx509pathdecision* pDecision
 );
 
 #endif
@@ -1452,6 +1522,11 @@ XRT_API bool xrtX509PathBuild(
 
 /* 创建空信任库。 */
 XRT_API xx509store* xrtX509StoreCreate(void);
+
+
+
+/* 深复制全部 DER 和索引；结果不借用源信任库，源须在调用期间保持不变。 */
+XRT_API xx509store* xrtX509StoreClone(const xx509store* pSource);
 
 
 
@@ -1474,11 +1549,31 @@ XRT_API xx509result xrtX509StoreAdd(
 
 
 
+/* 事务式复制合并源条目，精确去重；失败不发布 pAdded，源不变。 */
+XRT_API bool xrtX509StoreMerge(
+	xx509store* pStore,
+	const xx509store* pSource,
+	size_t* pAdded
+);
+
+
+
 /* 事务式导入全部 CERTIFICATE PEM 块；pAdded 可选。 */
 XRT_API bool xrtX509StoreAddPem(
 	xx509store* pStore,
 	cstr sText,
 	size_t iSize,
+	size_t* pAdded
+);
+
+/* Auto-detect one DER certificate or a PEM certificate bundle using the same
+ * native rule as file import. Input is borrowed for this call only; accepted
+ * DER is owned by the store. Failure leaves store entries and pAdded unchanged.
+ * Empty input is a format error; duplicate-only input succeeds with zero added.
+ * Input size is exact, not a C-string length or a truncating resource limit. */
+XRT_API bool xrtX509StoreAddData(
+	xx509store* pStore,
+	xbytesview Data,
 	size_t* pAdded
 );
 
@@ -1500,7 +1595,7 @@ XRT_API const xx509anchor* xrtX509StoreAnchor(
 
 
 
-/* 把外部候选发行者与信任库锚组成可直接建链的借用源。 */
+/* 把外部候选发行者与信任库锚组成可直接建链的借用源；允许空库和零候选。 */
 XRT_API bool xrtX509StoreSource(
 	const xx509store* pStore,
 	const xx509cert* const* ppIssuers,
@@ -1552,7 +1647,9 @@ XRT_API xx509result xrtX509MatchDns(
 
 
 
-/* 在 SAN 的 DNS-ID 或 IP-ID 中匹配引用主机；pName 为空时只返回结果。 */
+/* 在 SAN 的 DNS-ID 或 IP-ID 中匹配引用主机；pName 为空时只返回结果。
+ * Host 是精确长度视图，不含 C 终止符，内嵌 NUL 拒绝；不进行 DNS 查询。
+ * 匹配后的名称借用证书数据；DONE / ERROR 不修改 pName。 */
 XRT_API xx509result xrtX509MatchHost(
 	const xx509cert* pCert,
 	xstrview Host,

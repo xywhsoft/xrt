@@ -86,7 +86,7 @@ static bool __xrtRsaPkcs1Fail(cstr sMessage, int iCode)
 
 
 /* 严格验证带规范 DigestInfo 的 EMSA-PKCS1-v1_5 签名。 */
-bool xrtRsaPkcs1Verify(
+xrt_crypto_check __xrtRsaPkcs1Check(
 	const xrsapublickey* pKey,
 	xcryptohash iHash,
 	const void* pHash,
@@ -110,17 +110,11 @@ bool xrtRsaPkcs1Verify(
 			&iPrefixSize,
 			&iHashSize
 		) ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 arguments are invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
 	if ( (iSignatureSize != pKey->ModulusSize) ||
 		 (iSignatureSize > XRT_RSA_MAX_MODULUS_SIZE) ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature length is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	iPower = __xrtRsaPower(
@@ -131,17 +125,11 @@ bool xrtRsaPkcs1Verify(
 	);
 	if ( iPower == XRT_RSA_RESULT_KEY ) {
 		xrtSecureZero(Encoded, sizeof(Encoded));
-		return __xrtRsaPkcs1Fail(
-			"the RSA public key is invalid",
-			XCRYPTO_ERROR_KEY
-		);
+		return XRT_CRYPTO_CHECK_KEY;
 	}
 	if ( iPower != XRT_RSA_RESULT_OK ) {
 		xrtSecureZero(Encoded, sizeof(Encoded));
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature representative is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+		return XRT_CRYPTO_CHECK_SIGNATURE;
 	}
 
 	if ( iSignatureSize < (3u + 8u + iPrefixSize + iHashSize) ) {
@@ -177,13 +165,29 @@ bool xrtRsaPkcs1Verify(
 
 cleanup:
 	xrtSecureZero(Encoded, sizeof(Encoded));
-	if ( !bValid ) {
-		return __xrtRsaPkcs1Fail(
-			"the RSA PKCS#1 signature is invalid",
-			XCRYPTO_ERROR_SIGNATURE
-		);
+	return bValid ? XRT_CRYPTO_CHECK_VALID : XRT_CRYPTO_CHECK_SIGNATURE;
+}
+
+bool xrtRsaPkcs1Verify(
+	const xrsapublickey* pKey, xcryptohash iHash, const void* pHash,
+	const void* pSignature, size_t iSignatureSize
+)
+{
+	xrt_crypto_check Result = __xrtRsaPkcs1Check(
+		pKey, iHash, pHash, pSignature, iSignatureSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
 	}
-	return true;
+	if ( Result == XRT_CRYPTO_CHECK_ERROR ) {
+		return false;
+	}
+	return __xrtRsaPkcs1Fail(
+		Result == XRT_CRYPTO_CHECK_KEY ? "the RSA public key is invalid" :
+		"the RSA PKCS#1 signature or arguments are invalid",
+		Result == XRT_CRYPTO_CHECK_KEY ? XCRYPTO_ERROR_KEY : XCRYPTO_ERROR_SIGNATURE
+	);
 }
 
 #endif

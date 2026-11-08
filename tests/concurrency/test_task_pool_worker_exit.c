@@ -61,6 +61,7 @@ static void exit_worker(ptr raw)
     ExitCase* test=raw;
     if(test->probe){
         busy_probe(test); /* This succeeds only outside mutation/locks. */
+        assert(xrtTaskPoolIsCurrentWorkerV1(test->pool));
         assert(xrtTaskPoolTryJoinV1(test->pool)==XWAIT_ERROR);
         assert(!xrtTaskPoolDestroy(test->pool));xrtClearError();
     }

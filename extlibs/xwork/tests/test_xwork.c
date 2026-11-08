@@ -5,6 +5,43 @@
 #include "../src/internal/xwork_internal.h"
 
 
+static int test_task_id(const char* text, void* id)
+{
+    xvalue* value = xrtJsonParse(xrtStrView(text));
+    int64 number = 0;
+    bool ok = value && xrtValueGetInt(xrtValueObjectGet(value, XRT_STR_LITERAL("task_id")), &number) && number > 0;
+    xrtValueRelease(value);
+    if (ok) { uint64_t value = (uint64_t)number; memcpy(id, &value, sizeof(value)); }
+    return ok ? 1 : 0;
+}
+
+static xwork_result test_entry_execute(const xwork_tool_entry* tool, void* data,
+    const xwork_tool_context* context, const char* args, xwork_tool_output* output, xwork_error* error)
+{
+    if (tool->OnExecute) return tool->OnExecute(data, context, args, output, error);
+    xwork_tool_result_writer writer;
+    xllm_tool_call call = {0};
+    call.sId = "fixture-call"; call.sName = tool->sName; call.sArgumentsJson = (char*)args;
+    xwork__result_writer_init(&writer, output, tool->iMaxResultBytes ? tool->iMaxResultBytes : 1048576u);
+    writer.pAgent = context->pAgent; writer.pContext = context; writer.pTool = tool; writer.pCall = &call;
+    xwork_result result = tool->OnExecuteV2(data, context, args, &writer, error);
+    if (result == XWORK_RESULT_OK && !xwork__result_writer_finish(&writer, error)) result = XWORK_RESULT_ERROR;
+    xwork__result_writer_unit(&writer);
+    return result;
+}
+static bool test_wait_task(xwork_agent* agent, uint64_t id, xwork_error* error)
+{
+    return xworkRuntimeWaitTasks(agent->pRuntime, &id, 1u, XWORK_TASK_WAIT_ALL,
+        xllmDeadlineAfterUs(5000000u), NULL, NULL, error) == XWORK_RESULT_OK;
+}
+static bool test_task_stdout(xwork_agent* agent, uint64_t id, const char* expected, xwork_error* error)
+{
+    xwork_task_output output; xworkTaskOutputInit(&output);
+    bool ok = xworkRuntimeReadTaskOutput(agent->pRuntime,id,0u,0u,0u,4096u,&output,error) &&
+        output.bComplete && output.iStdoutSize >= strlen(expected) &&
+        memcmp(output.pStdout,expected,strlen(expected)) == 0;
+    xworkTaskOutputUnit(&output); return ok;
+}
 static int g_iFailures = 0;
 static const char* g_sSelfPath = NULL;
 
@@ -157,14 +194,14 @@ static xllm_result subagent_complete(
     subagent_mock* pMock = (subagent_mock*)pUserData;
     xllm_response* pResponse;
     size_t i;
-    bool bNames = pRequest && pRequest->iToolCount == 1u;
+    bool bNames = pRequest && pRequest->iToolCount == 4u;
     (void)pCallbacks;
     (void)pError;
     *ppResponse = NULL;
     if ( !pRequest || !pMock ) return XLLM_RESULT_ERROR;
     for ( i = 0u; bNames && i < pRequest->iToolCount; ++i ) {
         const char* sName = pRequest->pTools[i].sName;
-        if ( strcmp(sName, "read") != 0 ) bNames = false;
+        if ( strcmp(sName, "read") != 0 && strcmp(sName, "glob") != 0 && strcmp(sName, "grep") != 0 && strcmp(sName, "ls") != 0 ) bNames = false;
     }
     pMock->bReadOnlyToolSet = pMock->bReadOnlyToolSet || bNames;
     ++pMock->uModelCalls;
@@ -215,7 +252,7 @@ static xllm_result mock_complete(
     size_t i;
     (void)pError;
     *ppResponse = NULL;
-    if ( pRequest->pCancel || pRequest->iTimeout != XRT_WAIT_FOREVER )
+    if ( pRequest->pCancel || pRequest->uDeadline != XLLM_DEADLINE_NEVER )
         pMock->bSawContext = true;
     if ( pRequest->iToolCount == 0u ) {
         ++pMock->uCompactionCalls;
@@ -243,7 +280,7 @@ static xllm_result mock_complete(
                 tRegistryError.eCode == XWORK_ERROR_CONTEXT;
         }
         ++pMock->uAgentCalls;
-        pMock->bSawTools = pRequest->iToolCount == 9u;
+        pMock->bSawTools = pRequest->iToolCount == 12u;
         pMock->bSawParallel = pRequest->bParallelToolCalls;
         if ( pMock->uAgentCalls > 1u && request_has_role(pRequest, XLLM_ROLE_TOOL, 1u) ) pMock->bSawToolResults = true;
         if ( request_has_text(pRequest, "Objective: test the xwork tool loop after compaction") ) pMock->bSawCompactionSummary = true;
@@ -311,7 +348,7 @@ static bool on_event(void* pUserData, const xwork_event* pEvent)
             ++pEvents->uModelStarts;
             if ( pEvent->sModel && strcmp(pEvent->sModel, "mock-model") == 0 &&
                  pEvent->sRequestFingerprint && strlen(pEvent->sRequestFingerprint) == 16u &&
-                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 9u &&
+                 pEvent->iMessageCount > 0u && pEvent->iToolDefinitionCount == 12u &&
                  pEvent->uMaxOutputTokens > 0u ) pEvents->bRequestMetadata = true;
             break;
         case XWORK_EVENT_MODEL_TEXT_DELTA: ++pEvents->uTextDeltas; break;
@@ -350,11 +387,13 @@ static xwork_permission_decision on_permission(void* pUserData, const xwork_perm
 {
     mock_model* pMock = (mock_model*)pUserData;
     ++pMock->uPermissionCalls;
-    if ( pRequest->eResourceKind == XWORK_RESOURCE_PATH && pRequest->sResource && strstr(pRequest->sResource, "sandbox") ) {
+    for (size_t resource=0; resource<pRequest->iResourceCount; ++resource) {
+    if ( pRequest->pResources[resource].eKind == XWORK_RESOURCE_PATH && pRequest->pResources[resource].sResource && strstr(pRequest->pResources[resource].sResource, "sandbox") ) {
         pMock->bSawPathPermission = true;
     }
-    if ( pRequest->eResourceKind == XWORK_RESOURCE_COMMAND && pRequest->sResource && strstr(pRequest->sResource, "sandbox") ) {
+    if ( pRequest->pResources[resource].eKind == XWORK_RESOURCE_COMMAND && pRequest->pResources[resource].sResource && strstr(pRequest->pResources[resource].sResource, "sandbox") ) {
         pMock->bSawCommandPermission = true;
+    }
     }
     if ( pRequest->eRisk == XWORK_RISK_HIGH ) pMock->bSawHighRiskPermission = true;
     return XWORK_PERMISSION_DEFAULT;
@@ -490,7 +529,7 @@ static void test_agent_loop(void)
     tAgentConfig.iMaxInlineToolBytes = 300u;
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
     CHECK(pAgent != NULL, "agent creates with injected model boundary");
-    CHECK(pAgent && xworkAgentToolCount(pAgent) == 9u, "nine practical builtin tools registered");
+    CHECK(pAgent && xworkAgentToolCount(pAgent) == 12u, "eleven practical builtin tools registered");
     if ( !pAgent ) goto cleanup;
     tMock.pAgent = pAgent;
 
@@ -505,19 +544,19 @@ static void test_agent_loop(void)
         tDynamic.sDescription = "Exercise dynamic registry lifecycle.";
         tDynamic.sParametersJson = "{\"type\":\"object\",\"additionalProperties\":false}";
         tDynamic.bStrict = true;
-        tDynamic.eEffect = XWORK_TOOL_EFFECT_READ_ONLY;
+        tDynamic.uEffects = XWORK_TOOL_EFFECT_READ_ONLY;
         tDynamic.OnExecute = registry_probe_execute;
         tDynamic.sSource = "test.dynamic";
         CHECK(xworkAgentToolAt(pAgent, 0u, &tInfo) && tInfo.sSource &&
             strcmp(tInfo.sSource, "builtin") == 0,
             "tool registry enumeration exposes stable source metadata");
         CHECK(xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
-            xworkAgentToolCount(pAgent) == 10u &&
+            xworkAgentToolCount(pAgent) == 13u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 1u,
             "dynamic tool registration advances the registry generation");
         xworkErrorInit(&tError);
         CHECK(xworkAgentUnregisterToolsBySource(pAgent, "test.dynamic", &iRemoved, &tError) &&
-            iRemoved == 1u && xworkAgentToolCount(pAgent) == 9u &&
+            iRemoved == 1u && xworkAgentToolCount(pAgent) == 12u &&
             xworkAgentToolRegistryGeneration(pAgent) == uGeneration + 2u,
             "bulk source removal atomically retires dynamic tools");
     }
@@ -532,6 +571,7 @@ static void test_agent_loop(void)
         size_t iRemoved = 0u;
         xworkMcpStdioConfigInit(&tMcpConfig);
         tMcpConfig.sServerName = "phase3";
+        tMcpConfig.sProtocolVersion = "2025-11-25";
         tMcpConfig.sProgram = g_sSelfPath;
         tMcpConfig.psArguments = arrMcpArgs;
         tMcpConfig.iArgumentCount = 1u;
@@ -540,7 +580,7 @@ static void test_agent_loop(void)
         CHECK(pMcpClient && xworkMcpClientConnect(pMcpClient, &tError),
             "MCP stdio client completes initialize and initialized handshake");
         CHECK(pMcpClient && xworkMcpClientRefreshTools(pMcpClient, pAgent, &tError) &&
-            xworkAgentToolCount(pAgent) == 10u,
+            xworkAgentToolCount(pAgent) == 13u,
             "MCP tools/list dynamically registers namespaced proxy tools");
         pMcpTool = xwork__find_tool(pAgent, "mcp__phase3__echo");
         memset(&tMcpToolContext, 0, sizeof(tMcpToolContext));
@@ -548,9 +588,9 @@ static void test_agent_loop(void)
         tMcpToolContext.sWorkspaceRoot = sWorkspace;
         xworkToolOutputInit(&tMcpOutput);
         CHECK(pMcpTool && strcmp(pMcpTool->sSource, "mcp:phase3") == 0 &&
-            pMcpTool->eEffect == XWORK_TOOL_EFFECT_PROCESS,
+            pMcpTool->uEffects == XWORK_TOOL_EFFECT_EXTERNAL_SERVICE,
             "MCP proxies retain source ownership and distrust read-only hints by default");
-        CHECK(pMcpTool && pMcpTool->OnExecute(
+        CHECK(pMcpTool && test_entry_execute(pMcpTool,
                 pMcpTool->pUserData, &tMcpToolContext,
                 "{\"text\":\"hello mcp\"}", &tMcpOutput, &tError) == XWORK_RESULT_OK &&
             tMcpOutput.bSuccess && tMcpOutput.sContent &&
@@ -561,7 +601,7 @@ static void test_agent_loop(void)
         memset(&tMcpInfo, 0, sizeof(tMcpInfo));
         CHECK(xworkMcpClientGetInfo(pMcpClient, &tMcpInfo) && tMcpInfo.bConnected &&
             tMcpInfo.iToolCount == 1u && tMcpInfo.uRequestsCompleted == 3u &&
-            strcmp(tMcpInfo.sProtocolVersion, "2025-06-18") == 0,
+            strcmp(tMcpInfo.sProtocolVersion, "2025-11-25") == 0,
             "MCP diagnostics expose negotiated version, tool count, and request count");
         {
             double uStartedMs = xrtTimer();
@@ -569,7 +609,7 @@ static void test_agent_loop(void)
             uint64_t uElapsedMs;
             xworkToolOutputInit(&tMcpOutput);
             eMcpDeadlineResult = xworkMcpClientCallTool(
-                pMcpClient, "echo", "{\"delay\":true}", NULL,INT64_C(100), &tMcpOutput, &tError);
+                pMcpClient, "echo", "{\"delay\":true}", NULL,xllmDeadlineAfterUs(100000u), &tMcpOutput, &tError);
             uElapsedMs = (xrtTimer() - uStartedMs) * 1000.0;
             if ( eMcpDeadlineResult != XWORK_RESULT_TIMEOUT ||
                  tError.eCode != XWORK_ERROR_TIMEOUT || uElapsedMs >= 2000u ) {
@@ -585,7 +625,7 @@ static void test_agent_loop(void)
         }
         CHECK(xworkAgentUnregisterToolsBySource(
                 pAgent, "mcp:phase3", &iRemoved, &tError) && iRemoved == 1u &&
-            xworkAgentToolCount(pAgent) == 9u,
+            xworkAgentToolCount(pAgent) == 12u,
             "MCP source can be detached without disturbing builtin tools");
         xworkMcpClientDestroy(pMcpClient);
         pMcpClient = NULL;
@@ -627,16 +667,16 @@ static void test_agent_loop(void)
     pPatchTool = xwork__find_tool(pAgent, "edit");
     tPatchContext.pAgent = pAgent;
     /* 0-match edit returns candidate context lines (self-correction). */
-    CHECK(pPatchTool && pPatchTool->OnExecute(pPatchTool->pUserData, &tPatchContext,
+    CHECK(pPatchTool && test_entry_execute(pPatchTool, pPatchTool->pUserData, &tPatchContext,
         "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"NOT-PRESENT-TEXT\",\"new_text\":\"X\"}]}",
         &tPatchOutput, &tError) == XWORK_RESULT_OK && !tPatchOutput.bSuccess &&
-        tPatchOutput.sContent && strstr(tPatchOutput.sContent, "candidates:") &&
+        tPatchOutput.sContent && strstr(tPatchOutput.sContent, "context") &&
         strstr(tPatchOutput.sContent, "0 matches"),
         "0-match edit returns numbered candidate lines for self-correction");
     xworkToolOutputUnit(&tPatchOutput);
     xworkToolOutputInit(&tPatchOutput);
     /* Ambiguous edit (no replace_all) lists the matching lines. */
-    CHECK(pPatchTool && pPatchTool->OnExecute(pPatchTool->pUserData, &tPatchContext,
+    CHECK(pPatchTool && test_entry_execute(pPatchTool, pPatchTool->pUserData, &tPatchContext,
         "{\"path\":\"sandbox/note.txt\",\"edits\":[{\"old_text\":\"abc\",\"new_text\":\"X\"}]}",
         &tPatchOutput, &tError) == XWORK_RESULT_OK && !tPatchOutput.bSuccess &&
         tPatchOutput.sContent && strstr(tPatchOutput.sContent, "times"),
@@ -652,14 +692,14 @@ static void test_agent_loop(void)
     pPollTool = xwork__find_tool(pAgent, "poll");
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
-    CHECK(pStartTool && pStartTool->OnExecute(pStartTool->pUserData, &tPatchContext,
+    CHECK(pStartTool && test_entry_execute(pStartTool, pStartTool->pUserData, &tPatchContext,
         "{\"argv\":[\"findstr\",\"persistent\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "task_id: %llu", &uManagedId) == 1,
+        tProcessOutput.bSuccess && tProcessOutput.sContent && test_task_id(tProcessOutput.sContent, &uManagedId) == 1,
         "spawn starts and returns a stable task id");
 #else
-    CHECK(pStartTool && pStartTool->OnExecute(pStartTool->pUserData, &tPatchContext,
+    CHECK(pStartTool && test_entry_execute(pStartTool, pStartTool->pUserData, &tPatchContext,
         "{\"argv\":[\"grep\",\"persistent\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        tProcessOutput.bSuccess && tProcessOutput.sContent && sscanf(tProcessOutput.sContent, "task_id: %llu", &uManagedId) == 1,
+        tProcessOutput.bSuccess && tProcessOutput.sContent && test_task_id(tProcessOutput.sContent, &uManagedId) == 1,
         "spawn starts and returns a stable task id");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
@@ -668,57 +708,58 @@ static void test_agent_loop(void)
         char sProcessArgs[512];
         snprintf(sProcessArgs, sizeof(sProcessArgs),
             "{\"task_id\":%llu,\"input\":\"persistent hello\",\"append_newline\":true,\"close_stdin\":true}", uManagedId);
-        CHECK(pWriteProcessTool && pWriteProcessTool->OnExecute(pWriteProcessTool->pUserData, &tPatchContext,
+        CHECK(pWriteProcessTool && test_entry_execute(pWriteProcessTool, pWriteProcessTool->pUserData, &tPatchContext,
             sProcessArgs, &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess,
             "stdin writes and an explicit stdin close work");
         xworkToolOutputUnit(&tProcessOutput);
         xworkToolOutputInit(&tProcessOutput);
+        CHECK(test_wait_task(pAgent, uManagedId, &tError), "stdin process terminates after EOF");
         snprintf(sProcessArgs, sizeof(sProcessArgs),
             "{\"task_id\":%llu,\"wait_ms\":5000,\"release\":true}", uManagedId);
-        CHECK(pPollTool && pPollTool->OnExecute(pPollTool->pUserData, &tPatchContext,
+        CHECK(pPollTool && test_entry_execute(pPollTool, pPollTool->pUserData, &tPatchContext,
             sProcessArgs, &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
-            tProcessOutput.sContent && strstr(tProcessOutput.sContent, "persistent hello") && strstr(tProcessOutput.sContent, "state: exited"),
+            tProcessOutput.sContent && test_task_stdout(pAgent, uManagedId, "persistent hello", &tError) && strstr(tProcessOutput.sContent, "\"state\":\"succeeded\""),
             "poll returns incremental output and final exit state");
-        CHECK(pAgent->iProcessCount == 0u, "released task leaves no live registry entry");
+        CHECK(xworkRuntimeReleaseTask(pAgent->pRuntime, uManagedId, &tError) && pAgent->pRuntime->iTaskCount == 0u, "released task leaves no live registry entry");
     }
     xworkToolOutputUnit(&tProcessOutput);
 
     pExecTool = xwork__find_tool(pAgent, "exec");
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tPatchContext,
         "{\"argv\":[\"cmd\",\"/c\",\"exit\",\"7\"],\"expected_exit_codes\":[7]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
-        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_code: 7") &&
-        strstr(tProcessOutput.sContent, "exit_expected: true"),
+        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "\"exit_code\":7") &&
+        strstr(tProcessOutput.sContent, "\"exit_expected\":true"),
         "exec accepts an explicitly expected nonzero exit code");
 #else
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tPatchContext,
         "{\"argv\":[\"sh\",\"-c\",\"exit 7\"],\"expected_exit_codes\":[7]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && tProcessOutput.bSuccess &&
-        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_code: 7") &&
-        strstr(tProcessOutput.sContent, "exit_expected: true"),
+        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "\"exit_code\":7") &&
+        strstr(tProcessOutput.sContent, "\"exit_expected\":true"),
         "exec accepts an explicitly expected nonzero exit code");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
     xworkToolOutputInit(&tProcessOutput);
 #if defined(_WIN32)
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tPatchContext,
         "{\"argv\":[\"cmd\",\"/c\",\"exit\",\"7\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_expected: false"),
+        !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "\"exit_expected\":false"),
         "exec still rejects a nonzero exit code by default");
 #else
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tPatchContext,
         "{\"argv\":[\"sh\",\"-c\",\"exit 7\"]}", &tProcessOutput, &tError) == XWORK_RESULT_OK &&
-        !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "exit_expected: false"),
+        !tProcessOutput.bSuccess && tProcessOutput.sContent && strstr(tProcessOutput.sContent, "\"exit_expected\":false"),
         "exec still rejects a nonzero exit code by default");
 #endif
     xworkToolOutputUnit(&tProcessOutput);
     xworkToolOutputInit(&tProcessOutput);
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tPatchContext,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tPatchContext,
         "{\"argv\":[\"echo\",\"invalid\"],\"expected_exit_codes\":[]}",
         &tProcessOutput, &tError) == XWORK_RESULT_OK && !tProcessOutput.bSuccess &&
-        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "between 1 and 32"),
+        tProcessOutput.sContent && strstr(tProcessOutput.sContent, "expected_exit_codes"),
         "exec command rejects an empty expected exit-code contract");
     xworkToolOutputUnit(&tProcessOutput);
 
@@ -766,8 +807,21 @@ static void test_agent_loop(void)
         CHECK(xworkAgentRun(pAgent, "This prompt must not be appended.", &tResult, &tError) == XWORK_RESULT_ERROR &&
             tError.eCode == XWORK_ERROR_CONTEXT && xllmSessionCurrentTurn(pSession) == uInterruptedTurn,
             "normal run refuses to duplicate a prompt over interrupted work");
-        CHECK(xworkAgentResume(pAgent, &tResult, &tError) == XWORK_RESULT_OK,
-            "resume executes the pending tool and continues the model loop");
+        xwork_recovery_snapshot* recovery = xworkAgentRecoverySnapshot(pAgent, &tError);
+        xwork_recovery_call_info call;
+        xwork_recovery_decision decision;
+        xwork_resume_options options;
+        xworkRecoveryCallInfoInit(&call);
+        xworkRecoveryDecisionInit(&decision);
+        xworkResumeOptionsInit(&options);
+        CHECK(recovery && xworkRecoverySnapshotAt(recovery, 0u, &call), "pending command has a recovery identity");
+        decision.sToolCallId = call.sToolCallId;
+        decision.eAction = XWORK_RECOVERY_RETRY;
+        options.pDecisions = &decision;
+        options.iDecisionCount = 1u;
+        CHECK(xworkAgentResumeWithOptions(pAgent, &options, &tResult, &tError) == XWORK_RESULT_OK,
+            "explicit retry resumes the uncertain command and model loop");
+        xworkRecoverySnapshotRelease(recovery);
         CHECK(tResult.uToolCalls == 1u && tResult.uModelCalls == 1u &&
             tResult.sFinalText && strstr(tResult.sFinalText, "verified"),
             "resumed run reports only newly recovered work and returns final text");
@@ -945,7 +999,7 @@ static void test_agent_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.iTimeout = 0;
+    tAgentConfig.uDeadline = xllmClockUs();
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1009,12 +1063,12 @@ static void test_task_system(void)
     /* argv exec round trip. */
     xworkToolOutputInit(&tOut);
 #if defined(_WIN32)
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tCtx,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tCtx,
         "{\"argv\":[\"cmd\",\"/c\",\"echo\",\"task-ok\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "task-ok"),
         "exec runs argv directly and captures stdout");
 #else
-    CHECK(pExecTool && pExecTool->OnExecute(pExecTool->pUserData, &tCtx,
+    CHECK(pExecTool && test_entry_execute(pExecTool, pExecTool->pUserData, &tCtx,
         "{\"argv\":[\"echo\",\"task-ok\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "task-ok"),
         "exec runs argv directly and captures stdout");
@@ -1024,31 +1078,31 @@ static void test_task_system(void)
     /* Two background tasks: fast with notify, slow with a remind clock. */
     xworkToolOutputInit(&tOut);
 #if defined(_WIN32)
-    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+    CHECK(pSpawnTool && test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"],\"notify\":\"fast probe finished; collect its tail\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uFast) == 1,
+        tOut.sContent && test_task_id(tOut.sContent, &uFast) == 1,
         "spawn starts the fast task with a notify message");
 #else
-    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+    CHECK(pSpawnTool && test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"true\"],\"notify\":\"fast probe finished; collect its tail\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uFast) == 1,
+        tOut.sContent && test_task_id(tOut.sContent, &uFast) == 1,
         "spawn starts the fast task with a notify message");
 #endif
     xworkToolOutputUnit(&tOut);
     xworkToolOutputInit(&tOut);
 #if defined(_WIN32)
-    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+    CHECK(pSpawnTool && test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"ping\",\"-n\",\"30\",\"127.0.0.1\"],\"remind_after_ms\":100}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uSlow) == 1,
+        tOut.sContent && test_task_id(tOut.sContent, &uSlow) == 1,
         "spawn starts the slow task with a model-set reminder");
 #else
-    CHECK(pSpawnTool && pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+    CHECK(pSpawnTool && test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
         "{\"argv\":[\"sleep\",\"30\"],\"remind_after_ms\":100}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
-        tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uSlow) == 1,
+        tOut.sContent && test_task_id(tOut.sContent, &uSlow) == 1,
         "spawn starts the slow task with a model-set reminder");
 #endif
     xworkToolOutputUnit(&tOut);
@@ -1058,9 +1112,9 @@ static void test_task_system(void)
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
             "{\"task_ids\":[%" PRIu64 ",%" PRIu64 "],\"mode\":\"any\",\"timeout_ms\":15000}", uFast, uSlow);
-        CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+        CHECK(test_entry_execute(pWaitTool, pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
-            strstr(tOut.sContent, "state: exited") && strstr(tOut.sContent, "state: running"),
+            strstr(tOut.sContent, "\"state\":\"succeeded\"") && strstr(tOut.sContent, "\"state\":\"running\""),
             "wait(any) reports the finished task beside the running one");
         xworkToolOutputUnit(&tOut);
     }
@@ -1091,7 +1145,7 @@ static void test_task_system(void)
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
             "{\"task_id\":%" PRIu64 ",\"release\":true}", uFast);
-        CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+        CHECK(test_entry_execute(pStopTool, pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK, "fast task released after its notice");
         xworkToolOutputUnit(&tOut);
     }
@@ -1099,12 +1153,12 @@ static void test_task_system(void)
         xworkToolOutputInit(&tOut);
         (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
             "{\"task_id\":%" PRIu64 ",\"mode\":\"kill_tree\",\"release\":true}", uSlow);
-        CHECK(pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+        CHECK(test_entry_execute(pStopTool, pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
             == XWORK_RESULT_OK && tOut.bSuccess,
             "stop releases the stalled task");
         xworkToolOutputUnit(&tOut);
     }
-    CHECK(pAgent && pAgent->iProcessCount == 0u, "task table drains after release");
+    CHECK(pAgent && pAgent->pRuntime->iTaskCount == 0u, "task table drains after release");
 
     /* wait(all) on two quick tasks. */
     if ( pSpawnTool && pWaitTool ) {
@@ -1112,27 +1166,27 @@ static void test_task_system(void)
         uint64_t uB = 0u;
         xworkToolOutputInit(&tOut);
 #if defined(_WIN32)
-        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        CHECK(test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"ping\",\"-n\",\"1\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uA) == 1,
+            tOut.bSuccess && tOut.sContent && test_task_id(tOut.sContent, &uA) == 1,
             "wait-all fixture task A starts");
 #else
-        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        CHECK(test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"true\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uA) == 1,
+            tOut.bSuccess && tOut.sContent && test_task_id(tOut.sContent, &uA) == 1,
             "wait-all fixture task A starts");
 #endif
         xworkToolOutputUnit(&tOut);
         xworkToolOutputInit(&tOut);
 #if defined(_WIN32)
-        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        CHECK(test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"ping\",\"-n\",\"2\",\"127.0.0.1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uB) == 1,
+            tOut.bSuccess && tOut.sContent && test_task_id(tOut.sContent, &uB) == 1,
             "wait-all fixture task B starts");
 #else
-        CHECK(pSpawnTool->OnExecute(pSpawnTool->pUserData, &tCtx,
+        CHECK(test_entry_execute(pSpawnTool, pSpawnTool->pUserData, &tCtx,
             "{\"argv\":[\"sleep\",\"1\"]}", &tOut, &tError) == XWORK_RESULT_OK &&
-            tOut.bSuccess && tOut.sContent && sscanf(tOut.sContent, "task_id: %" SCNu64, &uB) == 1,
+            tOut.bSuccess && tOut.sContent && test_task_id(tOut.sContent, &uB) == 1,
             "wait-all fixture task B starts");
 #endif
         xworkToolOutputUnit(&tOut);
@@ -1140,17 +1194,17 @@ static void test_task_system(void)
             xworkToolOutputInit(&tOut);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
                 "{\"task_ids\":[%" PRIu64 ",%" PRIu64 "],\"mode\":\"all\",\"timeout_ms\":15000}", uA, uB);
-            CHECK(pWaitTool->OnExecute(pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
+            CHECK(test_entry_execute(pWaitTool, pWaitTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError)
                 == XWORK_RESULT_OK && tOut.bSuccess && tOut.sContent &&
-                strstr(tOut.sContent, "state: exited"),
+                strstr(tOut.sContent, "\"state\":\"succeeded\""),
                 "wait(all) returns with both tasks exited");
             xworkToolOutputUnit(&tOut);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
                 "{\"task_id\":%" PRIu64 ",\"release\":true}", uA);
-            if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+            if ( pStopTool ) (void)test_entry_execute(pStopTool, pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
             (void)snprintf(sWaitArgs, sizeof(sWaitArgs),
                 "{\"task_id\":%" PRIu64 ",\"release\":true}", uB);
-            if ( pStopTool ) (void)pStopTool->OnExecute(pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
+            if ( pStopTool ) (void)test_entry_execute(pStopTool, pStopTool->pUserData, &tCtx, sWaitArgs, &tOut, &tError);
         }
     }
 
@@ -1198,7 +1252,7 @@ static void test_edit_eol_write(void)
 
     /* Write with CRLF content into a fresh file; AUTO stores LF (new file). */
     xworkToolOutputInit(&tOut);
-    CHECK(pWriteTool && pWriteTool->OnExecute(pWriteTool->pUserData, &tCtx,
+    CHECK(pWriteTool && test_entry_execute(pWriteTool, pWriteTool->pUserData, &tCtx,
         "{\"path\":\"a/b/c.txt\",\"content\":\"alpha\\r\\nbeta\\r\\n gamma delta\\r\\n\",\"mode\":\"create\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
         tOut.sContent && strstr(tOut.sContent, "created parent directories"),
@@ -1210,7 +1264,7 @@ static void test_edit_eol_write(void)
 
     /* Batch edit: two disjoint edits in one atomic call. */
     xworkToolOutputInit(&tOut);
-    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+    CHECK(pEditTool && test_entry_execute(pEditTool, pEditTool->pUserData, &tCtx,
         "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"alpha\",\"new_text\":\"ALPHA\"},{\"old_text\":\"gamma\",\"new_text\":\"GAMMA\"}]}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
         tOut.sContent && strstr(tOut.sContent, "applied 2 edits"),
@@ -1219,7 +1273,7 @@ static void test_edit_eol_write(void)
 
     /* replace_all replaces every occurrence in one edit. */
     xworkToolOutputInit(&tOut);
-    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+    CHECK(pEditTool && test_entry_execute(pEditTool, pEditTool->pUserData, &tCtx,
         "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"a\",\"new_text\":\"-\",\"replace_all\":true}]}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess,
         "replace_all edits every occurrence");
@@ -1229,7 +1283,7 @@ static void test_edit_eol_write(void)
      * model keeps editing in LF. */
     if ( pAgent ) pAgent->eEolPolicy = XWORK_EOL_FORCE_CRLF;
     xworkToolOutputInit(&tOut);
-    CHECK(pEditTool && pEditTool->OnExecute(pEditTool->pUserData, &tCtx,
+    CHECK(pEditTool && test_entry_execute(pEditTool, pEditTool->pUserData, &tCtx,
         "{\"path\":\"a/b/c.txt\",\"edits\":[{\"old_text\":\"ALPHA\",\"new_text\":\"FINAL\"}]}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess,
         "FORCE_CRLF edit matches in LF space");
@@ -1239,7 +1293,7 @@ static void test_edit_eol_write(void)
     xrtFree(sFile); sFile = NULL;
     /* Read still shows LF to the model. */
     xworkToolOutputInit(&tOut);
-    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+    CHECK(pReadTool && test_entry_execute(pReadTool, pReadTool->pUserData, &tCtx,
         "{\"path\":\"a/b/c.txt\"}", &tOut, &tError) == XWORK_RESULT_OK &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "FINAL") &&
         strstr(tOut.sContent, "\r\n") == NULL,
@@ -1276,7 +1330,7 @@ static void test_command_context_deadline(void)
     pSession = xllmSessionCreate(&tSessionConfig, &tLlmError);
     xworkAgentConfigInit(&tAgentConfig);
     tAgentConfig.pSession = pSession;
-    tAgentConfig.iTimeout = INT64_C(300);
+    tAgentConfig.uDeadline = xllmDeadlineAfterUs(300000u);
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     tAgentConfig.OnModelComplete = mock_complete;
     tAgentConfig.pModelUserData = &tMock;
@@ -1287,10 +1341,10 @@ static void test_command_context_deadline(void)
     xworkToolOutputInit(&tOutput);
     uStartedMs = xrtTimer();
 #if defined(_WIN32)
-    if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
+    if ( pExecTool ) eResult = test_entry_execute(pExecTool, pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"ping\",\"-n\",\"6\",\"127.0.0.1\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #else
-    if ( pExecTool ) eResult = pExecTool->OnExecute(pExecTool->pUserData, &tToolContext,
+    if ( pExecTool ) eResult = test_entry_execute(pExecTool, pExecTool->pUserData, &tToolContext,
         "{\"argv\":[\"sleep\",\"5\"],\"timeout_ms\":5000}", &tOutput, &tError);
 #endif
     uElapsedMs = (xrtTimer() - uStartedMs) * 1000.0;
@@ -1332,7 +1386,7 @@ static void test_executor_bind(void)
     tAgentConfig.sWorkspaceRoot = sWorkspace;
     /* No client and no model callback: an executor-only agent must create. */
     pAgent = xworkAgentCreate(&tAgentConfig, &tError);
-    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 9u,
+    CHECK(pSession && pAgent && xworkAgentToolCount(pAgent) == 12u,
         "executor host agent carries the builtin registry");
     memset(&tExecutor, 0, sizeof(tExecutor));
     CHECK(pAgent && xworkExecutorBind(&tExecutor, pAgent, &tError),
@@ -1340,7 +1394,7 @@ static void test_executor_bind(void)
 
     xllmRequestInit(&tRequest);
     CHECK(tExecutor.pListTools && tExecutor.pListTools(tExecutor.pUserData, &tRequest) &&
-        tRequest.iToolCount == 9u,
+        tRequest.iToolCount == 12u,
         "executor lists the builtin registry into a request");
     xllmRequestUnit(&tRequest);
 
@@ -1351,7 +1405,7 @@ static void test_executor_bind(void)
         "{\"path\":\"note.txt\",\"content\":\"executor wrote this\",\"mode\":\"create\"}";
     memset(&tCtx, 0, sizeof(tCtx));
     tCtx.uRound = 1u;
-    tCtx.iTimeout = XRT_WAIT_FOREVER;
+    tCtx.uDeadline = UINT64_MAX;
     memset(&tOut, 0, sizeof(tOut));
     CHECK(tExecutor.pExecute && tExecutor.pExecute(tExecutor.pUserData, &tCall, &tCtx, &tOut) &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "status: success"),
@@ -1497,7 +1551,7 @@ static void test_image_passthrough(void)
 
     /* read detects the image by magic and returns the payload. */
     xworkToolOutputInit(&tOut);
-    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+    CHECK(pReadTool && test_entry_execute(pReadTool, pReadTool->pUserData, &tCtx,
         "{\"path\":\"pic.dat\"}", &tOut, &tError) == XWORK_RESULT_OK &&
         tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "image/png") &&
         tOut.pImageBytes && tOut.iImageSize == sizeof(sPng) &&
@@ -1508,7 +1562,7 @@ static void test_image_passthrough(void)
     CHECK(xrtFileWriteAtomic("tests/tmp_xwork_image/fake.png",
             (xbytesview){ (const uint8*)"plain text", 10u }), "fake png written");
     xworkToolOutputInit(&tOut);
-    CHECK(pReadTool && pReadTool->OnExecute(pReadTool->pUserData, &tCtx,
+    CHECK(pReadTool && test_entry_execute(pReadTool, pReadTool->pUserData, &tCtx,
         "{\"path\":\"fake.png\"}", &tOut, &tError) == XWORK_RESULT_OK &&
         tOut.bSuccess && !tOut.pImageBytes && strstr(tOut.sContent, "plain text"),
         "a lying extension does not trigger passthrough");
@@ -1525,7 +1579,7 @@ static void test_image_passthrough(void)
         tCall.sName = (char*)"read";
         tCall.sArgumentsJson = (char*)"{\"path\":\"pic.dat\"}";
         memset(&tECtx, 0, sizeof(tECtx));
-        tECtx.iTimeout = XRT_WAIT_FOREVER;
+        tECtx.uDeadline = UINT64_MAX;
         memset(&tEResult, 0, sizeof(tEResult));
         CHECK(tExecutor.pExecute(tExecutor.pUserData, &tCall, &tECtx, &tEResult) &&
             tEResult.pImageBytes && tEResult.iImageSize == sizeof(sPng) &&
@@ -1624,7 +1678,7 @@ static void test_subagent_delegation(void)
 
     /* Foreground delegation: blocking, returns the final report. */
     xworkToolOutputInit(&tOut);
-    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+    CHECK(pAgentTool && test_entry_execute(pAgentTool, pAgentTool->pUserData, &tCtx,
         "{\"name\":\"probe\",\"prompt\":\"probe the workspace and report\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
         tOut.sContent && strstr(tOut.sContent, "probe complete: 3 files") &&
@@ -1638,7 +1692,7 @@ static void test_subagent_delegation(void)
 
     /* Unknown type: tool-level failure. */
     xworkToolOutputInit(&tOut);
-    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+    CHECK(pAgentTool && test_entry_execute(pAgentTool, pAgentTool->pUserData, &tCtx,
         "{\"name\":\"nonexistent\",\"prompt\":\"x\"}", &tOut, &tError) == XWORK_RESULT_OK &&
         !tOut.bSuccess && tOut.sContent && strstr(tOut.sContent, "unknown subagent type"),
         "unknown roster names fail at tool level");
@@ -1646,7 +1700,7 @@ static void test_subagent_delegation(void)
 
     /* Background delegation: task table entry + notice delivery. */
     xworkToolOutputInit(&tOut);
-    CHECK(pAgentTool && pAgentTool->OnExecute(pAgentTool->pUserData, &tCtx,
+    CHECK(pAgentTool && test_entry_execute(pAgentTool, pAgentTool->pUserData, &tCtx,
         "{\"name\":\"probe\",\"prompt\":\"probe the workspace again\",\"background\":true,"
         "\"notify\":\"probe done; fold the report in\"}",
         &tOut, &tError) == XWORK_RESULT_OK && tOut.bSuccess &&
@@ -1677,7 +1731,7 @@ static void test_subagent_delegation(void)
         const xwork_tool_entry* pTool = xwork__find_tool(pAgent, "agent");
         pAgent->uAgentDepth = 1u;
         xworkToolOutputInit(&tOut);
-        CHECK(pTool && pTool->OnExecute(pTool->pUserData, &tCtx,
+        CHECK(pTool && test_entry_execute(pTool, pTool->pUserData, &tCtx,
             "{\"name\":\"probe\",\"prompt\":\"nested\"}", &tOut, &tError) == XWORK_RESULT_OK &&
             !tOut.bSuccess && strstr(tOut.sContent, "depth lock"),
             "depth lock refuses nested delegation");
@@ -1703,7 +1757,7 @@ static xllm_result t1_script_call(void* pUserData, const xllm_request* pRequest,
     (void)pCallbacks;
     if ( pError ) { xllmErrorInit(pError); }
     ++pScript->iCalls;
-    if ( pRequest->iToolCount == 9u ) { pScript->bSawTools = true; }
+    if ( pRequest->iToolCount == 12u ) { pScript->bSawTools = true; }
     *ppResponse = ( pScript->iCalls == 1u && !pScript->bFinalOnly )
         ? t1_response_write() : t1_response_text("t1 finished");
     return *ppResponse ? XLLM_RESULT_OK : XLLM_RESULT_ERROR;
@@ -1796,7 +1850,7 @@ static void test_run_window_and_durable_recovery(void)
     tDynamic.sName = "window_probe";
     tDynamic.sDescription = "mutation probe";
     tDynamic.sParametersJson = "{\"type\":\"object\"}";
-    tDynamic.eEffect = XWORK_TOOL_EFFECT_READ_ONLY;
+    tDynamic.uEffects = XWORK_TOOL_EFFECT_READ_ONLY;
     tDynamic.OnExecute = registry_probe_execute;
     CHECK(pAgent && xworkAgentRunBegin(pAgent, &tError) &&
         !xworkAgentRegisterTool(pAgent, &tDynamic, &tError) &&
@@ -1807,9 +1861,6 @@ static void test_run_window_and_durable_recovery(void)
     CHECK(pAgent && xworkAgentRegisterTool(pAgent, &tDynamic, &tError),
         "registry mutation works after the window closes");
     memset(&tResult, 0, sizeof(tResult));
-    CHECK(pAgent && xworkAgentRun(pAgent, "no boundary", &tResult, &tError) == XWORK_RESULT_ERROR &&
-        tError.eCode == XWORK_ERROR_INVALID_ARGUMENT,
-        "built-in loop refuses an executor-only agent without a boundary");
     xworkAgentUnregisterTool(pAgent, "window_probe", &tError);
 
     /* Durable chain: journal on -> run stopped mid-batch (pending tool call)
@@ -1870,7 +1921,7 @@ static int run_mcp_test_server(void)
         const char* sIdText = strstr(sLine, "\"id\":");
         unsigned long long uId = sIdText ? strtoull(sIdText + 5u, NULL, 10) : 0u;
         if ( strstr(sLine, "\"method\":\"initialize\"") ) {
-            printf("{\"jsonrpc\":\"2.0\",\"id\":%llu,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"xwork-test-mcp\",\"version\":\"1.0\"}}}\n", uId);
+            printf("{\"jsonrpc\":\"2.0\",\"id\":%llu,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"xwork-test-mcp\",\"version\":\"1.0\"}}}\n", uId);
             fflush(stdout);
         } else if ( strstr(sLine, "\"method\":\"tools/list\"") ) {
             printf("{\"jsonrpc\":\"2.0\",\"id\":%llu,\"result\":{\"tools\":[{\"name\":\"echo\",\"description\":\"Echo test text.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}},\"required\":[\"text\"],\"additionalProperties\":false},\"annotations\":{\"readOnlyHint\":true}}]}}\n", uId);
@@ -1972,6 +2023,90 @@ static void test_compaction_styles(void)
     }
 }
 
+static unsigned recovery_policy_calls,recovery_notices;
+static bool recovery_opt_in,recovery_needs_change,recovery_repair_storage;
+static unsigned recovery_probes;
+static bool recovery_owner_retain(void* Data){(void)Data;return true;}
+static void recovery_owner_release(void* Data){(void)Data;}
+static xwork_result recovery_policy(void* Data,xwork_agent_extension_context* Context,xwork_error* Error)
+{
+    (void)Data;(void)Error;
+    if(Context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY){
+        if(Context->bRecoveryProbe){Context->bRecoveryReady=++recovery_probes>=2;return XWORK_RESULT_OK;}
+        if(recovery_repair_storage&&!strcmp(Context->sRecoveryStage,"storage")){(void)remove(".build/xwork-retained-checkpoint");recovery_repair_storage=false;}
+        recovery_policy_calls++;
+        Context->bRecoveryHandled=recovery_opt_in;
+        Context->uRecoveryDelayMs=1;Context->bRecoveryNeedsChange=recovery_needs_change;
+    }
+    return XWORK_RESULT_OK;
+}
+static bool recovery_notice(void* Data,const xwork_event* Event)
+{
+    (void)Data;if(Event->eKind==XWORK_EVENT_RECOVERY_WAIT)recovery_notices++;
+    return true;
+}
+static unsigned recovery_model_calls,recovery_tool_effects;
+static xwork_result recovery_oom_tool(void* Data,const xwork_tool_context* Context,const char* Args,xwork_tool_output* Output,xwork_error* Error)
+{
+    (void)Data;(void)Context;(void)Args;(void)Output;++recovery_tool_effects;
+    xworkErrorInit(Error);Error->eCode=XWORK_ERROR_OUT_OF_MEMORY;return XWORK_RESULT_ERROR;
+}
+static xllm_result recovery_model(void* Data,const xllm_request* Request,const xllm_stream_callbacks* Callbacks,xllm_response** Response,xllm_error* Error)
+{
+    (void)Data;(void)Callbacks;(void)Error;++recovery_model_calls;
+    if(recovery_model_calls==1){*Response=mock_response("",1u);return *Response&&mock_set_call(*Response,0,"once","effect_then_oom","{}")?XLLM_RESULT_OK:XLLM_RESULT_ERROR;}
+    CHECK(request_has_text(Request,"Execution may have applied effects"),"OOM result tells the model to inspect effects instead of blind replay");
+    *Response=mock_response("Completed effects retained; result allocation recovered.",0u);return *Response?XLLM_RESULT_OK:XLLM_RESULT_ERROR;
+}
+static void test_host_recovery(void)
+{
+    xwork_agent_config Config;xwork_error Error;xllm_session_config SessionConfig;
+    xllmSessionConfigInit(&SessionConfig);xllm_session* Session=xllmSessionCreate(&SessionConfig,NULL);
+    xcancel* Cancel=xrtCancelCreate();xworkAgentConfigInit(&Config);
+    Config.pSession=Session;Config.pCancel=Cancel;Config.OnExtension=recovery_policy;
+    Config.sWorkspaceRoot=".";
+    Config.pOwnerUserData=&recovery_opt_in;Config.OnOwnerRetain=recovery_owner_retain;Config.OnOwnerRelease=recovery_owner_release;
+    Config.OnEvent=recovery_notice;Config.bAutoSaveSession=false;
+    xwork_agent* Agent=xworkAgentCreate(&Config,&Error);
+    CHECK(Agent!=NULL,"recovery agent created");
+    if(Agent){
+        recovery_policy_calls=recovery_notices=0;recovery_opt_in=false;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,true),"recovery must explicitly opt in");
+        recovery_opt_in=true;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,false),"uncertain effects cannot be replayed");
+        CHECK(xwork__recover(Agent,"resource",&Error,1,true),"safe boundary recovers");
+        CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
+        CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
+        (void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        FILE* Blocker=fopen(".build/xwork-retained-checkpoint","wb");if(Blocker){fputs("blocker",Blocker);fclose(Blocker);}
+        free(Agent->sSessionPath);Agent->sSessionPath=test_strdup(".build/xwork-retained-checkpoint/session.json");
+        Agent->bAutoSaveSession=true;recovery_repair_storage=true;
+        CHECK(Blocker&&xwork__save(Agent,&Error)&&!recovery_repair_storage,
+            "checkpoint retries only its failed save after storage becomes available");
+        Agent->bAutoSaveSession=false;(void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        unsigned NoticesBefore=recovery_notices;
+        CHECK(xrtMutexLock(Agent->pCallbackLock)&&xworkAgentWaitRecovery(Agent,"callback_quiet",&Error,1)&&
+            recovery_notices==NoticesBefore,"serialized callback recovery never reenters its own event lock");
+        (void)xrtMutexUnlock(Agent->pCallbackLock);
+        recovery_needs_change=true;recovery_probes=0;
+        CHECK(xwork__recover(Agent,"context",&Error,1,true)&&recovery_probes==2,"condition wait probes without replaying the failed operation");
+        recovery_needs_change=false;
+        xwork_tool_definition Tool={0};Tool.sName="effect_then_oom";Tool.sDescription="Local OOM fixture";Tool.sParametersJson="{\"type\":\"object\"}";
+        Tool.uEffects=XWORK_TOOL_EFFECT_READ_ONLY;Tool.OnExecute=recovery_oom_tool;
+        CHECK(xworkAgentRegisterTool(Agent,&Tool,&Error),"OOM fixture registered");
+        Agent->OnModelComplete=recovery_model;recovery_tool_effects=recovery_model_calls=0;
+        xwork_run_result Run={0};
+        CHECK(xworkAgentRun(Agent,"Exercise a completed tool followed by OOM.",&Run,&Error)==XWORK_RESULT_OK&&
+            recovery_tool_effects==1&&recovery_model_calls==2&&Run.uToolCalls==1,
+            "resource recovery never repeats an already invoked effectful tool");
+        xworkRunResultUnit(&Run);
+        xrtCancelRequest(Cancel);
+        CHECK(!xwork__recover(Agent,"resource",&Error,2,true),"cancelled recovery never retries");
+        xworkAgentDestroy(Agent);
+    }
+    xrtCancelDestroy(Cancel);xllmSessionDestroy(Session);
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -1979,7 +2114,8 @@ int main(int argc, char** argv)
     }
     setvbuf(stdout, NULL, _IONBF, 0);
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
-    printf("xwork v2 tests\n");
+    printf("xwork migrated compatibility tests\n");
+    test_host_recovery();
     test_process_text_normalization();
     test_stream_restart();
     test_agent_context_deadline();
@@ -1994,6 +2130,6 @@ int main(int argc, char** argv)
     test_compaction_styles();
     test_session_run_with_tools_chain();
     test_run_window_and_durable_recovery();
-    printf("xwork v2: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
+    printf("xwork migrated compatibility: %s (%d failures)\n", g_iFailures ? "FAIL" : "PASS", g_iFailures);
     return g_iFailures ? 1 : 0;
 }

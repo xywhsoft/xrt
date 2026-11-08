@@ -1,0 +1,238 @@
+{
+  "schema": 1,
+  "stage": "minimal public executor context query required by live Cron waits",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "live_service_implemented": false,
+  "environments": {
+    "windows": {
+      "compiler": "gcc.EXE (GCC) 16.2.0",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "layout": {
+        "config": 24,
+        "item": 32,
+        "stats": 88,
+        "data_policy": 32,
+        "exit_policy": 32
+      },
+      "binary_sha256": {
+        "out/gcc/native/executor_current_tests/test_executor_current.exe": "0a0440990b7a82c986453fbdede29d82bede016a4e74e8e8bb6e853e617f0a6e",
+        "out/gcc/native/executor_current_tests/test_single_executor_current.exe": "a97973f232adc8b39116efcf2b2450fa646246c9c79a95983037b00a858edccf",
+        "out/gcc/native/executor/test_executor.exe": "8981a91324c6b244a4de217526565458c159834aaec97113274587cadb7d69be",
+        "out/gcc/native/executor/test_executor_current.exe": "d28433a0f6ef8201b9ea90d12e51f19b1fa9ced725e5d5fcf84423231946961f",
+        "out/gcc/native/executor/test_single_executor.exe": "2c68d64566be39611ee8a9232b15266ba97dc656eedc4eea516e89fb8b272e56",
+        "out/gcc/native/executor/test_single_executor_current.exe": "a97973f232adc8b39116efcf2b2450fa646246c9c79a95983037b00a858edccf",
+        "out/gcc/native/executor_ownership_tests/test_executor_ownership.exe": "12b94419a77a8ce7e4e90b52dca7331183a6ca4ed4613a63cac584955377479f",
+        "out/gcc/native/executor_ownership_tests/test_single_executor_ownership.exe": "e35154806cf571ffc26597edd39dbca8d30664afe2f3282bd691bdc912f9a1ab",
+        "out/service-extensions/xcron-current/bin/windows-fallback.exe": "9be6abc9efb590d4b4e1116d79ddeb560460ead21eb321f8b03c82fba933168b",
+        "out/service-extensions/xcron-current/bin/windows-static.exe": "100e7d3a8e7c7a6d8c48bab3fd6ab3eef66613e64d29280b74ffddf7c8d0a384",
+        "release/gnu/x64/executor/static/test_package_xrt.exe": "f27f391d9bbe9ce408724b91b25dbd859bab4bc4f1eb72cec3163ac9b1f4f8d3",
+        "out/service-extensions/xcron-current/bin/windows-shared.exe": "436bac345b7088f79134a4ba92e99846e2ba9292e7ce916749729ae3ae2b20cf",
+        "release/gnu/x64/executor/shared/test_package_xrt.exe": "018e6d52f0c1448d362231e336ed27ad121f131c5394ecf850d7ce2914a56ca6",
+        "out/service-extensions/xcron-current/windows-layout.exe": "f6b5a09ff57853c5f6e6b53834d7728a3a778d2a5665f7edbd7e0abd5efd8d68",
+        "out/gcc/native/executor/concurrency_executor_main.exe": "38eca40ac930b1afa5def0335531591e85ae3655c6dfe3277451aaf9c5d2e377",
+        "out/gcc/native/executor/concurrency_executor_current_main.exe": "5036be8b15a8c1feb1d73579d549a35b1c39b825ae9ab7b2e30ea78cfc23c148",
+        "out/gcc/native/executor/concurrency_executor_tour_main.exe": "97082f86e2a52cd1f07241519a8fb1c7e3d97efd42d8741aac065407ba1f4c26"
+      },
+      "before_query_prototype": {
+        "rows": [
+          {
+            "command": [
+              "out\\service-extensions\\xcron-current\\cycle.exe",
+              "1"
+            ],
+            "exit_code": 0,
+            "output": "PROVED threads=1: child_before_parent_return=0, wait=1; public WaitFor is STATE on both external/open and worker/self calls.\n"
+          },
+          {
+            "command": [
+              "out\\service-extensions\\xcron-current\\cycle.exe",
+              "2"
+            ],
+            "exit_code": 0,
+            "output": "PROVED threads=2: child_before_parent_return=1, wait=0; public WaitFor is STATE on both external/open and worker/self calls.\n"
+          }
+        ],
+        "source_sha256": "774b7e56374fa687ee45f807444743536518a0327e5a330c61052a5f8a6f46e4",
+        "binary_sha256": "1ef1bd510f5d0724e49c09b89b15ad1f66c3173e68fe13a9c3a99da6f1013078",
+        "core_sha256": "877f93930de4c6b4f2c3227e95d197858db49bdd8f89ff4a18a506b050795f9f"
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "layout": {
+        "config": 24,
+        "item": 32,
+        "stats": 88,
+        "data_policy": 32,
+        "exit_policy": 32
+      },
+      "binary_sha256": {
+        "out/service-extensions/xcron-current/bin/wsl-fallback": "3924bd67035b599b05e367262e57475102aeaa35a5153e63fe7a81dac181550f",
+        "out/service-extensions/xcron-current/bin/wsl-static": "65f0b67c4d4a1054418d067cbeafb0259b6501a62c6963e18da7c720aec707cf",
+        "out/service-extensions/xcron-current/bin/wsl-shared": "c90c470c63f65b15e60e3e43cdf0f0d8e92993f721be350a249dedd3b533e02d"
+      },
+      "tsan": {
+        "tls_and_fallback_passed": true,
+        "compiler_limitation": "GCC atomic_thread_fence instrumentation warning retained; Wno-error=tsan is isolated to this diagnostic build. No fence-only/whole-runtime/native Linux qualification claim.",
+        "summary": "[PASS] executor current: sole-worker dependency guard/body/drop/exit/nested and external cancel/80000 zero-heap checks\n",
+        "binary_sha256": "15a16b50d842389047ed8449743504ccc085344dc929b51d5e93bad4a539839a",
+        "fallback_binary_sha256": "866d3ddf15c67ae482918271eb5027146adbee2588232bf544f042372e119702"
+      },
+      "before_query_prototype": {
+        "collected_from": "successful interactive tool execution before the production API change",
+        "rows": [
+          {
+            "command": [
+              "out/service-extensions/xcron-current/baseline/wsl-cycle",
+              "1"
+            ],
+            "exit_code": 0,
+            "observed_stdout": "PROVED threads=1: child_before_parent_return=0, wait=1; public WaitFor is STATE on both external/open and worker/self calls.\n"
+          },
+          {
+            "command": [
+              "out/service-extensions/xcron-current/baseline/wsl-cycle",
+              "2"
+            ],
+            "exit_code": 0,
+            "observed_stdout": "PROVED threads=2: child_before_parent_return=1, wait=0; public WaitFor is STATE on both external/open and worker/self calls.\n"
+          }
+        ],
+        "source_sha256": "774b7e56374fa687ee45f807444743536518a0327e5a330c61052a5f8a6f46e4",
+        "binary_sha256": "83892456331ea7d276820de56d9e2b1e40d49088ea8af25d1a12f8a389077c31",
+        "core_sha256": "dd1041d214708c62272fb17f62f0d4082ea9e1f706aa53f51c67d64f49f7b596"
+      }
+    }
+  },
+  "maturity_observation": {
+    "xrt": {
+      "errors": [
+        "实现模块缺少 single_tests 闭包覆盖: net_file_future"
+      ],
+      "summary": {
+        "product": "xrt",
+        "modules": 594,
+        "implementation_modules": 379,
+        "test_covered": 379,
+        "single_covered": 378,
+        "docs_covered": 379,
+        "developing": 1,
+        "review_systems": 0,
+        "performance_benchmarks": 29,
+        "size_profiles": 16
+      }
+    },
+    "xcron": {
+      "errors": [
+        "严格发布仍有未完成模块: xcron",
+        "严格发布仍有未完成模块: xcron_timezone",
+        "严格发布仍有未完成模块: xcron_zoned",
+        "严格发布仍有未完成模块: xcron_scheduler",
+        "严格发布仍有未完成模块: xcron_executor"
+      ],
+      "summary": {
+        "product": "xcron",
+        "modules": 8,
+        "implementation_modules": 7,
+        "test_covered": 7,
+        "single_covered": 7,
+        "docs_covered": 7,
+        "developing": 5,
+        "review_systems": 0,
+        "performance_benchmarks": 11,
+        "size_profiles": 6
+      }
+    },
+    "xmqtt": {
+      "errors": [
+        "严格发布仍有未完成模块: xmqtt",
+        "严格发布仍有未完成模块: xmqtt_client"
+      ],
+      "summary": {
+        "product": "xmqtt",
+        "modules": 9,
+        "implementation_modules": 8,
+        "test_covered": 8,
+        "single_covered": 8,
+        "docs_covered": 8,
+        "developing": 2,
+        "review_systems": 0,
+        "performance_benchmarks": 39,
+        "size_profiles": 7
+      }
+    },
+    "xredis": {
+      "errors": [
+        "严格发布仍有未完成模块: xredis_pool_connect",
+        "严格发布仍有未完成模块: xredis_pool_transaction",
+        "严格发布仍有未完成模块: xredis_pool_watch",
+        "严格发布仍有未完成模块: xredis_pool",
+        "严格发布仍有未完成模块: xredis_watch",
+        "严格发布仍有未完成模块: xredis",
+        "严格发布仍有未完成模块: xredis_transaction",
+        "严格发布仍有未完成模块: xredis_tls_auth"
+      ],
+      "summary": {
+        "product": "xredis",
+        "modules": 24,
+        "implementation_modules": 14,
+        "test_covered": 14,
+        "single_covered": 14,
+        "docs_covered": 14,
+        "developing": 8,
+        "review_systems": 0,
+        "performance_benchmarks": 34,
+        "size_profiles": 13
+      }
+    },
+    "xrpc": {
+      "errors": [
+        "严格发布仍有未完成模块: xrpc"
+      ],
+      "summary": {
+        "product": "xrpc",
+        "modules": 28,
+        "implementation_modules": 17,
+        "test_covered": 17,
+        "single_covered": 17,
+        "docs_covered": 17,
+        "developing": 1,
+        "review_systems": 0,
+        "performance_benchmarks": 52,
+        "size_profiles": 16
+      }
+    }
+  },
+  "changed_source_sha256_lf": {
+    "src/concurrency/executor.c": "a94854da4d5cf631eaa52b519984eb7fd659337b837d71e920d0d0cdf3828d09",
+    "include/xrt/executor.h": "0a91bc4c8356886f3e796493b1e79a9c6a7c85058b4dd7904a18ae8ed48bbfb0",
+    "tests/concurrency/test_executor_current.c": "23386821abe897066fbc18579688a0020adb002fb141f587e78079d272ef6d33",
+    "tests/single/test_single_executor_current.c": "df552e92a88df7935406eff707e9ff4de75ad8fff0d61bd24e2a7d162e554882",
+    "single/xrt.h": "bf985b6aacbae3adde4f1b53a87777520ce346cc02754b219c526cc6f234e2b4",
+    "single/xrt_decl.h": "d2907ebc2b5d476c198724c7bcffb12c097b0d1ed57d53fdfe325e73ed83d103",
+    "config/modules.json": "a2062170a09edefcf583881ea322ecfda06ad79754422a4de3a93da2f1a4d013",
+    "examples/concurrency/executor_current/main.c": "18b1db8990e89806161fb7d8211e7d2e97226f0f4745ec8566b849b28ea98692"
+  },
+  "validation_counts": {
+    "modular_single_programs": 16,
+    "forced_fallback_programs": 2,
+    "tsan_programs": 2,
+    "package_consumers": 8,
+    "offline_examples": 6,
+    "focused_tool_tests": 20,
+    "complete_current_unit_executions": 16,
+    "warm_groups_per_unit": 80000,
+    "warm_groups": 1280000,
+    "warm_predicate_calls": 5120000
+  },
+  "notes": [
+    "One existing native-context predicate is exposed through the public API. No new runtime, per-job state or public layout change.",
+    "Native Windows O2 and WSL O2 ASan/UBSan/leak-halt modular/single/examples/fallback; plain-O2 static/shared consumers run the entire new context unit. Separate WSL O1 TSan TLS/fallback units pass with retained compiler-fence warning.",
+    "Fallback wrapper undefines compiler TLS only for executor.c and exercises the existing native-thread lookup. This is not whole-toolchain/TinyCC certification.",
+    "The archived one/two-worker before-query prototype shows the sole-worker dependency and identical public STATE errors.",
+    "Full release gates remain failed: four service products are developing; core net_file_future selected-single closure is an existing gap. Focused checks do not certify release completeness.",
+    "No live Cron driver, durable recovery, production/performance/native Linux/72h acceptance, primary merge or push. All final C/H inputs stayed frozen while compilers ran."
+  ]
+}

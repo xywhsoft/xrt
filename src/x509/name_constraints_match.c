@@ -362,7 +362,7 @@ Invalid:
 
 
 /* 按名称类型判断一个 GeneralName 是否位于约束基点内。 */
-XRT_API xx509result xrtX509GeneralNameWithin(
+static xx509check __xrtX509GeneralNameEvaluate(
 	const xx509genname* pName,
 	const xx509genname* pBase
 )
@@ -371,13 +371,15 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		((pName->Value.Data == NULL) && (pName->Value.Size != 0)) ||
 		((pBase->Value.Data == NULL) && (pBase->Value.Size != 0)) ) {
 		__xrtErrorSetInvalidArgument();
-		return X509_ERROR;
+		return X509_CHECK_ERROR;
 	}
 	if ( pName->Type != pBase->Type ) {
-		return X509_DONE;
+		return X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_DIRECTORY ) {
-		return xrtX509NameWithin(pName->Value, pBase->Value);
+		xx509result Result = xrtX509NameWithin(pName->Value, pBase->Value);
+		return Result == X509_VALUE ? X509_CHECK_VALID :
+			Result == X509_DONE ? X509_CHECK_REJECTED : X509_CHECK_ERROR;
 	}
 	if ( pName->Type == X509_NAME_DNS ) {
 		xbytesview Name;
@@ -393,12 +395,14 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		}
 		return __xrtX509ConstraintDomainWithin(
 			Name, Base, false
-		) ? X509_VALUE : X509_DONE;
+		) ? X509_CHECK_VALID : X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_EMAIL ) {
-		return __xrtX509ConstraintEmailWithin(
+		xx509result Result = __xrtX509ConstraintEmailWithin(
 			pName->Value, pBase->Value
 		);
+		return Result == X509_VALUE ? X509_CHECK_VALID :
+			Result == X509_DONE ? X509_CHECK_REJECTED : X509_CHECK_ERROR;
 	}
 	if ( pName->Type == X509_NAME_URI ) {
 		xbytesview Host;
@@ -413,7 +417,7 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 		}
 		return __xrtX509ConstraintDomainWithin(
 			Host, Base, bSubdomains
-		) ? X509_VALUE : X509_DONE;
+		) ? X509_CHECK_VALID : X509_CHECK_REJECTED;
 	}
 	if ( pName->Type == X509_NAME_IP ) {
 		size_t iSize = pName->Value.Size;
@@ -427,30 +431,38 @@ XRT_API xx509result xrtX509GeneralNameWithin(
 
 			if ( (pName->Value.Data[i] & iMask) !=
 				(pBase->Value.Data[i] & iMask) ) {
-				return X509_DONE;
+				return X509_CHECK_REJECTED;
 			}
 		}
-		return X509_VALUE;
+		return X509_CHECK_VALID;
 	}
-	__xrtX509NameConstraintsError(
-		XERR_UNSUPPORTED, "x509-general-name-within",
-		"the constrained GeneralName form has no RFC 5280 matching rules",
-		NULL
-	);
-	return X509_ERROR;
+	return X509_CHECK_UNSUPPORTED;
 
 Invalid:
 	__xrtX509NameConstraintsError(
 		XERR_PROTOCOL, "x509-general-name-within",
 		"GeneralName or its constraint has an invalid value", NULL
 	);
-	return X509_ERROR;
+	return X509_CHECK_ERROR;
+}
+
+XRT_API xx509result xrtX509GeneralNameWithin(
+	const xx509genname* pName, const xx509genname* pBase
+)
+{
+	xx509check Result = __xrtX509GeneralNameEvaluate(pName, pBase);
+	if ( Result == X509_CHECK_UNSUPPORTED ) {
+		__xrtX509NameConstraintsError(XERR_UNSUPPORTED, "x509-general-name-within",
+			"the constrained GeneralName form has no RFC 5280 matching rules", NULL);
+	}
+	return Result == X509_CHECK_VALID ? X509_VALUE :
+		Result == X509_CHECK_REJECTED ? X509_DONE : X509_ERROR;
 }
 
 
 
 /* 扫描一组子树并返回同类型基点是否存在和是否命中。 */
-static bool __xrtX509ConstraintScan(
+static xrt_x509_decision __xrtX509ConstraintScan(
 	xx509subtreecursor Cursor,
 	const xx509genname* pName,
 	bool* pPresent,
@@ -468,73 +480,72 @@ static bool __xrtX509ConstraintScan(
 			break;
 		}
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
 		if ( Subtree.Base.Type != pName->Type ) {
 			continue;
 		}
 		bPresent = true;
 		if ( Subtree.HasMinimum || Subtree.HasMaximum ) {
-			__xrtX509NameConstraintsError(
-				XERR_UNSUPPORTED, "x509-name-constraints-check",
-				"non-default GeneralSubtree distance is not supported",
-				NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_UNSUPPORTED, X509_ERROR_NAME_CONSTRAINTS,
+				"non-default GeneralSubtree distance is not supported");
 		}
-		Result = xrtX509GeneralNameWithin(pName, &Subtree.Base);
-		if ( Result == X509_ERROR ) {
-			return false;
-		}
-		if ( Result == X509_VALUE ) {
-			bMatch = true;
+		{
+			xx509check Match = __xrtX509GeneralNameEvaluate(pName, &Subtree.Base);
+			if ( Match == X509_CHECK_ERROR ) {
+				return __xrtX509CheckError();
+			}
+			if ( Match == X509_CHECK_UNSUPPORTED ) {
+				return __xrtX509Decision(Match, X509_ERROR_NAME_CONSTRAINTS,
+					"the constrained GeneralName form has no RFC 5280 matching rules");
+			}
+			if ( Match == X509_CHECK_VALID ) {
+				bMatch = true;
+			}
 		}
 	}
 	*pPresent = bPresent;
 	*pMatch = bMatch;
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
 
 /* 检查一个证书名称是否落入 excluded 或 permitted 子树。 */
-static bool __xrtX509ConstraintName(
+static xrt_x509_decision __xrtX509ConstraintName(
 	const xx509nameconstraints* pConstraints,
 	const xx509genname* pName
 )
 {
 	bool bPresent;
 	bool bMatch;
+	xrt_x509_decision Decision;
 
 	if ( pConstraints->HasExcluded ) {
-		if ( !__xrtX509ConstraintScan(
+		Decision = __xrtX509ConstraintScan(
 			pConstraints->Excluded, pName, &bPresent, &bMatch
-		) ) {
-			return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 		if ( bPresent && bMatch ) {
-			__xrtX509NameConstraintsError(
-				XERR_PROTOCOL, "x509-name-constraints-check",
-				"certificate name is within an excluded subtree", NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_NAME_CONSTRAINTS,
+				"certificate name is within an excluded subtree");
 		}
 	}
 	if ( pConstraints->HasPermitted ) {
-		if ( !__xrtX509ConstraintScan(
+		Decision = __xrtX509ConstraintScan(
 			pConstraints->Permitted, pName, &bPresent, &bMatch
-		) ) {
-			return false;
+		);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 		if ( bPresent && !bMatch ) {
-			__xrtX509NameConstraintsError(
-				XERR_PROTOCOL, "x509-name-constraints-check",
-				"certificate name is outside all permitted subtrees", NULL
-			);
-			return false;
+			return __xrtX509Decision(X509_CHECK_REJECTED, X509_ERROR_NAME_CONSTRAINTS,
+				"certificate name is outside all permitted subtrees");
 		}
 	}
-	return true;
+	return __xrtX509CheckValid();
 }
 
 
@@ -564,7 +575,7 @@ static bool __xrtX509ConstraintCursorValid(xx509subtreecursor Cursor)
 
 
 /* 对无 SAN 的旧证书检查 Subject emailAddress 属性。 */
-static bool __xrtX509ConstraintSubjectEmail(
+static xrt_x509_decision __xrtX509ConstraintSubjectEmail(
 	const xx509nameconstraints* pConstraints,
 	const xx509cert* pCertificate
 )
@@ -574,12 +585,13 @@ static bool __xrtX509ConstraintSubjectEmail(
 	xx509result Result;
 
 	if ( !xrtX509NameInit(pCertificate->Subject, &Cursor) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	while ( (Result = xrtX509NameRead(
 		&Cursor, &Attribute
 	)) == X509_VALUE ) {
 		xx509genname Name;
+		xrt_x509_decision Decision;
 
 		if ( (Attribute.Oid.Size != sizeof(__xrtX509ConstraintEmailOid)) ||
 			(memcmp(
@@ -591,17 +603,18 @@ static bool __xrtX509ConstraintSubjectEmail(
 		memset(&Name, 0, sizeof(Name));
 		Name.Type = X509_NAME_EMAIL;
 		Name.Value = Attribute.Value;
-		if ( !__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		Decision = __xrtX509ConstraintName(pConstraints, &Name);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 	}
-	return Result == X509_DONE;
+	return Result == X509_DONE ? __xrtX509CheckValid() : __xrtX509CheckError();
 }
 
 
 
 /* 检查证书 Subject 与 SAN 是否满足一组 NameConstraints。 */
-XRT_API bool xrtX509NameConstraintsCheck(
+xrt_x509_decision __xrtX509NameConstraintsEvaluate(
 	const xx509nameconstraints* pConstraints,
 	const xx509cert* pCertificate
 )
@@ -611,24 +624,25 @@ XRT_API bool xrtX509NameConstraintsCheck(
 	xx509gencursor Names;
 	xx509result Result;
 	bool bHasSan;
+	xrt_x509_decision Decision;
 
 	if ( (pConstraints == NULL) || (pCertificate == NULL) ||
 		(!pConstraints->HasPermitted && !pConstraints->HasExcluded) ) {
 		__xrtErrorSetInvalidArgument();
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( (pConstraints->HasPermitted &&
 		 !__xrtX509ConstraintCursorValid(pConstraints->Permitted)) ||
 		(pConstraints->HasExcluded &&
 		 !__xrtX509ConstraintCursorValid(pConstraints->Excluded)) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( !xrtX509NameInit(pCertificate->Subject, &Subject) ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	Result = xrtX509NameRead(&Subject, &Attribute);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	if ( Result == X509_VALUE ) {
 		xx509genname Name;
@@ -636,13 +650,14 @@ XRT_API bool xrtX509NameConstraintsCheck(
 		memset(&Name, 0, sizeof(Name));
 		Name.Type = X509_NAME_DIRECTORY;
 		Name.Value = pCertificate->Subject;
-		if ( !__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		Decision = __xrtX509ConstraintName(pConstraints, &Name);
+		if ( Decision.Result != X509_CHECK_VALID ) {
+			return Decision;
 		}
 	}
 	Result = xrtX509SubjectAltName(pCertificate, &Names);
 	if ( Result == X509_ERROR ) {
-		return false;
+		return __xrtX509CheckError();
 	}
 	bHasSan = Result == X509_VALUE;
 	while ( Result == X509_VALUE ) {
@@ -650,19 +665,31 @@ XRT_API bool xrtX509NameConstraintsCheck(
 
 		Result = xrtX509GeneralNameRead(&Names, &Name);
 		if ( Result == X509_ERROR ) {
-			return false;
+			return __xrtX509CheckError();
 		}
-		if ( (Result == X509_VALUE) &&
-			!__xrtX509ConstraintName(pConstraints, &Name) ) {
-			return false;
+		if ( Result == X509_VALUE ) {
+			Decision = __xrtX509ConstraintName(pConstraints, &Name);
+			if ( Decision.Result != X509_CHECK_VALID ) {
+				return Decision;
+			}
 		}
 	}
-	if ( !bHasSan && !__xrtX509ConstraintSubjectEmail(
-		pConstraints, pCertificate
-	) ) {
-		return false;
+	if ( !bHasSan ) {
+		return __xrtX509ConstraintSubjectEmail(pConstraints, pCertificate);
 	}
-	return true;
+	return __xrtX509CheckValid();
+}
+
+XRT_API bool xrtX509NameConstraintsCheck(
+	const xx509nameconstraints* pConstraints, const xx509cert* pCertificate
+)
+{
+	xrt_x509_decision Decision = __xrtX509NameConstraintsEvaluate(pConstraints, pCertificate);
+	if ( Decision.Result == X509_CHECK_VALID ) {
+		return true;
+	}
+	(void)__xrtX509DecisionRaise(&Decision, "x509-name-constraints-check");
+	return false;
 }
 
 #endif

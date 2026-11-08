@@ -109,6 +109,20 @@
 			"system": "all",
 			"suite": "all",
 			"description": "完整 XRT"
+		},
+		{
+			"name": "event_waiter",
+			"system": "concurrency",
+			"suite": "event_waiter",
+			"description": "Reusable public event deadline context; no network, worker pool or thread creation",
+			"forbid_symbols": [
+				"xrtThreadCreate",
+				"xrtExecutorCreate",
+				"xrtNetEngineCreate",
+				"_xrtThreadCreate",
+				"_xrtExecutorCreate",
+				"_xrtNetEngineCreate"
+			]
 		}
 	],
 	"default_growth": {

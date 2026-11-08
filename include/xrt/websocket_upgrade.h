@@ -201,8 +201,6 @@ XRT_API bool xrtWsUpgradeStreamConfig(
 
 
 
-#if defined(XRT_FEATURE_WEBSOCKET_UPGRADE)
 XRT_EXTERN_C_END
-#endif
 
 #endif

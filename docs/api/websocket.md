@@ -6,6 +6,29 @@ permessage-deflate，但不包含 Future、协程、重连、心跳调度、连�
 
 完整公共符号清单见 [WebSocket API 参考](websocket-reference.md)。
 
+HTTP 读取器已经消费 Upgrade 头时，可在所属 Worker 上使用
+`xrtWsStreamAttachBuffered`／`xrtWsStreamAttachTlsBuffered`，把拥有的
+`xnetbuf` 余量放在实时传输输入之前。成功转交块链，失败保持来源；
+跨两种来源的帧头最多复制 14 字节，负载继续使用原块链。来源必须独占，
+不能是传输自身的接收缓冲，也不能包含文件区间。
+
+受管语言使用 `xrtWsStreamAttachOwnedV1`／`xrtWsStreamAttachTlsOwnedV1`。
+永久的 `xwsstreamownershipv1` 描述回调 Data 的真实拥有图；成功接管一个
+Data 引用及传输创建者引用，失败不接管。TLS 的附加事件拥有者保留原会话
+配置 Data，避免握手配置、证书及恢复上下文提前释放。挂接须在所属 Worker
+上、前一轮回调退出后执行，且传输上不存在未完成的异步读取。
+
+拥有图使用 `xrtWsStreamOwnership`、静止检查及带明确策略白名单的
+`xrtWsStreamOwnershipAdapterV1`。准备阶段仅请求原生停止；实际回调、
+就绪任务、计时器和传输关闭全部退役后才可清除与完成。`Retire` 只允许
+原子停用应用回调，不得执行用户代码、分配或释放拥有边。普通清理与
+图清理均只释放一次 Data；重复 Finish 返回同一清理结果。
+
+`xrtWsStreamSendBytes` 接收明确的不可变 `xnetbytes` 范围。服务端明文 TCP
+通过已具备拥有图合同的原生向量发送保留负载，只复制帧头；客户端掩码及
+TLS 记录层继续执行协议需要的复制。返回 OK 后原生发送队列持有自己的
+引用，调用方的引用不转移；失败保持来源。此接口不依赖自定义 Release。
+
 ## 类型与常量
 
 ### `xwsopcode`
@@ -5116,3 +5139,6 @@ xtlsstream* xrtWsStreamTlsRef(const xwsstream* pStream)
 `tests/websocket/` 覆盖固定向量、分块矩阵、属性测试、no-allocation、OOM、协议模糊测试，以及
 真实 Select 回环上的 `ws`/`wss` Upgrade。集成测试会拆分 TLS Header 和一字节帧头，并验证压缩
 发送、解压接收和完整 Close。`examples/websocket/` 不依赖高级连接对象。
+
+xrtWsStreamWriteLimit 返回扣除控制预留的永久预算；xrtWsStreamSendSize
+以与发送相同的帧头、掩码和 TLS 开销计算所需预算，供非阻塞等待使用。

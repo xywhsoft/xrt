@@ -1,0 +1,578 @@
+{
+  "schema": 1,
+  "stage": "explicit POSIX/TZif3 footer rule core",
+  "production_accepted": false,
+  "iana_binary_history_implemented": false,
+  "performance_accepted": false,
+  "environments": {
+    "windows": {
+      "compiler": "gcc.EXE (GCC) 16.2.0",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "zoneinfo": {
+        "schema": 1,
+        "oracle": "zoneinfo",
+        "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+        "cases": 18396,
+        "rules": [
+          {
+            "rule": "UTC0",
+            "fixture_sha256": "82e01f3c4d5cf920d4d1df4c133e22830e2986b05e14e8c583f7db1fac11b1fd",
+            "cases": 1274
+          },
+          {
+            "rule": "<+03>-3",
+            "fixture_sha256": "daa56b276a43c9d6b469204fb58e49bfbade1ded2aa38e697de7099e97d4fd98",
+            "cases": 1274
+          },
+          {
+            "rule": "EST5EDT,M3.2.0,M11.1.0",
+            "fixture_sha256": "aff363286049cbce9cc80d4bb5db22c6071c399d24e01b3f750e92bfec9d28a2",
+            "cases": 1330
+          },
+          {
+            "rule": "AEST-10AEDT,M10.1.0,M4.1.0/3",
+            "fixture_sha256": "4e8f301ed78a63fd211f5ade42b19fbd3cee2b50c0f7463c313ee016fcb9cd21",
+            "cases": 1330
+          },
+          {
+            "rule": "LHST-10:30LHDT-11,M10.1.0,M4.1.0",
+            "fixture_sha256": "b8e7857c850a3e84ebe50c5bb8fafc80e4719cfad07cc80adfadc8bb3ab59cd8",
+            "cases": 1330
+          },
+          {
+            "rule": "IST-1GMT0,M10.5.0,M3.5.0/1",
+            "fixture_sha256": "e70ec1681e45367a50c28b5eea690627dd2146b72ca864d2d9c68b90ee0ba2e0",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.5.6/24,M10.5.6/24",
+            "fixture_sha256": "327f9de70ee14ebac186324a0a52b07718af8b0c085967d6a87c097ce1310e0b",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA-2BBB-4,J60/0,J300/0",
+            "fixture_sha256": "4c2f34b28743115337aa3e51f97f0a45a69dc754c080016fa67a88c6af284770",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/-167:59:59,M11.1.0/167:59:59",
+            "fixture_sha256": "7d34ad97f7890a621c0a15cf6844ec67278614d5a29f78337c80759294ced744",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/+167:59:59,M11.1.0/-167:59:59",
+            "fixture_sha256": "14a3336e462b74ca3e7ad6b109851276301587d905951457b73ac20c9a648b8d",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA-23:59:59BBB-23,M10.1.0/-167,M4.1.0/167",
+            "fixture_sha256": "ab5383ba00b1ffc91f0c15669e942d6dc09a89e41aac7705ba3a8bb359da07c2",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA23:59:59BBB23,M10.1.0/167,M4.1.0/-167",
+            "fixture_sha256": "1a3920104211fc621eeb89ed032ce9fc5e1817cdf3465029e741852f78294259",
+            "cases": 1330
+          },
+          {
+            "rule": "XXX3EDT4,0/0,J365/23",
+            "fixture_sha256": "c0c9db27370ab68d14679e9e1604b5e2609b9841b2a0923f019e02cf2449ad61",
+            "cases": 1274
+          },
+          {
+            "rule": "EST5EDT,0/0,J365/25",
+            "fixture_sha256": "a314dd1901463058ef55f2dda6f9ede72440ff53b84ac6e37229fb396ac0971a",
+            "cases": 1274
+          }
+        ]
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-02T04:37:46.210714+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "f9faff6bafca733d129baca36cd47ea022ef82c5",
+        "source_dirty": true,
+        "source_fingerprint": "fe5828c4e34ae84911af5d134a51a0387be7101b45015ae168e58e9e8d393ae4",
+        "benchmark_fingerprint": "9cae8f01f306853933942f3ef1e92cf2beed11dd3068bb38159c7a05e65acd12",
+        "profiles": {
+          "xcron_timezone": {
+            "description": "Immutable explicit POSIX rule state lookup; unpinned workload only, no IANA/scheduler/P99 acceptance",
+            "benchmarks": {
+              "xcron_timezone": {
+                "source": "extlibs/xcron/bench/bench_timezone.c",
+                "inputs": [],
+                "suite": "xcron_timezone",
+                "args": [
+                  "10000"
+                ],
+                "facts": {},
+                "metrics": {
+                  "lookups_per_sec": {
+                    "samples": [
+                      19747234.83
+                    ],
+                    "median": 19747234.83,
+                    "mean": 19747234.83,
+                    "min": 19747234.83,
+                    "max": 19747234.83,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "higher",
+                    "unit": "lookups/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "f9faff6bafca733d129baca36cd47ea022ef82c5",
+        "source_dirty": true,
+        "source_fingerprint": "6d44e787891b9ff0514698b4646c8179c64a86a0b45cf2e808b05bc890ece374",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_timezone": {
+            "suite": "xcron_timezone",
+            "description": "Explicit rule core and time/atomic closure; no ambient local timezone, calendar, network or scheduler",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronCalendarNext",
+              "xcronExpressionCompile",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronCalendarNext",
+              "_xcronExpressionCompile"
+            ],
+            "kinds": {
+              "single": {
+                "text": 49032,
+                "data": 2376,
+                "bss": 11072,
+                "members": 1,
+                "load": 51408,
+                "file": 81888,
+                "path": "out/size/gnu/x64/xcron_timezone/single/xcron_single.o",
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 9084,
+                "data": 0,
+                "bss": 0,
+                "members": 1,
+                "load": 9084,
+                "file": 12412,
+                "path": "release/gnu/x64/xcron_timezone/static/libxcron.a"
+              },
+              "shared": {
+                "text": 18038,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 18182,
+                "file": 51668,
+                "path": "release/gnu/x64/xcron_timezone/shared/xcron.dll"
+              }
+            }
+          }
+        }
+      },
+      "tested_binary_sha256": {
+        "out/gcc/native/xcron_tests/test_expression.exe": "c15b715f7c4432b3cada76d2f5b51789876002c5ce32363e187a614ab1514389",
+        "out/gcc/native/xcron_tests/test_single_xcron_expression.exe": "1e759608f89b6ef4c75fd4b6f7bd43c9290ae1fcb5515c8968ab121502cb1bb7",
+        "out/gcc/native/xcron_tests/test_calendar.exe": "318bfb45b70c79f4ce9638bb2db2a4e4afee3f6cf4df73f8db12d75550336482",
+        "out/gcc/native/xcron_tests/test_single_xcron_calendar.exe": "5a2561d3166b555cd055b741253451a3da847e3101cb9dcfb9955f86a05fbd84",
+        "out/gcc/native/xcron_tests/test_timezone.exe": "a959a8f65bd9aaf8b8381f8821e2ba92945c9c2be1afb9ccf2420ff18bbcbc80",
+        "out/gcc/native/xcron_tests/test_single_xcron_timezone.exe": "35a373e67ec779e46a79a3026121b4801cd71fd8eb13536f319ba525407b77b0",
+        "out/service-extensions/xcron-zone-rules/bin/windows-probe.exe": "e71895ca3c34fe9c0f2ba521fbbcdafcd36aac90e9b40a70d9371157eb7b1e52",
+        "out/gcc/native/xcron/examples_calendar_main.exe": "f5efa5f2c4ae8d57c911737acb86657f0a7f27fcf398cfc802b2ea3eaf4051af",
+        "out/gcc/native/xcron/examples_expression_main.exe": "f18bae76c63ead2fc127d25f6e0f7c6123f5976ed6ae15de577f164c4a022809",
+        "out/gcc/native/xcron/examples_timezone_main.exe": "50749a826e847ad54c9b0e680eabe9ebabc8651092e7978f9ec2f442958ecd4e",
+        "release/gnu/x64/xcron_timezone/static/test_timezone_example.exe": "9210e3ecc52cd2556b7df98e8c48e3d1ea308edddd3b64affc9ecf41d2ac22f6",
+        "release/gnu/x64/xcron_timezone/shared/test_timezone_example.exe": "2ce815a59e4b281e74c836d986378931344023ccfd554d4376933db0cc75fe5a",
+        "release/gnu/x64/xcron/static/test_package_xcron.exe": "28e64b7e844dbd88d87add0d9f249353e0ea07179f6d355348865520ff0862d6",
+        "release/gnu/x64/xcron/shared/test_package_xcron.exe": "32b9e1e92087a8ba5dc43f3022639115cd41206c56810a02318ab5cf6b62e01f",
+        "out/service-extensions/xcron-zone-rules/bin/windows-post-size-static.exe": "9210e3ecc52cd2556b7df98e8c48e3d1ea308edddd3b64affc9ecf41d2ac22f6",
+        "out/service-extensions/xcron-zone-rules/bin/windows-post-size-shared.exe": "2ce815a59e4b281e74c836d986378931344023ccfd554d4376933db0cc75fe5a"
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "zoneinfo": {
+        "schema": 1,
+        "oracle": "zoneinfo",
+        "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+        "cases": 18396,
+        "rules": [
+          {
+            "rule": "UTC0",
+            "fixture_sha256": "82e01f3c4d5cf920d4d1df4c133e22830e2986b05e14e8c583f7db1fac11b1fd",
+            "cases": 1274
+          },
+          {
+            "rule": "<+03>-3",
+            "fixture_sha256": "daa56b276a43c9d6b469204fb58e49bfbade1ded2aa38e697de7099e97d4fd98",
+            "cases": 1274
+          },
+          {
+            "rule": "EST5EDT,M3.2.0,M11.1.0",
+            "fixture_sha256": "aff363286049cbce9cc80d4bb5db22c6071c399d24e01b3f750e92bfec9d28a2",
+            "cases": 1330
+          },
+          {
+            "rule": "AEST-10AEDT,M10.1.0,M4.1.0/3",
+            "fixture_sha256": "4e8f301ed78a63fd211f5ade42b19fbd3cee2b50c0f7463c313ee016fcb9cd21",
+            "cases": 1330
+          },
+          {
+            "rule": "LHST-10:30LHDT-11,M10.1.0,M4.1.0",
+            "fixture_sha256": "b8e7857c850a3e84ebe50c5bb8fafc80e4719cfad07cc80adfadc8bb3ab59cd8",
+            "cases": 1330
+          },
+          {
+            "rule": "IST-1GMT0,M10.5.0,M3.5.0/1",
+            "fixture_sha256": "e70ec1681e45367a50c28b5eea690627dd2146b72ca864d2d9c68b90ee0ba2e0",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.5.6/24,M10.5.6/24",
+            "fixture_sha256": "327f9de70ee14ebac186324a0a52b07718af8b0c085967d6a87c097ce1310e0b",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA-2BBB-4,J60/0,J300/0",
+            "fixture_sha256": "4c2f34b28743115337aa3e51f97f0a45a69dc754c080016fa67a88c6af284770",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/-167:59:59,M11.1.0/167:59:59",
+            "fixture_sha256": "7d34ad97f7890a621c0a15cf6844ec67278614d5a29f78337c80759294ced744",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/+167:59:59,M11.1.0/-167:59:59",
+            "fixture_sha256": "14a3336e462b74ca3e7ad6b109851276301587d905951457b73ac20c9a648b8d",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA-23:59:59BBB-23,M10.1.0/-167,M4.1.0/167",
+            "fixture_sha256": "ab5383ba00b1ffc91f0c15669e942d6dc09a89e41aac7705ba3a8bb359da07c2",
+            "cases": 1330
+          },
+          {
+            "rule": "AAA23:59:59BBB23,M10.1.0/167,M4.1.0/-167",
+            "fixture_sha256": "1a3920104211fc621eeb89ed032ce9fc5e1817cdf3465029e741852f78294259",
+            "cases": 1330
+          },
+          {
+            "rule": "XXX3EDT4,0/0,J365/23",
+            "fixture_sha256": "c0c9db27370ab68d14679e9e1604b5e2609b9841b2a0923f019e02cf2449ad61",
+            "cases": 1274
+          },
+          {
+            "rule": "EST5EDT,0/0,J365/25",
+            "fixture_sha256": "a314dd1901463058ef55f2dda6f9ede72440ff53b84ac6e37229fb396ac0971a",
+            "cases": 1274
+          }
+        ]
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-02T04:39:01.019308+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "fe5828c4e34ae84911af5d134a51a0387be7101b45015ae168e58e9e8d393ae4",
+        "benchmark_fingerprint": "9cae8f01f306853933942f3ef1e92cf2beed11dd3068bb38159c7a05e65acd12",
+        "profiles": {
+          "xcron_timezone": {
+            "description": "Immutable explicit POSIX rule state lookup; unpinned workload only, no IANA/scheduler/P99 acceptance",
+            "benchmarks": {
+              "xcron_timezone": {
+                "source": "extlibs/xcron/bench/bench_timezone.c",
+                "inputs": [],
+                "suite": "xcron_timezone",
+                "args": [
+                  "10000"
+                ],
+                "facts": {},
+                "metrics": {
+                  "lookups_per_sec": {
+                    "samples": [
+                      11116051.578
+                    ],
+                    "median": 11116051.578,
+                    "mean": 11116051.578,
+                    "min": 11116051.578,
+                    "max": 11116051.578,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "higher",
+                    "unit": "lookups/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "6d44e787891b9ff0514698b4646c8179c64a86a0b45cf2e808b05bc890ece374",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_timezone": {
+            "suite": "xcron_timezone",
+            "description": "Explicit rule core and time/atomic closure; no ambient local timezone, calendar, network or scheduler",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronCalendarNext",
+              "xcronExpressionCompile",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronCalendarNext",
+              "_xcronExpressionCompile"
+            ],
+            "kinds": {
+              "single": {
+                "text": 52852,
+                "data": 2424,
+                "bss": 10892,
+                "members": 1,
+                "load": 55276,
+                "file": 99824,
+                "path": "out/size/gnu/native/xcron_timezone/single/xcron_single.o",
+                "compile_seconds": 1.2587770060000025,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 9951,
+                "data": 0,
+                "bss": 0,
+                "members": 1,
+                "load": 9951,
+                "file": 15242,
+                "path": "release/gnu/native/xcron_timezone/static/libxcron.a"
+              },
+              "shared": {
+                "text": 12810,
+                "data": 656,
+                "bss": 8,
+                "members": 1,
+                "load": 13466,
+                "file": 24896,
+                "path": "release/gnu/native/xcron_timezone/shared/libxcron.so"
+              }
+            }
+          }
+        }
+      },
+      "tested_binary_sha256": {
+        "out/service-extensions/xcron-zone-rules/bin/wsl-probe": "f4bef9309369782358a81cb5015fd95ea8522e592a86d998de96d2b22ac95d27",
+        "out/service-extensions/xcron-zone-rules/bin/wsl-post-size-static": "363756475e28179f84401114f95e07dbfd6cd77fc69dadd3522924193a5405aa",
+        "out/service-extensions/xcron-zone-rules/bin/wsl-post-size-shared": "45076c54ba7759301dcc4d1318615b009f4ef120fca22a2cdced37a1dee269ed"
+      },
+      "libc": {
+        "schema": 1,
+        "oracle": "libc",
+        "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+        "cases": 14724,
+        "rules": [
+          {
+            "rule": "UTC0",
+            "fixture_sha256": "82e01f3c4d5cf920d4d1df4c133e22830e2986b05e14e8c583f7db1fac11b1fd",
+            "cases": 1092
+          },
+          {
+            "rule": "<+03>-3",
+            "fixture_sha256": "daa56b276a43c9d6b469204fb58e49bfbade1ded2aa38e697de7099e97d4fd98",
+            "cases": 1092
+          },
+          {
+            "rule": "EST5EDT,M3.2.0,M11.1.0",
+            "fixture_sha256": "aff363286049cbce9cc80d4bb5db22c6071c399d24e01b3f750e92bfec9d28a2",
+            "cases": 1140
+          },
+          {
+            "rule": "AEST-10AEDT,M10.1.0,M4.1.0/3",
+            "fixture_sha256": "4e8f301ed78a63fd211f5ade42b19fbd3cee2b50c0f7463c313ee016fcb9cd21",
+            "cases": 1140
+          },
+          {
+            "rule": "LHST-10:30LHDT-11,M10.1.0,M4.1.0",
+            "fixture_sha256": "b8e7857c850a3e84ebe50c5bb8fafc80e4719cfad07cc80adfadc8bb3ab59cd8",
+            "cases": 1140
+          },
+          {
+            "rule": "IST-1GMT0,M10.5.0,M3.5.0/1",
+            "fixture_sha256": "e70ec1681e45367a50c28b5eea690627dd2146b72ca864d2d9c68b90ee0ba2e0",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA0BBB,M3.5.6/24,M10.5.6/24",
+            "fixture_sha256": "327f9de70ee14ebac186324a0a52b07718af8b0c085967d6a87c097ce1310e0b",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA-2BBB-4,J60/0,J300/0",
+            "fixture_sha256": "4c2f34b28743115337aa3e51f97f0a45a69dc754c080016fa67a88c6af284770",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA2BBB1,59/0,300/0",
+            "fixture_sha256": "c83f2379c50b1d3023b6328b19ee27f1299b0a26ff645f8c087dfd019065cca7",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/-167:59:59,M11.1.0/167:59:59",
+            "fixture_sha256": "7d34ad97f7890a621c0a15cf6844ec67278614d5a29f78337c80759294ced744",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA0BBB,M3.2.0/+167:59:59,M11.1.0/-167:59:59",
+            "fixture_sha256": "14a3336e462b74ca3e7ad6b109851276301587d905951457b73ac20c9a648b8d",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA-23:59:59BBB-23,M10.1.0/-167,M4.1.0/167",
+            "fixture_sha256": "ab5383ba00b1ffc91f0c15669e942d6dc09a89e41aac7705ba3a8bb359da07c2",
+            "cases": 1140
+          },
+          {
+            "rule": "AAA23:59:59BBB23,M10.1.0/167,M4.1.0/-167",
+            "fixture_sha256": "1a3920104211fc621eeb89ed032ce9fc5e1817cdf3465029e741852f78294259",
+            "cases": 1140
+          }
+        ]
+      }
+    }
+  },
+  "changed_source_sha256": {
+    "extlibs/xcron/src/expression/expression.c": "ee1bea08a03fdbc5f94c601a8d29125dd1f5fefa3c881a1cbbaa9d113ac65d8e",
+    "extlibs/xcron/src/calendar/calendar.c": "600b755d8525345cf0350dc5d179d595ce3392a5ff45e2b12086feccffe261a0",
+    "extlibs/xcron/src/timezone/timezone.c": "89b722a677c58248a42e3a0b082406915ab0df5d33089926c3d28f02d7c668ae",
+    "extlibs/xcron/bench/bench_calendar.c": "edb51402ae3e74cff8a3d34b25276b1e917ef5076739cc5b9ae13d98252cc699",
+    "extlibs/xcron/bench/bench_expression.c": "5217777e38dd544594620e8410f48541c60054489f859961be5361282158f9c2",
+    "extlibs/xcron/bench/bench_timezone.c": "4240ff67041ff83291de133fcb7dae9885374b45d15955f43335ef118fabf581",
+    "extlibs/xcron/tests/test_calendar.c": "2d0fdca8f6f9f0d697921195f75ad46de27b8a303f1df6173f328451db559810",
+    "extlibs/xcron/tests/test_expression.c": "d12adb14aa831933dc55305cb8309752aa93ff58a35bc4045396bd6ec03cd92e",
+    "extlibs/xcron/tests/test_timezone.c": "0477bc7d1036693a64f0250c69840ae31ca2c740214866bb3f3dda71777fc447",
+    "extlibs/xcron/tests/timezone_probe.c": "6bdaa6fbf804d4d9ecf4ee6f83aaaab00a909cadf8cd596d52da4826ca5526ed",
+    "extlibs/xcron/examples/calendar/main.c": "2a35367dd6dffac62516e85232ce1e15b841d4a5e3915208c40bf707a5f91026",
+    "extlibs/xcron/examples/expression/main.c": "3e46802d46463d4adaf47fe9b2fa9dcc763cfed0a5f7638965c5ddff0aecd985",
+    "extlibs/xcron/examples/timezone/main.c": "0f81086a077b5c7e14dad4038d8a1edb2a57195233a5a395c8310bd6925cf95e",
+    "extlibs/xcron/tests/package/test_consumer.c": "64267fd107811885d4dd10fb12fe87091212105d1df02f5488175e4e45f25421",
+    "extlibs/xcron/tests/single/test_single_xcron_calendar.c": "ea6362ef454f18ad2e22a21fa318b7dada0ce5aced0ad5a2a28cd3d83b4fe51e",
+    "extlibs/xcron/tests/single/test_single_xcron_expression.c": "c20c024ccbe918eb7f5caf7cf0b737d69f502c51fef0037a77399e426eb97332",
+    "extlibs/xcron/tests/single/test_single_xcron_timezone.c": "4ec6bd49c228ed775760a86a71fc2e240ad042cea4da677ff6f56d09e6e0b8a8",
+    "extlibs/xcron/include/xcron.h": "4c77b6181522be593557f1895b7445390ebd455af4d1e8aa4d11df90da8e49ed",
+    "extlibs/xcron/tests/test.h": "3b359c01869d15d21294fbaf6e19320b97ca39f866738b929c37dd876743aeef",
+    "extlibs/xcron/include/xcron/calendar.h": "a2af0daf860bb6682e2959eacbae8a98bb964c760603595cf1d611b58301865a",
+    "extlibs/xcron/include/xcron/export.h": "236644541e0c0494a9835e83c2270d1f2858fb92dd09cc1a63e666204847ffb2",
+    "extlibs/xcron/include/xcron/expression.h": "2fccf5fd87ee9c57848dd7f5d0ea6e55f1b58305fd33a4d017e0dfc98f3b4f19",
+    "extlibs/xcron/include/xcron/features.h": "af3e2aa2bf7cd9e4dfef96a78ed2d19a9ada200d472ad2ceb334922593551546",
+    "extlibs/xcron/include/xcron/timezone.h": "54eac4b439f331df0ed7f1c3905741169bf5a8d1c37c6926970efa4192c65676",
+    "extlibs/xcron/config/modules.json": "cabdc1696bcb552d1f51947981194eb632a13bc13807a0ae3311a2a077e16212",
+    "extlibs/xcron/config/performance_profiles.json": "2c0a3c7afcf6606055810997ef87494145a2ec98d8a3bd0c01889cda50c4955a",
+    "extlibs/xcron/config/size_profiles.json": "96c86ca9490ce7112a9d9ca3e3701c92aa7ebf0921dbb7926d54e7115d1428f8",
+    "extlibs/xcron/tests/test_timezone_reference.py": "0574d8f3ef226cac260334e04f6e2211e4fdf3a8183734e5d28672f8003ce87b",
+    "single/extlibs/xcron.h": "939520175a9fb1fe290cfbf6455241d467c61e0af291d971573d42aca0afc1e4",
+    "single/extlibs/xcron_decl.h": "691e236b242247eb8ead8f0b8a6a63990bff0f4e62b76c0f646f7eccd7a179ad"
+  }
+}

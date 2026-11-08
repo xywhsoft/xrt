@@ -1,0 +1,9 @@
+#define XREDIS_MODULE_XREDIS_TLS_AUTH
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_MEMORY_STATS
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#include "../test_tls_auth.c"

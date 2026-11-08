@@ -1,0 +1,4340 @@
+{
+  "stage": "MQTT current-connection subscribe/unsubscribe",
+  "baseline": "183ad3f223ea2d1495728818f7555d30c1710893",
+  "functional_cases_verified": true,
+  "source_sha256_lf_normalized": {
+    "extlibs/xmqtt/examples/subscriptions/main.c": "05e8dffaefb2e09d1bbac4e1d8760e0de427b201138e1821773ec41797b36d48",
+    "extlibs/xmqtt/include/xmqtt/client.h": "f55cf530e5b8ba10e99a9381061c9d5c81b1f01ecd62dfa86f27f0df4099fc83",
+    "extlibs/xmqtt/src/client/client.c": "8117cd27d0c27b4e991b95622118e61998a9a397e85df4abbcabe37962b122ae",
+    "extlibs/xmqtt/tests/client_subscriptions.h": "de5217538b84f9f6a9b9230be7a9d56c2dde3eda5e41a2f9d26b785b2ae93032",
+    "extlibs/xmqtt/tests/interop/run_subscription_wire.py": "f75435cee8c21f6d9a416774fa370cc108f4ad7bd0a98e2b0b00a0ee3308d83c",
+    "extlibs/xmqtt/tests/interop/single_subscription_probe.c": "f3a6dc1dcd8218fc4536aa85cfa6d6728bf058693985d20ef341d48ce9c1cdce",
+    "extlibs/xmqtt/tests/interop/subscription_probe.c": "5576192079a9f45d5588620581a0450318d15ae2e0bf65c28245732cbbdccda7",
+    "extlibs/xmqtt/tests/test_client.c": "515fca5aaf3da5700ec2d085c9db06ad74bb9ba32579fd4065955d7dd4cfb472",
+    "single/extlibs/xmqtt.h": "1db2dfbd185d04c2d1eee9dbb6406d70d5aead4018a45c0e6c3fd8fbf199d6ab",
+    "single/extlibs/xmqtt_decl.h": "63f4971d887bcf6ab79bc215b8fdaa169b5a91c3704c5fdca1fe397af3f0207a"
+  },
+  "forms": {
+    "windows-modular": {
+      "probe_sha256": "ac2e7f1d038217d5ca87d1af7b0bf4082c5a41a1318038d0b533065ced6e2c98",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "windows-single": {
+      "probe_sha256": "a3cd3dc9aedcfec3be369d3a1c8be6dbda75318ed219209aeb43cb8bb11db770",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "windows-static": {
+      "probe_sha256": "1fab2ccb260bc8e211acee43e4a5e2b7142688efb886fa7ee6cf204db6e622e1",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "windows-shared": {
+      "probe_sha256": "679e225c306db74d637fde1ab026353cded9d983c8deed15ea02d4d23ea51908",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "wsl-modular": {
+      "probe_sha256": "33c63b1e61574f06c9c610d40d681bbaa57bdadd87faf126459ec1d822e2d84f",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "wsl-single": {
+      "probe_sha256": "cdd56b48fe2d3db8a0e22bd49f7528c7854649089e9817186f5357216c63c4f6",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "wsl-static": {
+      "probe_sha256": "eada1277d3ce28fef492ae72ea1cd264b52524c16654fe3e67bfb2fa2c574a14",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    },
+    "wsl-shared": {
+      "probe_sha256": "08af59dbd4438801a94983bd672e00455e04cf81c04d47a438e9295ccab97921",
+      "cases": [
+        {
+          "case": "ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 4,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 4,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 4,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 4,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 4,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 4,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 4,
+          "close": 4
+        },
+        {
+          "case": "ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "qos",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "close",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "request_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "byte_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "private_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "object_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "invalid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "filter_limit",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "worker",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_ok",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_wrong_kind",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_wrong_id",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_duplicate",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_partial",
+          "version": 5,
+          "close": 5
+        },
+        {
+          "case": "unsub_timeout",
+          "version": 5,
+          "close": 2
+        },
+        {
+          "case": "unsub_cancel",
+          "version": 5,
+          "close": 3
+        },
+        {
+          "case": "unsub_metadata",
+          "version": 5,
+          "close": 7
+        },
+        {
+          "case": "unsub_id_busy",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_auto",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reverse",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_flow",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_duplex",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_graceful",
+          "version": 5,
+          "close": 0
+        },
+        {
+          "case": "unsub_tiny",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_queued",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "wildcard",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "shared",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "subid",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_packet",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "max_qos",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "problem_clean",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "extended",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_mixed",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_reject",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_short",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_long",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_bad_reason",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_disabled",
+          "version": 5,
+          "close": 4
+        },
+        {
+          "case": "unsub_problem",
+          "version": 5,
+          "close": 6
+        },
+        {
+          "case": "unsub_problem_clean",
+          "version": 5,
+          "close": 4
+        }
+      ]
+    }
+  },
+  "qualification": "Local functional and ownership evidence only. Windows O2; WSL O2 plus ASan/UBSan/leak halt for modular/single, plain O2 static/shared. WSL is not native Linux. No subscription performance, pinned reference/broker parity or production acceptance. Full four-library goal incomplete."
+}

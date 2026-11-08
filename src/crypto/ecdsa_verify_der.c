@@ -9,7 +9,7 @@
 
 
 /* 严格解码 DER 后调用固定曲线的 raw ECDSA 验证层。 */
-bool __xrtEcdsaVerifyDer(
+xrt_crypto_check __xrtEcdsaCheckDer(
 	int iCurve,
 	const void* pHash,
 	size_t iHashSize,
@@ -17,33 +17,53 @@ bool __xrtEcdsaVerifyDer(
 	size_t iDerSize,
 	const void* pPublic,
 	size_t iScalarSize,
-	size_t iPublicSize,
-	cstr sOperation
+	size_t iPublicSize
 )
 {
 	uint8 Signature[XRT_ECDSA_VERIFY_DER_RAW_MAX_SIZE];
-	bool bResult;
+	xrt_crypto_check Result;
 
 	if ( (pHash == NULL) || (iHashSize == 0) ||
-		(pDer == NULL) || (pPublic == NULL) ) {
-		__xrtErrorSetInvalidArgument();
-		return false;
+		(pDer == NULL) || (pPublic == NULL) ||
+		(iScalarSize > sizeof(Signature) / 2u) ) {
+		return XRT_CRYPTO_CHECK_ARGUMENT;
 	}
-	if ( !xrtEcdsaDerDecode(pDer, iDerSize, Signature, iScalarSize) ) {
-		return false;
+	Result = __xrtEcdsaDerDecodeCheck(pDer, iDerSize, Signature, iScalarSize);
+	if ( Result != XRT_CRYPTO_CHECK_VALID ) {
+		return Result;
 	}
-	bResult = __xrtEcdsaVerify(
+	Result = __xrtEcdsaCheck(
 		iCurve,
 		pHash,
 		iHashSize,
 		Signature,
 		pPublic,
 		iScalarSize,
-		iPublicSize,
-		sOperation
+		iPublicSize
 	);
 	xrtSecureZero(Signature, sizeof(Signature));
-	return bResult;
+	return Result;
+}
+
+bool __xrtEcdsaVerifyDer(
+	int iCurve, const void* pHash, size_t iHashSize,
+	const void* pDer, size_t iDerSize, const void* pPublic,
+	size_t iScalarSize, size_t iPublicSize, cstr sOperation
+)
+{
+	xrt_crypto_check Result = __xrtEcdsaCheckDer(
+		iCurve, pHash, iHashSize, pDer, iDerSize, pPublic, iScalarSize, iPublicSize
+	);
+
+	if ( Result == XRT_CRYPTO_CHECK_VALID ) {
+		return true;
+	}
+	if ( Result == XRT_CRYPTO_CHECK_ARGUMENT ) {
+		__xrtErrorSetInvalidArgument();
+	} else if ( Result != XRT_CRYPTO_CHECK_ERROR ) {
+		__xrtEcdsaError(sOperation, "the ECDSA signature verification failed");
+	}
+	return false;
 }
 
 #endif

@@ -1118,6 +1118,13 @@ static int32 __xrtNetEngineWorkerMain(ptr pData)
 	return Result;
 }
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+xnetworker* __xrtNetEngineCurrentThread(void)
+{
+	return __xrtThreadCurrentDataFor(__xrtNetEngineWorkerMain);
+}
+#endif
+
 /* 释放尚未进入 Worker 的命令；正常停止时队列已经排空。 */
 static void __xrtNetEngineCommandDiscard(ptr pItem, ptr pData)
 {

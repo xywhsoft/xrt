@@ -266,6 +266,44 @@ typedef struct xrtownershippreparationv1 {
 	xrtownershipprepareresult (*Prepare)(const void* pData, const void* pToken);
 } xrtownershippreparationv1;
 
+/* Optional resumable semantic finalization. This is an independent exact
+ * capability, never an extension or cast of xrtownershipadapterv1. Readers
+ * validate size, tag, exact Adapter identity and both hooks before admitting
+ * it. Adapter V1's bool Finalize retains its synchronous at-most-once contract;
+ * a consumer of this capability calls Step INSTEAD of that V1 slot.
+ *
+ * CanStep runs under the ownership freeze for the actual held/claimed token.
+ * It is nonblocking, diagnostic-preserving and performs no allocation, user
+ * callback, Count/Trace, reference or owning-edge change. It certifies current
+ * creator/activity eligibility, not completion or graph readability.
+ *
+ * Step runs OUTSIDE freeze and mutation with all real pins/claims/code alive.
+ * It always writes *pComplete (callers initialize false). Its bool result is
+ * success/failure independently of completion, including without a diagnostic:
+ *   true/false: waiting; true/true: complete;
+ *   false/false: failed but still owned; false/true: consumed with failure.
+ * Waiting MAY already have executed semantic callbacks or changed real edges;
+ * it is NOT the no-side-effect BUSY of preparation/physical completion.
+ * Persist completed sub-duties in participant state across waits, failure and
+ * collector abort/recreation. Never replay a completed semantic effect.
+ *
+ * Revalidate the whole graph after every Step before a NEW duty or Clear.
+ * A started continuation may resume through a known transient read refusal
+ * only with its saved exact capability, real held claim and CanStep authority;
+ * this never admits unknown metadata, starts an independent new finalizer or
+ * grants Clear. Observe resurrection at the next complete graph proof. Each
+ * collector turn must be bounded, retaining unfinished owners through waiting.
+ * Clear requires all semantic duties complete and a fresh unreachable graph;
+ * Finish/Drop retain their existing strictly post-Clear/physical contracts. */
+#define XRT_OWNERSHIP_FINALIZATION_V1_TAG UINT64_C(0x5852544F574E5331)
+typedef struct xrtownershipfinalizationv1 {
+	size_t size;
+	uint64 AbiTag;
+	const xrtownershipadapterv1* Adapter;
+	bool (*CanStep)(const void* pData, const void* pToken);
+	bool (*Step)(const void* pData, const void* pToken, bool* pComplete);
+} xrtownershipfinalizationv1;
+
 /* Optional completion after Clear, distinct from semantic preparation.
  * Exact Adapter identity and permanent code are admitted with this descriptor.
  * Step runs outside freeze/mutation with all plan pins retained. BUSY makes
@@ -284,6 +322,35 @@ typedef struct xrtownershipfinishv1 {
 	const xrtownershipadapterv1* Adapter;
 	xrtownershipfinishresult (*Step)(const void* pData, const void* pToken);
 } xrtownershipfinishv1;
+/* Optional typed completion extension. V1 remains the exact first member;
+ * publish &descriptor.V1 with V1.size=sizeof(xrtownershipfinishv2). Readers
+ * accept only that exact size, this tag, the same Adapter and non-NULL hooks;
+ * unknown versions fail closed without guessing a larger descriptor layout.
+ * A V1 reader must reject the larger size, never silently use the void Drop.
+ *
+ * DropChecked consumes exactly ONE real Hold reference, also on false. It
+ * may perform final cleanup after Restore when an uncommitted snapshot pin
+ * is the last reference. False reports cleanup failure independently of TLS
+ * diagnostics; it never permits retrying that consumed reference. Call either
+ * DropChecked OR Adapter->Drop, exactly once. All descriptor/code pins must
+ * outlive this callback's physical return. DropChecked runs outside freeze.
+ * DropReady is a pure, nonallocating preflight under graph freeze. It keeps
+ * the ambient diagnostic unchanged and runs no semantic/user callback. True
+ * certifies that this thread can consume the snapshot reference outside the
+ * freeze, including any final cleanup. False means BUSY and consumes nothing.
+ * Readers check it before acquiring new holds and preflight EVERY held node
+ * before restoring any claim or dropping any reference. This prevents an
+ * aborted snapshot from moving creator-thread finalization to another thread.
+ * Ready is not permission to call arbitrary cleanup while frozen; a true
+ * admission remains valid until that drop, under the participant's lifetime
+ * and native-thread contract. V1.Step keeps its committed-completion contract. */
+#define XRT_OWNERSHIP_FINISH_V2_TAG UINT64_C(0x5852544F574E4632)
+typedef struct xrtownershipfinishv2 {
+	xrtownershipfinishv1 V1;
+	uint64 AbiTag;
+	bool (*DropChecked)(const void* pData);
+	bool (*DropReady)(const void* pData);
+} xrtownershipfinishv2;
 typedef struct xrtownershipresult {
 	size_t NodeCount;
 	size_t EdgeCount;

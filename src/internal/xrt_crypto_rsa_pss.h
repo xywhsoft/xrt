@@ -7,6 +7,12 @@
 
 #if defined(XRT_FEATURE_CRYPTO_RSA_PSS)
 
+xrt_crypto_check __xrtRsaPssCheck(
+	const xrsapublickey* pKey, xcryptohash iHash, xcryptohash iMaskHash,
+	size_t iSaltSize, const void* pHash, const void* pSignature,
+	size_t iSignatureSize
+);
+
 /* 返回受支持摘要的固定输出长度。 */
 size_t __xrtRsaHashSize(xcryptohash iHash);
 

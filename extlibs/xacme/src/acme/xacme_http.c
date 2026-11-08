@@ -364,8 +364,15 @@ bool xacmeHttpUnit(xacmehttp* pHttp)
 	pPrevious = xrtErrorRef(xrtGetError());
 	if(pHttp->pResolver != NULL)
 	{
-		(void)xrtNetResolverDestroy(pHttp->pResolver);
-		pHttp->pResolver = NULL;
+		if(xrtNetResolverDestroy(pHttp->pResolver))
+			pHttp->pResolver = NULL;
+		else
+		{
+			/* Resolver retirement can fail too. Retain its creator slot and
+			 * dependent engine so the caller can retry the same owner. */
+			if(pPrevious != NULL) xrtSetErrorTake(pPrevious);
+			return false;
+		}
 	}
 	if(pHttp->bEngineOwned && (pHttp->pEngine != NULL))
 	{

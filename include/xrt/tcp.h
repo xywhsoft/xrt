@@ -21,6 +21,11 @@
 	#error "XRT TCP support requires network engine support"
 #endif
 
+#if defined(XRT_FEATURE_NET_TCP_RETIRE) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND))
+	#error "XRT TCP retirement waiting requires TCP and condition variables"
+#endif
+
 #if defined(XRT_FEATURE_NET_TCP_FILE) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FILE))
 	#error "XRT TCP file support requires TCP and file support"
@@ -47,9 +52,8 @@
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	 !defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
-	 !defined(XRT_FEATURE_FUTURE) || \
-	 !defined(XRT_FEATURE_FUTURE_BRIDGE))
-	#error "XRT TCP Dial Future support requires TCP Dial, Future and Future bridge support"
+	 !defined(XRT_FEATURE_FUTURE))
+	#error "XRT TCP Dial Future support requires TCP Dial, Future and Dial Future common"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_SYNC) && \
@@ -345,6 +349,16 @@ XRT_API xnetstream* xrtNetStreamConnect(
 	ptr pData
 );
 
+/* Creation-time event ownership: installs the permanent descriptor BEFORE
+ * posting connect/start work, so even an immediate Open/Close sees its owner.
+ * Success consumes exactly one Data reference; failure consumes none. Event
+ * callbacks borrow it; Drop is deferred until the Worker callback stacks have
+ * returned, with the same replacement/close rules as SetEventsOwnedV1.
+ * Descriptor and callback code must remain resident. */
+XRT_API xnetstream* xrtNetStreamConnectOwnedV1(xnetengine* pEngine,
+	const xnetaddr* pRemote, uint64 iAffinity, const xnetstreamconfig* pConfig,
+	ptr pData, const xnetstreameventsownershipv1* pPolicy);
+
 
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL)
@@ -453,6 +467,17 @@ XRT_API xnetstream* xrtNetStreamRef(xnetstream* pStream);
 
 /* 释放 Stream 引用；空指针视为空操作。 */
 XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
+
+#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+/* Wait for CLOSED and exactly the caller's one remaining strong Stream reference.
+ * Unlike WAIT_CLOSE this includes native/control/send/owned-event callback tails.
+ * Does not request close, retain the Stream or consume the caller owner. Keep that
+ * owner alive through all concurrent waits; stop other API/ref entries before
+ * treating success as final retirement or destroying it. Extra caller aliases
+ * also keep the result pending. Any worker of the same Engine is rejected.
+ * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
+XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+#endif
 
 
 

@@ -93,6 +93,16 @@ xtlssession* __xrtTlsSessionCreateSized(
 /* 返回会话尾部角色状态；普通会话返回 NULL。 */
 ptr __xrtTlsSessionRoleData(xtlssession* pSession);
 
+#if defined(XRT_FEATURE_TLS_CLIENT_VERIFY)
+/* Exact built-in role identity is checked BEFORE reading its tail layout.
+ * Called only while the containing session is quiescent and frozen. */
+bool __xrtTlsClientVerifierOwnershipTrace(
+	const xtlssession*, xrtownershipvisitor, ptr);
+#endif
+#if defined(XRT_FEATURE_TLS_SERVER)
+bool __xrtTlsServerIdentityOwnershipLeaf(const xtlssession*);
+#endif
+
 
 
 /* 按公开生命周期图推进状态；FAILED 可以从任意非终态进入。 */
@@ -102,6 +112,10 @@ bool __xrtTlsSessionSetState(xtlssession* pSession, xtlsstate State);
 
 /* 尽力排队与当前根错误匹配的 fatal Alert，再进入失败终态。 */
 xtlsresult __xrtTlsSessionFail(xtlssession* pSession);
+
+/* Role-specific protocol failures can require a more precise wire alert than
+ * the shared diagnostic category. Preserve the same root-error contract. */
+xtlsresult __xrtTlsSessionFailAlert(xtlssession* pSession, xtlsalert Alert);
 
 
 

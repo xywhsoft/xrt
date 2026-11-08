@@ -41,11 +41,28 @@ def _developing_modules(manifest: dict) -> set[str]:
 
 
 
+def _linux_dependency_closure(modules: dict, requested: set[str]) -> set[str]:
+	"""展开 Linux 实际依赖，区分 io_uring 与普通运行门禁。"""
+
+	pending = list(requested)
+	selected: set[str] = set()
+	while pending:
+		name = pending.pop()
+		if name in selected:
+			continue
+		selected.add(name)
+		module = modules[name]
+		pending.extend(module["depends"])
+		pending.extend(module.get("platform_depends", {}).get("linux", []))
+	return selected
+
+
+
 class ReleaseStatusTest(unittest.TestCase):
 	"""验证 developing 模块不会从公开发布边界中消失。"""
 
 	def test_developing_modules_are_exact(self) -> None:
-		"""状态文档列出的 io_uring 节点必须与清单精确相等。"""
+		"""状态文档列出的全部待验证节点必须与清单精确相等。"""
 
 		expected = set().union(*(
 			_developing_modules(_manifest(path))
@@ -54,7 +71,7 @@ class ReleaseStatusTest(unittest.TestCase):
 		text = (ROOT / "docs" / "RELEASE_STATUS.md").read_text(
 			encoding="utf-8"
 		)
-		section = text.split("## io_uring 门禁", 1)[1].split("\n## ", 1)[0]
+		section = text.split("## 待验证模块", 1)[1].split("\n## ", 1)[0]
 		actual = set(re.findall(r"^- `([^`]+)`$", section, re.MULTILINE))
 
 		self.assertEqual(actual, expected)
@@ -62,7 +79,7 @@ class ReleaseStatusTest(unittest.TestCase):
 
 
 	def test_developing_modules_have_linux_runtime_gate(self) -> None:
-		"""待验证节点与 xhttp io_uring 契约必须进入 Linux 门禁。"""
+		"""待验证节点必须进入对应的 Linux 运行或后端编译门禁。"""
 
 		core = _manifest(CORE_MANIFEST)
 		http = [_manifest(path) for path in HTTP_MANIFESTS]
@@ -71,9 +88,14 @@ class ReleaseStatusTest(unittest.TestCase):
 			for manifest in (core, *http)
 			for module in manifest["modules"]
 		}
-		expected = _developing_modules(core)
+		developing = _developing_modules(core)
 		for manifest in http:
-			expected.update(_developing_modules(manifest))
+			developing.update(_developing_modules(manifest))
+		uring_developing = {
+			name for name in developing
+			if "net_port_uring" in _linux_dependency_closure(modules, {name})
+		}
+		expected = set(uring_developing)
 		expected.update(
 			module["name"] for manifest in http for module in manifest["modules"]
 			if module["name"].endswith("_uring_tests")
@@ -105,6 +127,27 @@ class ReleaseStatusTest(unittest.TestCase):
 				(name == "net_port_uring") or
 				("net_port_uring" in dependencies)
 			)
+
+		marker = "- name: Run developing Core runtime gates"
+		self.assertIn(marker, workflow)
+		section = workflow.split(marker, 1)[1].split("\n      - name:", 1)[0]
+		self.assertIn("matrix.runner == 'ubuntu-latest'", section)
+		self.assertNotIn("--no-run", section)
+		self.assertNotIn("--no-single", section)
+		self.assertIn("python tools/test_tls_client_auth.py", section)
+		self.assertIn("--regression", section)
+		self.assertRegex(section, r"--report\s+\S+")
+		match = re.search(r"--suite\s+([a-z0-9_,]+)", section)
+		self.assertIsNotNone(match)
+		runtime_gates = set(match.group(1).split(","))
+		self.assertFalse(runtime_gates - modules.keys())
+		self.assertLessEqual(
+			developing - uring_developing,
+			_linux_dependency_closure(modules, runtime_gates),
+		)
+		for name in runtime_gates:
+			self.assertTrue(modules[name].get("tests"))
+			self.assertTrue(modules[name].get("single_tests"))
 
 	def test_windows_msvc_package_matrix_is_complete(self) -> None:
 		"""MSVC 风格工具链必须覆盖双架构和两种发布库。"""

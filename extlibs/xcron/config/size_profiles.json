@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "manifest": "extlibs/xcron/config/modules.json",
+  "default_growth": {
+    "text": 0.1,
+    "data": 0.2,
+    "bss": 0.2,
+    "file": 0.15
+  },
+  "profiles": [
+    {
+      "name": "xcron_expression",
+      "system": "expression",
+      "suite": "xcron_expression",
+      "description": "Only expression compilation and required core closure"
+    },
+    {
+      "name": "xcron_calendar",
+      "system": "calendar",
+      "suite": "xcron_calendar",
+      "description": "Gregorian UTC/civil search, expression and public XRT time/core; no local-zone or text parser",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtTimeWrite",
+        "xrtTimeParse",
+        "xrtDateTimeWrite",
+        "xrtDateTimeParse",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtTimeWrite",
+        "_xrtTimeParse",
+        "_xrtDateTimeWrite",
+        "_xrtDateTimeParse"
+      ]
+    },
+    {
+      "name": "xcron_timezone",
+      "system": "timezone",
+      "suite": "xcron_timezone",
+      "description": "Explicit rule core and time/atomic closure; no ambient local timezone, calendar, network or scheduler",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronCalendarNext",
+        "xcronExpressionCompile",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronCalendarNext",
+        "_xcronExpressionCompile"
+      ]
+    },
+    {
+      "name": "xcron_zoned",
+      "system": "zoned",
+      "suite": "xcron_zoned",
+      "description": "Actual-instant zoned Gregorian search with explicit rule/history dependencies; no host TZ/network/wait/scheduler",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtNetEngineCreate",
+        "xrtThreadCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtThreadCreate"
+      ]
+    },
+    {
+      "name": "xcron_scheduler",
+      "system": "scheduler",
+      "suite": "xcron_scheduler",
+      "description": "Bounded pull scheduling and zoned calculation; no network, thread, timer, executor, ambient TZ or durable storage",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xrtNetEngineCreate",
+        "xrtThreadCreate",
+        "xrtExecutorCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtThreadCreate",
+        "_xrtExecutorCreate"
+      ]
+    },
+    {
+      "name": "xcron_executor",
+      "system": "executor",
+      "suite": "xcron_executor",
+      "description": "Cron lease adapter and public XRT Executor closure, no network or host timezone",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
+    },
+    {
+      "name": "xcron_service",
+      "system": "service",
+      "suite": "xcron_service",
+      "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
+    },
+    {
+      "name": "xcron_tzdb",
+      "system": "tzdb",
+      "suite": "xcron_tzdb",
+      "description": "Named snapshot/CAS/quota closure with no filesystem dependency",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronSchedulerCreate",
+        "xrtNetEngineCreate",
+        "xrtRootOpen",
+        "xrtFileOpen",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronSchedulerCreate",
+        "_xrtNetEngineCreate",
+        "_xrtRootOpen",
+        "_xrtFileOpen"
+      ]
+    },
+    {
+      "name": "xcron_tzdb_file",
+      "system": "tzdb_file",
+      "suite": "xcron_tzdb_file",
+      "description": "Named snapshot/CAS/quota closure and explicit anchored-file loader",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronSchedulerCreate",
+        "xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronSchedulerCreate",
+        "_xrtNetEngineCreate"
+      ]
+    }
+  ]
+}

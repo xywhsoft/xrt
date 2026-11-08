@@ -1,0 +1,609 @@
+{
+  "schema": 1,
+  "stage": "public reusable event deadline waiter prerequisite for live cron precision",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "xcron_integrated": false,
+  "environments": {
+    "windows": {
+      "compiler": "gcc.EXE (GCC) 16.2.0",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "layout": {
+        "waiter": 40,
+        "info": 16,
+        "event": 24
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xrt",
+        "generated_at": "2026-11-02T12:03:33.898094+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.2,
+        "max_relative_central_range": 0.3,
+        "source_revision": "61e248cd637abb3fec51286d7acd76cf77f70746",
+        "source_dirty": true,
+        "source_fingerprint": "7f010a471a2b750cda7e31a0098fe342b0759cf0aad9dd1867ab96f987358bd2",
+        "benchmark_fingerprint": "16612064a3464f1a2de33f7e74bf41962473ab01e680e396e7f91be9c263a588",
+        "profiles": {
+          "event_waiter": {
+            "description": "Reusable precise event timeout versus ordinary event timeout; overshoot and process CPU, no scheduling SLA or performance acceptance",
+            "benchmarks": {
+              "event_waiter": {
+                "source": "dev/bench/event_waiter/bench_event_waiter.c",
+                "inputs": [],
+                "suite": "event_waiter",
+                "args": [
+                  "16",
+                  "1"
+                ],
+                "facts": {},
+                "metrics": {
+                  "event_overshoot_p99_ms": {
+                    "samples": [
+                      14.9949
+                    ],
+                    "median": 14.9949,
+                    "mean": 14.9949,
+                    "min": 14.9949,
+                    "max": 14.9949,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "waiter_overshoot_p99_ms": {
+                    "samples": [
+                      1.0086
+                    ],
+                    "median": 1.0086,
+                    "mean": 1.0086,
+                    "min": 1.0086,
+                    "max": 1.0086,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "event_cpu_us_per_wait": {
+                    "samples": [
+                      0.0
+                    ],
+                    "median": 0.0,
+                    "mean": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "waiter_cpu_us_per_wait": {
+                    "samples": [
+                      0.0
+                    ],
+                    "median": 0.0,
+                    "mean": 0.0,
+                    "min": 0.0,
+                    "max": 0.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "61e248cd637abb3fec51286d7acd76cf77f70746",
+        "source_dirty": true,
+        "source_fingerprint": "7f0ab42b6d5d4a13d5021acb2c3d6fceda5ecd8aaffb736d33f8e26314c48047",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "event_waiter": {
+            "suite": "event_waiter",
+            "description": "Reusable public event deadline context; no network, worker pool or thread creation",
+            "forbid_symbols": [
+              "xrtThreadCreate",
+              "xrtExecutorCreate",
+              "xrtNetEngineCreate",
+              "_xrtThreadCreate",
+              "_xrtExecutorCreate",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 41732,
+                "data": 2376,
+                "bss": 11072,
+                "members": 1,
+                "load": 44108,
+                "file": 73080,
+                "path": "out/size/gnu/x64/event_waiter/single/xrt_single.o",
+                "compile_seconds": 1.6662256000563502,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 41612,
+                "data": 2392,
+                "bss": 11104,
+                "members": 11,
+                "load": 44004,
+                "file": 85492,
+                "path": "release/gnu/x64/event_waiter/static/libxrt.a"
+              },
+              "shared": {
+                "text": 54677,
+                "data": 2568,
+                "bss": 11376,
+                "members": 1,
+                "load": 57245,
+                "file": 109901,
+                "path": "release/gnu/x64/event_waiter/shared/xrt.dll"
+              }
+            }
+          }
+        }
+      },
+      "binary_sha256": {
+        "out/gcc/native/event_waiter_tests/test_event_waiter.exe": "8e2e305c5fa58e6c611ab7686bf9546b6eb6ed1419143158f56d084e405f621a",
+        "out/gcc/native/event_waiter_tests/test_event_waiter_native.exe": "cab050e766f070431c7aa0266993ed23668a20d6291dd76fb3454e312bc9eb64",
+        "out/gcc/native/event_waiter_tests/test_single_event_waiter.exe": "dc09d375caa37b9f55c47fbf536ea4766db963328edd91c7b38ac5d97b25223c",
+        "out/gcc/native/event_waiter/test_event_waiter.exe": "2b0b69a20259d3f696ad0ad63b3c342eee9cae5f321a6a9f622f42f683a9083f",
+        "out/gcc/native/event_waiter/test_single_event_waiter.exe": "dc09d375caa37b9f55c47fbf536ea4766db963328edd91c7b38ac5d97b25223c",
+        "out/gcc/native/event_waiter/concurrency_event_waiter_main.exe": "865af36438e65fd5098d3173c68e4ad846c698fffca8a1eb8086b14acc3e1844",
+        "out/gcc/native/event/test_event.exe": "88893c02e67592542fa95b31a901d08b9167321bf21bf590461b9ec37364ac19",
+        "out/gcc/native/event/test_sync_oom.exe": "1b5c3d38b9ba5c1a8ced91125d7a82cafb09aaeb553a5ef45a1a8138588a3a5c",
+        "out/gcc/native/event/test_single_event.exe": "e9773ffeccd847cb98bc275f6212b68644f78914f08c76d93206baf916991da1",
+        "out/service-extensions/xcron-precise/bin/windows-static-unit.exe": "1133c423d5b7324dbddb87eb6108af248d56db5641ffcd4e36aab8a2ca231186",
+        "out/service-extensions/xcron-precise/bin/windows-static-example.exe": "2945caaf91958c8a778adb3188652487de73a4216430a0f72542263af247507a",
+        "release/gnu/x64/event_waiter/static/test_package_xrt.exe": "740bff97be41894f6368492469775ae9b982bf95d3a45a4a0384ddd95bb914ac",
+        "out/service-extensions/xcron-precise/bin/windows-shared-unit.exe": "3c894d326754eb0fce13142f3cd059696835b5efe84ca43bd888e35c11e7ac07",
+        "out/service-extensions/xcron-precise/bin/windows-shared-example.exe": "ba84d15c029fd9475cf284c8fd582c6555492dd1855bcbe53bebc9c1cd4001ab",
+        "release/gnu/x64/event_waiter/shared/test_package_xrt.exe": "a6f0e1ad1dc4cb06f9087852a6a2a3177a65b2cd141a005fede5bedb2d2651e1",
+        "out/service-extensions/xcron-precise/windows-layout.exe": "df66aaa9cf8bd21893195566d70a97862171a2bd327c790df654db5db41ae153"
+      }
+    },
+    "wsl": {
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "layout": {
+        "waiter": 32,
+        "info": 16,
+        "event": 176
+      },
+      "smoke": {
+        "schema": 2,
+        "product": "xrt",
+        "generated_at": "2026-11-02T12:09:19.607114+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 1,
+        "warmups": 0,
+        "max_relative_mad": 0.2,
+        "max_relative_central_range": 0.3,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "7f010a471a2b750cda7e31a0098fe342b0759cf0aad9dd1867ab96f987358bd2",
+        "benchmark_fingerprint": "16612064a3464f1a2de33f7e74bf41962473ab01e680e396e7f91be9c263a588",
+        "profiles": {
+          "event_waiter": {
+            "description": "Reusable precise event timeout versus ordinary event timeout; overshoot and process CPU, no scheduling SLA or performance acceptance",
+            "benchmarks": {
+              "event_waiter": {
+                "source": "dev/bench/event_waiter/bench_event_waiter.c",
+                "inputs": [],
+                "suite": "event_waiter",
+                "args": [
+                  "16",
+                  "1"
+                ],
+                "facts": {},
+                "metrics": {
+                  "event_overshoot_p99_ms": {
+                    "samples": [
+                      0.0761
+                    ],
+                    "median": 0.0761,
+                    "mean": 0.0761,
+                    "min": 0.0761,
+                    "max": 0.0761,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "waiter_overshoot_p99_ms": {
+                    "samples": [
+                      0.0765
+                    ],
+                    "median": 0.0765,
+                    "mean": 0.0765,
+                    "min": 0.0765,
+                    "max": 0.0765,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "ms",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "event_cpu_us_per_wait": {
+                    "samples": [
+                      7.89375
+                    ],
+                    "median": 7.89375,
+                    "mean": 7.89375,
+                    "min": 7.89375,
+                    "max": 7.89375,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "waiter_cpu_us_per_wait": {
+                    "samples": [
+                      7.70625
+                    ],
+                    "median": 7.70625,
+                    "mean": 7.70625,
+                    "min": 7.70625,
+                    "max": 7.70625,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": null,
+        "source_dirty": null,
+        "source_fingerprint": "7f0ab42b6d5d4a13d5021acb2c3d6fceda5ecd8aaffb736d33f8e26314c48047",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "event_waiter": {
+            "suite": "event_waiter",
+            "description": "Reusable public event deadline context; no network, worker pool or thread creation",
+            "forbid_symbols": [
+              "xrtThreadCreate",
+              "xrtExecutorCreate",
+              "xrtNetEngineCreate",
+              "_xrtThreadCreate",
+              "_xrtExecutorCreate",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 44629,
+                "data": 2432,
+                "bss": 10892,
+                "members": 1,
+                "load": 47061,
+                "file": 92216,
+                "path": "out/size/gnu/native/event_waiter/single/xrt_single.o",
+                "compile_seconds": 0.9966838999999936,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 44460,
+                "data": 2440,
+                "bss": 10897,
+                "members": 11,
+                "load": 46900,
+                "file": 112582,
+                "path": "release/gnu/native/event_waiter/static/libxrt.a"
+              },
+              "shared": {
+                "text": 59180,
+                "data": 3632,
+                "bss": 10952,
+                "members": 1,
+                "load": 62812,
+                "file": 83752,
+                "path": "release/gnu/native/event_waiter/shared/libxrt.so"
+              }
+            }
+          }
+        }
+      },
+      "binary_sha256": {
+        "out/service-extensions/xcron-precise/bin/wsl-static-unit": "4daab7ed12e6441245edd6f2c350abb3951dd82915bea66cb0d654e245fd2daf",
+        "out/service-extensions/xcron-precise/bin/wsl-static-example": "11dfba169d31b8d7760b5844a7604d39940aeebc91cb0fbcb3a0e61dfbb0460d",
+        "out/service-extensions/xcron-precise/bin/wsl-shared-unit": "64d69c4bf90c854136237606b077eeddd440808ad0664c13cffff877aff8bbb0",
+        "out/service-extensions/xcron-precise/bin/wsl-shared-example": "4ae07e1ea7da25040bec8018330a3354d9b5a349cba27d7dd734429277f5a2f5"
+      },
+      "tsan": {
+        "programs_passed": 2,
+        "fence_warnings": [],
+        "diagnostic_build_only_flags": [
+          "-Wno-error=tsan"
+        ],
+        "scope": "Public full-thread unit and real realtime-condition fallback; no whole-Core/native-Linux qualification."
+      }
+    }
+  },
+  "primitive_gap": {
+    "parent_commit": "61e248cd637abb3fec51286d7acd76cf77f70746",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "generated_at": "2026-11-02T11:57:21.920808+00:00",
+    "compiler": "gcc (GCC) 16.2.0",
+    "power_policy": "\u7535\u6e90\u65b9\u6848 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (\u5e73\u8861)",
+    "mode_names": [
+      "XRT event timeout",
+      "native event timeout",
+      "native standard timer",
+      "native high-resolution timer"
+    ],
+    "results": {
+      "affinity": 1,
+      "groups": [
+        {
+          "mode": 0,
+          "request_ms": 1,
+          "samples": 256,
+          "overshoot_p50_ms": 14.6729,
+          "overshoot_p99_ms": 17.5948,
+          "overshoot_max_ms": 21.1587,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 3.989713
+        },
+        {
+          "mode": 1,
+          "request_ms": 1,
+          "samples": 256,
+          "overshoot_p50_ms": 14.7175,
+          "overshoot_p99_ms": 16.9521,
+          "overshoot_max_ms": 19.1795,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 3.995189
+        },
+        {
+          "mode": 2,
+          "request_ms": 1,
+          "samples": 256,
+          "overshoot_p50_ms": 14.5962,
+          "overshoot_p99_ms": 19.6172,
+          "overshoot_max_ms": 21.6213,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 3.986234
+        },
+        {
+          "mode": 3,
+          "request_ms": 1,
+          "samples": 256,
+          "overshoot_p50_ms": 0.9576,
+          "overshoot_p99_ms": 2.584,
+          "overshoot_max_ms": 5.9131,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 0.473349
+        },
+        {
+          "mode": 0,
+          "request_ms": 5,
+          "samples": 256,
+          "overshoot_p50_ms": 10.571,
+          "overshoot_p99_ms": 13.8628,
+          "overshoot_max_ms": 18.6815,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 3.979923
+        },
+        {
+          "mode": 1,
+          "request_ms": 5,
+          "samples": 256,
+          "overshoot_p50_ms": 10.879,
+          "overshoot_p99_ms": 14.3927,
+          "overshoot_max_ms": 19.2789,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 4.013446
+        },
+        {
+          "mode": 2,
+          "request_ms": 5,
+          "samples": 256,
+          "overshoot_p50_ms": 10.7108,
+          "overshoot_p99_ms": 14.93,
+          "overshoot_max_ms": 15.6918,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 3.992434
+        },
+        {
+          "mode": 3,
+          "request_ms": 5,
+          "samples": 256,
+          "overshoot_p50_ms": 0.9995,
+          "overshoot_p99_ms": 4.6256,
+          "overshoot_max_ms": 6.0027,
+          "cpu_seconds": 0.0,
+          "wall_seconds": 1.566486
+        }
+      ]
+    },
+    "artifacts": {
+      "out/service-extensions/xcron-precise/wait-probe.c": "1cf6859f6941f8ce3d922df87dd174dad8da7d5fa0333f2df85163ac5386c709",
+      "out/service-extensions/xcron-precise/wait-probe.exe": "ec92a1827d79761bf2a1a6afa07898cee26287131d8860a84c54a45f81e723b6",
+      "out/service-extensions/xcron-precise/wait-probe.json": "8a753610ccbc48f377ee5e5867f3278c321221aa2d05496230ea76b6b283a908",
+      "out/service-extensions/xcron-precise/primitive-baseline-libxrt.a": "7e45ec6556901c42e389aa660b684b032195a2b96046423b5c2a8a0f441f497d"
+    },
+    "notes": [
+      "Each child pins to the lowest permitted CPU; no machine/global timer or power policy changes.",
+      "One predetermined 256-sample group per request/mode, no favorable rerun; not performance acceptance.",
+      "Zero process-CPU deltas are below observable accounting resolution, not proof of zero CPU/system power cost."
+    ]
+  },
+  "source_sha256_lf": {
+    "src/concurrency/event_waiter.c": "c73a8dc77a391015ddab5a81c99a792ab991b474ed584666bee6dbf52fb0004f",
+    "include/xrt.h": "ed829e815d2ae6412afa28d8829ac20942db090568e0751f4f422288f3ad0283",
+    "include/xrt/event_waiter.h": "d0a4ebc8405cd0b5d17df5c63081bcf66686c7fb7f99d98fb4c80a0d7c76e0f5",
+    "include/xrt/features.h": "5eddb2024a465b7b46568fdd2a92a11560dc019bfdd79270cc9861742b83a2df",
+    "tests/concurrency/test_event_waiter.c": "1cfa2e8509ee3f94543d052ad6c0ea7cb7508eb692ed74d8a012a6d319bede3e",
+    "tests/whitebox/test_event_waiter_native.c": "3eb3b250109c617e2297b6968091c01413783ed2e5a7ca1376580c8c07bc2cb2",
+    "tests/single/test_single_event_waiter.c": "0cb696aee8ac22db6ab64a822e2579cf556e87bff4786912e87b60d0cb3e1954",
+    "single/xrt.h": "2bec25e4863c4d8d35027a126c609d1f12de57555fd3e164c5ce294979ec25b6",
+    "single/xrt_decl.h": "7d0005169ad36ed9b273f5e7a163fe28d67daa71a7810d900d0e02254d62bd17",
+    "config/modules.json": "34ff20cd35fae3dc4c1bb741873284046f85930edf60ce5ac6da3fb1d9a66d91",
+    "config/size_profiles.json": "cc0558b90bcc2d0fa636c5c202c1bc2a359b0ed78e29ae73fed3b40df5aca3a4",
+    "config/performance_profiles.json": "a7bb29fbb3562859bed79bf04322bb31e46e8338633d29867123f16b79dadebd",
+    "dev/bench/event_waiter/bench_event_waiter.c": "06dc85d8bb04cab012ea9dfdc72886455ce19d264692cb059fb47b3e971d989d",
+    "examples/concurrency/event_waiter/main.c": "870b6bdb65d2ddd9f3d2c822680e71104a144590bdef3ae1c299a41629cf5f6e"
+  },
+  "validation_counts": {
+    "modular_single_programs": 16,
+    "runnable_examples": 2,
+    "package_consumer_runs": 12,
+    "tsan_programs": 2,
+    "tool_tests": 26,
+    "final_basic_unit_executions": 13,
+    "final_ready_cycles": 260000,
+    "final_armed_cycles": 416,
+    "final_init_unit_cycles": 13000,
+    "heap_asserted_units": 7,
+    "heap_asserted_ready_cycles": 140000,
+    "heap_asserted_armed_cycles": 224,
+    "heap_asserted_lifetimes": 7000,
+    "windows_handle_asserted_lifetimes": 6000
+  },
+  "notes": [
+    "Concrete public-event wait precision gap reproduced with a pinned-child native prototype; four public APIs add a caller-owned reusable deadline context, not a shared runtime/thread/callback. Original EventWaitFor semantics and storage are unchanged.",
+    "Windows context40 bytes owns one reusable nonperiodic timer, preferring high resolution. POSIX context32 bytes reuses the event condition. Info16 bytes; event storage remains Windows24/POSIX176. Unsupported precise backends have explicit strict rejection/default reported fallback; resource errors never silently downgrade.",
+    "Native Windows GCC O2, WSL GCC O2 ASan/UBSan/leak-halt modular/single/examples; final plain-O2 static/shared packages and consumers. Separate WSL O1 TSan public-thread unit and real fallback both pass. No atomic_thread_fence warnings were emitted by this selected closure; the diagnostic build alone retains the existing -Wno-error=tsan allowance.",
+    "Native fault fixture covers precision unsupported/fallback/resource/diagnostic OOM/arm/wait/cancel/unit/active-cleanup reentry; public tests cover auto/manual readiness, event interruption, huge/infinite one-budget waits, owner guard, physical cleanup handoff, full-byte alias preservation and no early timeout. POSIX fallback uses a real realtime-clock condition, not a mismatched flag.",
+    "Final13 basic units execute260000 ready/416 armed cycles and13000 init/unit cycles. Seven memory-stats-selected units assert no requested-heap calls; all6 Windows final units assert1000 timer lifetimes return process handle count to baseline. Native kernel memory, system IRQ CPU and power are outside XRT heap counters.",
+    "The initial output-alias test checked an unrelated untouched buffer. It was replaced by full context/event byte snapshots, then every affected final modular/single/static/shared/TSan program was rebuilt. All other production/measurement inputs match. Initial source is archived by its recorded SHA; unchanged size/timing samples were retained, not favorably retried.",
+    "One16-sample smoke per mode/platform is not performance acceptance: Windows extra-wait P99 event14.9949ms/waiter1.0086ms; process CPU delta0 means below observable accounting resolution. WSL event0.0761ms/waiter0.0765ms, CPU7.89375/7.70625us per wait. No scheduling SLA, native Linux, pinned production throughput/P99/CPU/power or72h acceptance.",
+    "New metric gates remain MAD3%,central-range6%,lower regression10%; older Core defaults were not changed. Ordinary ready checks, clock reads, timer arm/wait/cancel are explicit extra calls; no zero-overhead claim.",
+    "All-module source closure includes the real implementation; generated features/singles, direct/declaration headers, both public constant namespaces, trim/size and26 tools pass. All final C/H inputs stayed frozen during their compilers.",
+    "This independently committed prerequisite does not yet route xcron service waits through the new API. Integration/backend observation and fixed-arrival service measurements remain next, along with all original four-product protocol, persistence, native and long-run scope."
+  ]
+}

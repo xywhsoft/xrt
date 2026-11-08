@@ -359,8 +359,7 @@ bool xacmeDnsTxtQuery(
 		bool bGot = false;
 		for(iAttempt = 0; (iAttempt < 2) && !bGot; iAttempt++)
 		{
-			pPacket = __xrtNetUdpReceiveWait(
-				pUdp, xrtTimer() + 2, NULL);
+			pPacket = xrtNetUdpReceiveWait(pUdp, INT64_C(2000), NULL);
 			if(pPacket == NULL)
 			{
 				if(xrtErrorKind(xrtGetError()) == XERR_MEMORY) goto Done;
