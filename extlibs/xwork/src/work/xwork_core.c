@@ -815,14 +815,61 @@ uint64_t xwork__active_deadline(const xwork_agent *pAgent)
     return uDeadline;
 }
 
+/* Keep the failed operation's stack/result alive while the host waits.
+ * No completed model/tool execution is restarted by this helper. */
+bool xwork__recover(xwork_agent *Agent,const char *Stage,xwork_error *Error,
+                     uint32_t Attempt,bool Safe)
+{
+    xwork_agent_extension_context Context={0};xwork_error PolicyError;
+    if(!Agent||!Agent->OnExtension||!Safe)return false;
+    if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
+    if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
+    Context.ePhase=XWORK_AGENT_EXTENSION_RECOVERY;Context.sRecoveryStage=Stage;
+    Context.pRecoveryError=Error;Context.uRecoveryAttempt=Attempt;Context.bRecoverySafe=Safe;
+    xworkErrorInit(&PolicyError);
+    if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK||!Context.bRecoveryHandled)return false;
+    xwork_event Event={0};Event.eKind=XWORK_EVENT_RECOVERY_WAIT;Event.sText=Stage;
+    xllm_session_tail Tail={0};if(xllmSessionGetTail(Agent->pSession,&Tail))Event.uAgentTurn=Tail.uTurn;
+    Event.sProviderCode=Context.bRecoveryWaiting?"waiting_resource":"recovering_resource";
+    if(!strcmp(Stage,"storage"))Event.sProviderCode="waiting_storage";
+    if(!strncmp(Stage,"compaction",10))Event.sProviderCode="waiting_compaction";
+    if(!strcmp(Stage,"context"))Event.sProviderCode="waiting_context";
+    if(!strcmp(Stage,"callback"))Event.sProviderCode="waiting_callback";
+    if(!strcmp(Stage,"verification"))Event.sProviderCode="waiting_verification";
+    if(!strcmp(Stage,"loop_guard"))Event.sProviderCode="waiting_tools";
+    Event.tDiagnostics.uAttemptCount=Attempt;Event.tDiagnostics.uRetryAfterMs=Context.uRecoveryDelayMs;
+    /* A storage outage must not recursively ask the failed sink to persist
+     * its own recovery notice. The original operation remains authoritative. */
+    bool Notify=strcmp(Stage,"storage")&&strcmp(Stage,"callback_quiet")&&strcmp(Stage,"callback_resource_quiet");
+    if(Notify&&!xwork__emit(Agent,&Event))return false;
+    uint64_t Until=xllmClockUs()+(uint64_t)Context.uRecoveryDelayMs*1000u,NextProbe=xllmClockUs();
+    do{
+        if(xwork__operation_status(Agent)==XWORK_OPERATION_TIMED_OUT){xwork__set_error(Error,XWORK_ERROR_TIMEOUT,"recovery deadline exceeded");return false;}
+        if(xwork__is_cancelled(Agent)){xwork__set_error(Error,XWORK_ERROR_CANCELLED,"recovery was cancelled");return false;}
+        if(Context.bRecoveryNeedsChange&&xllmClockUs()>=NextProbe){
+            Context.bRecoveryProbe=true;Context.bRecoveryReady=false;
+            if(xwork__agent_extension(Agent,&Context,&PolicyError)!=XWORK_RESULT_OK)return false;
+            if(Context.bRecoveryReady)break;
+            NextProbe=xllmClockUs()+1000000u;
+        }
+        if(!Context.bRecoveryNeedsChange&&xllmClockUs()>=Until)break;
+        xrtSleep(20);
+    }while(true);
+    if(Notify){Event.tDiagnostics.uRetryAfterMs=0;(void)xwork__emit(Agent,&Event);}
+    return true;
+}
+
 bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
 {
     xllm_error tError;
+    uint32_t Attempt=0;
     if (!pAgent || !pAgent->bAutoSaveSession || !pAgent->sSessionPath || !pAgent->sSessionPath[0])
         return true;
+retry_checkpoint:
     if (!xwork__ensure_parent(pAgent->sSessionPath))
     {
         xwork__set_error(pError, XWORK_ERROR_IO, "failed to create session directory");
+        if(xwork__recover(pAgent,"storage",pError,++Attempt,true))goto retry_checkpoint;
         return false;
     }
     xllmErrorInit(&tError);
@@ -830,9 +877,15 @@ bool xwork__save(xwork_agent *pAgent, xwork_error *pError)
     {
         xwork__set_error(pError, XWORK_ERROR_IO,
                          tError.sMessage[0] ? tError.sMessage : "failed to save session");
+        if(xwork__recover(pAgent,"storage",pError,++Attempt,true))goto retry_checkpoint;
         return false;
     }
     return true;
+}
+
+bool xworkAgentWaitRecovery(xwork_agent *Agent,const char *Stage,xwork_error *Error,uint32_t Attempt)
+{
+    return Stage&&Stage[0]&&xwork__recover(Agent,Stage,Error,Attempt,true);
 }
 
 bool xworkPathIsProtected(const char *sPath)

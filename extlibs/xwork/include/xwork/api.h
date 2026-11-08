@@ -80,7 +80,7 @@ extern "C" {
 #define XWORK_VERSION_MINOR 11
 #define XWORK_VERSION_PATCH 0
 #define XWORK_VERSION_TEXT "3.11.0"
-#define XWORK_ABI_VERSION 9u
+#define XWORK_ABI_VERSION 10u
 #define XWORK_EVENT_SCHEMA_VERSION 3u
 #define XWORK_EVENT_SNAPSHOT_MAX_RECORDS 1024u
 #define XWORK_ARTIFACT_READ_DEFAULT_BYTES (64u * 1024u)
@@ -395,7 +395,8 @@ typedef enum xwork_event_kind {
     XWORK_EVENT_ARTIFACT_CREATED,
     XWORK_EVENT_TASK_UPDATED,
     XWORK_EVENT_RECOVERY_REQUIRED,
-    XWORK_EVENT_RECOVERY_RESOLVED
+    XWORK_EVENT_RECOVERY_RESOLVED,
+    XWORK_EVENT_RECOVERY_WAIT
 } xwork_event_kind;
 
 typedef enum xwork_recovery_action {
@@ -584,7 +585,8 @@ typedef enum xwork_agent_extension_phase {
     XWORK_AGENT_EXTENSION_CONTEXT,
     XWORK_AGENT_EXTENSION_RELEASE,
     XWORK_AGENT_EXTENSION_CHILD_READY,
-    XWORK_AGENT_EXTENSION_MODEL_DISPATCH
+    XWORK_AGENT_EXTENSION_MODEL_DISPATCH,
+    XWORK_AGENT_EXTENSION_RECOVERY
 } xwork_agent_extension_phase;
 struct xwork_run_result;
 typedef xwork_result (*xwork_agent_default_run_fn)(xwork_agent*,const char*,
@@ -615,6 +617,20 @@ typedef struct xwork_agent_extension_context {
     const void* pDelegationToolOwner;
     bool bOverrideDelegationApproval;
     xwork_approval_mode eDelegationApproval;
+    /* RECOVERY is a host policy seam, never a request to replay a tool.
+     * Only an explicitly safe operation may be retried. Callback success
+     * alone does not opt in: set bRecoveryHandled and uRecoveryDelayMs. */
+    const char* sRecoveryStage;
+    const xwork_error* pRecoveryError;
+    uint32_t uRecoveryAttempt;
+    bool bRecoverySafe;
+    bool bRecoveryHandled;
+    bool bRecoveryWaiting;
+    uint32_t uRecoveryDelayMs;
+    bool bRecoveryNeedsChange;
+    bool bRecoveryProbe; /* Poll only; must not run a model or tool. */
+    bool bRecoveryReady;
+    uint64_t uRecoveryRevision;
 } xwork_agent_extension_context;
 typedef xwork_result (*xwork_agent_extension_fn)(void*,xwork_agent_extension_context*,xwork_error*);
 
@@ -814,6 +830,10 @@ typedef struct xwork_readonly_subagent_config {
 } xwork_readonly_subagent_config;
 
 XRT_API void xworkErrorInit(xwork_error* pError);
+/* Safe host boundary only: retain the failed operation and wait through the
+ * installed recovery policy. Does not invoke/replay any model or tool. */
+XRT_API bool xworkAgentWaitRecovery(xwork_agent* pAgent, const char* sStage,
+    xwork_error* pError, uint32_t uAttempt);
 XRT_API const char* xworkErrorCodeName(xwork_error_code eCode);
 XRT_API void xworkRecoveryCallInfoInit(xwork_recovery_call_info* pInfo);
 XRT_API void xworkRecoveryDecisionInit(xwork_recovery_decision* pDecision);

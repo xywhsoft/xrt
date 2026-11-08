@@ -406,9 +406,13 @@ bool xwork__execute_tool_batch(xwork_agent *pAgent, const xllm_tool_call *pCalls
                          "invalid tool batch execution arguments");
         return false;
     }
-    pPlan = xworkAgentPlanToolBatch(pAgent, pCalls, iCallCount, pContext, pError);
-    if (!pPlan)
-        return false;
+    uint32_t PlanRecoveries=0;
+    while(!(pPlan=xworkAgentPlanToolBatch(pAgent,pCalls,iCallCount,pContext,pError))){
+        /* No worker or tool has started; this planning allocation is safe. */
+        if(!pError||pError->eCode!=XWORK_ERROR_OUT_OF_MEMORY||
+            !xwork__recover(pAgent,"resource",pError,++PlanRecoveries,true))return false;
+        pAgent->uMaxParallelTools=1;
+    }
     uLimit = pAgent->uMaxParallelTools ? pAgent->uMaxParallelTools : 1u;
     if (uLimit > 64u)
         uLimit = 64u;

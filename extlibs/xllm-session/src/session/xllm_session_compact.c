@@ -1126,6 +1126,26 @@ bool xllmCompactionEvaluateSummary(const xllm_compaction *pCompaction, const cha
     return xllm_session__ops_evaluate(pCompaction->pSession, sSummary, pQuality, pError);
 }
 
+bool xllmCompactionNormalizeSummary(const xllm_compaction *C,const char *Candidate,
+                                    char **Output,xllm_error *Error)
+{
+    xllm_compaction_quality Q; xllm_session_buf B={0};
+    if(Output)*Output=NULL;
+    if(!Output||!xllmCompactionEvaluateSummary(C,Candidate,&Q,Error)||
+        Q.bAccepted||!Q.uMissingSections||Q.uSummaryTokens<Q.uMinimumSummaryTokens||
+        Q.uSummaryTokens>Q.uMaximumSummaryTokens||Q.uSummaryBytes>Q.uMaximumSummaryBytes)return false;
+    const xllm_session_style *Style=xllm_session__style(C->pSession);
+    for(size_t I=0;I<Style->iSectionCount;I++){
+        if(!(Q.uMissingSections&Style->pSections[I].uFlag))continue;
+        if(!xllm_session__buf_cstr(&B,"## ")||!xllm_session__buf_cstr(&B,Style->pSections[I].sHeading)||
+            !xllm_session__buf_cstr(&B,"\nNot separately specified. Refer to the complete candidate below; do not infer completion.\n\n"))goto fail;
+    }
+    if(!xllm_session__buf_cstr(&B,"## Original candidate (verbatim)\n")||
+        !xllm_session__buf_cstr(&B,Candidate)||!xllmCompactionEvaluateSummary(C,B.pData,&Q,Error)||!Q.bAccepted)goto fail;
+    *Output=xllm_session__buf_detach(&B);return *Output!=NULL;
+fail:xllm_session__buf_unit(&B);return false;
+}
+
 bool xllmSessionCommitCompaction(xllm_session *pSession, xllm_compaction *pCompaction,
                                  const char *sSummary, xllm_error *pError)
 {

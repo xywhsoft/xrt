@@ -4,9 +4,17 @@ xwork is the C runtime above xllm-session: runtime/agent/run lifetimes, immutabl
 catalogs, tool permissions, bounded tool results, asynchronous tasks, subagents,
 MCP transports, durable recovery, scheduling, events and host-owned artifacts.
 
-The public API is in `include/xwork/api.h`. ABI version is 9; event schema is 3.
+The public API is in `include/xwork/api.h`. ABI version is 10; event schema is 3.
 This replaces the v2 public record layouts. Recompile hosts and SDK consumers
 when adopting it; an existing v2 binary must not load a v3 library.
+
+Hosts may handle `XWORK_AGENT_EXTENSION_RECOVERY` to retain a safe failed
+request-build, checkpoint or compaction boundary while resources recover.
+Opt in explicitly with `bRecoveryHandled` and a delay. Cancellation/deadlines
+always win. The runtime never repeats a tool to recover an allocation failure;
+its uncertain effects are returned for inspection. Storage recovery does not
+send its own notice back into the failed event sink. Unhandled hosts retain
+their original bounded error behavior.
 
 ## Build and test
 
@@ -108,6 +116,24 @@ explicit run-now triggers, misfire/overlap policy and durable task restoration.
 Hosts own persistence and execution admission; cancellation remains cooperative.
 
 ## SDK export
+
+Hosts can implement `XWORK_AGENT_EXTENSION_RECOVERY` and explicitly opt in at
+safe boundaries. `xworkAgentWaitRecovery` retains the caller's pending operation;
+it never executes a tool or model. A policy chooses active backoff or retained
+waiting, and can probe an external condition without repeating work. Stop and
+explicit deadlines always interrupt waiting. Checkpoints, request construction,
+compaction commits, and already completed results are retried independently.
+Unknown journal outcomes still require explicit receipt recovery.
+For a callback already inside the serialized event/hook lock, use the stage
+`callback_quiet` or `callback_resource_quiet`: these retain cancellation and
+policy waiting without recursively entering the same event sink.
+
+Compaction first keeps the existing safe-prefix/split-turn planning. If a final
+candidate has adequate content but missing headings, the session library can
+normalize its format without dropping candidate text and applies the same
+quality gate again. Short/oversized candidates cannot be padded into acceptance.
+Hosts decide how to wait after rejected candidates; the library does not start
+unlimited batches of paid summarization calls on its own.
 
 `tools/export_agent_libraries.py --xserver <checkout>` generates the flat XS/TCC
 layout from committed canonical sources. `--check` verifies the exact mapping.

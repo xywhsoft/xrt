@@ -7596,3 +7596,33 @@ new independent master commits will be integrated with separate closure evidence
 Native Linux, original performance acceptance, >=72h runs, nominal DST delivery,
 durability and the remaining Redis/RPC/MQTT scope stay open. All four products
 remain developing and the overall goal remains active.
+
+### 2026-11-08: preserve and integrate concurrent master work
+
+After feature commit `dc6914b2`, normally merged the eight independent commits
+through master `a01b4a13` in the service worktree with no conflict. All value,
+xwork and xllm-session changes/history are preserved. Closure analysis shows
+only xrpc selects the incoming `src/value/value_container.c`; selected runtime
+sources for xredis/xmqtt/xcron are unchanged. Core generated single/decl headers
+have changed, so integrated consumers are tested separately from the old window.
+
+Windows and WSL pass the actual memory-debug object-post-commit/scoped-read
+reproducer,32 xrpc modular/single programs and23 xcron modular/single programs,
+including real HTTP/TLS client/server and scheduler ownership paths. WSL uses
+O2 ASan/UBSan with leak/halt settings. Both platforms pass xcron static/shared
+real consumers. Core and all four extension generated singles check clean.
+Captured2905-input maps match between platforms and are verified before/after
+each command. The initial ignored runner chose `value` instead of the owning
+`value_container` test suite; that selector failure and receipts are retained,
+and exact successful generated-check commands/log hashes are verified for reuse.
+
+No xcron product bytes are changed by this merge, and no benchmark is rerun or
+qualified. The feature-stage oracle/layout/TSan and failed noise results retain
+their original source identities; no new execution of those checks is claimed.
+Windows native symlink creation, native Linux, >=72h and final production gates
+remain open. Integration evidence is
+`extlibs/xcron/tests/results/tzdb-master-integration-20261108.json`; raw receipts,
+maps, closure recipes and logs are under the feature's ignored `integration/`
+directory. Final synchronization is a clean-primary-checkout fast-forward only;
+no remote push is authorized or performed. Continue nominal DST delivery and
+durable recovery, plus the remaining Redis/RPC/MQTT scopes; goal stays active.

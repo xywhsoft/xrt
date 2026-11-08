@@ -2023,6 +2023,90 @@ static void test_compaction_styles(void)
     }
 }
 
+static unsigned recovery_policy_calls,recovery_notices;
+static bool recovery_opt_in,recovery_needs_change,recovery_repair_storage;
+static unsigned recovery_probes;
+static bool recovery_owner_retain(void* Data){(void)Data;return true;}
+static void recovery_owner_release(void* Data){(void)Data;}
+static xwork_result recovery_policy(void* Data,xwork_agent_extension_context* Context,xwork_error* Error)
+{
+    (void)Data;(void)Error;
+    if(Context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY){
+        if(Context->bRecoveryProbe){Context->bRecoveryReady=++recovery_probes>=2;return XWORK_RESULT_OK;}
+        if(recovery_repair_storage&&!strcmp(Context->sRecoveryStage,"storage")){(void)remove(".build/xwork-retained-checkpoint");recovery_repair_storage=false;}
+        recovery_policy_calls++;
+        Context->bRecoveryHandled=recovery_opt_in;
+        Context->uRecoveryDelayMs=1;Context->bRecoveryNeedsChange=recovery_needs_change;
+    }
+    return XWORK_RESULT_OK;
+}
+static bool recovery_notice(void* Data,const xwork_event* Event)
+{
+    (void)Data;if(Event->eKind==XWORK_EVENT_RECOVERY_WAIT)recovery_notices++;
+    return true;
+}
+static unsigned recovery_model_calls,recovery_tool_effects;
+static xwork_result recovery_oom_tool(void* Data,const xwork_tool_context* Context,const char* Args,xwork_tool_output* Output,xwork_error* Error)
+{
+    (void)Data;(void)Context;(void)Args;(void)Output;++recovery_tool_effects;
+    xworkErrorInit(Error);Error->eCode=XWORK_ERROR_OUT_OF_MEMORY;return XWORK_RESULT_ERROR;
+}
+static xllm_result recovery_model(void* Data,const xllm_request* Request,const xllm_stream_callbacks* Callbacks,xllm_response** Response,xllm_error* Error)
+{
+    (void)Data;(void)Callbacks;(void)Error;++recovery_model_calls;
+    if(recovery_model_calls==1){*Response=mock_response("",1u);return *Response&&mock_set_call(*Response,0,"once","effect_then_oom","{}")?XLLM_RESULT_OK:XLLM_RESULT_ERROR;}
+    CHECK(request_has_text(Request,"Execution may have applied effects"),"OOM result tells the model to inspect effects instead of blind replay");
+    *Response=mock_response("Completed effects retained; result allocation recovered.",0u);return *Response?XLLM_RESULT_OK:XLLM_RESULT_ERROR;
+}
+static void test_host_recovery(void)
+{
+    xwork_agent_config Config;xwork_error Error;xllm_session_config SessionConfig;
+    xllmSessionConfigInit(&SessionConfig);xllm_session* Session=xllmSessionCreate(&SessionConfig,NULL);
+    xcancel* Cancel=xrtCancelCreate();xworkAgentConfigInit(&Config);
+    Config.pSession=Session;Config.pCancel=Cancel;Config.OnExtension=recovery_policy;
+    Config.sWorkspaceRoot=".";
+    Config.pOwnerUserData=&recovery_opt_in;Config.OnOwnerRetain=recovery_owner_retain;Config.OnOwnerRelease=recovery_owner_release;
+    Config.OnEvent=recovery_notice;Config.bAutoSaveSession=false;
+    xwork_agent* Agent=xworkAgentCreate(&Config,&Error);
+    CHECK(Agent!=NULL,"recovery agent created");
+    if(Agent){
+        recovery_policy_calls=recovery_notices=0;recovery_opt_in=false;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,true),"recovery must explicitly opt in");
+        recovery_opt_in=true;
+        CHECK(!xwork__recover(Agent,"resource",&Error,1,false),"uncertain effects cannot be replayed");
+        CHECK(xwork__recover(Agent,"resource",&Error,1,true),"safe boundary recovers");
+        CHECK(recovery_policy_calls==2&&recovery_notices==2,"one policy decision and paired progress notices");
+        CHECK(xwork__recover(Agent,"storage",&Error,1,true)&&recovery_notices==2,"storage recovery cannot recursively invoke the failed sink");
+        (void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        FILE* Blocker=fopen(".build/xwork-retained-checkpoint","wb");if(Blocker){fputs("blocker",Blocker);fclose(Blocker);}
+        free(Agent->sSessionPath);Agent->sSessionPath=test_strdup(".build/xwork-retained-checkpoint/session.json");
+        Agent->bAutoSaveSession=true;recovery_repair_storage=true;
+        CHECK(Blocker&&xwork__save(Agent,&Error)&&!recovery_repair_storage,
+            "checkpoint retries only its failed save after storage becomes available");
+        Agent->bAutoSaveSession=false;(void)xrtDirRemoveAll(".build/xwork-retained-checkpoint");
+        unsigned NoticesBefore=recovery_notices;
+        CHECK(xrtMutexLock(Agent->pCallbackLock)&&xworkAgentWaitRecovery(Agent,"callback_quiet",&Error,1)&&
+            recovery_notices==NoticesBefore,"serialized callback recovery never reenters its own event lock");
+        (void)xrtMutexUnlock(Agent->pCallbackLock);
+        recovery_needs_change=true;recovery_probes=0;
+        CHECK(xwork__recover(Agent,"context",&Error,1,true)&&recovery_probes==2,"condition wait probes without replaying the failed operation");
+        recovery_needs_change=false;
+        xwork_tool_definition Tool={0};Tool.sName="effect_then_oom";Tool.sDescription="Local OOM fixture";Tool.sParametersJson="{\"type\":\"object\"}";
+        Tool.uEffects=XWORK_TOOL_EFFECT_READ_ONLY;Tool.OnExecute=recovery_oom_tool;
+        CHECK(xworkAgentRegisterTool(Agent,&Tool,&Error),"OOM fixture registered");
+        Agent->OnModelComplete=recovery_model;recovery_tool_effects=recovery_model_calls=0;
+        xwork_run_result Run={0};
+        CHECK(xworkAgentRun(Agent,"Exercise a completed tool followed by OOM.",&Run,&Error)==XWORK_RESULT_OK&&
+            recovery_tool_effects==1&&recovery_model_calls==2&&Run.uToolCalls==1,
+            "resource recovery never repeats an already invoked effectful tool");
+        xworkRunResultUnit(&Run);
+        xrtCancelRequest(Cancel);
+        CHECK(!xwork__recover(Agent,"resource",&Error,2,true),"cancelled recovery never retries");
+        xworkAgentDestroy(Agent);
+    }
+    xrtCancelDestroy(Cancel);xllmSessionDestroy(Session);
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -2031,6 +2115,7 @@ int main(int argc, char** argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork migrated compatibility tests\n");
+    test_host_recovery();
     test_process_text_normalization();
     test_stream_restart();
     test_agent_context_deadline();
