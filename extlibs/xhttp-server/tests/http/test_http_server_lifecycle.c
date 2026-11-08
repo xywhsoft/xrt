@@ -511,7 +511,7 @@ static void testHttpServerShutdownCleanupOrder(void)
 	xrtNetStreamDestroy(Client.Stream);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testHttpServerEngineDestroy(State.Engine),
 		"HTTP shutdown order engine destroy failed"
 	);
 }
@@ -916,7 +916,7 @@ int main(void)
 	xrtHttpConnDestroy(State.Connection);
 	xrtHttpServerDestroy(State.Server);
 	testRequire(
-		xrtNetEngineDestroy(State.Engine),
+		testHttpServerEngineDestroy(State.Engine),
 		"HTTP lifecycle engine destroy failed"
 	);
 	testHttpServerShutdownCleanupOrder();

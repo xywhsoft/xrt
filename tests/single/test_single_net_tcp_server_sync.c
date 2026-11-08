@@ -70,5 +70,12 @@ int main(void)
 	xrtNetStreamDestroy(pClient);
 	xrtNetStreamDestroy(pAccepted);
 	xrtNetServerDestroy(pServer);
-	return xrtNetEngineDestroy(pEngine) ? 0 : 5;
+	/* CLOSED is published before the final callback/native release tail. */
+	Deadline = __xrtWaitAfter(3000);
+	for (;;) {
+		xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+		if (Result == XNET_RETIRE_READY) return 0;
+		if (Result != XNET_RETIRE_BUSY || __xrtWaitExpired(Deadline)) return 5;
+		xrtThreadYield();
+	}
 }

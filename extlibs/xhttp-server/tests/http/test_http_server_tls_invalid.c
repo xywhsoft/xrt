@@ -238,7 +238,7 @@ int main(void)
 	xrtTlsIdentityRelease(pIdentity);
 	xrtTlsContextRelease(pContext);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTPS invalid fixture Engine destroy failed"
 	);
 	printf("[PASS] HTTPS server invalid configuration\n");

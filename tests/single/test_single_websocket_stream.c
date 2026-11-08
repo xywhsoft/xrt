@@ -1,5 +1,6 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#include "net_engine_test.h"
 
 
 
@@ -693,7 +694,7 @@ int main(void)
 		xrtWsStreamDestroy(pServer);
 	#endif
 	xrtNetListenerDestroy(Test.Listener);
-	bool destroyed=xrtNetEngineDestroy(Test.Engine);
+	bool destroyed=testSingleNetEngineDestroy(Test.Engine);
 	#if defined(TEST_SINGLE_WS_OWNED)
 		if(xrtAtomic32Load(&Test.ClientEndpoint.OwnedReferences,XMEMORY_ACQUIRE)||
 		   xrtAtomic32Load(&Test.ServerEndpoint.OwnedReferences,XMEMORY_ACQUIRE)||

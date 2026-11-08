@@ -74,7 +74,7 @@ static void run(xnetportbackend backend,unsigned budget,bool opaque)
         /* Only native accepted references remain, never a retained language wrapper. */
         xrtNetBytesDestroy(bytes);bytes=NULL;
         size_t offset=0;while(offset<4){xfuture* input=xrtNetStreamRecvAsync(peer,4-offset);complete(input);
-            xbytesview view=xrtNetBytesView(xrtFutureValue(input));CHECK(view.Size&&view.Size<=4-offset&&!memcmp(view.Data,"a\0bc"+offset,view.Size));
+            xbytesview view=xrtNetBytesView(xrtFutureValue(input));CHECK(view.Size&&view.Size<=4-offset&&!memcmp(view.Data,&"a\0bc"[offset],view.Size));
             offset+=view.Size;xrtFutureDestroy(input);}
         CHECK(xrtAtomic32Load(&test.observed,XMEMORY_ACQUIRE));++observations;
     }

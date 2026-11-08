@@ -21,8 +21,9 @@
 #endif
 
 #if defined(XRT_FEATURE_VFS_PACK) && \
-	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND))
-	#error "XRT pack VFS provider requires VFS and condition-variable support"
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND) || \
+	 !defined(XRT_FEATURE_CRC32))
+	#error "XRT pack VFS provider requires VFS, condition-variable, and CRC32 support"
 #endif
 
 

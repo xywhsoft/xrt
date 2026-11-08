@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../fixtures/tls_server.h"
+#include "../../../../tests/network/engine_test.h"
 
 #include "../../src/internal/xrt_websocket.h"
 
@@ -1010,7 +1011,7 @@ int main(void)
 	xrtWsConnDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket TLS engine destroy failed"
 	);
 	xrtTlsVerifierRelease(pVerifier);

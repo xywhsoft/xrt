@@ -27749,6 +27749,7 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_FUTURE) || \
+	defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) || \
 	defined(XRT_FEATURE_NET_TCP_SYNC) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL_SYNC)
@@ -27781,6 +27782,11 @@ XRT_EXTERN_C_END
 #if defined(XRT_FEATURE_NET_TCP_DIAL) && \
 	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_NET_RESOLVER))
 	#error "XRT TCP Dial support requires TCP and Resolver support"
+#endif
+
+#if defined(XRT_FEATURE_NET_DIAL_FUTURE_COMMON) && \
+	(!defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_FUTURE))
+	#error "XRT Dial Future common support requires TCP and Future support"
 #endif
 
 #if defined(XRT_FEATURE_NET_TCP_DIAL_FUTURE) && \
@@ -40158,8 +40164,9 @@ XRT_EXTERN_C_END
 #endif
 
 #if defined(XRT_FEATURE_VFS_PACK) && \
-	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND))
-	#error "XRT pack VFS provider requires VFS and condition-variable support"
+	(!defined(XRT_FEATURE_VFS) || !defined(XRT_FEATURE_COND) || \
+	 !defined(XRT_FEATURE_CRC32))
+	#error "XRT pack VFS provider requires VFS, condition-variable, and CRC32 support"
 #endif
 
 

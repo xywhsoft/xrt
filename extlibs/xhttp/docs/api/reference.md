@@ -4,8 +4,27 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `719` 个函数、`390` 个常量或宏、
-`226` 个公共类型。
+当前登记 `719` 个函数、`393` 个常量或宏、
+`227` 个公共类型。
+
+## `extlibs/xhttp/include/xhttp/detail/support.h`
+
+[查看带契约注释的公共头](../../include/xhttp/detail/support.h)
+
+### 常量与宏 (3)
+
+- `XHTTP_ALIGNOF`
+- `XHTTP_OBJECT_ALIGNOF`
+- `XHTTP_PARAM_QUOTED`
+
+### 类型 (6)
+
+- `xerrkind`
+- `xerror`
+- `xerrordesc`
+- `xhttpfield`
+- `xhttpparam`
+- `xstrview`
 
 ## `extlibs/xhttp/include/xhttp/export.h`
 
@@ -40,7 +59,7 @@
 - `XHTTP_FEATURE_COOKIE`
 - `XHTTP_FEATURE_SET_COOKIE`
 
-### 类型 (10)
+### 类型 (9)
 
 - `xcookieattribute`
 - `xcookieattributenext`
@@ -50,7 +69,6 @@
 - `xcookiepriority`
 - `xcookiesamesite`
 - `xsetcookie`
-- `xstrview`
 - `xtime`
 
 ## `extlibs/xhttp/include/xrt/form.h`
@@ -159,14 +177,12 @@
 - `XHTTP_MEDIA_RANGE_EXACT`
 - `XHTTP_MEDIA_RANGE_TYPE`
 
-### 类型 (7)
+### 类型 (5)
 
 - `xhttpacceptcursor`
 - `xhttpacceptmatch`
-- `xhttpfield`
 - `xhttpmediarange`
 - `xhttpmediarangespecificity`
-- `xhttpparam`
 - `xmediatype`
 
 ## `extlibs/xhttp/include/xrt/http_auth.h`
@@ -314,9 +330,8 @@
 - `XHTTP_FEATURE_HTTP_BODY_ASYNC`
 - `XHTTP_FEATURE_HTTP_BODY_TRANSFORM`
 
-### 类型 (15)
+### 类型 (14)
 
-- `xerror`
 - `xfuture`
 - `xhttpbodychunk`
 - `xhttpbodycloseproc`
@@ -528,9 +543,8 @@
 - `XHTTP_FEATURE_HTTP_SERVER_RESPONSE`
 - `XHTTP_FEATURE_URL`
 
-### 类型 (23)
+### 类型 (22)
 
-- `xerrkind`
 - `xhttp1exchangeconfig`
 - `xhttp1requestoptions`
 - `xhttp1requestplan`

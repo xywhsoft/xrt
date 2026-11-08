@@ -95,7 +95,12 @@ static void __xrtNetDialDrive(xnetdial* pDial);
 static void __xrtNetDialProcessResolve(xnetdial* pDial);
 static void __xrtNetDialResolveTask(xnetworker* pWorker, ptr pData);
 static void __xrtNetDialTryPublish(xnetdial* pDial);
-static const xrtownershipops __xrtNetDialOwnershipOps;
+static bool __xrtNetDialCount(const void* pData, size_t* pCount);
+static bool __xrtNetDialTrace(const void* pData,
+	xrtownershipvisitor visit, ptr context);
+static const xrtownershipops __xrtNetDialOwnershipOps = {
+	__xrtNetDialCount, __xrtNetDialTrace
+};
 
 /* Activity describes real constructor/cross-Resolver borrows. It is never a
  * substitute for RC and never holds the global mutation scope across work. */
@@ -1733,7 +1738,6 @@ static bool __xrtNetDialTrace(const void* pData,xrtownershipvisitor pVisit,ptr p
 	}
 	return true;
 }
-static const xrtownershipops __xrtNetDialOwnershipOps={__xrtNetDialCount,__xrtNetDialTrace};
 XRT_API xrtownershipref xrtNetDialOwnership(const xnetdial* pDial)
 { return (xrtownershipref){pDial,pDial?&__xrtNetDialOwnershipOps:NULL}; }
 XRT_API const xrtownershipquiescencev1* xrtNetDialOwnershipQuiescenceV1Get(void)

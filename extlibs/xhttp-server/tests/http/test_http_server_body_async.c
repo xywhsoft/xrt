@@ -992,7 +992,7 @@ int main(void)
 	);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server async body engine destroy failed"
 	);
 	printf(

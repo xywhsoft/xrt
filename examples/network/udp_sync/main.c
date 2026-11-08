@@ -17,6 +17,19 @@
 #include <stdio.h>
 #include <xrt.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /* 使用现有 Engine 完成一次本地 UDP 阻塞接收。 */
@@ -83,5 +96,5 @@ int main(void)
 	}
 	xrtNetUdpDestroy(pClient);
 	xrtNetUdpDestroy(pServer);
-	return xrtNetEngineDestroy(pEngine) && bReceived ? 0 : 4;
+	return exampleNetEngineDestroy(pEngine) && bReceived ? 0 : 4;
 }

@@ -3,7 +3,7 @@
 此文件由 `tools/generate_example_index.py` 从 `config/modules.json` 生成，
 不要手工维护第二份示例清单。构建器会按所属模块的真实依赖闭包编译并运行示例。
 
-当前共登记 `415` 个可运行示例。
+当前共登记 `418` 个可运行示例。
 
 ## asn1 (5)
 
@@ -37,7 +37,7 @@
 - [compress/inflate](../examples/compress/inflate/main.c) - `inflate`
 - [compress/stream_tour](../examples/compress/stream_tour/main.c) - `deflate`
 
-## concurrency (41)
+## concurrency (43)
 
 - [concurrency/bridge_tour](../examples/concurrency/bridge_tour/main.c) - `future_bridge`
 - [concurrency/cancel](../examples/concurrency/cancel/main.c) - `cancel`
@@ -54,7 +54,9 @@
 - [concurrency/coroutine_scheduler](../examples/concurrency/coroutine_scheduler/main.c) - `coroutine_scheduler`
 - [concurrency/coroutine_tour](../examples/concurrency/coroutine_tour/main.c) - `coroutine`
 - [concurrency/deadline](../examples/concurrency/deadline/main.c) - `wait`
+- [concurrency/event_waiter](../examples/concurrency/event_waiter/main.c) - `event_waiter`
 - [concurrency/executor](../examples/concurrency/executor/main.c) - `executor`
+- [concurrency/executor_current](../examples/concurrency/executor_current/main.c) - `executor`
 - [concurrency/executor_tour](../examples/concurrency/executor_tour/main.c) - `executor`
 - [concurrency/future](../examples/concurrency/future/main.c) - `future`
 - [concurrency/future_combine](../examples/concurrency/future_combine/main.c) - `future_combine`
@@ -445,10 +447,11 @@
 - [time/range_tour](../examples/time/range_tour/main.c) - `time`
 - [time/text_parse](../examples/time/text_parse/main.c) - `time_text`
 
-## tls (25)
+## tls (26)
 
 - [tls/auth_messages](../examples/tls/auth_messages/main.c) - `tls_auth_messages_write`
 - [tls/cipher_backends](../examples/tls/cipher_backends/main.c) - `tls_cipher_backends_examples`
+- [tls/client_auth](../examples/tls/client_auth/main.c) - `tls_client_auth_examples`
 - [tls/client_resume](../examples/tls/client_resume/main.c) - `tls_client_resume_example`
 - [tls/context](../examples/tls/context/main.c) - `tls_context`
 - [tls/dial](../examples/tls/dial/main.c) - `tls_stream_dial_example`

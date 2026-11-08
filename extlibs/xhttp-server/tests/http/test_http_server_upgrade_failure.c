@@ -306,7 +306,7 @@ int main(void)
 	);
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"aborted HTTP Upgrade engine destroy failed"
 	);
 	printf("[PASS] HTTP server Upgrade failure completion\n");

@@ -1,4 +1,17 @@
 #include <xhttp-client.h>
+
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
 #include <stdio.h>
 #include <xrt/http_client_runtime.h>
 
@@ -21,7 +34,7 @@ int main(void)
 	xrtNetEngineConfigInit(&EngineConfig);
 	pEngine = xrtNetEngineCreate(&EngineConfig);
 	if ( (pEngine == NULL) || !xrtNetEngineStart(pEngine) ) {
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		xrtHttpCacheRelease(pCache);
 		return 2;
 	}
@@ -33,7 +46,7 @@ int main(void)
 	pClient = xrtHttpClientCreate(pEngine, &ClientConfig);
 	xrtHttpCacheRelease(pCache);
 	if ( pClient == NULL ) {
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		return 3;
 	}
 
@@ -51,7 +64,7 @@ int main(void)
 	);
 
 	xrtHttpClientDestroy(pClient);
-	if ( !xrtNetEngineDestroy(pEngine) ) {
+	if ( !exampleNetEngineDestroy(pEngine) ) {
 		return 4;
 	}
 	return 0;

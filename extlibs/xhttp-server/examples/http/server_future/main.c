@@ -1,6 +1,19 @@
 #include <stdio.h>
 #include <xhttp-server.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /* 后台工作项独立持有 Promise 和协作取消令牌。 */
@@ -247,7 +260,7 @@ Cleanup:
 	xrtFutureDestroy(pShutdown);
 	xrtHttpServerDestroy(pServer);
 	if ( (pEngine != NULL) &&
-		!xrtNetEngineDestroy(pEngine) &&
+		!exampleNetEngineDestroy(pEngine) &&
 		(iResult == 0) ) {
 		iResult = 2;
 	}

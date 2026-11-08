@@ -483,7 +483,7 @@ int main(void)
 	}
 	xrtHttpServerDestroy(pServer);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server middleware engine destroy failed"
 	);
 	puts("[PASS] HTTP server middleware");

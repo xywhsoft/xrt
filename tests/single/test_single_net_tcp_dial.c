@@ -1,5 +1,6 @@
 #define XRT_IMPLEMENTATION
 #include "../../single/xrt.h"
+#include "net_engine_test.h"
 
 
 
@@ -160,5 +161,5 @@ int main(void)
 	if ( !xrtNetResolverDestroy(pResolver) ) {
 		return 8;
 	}
-	return xrtNetEngineDestroy(pEngine) ? 0 : 9;
+	return testSingleNetEngineDestroy(pEngine) ? 0 : 9;
 }

@@ -789,7 +789,7 @@ int main(void)
 		"HTTP server file task pool destroy failed"
 	);
 	testRequire(
-		xrtNetEngineDestroy(pEngine),
+		testHttpServerEngineDestroy(pEngine),
 		"HTTP server file engine destroy failed"
 	);
 	testRequire(

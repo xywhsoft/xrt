@@ -1,6 +1,19 @@
 #include <stdio.h>
 #include <xhttp-client.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /* 配置一个由高层 HTTP Client 持有并自动使用的共享 CookieJar。 */
@@ -17,7 +30,7 @@ int main(void)
 	xrtNetEngineConfigInit(&EngineConfig);
 	pEngine = xrtNetEngineCreate(&EngineConfig);
 	if ( (pEngine == NULL) || !xrtNetEngineStart(pEngine) ) {
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		return 1;
 	}
 	pJar = xrtCookieJarCreate(NULL);
@@ -31,7 +44,7 @@ int main(void)
 			NULL
 		) != XCOOKIE_STORE_STORED) ) {
 		xrtCookieJarRelease(pJar);
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		return 1;
 	}
 
@@ -40,7 +53,7 @@ int main(void)
 	pClient = xrtHttpClientCreate(pEngine, &ClientConfig);
 	xrtCookieJarRelease(pJar);
 	if ( pClient == NULL ) {
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		return 1;
 	}
 	pRequest = xrtHttpRequestCreate(
@@ -51,7 +64,7 @@ int main(void)
 	CallOptions.Cookies.Flags |= XHTTP_COOKIE_TOP_LEVEL;
 	if ( pRequest == NULL ) {
 		xrtHttpClientDestroy(pClient);
-		xrtNetEngineDestroy(pEngine);
+		exampleNetEngineDestroy(pEngine);
 		return 1;
 	}
 
@@ -69,7 +82,7 @@ int main(void)
 	);
 	xrtHttpRequestDestroy(pRequest);
 	xrtHttpClientDestroy(pClient);
-	if ( !xrtNetEngineDestroy(pEngine) ) {
+	if ( !exampleNetEngineDestroy(pEngine) ) {
 		return 1;
 	}
 	return 0;

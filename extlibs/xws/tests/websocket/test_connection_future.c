@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 
 #include "../../src/internal/xrt_websocket.h"
 #include "../../../../src/internal/xrt_tcp.h"
@@ -3134,7 +3135,7 @@ int main(void)
 	xrtWsConnDestroy(pServer);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"WebSocket Future engine destroy failed"
 	);
 	printf(

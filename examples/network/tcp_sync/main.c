@@ -2,6 +2,19 @@
 #include <string.h>
 #include <xrt.h>
 
+/* CLOSED and terminal results can precede the final callback release.
+ * Keep the Engine alive while retirement reports BUSY, with a finite deadline. */
+static bool exampleNetEngineDestroy(xnetengine* pEngine)
+{
+    double Deadline = xrtTimer() + 5.0;
+    for (;;) {
+        xnetretireresult Result = xrtNetEngineTryDestroy(pEngine);
+        if (Result == XNET_RETIRE_READY) return true;
+        if (Result != XNET_RETIRE_BUSY || !(xrtTimer() < Deadline)) return false;
+        xrtThreadYield();
+    }
+}
+
 
 
 /*
@@ -93,5 +106,5 @@ int main(void)
 	xrtNetStreamDestroy(pClient);
 	xrtNetStreamDestroy(pServer);
 	xrtNetListenerDestroy(pListener);
-	return xrtNetEngineDestroy(pEngine) && bReceived ? 0 : 4;
+	return exampleNetEngineDestroy(pEngine) && bReceived ? 0 : 4;
 }

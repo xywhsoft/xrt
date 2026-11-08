@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [websocket.md](websocket.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `106` 个函数、`138` 个常量或宏、
-`40` 个公共类型。
+当前登记 `117` 个函数、`138` 个常量或宏、
+`41` 个公共类型。
 
 ## `include/xrt/websocket.h`
 
@@ -257,10 +257,10 @@
 - `xrtWsStreamRole`
 - `xrtWsStreamRuntimeOwnershipV1Get`
 - `xrtWsStreamSend`
-- `xrtWsStreamSendSize`
 - `xrtWsStreamSendBytes`
 - `xrtWsStreamSendCompressed`
 - `xrtWsStreamSendRef`
+- `xrtWsStreamSendSize`
 - `xrtWsStreamSendTake`
 - `xrtWsStreamState`
 - `xrtWsStreamTcp`
@@ -277,6 +277,42 @@
 - `xrtWsStreamWritable`
 - `xrtWsStreamWriteLimit`
 
+### 常量与宏 (23)
+
+- `XWS_STREAM_CLOSED`
+- `XWS_STREAM_CLOSE_CLEAN`
+- `XWS_STREAM_CLOSE_RECEIVED`
+- `XWS_STREAM_CLOSE_REMOTE`
+- `XWS_STREAM_CLOSE_SENT`
+- `XWS_STREAM_CLOSE_TIMEOUT_DEFAULT`
+- `XWS_STREAM_CLOSING`
+- `XWS_STREAM_CONTROL_RESERVE_DEFAULT`
+- `XWS_STREAM_ERROR_ARGUMENT`
+- `XWS_STREAM_ERROR_CONFIG`
+- `XWS_STREAM_ERROR_FRAME`
+- `XWS_STREAM_ERROR_LIMIT`
+- `XWS_STREAM_ERROR_MEMORY`
+- `XWS_STREAM_ERROR_MESSAGE`
+- `XWS_STREAM_ERROR_RANDOM`
+- `XWS_STREAM_ERROR_SEND`
+- `XWS_STREAM_ERROR_STATE`
+- `XWS_STREAM_ERROR_TIMEOUT`
+- `XWS_STREAM_ERROR_TRANSPORT`
+- `XWS_STREAM_FRAME_LIMIT_DEFAULT`
+- `XWS_STREAM_MESSAGE_LIMIT_DEFAULT`
+- `XWS_STREAM_OPEN`
+- `XWS_STREAM_SEND_LIMIT_DEFAULT`
+
+### 类型 (8)
+
+- `xwsstream`
+- `xwsstreamclose`
+- `xwsstreamcloseflag`
+- `xwsstreamconfig`
+- `xwsstreamerror`
+- `xwsstreamevents`
+- `xwsstreamownershipv1`
+- `xwsstreamstate`
 
 ## `include/xrt/websocket_upgrade.h`
 

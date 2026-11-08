@@ -1,5 +1,6 @@
 #include <xrt/detail/wait.h>
 #include "../test.h"
+#include "../../../../tests/network/engine_test.h"
 #include <xrt/http_bridge.h>
 #include "../../../xhttp-client/src/internal/xrt_http_client_runtime.h"
 
@@ -616,7 +617,7 @@ static void testWsClientInvalidRun(
 	xrtNetStreamDestroy(Test.Server);
 	xrtNetListenerDestroy(Test.Listener);
 	testRequire(
-		xrtNetEngineDestroy(Test.Engine),
+		testNetEngineDestroy(Test.Engine),
 		"invalid WebSocket engine destroy failed"
 	);
 }
