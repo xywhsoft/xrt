@@ -40,6 +40,20 @@ static bool consumerService(void)
     return xcronServiceReapStopped(S,&Retired,&Found,NULL) && Found && Retired.Id==R.Job && xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
 }
 
+static bool consumerSelectedService(void)
+{
+    xexecutorconfig PC={1,4,0};xexecutor* E=xrtExecutorCreate(&PC);if(!E)return false;
+    xcronselectedserviceconfig C={.Service={.Scheduler={1,1,8,0,65536},.Executor=E,.Proc=consumerSelectedExecute,.Clock=consumerClock,.CommandLimit=2,.CompletionLimit=1,.BatchLimit=1,.CommandWorkLimit=2,.ResampleMilliseconds=5,.RetryIntervalMilliseconds=5,.RetryAttempts=1,.BytesLimit=262144,.AdapterBytesLimit=65536},.SubmissionBatchLimit=1};
+    xcronservice* S=NULL;xcronzone* Z=NULL;xcronjobconfig J={.RunningLimit=1};xcronrequestid Q;xcronselectedreply R;
+    if(!xcronServiceCreateSelected(&C,&S,NULL) || !xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&J.Expression,NULL))return false;
+    J.Zone=Z;if(!xcronServiceAddSelectedAsync(S,&J,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Q,NULL) || xcronServiceCollectSelected(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || !R.Job || R.Error)return false;
+    xcronZoneRelease(Z);xcronjobid Job=R.Job;xcronselectedservicecompletion D;size_t N=0;double End=xrtTimer()+10;while(!N){if(!xcronServiceDrainSelected(S,&D,1,&N,NULL) || xrtTimer()>End)return false;if(!N)xrtThreadYield();}
+    if(D.Completion.Job!=Job || D.Completion.ScheduledAt || D.Completion.Result!=XCRON_RUN_SUCCEEDED || D.Completion.Error || D.Candidates!=1 || D.Local.Year!=1 || !xcronServiceInfoAsync(S,Job,&Q,NULL) || xcronServiceCollectSelected(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || R.Error || R.Info.Policy.Fold!=XCRON_FOLD_LAST)return false;
+    if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;
+    xcronselectedretired Retired;bool Found;xcronselectedservicestats T;
+    return xcronServiceInspectSelected(S,&T,NULL) && !T.Service.ActiveNativeTimers && xcronServiceReapStoppedSelected(S,&Retired,&Found,NULL) && Found && Retired.Id==Job && Retired.Info.Succeeded==1 && Retired.Info.Policy.Missing==XCRON_MISSING_REJECT && xcronServiceDestroy(S,NULL) && xrtExecutorClose(E) && xrtExecutorWaitFor(E,10000)==XWAIT_OK && xrtExecutorDestroy(E);
+}
+
 static bool consumerTzdb(void)
 {
     static const uint8 UTC[54]={[0]='T',[1]='Z',[2]='i',[3]='f',[39]=1,[43]=4,[50]='U',[51]='T',[52]='C'};
@@ -138,5 +152,6 @@ int main(void)
     xcronZoneRelease(DeliveryZone);
 	if (!DeliveryOK) return 30;
 	if(!consumerSelected())return 31;
+	if(!consumerSelectedService())return 32;
 	return 0;
 }

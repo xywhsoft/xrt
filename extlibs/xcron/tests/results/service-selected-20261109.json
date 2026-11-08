@@ -1,0 +1,3185 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "full selected-policy live service through the existing owner and borrowed executor",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "5f22bed0cf311871617fb11666d9c13bb0df1da9",
+  "implementation": {
+    "source": "extlibs/xcron/src/service/service.c",
+    "module": "xcron_service_selected",
+    "functions": [
+      "xcronServiceCreateSelected",
+      "xcronServiceAddSelectedAsync",
+      "xcronServiceCollectSelected",
+      "xcronServiceDrainSelected",
+      "xcronServiceReapStoppedSelected",
+      "xcronServiceInspectSelected"
+    ],
+    "contracts": [
+      "Same owner/event waiter/command tickets/completion reservations/retry heap; no new runtime or Core edits",
+      "Queue acceptance, cheap selected job admission, individual physical execution and full retirement are distinct Data duties; initial/future calculation faults belong to admitted Info/Retired.LastIssue",
+      "Five global selected traversal budgets per owner poll; calculation continues with full output; scalar width1 or bounded1..64 already-ready initial groups; no fill wait",
+      "Atomic native group must fit one worker queue; every rejected lease counts an attempt and retries individually under its original deadline/cap; no partial native execution on rejection",
+      "Immutable nominal labels survive initial batch/scalar retry, expiry, unsent/native-queued/running cancellation, callback errors and separate Data retirement",
+      "Typed selected Info/retired/receipts/stats; ordinary outputs reject selected instances; shared Cancel/Info/Reap requests and lifecycle work in both modes",
+      "C11 visible union common initial sequence reuses future Done bytes while active; Finish copies nominal to bounded sidecar before activating Done; no extra hot reservation bytes",
+      "Public old layouts and lean private sizes/offsets match before-stage; extended owner gains one pointer; cold selected sidecars and typed scratch are measured, not zero overhead"
+    ]
+  },
+  "source_identity": {
+    "frozen_inputs": 2556,
+    "all_windows_wsl_validation_measurement_maps_identical": true,
+    "map_sha256": "9c95fcf0b4137a9652e003ecbecc34fd9c792301bd1a85348a02b86bc22300cd",
+    "frozen_source_copies": 51,
+    "note": "No source/config/generated C/H changes while final validation or measurement children ran. Only documentation/evidence after frozen inputs. All commands use D:/GIT/xrt master."
+  },
+  "tests": {
+    "concurrent_info_replies_per_program": 512,
+    "warmed_successful_no_heap_cycles_per_program": 2048,
+    "policy_matrix": 8,
+    "coverage": [
+      "initial fold/missing faults and future global UNKNOWN beside an active lease, with complete issues; no truncation or false owner failure",
+      "copied config/policy/retained zone, selected failed ADD Data, command close, generations, competing collectors and stale union payloads",
+      "five actual owner-turn budgets and FIFO light-query progress beside a400-year missing query with completion output full",
+      "per-lease retry/expiry/cancel metadata and Error ownership, mixed body error/invalid result, queued native cancellation without Proc",
+      "heap Data freed after physical retirement before metadata drain, output credits, false->true close upgrade, busy destroy and complete physical owner/pool joins",
+      "owner and unrelated borrowed-pool positive-wait rejection with collectible tickets, clock failure/regression, timers released",
+      "cold allocation prefixes/exact complete byte reservations, factory width/reserved/full-input/output aliases, warmed global malloc/calloc/realloc/block counts flat"
+    ],
+    "tool_tests_windows": 90,
+    "known_windows_skips": "Existing privileged native symlink fixtures report system1314; no fixture disabled."
+  },
+  "validation": {
+    "windows": {
+      "test_programs": 33,
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "06aabe4f984838d8adac19408dbcee28f01b792c4545728a6287b8a645916245"
+        },
+        {
+          "label": "legacy-leaf",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,memory_stats",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "eaae44530e9988981259f748372a66446ccdecac8bda4e500abaa4ce01d48f92"
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service_selected",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1f34d418f00a79800896364eb3e9ecf93c64f9c224e2a12766c59fea5db05779"
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1b69f33a838ae2f390e8e56b77cf572dee7f35159bf5e061ef5537fb00e97e47"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "23fa8f387b980b626af6ac791558a9bd5bc1fae1d45994d5343af10e29503bfa"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-service-selected-20261109\\validation\\build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "ccd3efa03ecb65081ef8bb2f7f72304d42273a970ed5c33d924f1f48f3dea68f"
+        },
+        {
+          "label": "leaf-consumers",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-service-selected-20261109\\validation\\verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6e6b82c946394fb0985b5612194767aa163c8fd64f3e4bcbca9a13416ead39af"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out\\service-extensions\\xcron-service-selected-20261109\\validation\\windows-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\xcron-service-selected-20261109\\validation\\windows-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "72aa53241cfb1d7297ef48e8dfbc36c317a8dc1c767b5182b3da47b1515706c1"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "log_sha256": "3e3513b25868abd29db82326fbd04e605d1503c6bdec87e176e40f410097f663"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e5eff07005b984d0b00c19a2b746ccdc5f6d99756278893b6267361e6d73d0a4"
+        },
+        {
+          "label": "benchmark-smoke",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--profiles",
+            "xcron_service_selected_scalar1,xcron_service_selected_scalar4,xcron_service_selected_batch1,xcron_service_selected_batch4",
+            "--smoke",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xcron-service-selected-20261109\\validation\\windows-benchmark-smoke.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "30ed0d2b2929270b34c713c262d6b0bf7dbebfaceeb85d21520b5857fc56dbb6"
+        },
+        {
+          "label": "selected-layout",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-service-selected-20261109\\validation\\selected_layout.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1299ed0f95147f2dd8fa243cc3727d47d3e2a5df075af056a0d070b4fe62751a"
+        }
+      ],
+      "layout": [
+        {
+          "kind": "baseline",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "owner": 880,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 720,
+            "plain_arena": 2880,
+            "plain_kernel": 1592,
+            "plain_adapter": 400
+          },
+          "sha256": "cd4912918392e7c585c689c1f73bfca10df85ea886854a95aeffd3d63eb2c2db"
+        },
+        {
+          "kind": "lean",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "owner": 880,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 720,
+            "plain_arena": 2880,
+            "plain_kernel": 1592,
+            "plain_adapter": 400
+          },
+          "sha256": "eea6b566c7e5a464f05e0e795a9432e93c6a34fd078d30576f12f3297df1cb6c"
+        },
+        {
+          "kind": "extended",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "selected_config": 144,
+            "selected_reply": 520,
+            "selected_completion": 136,
+            "selected_stats": 448,
+            "owner": 888,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 720,
+            "plain_arena": 2888,
+            "plain_kernel": 1608,
+            "plain_adapter": 408,
+            "state": 120,
+            "command_sidecar": 232,
+            "label": 56,
+            "selected_arena": 4040,
+            "selected_kernel": 2360,
+            "selected_adapter": 520
+          },
+          "sha256": "c7f331c62fae683255a7716810aa0ef1bda48ee9ea5d205449f6a3d6d9fd6234"
+        },
+        {
+          "kind": "decl",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "selected_config": 144,
+            "selected_reply": 520,
+            "selected_completion": 136,
+            "selected_stats": 448
+          },
+          "sha256": "9bef11407d9733f3bf88d884d21905981838375a07e275008bfbe1376a8b186d"
+        }
+      ],
+      "leaf_consumers": [
+        {
+          "kind": "static",
+          "path": "D:\\GIT\\xrt\\release\\gnu\\native\\xcron_service_selected\\static\\test_service_consumer.exe",
+          "sha256": "e3190db84b20084372aca21699872ee2f82b9fbf76e44ee9e7599d35355410e7",
+          "stdout": "Selected live service preserved both fold labels and original Data retirement.\n"
+        },
+        {
+          "kind": "shared",
+          "path": "D:\\GIT\\xrt\\release\\gnu\\native\\xcron_service_selected\\shared\\test_service_consumer.exe",
+          "sha256": "87b1c05486613ef8876ca7b962840ae266c1f0d75e18adee4ed1168aec7257b6",
+          "stdout": "Selected live service preserved both fold labels and original Data retirement.\n"
+        }
+      ],
+      "oracle": {
+        "zones": 422,
+        "version": "# version 2026e",
+        "totals": {
+          "queries": 121664,
+          "found": 114452,
+          "none": 152,
+          "ambiguous": 1896,
+          "missing": 2860,
+          "unknown": 2304,
+          "cursor_steps": 349582,
+          "segments": 173554,
+          "months": 227466,
+          "rule_years": 20726,
+          "checks": 122594,
+          "offsets": 459420,
+          "labels": 122594,
+          "synchronous_calls": 243328,
+          "cursor_initializations": 121664,
+          "api_calls": 714574
+        },
+        "exactly_equal_to_prior": true,
+        "sha256": "46a419876fc39f506fefa1a2c13410bbc5321e02c2d1b20993379f2a50c096db"
+      }
+    },
+    "wsl": {
+      "test_programs": 33,
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6a5ade46956e5d58d9571e01cf4ef532c1746f536465b5b89824c8559a77884a"
+        },
+        {
+          "label": "legacy-leaf",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,memory_stats",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "9e06e7bd3035dcb10a0b07448c678c0bc2bfec4d63064c1c5adf2539c74930fa"
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service_selected",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "ab905ffd925715a8f3aedae0ba02fefa8e104c759783b20a876304b40be9775b"
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "466d38d1e7fab52e64ac49e9bb43fc8d3ec3fa249122351a28cce5276a27fc1c"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "75262bfc9c9345dd99c87beffb75e9ba823cbbc56a1be55d7cb30b05bf953200"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-service-selected-20261109/validation/build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8d72c67e700db0738b957b184edf04ddce50cd6b92329b8a63c270b5031e6453"
+        },
+        {
+          "label": "leaf-consumers",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-service-selected-20261109/validation/verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a30ee9d4e124bd841fbc7468901aa1454a492e674704d5f8f3a1eb29adbed67c"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out/service-extensions/xcron-service-selected-20261109/validation/wsl-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/xcron-service-selected-20261109/validation/wsl-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "40aa54b60184d0d1592c9d6a5cb29b13b194147496af0c1adca65b39326ab5bd"
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service_selected,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_service_selected",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0d9e5d7b6f361ead0ac181926723a5369da5fc28e818a5df2fd7b2ae875f3316"
+        },
+        {
+          "label": "tsan-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service_selected,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_service_selected"
+          ],
+          "exit_code": 0,
+          "log_sha256": "28948c46b4d52f54d2434f28f24c1833e00778c871d69b82b7395088a401764f"
+        },
+        {
+          "label": "tsan-plain-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_service",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "7bc7272a9877161ad819ac61f9b32d7490fdbaf806feafa4ec692ced0b5df1c4"
+        },
+        {
+          "label": "tsan-plain-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_service,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_service"
+          ],
+          "exit_code": 0,
+          "log_sha256": "28498668d8e1c29981ac84b222fe9b181bd51d4835ca9ab8a7646b772b8b4c7b"
+        },
+        {
+          "label": "benchmark-smoke",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--profiles",
+            "xcron_service_selected_scalar1,xcron_service_selected_scalar4,xcron_service_selected_batch1,xcron_service_selected_batch4",
+            "--smoke",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xcron-service-selected-20261109/validation/wsl-benchmark-smoke.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "b2e261276ae540789e14997fcd2ed8a9b3798f7b7e6fb5bfc686890d7cdf7105"
+        },
+        {
+          "label": "selected-layout",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-service-selected-20261109/validation/selected_layout.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d463a9fed8911479f11f61050a0b54dae1d85ccf38595ecf243f9a1a94d3422f"
+        }
+      ],
+      "layout": [
+        {
+          "kind": "baseline",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "owner": 1160,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 1000,
+            "plain_arena": 3160,
+            "plain_kernel": 1592,
+            "plain_adapter": 400
+          },
+          "sha256": "a45d2d74b63c84fbf957df953a4b1d514a899fca14cdb3aea6d1df4b46c6a4fa"
+        },
+        {
+          "kind": "lean",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "owner": 1160,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 1000,
+            "plain_arena": 3160,
+            "plain_kernel": 1592,
+            "plain_adapter": 400
+          },
+          "sha256": "950c798611f5199a35943e00c1dc2b5ea54f474d063756e368a336527155abb1"
+        },
+        {
+          "kind": "extended",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "selected_config": 144,
+            "selected_reply": 520,
+            "selected_completion": 136,
+            "selected_stats": 448,
+            "owner": 1168,
+            "command": 440,
+            "slot": 184,
+            "run_offset": 0,
+            "done_offset": 64,
+            "reject_offset": 144,
+            "attempts_offset": 168,
+            "config_offset": 16,
+            "commands_offset": 1000,
+            "plain_arena": 3168,
+            "plain_kernel": 1608,
+            "plain_adapter": 408,
+            "state": 120,
+            "command_sidecar": 232,
+            "label": 56,
+            "selected_arena": 4320,
+            "selected_kernel": 2360,
+            "selected_adapter": 520
+          },
+          "sha256": "9415557fdea907b407c68fa04b7de7aad2c0c214a0a207164b2a65ec52286e85"
+        },
+        {
+          "kind": "decl",
+          "values": {
+            "config": 136,
+            "reply": 296,
+            "completion": 80,
+            "stats": 384,
+            "run": 64,
+            "selected_config": 144,
+            "selected_reply": 520,
+            "selected_completion": 136,
+            "selected_stats": 448
+          },
+          "sha256": "5b1e086587ae93003300d1105bca7f9f357bf9793f53ccc065c9699c4dd88461"
+        }
+      ],
+      "leaf_consumers": [
+        {
+          "kind": "static",
+          "path": "/mnt/d/GIT/xrt/release/gnu/x64/xcron_service_selected/static/test_service_consumer",
+          "sha256": "16a2cfbcde45fc3f52ef75b1b0a2d6f1dd22ed72ef7d7aea21c2b09f3193f00b",
+          "stdout": "Selected live service preserved both fold labels and original Data retirement.\n"
+        },
+        {
+          "kind": "shared",
+          "path": "/mnt/d/GIT/xrt/release/gnu/x64/xcron_service_selected/shared/test_service_consumer",
+          "sha256": "3170fc0f131f3a32384b86870e56cf873a18cb85eccac6e276e7f7115512dd48",
+          "stdout": "Selected live service preserved both fold labels and original Data retirement.\n"
+        }
+      ],
+      "oracle": {
+        "zones": 422,
+        "version": "# version 2026e",
+        "totals": {
+          "queries": 121664,
+          "found": 114452,
+          "none": 152,
+          "ambiguous": 1896,
+          "missing": 2860,
+          "unknown": 2304,
+          "cursor_steps": 349582,
+          "segments": 173554,
+          "months": 227466,
+          "rule_years": 20726,
+          "checks": 122594,
+          "offsets": 459420,
+          "labels": 122594,
+          "synchronous_calls": 243328,
+          "cursor_initializations": 121664,
+          "api_calls": 714574
+        },
+        "exactly_equal_to_prior": true,
+        "sha256": "588e900f40b9f04b0e208f3fccaf03f2f575f466cf01263e133a8b0ce09ffc5f"
+      }
+    }
+  },
+  "measurements": {
+    "windows": {
+      "receipts": [
+        {
+          "label": "performance",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--profiles",
+            "xcron_service_selected_scalar1,xcron_service_selected_scalar4,xcron_service_selected_batch1,xcron_service_selected_batch4",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xcron-service-selected-20261109\\windows-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "c9df6fa9c5f7ed3db4d13173b2f5ae0e204842f61c0e72f8392ee58fc9b2643f"
+        },
+        {
+          "label": "size",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/size_profiles.json",
+            "--profiles",
+            "xcron_service,xcron_service_selected",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xcron-service-selected-20261109\\windows-size.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8fb76c386413727aa3afc1c54b928e24f3e1c90f158cbba0af12d653a475fab7"
+        }
+      ],
+      "performance": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T22:56:16.457570+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "5f22bed0cf311871617fb11666d9c13bb0df1da9",
+        "source_dirty": true,
+        "source_fingerprint": "0ce63dcaaf62c7917ca1d86601bedbf829773f7b793974a5277cfbb55d1b528e",
+        "benchmark_fingerprint": "a98916a05d11e3d5008a7aaa50c37d6b14a3db4346e3d709c7873d2c1e6a2bbf",
+        "profiles": {
+          "xcron_service_selected_scalar1": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_scalar1": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "1",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "1",
+                  "rounds": "1000",
+                  "submission_batch_size": "1",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      889191.461,
+                      884405.445,
+                      900374.922,
+                      897564.095,
+                      923738.195
+                    ],
+                    "median": 897564.095,
+                    "mean": 899054.8236,
+                    "min": 884405.445,
+                    "max": 923738.195,
+                    "mad": 8372.633999999962,
+                    "relative_mad": 0.009328173939488925,
+                    "range": 39332.75,
+                    "relative_range": 0.04382166156055964,
+                    "central_range": 11183.46100000001,
+                    "relative_central_range": 0.012459790963452042,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      68.4,
+                      69.7,
+                      66.7,
+                      66.9,
+                      66.6
+                    ],
+                    "median": 66.9,
+                    "mean": 67.66,
+                    "min": 66.6,
+                    "max": 69.7,
+                    "mad": 0.30000000000001137,
+                    "relative_mad": 0.004484304932735596,
+                    "range": 3.1000000000000085,
+                    "relative_range": 0.04633781763826619,
+                    "central_range": 1.7000000000000028,
+                    "relative_central_range": 0.02541106128550079,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      88.7,
+                      86.5,
+                      90.5,
+                      90.7,
+                      85.0
+                    ],
+                    "median": 88.7,
+                    "mean": 88.28,
+                    "min": 85.0,
+                    "max": 90.7,
+                    "mad": 2.0,
+                    "relative_mad": 0.02254791431792559,
+                    "range": 5.700000000000003,
+                    "relative_range": 0.06426155580608797,
+                    "central_range": 4.0,
+                    "relative_central_range": 0.04509582863585118,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      97.0,
+                      97.3,
+                      101.0,
+                      95.7,
+                      90.8
+                    ],
+                    "median": 97.0,
+                    "mean": 96.36,
+                    "min": 90.8,
+                    "max": 101.0,
+                    "mad": 1.2999999999999972,
+                    "relative_mad": 0.013402061855670075,
+                    "range": 10.200000000000003,
+                    "relative_range": 0.10515463917525776,
+                    "central_range": 1.5999999999999943,
+                    "relative_central_range": 0.016494845360824684,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      109.7,
+                      116.6,
+                      116.1,
+                      113.3,
+                      108.4
+                    ],
+                    "median": 113.3,
+                    "mean": 112.82000000000001,
+                    "min": 108.4,
+                    "max": 116.6,
+                    "mad": 3.299999999999997,
+                    "relative_mad": 0.029126213592232986,
+                    "range": 8.199999999999989,
+                    "relative_range": 0.07237422771403344,
+                    "central_range": 6.3999999999999915,
+                    "relative_central_range": 0.056487202118270005,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_scalar4": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_scalar4": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "4",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "4",
+                  "rounds": "1000",
+                  "submission_batch_size": "1",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      597078.421,
+                      553252.737,
+                      581979.549,
+                      590560.627,
+                      544052.066
+                    ],
+                    "median": 581979.549,
+                    "mean": 573384.6799999999,
+                    "min": 544052.066,
+                    "max": 597078.421,
+                    "mad": 15098.871999999974,
+                    "relative_mad": 0.025943990688236322,
+                    "range": 53026.35499999998,
+                    "relative_range": 0.09111377726436222,
+                    "central_range": 37307.890000000014,
+                    "relative_central_range": 0.0641051563823938,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      106.4,
+                      108.5,
+                      107.7,
+                      106.9,
+                      108.8
+                    ],
+                    "median": 107.7,
+                    "mean": 107.66,
+                    "min": 106.4,
+                    "max": 108.8,
+                    "mad": 0.7999999999999972,
+                    "relative_mad": 0.007428040854224671,
+                    "range": 2.3999999999999915,
+                    "relative_range": 0.022284122562674015,
+                    "central_range": 1.5999999999999943,
+                    "relative_central_range": 0.014856081708449343,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      119.3,
+                      187.0,
+                      130.9,
+                      125.1,
+                      167.6
+                    ],
+                    "median": 130.9,
+                    "mean": 145.98,
+                    "min": 119.3,
+                    "max": 187.0,
+                    "mad": 11.600000000000009,
+                    "relative_mad": 0.08861726508785338,
+                    "range": 67.7,
+                    "relative_range": 0.5171886936592819,
+                    "central_range": 42.5,
+                    "relative_central_range": 0.3246753246753247,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      131.4,
+                      202.4,
+                      159.7,
+                      138.5,
+                      200.5
+                    ],
+                    "median": 159.7,
+                    "mean": 166.5,
+                    "min": 131.4,
+                    "max": 202.4,
+                    "mad": 28.299999999999983,
+                    "relative_mad": 0.17720726361928607,
+                    "range": 71.0,
+                    "relative_range": 0.4445835942391985,
+                    "central_range": 62.0,
+                    "relative_central_range": 0.3882279273638072,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      145.6,
+                      207.1,
+                      161.9,
+                      176.7,
+                      573.3
+                    ],
+                    "median": 176.7,
+                    "mean": 252.92,
+                    "min": 145.6,
+                    "max": 573.3,
+                    "mad": 30.400000000000006,
+                    "relative_mad": 0.1720430107526882,
+                    "range": 427.69999999999993,
+                    "relative_range": 2.420486700622524,
+                    "central_range": 45.19999999999999,
+                    "relative_central_range": 0.25580079230333896,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_batch1": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_batch1": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "1",
+                  "64"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "1",
+                  "rounds": "1000",
+                  "submission_batch_size": "64",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      1002917.864,
+                      1001648.024,
+                      1004802.643,
+                      1039852.341,
+                      1036163.733
+                    ],
+                    "median": 1004802.643,
+                    "mean": 1017076.9210000001,
+                    "min": 1001648.024,
+                    "max": 1039852.341,
+                    "mad": 3154.6190000000643,
+                    "relative_mad": 0.0031395409058453923,
+                    "range": 38204.31700000004,
+                    "relative_range": 0.03802171228962426,
+                    "central_range": 33245.869000000064,
+                    "relative_central_range": 0.03308696412336175,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      61.7,
+                      61.8,
+                      61.7,
+                      60.7,
+                      60.3
+                    ],
+                    "median": 61.7,
+                    "mean": 61.239999999999995,
+                    "min": 60.3,
+                    "max": 61.8,
+                    "mad": 0.09999999999999432,
+                    "relative_mad": 0.0016207455429496647,
+                    "range": 1.5,
+                    "relative_range": 0.02431118314424635,
+                    "central_range": 1.0,
+                    "relative_central_range": 0.01620745542949757,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      76.1,
+                      76.9,
+                      76.9,
+                      67.4,
+                      71.0
+                    ],
+                    "median": 76.1,
+                    "mean": 73.66,
+                    "min": 67.4,
+                    "max": 76.9,
+                    "mad": 0.8000000000000114,
+                    "relative_mad": 0.010512483574244565,
+                    "range": 9.5,
+                    "relative_range": 0.12483574244415244,
+                    "central_range": 5.900000000000006,
+                    "relative_central_range": 0.07752956636005265,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      85.3,
+                      85.4,
+                      82.3,
+                      77.6,
+                      83.5
+                    ],
+                    "median": 83.5,
+                    "mean": 82.82000000000001,
+                    "min": 77.6,
+                    "max": 85.4,
+                    "mad": 1.7999999999999972,
+                    "relative_mad": 0.021556886227544876,
+                    "range": 7.800000000000011,
+                    "relative_range": 0.09341317365269475,
+                    "central_range": 3.0,
+                    "relative_central_range": 0.03592814371257485,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      101.1,
+                      110.7,
+                      101.2,
+                      104.4,
+                      115.4
+                    ],
+                    "median": 104.4,
+                    "mean": 106.55999999999999,
+                    "min": 101.1,
+                    "max": 115.4,
+                    "mad": 3.3000000000000114,
+                    "relative_mad": 0.03160919540229896,
+                    "range": 14.300000000000011,
+                    "relative_range": 0.13697318007662845,
+                    "central_range": 9.5,
+                    "relative_central_range": 0.09099616858237547,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_batch4": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_batch4": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "4",
+                  "64"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "4",
+                  "rounds": "1000",
+                  "submission_batch_size": "64",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      982110.248,
+                      998019.555,
+                      997695.946,
+                      985333.92,
+                      993801.165
+                    ],
+                    "median": 993801.165,
+                    "mean": 991392.1668,
+                    "min": 982110.248,
+                    "max": 998019.555,
+                    "mad": 4218.390000000014,
+                    "relative_mad": 0.004244702208615356,
+                    "range": 15909.30700000003,
+                    "relative_range": 0.01600854130614752,
+                    "central_range": 12362.025999999954,
+                    "relative_central_range": 0.01243913414007716,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      64.8,
+                      63.9,
+                      63.3,
+                      64.6,
+                      64.1
+                    ],
+                    "median": 64.1,
+                    "mean": 64.14,
+                    "min": 63.3,
+                    "max": 64.8,
+                    "mad": 0.5,
+                    "relative_mad": 0.0078003120124804995,
+                    "range": 1.5,
+                    "relative_range": 0.0234009360374415,
+                    "central_range": 0.6999999999999957,
+                    "relative_central_range": 0.010920436817472633,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      70.7,
+                      69.0,
+                      72.2,
+                      70.0,
+                      69.0
+                    ],
+                    "median": 70.0,
+                    "mean": 70.17999999999999,
+                    "min": 69.0,
+                    "max": 72.2,
+                    "mad": 1.0,
+                    "relative_mad": 0.014285714285714285,
+                    "range": 3.200000000000003,
+                    "relative_range": 0.045714285714285756,
+                    "central_range": 1.7000000000000028,
+                    "relative_central_range": 0.024285714285714327,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      74.0,
+                      71.3,
+                      79.2,
+                      72.4,
+                      72.6
+                    ],
+                    "median": 72.6,
+                    "mean": 73.9,
+                    "min": 71.3,
+                    "max": 79.2,
+                    "mad": 1.2999999999999972,
+                    "relative_mad": 0.017906336088154232,
+                    "range": 7.900000000000006,
+                    "relative_range": 0.10881542699724527,
+                    "central_range": 1.5999999999999943,
+                    "relative_central_range": 0.022038567493112872,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      80.0,
+                      75.1,
+                      85.5,
+                      92.7,
+                      87.7
+                    ],
+                    "median": 85.5,
+                    "mean": 84.2,
+                    "min": 75.1,
+                    "max": 92.7,
+                    "mad": 5.5,
+                    "relative_mad": 0.06432748538011696,
+                    "range": 17.60000000000001,
+                    "relative_range": 0.20584795321637436,
+                    "central_range": 7.700000000000003,
+                    "relative_central_range": 0.09005847953216378,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "5f22bed0cf311871617fb11666d9c13bb0df1da9",
+        "source_dirty": true,
+        "source_fingerprint": "cc487b1bea2b0b817e3dfc5d6dc3b9af9c5513a93cca643d03c6f136ca26eb72",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_service": {
+            "suite": "xcron_service",
+            "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 179468,
+                "data": 2392,
+                "bss": 11104,
+                "members": 1,
+                "load": 181860,
+                "file": 253503,
+                "path": "out/size/gnu/native/xcron_service/single/xcron_single.o",
+                "compile_seconds": 4.687412100000074,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 89512,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 89512,
+                "file": 125458,
+                "path": "release/gnu/native/xcron_service/static/libxcron.a"
+              },
+              "shared": {
+                "text": 103214,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 103358,
+                "file": 155459,
+                "path": "release/gnu/native/xcron_service/shared/xcron.dll"
+              }
+            }
+          },
+          "xcron_service_selected": {
+            "suite": "xcron_service_selected",
+            "description": "Selected live owner, complete policy traversal and token metadata with borrowed worker pool; no host timezone/network closure",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 209740,
+                "data": 2392,
+                "bss": 11104,
+                "members": 1,
+                "load": 212132,
+                "file": 288983,
+                "path": "out/size/gnu/native/xcron_service_selected/single/xcron_single.o",
+                "compile_seconds": 5.2260693999996874,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 117920,
+                "data": 0,
+                "bss": 0,
+                "members": 11,
+                "load": 117920,
+                "file": 165048,
+                "path": "release/gnu/native/xcron_service_selected/static/libxcron.a"
+              },
+              "shared": {
+                "text": 132751,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 132895,
+                "file": 189525,
+                "path": "release/gnu/native/xcron_service_selected/shared/xcron.dll"
+              }
+            }
+          }
+        }
+      },
+      "binaries": {
+        "xcron_service_selected_scalar1": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_scalar1.exe",
+          "sha256": "f3b76a7e67269c8ee811a70fda0a50d02bbe1236fae4a60ee99ad79898de05b9",
+          "mechanism_stdout_sha256": "69a618fe868ba2485214d965587da4163a48f680293186ef16e414c6b4b0ac14"
+        },
+        "xcron_service_selected_scalar4": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_scalar4.exe",
+          "sha256": "f3b76a7e67269c8ee811a70fda0a50d02bbe1236fae4a60ee99ad79898de05b9",
+          "mechanism_stdout_sha256": "df06c315ba29e8743532151564a9f6a428366a0c98d737b21debdf62bfafd5c4"
+        },
+        "xcron_service_selected_batch1": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_batch1.exe",
+          "sha256": "f3b76a7e67269c8ee811a70fda0a50d02bbe1236fae4a60ee99ad79898de05b9",
+          "mechanism_stdout_sha256": "c06dd489d0e1c684fbd1f081f05a82efe122952c76aa6146e7b8e8ffe85c7286"
+        },
+        "xcron_service_selected_batch4": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_batch4.exe",
+          "sha256": "f3b76a7e67269c8ee811a70fda0a50d02bbe1236fae4a60ee99ad79898de05b9",
+          "mechanism_stdout_sha256": "a9d47d9f1a2a68d6572f4f92e03117f6499717ff3cd653f29494f0f7fc2f7e94"
+        }
+      },
+      "noise_failures": [
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/executions_per_sec: relative_central_range=6.4%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p95_us: relative_mad=8.9%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p95_us: relative_central_range=32.5%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p99_us: relative_mad=17.7%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p99_us: relative_central_range=38.8%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p999_us: relative_mad=17.2%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p999_us: relative_central_range=25.6%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p95_us: relative_central_range=7.8%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p999_us: relative_mad=3.2%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p999_us: relative_central_range=9.1%",
+        "[quality-fail] xcron_service_selected_batch4/xcron_service_selected_batch4/batch_p999_us: relative_mad=6.4%",
+        "[quality-fail] xcron_service_selected_batch4/xcron_service_selected_batch4/batch_p999_us: relative_central_range=9.0%"
+      ]
+    },
+    "wsl": {
+      "receipts": [
+        {
+          "label": "performance",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--profiles",
+            "xcron_service_selected_scalar1,xcron_service_selected_scalar4,xcron_service_selected_batch1,xcron_service_selected_batch4",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xcron-service-selected-20261109/wsl-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "fe1f7957bec5ab4c6b52b84b9ca68a73bc37c839e90adf341af1220193f4fb11"
+        },
+        {
+          "label": "size",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--config",
+            "extlibs/xcron/config/size_profiles.json",
+            "--profiles",
+            "xcron_service,xcron_service_selected",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xcron-service-selected-20261109/wsl-size.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "520e253c6598533578071aa5a3e7a4d9a82ae7703d2b1457ffdcd9544b64fade"
+        }
+      ],
+      "performance": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T22:58:35.270322+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "5f22bed0cf311871617fb11666d9c13bb0df1da9",
+        "source_dirty": true,
+        "source_fingerprint": "0ce63dcaaf62c7917ca1d86601bedbf829773f7b793974a5277cfbb55d1b528e",
+        "benchmark_fingerprint": "a98916a05d11e3d5008a7aaa50c37d6b14a3db4346e3d709c7873d2c1e6a2bbf",
+        "profiles": {
+          "xcron_service_selected_scalar1": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_scalar1": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "1",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "1",
+                  "rounds": "1000",
+                  "submission_batch_size": "1",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      785289.004,
+                      793267.558,
+                      792289.449,
+                      798857.045,
+                      813813.891
+                    ],
+                    "median": 793267.558,
+                    "mean": 796703.3894,
+                    "min": 785289.004,
+                    "max": 813813.891,
+                    "mad": 5589.487000000081,
+                    "relative_mad": 0.0070461560461294965,
+                    "range": 28524.886999999988,
+                    "relative_range": 0.035958721256567495,
+                    "central_range": 6567.59600000002,
+                    "relative_central_range": 0.00827916877952044,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      79.6,
+                      80.4,
+                      80.1,
+                      77.8,
+                      77.7
+                    ],
+                    "median": 79.6,
+                    "mean": 79.12,
+                    "min": 77.7,
+                    "max": 80.4,
+                    "mad": 0.8000000000000114,
+                    "relative_mad": 0.010050251256281551,
+                    "range": 2.700000000000003,
+                    "relative_range": 0.033919597989949785,
+                    "central_range": 2.299999999999997,
+                    "relative_central_range": 0.02889447236180901,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      103.5,
+                      98.0,
+                      97.3,
+                      102.1,
+                      93.8
+                    ],
+                    "median": 98.0,
+                    "mean": 98.94,
+                    "min": 93.8,
+                    "max": 103.5,
+                    "mad": 4.099999999999994,
+                    "relative_mad": 0.04183673469387749,
+                    "range": 9.700000000000003,
+                    "relative_range": 0.09897959183673473,
+                    "central_range": 4.799999999999997,
+                    "relative_central_range": 0.048979591836734664,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      122.7,
+                      119.4,
+                      109.899,
+                      117.4,
+                      109.2
+                    ],
+                    "median": 117.4,
+                    "mean": 115.7198,
+                    "min": 109.2,
+                    "max": 122.7,
+                    "mad": 5.299999999999997,
+                    "relative_mad": 0.045144804088586,
+                    "range": 13.5,
+                    "relative_range": 0.11499148211243611,
+                    "central_range": 9.501000000000005,
+                    "relative_central_range": 0.08092844974446341,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      141.8,
+                      139.9,
+                      138.7,
+                      158.2,
+                      142.8
+                    ],
+                    "median": 141.8,
+                    "mean": 144.28,
+                    "min": 138.7,
+                    "max": 158.2,
+                    "mad": 1.9000000000000057,
+                    "relative_mad": 0.013399153737658712,
+                    "range": 19.5,
+                    "relative_range": 0.13751763046544427,
+                    "central_range": 2.9000000000000057,
+                    "relative_central_range": 0.020451339915373803,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_scalar4": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_scalar4": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "4",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "4",
+                  "rounds": "1000",
+                  "submission_batch_size": "1",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      195041.13,
+                      182935.117,
+                      202001.064,
+                      160544.278,
+                      175067.29
+                    ],
+                    "median": 182935.117,
+                    "mean": 183117.7758,
+                    "min": 160544.278,
+                    "max": 202001.064,
+                    "mad": 12106.013000000006,
+                    "relative_mad": 0.06617653952138673,
+                    "range": 41456.78600000002,
+                    "relative_range": 0.2266201628198047,
+                    "central_range": 19973.839999999997,
+                    "relative_central_range": 0.10918537855145656,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      237.1,
+                      259.8,
+                      240.8,
+                      273.701,
+                      269.1
+                    ],
+                    "median": 259.8,
+                    "mean": 256.1002,
+                    "min": 237.1,
+                    "max": 273.701,
+                    "mad": 13.90100000000001,
+                    "relative_mad": 0.05350654349499619,
+                    "range": 36.60100000000003,
+                    "relative_range": 0.14088144726712867,
+                    "central_range": 28.30000000000001,
+                    "relative_central_range": 0.10892994611239419,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      1062.5,
+                      1037.0,
+                      896.9,
+                      1125.9,
+                      1082.5
+                    ],
+                    "median": 1062.5,
+                    "mean": 1040.96,
+                    "min": 896.9,
+                    "max": 1125.9,
+                    "mad": 25.5,
+                    "relative_mad": 0.024,
+                    "range": 229.0000000000001,
+                    "relative_range": 0.215529411764706,
+                    "central_range": 45.5,
+                    "relative_central_range": 0.042823529411764705,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      1132.4,
+                      1421.4,
+                      1133.0,
+                      1394.2,
+                      1395.4
+                    ],
+                    "median": 1394.2,
+                    "mean": 1295.2800000000002,
+                    "min": 1132.4,
+                    "max": 1421.4,
+                    "mad": 27.200000000000045,
+                    "relative_mad": 0.01950939606943053,
+                    "range": 289.0,
+                    "relative_range": 0.20728733323769905,
+                    "central_range": 262.4000000000001,
+                    "relative_central_range": 0.18820829149332957,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      1150.2,
+                      1445.0,
+                      1158.9,
+                      1453.0,
+                      1419.5
+                    ],
+                    "median": 1419.5,
+                    "mean": 1325.3200000000002,
+                    "min": 1150.2,
+                    "max": 1453.0,
+                    "mad": 33.5,
+                    "relative_mad": 0.023599859105318775,
+                    "range": 302.79999999999995,
+                    "relative_range": 0.21331454737583652,
+                    "central_range": 286.0999999999999,
+                    "relative_central_range": 0.20154984149348357,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_batch1": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_batch1": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "1",
+                  "64"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "1",
+                  "rounds": "1000",
+                  "submission_batch_size": "64",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      821366.831,
+                      785460.151,
+                      799676.121,
+                      801793.01,
+                      760790.747
+                    ],
+                    "median": 799676.121,
+                    "mean": 793817.372,
+                    "min": 760790.747,
+                    "max": 821366.831,
+                    "mad": 14215.970000000088,
+                    "relative_mad": 0.01777715956082686,
+                    "range": 60576.08400000003,
+                    "relative_range": 0.07575077260560095,
+                    "central_range": 16332.859000000055,
+                    "relative_central_range": 0.020424342519538674,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      76.8,
+                      78.6,
+                      77.5,
+                      77.5,
+                      80.5
+                    ],
+                    "median": 77.5,
+                    "mean": 78.17999999999999,
+                    "min": 76.8,
+                    "max": 80.5,
+                    "mad": 0.7000000000000028,
+                    "relative_mad": 0.009032258064516166,
+                    "range": 3.700000000000003,
+                    "relative_range": 0.047741935483871005,
+                    "central_range": 1.0999999999999943,
+                    "relative_central_range": 0.0141935483870967,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      98.3,
+                      106.5,
+                      102.7,
+                      102.7,
+                      113.7
+                    ],
+                    "median": 102.7,
+                    "mean": 104.78,
+                    "min": 98.3,
+                    "max": 113.7,
+                    "mad": 3.799999999999997,
+                    "relative_mad": 0.03700097370983444,
+                    "range": 15.400000000000006,
+                    "relative_range": 0.1499513145082766,
+                    "central_range": 3.799999999999997,
+                    "relative_central_range": 0.03700097370983444,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      118.0,
+                      122.0,
+                      128.6,
+                      121.7,
+                      135.4
+                    ],
+                    "median": 122.0,
+                    "mean": 125.14000000000001,
+                    "min": 118.0,
+                    "max": 135.4,
+                    "mad": 4.0,
+                    "relative_mad": 0.03278688524590164,
+                    "range": 17.400000000000006,
+                    "relative_range": 0.1426229508196722,
+                    "central_range": 6.8999999999999915,
+                    "relative_central_range": 0.056557377049180256,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      143.6,
+                      201.3,
+                      163.2,
+                      135.6,
+                      182.3
+                    ],
+                    "median": 163.2,
+                    "mean": 165.2,
+                    "min": 135.6,
+                    "max": 201.3,
+                    "mad": 19.599999999999994,
+                    "relative_mad": 0.12009803921568625,
+                    "range": 65.70000000000002,
+                    "relative_range": 0.40257352941176483,
+                    "central_range": 38.70000000000002,
+                    "relative_central_range": 0.2371323529411766,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_service_selected_batch4": {
+            "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+            "benchmarks": {
+              "xcron_service_selected_batch4": {
+                "source": "extlibs/xcron/bench/bench_service_selected.c",
+                "inputs": [],
+                "suite": "xcron_service_selected",
+                "args": [
+                  "1000",
+                  "4",
+                  "64"
+                ],
+                "facts": {
+                  "batch_size": "64",
+                  "threads": "4",
+                  "rounds": "1000",
+                  "submission_batch_size": "64",
+                  "callbacks": "64000",
+                  "checksum": "2048032000"
+                },
+                "metrics": {
+                  "executions_per_sec": {
+                    "samples": [
+                      605369.819,
+                      586681.236,
+                      597548.366,
+                      593623.188,
+                      582957.599
+                    ],
+                    "median": 593623.188,
+                    "mean": 593236.0416,
+                    "min": 582957.599,
+                    "max": 605369.819,
+                    "mad": 6941.951999999932,
+                    "relative_mad": 0.011694206257993972,
+                    "range": 22412.219999999972,
+                    "relative_range": 0.03775496047502776,
+                    "central_range": 10867.130000000005,
+                    "relative_central_range": 0.018306444592592307,
+                    "direction": "higher",
+                    "unit": "executions/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      102.9,
+                      109.0,
+                      107.4,
+                      106.8,
+                      111.8
+                    ],
+                    "median": 107.4,
+                    "mean": 107.58,
+                    "min": 102.9,
+                    "max": 111.8,
+                    "mad": 1.5999999999999943,
+                    "relative_mad": 0.014897579143389145,
+                    "range": 8.899999999999991,
+                    "relative_range": 0.08286778398510233,
+                    "central_range": 2.200000000000003,
+                    "relative_central_range": 0.020484171322160176,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      133.1,
+                      139.2,
+                      134.4,
+                      138.5,
+                      135.3
+                    ],
+                    "median": 135.3,
+                    "mean": 136.1,
+                    "min": 133.1,
+                    "max": 139.2,
+                    "mad": 2.200000000000017,
+                    "relative_mad": 0.01626016260162614,
+                    "range": 6.099999999999994,
+                    "relative_range": 0.045084996304508455,
+                    "central_range": 4.099999999999994,
+                    "relative_central_range": 0.03030303030303026,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      158.6,
+                      165.7,
+                      148.6,
+                      159.5,
+                      147.7
+                    ],
+                    "median": 158.6,
+                    "mean": 156.01999999999998,
+                    "min": 147.7,
+                    "max": 165.7,
+                    "mad": 7.099999999999994,
+                    "relative_mad": 0.044766708701134895,
+                    "range": 18.0,
+                    "relative_range": 0.11349306431273645,
+                    "central_range": 10.900000000000006,
+                    "relative_central_range": 0.06872635561160155,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      177.6,
+                      204.5,
+                      176.1,
+                      178.0,
+                      202.3
+                    ],
+                    "median": 178.0,
+                    "mean": 187.7,
+                    "min": 176.1,
+                    "max": 204.5,
+                    "mad": 1.9000000000000057,
+                    "relative_mad": 0.010674157303370818,
+                    "range": 28.400000000000006,
+                    "relative_range": 0.15955056179775284,
+                    "central_range": 24.700000000000017,
+                    "relative_central_range": 0.13876404494382033,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "5f22bed0cf311871617fb11666d9c13bb0df1da9",
+        "source_dirty": true,
+        "source_fingerprint": "cc487b1bea2b0b817e3dfc5d6dc3b9af9c5513a93cca643d03c6f136ca26eb72",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_service": {
+            "suite": "xcron_service",
+            "description": "Dedicated public-XRT live owner, bounded command/reply and completion credits; no network or host timezone",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 190102,
+                "data": 2944,
+                "bss": 10940,
+                "members": 1,
+                "load": 193046,
+                "file": 319312,
+                "path": "out/size/gnu/x64/xcron_service/single/xcron_single.o",
+                "compile_seconds": 3.2307526559961843,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 96390,
+                "data": 224,
+                "bss": 0,
+                "members": 8,
+                "load": 96614,
+                "file": 156756,
+                "path": "release/gnu/x64/xcron_service/static/libxcron.a"
+              },
+              "shared": {
+                "text": 109427,
+                "data": 1480,
+                "bss": 8,
+                "members": 1,
+                "load": 110907,
+                "file": 132472,
+                "path": "release/gnu/x64/xcron_service/shared/libxcron.so"
+              }
+            }
+          },
+          "xcron_service_selected": {
+            "suite": "xcron_service_selected",
+            "description": "Selected live owner, complete policy traversal and token metadata with borrowed worker pool; no host timezone/network closure",
+            "forbid_symbols": [
+              "xrtNetEngineCreate",
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "_xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal"
+            ],
+            "kinds": {
+              "single": {
+                "text": 221775,
+                "data": 2944,
+                "bss": 10940,
+                "members": 1,
+                "load": 224719,
+                "file": 360304,
+                "path": "out/size/gnu/x64/xcron_service_selected/single/xcron_single.o",
+                "compile_seconds": 3.7210060759971384,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 125918,
+                "data": 224,
+                "bss": 0,
+                "members": 11,
+                "load": 126142,
+                "file": 203172,
+                "path": "release/gnu/x64/xcron_service_selected/static/libxcron.a"
+              },
+              "shared": {
+                "text": 141141,
+                "data": 1560,
+                "bss": 8,
+                "members": 1,
+                "load": 142701,
+                "file": 163688,
+                "path": "release/gnu/x64/xcron_service_selected/shared/libxcron.so"
+              }
+            }
+          }
+        }
+      },
+      "binaries": {
+        "xcron_service_selected_scalar1": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_scalar1",
+          "sha256": "626338257eb870052dec585aacdc7ff4fdda8de1b776a300c6726641e8d75788",
+          "mechanism_stdout_sha256": "7c47e40d2519654a0638fa654f197320e78aedd610e28ca5b6467aa864b479ed"
+        },
+        "xcron_service_selected_scalar4": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_scalar4",
+          "sha256": "626338257eb870052dec585aacdc7ff4fdda8de1b776a300c6726641e8d75788",
+          "mechanism_stdout_sha256": "a93053526bb67767f48803a021d9b741239b0afa794655bb91d703ff64ccefe0"
+        },
+        "xcron_service_selected_batch1": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_batch1",
+          "sha256": "626338257eb870052dec585aacdc7ff4fdda8de1b776a300c6726641e8d75788",
+          "mechanism_stdout_sha256": "d69436cc1059e4ff788c3c4001c4e68d3091d7652fc84e13312c9e871fba7852"
+        },
+        "xcron_service_selected_batch4": {
+          "path": "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_batch4",
+          "sha256": "626338257eb870052dec585aacdc7ff4fdda8de1b776a300c6726641e8d75788",
+          "mechanism_stdout_sha256": "d417d068144a2d0e485128aec4d2a7b86cac597048cd81fac3750c0000aa4f7f"
+        }
+      },
+      "noise_failures": [
+        "[quality-fail] xcron_service_selected_scalar1/xcron_service_selected_scalar1/batch_p95_us: relative_mad=4.2%",
+        "[quality-fail] xcron_service_selected_scalar1/xcron_service_selected_scalar1/batch_p99_us: relative_mad=4.5%",
+        "[quality-fail] xcron_service_selected_scalar1/xcron_service_selected_scalar1/batch_p99_us: relative_central_range=8.1%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/executions_per_sec: relative_mad=6.6%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/executions_per_sec: relative_central_range=10.9%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p50_us: relative_mad=5.4%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p50_us: relative_central_range=10.9%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p99_us: relative_central_range=18.8%",
+        "[quality-fail] xcron_service_selected_scalar4/xcron_service_selected_scalar4/batch_p999_us: relative_central_range=20.2%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p95_us: relative_mad=3.7%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p99_us: relative_mad=3.3%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p999_us: relative_mad=12.0%",
+        "[quality-fail] xcron_service_selected_batch1/xcron_service_selected_batch1/batch_p999_us: relative_central_range=23.7%",
+        "[quality-fail] xcron_service_selected_batch4/xcron_service_selected_batch4/batch_p99_us: relative_mad=4.5%",
+        "[quality-fail] xcron_service_selected_batch4/xcron_service_selected_batch4/batch_p99_us: relative_central_range=6.9%",
+        "[quality-fail] xcron_service_selected_batch4/xcron_service_selected_batch4/batch_p999_us: relative_central_range=13.9%"
+      ]
+    }
+  },
+  "initial_failures": [
+    "Initial test compile used a nonexistent nested occurrence issue field; corrected to the actual public Candidates field, production unchanged; source/log preserved.",
+    "Initial controlled-budget test configured job RunningLimit4 above service RunLimit1; queue correctly rejected it. Test corrected to1, production unchanged; source/log preserved.",
+    "First complete Windows root run exposed an old single-header competing-collector test reading potentially uninitialized Issue on an argument-failure path. Initialized that test Issue; warnings remain errors. The first WSL driver was deliberately stopped after this finding; its logs are retained as interrupted and are not accepted. Both full final suites were then rerun from matching frozen inputs."
+  ],
+  "qualification": {
+    "production_performance_accepted": false,
+    "native_linux_accepted": false,
+    "long_run_accepted": false,
+    "note": "Controlled64-due UTC bursts measure the complete selected component with actual workers, recurrence, owner, nominal/exactly-once validation, two shared callback atomics and physical receipt collection. Width1/64 are explicitly differing workloads. Native-batch mechanism stdout is a separate2-round check from the preserved formal executables. No fixed-arrival lateness, no linear scaling or zero-overhead claim. Five repeats/one warmup/MAD3%/central6% and5% throughput/10% latency limits remain unchanged. Noise failures and individual samples are retained; WSL is not native Linux. Shared-host background load may affect observations."
+  },
+  "remaining": [
+    "missing-label compensation and durable recovery",
+    "complete Redis/RPC/MQTT5.0 scope and interoperability",
+    "qualified real fixed-arrival/native Windows/Linux throughput, tail latency, scalar four-worker scaling and earlier occurrence p95 investigation",
+    "native>=72h endurance and full production release gates"
+  ],
+  "artifacts": {
+    "out/service-extensions/xcron-service-selected-20261109/before/extlibs/xcron/config/modules.json": {
+      "bytes": 20739,
+      "sha256": "3cc581b352b9350f83813c8d1af1b7c0daa8d7d808ce92073efb200b434821fe"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/extlibs/xcron/include/xcron/features.h": {
+      "bytes": 5766,
+      "sha256": "f9c0a15e181dbb97936f3dd70e46d09df5392eb9810b23756a38f4aa949a527f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/extlibs/xcron/include/xcron/service.h": {
+      "bytes": 11264,
+      "sha256": "340c188f9e68279f83bdaea86fa555dc9a9c0a6b76de716f6e5ba946297819fc"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/extlibs/xcron/include/xcron.h": {
+      "bytes": 2342,
+      "sha256": "1c0481858705bf278d4d1573222a9e60957c34ef7f56311a901389331e745aff"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/extlibs/xcron/src/service/service.c": {
+      "bytes": 39518,
+      "sha256": "c6cdc3fcdd63931cc786690db342ac48aa34c1c992fbf7aa5527a303ea71dc33"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/single/extlibs/xcron.h": {
+      "bytes": 344043,
+      "sha256": "87cc2636c7cc73e5760a013ea7d6f4e53db1cb7c5b93a6007868d52d9e91f5e7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before/single/extlibs/xcron_decl.h": {
+      "bytes": 255103,
+      "sha256": "101398499077b58471dcd93f57876d7d9e30ae4a4410f204178f904eb6979be4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/before-source.json": {
+      "bytes": 839,
+      "sha256": "a25bd4c105470e402a84e81c27504f643bc97760c8c37020b99d37cc3cd1b8bf"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_batch1-mechanism.txt": {
+      "bytes": 265,
+      "sha256": "c06dd489d0e1c684fbd1f081f05a82efe122952c76aa6146e7b8e8ffe85c7286"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_batch4-mechanism.txt": {
+      "bytes": 265,
+      "sha256": "a9d47d9f1a2a68d6572f4f92e03117f6499717ff3cd653f29494f0f7fc2f7e94"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_scalar1-mechanism.txt": {
+      "bytes": 262,
+      "sha256": "69a618fe868ba2485214d965587da4163a48f680293186ef16e414c6b4b0ac14"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/windows-xcron_service_selected_scalar4-mechanism.txt": {
+      "bytes": 266,
+      "sha256": "df06c315ba29e8743532151564a9f6a428366a0c98d737b21debdf62bfafd5c4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_batch1-mechanism.txt": {
+      "bytes": 252,
+      "sha256": "d69436cc1059e4ff788c3c4001c4e68d3091d7652fc84e13312c9e871fba7852"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_batch4-mechanism.txt": {
+      "bytes": 256,
+      "sha256": "d417d068144a2d0e485128aec4d2a7b86cac597048cd81fac3750c0000aa4f7f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_scalar1-mechanism.txt": {
+      "bytes": 249,
+      "sha256": "7c47e40d2519654a0638fa654f197320e78aedd610e28ca5b6467aa864b479ed"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/binaries/wsl-xcron_service_selected_scalar4-mechanism.txt": {
+      "bytes": 253,
+      "sha256": "a93053526bb67767f48803a021d9b741239b0afa794655bb91d703ff64ccefe0"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/bench/bench_service_selected.c": {
+      "bytes": 6814,
+      "sha256": "32589f2d33397ac41d92ff51e1a209430a28ef0588774808a1f1eed58947d4ca"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/config/modules.json": {
+      "bytes": 21991,
+      "sha256": "6410fd532e30f6403e80837eb0d141db52f84a0754654b176bc8255b8a4e5f48"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/config/performance_profiles.json": {
+      "bytes": 58471,
+      "sha256": "42d94e474d939d3d098a04953ca4c80c8f4af50d3b95c6ac6b33c5e0f51fc5e1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/config/size_profiles.json": {
+      "bytes": 7355,
+      "sha256": "339ba2ddd909bebfd4cedb21e5d498cb67c0fcbd0e21c9a39477969190511d57"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/examples/service_selected/main.c": {
+      "bytes": 4093,
+      "sha256": "ecc79446aabbb03c1fbfb2242153571ffcc9ced039949ac4c68ffb94072deabb"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/calendar.h": {
+      "bytes": 6878,
+      "sha256": "ef86dedcc138feb8d0d990e211a619d9bbea73bd1a859bdad52693b2506add9e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/delivery.h": {
+      "bytes": 6604,
+      "sha256": "b073d4a1bf4934063155a985386b67eb8b98f56771bdfd4161fb7146d59bd344"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/executor.h": {
+      "bytes": 7493,
+      "sha256": "930913f5096e696f79e9eb79b46790d2de3f2ee3961143d3ee88c27930dc6b8c"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/executor_selected.h": {
+      "bytes": 3415,
+      "sha256": "05ad84f64f9a571b3173f1908ef68012672c398e48cc60de7afcaff5580a427e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/export.h": {
+      "bytes": 531,
+      "sha256": "1b6929edccd8579099b616dc02347ba63846a78e3fa73ce763d1f45b3a08a0b0"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/expression.h": {
+      "bytes": 3698,
+      "sha256": "374db1cb7ef831f9f53aa380905430f97c989cffc0a8018cc7d5681b573797fb"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/features.h": {
+      "bytes": 6269,
+      "sha256": "4a1198fd1259fdd94def8654daa89189b2ee86c6520f6ea489c5f36510aa71bd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/occurrence.h": {
+      "bytes": 6201,
+      "sha256": "e1efa635fd2325478ffb52e363c3733fd70fd9c08e3c817f2f0266844db54c20"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/scheduler.h": {
+      "bytes": 10091,
+      "sha256": "3c9a44e8ffa9d237a8539d6d830129bf566e4a2aea8042d3112697e71a1b9699"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/scheduler_selected.h": {
+      "bytes": 4275,
+      "sha256": "69d6c1efc3d138f1602005ee9492e71a5b57fd748df35c26001776799d654ad7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/service.h": {
+      "bytes": 11264,
+      "sha256": "340c188f9e68279f83bdaea86fa555dc9a9c0a6b76de716f6e5ba946297819fc"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/service_selected.h": {
+      "bytes": 4418,
+      "sha256": "651e26b97d91086ce5abbdd338972403c130c9f81a0dedb8bd7fd246a2edb014"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/timezone.h": {
+      "bytes": 6225,
+      "sha256": "4b747adbcc41f25702cf32b5d2d570f823f09f382cf72ebd5f7107cd9acb0d38"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/tzdb.h": {
+      "bytes": 6794,
+      "sha256": "48111cfc0e46c9517b416991913a3926cda99da73afbfbb903d2c51eb66d6f6f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/tzdb_file.h": {
+      "bytes": 1542,
+      "sha256": "061ab363d7309cb1582f0bc36a3c60429deec34fed38c93c326f9c7258f43eae"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron/zoned.h": {
+      "bytes": 5797,
+      "sha256": "7518c45f09c6ccb90e96afa936be43e707db8a27a4805195d29752271c5dda7e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/include/xcron.h": {
+      "bytes": 2527,
+      "sha256": "0d441062df58f2b9c890dda5950b360a1ca9fa6e26c2bd60210be7ad5265d437"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/calendar/calendar.c": {
+      "bytes": 21648,
+      "sha256": "57edf3f4eb7e307755a3850bb6c4f9f4a49e62a48691aed11a25cdb0f5266f2e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/calendar/calendar_internal.h": {
+      "bytes": 1588,
+      "sha256": "b50613097950ccab2169312de06dcfa3f0fa6079793bc34bf67400d2d8ace088"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/delivery/delivery.c": {
+      "bytes": 4023,
+      "sha256": "af7a11986d419fbf6431d2cfbc09d4d78b6daa9e4c2f633f808977178208244e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/delivery/delivery_cursor.c": {
+      "bytes": 7131,
+      "sha256": "e2a209150b14645925cc7402e4f5d39d700513fdb5b112025aeacfb20890d61f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/executor/executor.c": {
+      "bytes": 22437,
+      "sha256": "4c67425a79534751dad61ca2cefe1d4599d221c172dbad1c0b532b600b054450"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/expression/expression.c": {
+      "bytes": 10027,
+      "sha256": "172dc4992b0d37acc33b8fc0d2431e012e0ab9d35478985864555d5a6eeb56fb"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/occurrence/occurrence.c": {
+      "bytes": 15491,
+      "sha256": "6929041d94e3ff7d4ee43b34d69ec4080e38b5a46e67bdebd47b52885171f0fc"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/occurrence/occurrence_internal.h": {
+      "bytes": 1636,
+      "sha256": "28a7c0fc9ae86ba6ed9a8c97deb57545231c0ebf9159af461198969bd9092207"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/scheduler/scheduler.c": {
+      "bytes": 45440,
+      "sha256": "3aaa6326c67cfeb0de64ed85148adc3002a743cd93830cd180c78984a71a59c4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/scheduler/scheduler_internal.h": {
+      "bytes": 1054,
+      "sha256": "8c4b82e5999818e2f2d2ded48730328bd712d360f14b8a8bdb9a45276dfe41b9"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/service/service.c": {
+      "bytes": 53832,
+      "sha256": "984511def840e8d8ccdf6f35d389b8ba22519af77897c06217c7f4e63cb584b1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/timezone/timezone.c": {
+      "bytes": 19130,
+      "sha256": "b9aae20d3ba5c3cdb5e369c0b1d711d3965f6315ca606df30a327d2c6e392f1e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/timezone/timezone_internal.h": {
+      "bytes": 4651,
+      "sha256": "e509cdac4338f808c632e2c3754b04a978a4e1a102b8bccc830cb0a8f4821610"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/timezone/tzif.c": {
+      "bytes": 22725,
+      "sha256": "aca0c0fbcca7f7df57edad7abcf5de427872a4223c0fc78c6c0f6565709e0577"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/tzdb/tzdb.c": {
+      "bytes": 15394,
+      "sha256": "f9e8898dc217562eec25d0ae8b5aa2f332d60256fee53089099128c970a97176"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/tzdb/tzdb_internal.h": {
+      "bytes": 1444,
+      "sha256": "12fd3275d7f782d77f57c444045d469943d91fba0062e0134b69c6d19863142b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/tzdb_file/tzdb_file.c": {
+      "bytes": 2868,
+      "sha256": "091b7970d352e509da9e950a0907ccae8c9b49d1f6a6ee3a6ec0fd2c4ab000ca"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/zoned/zoned.c": {
+      "bytes": 14718,
+      "sha256": "f9710f8c7eaa1473d5c700643fbfb10c439d56b8d48348a21939d96c452620de"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/src/zoned/zoned_internal.h": {
+      "bytes": 1794,
+      "sha256": "82ca50c9d833b1df9b3ebfabf74bfb1807e73882ee009270f2865983493f4bbe"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/package/test_consumer.c": {
+      "bytes": 16714,
+      "sha256": "dde02119830616a592f7644ecfe96c9323c68bf44179eb9036e0e9503625bdf2"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/service_selected_budget_cases.h": {
+      "bytes": 7198,
+      "sha256": "33b2ec0bce46acce32d5d45554b1bb36d94e4c10c442cbc8fdea34a1f8328e28"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/service_selected_cases.h": {
+      "bytes": 11410,
+      "sha256": "6c86e44f4c29bb8c72343e3ef1e0329e890e735417e71db9fbaae257d6538ecf"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/service_selected_concurrency_cases.h": {
+      "bytes": 11173,
+      "sha256": "bfa16e651a684a4a370db86350bae8ad92579b8a05a4260beadc84cac71d6b42"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/service_selected_control_cases.h": {
+      "bytes": 12274,
+      "sha256": "4647a98f8206a436d7f50abd8cfb4098a72f9b332d693f5f3aeb5cfbd6039174"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/single/test_single_xcron_service_selected.c": {
+      "bytes": 280,
+      "sha256": "368a04c904c3d596518e7a2f61d5a0c6b0beeb950c47fc17a35d6f3e5ef74abc"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/test_service.c": {
+      "bytes": 33941,
+      "sha256": "7ea4084e92bd2ded34e980968329edd40dd7a9bcd849c034752b1ee3520a07ad"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/extlibs/xcron/tests/test_service_selected.c": {
+      "bytes": 10335,
+      "sha256": "3bdb7f237a18b0997b209a96b7c0a56d0c6d268fd38318dfa810f1212fbd14ce"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/single/extlibs/xcron.h": {
+      "bytes": 363318,
+      "sha256": "ebb4d01463814e0e89b042a84d1c9d047f64ee90b1897eabbbeb39b99749d0b3"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen/single/extlibs/xcron_decl.h": {
+      "bytes": 261479,
+      "sha256": "4be035d7dce86598fba97cb67848ebda32e0207f11e770d0e509977760544ba9"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/frozen-source.json": {
+      "bytes": 5881,
+      "sha256": "d0df16328b424df57aa2801deb5c61d94c9c520606b5c3eeb7479e0a34e8e75a"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/measure_stage.py": {
+      "bytes": 3816,
+      "sha256": "8fcd50919637af0ffd8aa8215a91d4604cd975fb216fa7c56005ade8b4f645b2"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-example-windows.log": {
+      "bytes": 33355,
+      "sha256": "a910205f20717790f937d47c865de283958be811dd749bb51f437102413f95df"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-legacy-root-windows.log": {
+      "bytes": 57335,
+      "sha256": "50609536ffaf643e845622c8bc89044f4f8cc450f36b21b425773307fce395ba"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-performance-smoke.json": {
+      "bytes": 16702,
+      "sha256": "6efaa54a751514b9719df56d7184098d2c64c530688481a9ade9631403054bfb"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-performance-smoke.log": {
+      "bytes": 126927,
+      "sha256": "5e8a1db1a140c5eb7b0b20742e89d530cba58eddb36905a0b1abeef3013bfd1e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-2.log": {
+      "bytes": 4228,
+      "sha256": "0c79e8b4553d3c969698927e022ce5785ae456e2a2f366d4ceb20aec8e42134d"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-3.log": {
+      "bytes": 4270,
+      "sha256": "370c6df5d39489670d8609aba3877de8b5006cc2a4e7ac92aae35380efecfce1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-4.log": {
+      "bytes": 4276,
+      "sha256": "a678480201f5c22c8951817753af9910796972a3e3f6ce0a9481682ff970f82e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-5.log": {
+      "bytes": 4301,
+      "sha256": "bc6b3f43303930dcc4f4aee8699d9d8a41882fc37e7a475d8cb5b44b5dfa1c9e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-6.log": {
+      "bytes": 4711,
+      "sha256": "a559e4401bc9ea0f67ebd7806b0d2e17d678054170ad19f121b5a9ac4727af55"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows-7.log": {
+      "bytes": 4323,
+      "sha256": "0582671929a6fba2d42d361d23900e49aee738071ee9fedbaebfa3303ecb5b24"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-windows.log": {
+      "bytes": 38095,
+      "sha256": "6fad595f9aebd94e29ef20cfaa66c2c5bf3b9caaa7863a385a861407b8ccf374"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/prototype-wsl.log": {
+      "bytes": 34187,
+      "sha256": "e0c22a7635511e16dd70da1a0a3523765b65bbe42e43045f5bd26b68404a7be1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/publish_evidence.py": {
+      "bytes": 8604,
+      "sha256": "cf37d79a69706bef83e45f1a6a94cb18dda200f3609c29173c08cbe3db63f3dc"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/test-budget-invalid-runninglimit.h": {
+      "bytes": 7124,
+      "sha256": "e1e649fb5c6b2fed62b0331e5cdb3d201fe1cc654f0950bceba3ee54fc793296"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/test-service-selected-initial.c": {
+      "bytes": 8748,
+      "sha256": "881165d4d1e76a088a851b403d7318ce15225f6bccaa6762ac0fd8b3c94c3b9c"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/test-service-before.c": {
+      "bytes": 33937,
+      "sha256": "0dc0991e6ea23ede8a06eeea3ebce64d633704bdae48a2f866149e4f6a5ac835"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/windows-inputs.json": {
+      "bytes": 279216,
+      "sha256": "0a1851a339f2564a00fc7d89889bd5e3b60ab5e71b396db3d45ab1c1897276fa"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/windows-pipeline.log": {
+      "bytes": 2566,
+      "sha256": "42ad32ac581dfe60396fb898ec5b3347a3f87715bf8e66b11006b3a921d6bfe1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/windows-receipts.json": {
+      "bytes": 508,
+      "sha256": "e5f504a732923fe1ec767678104307ea55175d9f374f0d98d67f06d71d968c15"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/windows-suite.log": {
+      "bytes": 86102,
+      "sha256": "54473b1bf424f05a011593e8311f5861d0a7b946ba1883871f7c1fed0d87ff3d"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/wsl-inputs.json": {
+      "bytes": 276658,
+      "sha256": "63e0f8e27b8d86d3561e597cbb6f602052e3d5b78724df79e8f19cac0fb3ce5f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/wsl-pipeline.log": {
+      "bytes": 11,
+      "sha256": "b4a6c06672677cf0e25ec72bec83beae33305cee4b8087f168962014373b02bb"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/attempt1/wsl-suite.log": {
+      "bytes": 127841,
+      "sha256": "2c5ff44bb7a4e4706d8b60705a52c13fcd349e72dea86e70bd10441e12bdc7be"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/build_probe.py": {
+      "bytes": 2001,
+      "sha256": "be652bcb6d7cd8198af408d28b08676dd86cbb40c300d994cbb50f445233aba7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/layout.c": {
+      "bytes": 613,
+      "sha256": "70d5bef083c2eee24f7c1cddfffb58fda0399521408bc33787874981aba5bf27"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/layout_service.c": {
+      "bytes": 3084,
+      "sha256": "93cb07f162a6adeb6e5035040017d6fe93240e0c70752c3a786062cb6ef47838"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/run_stage.py": {
+      "bytes": 4779,
+      "sha256": "8d421042759f85d9ee14f9b4d9fc22f85a6bff2cbad06749e963c1b468ae7d11"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/selected_layout.py": {
+      "bytes": 2465,
+      "sha256": "0cdda465b5453cf71c89ad6153f7c723b5c87798354a2875afbd121319054b1b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/verify_leaf.py": {
+      "bytes": 2114,
+      "sha256": "6cabe988915ee2595b8c1d05462eb0142cfbd036bd2c06695a4f29acc323e6cd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-benchmark-smoke.json": {
+      "bytes": 16697,
+      "sha256": "1cb9672835220e02a145dd08604076b088b4e37b8d7c2155f234a550361d1079"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-benchmark-smoke.log": {
+      "bytes": 19886,
+      "sha256": "30ed0d2b2929270b34c713c262d6b0bf7dbebfaceeb85d21520b5857fc56dbb6"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-docs.log": {
+      "bytes": 96,
+      "sha256": "e5eff07005b984d0b00c19a2b746ccdc5f6d99756278893b6267361e6d73d0a4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-example.log": {
+      "bytes": 7309,
+      "sha256": "1f34d418f00a79800896364eb3e9ecf93c64f9c224e2a12766c59fea5db05779"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-features.log": {
+      "bytes": 51,
+      "sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-inputs.json": {
+      "bytes": 279216,
+      "sha256": "9c95fcf0b4137a9652e003ecbecc34fd9c792301bd1a85348a02b86bc22300cd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-layouts.json": {
+      "bytes": 20586,
+      "sha256": "be1b3d317583f7d736f2b1dabb9d3f36c824b2c66b027c8c559be247b8b0f0e7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-leaf-consumers.json": {
+      "bytes": 4480,
+      "sha256": "317dd4cd3901596f016a992cdb35e41b7bd809b939e78bb72e45714b0359096a"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-leaf-consumers.log": {
+      "bytes": 63823,
+      "sha256": "6e6b82c946394fb0985b5612194767aa163c8fd64f3e4bcbca9a13416ead39af"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-legacy-leaf.log": {
+      "bytes": 32322,
+      "sha256": "eaae44530e9988981259f748372a66446ccdecac8bda4e500abaa4ce01d48f92"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-oracle.json": {
+      "bytes": 105612,
+      "sha256": "46a419876fc39f506fefa1a2c13410bbc5321e02c2d1b20993379f2a50c096db"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-oracle.log": {
+      "bytes": 362,
+      "sha256": "72aa53241cfb1d7297ef48e8dfbc36c317a8dc1c767b5182b3da47b1515706c1"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-pipeline.log": {
+      "bytes": 330,
+      "sha256": "3e4bef6b3240ff41ef032dfe840649f3a15d81669cc5e7789c8bc8537166be5e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-probe-build.json": {
+      "bytes": 16508,
+      "sha256": "855c29bad43aae8b048dd59a1957649cc259f134b1d095e57f35c7b16119050b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-probes.log": {
+      "bytes": 14411,
+      "sha256": "ccd3efa03ecb65081ef8bb2f7f72304d42273a970ed5c33d924f1f48f3dea68f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-receipts.json": {
+      "bytes": 7005,
+      "sha256": "39f4cc2985e839e40803fcdf3bdf618405a8238b32811680744b53488db046cd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-reference.log": {
+      "bytes": 55,
+      "sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-selected-layout.json": {
+      "bytes": 125303,
+      "sha256": "c663bce295ab076f5ee56c0277a4c3f67d6c80b94b1f8726776cd07b3f2bd823"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-selected-layout.log": {
+      "bytes": 87264,
+      "sha256": "1299ed0f95147f2dd8fa243cc3727d47d3e2a5df075af056a0d070b4fe62751a"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-shared.log": {
+      "bytes": 58179,
+      "sha256": "23fa8f387b980b626af6ac791558a9bd5bc1fae1d45994d5343af10e29503bfa"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-single.log": {
+      "bytes": 28,
+      "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-static.log": {
+      "bytes": 56005,
+      "sha256": "1b69f33a838ae2f390e8e56b77cf572dee7f35159bf5e061ef5537fb00e97e47"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-suite.log": {
+      "bytes": 91475,
+      "sha256": "06aabe4f984838d8adac19408dbcee28f01b792c4545728a6287b8a645916245"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-tools.log": {
+      "bytes": 588,
+      "sha256": "3e3513b25868abd29db82326fbd04e605d1503c6bdec87e176e40f410097f663"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/windows-validation.json": {
+      "bytes": 291903,
+      "sha256": "38dd4446f05c7dc7be6ea83785905c9f8c21ee1600feaca30ee948b646501e42"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-benchmark-smoke.json": {
+      "bytes": 16742,
+      "sha256": "fd639bb64b9b31206842ced17a167d176f0134b1c338aac41e8ab4ca0a9e59b0"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-benchmark-smoke.log": {
+      "bytes": 127641,
+      "sha256": "b2e261276ae540789e14997fcd2ed8a9b3798f7b7e6fb5bfc686890d7cdf7105"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-example.log": {
+      "bytes": 33552,
+      "sha256": "ab905ffd925715a8f3aedae0ba02fefa8e104c759783b20a876304b40be9775b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-inputs.json": {
+      "bytes": 276658,
+      "sha256": "75890a91a643977fcde833efa0cc7cec8ea83e44c385baa67d470cb3553ba8a0"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-layouts.json": {
+      "bytes": 19798,
+      "sha256": "f67b2da8c0e9167fd55ec5a43c798ab9b7d77bf7d6a34a97ef7a5f7e3d904868"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-leaf-consumers.json": {
+      "bytes": 4302,
+      "sha256": "af028441fdc37c6012fc5a769bed5ba553977a2d95d9d784f30a1e99b81f5671"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-leaf-consumers.log": {
+      "bytes": 64158,
+      "sha256": "a30ee9d4e124bd841fbc7468901aa1454a492e674704d5f8f3a1eb29adbed67c"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-legacy-leaf.log": {
+      "bytes": 34446,
+      "sha256": "9e06e7bd3035dcb10a0b07448c678c0bc2bfec4d63064c1c5adf2539c74930fa"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-oracle.json": {
+      "bytes": 103054,
+      "sha256": "588e900f40b9f04b0e208f3fccaf03f2f575f466cf01263e133a8b0ce09ffc5f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-oracle.log": {
+      "bytes": 361,
+      "sha256": "40aa54b60184d0d1592c9d6a5cb29b13b194147496af0c1adca65b39326ab5bd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-pipeline.log": {
+      "bytes": 269,
+      "sha256": "477e6fe745db032f6c2d38b073e9e4b4829d56a8a92679541686a51f6554ac9c"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-probe-build.json": {
+      "bytes": 15899,
+      "sha256": "263ebb3690e8a070c1ccbdd16fd9f4fd4f33b70b9f54ecbf9ae749b2712d5d54"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-probes.log": {
+      "bytes": 14563,
+      "sha256": "8d72c67e700db0738b957b184edf04ddce50cd6b92329b8a63c270b5031e6453"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-receipts.json": {
+      "bytes": 7557,
+      "sha256": "994ad512368afec97f94858a3b36f518d06bac66675c2283354715fc1095e810"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-selected-layout.json": {
+      "bytes": 120984,
+      "sha256": "7c379dab3120f96fd062661fc2b3fd5428963d23b835187625f7e9d9c785f4be"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-selected-layout.log": {
+      "bytes": 88301,
+      "sha256": "d463a9fed8911479f11f61050a0b54dae1d85ccf38595ecf243f9a1a94d3422f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-shared.log": {
+      "bytes": 58547,
+      "sha256": "75262bfc9c9345dd99c87beffb75e9ba823cbbc56a1be55d7cb30b05bf953200"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-static.log": {
+      "bytes": 56216,
+      "sha256": "466d38d1e7fab52e64ac49e9bb43fc8d3ec3fa249122351a28cce5276a27fc1c"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-suite.log": {
+      "bytes": 94759,
+      "sha256": "6a5ade46956e5d58d9571e01cf4ef532c1746f536465b5b89824c8559a77884a"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-tsan-modular.log": {
+      "bytes": 34905,
+      "sha256": "0d9e5d7b6f361ead0ac181926723a5369da5fc28e818a5df2fd7b2ae875f3316"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-tsan-plain-modular.log": {
+      "bytes": 26049,
+      "sha256": "7bc7272a9877161ad819ac61f9b32d7490fdbaf806feafa4ec692ced0b5df1c4"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-tsan-plain-single.log": {
+      "bytes": 1565,
+      "sha256": "28498668d8e1c29981ac84b222fe9b181bd51d4835ca9ab8a7646b772b8b4c7b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-tsan-single.log": {
+      "bytes": 1363,
+      "sha256": "28948c46b4d52f54d2434f28f24c1833e00778c871d69b82b7395088a401764f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/validation/wsl-validation.json": {
+      "bytes": 289980,
+      "sha256": "2503da10818f3b9a2fdc082063e1d0429a2fa87e00ac91f2e2c81dfbf503004a"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-final-inputs.json": {
+      "bytes": 279216,
+      "sha256": "9c95fcf0b4137a9652e003ecbecc34fd9c792301bd1a85348a02b86bc22300cd"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-measurement-binaries.json": {
+      "bytes": 1401,
+      "sha256": "5cc8dd8c7d4bd2e4cba9bcdd96fc6a324017f7b2ee91bb5c1303ae352f84734e"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-measurement-pipeline.log": {
+      "bytes": 333,
+      "sha256": "43b7d06cdac866cba3aa0976e1d5c189cdf234259a495be34013a873ac127e16"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-measurement-receipts.json": {
+      "bytes": 1450,
+      "sha256": "153c236605af67184548caa1605ca8c04d908d74d90e95f4b62e1b37fc3ce559"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-performance.json": {
+      "bytes": 20380,
+      "sha256": "b1af4b6f4f856f55129e960fa31f07e05c7820dc76809e1fc23428fc936d00ae"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-performance.log": {
+      "bytes": 22134,
+      "sha256": "c9df6fa9c5f7ed3db4d13173b2f5ae0e204842f61c0e72f8392ee58fc9b2643f"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-size.json": {
+      "bytes": 3367,
+      "sha256": "28d288c5e2be2ea8c0cc0595e8527ddc08a93ad1ced802f629ec34b910ab41d9"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/windows-size.log": {
+      "bytes": 106776,
+      "sha256": "8fb76c386413727aa3afc1c54b928e24f3e1c90f158cbba0af12d653a475fab7"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-final-inputs.json": {
+      "bytes": 276658,
+      "sha256": "75890a91a643977fcde833efa0cc7cec8ea83e44c385baa67d470cb3553ba8a0"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-measurement-binaries.json": {
+      "bytes": 1347,
+      "sha256": "f28651caa2b728f1120dfef0ed89b8beed101e4f996d36e028d063ca4a1e9bb8"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-measurement-pipeline.log": {
+      "bytes": 297,
+      "sha256": "a5dc9341df0b4a1a705b9a910a6d2ccbfafa446d44e8baa547bc9f75ca70f0f8"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-measurement-receipts.json": {
+      "bytes": 1336,
+      "sha256": "0a378aa2815c2271315e4b16f4cdaa9417ffc05f37095acbcd5af2b1462bbed5"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-performance.json": {
+      "bytes": 20559,
+      "sha256": "ce9e1b09b418f1ad57be57ad7bb2f256d7d36eaec7a5c9794804a4868e4e4d8b"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-performance.log": {
+      "bytes": 22666,
+      "sha256": "fe1f7957bec5ab4c6b52b84b9ca68a73bc37c839e90adf341af1220193f4fb11"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-size.json": {
+      "bytes": 3353,
+      "sha256": "ddf8b2f4821b8c09035e25ef2b7175e43ac90b1f31ffe0baed5dbbf8b641b30d"
+    },
+    "out/service-extensions/xcron-service-selected-20261109/wsl-size.log": {
+      "bytes": 107309,
+      "sha256": "520e253c6598533578071aa5a3e7a4d9a82ae7703d2b1457ffdcd9544b64fade"
+    }
+  }
+}

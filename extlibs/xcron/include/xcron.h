@@ -60,5 +60,9 @@
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_SERVICE"
 #endif
 #include <xcron/service.h>
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_SERVICE_SELECTED)
+#error "XCRON_FEATURE_XCRON requires selected service"
+#endif
+#include <xcron/service_selected.h>
 
 #endif

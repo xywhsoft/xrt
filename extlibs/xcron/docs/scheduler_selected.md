@@ -42,7 +42,9 @@ Misfire/overlap policies match the [actual kernel](scheduler.md). Discarded rang
 are not enumerated or validated. Missing REJECT covers retained recurrence search
 windows; range-skipping/coalescing can deliberately omit gaps inside a discarded
 range. Use catch-up when every selected occurrence must remain eligible. No gap
-compensation, service command integration or durable recovery is claimed here.
+compensation or durable recovery is claimed here. The optional
+[selected live service](service_selected.md) integrates command tickets, retries
+and complete selected output/retirement on the existing owner.
 
 Run the [offline example](../examples/scheduler_selected/README.md). Standalone,
 single-header and package tests exercise the same exported entry points. Production

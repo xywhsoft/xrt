@@ -8450,3 +8450,75 @@ Selected live-service commands/responses and appropriate caller batching,
 compensation, durable recovery, remaining Redis/RPC/MQTT5.0 scope/interop, the
 earlier occurrence p95 investigation, qualified native performance and>=72h gates
 remain open. The full goal remains active; development stays on master.
+
+
+## 2026-11-09 - selected policies through the live service owner
+
+Developed directly on D:/GIT/xrt master from5f22bed0; no branch/worktree created
+and no push. The optional xcron_service_selected leaf adds six typed APIs for
+creation, async selected admission, complete collection, nominal completion,
+full stopped retirement and selected stats. It reuses the existing service
+owner/event waiter/tickets/reserved outputs/individual retry heap and the existing
+selected kernel/borrowed executor; no Core/runtime edits. Scalar width1 or bounded
+width1..64 groups only already-ready initial leases, without a fill wait. Each
+native-rejected lease counts its own attempt and retries individually under its
+original deadline/cap. A group must fit one native worker queue.
+
+Queue acceptance, cheap selected job admission, physical execution and retirement
+remain distinct. Initial/future recurrence faults belong to the admitted job's
+full Info/retired LastIssue; they retain original Data through physical retirement.
+Five global query budgets apply per owner turn even with output credit full.
+Nominal Local/full Candidates survive retries, unsent expiry/cancel, native queued
+cancel without Proc, running bodies, error results and metadata drain after Data
+has been reaped/freed. Ordinary output APIs reject selected instances; shared
+control/lifecycle requests work in both modes. New example and root/isolated
+static/shared consumers execute real selected jobs and consume all duties.
+
+Windows and WSL each pass all33 root xcron/event-waiter programs, ordinary service
+leaf tests, examples, root/isolated static/shared consumers and exact prior422-zone
+2026e oracle totals. WSL root/ordinary tests use ASAN/UBSAN with leak-halt; four
+plain/selected modular/single TSan invocations pass. Windows90 tool tests,
+feature/single/reference/docs checks and both platforms' actual/selected
+single/static/shared size/forbidden-symbol checks pass. The first Windows root
+attempt exposed an old competing-collector test's potentially uninitialized
+Issue read; initialized that test variable, retained failed/interrupted logs and
+reran both final suites. No warning was disabled to suppress that finding.
+
+New tests cover all8 fold/missing policy combinations, global first/last window
+semantics, initial fold/missing faults and future UNKNOWN beside an active lease, copied queued
+policies/config/zone, typed errors and exactly-once Data duties, retries/deadlines,
+queued/running cancellation, output credits and owner/pool self-waits, clock faults,
+512 parallel Info replies and competing retirement collectors, startup allocation
+prefixes/exact byte boundaries, full-input/output aliases and2048 warmed
+successful cycles with flat global malloc/calloc/realloc/block request counts.
+An actual clock-turn barrier proves five-budget fair calculation while output is
+full. Existing privileged Windows symlink subtests still report1314 skips.
+
+Old public config/reply/completion/stats remain136/296/80/384 bytes; selected
+144/520/136/448, matching direct/declaration headers. The old440-byte command,
+184-byte reservation and checked offsets remain; a visible C11 union snapshots
+nominal metadata before activating Done. Extended service owner adds8 bytes.
+Selected arena adds120 state+232*commands+56*completion credits+112*BatchLimit
+plus alignment; typed scratch replaces original buffers. Kernel selected queries
+add376/job and adapter labels56/live lease. Extended dependency owners carry the
+existing16/8-byte kernel/adapter additions. Measured2/2/3/2/2 instance values and
+mode/copy/error-reference costs are documented; no zero-overhead claim.
+
+Final functional and formal measurement maps match on all2556 inputs;51 frozen
+relevant source/config/header copies and all8 formal binaries/hashes are retained.
+Each measured process validates64000 callbacks/checksum2048032000. The first
+selected live-component profiles include64-due controlled-clock bursts, complete
+recurrence/owner/worker/nominal/exactly-once checks, two shared callback atomics
+and physical receipts. Width1/64 is an explicit workload fact. Windows scalar1/4
+medians897564.095/581979.549 executions/s; batch1/4 1004802.643/993801.165. WSL
+scalar1/4 793267.558/182935.117; batch1/4 799676.121/593623.188. Original5 repeats,
+1 warmup, MAD3%/central6% and5%/10% limits remain unchanged. Reports retain12/16
+failed noise checks. Separate preserved-binary two-round checks confirm native
+batch mode has2 groups/128 leases and scalar0. These are unqualified synthetic
+component observations, not fixed-arrival/native/scaling/production acceptance.
+
+Evidence: extlibs/xcron/tests/results/service-selected-20261109.json.
+Compensation, durable recovery, complete Redis/RPC/MQTT5.0 scope/interop, the
+four-worker scalar scaling and earlier occurrence p95 investigations, qualified
+native Windows/Linux real-arrival performance and>=72h release gates remain open.
+The overall goal stays active; subsequent work continues on master by default.

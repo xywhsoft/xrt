@@ -1835,6 +1835,214 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_service_selected_scalar1",
+      "system": "service",
+      "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_service_selected_scalar1",
+          "source": "extlibs/xcron/bench/bench_service_selected.c",
+          "suite": "xcron_service_selected",
+          "args": [
+            "1000",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_selected_scalar4",
+      "system": "service",
+      "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_service_selected_scalar4",
+          "source": "extlibs/xcron/bench/bench_service_selected.c",
+          "suite": "xcron_service_selected",
+          "args": [
+            "1000",
+            "4",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_selected_batch1",
+      "system": "service",
+      "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_service_selected_batch1",
+          "source": "extlibs/xcron/bench/bench_service_selected.c",
+          "suite": "xcron_service_selected",
+          "args": [
+            "1000",
+            "1",
+            "64"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "64"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_service_selected_batch4",
+      "system": "service",
+      "description": "Selected live owner with controlled64-due UTC bursts, real kernel/workers/full nominal/exactly-once receipts, two shared callback atomics; synthetic arrivals; no production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_service_selected_batch4",
+          "source": "extlibs/xcron/bench/bench_service_selected.c",
+          "suite": "xcron_service_selected",
+          "args": [
+            "1000",
+            "4",
+            "64"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "64"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

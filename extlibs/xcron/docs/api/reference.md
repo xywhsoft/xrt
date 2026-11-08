@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `84` 个函数、`202` 个常量或宏、
-`92` 个公共类型。
+当前登记 `90` 个函数、`203` 个常量或宏、
+`96` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -406,6 +406,30 @@
 - `xcronserviceissue`
 - `xcronservicestate`
 - `xcronservicestats`
+
+## `extlibs/xcron/include/xcron/service_selected.h`
+
+[查看带契约注释的公共头](../../include/xcron/service_selected.h)
+
+### 函数 (6)
+
+- `xcronServiceAddSelectedAsync`
+- `xcronServiceCollectSelected`
+- `xcronServiceCreateSelected`
+- `xcronServiceDrainSelected`
+- `xcronServiceInspectSelected`
+- `xcronServiceReapStoppedSelected`
+
+### 常量与宏 (1)
+
+- `XCRON_FEATURE_XCRON_SERVICE_SELECTED`
+
+### 类型 (4)
+
+- `xcronselectedreply`
+- `xcronselectedservicecompletion`
+- `xcronselectedserviceconfig`
+- `xcronselectedservicestats`
 
 ## `extlibs/xcron/include/xcron/timezone.h`
 

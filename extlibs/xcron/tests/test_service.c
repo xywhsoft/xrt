@@ -160,7 +160,7 @@ static void testServicePhysicalResults(void)
 }
 typedef struct servicereader {xcronservice* S;xcronjobid Job;xcronrequestid Ticket;xwaitresult Result;xcronserviceerror Code;} servicereader;
 static int32 serviceCollectRace(ptr Raw)
-{servicereader* A=Raw;xcronreply R;xcronserviceissue I;A->Result=xcronServiceCollect(A->S,A->Ticket,10000,&R,&I);A->Code=I.Code;if(A->Result==XWAIT_OK)xrtErrorFree(R.Error);return 0;}
+{servicereader* A=Raw;xcronreply R;xcronserviceissue I={0};A->Result=xcronServiceCollect(A->S,A->Ticket,10000,&R,&I);A->Code=I.Code;if(A->Result==XWAIT_OK)xrtErrorFree(R.Error);return 0;}
 static int32 serviceReadMany(ptr Raw)
 {servicereader* A=Raw;for(unsigned N=0;N<128;++N){xcronrequestid Q;testRequire(xcronServiceInfoAsync(A->S,A->Job,&Q,NULL),"concurrent bounded command");xcronreply R=serviceReply(A->S,Q);testRequire(!R.Code && R.Job==A->Job && R.Info.State==XCRON_JOB_SCHEDULED && !R.Error,"serialized owner snapshot under command concurrency");}return 0;}
 static void testServiceConcurrency(void)

@@ -50,8 +50,10 @@ receipt collection. Both environments fail noise gates and four workers have
 lower throughput than one. The cause is not isolated; these observations require
 investigation rather than a scaling or production-performance claim.
 
-Live-service command/response integration, compensation, durable recovery and
-qualified native production performance/long-run acceptance remain open.
+The optional [selected live service](service_selected.md) now integrates command
+responses, selected retries and complete nominal output/retirement. Compensation,
+durable recovery and qualified native production performance/long-run acceptance
+remain open.
 
 SubmitBatchSelected atomically accepts1..64 already-ready selected leases under
 the [shared batch contract](executor.md#bounded-atomic-admission). Every nominal

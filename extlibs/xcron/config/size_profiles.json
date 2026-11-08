@@ -221,6 +221,20 @@
         "_xrtTimeLocal",
         "_xrtTimeFromLocal"
       ]
+    },
+    {
+      "name": "xcron_service_selected",
+      "system": "service",
+      "suite": "xcron_service_selected",
+      "description": "Selected live owner, complete policy traversal and token metadata with borrowed worker pool; no host timezone/network closure",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
     }
   ]
 }

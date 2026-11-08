@@ -125,8 +125,11 @@ and [runnable example](examples/occurrence/README.md). The optional
 `xcron_scheduler_selected` mode admits policy-aware jobs and advances them with
 five global budgets; see its [contract](docs/scheduler_selected.md) and
 [offline lease example](examples/scheduler_selected/README.md). Actual-mode jobs
-keep their original semantics. Live-service command integration, gap compensation
-and durability remain required.
+keep their original semantics. The optional `xcron_service_selected` mode carries
+these policies through live command tickets, worker retries and full nominal
+completion/retirement receipts; see its [contract](docs/service_selected.md) and
+[service example](examples/service_selected/README.md). Gap compensation and
+durability remain required.
 
 The optional `xcron_executor_selected` adapter copies selected nominal metadata
 into bounded per-slot storage, exposes it through an immutable callback token

@@ -284,7 +284,7 @@ budgets. Its2048 independently enumerated history traces verify every selected
 lease and earliest fault, in addition to fairness, poisoned/aliased arguments,
 zero-budget/calculation-only turns, physical fault lifetimes, exact byte limits,
 OOM,1024 warmed no-requested-heap cycles, policy-range/rollback and native handoff
-cases. Live-service command integration, compensation, durable recovery and
+cases. The selected live-service stage below adds command integration. Compensation, durable recovery and
 performance/native/>=72h qualification remain open.
 
 ## Selected execution metadata (developing)
@@ -303,3 +303,26 @@ native queues, typed diagnostic OOM, wrong-mode/owner/reentry/aliases, poisoned
 input, per-lease worker errors/cancellation and concurrent completion. Tests reuse
 both slots of a new batch while earlier Notify tails remain blocked. Each mode
 also completes32768 warmed maximum-batch receipts without requested heap changes.
+
+## Selected live service (developing)
+
+The [selected service](service_selected.md) reuses the existing owner, event waiter,
+bounded command tickets, reserved output channel and individual retry heap. Its
+new typed APIs preserve full selected Info/retirement, five global poll budgets
+and nominal labels even for unsent expiry/cancellation and native queued work
+whose business Proc is skipped. Ordinary-mode APIs reject selected instances
+when their output would truncate semantics; shared control/lifecycle calls work
+in both modes.
+
+Dedicated tests cover all eight fold/missing policy combinations, initial gap and
+ambiguity faults, global first/last outside a query window, future UNKNOWN while
+an earlier physical lease still uses Data, copied queued policy/config/zone,
+native group rejection, original admission deadlines and individual retries,
+worker error ownership, output credits, queued/running cancellation and physical
+Data tails. They also exercise ticket generations and competing collectors,
+512 concurrent full Info replies, owner/borrowed-pool self-wait rejection, clock
+failure, quota prefixes, exact retained-byte boundaries, full-input aliases and
+2048 warmed successful cycles without requested heap changes. A controlled owner
+clock proves all five global budgets and query fairness while completion output
+is full. These checks cover this feature's contracts; production qualification,
+compensation, durable recovery and native endurance remain open.

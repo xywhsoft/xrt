@@ -105,6 +105,8 @@ global gap filling, tie/window behavior, budget counters, large histories and
 independent frozen IANA/UTC models. Benchmark batches include requested Issue
 metadata, cursor Init/Step work and diagnostic construction/clearing for expected
 REJECT errors. The public-API composition comparator covers LAST+SKIP only.
-These calculations do not reconfigure existing scheduler/service jobs. Gap
-compensation, physical dispatch integration and durable recovery remain required,
+These calculations do not reconfigure existing scheduler/service jobs. The
+optional [selected kernel](scheduler_selected.md), [worker adapter](executor_selected.md)
+and [live service](service_selected.md) integrate explicit selected jobs through
+physical retirement. Gap compensation and durable recovery remain required,
 along with qualified native Windows/Linux performance and>=72h mixed-load gates.
