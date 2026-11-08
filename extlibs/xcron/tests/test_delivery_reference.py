@@ -76,6 +76,7 @@ def main():
         text = ''.join(f'{d.year} {d.month} {d.day} {d.hour} {d.minute} {d.second} 137\n' for d in labels)
         process = subprocess.run([args.probe, str(path)], input=text, text=True, capture_output=True, timeout=120, check=True)
         lines = process.stdout.splitlines()
+        assert lines and lines.pop(0) == 'paired_issue=2', (name, 'probe must check both Issue forms')
         assert len(lines) == len(centers), (name, process.stderr)
         for center, line in zip(centers, lines):
             uncertain = unknown(center)
@@ -104,8 +105,11 @@ def main():
                 totals['calls'] += 1
             totals['labels'] += 1
         files.append(dict(name=name, sha256=digest, labels=len(centers), stdout_sha256=hashlib.sha256(process.stdout.encode()).hexdigest()))
-    report = dict(schema=1, version=manifest['version'], zones=len(files), totals=totals, files=files,
-                  oracle='zoneinfo states, explicit RFC coverage, all distinct stored/footer offsets; all8 policies; input bytes retired before queries')
+    totals['policy_cases'] = totals['calls']
+    for key in ['calls', 'found', 'none', 'ambiguous', 'missing', 'unknown']:
+        totals[key] *= 2
+    report = dict(schema=2, version=manifest['version'], zones=len(files), totals=totals, files=files,
+                  oracle='zoneinfo states, explicit RFC coverage, all distinct stored/footer offsets; all8 policies with and without Issue, complete arrays/counts/error domains paired; input bytes retired before queries')
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print('[PASS] IANA delivery selection', manifest['version'], len(files), totals)
 

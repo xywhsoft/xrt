@@ -40,14 +40,20 @@ issues even under diagnostic OOM. Output spans must avoid the complete zone/
 footer graph, Local and one another. Zone/Local remain live and stable during
 the synchronous call. Success/NONE/CAPACITY preserve the ambient error identity.
 
-The ALL+SKIP path invokes original ZoneResolve directly after policy/span checks.
+The ALL+SKIP path without Issue delegates all span/alias validation and resolution
+to original ZoneResolve once. An initialized typed-issue sentinel distinguishes
+structural errors (which leave that issue untouched) from value failures without
+reading ambient diagnostics. The outward delivery error identity is preserved
+even on delegated argument rejection. With Issue, full delivery output validation
+remains before the original resolver may write other outputs.
 Other policies resolve once into a258-timestamp stack scratch and copy only the
 selected output after checking capacity. The underlying TZif resolver has its
 own temporary and may examine up to258 distinct offsets plus conservative unknown
 coverage. POSIX has at most two offset candidates. There is no heap on normal
 paths, but extra calls, validation, stack storage and copies remain; no zero-cost
 adaptation or owner-turn latency guarantee is claimed. Error paths may construct
-both a lower-level diagnostic and the outward delivery diagnostic.
+both a lower-level diagnostic and the outward delivery diagnostic, including
+delegated structural failures with no requested Issue.
 
 This is the nominal-label selection foundation. It does not match expressions,
 enumerate recurring labels, change existing jobs, rewind consumed cursors or

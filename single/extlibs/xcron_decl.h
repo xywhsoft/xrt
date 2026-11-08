@@ -3680,7 +3680,9 @@ XRT_EXTERN_C_BEGIN
  * must avoid Local, the whole zone/footer ownership graph and one another.
  * Normal results preserve the ambient error; diagnostics may allocate.
  *
- * ALL+SKIP delegates one original complete Resolve directly. Other policies
+ * ALL+SKIP without Issue delegates complete validation/resolution once, retaining
+ * structural versus typed value-error identity independently of diagnostics.
+ * With Issue it validates all delivery outputs before resolution. Other policies
  * use one258-timestamp stack scratch, in addition to Resolve's own temporary,
  * and copy only selected results after checking capacity. Complete resolution
  * still enumerates known offset types and checks unknown coverage; this is a

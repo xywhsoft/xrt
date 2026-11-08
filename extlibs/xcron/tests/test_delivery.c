@@ -15,6 +15,8 @@ static void deliveryExpect(const xcronzone* Z,const xdatetime* D,const xtime* Ex
 {
     for(int F=0;F<4;++F)for(int M=0;M<2;++M){xcrondeliverypolicy P={(xcronfoldpolicy)F,(xcronmissingpolicy)M};xtime Out[258];memset(Out,0x5a,sizeof(Out));xtime Before[258];memcpy(Before,Out,sizeof(Out));size_t Count=777;xcrondeliveryissue I;
         xcrondeliverystatus S=xcronDeliveryResolve(Z,D,P,Out,258,&Count,&I);
+        xtime WithoutIssue[258];memcpy(WithoutIssue,Before,sizeof(WithoutIssue));size_t WithoutCount=777;
+        testRequire(xcronDeliveryResolve(Z,D,P,WithoutIssue,258,&WithoutCount,NULL)==S && WithoutCount==Count && !memcmp(Out,WithoutIssue,sizeof(Out)),"optional Issue preserves every result and untouched array byte");
         bool Missing=!N && M==XCRON_MISSING_REJECT,Ambiguous=N>1 && F==XCRON_FOLD_REJECT;
         if(Missing || Ambiguous){testRequire(S==XCRON_DELIVERY_ERROR && I.Code==(Missing?XCRON_DELIVERY_MISSING:XCRON_DELIVERY_AMBIGUOUS) && I.Candidates==N && Count==777 && !memcmp(Out,Before,sizeof(Out)),"policy rejection preserves count/array and complete typed multiplicity");xrtClearError();continue;}
         size_t Need=F==XCRON_FOLD_ALL?N:N?1:0;
@@ -80,13 +82,53 @@ static void testDeliveryBoundsAndFailures(void)
     testRequire(xcronDeliveryResolve(Z,&D,(xcrondeliverypolicy){XCRON_FOLD_REJECT,0},Out,3,&Count,&I)==XCRON_DELIVERY_ERROR && I.Code==XCRON_DELIVERY_AMBIGUOUS && I.Candidates==2 && Count==777,"typed fold reject under OOM");xrtClearError();D=deliveryDate(2024,3,10,2,30,0,0);
     testRequire(xcronDeliveryResolve(Z,&D,(xcrondeliverypolicy){0,XCRON_MISSING_REJECT},Out,3,&Count,&I)==XCRON_DELIVERY_ERROR && I.Code==XCRON_DELIVERY_MISSING && !I.Candidates && Count==777,"typed missing reject under OOM");testRequire(xrtAllocationBudgetLeave(&Scope),"leave policy OOM");xrtClearError();xrtAllocationBudgetFree(Budget);xcronZoneRelease(Z);
 }
+static void deliveryNullError(const xcronzone* Z,const xdatetime* D,xtime* Out,size_t Capacity,size_t* Count,xcrondeliveryerror Expected)
+{
+    testRequire(xcronDeliveryResolve(Z,D,(xcrondeliverypolicy){XCRON_FOLD_ALL,XCRON_MISSING_SKIP},Out,Capacity,Count,NULL)==XCRON_DELIVERY_ERROR &&
+        xrtErrorCode(xrtGetError())==(int32)Expected && !strcmp(xrtErrorDomain(xrtGetError()),"xrt.cron.delivery"),"optional Issue preserves delivery argument/value error identity");
+    xrtClearError();
+}
+static void testDeliveryNullIssue(void)
+{
+    xcronzone* Z=deliveryZone("UTC0");xdatetime D=deliveryDate(2024,1,1,0,0,0,0),Original=D;xtime Out[3]={11,22,33};size_t Count=777;
+    deliveryNullError(NULL,&D,Out,3,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,NULL,Out,3,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,NULL,1,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,Out,3,NULL,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,Out,SIZE_MAX,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,(xtime*)(uintptr_t)(UINTPTR_MAX-3),2,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,(const xdatetime*)(uintptr_t)(UINTPTR_MAX-3),Out,3,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,Out,3,(size_t*)Out,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,(xtime*)&D,1,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,NULL,0,(size_t*)&D,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,(xtime*)Z,1,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,Out,3,(size_t*)Z,XCRON_DELIVERY_ARGUMENT);
+    testRequire(Count==777 && Out[0]==11 && Out[1]==22 && Out[2]==33 && !memcmp(&D,&Original,sizeof(D)),"delegated argument validation preserves every caller byte");
+    D.Month=13;deliveryNullError(Z,&D,Out,3,&Count,XCRON_DELIVERY_ZONE);D=Original;
+    xallocationbudget* B=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(1,&B) && xrtAllocationBudgetEnter(B,&S),"optional Issue diagnostic OOM");
+    testRequire(xcronDeliveryResolve(Z,NULL,(xcrondeliverypolicy){0,0},Out,3,&Count,NULL)==XCRON_DELIVERY_ERROR && Count==777 && Out[0]==11,"delegated structural error remains atomic under diagnostic OOM");
+    testRequire(xrtAllocationBudgetLeave(&S),"leave optional Issue OOM");xrtClearError();xrtAllocationBudgetFree(B);xcronZoneRelease(Z);
+    tzifblob Blob;int64 Times[]={0};uint8 Index[]={0};tzifkind Types[]={{0,false,"UTC"}};tzifBuild(&Blob,'3',Times,Index,1,Types,1,"UTC0");
+    testRequire(xcronZoneCreateTzif((xbytesview){Blob.Data,Blob.Size},&Z,NULL),"separately owned footer fixture");xcronzonestate State;
+    testRequire(xcronZoneAt(Z,XRT_TIME_UNIX_EPOCH,&State,NULL) && State.Abbreviation.Size==3,"footer abbreviation owner");
+    deliveryNullError(Z,&D,(xtime*)State.Abbreviation.Data,1,&Count,XCRON_DELIVERY_ARGUMENT);
+    deliveryNullError(Z,&D,Out,3,(size_t*)State.Abbreviation.Data,XCRON_DELIVERY_ARGUMENT);
+    testRequire(xcronZoneAt(Z,XRT_TIME_UNIX_EPOCH,&State,NULL) && State.Abbreviation.Size==3 && !memcmp(State.Abbreviation.Data,"UTC",3) && Count==777,"footer graph remains immutable");xcronZoneRelease(Z);
+    int64 UTimes[]={0,86400};uint8 UIndex[]={1,1};tzifkind Unknown[]={{0,false,"-00"},{0,false,"AAA"}};tzifBuild(&Blob,'3',UTimes,UIndex,2,Unknown,2,"");
+    testRequire(xcronZoneCreateTzif((xbytesview){Blob.Data,Blob.Size},&Z,NULL),"optional Issue unknown fixture");D=deliveryDate(1970,1,1,12,0,0,0);
+    deliveryNullError(Z,&D,Out,3,&Count,XCRON_DELIVERY_ZONE);testRequire(Count==777 && Out[0]==11,"unknown remains an atomic error with no Issue");xcronZoneRelease(Z);
+}
 static void testDeliveryWarm(void)
 {
     xcronzone* Z=deliveryZone("EST5EDT,M3.2.0,M11.1.0");xdatetime Fold=deliveryDate(2024,11,3,1,30,0,0),Gap=deliveryDate(2024,3,10,2,30,0,0);xallocationbudget* B=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(1,&B),"warm quota");xrtSetErrorInfo(XERR_VALUE,"delivery.ambient",7,"preserve");const xerror* Ambient=xrtGetError();testRequire(xrtAllocationBudgetEnter(B,&S),"warm enter");
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xmemstats Before,After;xrtMemStatsEnable(true);xrtMemStatsGet(&Before);
 #endif
-    for(unsigned J=0;J<10000;++J){xtime Out[2];size_t N;xcrondeliveryissue I;int F=J%3;testRequire(xcronDeliveryResolve(Z,&Fold,(xcrondeliverypolicy){F,0},Out,2,&N,&I)==XCRON_DELIVERY_FOUND && N==(F?1u:2u) && xrtGetError()==Ambient,"warmed selected result/error");testRequire(xcronDeliveryResolve(Z,&Gap,(xcrondeliverypolicy){F,0},NULL,0,&N,&I)==XCRON_DELIVERY_NONE && !N && xrtGetError()==Ambient,"warmed missing skip/error");}
+    for(unsigned J=0;J<10000;++J){xtime Out[2];size_t N;xcrondeliveryissue I;int F=J%3;xcrondeliveryissue* Issue=J%2?&I:NULL;
+        testRequire(xcronDeliveryResolve(Z,&Fold,(xcrondeliverypolicy){F,0},Out,2,&N,Issue)==XCRON_DELIVERY_FOUND && N==(F?1u:2u) && xrtGetError()==Ambient,"warmed selected result/error");
+        testRequire(xcronDeliveryResolve(Z,&Gap,(xcrondeliverypolicy){F,0},NULL,0,&N,Issue)==XCRON_DELIVERY_NONE && !N && xrtGetError()==Ambient,"warmed missing skip/error");
+        testRequire(xcronDeliveryResolve(Z,&Fold,(xcrondeliverypolicy){F,0},NULL,0,&N,Issue)==XCRON_DELIVERY_CAPACITY && N==(F?1u:2u) && xrtGetError()==Ambient,"warmed selected capacity/error");
+    }
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);testRequire(Before.MallocCalls==After.MallocCalls && Before.CallocCalls==After.CallocCalls && Before.ReallocCalls==After.ReallocCalls && Before.BlockAllocCalls==After.BlockAllocCalls,"normal selection requests no heap");
 #endif
@@ -99,7 +141,7 @@ static void testDeliveryThreads(void)
 {xcronzone* Z=deliveryZone("EST5EDT,M3.2.0,M11.1.0");xthread* Threads[4];for(unsigned J=0;J<4;++J){testRequire(xcronZoneRetain(Z),"reader owner");Threads[J]=xrtThreadCreate(deliveryReader,Z,0);testRequire(Threads[J]!=NULL,"reader start");}xcronZoneRelease(Z);for(unsigned J=0;J<4;++J){testRequire(xrtThreadWaitFor(Threads[J],15000)==XWAIT_OK && !xrtThreadExitCode(Threads[J]),"reader physical join");xrtThreadDestroy(Threads[J]);}}
 #endif
 int main(void)
-{testDeliveryGolden();testDeliveryMany();testDeliveryBrute();testDeliveryBoundsAndFailures();testDeliveryWarm();
+{testDeliveryGolden();testDeliveryMany();testDeliveryBrute();testDeliveryBoundsAndFailures();testDeliveryNullIssue();testDeliveryWarm();
 #if defined(XRT_FEATURE_THREAD)
 testDeliveryThreads();
 #endif

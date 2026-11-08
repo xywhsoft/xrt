@@ -1,0 +1,5171 @@
+{
+  "schema": 1,
+  "stage": "eliminate duplicate validation for complete ALL+SKIP resolution without requested Issue",
+  "base_revision": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "api": {
+    "added": [],
+    "changed_signatures": [],
+    "existing_public_layouts_unchanged": true,
+    "new_exported_symbols": [],
+    "public_reference": {
+      "functions": 68,
+      "constants": 181,
+      "types": 77
+    },
+    "policy_issue_x64_sizes": [
+      8,
+      16
+    ]
+  },
+  "implementation": [
+    "Only ALL+SKIP with IssueNULL takes the new early path. Public ZoneResolve performs the same complete zone/footer/input/output/mutual alias and range validation once, then complete candidate/unknown resolution. No benchmark- or date-specific bypass.",
+    "Initialize its typed issue to ARGUMENT: structural argument rejection preserves that sentinel; value failures publish DATE/UNKNOWN. Translate structural versus value errors and preserve delivery domain/code/kind without reading ambient diagnostics. Requested-Issue and selected modes retain their full validation.",
+    "No signature, policy, structure, limit, Core runtime, retained owner, normal heap request, syscall, worker or shared runtime changes. The underlying typed issue, wrapper call/argument moves and selected scratch remain real overhead; no zero-cost claim.",
+    "A delegated structural error may attempt both lower-level and outward diagnostics, adding a cold error-path diagnostic compared with the old front-end rejection. Errors still preserve normal outputs under diagnostic OOM. Normal FOUND/NONE/CAPACITY remain zero requested heap."
+  ],
+  "verification": [
+    "Both platforms pass25 actual modular/single programs, runnable example and static/shared consumers. WSL O2 ASan/UBSan/leak-halt plus two O1 TSan units; Windows85 tooling and generated/docs checks pass. Direct/generated layouts remain policy8/issue16.",
+    "Every golden/brute policy case pairs complete arrays/counts with and without Issue, including256 simultaneous candidates and768 independently UTC-stepped labels across64 histories. Dedicated NULL/range overflow/input/array/count/zone/footer alias cases preserve caller bytes and verify argument versus date/unknown outward domain/code; delegated structural OOM remains atomic.",
+    "30000 warmed positive/missing/capacity calls alternate optional Issue, preserve error identity and allocation counters under one-byte quota with no rejections. Four retained concurrent owners continue to query immutable zones.",
+    "Independent422-zone2026e oracle requires paired_issue=2 protocol, retires input bytes, checks1508256 policy cases and3016512 physical with/without-Issue calls per OS. Complete arrays/counts/error domains/codes agree; both full oracle reports are identical."
+  ],
+  "integrity": {
+    "protected_inputs_count": 2506,
+    "final_map_canonical_sha256": "2b429d109aa9c5cda6fad81c1b6c98d5c25cf73cf7512661fd3451a46d28dab9",
+    "initial_resumed_delta": {
+      "windows": {
+        "extlibs/xcron/tests/delivery_probe.c": {
+          "initial_sha256": "c6ddc201860973e704a14d30ca6e2ae0b4a4036c16f73756852abafe01124336",
+          "resumed_sha256": "59d50812ec0d7d3d5eba37cb74d1568ef2f5adfbc05fab7d56ae0744342c20b7"
+        }
+      },
+      "wsl": {
+        "extlibs/xcron/tests/delivery_probe.c": {
+          "initial_sha256": "c6ddc201860973e704a14d30ca6e2ae0b4a4036c16f73756852abafe01124336",
+          "resumed_sha256": "59d50812ec0d7d3d5eba37cb74d1568ef2f5adfbc05fab7d56ae0744342c20b7"
+        }
+      }
+    },
+    "scope": "Exactly one application-probe signed enum/int comparison cast changes after suite/example/static/shared passes; products/tests/headers/driver commands are identical. Initial maps/failure logs/receipts remain. Reused commands verify exact command/log hash and absence of probe compilation. Later probes/oracles/tooling/TSan and measurements use final captured inputs. Markdown and this new result are outside the execution map.",
+    "changed_file_sha256": {
+      "docs/development/service-extensions-progress.md": "578056dd374760528f1163cd594a5676e613df1e55803bb727a09beed3239a98",
+      "extlibs/xcron/docs/coverage.md": "da5ff685bd9de99cf28f065c51718ed4b920da29cf75dd05284b99c525336f4e",
+      "extlibs/xcron/docs/delivery.md": "1a212a5883a00468e30cd469bcb2dea2202b11ae394b3582e8c9509e2bad6537",
+      "extlibs/xcron/include/xcron/delivery.h": "dff712c85c64c6c3bfae40a3a874ede972364e4845243635407e5062c30f7fa9",
+      "extlibs/xcron/src/delivery/delivery.c": "466782b246f09ed66453ee5c9723c9f8ca37d5ae841a733fefb6a1d681d0aeb6",
+      "extlibs/xcron/tests/delivery_probe.c": "59d50812ec0d7d3d5eba37cb74d1568ef2f5adfbc05fab7d56ae0744342c20b7",
+      "extlibs/xcron/tests/test_delivery.c": "d07636bc6c8c694278a57f096e17a8be6885744cc4d9d0083b42a2e79e1981dd",
+      "extlibs/xcron/tests/test_delivery_reference.py": "233cde6a9f15d6f51f7ed312cc88d2bedaf602b11040c78ee2a00bd2b6773be4",
+      "single/extlibs/xcron.h": "fdc2c41cafbf04321cbb7d98f61b34bd62206bb1ccda14c80ccf1b1ef66910d9",
+      "single/extlibs/xcron_decl.h": "8d92a825ce7e843c45c866d7f30fa7dac97c7e030eb0ec87aeb2e6a81ccdd735"
+    },
+    "local_recipes_sha256": {
+      "run_stage.py": "e5fdf509f0291a2b28e18be0bf432ef4f9ffe254ec62b9bed65423af21c18b46",
+      "run_stage-initial.py": "b11535e4283c8b261070910fe730f9771f0116e5b5ec8a27069c88fed70bb0d7",
+      "run_measurements.py": "5fa4f7817c84b92019ba590d42a04013c534f0ea39fd928f91abb4fa59b3fd68",
+      "run_alternating.py": "e538936504b369fbc18a15c4b6c57378d4a54e77ced103f35715f50219035ca8",
+      "build_probes.py": "6132228206725872056b2a3aae031a1fa320fd66ae0ea6bbce43d0f0de29efee",
+      "layout.c": "e70be309182b7ae1f42b95dd479393b6c5881cf13451707e5f205fab5409d011"
+    },
+    "prototype_logs_sha256": {
+      "prototype-windows.log": "4c17ad0efab903be63368ef04a65e87f5be881f1f330b97a2e87e0985f49ee75",
+      "prototype-wsl.log": "ff1049731ec874786d9e074cf0e6b8492cf223e19a1b8cf517965015a9d50ca7"
+    },
+    "initial_probe_source_sha256": "c6ddc201860973e704a14d30ca6e2ae0b4a4036c16f73756852abafe01124336"
+  },
+  "before_identity": {
+    "commit": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+    "saved_executables": {
+      "windows": {
+        "raw": {
+          "source": "out/performance/gnu/native/xcron/xcron_delivery_raw.exe",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/windows-raw.exe",
+          "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+        },
+        "all": {
+          "source": "out/performance/gnu/native/xcron/xcron_delivery_all.exe",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/windows-all.exe",
+          "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+        },
+        "first": {
+          "source": "out/performance/gnu/native/xcron/xcron_delivery_first.exe",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/windows-first.exe",
+          "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+        },
+        "last": {
+          "source": "out/performance/gnu/native/xcron/xcron_delivery_last.exe",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/windows-last.exe",
+          "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+        }
+      },
+      "wsl": {
+        "raw": {
+          "source": "out/performance/gnu/x64/xcron/xcron_delivery_raw",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/wsl-raw",
+          "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+        },
+        "all": {
+          "source": "out/performance/gnu/x64/xcron/xcron_delivery_all",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/wsl-all",
+          "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+        },
+        "first": {
+          "source": "out/performance/gnu/x64/xcron/xcron_delivery_first",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/wsl-first",
+          "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+        },
+        "last": {
+          "source": "out/performance/gnu/x64/xcron/xcron_delivery_last",
+          "saved": "out/service-extensions/xcron-delivery-fastpath/before/wsl-last",
+          "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+        }
+      }
+    },
+    "input_map_sha256": "c84cb520f903a5ce4a1b95f77c4689d3a763ccebe1ff247068b4a76ea938a008",
+    "note": "Original benchmarks ran before98be7d1e commit on these exact product/benchmark bytes; original reports retain their original source revision/dirty metadata."
+  },
+  "before_portable_artifact": {
+    "path": "extlibs/xcron/tests/results/delivery-selection-20261108.json",
+    "sha256": "cf88c3d21dc0ee018407a7d2af82d6cd59fb2f03b91139ae07e269ef39af390d",
+    "note": "Original reports and rejected noise samples stay untouched in that artifact and local before copies. Before edits, all2505 previous performance inputs matched the clean98be7d1e source. Saved executables retain actual original source_revision/dirty provenance, not relabeled as newly built."
+  },
+  "oracle": {
+    "schema": 2,
+    "version": "# version 2026e",
+    "zones": 422,
+    "totals": {
+      "labels": 188532,
+      "calls": 3016512,
+      "found": 1893472,
+      "none": 415424,
+      "ambiguous": 204080,
+      "missing": 415424,
+      "unknown": 88112,
+      "policy_cases": 1508256
+    },
+    "oracle": "zoneinfo states, explicit RFC coverage, all distinct stored/footer offsets; all8 policies with and without Issue, complete arrays/counts/error domains paired; input bytes retired before queries"
+  },
+  "oracle_per_file_canonical_sha256": "edb38b9fc0720ccb5da5338b9c091ce667c025de9ec08868225c9386108d12cd",
+  "platforms": {
+    "windows": {
+      "validation_sha256": "2cd27283382cefa186183c002e72579cb5070936c613911054e331569f81f716",
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "30c37490f60fbc7c6bb51abb80b485d68009885fb153bc35e394ebafde616545",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_delivery",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2c7d7058289c66decfe722dc97b059f97b42859a33c52ab1aacec78c89c26063",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "74d593abd537e5d7c36b73fb0c3d7833a4e59e03be1721e3a3a443f922d14c5b",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "9dd1d09035227294cf4703bab69be86c0e7c5eba8701660d1e991e6b2d34d0cd",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-delivery-fastpath\\build_probes.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1cda35789b422a76636a0a59dc34d2d2787a2a3f0305bf8113ba0ace5da337e2",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_delivery_reference.py",
+            "--probe",
+            "out\\service-extensions\\xcron-delivery-fastpath\\windows-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\xcron-delivery-fastpath\\windows-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d1b42de9be3a41a167c54717ce9111b37603d0494a266054b36a2f3f07fd2f03",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "log_sha256": "b0ba9ebcfb6626bb1e0a284be1b7cfe4e891c72aa81804a1bce1a7eb3182bbb4",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "177b2a739b9e2705cf13e8e4081beaeaf11fc5d7d6b4fde3bb91600fa33614dd",
+          "input_phase": "resumed"
+        }
+      ],
+      "initial_input_map_sha256": "860597ffed959cacb2afc133cee9d54f4e44ee70c6303bd6b4affc7d6c043e9d",
+      "initial_failed_receipts_sha256": "be4a822a6dd45f6fc78ea95d9717358b1f2ccd9bbae17b4416a33bae4c84d0f2",
+      "initial_failed_probe_log_sha256": "f16622a23439ed1b3fcbf28ac2dffcb34521fee8e0264f9c5e6f0f5193a4e6e4",
+      "probe_recipe_sha256": "30641ac89375f4b48c53bd1c911983ee2999bd0882ea47804e5a9bdf862f410f",
+      "probe_binaries": {
+        "probe": {
+          "path": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\windows-probe.exe",
+          "sha256": "38e9c59081d11123faec573020da1c5cf04eeac48ceb6d7c182384a0ad5aa0cb"
+        },
+        "layout-direct": {
+          "path": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\windows-layout-direct.exe",
+          "sha256": "4fa1652ca68fe90ea0338ce0ac9762300a9d22ee925fbcaf50eef6571c5945b7"
+        },
+        "layout-decl": {
+          "path": "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\windows-layout-decl.exe",
+          "sha256": "4fa1652ca68fe90ea0338ce0ac9762300a9d22ee925fbcaf50eef6571c5945b7"
+        }
+      },
+      "layouts": [
+        {
+          "declarations": false,
+          "values": {
+            "policy": 8,
+            "issue": 16
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "policy": 8,
+            "issue": 16
+          }
+        }
+      ],
+      "oracle_sha256": "b53e737023cdbc4924fbcaa361e7ed310bb6405bd1752415b4f350e4ab90c7ad",
+      "measurements": {
+        "size": {
+          "receipt": {
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xcron/config/size_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_delivery",
+              "--report",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\windows-size.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "fb35a10d7ee849338a239d5c9f9a34ed897588c74019df87eea2ab34d3d02a63",
+            "report_created": true,
+            "report_sha256": "ca87daee5b11e4f2047405bb797dee444a75aa31ec7289d2a4fc19d05832b722"
+          },
+          "report": {
+            "schema": 2,
+            "platform": "win32",
+            "machine": "amd64",
+            "compiler_family": "gnu",
+            "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+            "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+            "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+            "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+            "arch": "native",
+            "optimization": "O2",
+            "stripped": false,
+            "source_revision": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+            "source_dirty": true,
+            "source_fingerprint": "fa79ff922249abc3d7e4054dcc2425cd0c632f9941f77047789e9f5cf7b596c8",
+            "growth_limits": {
+              "text": 0.1,
+              "data": 0.2,
+              "bss": 0.2,
+              "file": 0.15
+            },
+            "profiles": {
+              "xcron_delivery": {
+                "suite": "xcron_delivery",
+                "description": "Explicit nominal-label selection and complete timezone dependency closure; no calendar/filesystem/network/scheduler",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronCalendarNext",
+                  "xcronSchedulerCreate",
+                  "xrtRootOpen",
+                  "xrtFileOpen",
+                  "xrtNetEngineCreate",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronCalendarNext",
+                  "_xcronSchedulerCreate",
+                  "_xrtRootOpen",
+                  "_xrtFileOpen",
+                  "_xrtNetEngineCreate"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 65300,
+                    "data": 2376,
+                    "bss": 11072,
+                    "members": 1,
+                    "load": 67676,
+                    "file": 100621,
+                    "path": "out/size/gnu/native/xcron_delivery/single/xcron_single.o",
+                    "compile_seconds": 2.307801400000244,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 25104,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 3,
+                    "load": 25104,
+                    "file": 34194,
+                    "path": "release/gnu/native/xcron_delivery/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 34319,
+                    "data": 144,
+                    "bss": 272,
+                    "members": 1,
+                    "load": 34463,
+                    "file": 70157,
+                    "path": "release/gnu/native/xcron_delivery/shared/xcron.dll"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "performance": {
+          "receipt": {
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_delivery_raw,xcron_delivery_all,xcron_delivery_first,xcron_delivery_last",
+              "--report",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\windows-performance.json",
+              "--check",
+              "--baseline",
+              "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-fastpath\\before\\windows-performance.json"
+            ],
+            "exit_code": 1,
+            "log_sha256": "aa76fbc0cc92ee8c18ab0cce10fb4e1d40a751a66fdaf3bced2f16ecda3e482b",
+            "report_created": true,
+            "report_sha256": "819e29a05f9ddc14ce372b12153df6f49448ea8b6fd0acd13c8f624cf3eded86"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-08T11:25:12.001277+00:00",
+            "platform": "win32",
+            "machine": "amd64",
+            "platform_release": "10",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0xfff/0xfff",
+            "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+            "compiler_family": "gnu",
+            "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+            "compiler_version": "gcc.EXE (GCC) 16.2.0",
+            "arch": "native",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+            "source_dirty": true,
+            "source_fingerprint": "823808ecc647dee84311484e865c75bb2fcac177a6764da1bf50e028946fed38",
+            "benchmark_fingerprint": "81365fa57949cd2361f45b5ca1870905b610a1d7908345b6e3e0f384b0118d72",
+            "profiles": {
+              "xcron_delivery_raw": {
+                "description": "Complete repeated-label resolution: raw; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_raw": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "0"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          7193128.764,
+                          7307537.725,
+                          7195376.97,
+                          7210731.371,
+                          7257173.83
+                        ],
+                        "median": 7210731.371,
+                        "mean": 7232789.731999999,
+                        "min": 7193128.764,
+                        "max": 7307537.725,
+                        "mad": 17602.606999999844,
+                        "relative_mad": 0.0024411680444502088,
+                        "range": 114408.9609999992,
+                        "relative_range": 0.0158664849810003,
+                        "central_range": 61796.860000000335,
+                        "relative_central_range": 0.008570123725387126,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          4.4,
+                          4.3,
+                          4.4,
+                          4.3,
+                          4.3
+                        ],
+                        "median": 4.3,
+                        "mean": 4.34,
+                        "min": 4.3,
+                        "max": 4.4,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.10000000000000053,
+                        "relative_range": 0.023255813953488497,
+                        "central_range": 0.10000000000000053,
+                        "relative_central_range": 0.023255813953488497,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          4.4,
+                          4.4,
+                          4.5,
+                          4.4,
+                          4.4
+                        ],
+                        "median": 4.4,
+                        "mean": 4.42,
+                        "min": 4.4,
+                        "max": 4.5,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.09999999999999964,
+                        "relative_range": 0.022727272727272645,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          7.0,
+                          4.5,
+                          5.5,
+                          5.5,
+                          5.6
+                        ],
+                        "median": 5.5,
+                        "mean": 5.62,
+                        "min": 4.5,
+                        "max": 7.0,
+                        "mad": 0.09999999999999964,
+                        "relative_mad": 0.01818181818181812,
+                        "range": 2.5,
+                        "relative_range": 0.45454545454545453,
+                        "central_range": 0.09999999999999964,
+                        "relative_central_range": 0.01818181818181812,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          7.7,
+                          7.6,
+                          8.4,
+                          7.8,
+                          7.6
+                        ],
+                        "median": 7.7,
+                        "mean": 7.82,
+                        "min": 7.6,
+                        "max": 8.4,
+                        "mad": 0.10000000000000053,
+                        "relative_mad": 0.012987012987013056,
+                        "range": 0.8000000000000007,
+                        "relative_range": 0.10389610389610399,
+                        "central_range": 0.20000000000000018,
+                        "relative_central_range": 0.025974025974025997,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_all": {
+                "description": "Complete repeated-label resolution: all; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_all": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "1"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          6659729.449,
+                          6673618.352,
+                          5881563.687,
+                          6593682.84,
+                          6677879.94
+                        ],
+                        "median": 6659729.449,
+                        "mean": 6497294.8536,
+                        "min": 5881563.687,
+                        "max": 6677879.94,
+                        "mad": 18150.491000000387,
+                        "relative_mad": 0.00272540966401057,
+                        "range": 796316.2530000005,
+                        "relative_range": 0.11957186235539528,
+                        "central_range": 79935.5120000001,
+                        "relative_central_range": 0.012002816722832925,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          4.7,
+                          4.7,
+                          4.7,
+                          4.7,
+                          4.7
+                        ],
+                        "median": 4.7,
+                        "mean": 4.7,
+                        "min": 4.7,
+                        "max": 4.7,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.0,
+                        "relative_range": 0.0,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          4.8,
+                          4.8,
+                          8.4,
+                          4.8,
+                          4.8
+                        ],
+                        "median": 4.8,
+                        "mean": 5.5200000000000005,
+                        "min": 4.8,
+                        "max": 8.4,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 3.6000000000000005,
+                        "relative_range": 0.7500000000000001,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          5.8,
+                          4.9,
+                          10.4,
+                          7.8,
+                          4.8
+                        ],
+                        "median": 5.8,
+                        "mean": 6.74,
+                        "min": 4.8,
+                        "max": 10.4,
+                        "mad": 1.0,
+                        "relative_mad": 0.1724137931034483,
+                        "range": 5.6000000000000005,
+                        "relative_range": 0.9655172413793105,
+                        "central_range": 2.8999999999999995,
+                        "relative_central_range": 0.49999999999999994,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          10.3,
+                          8.0,
+                          10.7,
+                          8.6,
+                          8.4
+                        ],
+                        "median": 8.6,
+                        "mean": 9.2,
+                        "min": 8.0,
+                        "max": 10.7,
+                        "mad": 0.5999999999999996,
+                        "relative_mad": 0.06976744186046507,
+                        "range": 2.6999999999999993,
+                        "relative_range": 0.31395348837209297,
+                        "central_range": 1.9000000000000004,
+                        "relative_central_range": 0.2209302325581396,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_first": {
+                "description": "Complete repeated-label resolution: first; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_first": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "2"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "2"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          6099164.796,
+                          6138287.955,
+                          6242355.553,
+                          6244280.142,
+                          5269241.789
+                        ],
+                        "median": 6138287.955,
+                        "mean": 5998666.047,
+                        "min": 5269241.789,
+                        "max": 6244280.142,
+                        "mad": 104067.59800000023,
+                        "relative_mad": 0.01695384751626567,
+                        "range": 975038.3530000001,
+                        "relative_range": 0.1588453262779524,
+                        "central_range": 143190.75700000022,
+                        "relative_central_range": 0.02332747470463044,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          5.1,
+                          5.1,
+                          5.1,
+                          5.1,
+                          5.1
+                        ],
+                        "median": 5.1,
+                        "mean": 5.1,
+                        "min": 5.1,
+                        "max": 5.1,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.0,
+                        "relative_range": 0.0,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          5.2,
+                          6.3,
+                          5.1,
+                          5.1,
+                          9.4
+                        ],
+                        "median": 5.2,
+                        "mean": 6.220000000000001,
+                        "min": 5.1,
+                        "max": 9.4,
+                        "mad": 0.10000000000000053,
+                        "relative_mad": 0.019230769230769332,
+                        "range": 4.300000000000001,
+                        "relative_range": 0.826923076923077,
+                        "central_range": 1.2000000000000002,
+                        "relative_central_range": 0.23076923076923078,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          9.3,
+                          6.4,
+                          5.2,
+                          5.2,
+                          9.5
+                        ],
+                        "median": 6.4,
+                        "mean": 7.12,
+                        "min": 5.2,
+                        "max": 9.5,
+                        "mad": 1.2000000000000002,
+                        "relative_mad": 0.18750000000000003,
+                        "range": 4.3,
+                        "relative_range": 0.6718749999999999,
+                        "central_range": 4.1000000000000005,
+                        "relative_central_range": 0.640625,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          10.1,
+                          11.8,
+                          9.2,
+                          9.2,
+                          13.8
+                        ],
+                        "median": 10.1,
+                        "mean": 10.82,
+                        "min": 9.2,
+                        "max": 13.8,
+                        "mad": 0.9000000000000004,
+                        "relative_mad": 0.08910891089108915,
+                        "range": 4.600000000000001,
+                        "relative_range": 0.45544554455445563,
+                        "central_range": 2.6000000000000014,
+                        "relative_central_range": 0.2574257425742576,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_last": {
+                "description": "Complete repeated-label resolution: last; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_last": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "3"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "3"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          6034069.867,
+                          6102444.792,
+                          6206542.083,
+                          6189088.251,
+                          5979095.587
+                        ],
+                        "median": 6102444.792,
+                        "mean": 6102248.115999999,
+                        "min": 5979095.587,
+                        "max": 6206542.083,
+                        "mad": 86643.4589999998,
+                        "relative_mad": 0.014198155321877723,
+                        "range": 227446.49599999934,
+                        "relative_range": 0.03727137299106258,
+                        "central_range": 155018.38400000054,
+                        "relative_central_range": 0.025402668812870195,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          5.1,
+                          5.1,
+                          5.1,
+                          5.1,
+                          5.1
+                        ],
+                        "median": 5.1,
+                        "mean": 5.1,
+                        "min": 5.1,
+                        "max": 5.1,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.0,
+                        "relative_range": 0.0,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          6.4,
+                          6.3,
+                          5.2,
+                          5.2,
+                          6.4
+                        ],
+                        "median": 6.3,
+                        "mean": 5.9,
+                        "min": 5.2,
+                        "max": 6.4,
+                        "mad": 0.10000000000000053,
+                        "relative_mad": 0.01587301587301596,
+                        "range": 1.2000000000000002,
+                        "relative_range": 0.19047619047619052,
+                        "central_range": 1.2000000000000002,
+                        "relative_central_range": 0.19047619047619052,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          6.5,
+                          8.5,
+                          5.7,
+                          6.3,
+                          8.6
+                        ],
+                        "median": 6.5,
+                        "mean": 7.12,
+                        "min": 5.7,
+                        "max": 8.6,
+                        "mad": 0.7999999999999998,
+                        "relative_mad": 0.12307692307692306,
+                        "range": 2.8999999999999995,
+                        "relative_range": 0.44615384615384607,
+                        "central_range": 2.2,
+                        "relative_central_range": 0.3384615384615385,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          12.4,
+                          11.9,
+                          9.2,
+                          9.2,
+                          10.7
+                        ],
+                        "median": 10.7,
+                        "mean": 10.68,
+                        "min": 9.2,
+                        "max": 12.4,
+                        "mad": 1.5,
+                        "relative_mad": 0.14018691588785048,
+                        "range": 3.200000000000001,
+                        "relative_range": 0.2990654205607478,
+                        "central_range": 2.700000000000001,
+                        "relative_central_range": 0.252336448598131,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "before_size": {
+        "single": {
+          "text": 65024,
+          "data": 2376,
+          "bss": 11072,
+          "members": 1,
+          "load": 67400,
+          "file": 100242,
+          "path": "out/size/gnu/native/xcron_delivery/single/xcron_single.o",
+          "compile_seconds": 2.4244392000000516,
+          "forbidden_symbol_count": 0
+        },
+        "static": {
+          "text": 24928,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 24928,
+          "file": 33978,
+          "path": "release/gnu/native/xcron_delivery/static/libxcron.a"
+        },
+        "shared": {
+          "text": 34159,
+          "data": 144,
+          "bss": 272,
+          "members": 1,
+          "load": 34303,
+          "file": 70157,
+          "path": "release/gnu/native/xcron_delivery/shared/xcron.dll"
+        }
+      }
+    },
+    "wsl": {
+      "validation_sha256": "e337cfeba82d51bc054752df5f205efbae09209de7b7ec21b984b6f6c9d28a6e",
+      "receipts": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "bde012866aa91434d2aa0bc952c1666df8c4bdd2b5de5f99e7d3ea94185e8233",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_delivery",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "22b52bba2defa39e4daf1096a9339efd87071c6d104cc04af21bfe1a31462478",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "80ce10fdf4b47b4bd74a83dc015a47ea22b38c016a206844de6943a38de44097",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2f358376042e1ca672a8435d56db9de5ab741c222116dea70c0d122f425ced5b",
+          "input_phase": "initial; only uncompiled application probe differs"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-delivery-fastpath/build_probes.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0179c0d51823386de13fae6569e46e8e3a1a20b47ec0b809621af821e5959edd",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_delivery_reference.py",
+            "--probe",
+            "out/service-extensions/xcron-delivery-fastpath/wsl-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/xcron-delivery-fastpath/wsl-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e584e418bb693a72ba55504b6ae4d620cabcc11145a94164db2a788a264d6af6",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_delivery,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_delivery",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f8849aa9bc90aad936ee02082413e18fe404eb76bfb6d5097965057e679ebade",
+          "input_phase": "resumed"
+        },
+        {
+          "label": "tsan-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_delivery,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_delivery"
+          ],
+          "exit_code": 0,
+          "log_sha256": "98306ba9a886ba9ad3520f33d3c45a6bd1cf27cfa422a96d2219eacdaf9c6717",
+          "input_phase": "resumed"
+        }
+      ],
+      "initial_input_map_sha256": "476fbafb6664e76bb1b99eded77ce1342f8860827b8240f293585ec4ac511c37",
+      "initial_failed_receipts_sha256": "6f38279ac024d359214b63b9fc6b33a805375528ba737025aaff6ebffaea3fea",
+      "initial_failed_probe_log_sha256": "07de61741f6e79f969f747f3d94b28c2bd8154d65dce4cf6135d11f90c31ae6c",
+      "probe_recipe_sha256": "a2d0266ccc3573acabdff320ba247ceee3e4bc254f705010c7a1ab25efb8f8fc",
+      "probe_binaries": {
+        "probe": {
+          "path": "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/wsl-probe",
+          "sha256": "6c12244fa18ab7f59a1049ed44cb45280fe43b6760ce5aaffb5ebce4cfb5dc9a"
+        },
+        "layout-direct": {
+          "path": "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/wsl-layout-direct",
+          "sha256": "e6d8975f7b87eedfac0162fd101399e1cc2477544bf3f99216bd306328de91d9"
+        },
+        "layout-decl": {
+          "path": "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/wsl-layout-decl",
+          "sha256": "e6d8975f7b87eedfac0162fd101399e1cc2477544bf3f99216bd306328de91d9"
+        }
+      },
+      "layouts": [
+        {
+          "declarations": false,
+          "values": {
+            "policy": 8,
+            "issue": 16
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "policy": 8,
+            "issue": 16
+          }
+        }
+      ],
+      "oracle_sha256": "3e67829eceae1087e02dd8ae087d4875af5de032baceb9bb8ae7d242e89935be",
+      "measurements": {
+        "size": {
+          "receipt": {
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xcron/config/size_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_delivery",
+              "--report",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/wsl-size.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "ccf1d1537b80717f288f65450f334d46374ce367ac78903ffd93f45846454b22",
+            "report_created": true,
+            "report_sha256": "a705ca82a0301c68f382d42a99ddea286d3172ce04d6e9fdf9bd33b50773ed14"
+          },
+          "report": {
+            "schema": 2,
+            "platform": "linux",
+            "machine": "x86_64",
+            "compiler_family": "gnu",
+            "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+            "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+            "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+            "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+            "arch": "x64",
+            "optimization": "O2",
+            "stripped": false,
+            "source_revision": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+            "source_dirty": true,
+            "source_fingerprint": "fa79ff922249abc3d7e4054dcc2425cd0c632f9941f77047789e9f5cf7b596c8",
+            "growth_limits": {
+              "text": 0.1,
+              "data": 0.2,
+              "bss": 0.2,
+              "file": 0.15
+            },
+            "profiles": {
+              "xcron_delivery": {
+                "suite": "xcron_delivery",
+                "description": "Explicit nominal-label selection and complete timezone dependency closure; no calendar/filesystem/network/scheduler",
+                "forbid_symbols": [
+                  "xrtTimeLocal",
+                  "xrtTimeFromLocal",
+                  "xcronCalendarNext",
+                  "xcronSchedulerCreate",
+                  "xrtRootOpen",
+                  "xrtFileOpen",
+                  "xrtNetEngineCreate",
+                  "_xrtTimeLocal",
+                  "_xrtTimeFromLocal",
+                  "_xcronCalendarNext",
+                  "_xcronSchedulerCreate",
+                  "_xrtRootOpen",
+                  "_xrtFileOpen",
+                  "_xrtNetEngineCreate"
+                ],
+                "kinds": {
+                  "single": {
+                    "text": 70747,
+                    "data": 2424,
+                    "bss": 10892,
+                    "members": 1,
+                    "load": 73171,
+                    "file": 121960,
+                    "path": "out/size/gnu/x64/xcron_delivery/single/xcron_single.o",
+                    "compile_seconds": 1.5467192979995161,
+                    "forbidden_symbol_count": 0
+                  },
+                  "static": {
+                    "text": 27316,
+                    "data": 0,
+                    "bss": 0,
+                    "members": 3,
+                    "load": 27316,
+                    "file": 41416,
+                    "path": "release/gnu/x64/xcron_delivery/static/libxcron.a"
+                  },
+                  "shared": {
+                    "text": 31029,
+                    "data": 728,
+                    "bss": 8,
+                    "members": 1,
+                    "load": 31757,
+                    "file": 42696,
+                    "path": "release/gnu/x64/xcron_delivery/shared/libxcron.so"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "performance": {
+          "receipt": {
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xcron/config/performance_profiles.json",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--profiles",
+              "xcron_delivery_raw,xcron_delivery_all,xcron_delivery_first,xcron_delivery_last",
+              "--report",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/wsl-performance.json",
+              "--check",
+              "--baseline",
+              "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-fastpath/before/wsl-performance.json"
+            ],
+            "exit_code": 1,
+            "log_sha256": "47f92a43a0007186eadaef122a6dea6148a62e3d6ab4927a321f0f96f7f0c931",
+            "report_created": true,
+            "report_sha256": "ea6e398e4d2eccfe7c4e4fb3dba076f9dfae90716c2304cb828bddd81cc8876d"
+          },
+          "report": {
+            "schema": 2,
+            "product": "xcron",
+            "generated_at": "2026-11-08T11:31:11.010803+00:00",
+            "platform": "linux",
+            "machine": "x86_64",
+            "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+            "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+            "cpu_count": 12,
+            "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+            "power_policy": "unknown",
+            "compiler_family": "gnu",
+            "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+            "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+            "arch": "x64",
+            "optimization": "-O2",
+            "cflags": [
+              "-O2"
+            ],
+            "ldflags": [],
+            "policy": "baseline-unpinned",
+            "repeats": 5,
+            "warmups": 1,
+            "max_relative_mad": 0.03,
+            "max_relative_central_range": 0.06,
+            "source_revision": "98be7d1e70dee8364cc028ea10607b0ab3208fc1",
+            "source_dirty": true,
+            "source_fingerprint": "823808ecc647dee84311484e865c75bb2fcac177a6764da1bf50e028946fed38",
+            "benchmark_fingerprint": "81365fa57949cd2361f45b5ca1870905b610a1d7908345b6e3e0f384b0118d72",
+            "profiles": {
+              "xcron_delivery_raw": {
+                "description": "Complete repeated-label resolution: raw; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_raw": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "0"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "0"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          5828429.15,
+                          6821674.874,
+                          6975050.962,
+                          6207456.975,
+                          6878939.12
+                        ],
+                        "median": 6821674.874,
+                        "mean": 6542310.2162,
+                        "min": 5828429.15,
+                        "max": 6975050.962,
+                        "mad": 153376.08800000045,
+                        "relative_mad": 0.022483640870158608,
+                        "range": 1146621.812,
+                        "relative_range": 0.16808508660684082,
+                        "central_range": 671482.1450000005,
+                        "relative_central_range": 0.09843361892828908,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          4.5,
+                          4.5,
+                          4.5,
+                          4.5,
+                          4.5
+                        ],
+                        "median": 4.5,
+                        "mean": 4.5,
+                        "min": 4.5,
+                        "max": 4.5,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.0,
+                        "relative_range": 0.0,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          8.0,
+                          5.6,
+                          4.5,
+                          7.0,
+                          4.6
+                        ],
+                        "median": 5.6,
+                        "mean": 5.9399999999999995,
+                        "min": 4.5,
+                        "max": 8.0,
+                        "mad": 1.0999999999999996,
+                        "relative_mad": 0.19642857142857137,
+                        "range": 3.5,
+                        "relative_range": 0.625,
+                        "central_range": 2.4000000000000004,
+                        "relative_central_range": 0.42857142857142866,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          9.0,
+                          7.1,
+                          6.8,
+                          10.2,
+                          7.7
+                        ],
+                        "median": 7.7,
+                        "mean": 8.16,
+                        "min": 6.8,
+                        "max": 10.2,
+                        "mad": 0.9000000000000004,
+                        "relative_mad": 0.11688311688311692,
+                        "range": 3.3999999999999995,
+                        "relative_range": 0.4415584415584415,
+                        "central_range": 1.9000000000000004,
+                        "relative_central_range": 0.24675324675324678,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          26.7,
+                          19.8,
+                          20.9,
+                          48.2,
+                          18.7
+                        ],
+                        "median": 20.9,
+                        "mean": 26.860000000000003,
+                        "min": 18.7,
+                        "max": 48.2,
+                        "mad": 2.1999999999999993,
+                        "relative_mad": 0.10526315789473681,
+                        "range": 29.500000000000004,
+                        "relative_range": 1.4114832535885171,
+                        "central_range": 6.899999999999999,
+                        "relative_central_range": 0.3301435406698564,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_all": {
+                "description": "Complete repeated-label resolution: all; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_all": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "1"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "1"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          5924762.807,
+                          6257393.991,
+                          6229243.843,
+                          5792578.516,
+                          6265614.965
+                        ],
+                        "median": 6229243.843,
+                        "mean": 6093918.8244,
+                        "min": 5792578.516,
+                        "max": 6265614.965,
+                        "mad": 36371.12199999951,
+                        "relative_mad": 0.0058387699882500015,
+                        "range": 473036.449,
+                        "relative_range": 0.07593802087737601,
+                        "central_range": 332631.18400000036,
+                        "relative_central_range": 0.0533983244810345,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          4.9,
+                          4.9,
+                          5.0,
+                          4.9,
+                          4.9
+                        ],
+                        "median": 4.9,
+                        "mean": 4.92,
+                        "min": 4.9,
+                        "max": 5.0,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.09999999999999964,
+                        "relative_range": 0.020408163265306048,
+                        "central_range": 0.0,
+                        "relative_central_range": 0.0,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          6.1,
+                          5.0,
+                          5.1,
+                          6.1,
+                          6.2
+                        ],
+                        "median": 6.1,
+                        "mean": 5.7,
+                        "min": 5.0,
+                        "max": 6.2,
+                        "mad": 0.10000000000000053,
+                        "relative_mad": 0.016393442622950907,
+                        "range": 1.2000000000000002,
+                        "relative_range": 0.1967213114754099,
+                        "central_range": 1.0,
+                        "relative_central_range": 0.1639344262295082,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          6.1,
+                          8.8,
+                          7.6,
+                          9.4,
+                          7.4
+                        ],
+                        "median": 7.6,
+                        "mean": 7.859999999999999,
+                        "min": 6.1,
+                        "max": 9.4,
+                        "mad": 1.200000000000001,
+                        "relative_mad": 0.15789473684210542,
+                        "range": 3.3000000000000007,
+                        "relative_range": 0.4342105263157896,
+                        "central_range": 1.4000000000000004,
+                        "relative_central_range": 0.18421052631578952,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          24.8,
+                          19.5,
+                          32.3,
+                          30.1,
+                          17.3
+                        ],
+                        "median": 24.8,
+                        "mean": 24.8,
+                        "min": 17.3,
+                        "max": 32.3,
+                        "mad": 5.300000000000001,
+                        "relative_mad": 0.21370967741935487,
+                        "range": 14.999999999999996,
+                        "relative_range": 0.6048387096774192,
+                        "central_range": 10.600000000000001,
+                        "relative_central_range": 0.42741935483870974,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_first": {
+                "description": "Complete repeated-label resolution: first; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_first": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "2"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "2"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          6005217.032,
+                          5805041.21,
+                          5733236.004,
+                          5249516.06,
+                          4922842.066
+                        ],
+                        "median": 5733236.004,
+                        "mean": 5543170.4744,
+                        "min": 4922842.066,
+                        "max": 6005217.032,
+                        "mad": 271981.02799999993,
+                        "relative_mad": 0.04743935672807512,
+                        "range": 1082374.966,
+                        "relative_range": 0.18878953617901686,
+                        "central_range": 555525.1500000004,
+                        "relative_central_range": 0.09689556641527021,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          5.2,
+                          5.3,
+                          5.3,
+                          6.4,
+                          6.3
+                        ],
+                        "median": 5.3,
+                        "mean": 5.7,
+                        "min": 5.2,
+                        "max": 6.4,
+                        "mad": 0.09999999999999964,
+                        "relative_mad": 0.01886792452830182,
+                        "range": 1.2000000000000002,
+                        "relative_range": 0.22641509433962267,
+                        "central_range": 1.0,
+                        "relative_central_range": 0.18867924528301888,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          5.3,
+                          6.5,
+                          6.5,
+                          6.7,
+                          9.6
+                        ],
+                        "median": 6.5,
+                        "mean": 6.92,
+                        "min": 5.3,
+                        "max": 9.6,
+                        "mad": 0.20000000000000018,
+                        "relative_mad": 0.030769230769230795,
+                        "range": 4.3,
+                        "relative_range": 0.6615384615384615,
+                        "central_range": 0.20000000000000018,
+                        "relative_central_range": 0.030769230769230795,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          9.2,
+                          8.9,
+                          11.4,
+                          10.4,
+                          11.2
+                        ],
+                        "median": 10.4,
+                        "mean": 10.22,
+                        "min": 8.9,
+                        "max": 11.4,
+                        "mad": 1.0,
+                        "relative_mad": 0.09615384615384615,
+                        "range": 2.5,
+                        "relative_range": 0.24038461538461536,
+                        "central_range": 2.0,
+                        "relative_central_range": 0.1923076923076923,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          19.3,
+                          18.6,
+                          29.0,
+                          35.7,
+                          27.5
+                        ],
+                        "median": 27.5,
+                        "mean": 26.02,
+                        "min": 18.6,
+                        "max": 35.7,
+                        "mad": 8.2,
+                        "relative_mad": 0.29818181818181816,
+                        "range": 17.1,
+                        "relative_range": 0.6218181818181818,
+                        "central_range": 9.7,
+                        "relative_central_range": 0.3527272727272727,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              },
+              "xcron_delivery_last": {
+                "description": "Complete repeated-label resolution: last; actual32-call timed batches; excludes cold/unknown/errors/recurrence/worker; no production qualification",
+                "benchmarks": {
+                  "xcron_delivery_last": {
+                    "source": "extlibs/xcron/bench/bench_delivery.c",
+                    "inputs": [],
+                    "suite": "xcron_delivery",
+                    "args": [
+                      "10000",
+                      "3"
+                    ],
+                    "facts": {
+                      "batch_size": "32",
+                      "path": "3"
+                    },
+                    "metrics": {
+                      "labels_per_sec": {
+                        "samples": [
+                          5854651.078,
+                          5618687.953,
+                          5703815.343,
+                          5954729.282,
+                          5478589.177
+                        ],
+                        "median": 5703815.343,
+                        "mean": 5722094.5666000005,
+                        "min": 5478589.177,
+                        "max": 5954729.282,
+                        "mad": 150835.7349999994,
+                        "relative_mad": 0.026444708660688387,
+                        "range": 476140.1049999995,
+                        "relative_range": 0.0834774754032565,
+                        "central_range": 235963.125,
+                        "relative_central_range": 0.04136934855185756,
+                        "direction": "higher",
+                        "unit": "labels/s",
+                        "limit": 0.05,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p50_us": {
+                        "samples": [
+                          5.2,
+                          5.2,
+                          5.3,
+                          5.2,
+                          5.3
+                        ],
+                        "median": 5.2,
+                        "mean": 5.24,
+                        "min": 5.2,
+                        "max": 5.3,
+                        "mad": 0.0,
+                        "relative_mad": 0.0,
+                        "range": 0.09999999999999964,
+                        "relative_range": 0.019230769230769162,
+                        "central_range": 0.09999999999999964,
+                        "relative_central_range": 0.019230769230769162,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p95_us": {
+                        "samples": [
+                          6.5,
+                          6.6,
+                          7.4,
+                          5.3,
+                          8.9
+                        ],
+                        "median": 6.6,
+                        "mean": 6.94,
+                        "min": 5.3,
+                        "max": 8.9,
+                        "mad": 0.8000000000000007,
+                        "relative_mad": 0.12121212121212133,
+                        "range": 3.6000000000000005,
+                        "relative_range": 0.5454545454545455,
+                        "central_range": 0.9000000000000004,
+                        "relative_central_range": 0.13636363636363644,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p99_us": {
+                        "samples": [
+                          8.8,
+                          12.0,
+                          9.8,
+                          9.3,
+                          9.7
+                        ],
+                        "median": 9.7,
+                        "mean": 9.92,
+                        "min": 8.8,
+                        "max": 12.0,
+                        "mad": 0.3999999999999986,
+                        "relative_mad": 0.04123711340206171,
+                        "range": 3.1999999999999993,
+                        "relative_range": 0.3298969072164948,
+                        "central_range": 0.5,
+                        "relative_central_range": 0.051546391752577324,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      },
+                      "batch_p999_us": {
+                        "samples": [
+                          21.5,
+                          22.2,
+                          25.2,
+                          19.3,
+                          21.9
+                        ],
+                        "median": 21.9,
+                        "mean": 22.02,
+                        "min": 19.3,
+                        "max": 25.2,
+                        "mad": 0.3999999999999986,
+                        "relative_mad": 0.01826484018264834,
+                        "range": 5.899999999999999,
+                        "relative_range": 0.26940639269406386,
+                        "central_range": 0.6999999999999993,
+                        "relative_central_range": 0.031963470319634674,
+                        "direction": "lower",
+                        "unit": "us",
+                        "limit": 0.1,
+                        "max_relative_mad": 0.03,
+                        "max_relative_central_range": 0.06
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "before_size": {
+        "single": {
+          "text": 70406,
+          "data": 2424,
+          "bss": 10892,
+          "members": 1,
+          "load": 72830,
+          "file": 121416,
+          "path": "out/size/gnu/x64/xcron_delivery/single/xcron_single.o",
+          "compile_seconds": 1.5510589089999485,
+          "forbidden_symbol_count": 0
+        },
+        "static": {
+          "text": 27159,
+          "data": 0,
+          "bss": 0,
+          "members": 3,
+          "load": 27159,
+          "file": 41168,
+          "path": "release/gnu/x64/xcron_delivery/static/libxcron.a"
+        },
+        "shared": {
+          "text": 30872,
+          "data": 728,
+          "bss": 8,
+          "members": 1,
+          "load": 31600,
+          "file": 42696,
+          "path": "release/gnu/x64/xcron_delivery/shared/libxcron.so"
+        }
+      }
+    }
+  },
+  "assembly": {
+    "windows": {
+      "object_sha256": "da7409ede498abb06029589d6e3baa7ca6018c426522b0c718f3a85474dffbde",
+      "disassembly_sha256": "db2e7e02827335df36237595aa22eb5708bbcb285fda07610328b4fc7a358bc6",
+      "functions": {
+        "xcronDeliverySelected": {
+          "stack_subtractions_bytes": [
+            2176
+          ]
+        },
+        "xcronDeliveryResolve": {
+          "stack_subtractions_bytes": [
+            184
+          ]
+        }
+      }
+    },
+    "wsl": {
+      "object_sha256": "e75e0babaa1132e0d4a68ac0b2596137b00b872fb74b9043832552e736fd2b2c",
+      "disassembly_sha256": "62fcb0cecf7ce0052b3d41e259100190826353811beaf075faa29ba4a9a29472",
+      "functions": {
+        "xcronDeliverySelected": {
+          "stack_subtractions_bytes": [
+            2136
+          ]
+        },
+        "xcronDeliveryResolve": {
+          "stack_subtractions_bytes": [
+            120,
+            8
+          ]
+        }
+      }
+    }
+  },
+  "official_raw_comparison_diagnostics": {
+    "windows": {
+      "benchmark_fingerprint_matches": true,
+      "raw_median_threshold_failures": [],
+      "note": "Diagnostic raw comparison only. Official runner exits on quality failure before its baseline threshold stage; original baseline is itself noisy and unaccepted."
+    },
+    "wsl": {
+      "benchmark_fingerprint_matches": true,
+      "raw_median_threshold_failures": [
+        "xcron_delivery_raw/xcron_delivery_raw/batch_p999_us: baseline=18.9 current=20.9 limit=10.0%"
+      ],
+      "note": "Diagnostic raw comparison only. Official runner exits on quality failure before its baseline threshold stage; original baseline is itself noisy and unaccepted."
+    }
+  },
+  "alternating_diagnostics": {
+    "windows": {
+      "schema": 1,
+      "complete": true,
+      "platform": "windows",
+      "qualified": false,
+      "inputs_count": 2506,
+      "executables": {
+        "raw": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/windows-raw.exe",
+            "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/windows-raw.exe",
+            "sha256": "d9a4b60071841d75c108200d99239e6722721e56e50cbdebd51f3a0545c268b6"
+          }
+        },
+        "all": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/windows-all.exe",
+            "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/windows-all.exe",
+            "sha256": "d9a4b60071841d75c108200d99239e6722721e56e50cbdebd51f3a0545c268b6"
+          }
+        },
+        "first": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/windows-first.exe",
+            "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/windows-first.exe",
+            "sha256": "d9a4b60071841d75c108200d99239e6722721e56e50cbdebd51f3a0545c268b6"
+          }
+        },
+        "last": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/windows-last.exe",
+            "sha256": "dc9e0cc189c2a37c385956af2e667e97700d89778fd6a73046063bca35c6add9"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/windows-last.exe",
+            "sha256": "d9a4b60071841d75c108200d99239e6722721e56e50cbdebd51f3a0545c268b6"
+          }
+        }
+      },
+      "benchmark_fingerprint": "81365fa57949cd2361f45b5ca1870905b610a1d7908345b6e3e0f384b0118d72",
+      "source_fingerprint": "823808ecc647dee84311484e865c75bb2fcac177a6764da1bf50e028946fed38",
+      "batches": 10000,
+      "batch_size": 32,
+      "rounds": 5,
+      "warmups_per_cell": 1,
+      "affinity": "inherited, no pinning",
+      "cpu_unit": "whole_process_cycles",
+      "cpu_scope": "Full child lifetime: includes startup, zone creation, sample allocation/sort/output and cleanup outside the timed API loop. Windows cycles and Linux CPU nanoseconds are not comparable units.",
+      "scope": "Additional same-window diagnostic; preserves original four benchmark programs/arguments and all failed official reports. Original acceptance/noise/throughput/latency gates are not waived. No independent production/causal claim.",
+      "summary": {
+        "raw": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                7189024.157,
+                6948108.486,
+                7218994.981,
+                7298088.129,
+                7257321.958
+              ],
+              "median": 7218994.981,
+              "min": 6948108.486,
+              "max": 7298088.129,
+              "relative_mad": 0.005309184602687003
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.4,
+                4.4,
+                4.3,
+                4.3,
+                4.3
+              ],
+              "median": 4.3,
+              "min": 4.3,
+              "max": 4.4,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                4.5,
+                5.5,
+                4.4,
+                4.4,
+                4.4
+              ],
+              "median": 4.4,
+              "min": 4.4,
+              "max": 5.5,
+              "relative_mad": 0.0
+            },
+            "batch_p99_us": {
+              "samples": [
+                5.5,
+                5.5,
+                7.2,
+                4.5,
+                4.5
+              ],
+              "median": 5.5,
+              "min": 4.5,
+              "max": 7.2,
+              "relative_mad": 0.18181818181818182
+            },
+            "batch_p999_us": {
+              "samples": [
+                7.5,
+                9.7,
+                7.9,
+                7.7,
+                7.7
+              ],
+              "median": 7.7,
+              "min": 7.5,
+              "max": 9.7,
+              "relative_mad": 0.025974025974025997
+            },
+            "cpu": {
+              "samples": [
+                164644340,
+                168936215,
+                163504600,
+                161246085,
+                162450190
+              ],
+              "median": 163504600,
+              "min": 161246085,
+              "max": 168936215,
+              "relative_mad": 0.006970690732860115
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                7073245.669,
+                7087580.345,
+                7086513.037,
+                6976313.237,
+                7284448.613
+              ],
+              "median": 7086513.037,
+              "min": 6976313.237,
+              "max": 7284448.613,
+              "relative_mad": 0.0018721997589968994
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.4,
+                4.4,
+                4.3,
+                4.4,
+                4.3
+              ],
+              "median": 4.4,
+              "min": 4.3,
+              "max": 4.4,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                4.5,
+                5.5,
+                5.4,
+                5.5,
+                4.4
+              ],
+              "median": 5.4,
+              "min": 4.4,
+              "max": 5.5,
+              "relative_mad": 0.01851851851851845
+            },
+            "batch_p99_us": {
+              "samples": [
+                6.8,
+                5.6,
+                5.5,
+                5.5,
+                4.5
+              ],
+              "median": 5.5,
+              "min": 4.5,
+              "max": 6.8,
+              "relative_mad": 0.01818181818181812
+            },
+            "batch_p999_us": {
+              "samples": [
+                11.4,
+                10.3,
+                9.4,
+                10.2,
+                7.5
+              ],
+              "median": 10.2,
+              "min": 7.5,
+              "max": 11.4,
+              "relative_mad": 0.07843137254901951
+            },
+            "cpu": {
+              "samples": [
+                166533570,
+                166206670,
+                166202540,
+                168601370,
+                161827260
+              ],
+              "median": 166206670,
+              "min": 161827260,
+              "max": 168601370,
+              "relative_mad": 0.0019668284070669365
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 0.9816481457116004,
+            "batch_p50_us": 1.0232558139534884,
+            "batch_p95_us": 1.2272727272727273,
+            "batch_p99_us": 1.0,
+            "batch_p999_us": 1.3246753246753245,
+            "cpu": 1.0165259570678746
+          }
+        },
+        "all": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                5979341.375,
+                6112574.521,
+                6172101.33,
+                6116383.306,
+                6223138.406
+              ],
+              "median": 6116383.306,
+              "min": 5979341.375,
+              "max": 6223138.406,
+              "relative_mad": 0.009109635745905982
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.1,
+                5.1,
+                5.1,
+                5.1,
+                5.1
+              ],
+              "median": 5.1,
+              "min": 5.1,
+              "max": 5.1,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                6.4,
+                6.4,
+                5.2,
+                5.2,
+                5.1
+              ],
+              "median": 5.2,
+              "min": 5.1,
+              "max": 6.4,
+              "relative_mad": 0.019230769230769332
+            },
+            "batch_p99_us": {
+              "samples": [
+                10.3,
+                8.3,
+                6.5,
+                8.8,
+                6.4
+              ],
+              "median": 8.3,
+              "min": 6.4,
+              "max": 10.3,
+              "relative_mad": 0.21686746987951813
+            },
+            "batch_p999_us": {
+              "samples": [
+                11.6,
+                10.9,
+                11.1,
+                9.3,
+                9.2
+              ],
+              "median": 10.9,
+              "min": 9.2,
+              "max": 11.6,
+              "relative_mad": 0.06422018348623847
+            },
+            "cpu": {
+              "samples": [
+                196566195,
+                191055655,
+                189161070,
+                191017155,
+                187919480
+              ],
+              "median": 191017155,
+              "min": 187919480,
+              "max": 196566195,
+              "relative_mad": 0.009716849777183624
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                6560038.704,
+                6527628.186,
+                5911442.891,
+                6533012.127,
+                6668667.267
+              ],
+              "median": 6533012.127,
+              "min": 5911442.891,
+              "max": 6668667.267,
+              "relative_mad": 0.004136924358107744
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.7,
+                4.7,
+                4.8,
+                4.7,
+                4.7
+              ],
+              "median": 4.7,
+              "min": 4.7,
+              "max": 4.8,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.9,
+                5.9,
+                8.1,
+                5.9,
+                4.8
+              ],
+              "median": 5.9,
+              "min": 4.8,
+              "max": 8.1,
+              "relative_mad": 0.0
+            },
+            "batch_p99_us": {
+              "samples": [
+                7.4,
+                8.0,
+                8.4,
+                8.2,
+                4.9
+              ],
+              "median": 8.0,
+              "min": 4.9,
+              "max": 8.4,
+              "relative_mad": 0.050000000000000044
+            },
+            "batch_p999_us": {
+              "samples": [
+                10.3,
+                10.3,
+                10.4,
+                10.4,
+                8.0
+              ],
+              "median": 10.3,
+              "min": 8.0,
+              "max": 10.4,
+              "relative_mad": 0.009708737864077634
+            },
+            "cpu": {
+              "samples": [
+                179469605,
+                180350450,
+                198621149,
+                180454330,
+                175557900
+              ],
+              "median": 180350450,
+              "min": 175557900,
+              "max": 198621149,
+              "relative_mad": 0.00488407431198536
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 1.0681168592869743,
+            "batch_p50_us": 0.9215686274509804,
+            "batch_p95_us": 1.1346153846153846,
+            "batch_p99_us": 0.9638554216867469,
+            "batch_p999_us": 0.944954128440367,
+            "cpu": 0.9441583924752727
+          }
+        },
+        "first": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                6234256.068,
+                6016485.169,
+                6049961.337,
+                6059814.153,
+                6212361.823
+              ],
+              "median": 6059814.153,
+              "min": 6016485.169,
+              "max": 6234256.068,
+              "relative_mad": 0.007150216641305661
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.1,
+                5.1,
+                5.1,
+                5.1,
+                5.1
+              ],
+              "median": 5.1,
+              "min": 5.1,
+              "max": 5.1,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.2,
+                6.4,
+                6.3,
+                6.3,
+                5.2
+              ],
+              "median": 6.3,
+              "min": 5.2,
+              "max": 6.4,
+              "relative_mad": 0.01587301587301596
+            },
+            "batch_p99_us": {
+              "samples": [
+                5.2,
+                6.5,
+                6.5,
+                6.5,
+                5.2
+              ],
+              "median": 6.5,
+              "min": 5.2,
+              "max": 6.5,
+              "relative_mad": 0.0
+            },
+            "batch_p999_us": {
+              "samples": [
+                9.0,
+                11.7,
+                16.1,
+                11.1,
+                8.9
+              ],
+              "median": 11.1,
+              "min": 8.9,
+              "max": 16.1,
+              "relative_mad": 0.18918918918918917
+            },
+            "cpu": {
+              "samples": [
+                187856165,
+                194857810,
+                192905370,
+                193168675,
+                188198395
+              ],
+              "median": 192905370,
+              "min": 187856165,
+              "max": 194857810,
+              "relative_mad": 0.010121231980219109
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                6232628.981,
+                6167129.201,
+                6249023.59,
+                6060468.323,
+                6129962.875
+              ],
+              "median": 6167129.201,
+              "min": 6060468.323,
+              "max": 6249023.59,
+              "relative_mad": 0.010620789327614304
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.1,
+                5.1,
+                5.1,
+                5.1,
+                5.1
+              ],
+              "median": 5.1,
+              "min": 5.1,
+              "max": 5.1,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.1,
+                6.3,
+                5.1,
+                6.3,
+                6.3
+              ],
+              "median": 6.3,
+              "min": 5.1,
+              "max": 6.3,
+              "relative_mad": 0.0
+            },
+            "batch_p99_us": {
+              "samples": [
+                6.3,
+                6.4,
+                5.2,
+                8.3,
+                6.4
+              ],
+              "median": 6.4,
+              "min": 5.2,
+              "max": 8.3,
+              "relative_mad": 0.015625000000000083
+            },
+            "batch_p999_us": {
+              "samples": [
+                9.3,
+                11.4,
+                9.0,
+                11.5,
+                9.5
+              ],
+              "median": 9.5,
+              "min": 9.0,
+              "max": 11.5,
+              "relative_mad": 0.05263157894736842
+            },
+            "cpu": {
+              "samples": [
+                187554290,
+                189601895,
+                187276530,
+                192924795,
+                191048865
+              ],
+              "median": 189601895,
+              "min": 187276530,
+              "max": 192924795,
+              "relative_mad": 0.010799496492374192
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 1.017709296900941,
+            "batch_p50_us": 1.0,
+            "batch_p95_us": 1.0,
+            "batch_p99_us": 0.9846153846153847,
+            "batch_p999_us": 0.8558558558558559,
+            "cpu": 0.9828751527238458
+          }
+        },
+        "last": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                6155053.491,
+                6190345.383,
+                5996787.97,
+                6148005.548,
+                6096376.085
+              ],
+              "median": 6148005.548,
+              "min": 5996787.97,
+              "max": 6190345.383,
+              "relative_mad": 0.00688675940017222
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.1,
+                5.1,
+                5.1,
+                5.1,
+                5.1
+              ],
+              "median": 5.1,
+              "min": 5.1,
+              "max": 5.1,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.2,
+                5.2,
+                6.4,
+                5.3,
+                6.4
+              ],
+              "median": 5.3,
+              "min": 5.2,
+              "max": 6.4,
+              "relative_mad": 0.01886792452830182
+            },
+            "batch_p99_us": {
+              "samples": [
+                8.2,
+                6.5,
+                8.3,
+                6.4,
+                6.5
+              ],
+              "median": 6.5,
+              "min": 6.4,
+              "max": 8.3,
+              "relative_mad": 0.01538461538461533
+            },
+            "batch_p999_us": {
+              "samples": [
+                10.2,
+                9.2,
+                11.5,
+                9.7,
+                11.3
+              ],
+              "median": 10.2,
+              "min": 9.2,
+              "max": 11.5,
+              "relative_mad": 0.09803921568627452
+            },
+            "cpu": {
+              "samples": [
+                190502935,
+                188794690,
+                195346970,
+                189991270,
+                192446380
+              ],
+              "median": 190502935,
+              "min": 188794690,
+              "max": 195346970,
+              "relative_mad": 0.008967027200919502
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                6231961.393,
+                6082690.374,
+                6162485.485,
+                6207047.715,
+                6093682.755
+              ],
+              "median": 6162485.485,
+              "min": 6082690.374,
+              "max": 6231961.393,
+              "relative_mad": 0.011164769502090022
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.1,
+                5.1,
+                5.1,
+                5.1,
+                5.1
+              ],
+              "median": 5.1,
+              "min": 5.1,
+              "max": 5.1,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.1,
+                6.4,
+                5.3,
+                5.2,
+                6.3
+              ],
+              "median": 5.3,
+              "min": 5.1,
+              "max": 6.4,
+              "relative_mad": 0.03773584905660381
+            },
+            "batch_p99_us": {
+              "samples": [
+                5.2,
+                6.5,
+                6.5,
+                6.4,
+                6.4
+              ],
+              "median": 6.4,
+              "min": 5.2,
+              "max": 6.5,
+              "relative_mad": 0.015624999999999944
+            },
+            "batch_p999_us": {
+              "samples": [
+                9.5,
+                11.9,
+                10.3,
+                9.4,
+                11.4
+              ],
+              "median": 10.3,
+              "min": 9.4,
+              "max": 11.9,
+              "relative_mad": 0.08737864077669906
+            },
+            "cpu": {
+              "samples": [
+                187425245,
+                191201780,
+                190288455,
+                189002800,
+                192616655
+              ],
+              "median": 190288455,
+              "min": 187425245,
+              "max": 192616655,
+              "relative_mad": 0.006756347882481888
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 1.0023552251029946,
+            "batch_p50_us": 1.0,
+            "batch_p95_us": 1.0,
+            "batch_p99_us": 0.9846153846153847,
+            "batch_p999_us": 1.0098039215686276,
+            "cpu": 0.9988741380808648
+          }
+        }
+      },
+      "raw_row_columns": [
+        "round",
+        "warmup",
+        "path",
+        "version",
+        "exit_code",
+        "cpu",
+        "labels_per_sec",
+        "batch_p50_us",
+        "batch_p95_us",
+        "batch_p99_us",
+        "batch_p999_us",
+        "checksum",
+        "stdout_sha256"
+      ],
+      "raw_rows": [
+        [
+          -1,
+          true,
+          "raw",
+          "before",
+          0,
+          167185656,
+          7207434.469,
+          4.4,
+          4.4,
+          5.8,
+          7.7,
+          "1990442678334928384",
+          "eefb2dcdb710bf2b2ccfa7a4c6e673966c752fa0451c88f538773d833b9407df"
+        ],
+        [
+          -1,
+          true,
+          "raw",
+          "current",
+          0,
+          189424935,
+          6356963.358,
+          4.3,
+          7.8,
+          7.9,
+          9.4,
+          "1990442678334928384",
+          "ba3ee28e5fb20c4354b2425eaafdac5d39efb2c904d17ba9be99b09aa1438638"
+        ],
+        [
+          -1,
+          true,
+          "all",
+          "before",
+          0,
+          191818235,
+          6229741.174,
+          5.1,
+          5.2,
+          5.2,
+          8.9,
+          "1990442678334928384",
+          "402b37d227d1d06bf3561bebfb64edf1d4617eff20466199844a31793fd61a77"
+        ],
+        [
+          -1,
+          true,
+          "all",
+          "current",
+          0,
+          180726665,
+          6609085.013,
+          4.8,
+          4.9,
+          5.9,
+          10.0,
+          "1990442678334928384",
+          "adadc4c9bd2c81ee71a75ed13018e45000ffd187bc7e021c697038db9f51723d"
+        ],
+        [
+          -1,
+          true,
+          "first",
+          "before",
+          0,
+          199850070,
+          6012686.769,
+          5.1,
+          6.4,
+          6.9,
+          14.3,
+          "1990442678334608384",
+          "969b1c239c24be46ef46886857e67dfdd557a976cb3c18007e858d495132e094"
+        ],
+        [
+          -1,
+          true,
+          "first",
+          "current",
+          0,
+          203955570,
+          5895878.781,
+          5.1,
+          8.4,
+          8.7,
+          13.8,
+          "1990442678334608384",
+          "3d80e695911fe4a38b289845ef5a17e4affd9a281376a60f93cecb4f742d11a8"
+        ],
+        [
+          -1,
+          true,
+          "last",
+          "before",
+          0,
+          196091175,
+          6125914.341,
+          5.1,
+          5.2,
+          6.7,
+          9.3,
+          "1990443830334608384",
+          "e7a795e61939a1e9ed087e1dbe07f6179260bce7cb456fdb79543142d450e568"
+        ],
+        [
+          -1,
+          true,
+          "last",
+          "current",
+          0,
+          193159400,
+          6197418.775,
+          5.1,
+          5.1,
+          7.9,
+          9.5,
+          "1990443830334608384",
+          "9ac5309f08c17c6baad69c1b22b385190c3655be9a28bb259ea216d49f65a2a3"
+        ],
+        [
+          0,
+          false,
+          "raw",
+          "before",
+          0,
+          164644340,
+          7189024.157,
+          4.4,
+          4.5,
+          5.5,
+          7.5,
+          "1990442678334928384",
+          "cbbf76739409aeb3ae163886c2658ab38b99dc13379720fef78d89cc5e25ff57"
+        ],
+        [
+          0,
+          false,
+          "raw",
+          "current",
+          0,
+          166533570,
+          7073245.669,
+          4.4,
+          4.5,
+          6.8,
+          11.4,
+          "1990442678334928384",
+          "fb5b4a4d1c5f68637f1e6d1a83eaef5ea53a594941a15bac916175846fcec6b0"
+        ],
+        [
+          0,
+          false,
+          "all",
+          "before",
+          0,
+          196566195,
+          5979341.375,
+          5.1,
+          6.4,
+          10.3,
+          11.6,
+          "1990442678334928384",
+          "1fb1db66fcf8eff2641bdc15bddf6f71b8c762e0c8d9421ca68d8ed82ce293c7"
+        ],
+        [
+          0,
+          false,
+          "all",
+          "current",
+          0,
+          179469605,
+          6560038.704,
+          4.7,
+          5.9,
+          7.4,
+          10.3,
+          "1990442678334928384",
+          "3580b37f15900dbfb75d8e2290c50c85efe108123982ba3492d0f052ba4e90e9"
+        ],
+        [
+          0,
+          false,
+          "first",
+          "before",
+          0,
+          187856165,
+          6234256.068,
+          5.1,
+          5.2,
+          5.2,
+          9.0,
+          "1990442678334608384",
+          "db0f36fd4a5c6e7c9e427ccffcd3f8e51fea4b51e5c8055b9d8b4cda750c5c2b"
+        ],
+        [
+          0,
+          false,
+          "first",
+          "current",
+          0,
+          187554290,
+          6232628.981,
+          5.1,
+          5.1,
+          6.3,
+          9.3,
+          "1990442678334608384",
+          "5b8b5b2079f344ae8500d8ff6b9b8a80686c7fd5b813db394add01128cb7b896"
+        ],
+        [
+          0,
+          false,
+          "last",
+          "before",
+          0,
+          190502935,
+          6155053.491,
+          5.1,
+          5.2,
+          8.2,
+          10.2,
+          "1990443830334608384",
+          "6fd3abcf9eb26e787982c5f2237fa86133e19a47cd5fad72828cbd5f6d73acae"
+        ],
+        [
+          0,
+          false,
+          "last",
+          "current",
+          0,
+          187425245,
+          6231961.393,
+          5.1,
+          5.1,
+          5.2,
+          9.5,
+          "1990443830334608384",
+          "e8edf77d2b3c92db63824b27e4d7d1b1f3f2ece8212b437d456b2d55a15a50b6"
+        ],
+        [
+          1,
+          false,
+          "last",
+          "current",
+          0,
+          191201780,
+          6082690.374,
+          5.1,
+          6.4,
+          6.5,
+          11.9,
+          "1990443830334608384",
+          "f257c1ef6467951483a5fd58b9b4192fd4944485318bef6ccb1f20588d7ff161"
+        ],
+        [
+          1,
+          false,
+          "last",
+          "before",
+          0,
+          188794690,
+          6190345.383,
+          5.1,
+          5.2,
+          6.5,
+          9.2,
+          "1990443830334608384",
+          "75de73a3f9c4b92bca5cd5868d0986f1b7713cc374756f7dd90d33e2b991ffdc"
+        ],
+        [
+          1,
+          false,
+          "first",
+          "current",
+          0,
+          189601895,
+          6167129.201,
+          5.1,
+          6.3,
+          6.4,
+          11.4,
+          "1990442678334608384",
+          "fb6cfbbd384c177146f0216535504d476103235acee5d49dd89b1da01d187023"
+        ],
+        [
+          1,
+          false,
+          "first",
+          "before",
+          0,
+          194857810,
+          6016485.169,
+          5.1,
+          6.4,
+          6.5,
+          11.7,
+          "1990442678334608384",
+          "37ee951738840031c5b0bbdeae6dbd2a472eff1eeb2b556991f3677b494d8c04"
+        ],
+        [
+          1,
+          false,
+          "all",
+          "current",
+          0,
+          180350450,
+          6527628.186,
+          4.7,
+          5.9,
+          8.0,
+          10.3,
+          "1990442678334928384",
+          "3057a09e143afcfeeee0b9cfee540428025614ae95f2de3c0ed366c00d78c453"
+        ],
+        [
+          1,
+          false,
+          "all",
+          "before",
+          0,
+          191055655,
+          6112574.521,
+          5.1,
+          6.4,
+          8.3,
+          10.9,
+          "1990442678334928384",
+          "67b62337d55cabd1b8c816356a95f258237c4f4d5adb54a0ef9c99dd0d0dd715"
+        ],
+        [
+          1,
+          false,
+          "raw",
+          "current",
+          0,
+          166206670,
+          7087580.345,
+          4.4,
+          5.5,
+          5.6,
+          10.3,
+          "1990442678334928384",
+          "69173f0a7aa52865b9a0dc1d7ea2913903ee7600c28b3cf881f31e936a54ebc6"
+        ],
+        [
+          1,
+          false,
+          "raw",
+          "before",
+          0,
+          168936215,
+          6948108.486,
+          4.4,
+          5.5,
+          5.5,
+          9.7,
+          "1990442678334928384",
+          "b931ec6aca6b78f9b36529efde14eb663a3bc09c12b8116f7234496db89dd7ad"
+        ],
+        [
+          2,
+          false,
+          "raw",
+          "before",
+          0,
+          163504600,
+          7218994.981,
+          4.3,
+          4.4,
+          7.2,
+          7.9,
+          "1990442678334928384",
+          "348e647e7f65ec3fe89d89fef2b837c4367fd08ba8856924aa64b2cce9619615"
+        ],
+        [
+          2,
+          false,
+          "raw",
+          "current",
+          0,
+          166202540,
+          7086513.037,
+          4.3,
+          5.4,
+          5.5,
+          9.4,
+          "1990442678334928384",
+          "77a3c9a7c1b4e2779de45077c38f55f9b3347e8155675843ee60898a2c878ef7"
+        ],
+        [
+          2,
+          false,
+          "all",
+          "before",
+          0,
+          189161070,
+          6172101.33,
+          5.1,
+          5.2,
+          6.5,
+          11.1,
+          "1990442678334928384",
+          "0eef620e4c823d7e7e35e44e6866a38f146d6196094a851df9d06417575c40bf"
+        ],
+        [
+          2,
+          false,
+          "all",
+          "current",
+          0,
+          198621149,
+          5911442.891,
+          4.8,
+          8.1,
+          8.4,
+          10.4,
+          "1990442678334928384",
+          "80fff9714707a649b1428a6b863495d399237378af075ff540b78e82efb91613"
+        ],
+        [
+          2,
+          false,
+          "first",
+          "before",
+          0,
+          192905370,
+          6049961.337,
+          5.1,
+          6.3,
+          6.5,
+          16.1,
+          "1990442678334608384",
+          "0380d84456506cb7383e3835ab033217f3fcc1153fb4dd5848bb96e39c6093b8"
+        ],
+        [
+          2,
+          false,
+          "first",
+          "current",
+          0,
+          187276530,
+          6249023.59,
+          5.1,
+          5.1,
+          5.2,
+          9.0,
+          "1990442678334608384",
+          "a02322d6e0f80ab72fea1ab2540825c1d312130d2b8601c25dbe5f5f58b8a40b"
+        ],
+        [
+          2,
+          false,
+          "last",
+          "before",
+          0,
+          195346970,
+          5996787.97,
+          5.1,
+          6.4,
+          8.3,
+          11.5,
+          "1990443830334608384",
+          "d2459f603e4347a5a565dde4c79967530aaac611abba3731bf489f56c1aeab6d"
+        ],
+        [
+          2,
+          false,
+          "last",
+          "current",
+          0,
+          190288455,
+          6162485.485,
+          5.1,
+          5.3,
+          6.5,
+          10.3,
+          "1990443830334608384",
+          "30bf7427d6bd1c473b7f989468a22800d41b88d9063d799a05de8cd937f16927"
+        ],
+        [
+          3,
+          false,
+          "last",
+          "current",
+          0,
+          189002800,
+          6207047.715,
+          5.1,
+          5.2,
+          6.4,
+          9.4,
+          "1990443830334608384",
+          "e1a2b1f3bd25a77872ba63b6e2658a2223bce34fefbec62956fbdd8914fc5a8d"
+        ],
+        [
+          3,
+          false,
+          "last",
+          "before",
+          0,
+          189991270,
+          6148005.548,
+          5.1,
+          5.3,
+          6.4,
+          9.7,
+          "1990443830334608384",
+          "4020cc7621a7410d9c8d5f3c0d181433c75b8047848f8da185de780457875a20"
+        ],
+        [
+          3,
+          false,
+          "first",
+          "current",
+          0,
+          192924795,
+          6060468.323,
+          5.1,
+          6.3,
+          8.3,
+          11.5,
+          "1990442678334608384",
+          "2fdc855bb3efa64559ab3b06460718afc762afd6575ec3aa8e0abee0dea55780"
+        ],
+        [
+          3,
+          false,
+          "first",
+          "before",
+          0,
+          193168675,
+          6059814.153,
+          5.1,
+          6.3,
+          6.5,
+          11.1,
+          "1990442678334608384",
+          "14b7253fb9196dd9a7524cb640fdefc50e9b4706d0828604fc61638b34765885"
+        ],
+        [
+          3,
+          false,
+          "all",
+          "current",
+          0,
+          180454330,
+          6533012.127,
+          4.7,
+          5.9,
+          8.2,
+          10.4,
+          "1990442678334928384",
+          "4013ddf3b743dfdd01735589595b5f0647aec81d627dee3a9eec279d608c9bc5"
+        ],
+        [
+          3,
+          false,
+          "all",
+          "before",
+          0,
+          191017155,
+          6116383.306,
+          5.1,
+          5.2,
+          8.8,
+          9.3,
+          "1990442678334928384",
+          "9f4805076031019c8316ca3f96aeb09ca8cbe34965186330283ad057d52e5e2e"
+        ],
+        [
+          3,
+          false,
+          "raw",
+          "current",
+          0,
+          168601370,
+          6976313.237,
+          4.4,
+          5.5,
+          5.5,
+          10.2,
+          "1990442678334928384",
+          "09b6d5f119ee93244c909dced890422d2cc5cbb2c083ced1d1565a7bd8356119"
+        ],
+        [
+          3,
+          false,
+          "raw",
+          "before",
+          0,
+          161246085,
+          7298088.129,
+          4.3,
+          4.4,
+          4.5,
+          7.7,
+          "1990442678334928384",
+          "90034c7a77563b188e19f17ec10d54a949ce0e5187645b818cb9ac3137972684"
+        ],
+        [
+          4,
+          false,
+          "raw",
+          "before",
+          0,
+          162450190,
+          7257321.958,
+          4.3,
+          4.4,
+          4.5,
+          7.7,
+          "1990442678334928384",
+          "8711162bd0bf941b151bcbf14076c81ad5c6e2f707701b34d3711fb1d567ef60"
+        ],
+        [
+          4,
+          false,
+          "raw",
+          "current",
+          0,
+          161827260,
+          7284448.613,
+          4.3,
+          4.4,
+          4.5,
+          7.5,
+          "1990442678334928384",
+          "dfbc9cfadee0fd36a0492c4c4f07e778c4cbaea7e49c4b13678e7004ec9bb0ff"
+        ],
+        [
+          4,
+          false,
+          "all",
+          "before",
+          0,
+          187919480,
+          6223138.406,
+          5.1,
+          5.1,
+          6.4,
+          9.2,
+          "1990442678334928384",
+          "dc65be01b837b601fd78970776dfc6c3f9b92a2ccdda52c575da80624fd0a8ba"
+        ],
+        [
+          4,
+          false,
+          "all",
+          "current",
+          0,
+          175557900,
+          6668667.267,
+          4.7,
+          4.8,
+          4.9,
+          8.0,
+          "1990442678334928384",
+          "6c08861cf4ca884e8eec24a6073fc7faff5e17552b22b42d06fb8935eb7ccef5"
+        ],
+        [
+          4,
+          false,
+          "first",
+          "before",
+          0,
+          188198395,
+          6212361.823,
+          5.1,
+          5.2,
+          5.2,
+          8.9,
+          "1990442678334608384",
+          "24a6a02857cb2a9ef647e945c287867475a01c625d6e120c02c17631da1a296a"
+        ],
+        [
+          4,
+          false,
+          "first",
+          "current",
+          0,
+          191048865,
+          6129962.875,
+          5.1,
+          6.3,
+          6.4,
+          9.5,
+          "1990442678334608384",
+          "1496888d6dc3635466a8414a76712a76ea2b08c2bdba487fbe7f8ce65e21c8e5"
+        ],
+        [
+          4,
+          false,
+          "last",
+          "before",
+          0,
+          192446380,
+          6096376.085,
+          5.1,
+          6.4,
+          6.5,
+          11.3,
+          "1990443830334608384",
+          "f586b3b4a21055d111283a052373b49593f826c7d8c888ee871f10ce8def0f99"
+        ],
+        [
+          4,
+          false,
+          "last",
+          "current",
+          0,
+          192616655,
+          6093682.755,
+          5.1,
+          6.3,
+          6.4,
+          11.4,
+          "1990443830334608384",
+          "15592acc86c0313b26c00e1012c892560b93bb1746edbe0d51acfb0023d06f72"
+        ]
+      ],
+      "original_threshold_diagnostic_violations": [
+        {
+          "path": "raw",
+          "metric": "batch_p95_us",
+          "ratio": 1.2272727272727273
+        },
+        {
+          "path": "raw",
+          "metric": "batch_p999_us",
+          "ratio": 1.3246753246753245
+        },
+        {
+          "path": "all",
+          "metric": "batch_p95_us",
+          "ratio": 1.1346153846153846
+        }
+      ],
+      "local_full_json_sha256": "f82f8cdc06517af3a5b3e5f33d7f1bfb5e2b819f81d515fbce30d440cb2da7c6"
+    },
+    "wsl": {
+      "schema": 1,
+      "complete": true,
+      "platform": "wsl",
+      "qualified": false,
+      "inputs_count": 2506,
+      "executables": {
+        "raw": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/wsl-raw",
+            "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/wsl-raw",
+            "sha256": "dd42a17c20c144c4650db579e8d76caaa9dbef3874b0b158063fa815a71ab103"
+          }
+        },
+        "all": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/wsl-all",
+            "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/wsl-all",
+            "sha256": "dd42a17c20c144c4650db579e8d76caaa9dbef3874b0b158063fa815a71ab103"
+          }
+        },
+        "first": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/wsl-first",
+            "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/wsl-first",
+            "sha256": "dd42a17c20c144c4650db579e8d76caaa9dbef3874b0b158063fa815a71ab103"
+          }
+        },
+        "last": {
+          "before": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/before/wsl-last",
+            "sha256": "bfae5cd8b59b85d77162de742fc3cddf80a865284c2c8e0d3a1b143a3f6599d6"
+          },
+          "current": {
+            "path": "out/service-extensions/xcron-delivery-fastpath/after/wsl-last",
+            "sha256": "dd42a17c20c144c4650db579e8d76caaa9dbef3874b0b158063fa815a71ab103"
+          }
+        }
+      },
+      "benchmark_fingerprint": "81365fa57949cd2361f45b5ca1870905b610a1d7908345b6e3e0f384b0118d72",
+      "source_fingerprint": "823808ecc647dee84311484e865c75bb2fcac177a6764da1bf50e028946fed38",
+      "batches": 10000,
+      "batch_size": 32,
+      "rounds": 5,
+      "warmups_per_cell": 1,
+      "affinity": "inherited, no pinning",
+      "cpu_unit": "whole_process_cpu_ns",
+      "cpu_scope": "Full child lifetime: includes startup, zone creation, sample allocation/sort/output and cleanup outside the timed API loop. Windows cycles and Linux CPU nanoseconds are not comparable units.",
+      "scope": "Additional same-window diagnostic; preserves original four benchmark programs/arguments and all failed official reports. Original acceptance/noise/throughput/latency gates are not waived. No independent production/causal claim.",
+      "summary": {
+        "raw": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                6196986.595,
+                6826928.675,
+                6611529.131,
+                6433518.503,
+                6680166.03
+              ],
+              "median": 6611529.131,
+              "min": 6196986.595,
+              "max": 6826928.675,
+              "relative_mad": 0.026924274925349413
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.6,
+                4.6,
+                4.6,
+                4.5,
+                4.6
+              ],
+              "median": 4.6,
+              "min": 4.5,
+              "max": 4.6,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                7.3,
+                4.7,
+                7.6,
+                5.8,
+                5.7
+              ],
+              "median": 5.8,
+              "min": 4.7,
+              "max": 7.6,
+              "relative_mad": 0.18965517241379304
+            },
+            "batch_p99_us": {
+              "samples": [
+                10.0,
+                5.7,
+                8.1,
+                8.8,
+                6.9
+              ],
+              "median": 8.1,
+              "min": 5.7,
+              "max": 10.0,
+              "relative_mad": 0.14814814814814806
+            },
+            "batch_p999_us": {
+              "samples": [
+                29.2,
+                15.2,
+                16.0,
+                22.6,
+                19.2
+              ],
+              "median": 19.2,
+              "min": 15.2,
+              "max": 29.2,
+              "relative_mad": 0.17708333333333345
+            },
+            "cpu": {
+              "samples": [
+                53553000,
+                48970000,
+                50266000,
+                51547000,
+                49817000
+              ],
+              "median": 50266000,
+              "min": 48970000,
+              "max": 53553000,
+              "relative_mad": 0.025484422870329846
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                6268720.333,
+                6769878.972,
+                6103131.362,
+                6540583.164,
+                6877357.228
+              ],
+              "median": 6540583.164,
+              "min": 6103131.362,
+              "max": 6877357.228,
+              "relative_mad": 0.04156553386498615
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.5,
+                4.6,
+                4.7,
+                4.5,
+                4.5
+              ],
+              "median": 4.5,
+              "min": 4.5,
+              "max": 4.7,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                8.1,
+                5.7,
+                5.8,
+                5.7,
+                4.7
+              ],
+              "median": 5.7,
+              "min": 4.7,
+              "max": 8.1,
+              "relative_mad": 0.017543859649122744
+            },
+            "batch_p99_us": {
+              "samples": [
+                8.2,
+                7.2,
+                8.9,
+                9.3,
+                7.5
+              ],
+              "median": 8.2,
+              "min": 7.2,
+              "max": 9.3,
+              "relative_mad": 0.08536585365853672
+            },
+            "batch_p999_us": {
+              "samples": [
+                22.0,
+                15.3,
+                32.3,
+                16.9,
+                19.4
+              ],
+              "median": 19.4,
+              "min": 15.3,
+              "max": 32.3,
+              "relative_mad": 0.1340206185567011
+            },
+            "cpu": {
+              "samples": [
+                53457000,
+                49070000,
+                54248000,
+                50801000,
+                48536000
+              ],
+              "median": 50801000,
+              "min": 48536000,
+              "max": 54248000,
+              "relative_mad": 0.04458573650124997
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 0.9892693557580575,
+            "batch_p50_us": 0.9782608695652175,
+            "batch_p95_us": 0.9827586206896552,
+            "batch_p99_us": 1.0123456790123457,
+            "batch_p999_us": 1.0104166666666667,
+            "cpu": 1.0106433772331198
+          }
+        },
+        "all": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                5978369.4,
+                5790880.344,
+                5854768.694,
+                5703510.052,
+                5967109.924
+              ],
+              "median": 5854768.694,
+              "min": 5703510.052,
+              "max": 5978369.4,
+              "relative_mad": 0.019187987753491856
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.2,
+                5.2,
+                5.2,
+                5.2,
+                5.2
+              ],
+              "median": 5.2,
+              "min": 5.2,
+              "max": 5.2,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                5.4,
+                6.6,
+                6.5,
+                6.5,
+                6.4
+              ],
+              "median": 6.5,
+              "min": 5.4,
+              "max": 6.6,
+              "relative_mad": 0.01538461538461533
+            },
+            "batch_p99_us": {
+              "samples": [
+                9.5,
+                10.2,
+                9.3,
+                8.9,
+                8.8
+              ],
+              "median": 9.3,
+              "min": 8.8,
+              "max": 10.2,
+              "relative_mad": 0.04301075268817208
+            },
+            "batch_p999_us": {
+              "samples": [
+                17.0,
+                20.0,
+                21.6,
+                23.5,
+                19.3
+              ],
+              "median": 20.0,
+              "min": 17.0,
+              "max": 23.5,
+              "relative_mad": 0.08000000000000007
+            },
+            "cpu": {
+              "samples": [
+                55435000,
+                57028000,
+                56692000,
+                57953000,
+                55412000
+              ],
+              "median": 56692000,
+              "min": 55412000,
+              "max": 57953000,
+              "relative_mad": 0.022172440555986734
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                6384141.664,
+                6227643.611,
+                5934541.892,
+                6327174.1,
+                6089276.288
+              ],
+              "median": 6227643.611,
+              "min": 5934541.892,
+              "max": 6384141.664,
+              "relative_mad": 0.022218246843091528
+            },
+            "batch_p50_us": {
+              "samples": [
+                4.8,
+                5.0,
+                5.0,
+                4.8,
+                4.8
+              ],
+              "median": 4.8,
+              "min": 4.8,
+              "max": 5.0,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                6.0,
+                6.1,
+                6.2,
+                6.0,
+                7.3
+              ],
+              "median": 6.1,
+              "min": 6.0,
+              "max": 7.3,
+              "relative_mad": 0.01639344262295076
+            },
+            "batch_p99_us": {
+              "samples": [
+                6.1,
+                8.0,
+                6.3,
+                8.8,
+                8.7
+              ],
+              "median": 8.0,
+              "min": 6.1,
+              "max": 8.8,
+              "relative_mad": 0.10000000000000009
+            },
+            "batch_p999_us": {
+              "samples": [
+                16.4,
+                15.2,
+                28.3,
+                19.9,
+                29.7
+              ],
+              "median": 19.9,
+              "min": 15.2,
+              "max": 29.7,
+              "relative_mad": 0.23618090452261303
+            },
+            "cpu": {
+              "samples": [
+                52027000,
+                53226000,
+                55739000,
+                52273000,
+                54382000
+              ],
+              "median": 53226000,
+              "min": 52027000,
+              "max": 55739000,
+              "relative_mad": 0.0217187089016646
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 1.0636873865541645,
+            "batch_p50_us": 0.923076923076923,
+            "batch_p95_us": 0.9384615384615385,
+            "batch_p99_us": 0.8602150537634408,
+            "batch_p999_us": 0.9949999999999999,
+            "cpu": 0.9388626261200875
+          }
+        },
+        "first": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                4953713.584,
+                5757518.406,
+                5960940.823,
+                5519258.668,
+                5275078.792
+              ],
+              "median": 5519258.668,
+              "min": 4953713.584,
+              "max": 5960940.823,
+              "relative_mad": 0.044241426374111596
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.2,
+                5.2,
+                5.2,
+                5.3,
+                5.2
+              ],
+              "median": 5.2,
+              "min": 5.2,
+              "max": 5.3,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                9.7,
+                6.5,
+                5.4,
+                6.7,
+                9.5
+              ],
+              "median": 6.7,
+              "min": 5.4,
+              "max": 9.7,
+              "relative_mad": 0.19402985074626863
+            },
+            "batch_p99_us": {
+              "samples": [
+                12.1,
+                8.8,
+                8.8,
+                9.3,
+                9.7
+              ],
+              "median": 9.3,
+              "min": 8.8,
+              "max": 12.1,
+              "relative_mad": 0.05376344086021505
+            },
+            "batch_p999_us": {
+              "samples": [
+                39.1,
+                21.4,
+                16.4,
+                30.4,
+                23.8
+              ],
+              "median": 23.8,
+              "min": 16.4,
+              "max": 39.1,
+              "relative_mad": 0.2773109243697478
+            },
+            "cpu": {
+              "samples": [
+                66395000,
+                57523000,
+                55523000,
+                59812000,
+                62530000
+              ],
+              "median": 59812000,
+              "min": 55523000,
+              "max": 66395000,
+              "relative_mad": 0.045442386143248845
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                5764436.206,
+                5775182.852,
+                5916798.607,
+                5898226.0,
+                5921681.944
+              ],
+              "median": 5898226.0,
+              "min": 5764436.206,
+              "max": 5921681.944,
+              "relative_mad": 0.0039767794587728805
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.3,
+                5.2,
+                5.2,
+                5.2,
+                5.2
+              ],
+              "median": 5.2,
+              "min": 5.2,
+              "max": 5.3,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                6.6,
+                6.6,
+                6.5,
+                6.4,
+                6.5
+              ],
+              "median": 6.5,
+              "min": 6.4,
+              "max": 6.6,
+              "relative_mad": 0.01538461538461533
+            },
+            "batch_p99_us": {
+              "samples": [
+                9.0,
+                9.3,
+                8.8,
+                9.0,
+                9.0
+              ],
+              "median": 9.0,
+              "min": 8.8,
+              "max": 9.3,
+              "relative_mad": 0.0
+            },
+            "batch_p999_us": {
+              "samples": [
+                17.9,
+                26.5,
+                17.0,
+                21.4,
+                22.7
+              ],
+              "median": 21.4,
+              "min": 17.0,
+              "max": 26.5,
+              "relative_mad": 0.1635514018691589
+            },
+            "cpu": {
+              "samples": [
+                57437000,
+                57240000,
+                55920000,
+                56214000,
+                55925000
+              ],
+              "median": 56214000,
+              "min": 55920000,
+              "max": 57437000,
+              "relative_mad": 0.005230013875547016
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 1.0686627235279273,
+            "batch_p50_us": 1.0,
+            "batch_p95_us": 0.9701492537313433,
+            "batch_p99_us": 0.9677419354838709,
+            "batch_p999_us": 0.8991596638655461,
+            "cpu": 0.9398448471878553
+          }
+        },
+        "last": {
+          "before": {
+            "labels_per_sec": {
+              "samples": [
+                5975277.179,
+                5834571.448,
+                5731654.572,
+                5771589.247,
+                5867457.688
+              ],
+              "median": 5834571.448,
+              "min": 5731654.572,
+              "max": 5975277.179,
+              "relative_mad": 0.010794657595904278
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.2,
+                5.2,
+                5.2,
+                5.2,
+                5.2
+              ],
+              "median": 5.2,
+              "min": 5.2,
+              "max": 5.2,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                6.4,
+                6.5,
+                6.6,
+                6.5,
+                6.5
+              ],
+              "median": 6.5,
+              "min": 6.4,
+              "max": 6.6,
+              "relative_mad": 0.0
+            },
+            "batch_p99_us": {
+              "samples": [
+                9.1,
+                6.7,
+                10.4,
+                10.3,
+                9.2
+              ],
+              "median": 9.2,
+              "min": 6.7,
+              "max": 10.4,
+              "relative_mad": 0.11956521739130452
+            },
+            "batch_p999_us": {
+              "samples": [
+                15.5,
+                23.7,
+                26.3,
+                21.3,
+                22.3
+              ],
+              "median": 22.3,
+              "min": 15.5,
+              "max": 26.3,
+              "relative_mad": 0.0627802690582959
+            },
+            "cpu": {
+              "samples": [
+                55370000,
+                56726000,
+                57740000,
+                57331000,
+                56421000
+              ],
+              "median": 56726000,
+              "min": 55370000,
+              "max": 57740000,
+              "relative_mad": 0.010665303388217043
+            }
+          },
+          "current": {
+            "labels_per_sec": {
+              "samples": [
+                5705432.004,
+                5553135.603,
+                5944298.1,
+                5829554.643,
+                5886876.096
+              ],
+              "median": 5829554.643,
+              "min": 5553135.603,
+              "max": 5944298.1,
+              "relative_mad": 0.01968305711616939
+            },
+            "batch_p50_us": {
+              "samples": [
+                5.3,
+                5.3,
+                5.3,
+                5.2,
+                5.2
+              ],
+              "median": 5.3,
+              "min": 5.2,
+              "max": 5.3,
+              "relative_mad": 0.0
+            },
+            "batch_p95_us": {
+              "samples": [
+                6.6,
+                6.7,
+                5.4,
+                6.4,
+                6.4
+              ],
+              "median": 6.4,
+              "min": 5.4,
+              "max": 6.7,
+              "relative_mad": 0.03124999999999989
+            },
+            "batch_p99_us": {
+              "samples": [
+                9.4,
+                9.6,
+                6.7,
+                6.6,
+                9.9
+              ],
+              "median": 9.4,
+              "min": 6.6,
+              "max": 9.9,
+              "relative_mad": 0.05319148936170213
+            },
+            "batch_p999_us": {
+              "samples": [
+                27.9,
+                22.9,
+                18.2,
+                24.8,
+                22.5
+              ],
+              "median": 22.9,
+              "min": 18.2,
+              "max": 27.9,
+              "relative_mad": 0.08296943231441058
+            },
+            "cpu": {
+              "samples": [
+                57830000,
+                59470000,
+                55809000,
+                56818000,
+                56222000
+              ],
+              "median": 56818000,
+              "min": 55809000,
+              "max": 59470000,
+              "relative_mad": 0.017758456827061845
+            }
+          },
+          "current_before_ratio": {
+            "labels_per_sec": 0.999140158785489,
+            "batch_p50_us": 1.0192307692307692,
+            "batch_p95_us": 0.9846153846153847,
+            "batch_p99_us": 1.0217391304347827,
+            "batch_p999_us": 1.0269058295964124,
+            "cpu": 1.0016218312590346
+          }
+        }
+      },
+      "raw_row_columns": [
+        "round",
+        "warmup",
+        "path",
+        "version",
+        "exit_code",
+        "cpu",
+        "labels_per_sec",
+        "batch_p50_us",
+        "batch_p95_us",
+        "batch_p99_us",
+        "batch_p999_us",
+        "checksum",
+        "stdout_sha256"
+      ],
+      "raw_rows": [
+        [
+          -1,
+          true,
+          "raw",
+          "before",
+          0,
+          51310000,
+          6449025.362,
+          4.6,
+          5.8,
+          8.0,
+          26.8,
+          "1990442678334928384",
+          "a7a48b12892a019356ea1e907328433c63adda9cab64db0301f9e3c9ff442461"
+        ],
+        [
+          -1,
+          true,
+          "raw",
+          "current",
+          0,
+          59169000,
+          5583385.144,
+          4.6,
+          8.2,
+          8.3,
+          20.5,
+          "1990442678334928384",
+          "e23ae12af6cd5d45612f841b07e5f8253901fc711c31365a625b22ce3b299d06"
+        ],
+        [
+          -1,
+          true,
+          "all",
+          "before",
+          0,
+          56967000,
+          5802209.812,
+          5.3,
+          6.6,
+          8.3,
+          16.1,
+          "1990442678334928384",
+          "17ea4bbe299f1e3232903e3b9e4a46f73f96dd728cc9b8167697ea1ea28094b9"
+        ],
+        [
+          -1,
+          true,
+          "all",
+          "current",
+          0,
+          52475000,
+          6328663.182,
+          4.9,
+          5.1,
+          7.3,
+          16.7,
+          "1990442678334928384",
+          "b26f5995f0d1e8dee4fdc9cd4b876dfcb5e9365e01f1deea4ff098e4e9024536"
+        ],
+        [
+          -1,
+          true,
+          "first",
+          "before",
+          0,
+          62480000,
+          5300909.35,
+          5.3,
+          9.0,
+          9.6,
+          29.5,
+          "1990442678334608384",
+          "1dac78d106703d8ee69911e82f7586b83363d82b11487f495f0af205b5611e6d"
+        ],
+        [
+          -1,
+          true,
+          "first",
+          "current",
+          0,
+          56634000,
+          5853504.954,
+          5.2,
+          6.5,
+          9.1,
+          26.9,
+          "1990442678334608384",
+          "247548dd901a7e072b5d44988d71db43e00ecf7e788562c7c81c855dbba86819"
+        ],
+        [
+          -1,
+          true,
+          "last",
+          "before",
+          0,
+          56727000,
+          5824313.126,
+          5.3,
+          6.5,
+          9.1,
+          23.1,
+          "1990443830334608384",
+          "d8017b322943f6971b3c7166dfa6c70f17779438ca665c0581694a2140842d85"
+        ],
+        [
+          -1,
+          true,
+          "last",
+          "current",
+          0,
+          56164000,
+          5886074.91,
+          5.2,
+          6.5,
+          11.2,
+          20.8,
+          "1990443830334608384",
+          "7e392a72073f4c8983e46e4046625548123d3db2f4eb418f3678729a2e2076eb"
+        ],
+        [
+          0,
+          false,
+          "raw",
+          "before",
+          0,
+          53553000,
+          6196986.595,
+          4.6,
+          7.3,
+          10.0,
+          29.2,
+          "1990442678334928384",
+          "b0a7a95611ccc5d3ea76b07d2159d3a5b9362372088ab28afe802b1cbc9bedec"
+        ],
+        [
+          0,
+          false,
+          "raw",
+          "current",
+          0,
+          53457000,
+          6268720.333,
+          4.5,
+          8.1,
+          8.2,
+          22.0,
+          "1990442678334928384",
+          "305e6f8bacee64ff7898a0d2b7aa03c5decaef9d3c272871edc0a256a7f9a69c"
+        ],
+        [
+          0,
+          false,
+          "all",
+          "before",
+          0,
+          55435000,
+          5978369.4,
+          5.2,
+          5.4,
+          9.5,
+          17.0,
+          "1990442678334928384",
+          "2fbf2c8c1a57eb86ff1fc7e08b4ef55bced699b89d8c4dcf0766e2f8b14c638c"
+        ],
+        [
+          0,
+          false,
+          "all",
+          "current",
+          0,
+          52027000,
+          6384141.664,
+          4.8,
+          6.0,
+          6.1,
+          16.4,
+          "1990442678334928384",
+          "d368a8ba580695a1db5dacc5bc97cf1133a91a294f74c65d036c479e3b64764e"
+        ],
+        [
+          0,
+          false,
+          "first",
+          "before",
+          0,
+          66395000,
+          4953713.584,
+          5.2,
+          9.7,
+          12.1,
+          39.1,
+          "1990442678334608384",
+          "69e9d9114308c31ec34933e99235d272426028f8ccbd5c870af1aab32193560e"
+        ],
+        [
+          0,
+          false,
+          "first",
+          "current",
+          0,
+          57437000,
+          5764436.206,
+          5.3,
+          6.6,
+          9.0,
+          17.9,
+          "1990442678334608384",
+          "912d78e54fee7eb4fe0539d9d66e8b9bdf6b97e542c7437967b0182ffb4b2555"
+        ],
+        [
+          0,
+          false,
+          "last",
+          "before",
+          0,
+          55370000,
+          5975277.179,
+          5.2,
+          6.4,
+          9.1,
+          15.5,
+          "1990443830334608384",
+          "cf0e0d2b7f99bd8b56ef2a2ab68b4695e62fdafbe045f3955548194f35786fb3"
+        ],
+        [
+          0,
+          false,
+          "last",
+          "current",
+          0,
+          57830000,
+          5705432.004,
+          5.3,
+          6.6,
+          9.4,
+          27.9,
+          "1990443830334608384",
+          "dbd51b25c0e5d480a656c74f873ce02caa737106154e4721b466bd39e5972a44"
+        ],
+        [
+          1,
+          false,
+          "last",
+          "current",
+          0,
+          59470000,
+          5553135.603,
+          5.3,
+          6.7,
+          9.6,
+          22.9,
+          "1990443830334608384",
+          "5b95974ed607af8f41ed248971d3f712e47d94e517a4eca1c96e5f2aa19f2e95"
+        ],
+        [
+          1,
+          false,
+          "last",
+          "before",
+          0,
+          56726000,
+          5834571.448,
+          5.2,
+          6.5,
+          6.7,
+          23.7,
+          "1990443830334608384",
+          "003bf431d60bb1fdab0320394c1e53ff022b113847a0e6119f0286a9cdb30531"
+        ],
+        [
+          1,
+          false,
+          "first",
+          "current",
+          0,
+          57240000,
+          5775182.852,
+          5.2,
+          6.6,
+          9.3,
+          26.5,
+          "1990442678334608384",
+          "d8c80506224b21fef99f4e6090b2d26ee638cbdc85f89456655057fa566e6697"
+        ],
+        [
+          1,
+          false,
+          "first",
+          "before",
+          0,
+          57523000,
+          5757518.406,
+          5.2,
+          6.5,
+          8.8,
+          21.4,
+          "1990442678334608384",
+          "1b58356c7ea8825d772e5f4658250b9a90cb1325dcce295398441be4db66703b"
+        ],
+        [
+          1,
+          false,
+          "all",
+          "current",
+          0,
+          53226000,
+          6227643.611,
+          5.0,
+          6.1,
+          8.0,
+          15.2,
+          "1990442678334928384",
+          "f318b031cff6d10d684781cb75b2039b2bfcce20a137119a1394e88330f68831"
+        ],
+        [
+          1,
+          false,
+          "all",
+          "before",
+          0,
+          57028000,
+          5790880.344,
+          5.2,
+          6.6,
+          10.2,
+          20.0,
+          "1990442678334928384",
+          "d754ecc6005963289bf58fd72bcf68316e850b245140c882e01065ace289ed81"
+        ],
+        [
+          1,
+          false,
+          "raw",
+          "current",
+          0,
+          49070000,
+          6769878.972,
+          4.6,
+          5.7,
+          7.2,
+          15.3,
+          "1990442678334928384",
+          "53d64888eac2ebf11a17104d982b8d996408be42e0ed44fc67b271691fbb7763"
+        ],
+        [
+          1,
+          false,
+          "raw",
+          "before",
+          0,
+          48970000,
+          6826928.675,
+          4.6,
+          4.7,
+          5.7,
+          15.2,
+          "1990442678334928384",
+          "ea8a777bbc2dff0823c6da21b2c296f03c9e714f3253e90a7be9289769b2fb94"
+        ],
+        [
+          2,
+          false,
+          "raw",
+          "before",
+          0,
+          50266000,
+          6611529.131,
+          4.6,
+          7.6,
+          8.1,
+          16.0,
+          "1990442678334928384",
+          "f1501b2b9ab4db28c074e8b13292fad814744c145e81d936035196ab9c32a50d"
+        ],
+        [
+          2,
+          false,
+          "raw",
+          "current",
+          0,
+          54248000,
+          6103131.362,
+          4.7,
+          5.8,
+          8.9,
+          32.3,
+          "1990442678334928384",
+          "86c161917ece25ce3dc1c4807c2ce5392e6e5e80503e18f25403cbd2dd0e98dd"
+        ],
+        [
+          2,
+          false,
+          "all",
+          "before",
+          0,
+          56692000,
+          5854768.694,
+          5.2,
+          6.5,
+          9.3,
+          21.6,
+          "1990442678334928384",
+          "e2ac515db98ad33015d75489418fe69481a685f72b2faceb237048662dfe6b59"
+        ],
+        [
+          2,
+          false,
+          "all",
+          "current",
+          0,
+          55739000,
+          5934541.892,
+          5.0,
+          6.2,
+          6.3,
+          28.3,
+          "1990442678334928384",
+          "31ecdf6f1ef13674df5bbac2e01fde633aa96137ce6f7a1294270f8630f7db34"
+        ],
+        [
+          2,
+          false,
+          "first",
+          "before",
+          0,
+          55523000,
+          5960940.823,
+          5.2,
+          5.4,
+          8.8,
+          16.4,
+          "1990442678334608384",
+          "9ea8addf3ed0a3b9609648e83ebb0f44d61e0e5dc77a7ff5a45a57fd30eb838a"
+        ],
+        [
+          2,
+          false,
+          "first",
+          "current",
+          0,
+          55920000,
+          5916798.607,
+          5.2,
+          6.5,
+          8.8,
+          17.0,
+          "1990442678334608384",
+          "b96704f9b0b14615eac9750bd365628413a3eb7f0bd4224b8a314e4f49d661cd"
+        ],
+        [
+          2,
+          false,
+          "last",
+          "before",
+          0,
+          57740000,
+          5731654.572,
+          5.2,
+          6.6,
+          10.4,
+          26.3,
+          "1990443830334608384",
+          "65ffd10d44e650ba7f0c7a68464103208074e7adf0f6e9eac7cc2b7bfe1e4f9b"
+        ],
+        [
+          2,
+          false,
+          "last",
+          "current",
+          0,
+          55809000,
+          5944298.1,
+          5.3,
+          5.4,
+          6.7,
+          18.2,
+          "1990443830334608384",
+          "3d4fd962518952f71490adae1267d5e8c4b22f9ced07fc0496ce5b51656f9a4c"
+        ],
+        [
+          3,
+          false,
+          "last",
+          "current",
+          0,
+          56818000,
+          5829554.643,
+          5.2,
+          6.4,
+          6.6,
+          24.8,
+          "1990443830334608384",
+          "4e23629f4bb137205507af93b8c5a7ddf05349f209b8483d6bfc42b2a2762196"
+        ],
+        [
+          3,
+          false,
+          "last",
+          "before",
+          0,
+          57331000,
+          5771589.247,
+          5.2,
+          6.5,
+          10.3,
+          21.3,
+          "1990443830334608384",
+          "55d302b034b5e6d73ab76e8723c170f5c8ac151aab92f96b9b78c70f671c2dfa"
+        ],
+        [
+          3,
+          false,
+          "first",
+          "current",
+          0,
+          56214000,
+          5898226.0,
+          5.2,
+          6.4,
+          9.0,
+          21.4,
+          "1990442678334608384",
+          "25a536acc44bde64979458f769f4ebeabe06b005df4bf1ec8b3968a954235307"
+        ],
+        [
+          3,
+          false,
+          "first",
+          "before",
+          0,
+          59812000,
+          5519258.668,
+          5.3,
+          6.7,
+          9.3,
+          30.4,
+          "1990442678334608384",
+          "78c86c4eb584469520cbd0c893ae7d51c62be8341b905ca6a0315a0caf961290"
+        ],
+        [
+          3,
+          false,
+          "all",
+          "current",
+          0,
+          52273000,
+          6327174.1,
+          4.8,
+          6.0,
+          8.8,
+          19.9,
+          "1990442678334928384",
+          "5935dda714663723d4db61066b5cc0bf76ee1ea197e744e8c558e1789c0fd3ac"
+        ],
+        [
+          3,
+          false,
+          "all",
+          "before",
+          0,
+          57953000,
+          5703510.052,
+          5.2,
+          6.5,
+          8.9,
+          23.5,
+          "1990442678334928384",
+          "52b0f23ac35e252dfa0c37ff2900287f9755190093c8f2591f17c8b2c70faf2b"
+        ],
+        [
+          3,
+          false,
+          "raw",
+          "current",
+          0,
+          50801000,
+          6540583.164,
+          4.5,
+          5.7,
+          9.3,
+          16.9,
+          "1990442678334928384",
+          "83f6c8ce3305c6d8ef7e232fa04b808fab6498b60cdd267d440eb6c19f505f27"
+        ],
+        [
+          3,
+          false,
+          "raw",
+          "before",
+          0,
+          51547000,
+          6433518.503,
+          4.5,
+          5.8,
+          8.8,
+          22.6,
+          "1990442678334928384",
+          "8203d9a224148f453c817963086300d9859f7d68b190d45801a99b821b5c474f"
+        ],
+        [
+          4,
+          false,
+          "raw",
+          "before",
+          0,
+          49817000,
+          6680166.03,
+          4.6,
+          5.7,
+          6.9,
+          19.2,
+          "1990442678334928384",
+          "a2c435672461c352af82823e74bde010766c53e8ff56cb15b034f8d5d6e288a2"
+        ],
+        [
+          4,
+          false,
+          "raw",
+          "current",
+          0,
+          48536000,
+          6877357.228,
+          4.5,
+          4.7,
+          7.5,
+          19.4,
+          "1990442678334928384",
+          "967231f99469615809b2f3e9f56a03a3695b3c3aa3b5c6b7532ccee9ff8fa4e8"
+        ],
+        [
+          4,
+          false,
+          "all",
+          "before",
+          0,
+          55412000,
+          5967109.924,
+          5.2,
+          6.4,
+          8.8,
+          19.3,
+          "1990442678334928384",
+          "b01026fa2963e0995270ed1602843ec07fc045d478b56eec120c621a92c964ed"
+        ],
+        [
+          4,
+          false,
+          "all",
+          "current",
+          0,
+          54382000,
+          6089276.288,
+          4.8,
+          7.3,
+          8.7,
+          29.7,
+          "1990442678334928384",
+          "8984069eda301a220bba914ea9f1bd8f6dab1ead2c2ec42481663c2c6940a96f"
+        ],
+        [
+          4,
+          false,
+          "first",
+          "before",
+          0,
+          62530000,
+          5275078.792,
+          5.2,
+          9.5,
+          9.7,
+          23.8,
+          "1990442678334608384",
+          "4ff8dc13e3765e3dabf14676c136476bb740e6d4b51a023e300e5cef059ac3aa"
+        ],
+        [
+          4,
+          false,
+          "first",
+          "current",
+          0,
+          55925000,
+          5921681.944,
+          5.2,
+          6.5,
+          9.0,
+          22.7,
+          "1990442678334608384",
+          "4eff72fc2d0159f5eda74720da14d3f92d61c8115546b6ce8a03add128532aa6"
+        ],
+        [
+          4,
+          false,
+          "last",
+          "before",
+          0,
+          56421000,
+          5867457.688,
+          5.2,
+          6.5,
+          9.2,
+          22.3,
+          "1990443830334608384",
+          "75645f3f1b562234165d89fdf5ea83832e5923fcc288e72255c16ce712488e5c"
+        ],
+        [
+          4,
+          false,
+          "last",
+          "current",
+          0,
+          56222000,
+          5886876.096,
+          5.2,
+          6.4,
+          9.9,
+          22.5,
+          "1990443830334608384",
+          "529ae498cccab9055da40cc1dd0f20ace9950a911c537197fbee71503872ee61"
+        ]
+      ],
+      "original_threshold_diagnostic_violations": [],
+      "local_full_json_sha256": "5923661f1f64ea579271f7214eaed6b7b34deb5cccb5494d8fc53a99d8932c77"
+    }
+  },
+  "performance_limits": [
+    "Four original O2 profiles,10000 batches of32 calls,5 repeats/1 warmup and original5% throughput/10% P99 plus MAD3%/central6% gates are unchanged. Benchmark fingerprints/environments match naturally; source fingerprints differ. No force pairing/baseline rewriting or original failed-sample removal.",
+    "Both official reports exit1 on noise before baseline threshold comparison. Read-only raw comparisons are diagnostic only: Windows no median threshold failures; WSL unchanged RAW P99.9 exceeds10% (20.9 versus18.9us). No qualified speedup or general no-regression claim.",
+    "One extra same-window before/current forward/reverse alternating collection per OS retains8 warmups and40 timed processes, every raw result/checksum/CPU counter. Independent Gregorian expected checksums are asserted for every execution. ALL observed throughput/CPU ratios are Windows1.06812/0.94416 and WSL1.06369/0.93886; unchanged controls and every threshold breach remain visible.",
+    "CPU is full child lifetime including startup, zone construction, allocation/sort/output and cleanup outside the timed API loop. Windows process cycles and Linux process CPU nanoseconds cannot be compared directly. Neither CPU nor across-profile ratios isolate a single API instruction cost.",
+    "Latency is whole32-call batch P50/P95/P99/P99.9, never divided into a per-operation percentile. Workload covers one precompiled two-fold POSIX label with IssueNULL; cold/binary-history/error/with-Issue/recurring/worker/production contention are not qualified."
+  ],
+  "size_scope": "Single objects include selected Core; static/shared own xcron with separate companion XRT. Size/forbidden symbols pass. Static owned text grows176 Windows/157 WSL bytes; data/BSS unchanged. Static stack frame instructions are unchanged and exclude pushes/callees; no maximum whole-call stack claim.",
+  "limitations": [
+    "Paired-probe compilation initially failed -Werror=sign-compare; only explicit safe int32 cast was fixed. Failed setup receipts/logs and exact initial source map are preserved. No product correctness failure is erased or changed into a success receipt.",
+    "Existing Windows symlink fixture remains skipped1314; this no-filesystem optimization does not close that native coverage gap. WSL is not native Linux.",
+    "Native Linux, >=72h mixed-load, production performance/reliability, budgeted recurring selection/gap compensation/physical delivery/durability and remaining Redis/RPC/MQTT scope remain required. All four products developing; overall goal active."
+  ],
+  "local_evidence_directory": "out/service-extensions/xcron-delivery-fastpath/"
+}

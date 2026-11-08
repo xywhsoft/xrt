@@ -7707,3 +7707,90 @@ assembly and samples remain under `out/service-extensions/xcron-delivery/`.
 Native Linux, production performance, >=72h, recurring selection/compensation,
 durability and the remaining Redis/RPC/MQTT scopes stay open. All four products
 remain developing and the overall goal stays active.
+
+### 2026-11-08: remove duplicate validation for optional-Issue ALL selection
+
+Optimized ALL+SKIP with IssueNULL to delegate complete output/input/owner/footer
+validation and resolution to the original zone resolver exactly once. An
+ARGUMENT-initialized typed issue distinguishes structural rejection (the zone
+contract preserves that output) from typed date/unknown failures. The outward
+delivery domain/code/kind mapping uses that typed result, never ambient errors.
+Requested-Issue and selected-policy paths retain their complete validation and
+selection contracts. Public signatures/structures/limits and ownership stay
+unchanged. No Core capability, worker, normal-path allocation/syscall or shared
+runtime is added. The retained
+underlying typed issue, wrapper call/argument moves and selected scratch remain;
+this is not a zero-overhead conversion. Delegated structural failures can now
+attempt both lower-level and outward diagnostics; that extra cold error cost is
+explicit, while normal FOUND/NONE/CAPACITY still request no heap.
+
+Before edits, verified all 2505 previous measurement inputs against the actual
+98be7d1e source, then archived all eight original Windows/WSL benchmark executables,
+source witnesses and untouched reports. The original benchmark program, four
+profiles, arguments, timer/sample/checksum loop, flags, facts and gates are
+unchanged. Current/before benchmark fingerprints and environments match
+naturally. No baseline is rewritten or force paired; original noisy reports
+remain rejected rather than becoming a qualified reference.
+
+Both platforms pass 25 modular/single programs, the runnable example and real
+static/shared consumers. WSL O2 ASan/UBSan/leak-halt and two O1 TSan units pass;
+Windows 85 tooling and generated/docs checks pass. Direct/generated declarations
+still agree on policy8/issue16. New semantic tests pair whole arrays/counts with
+and without Issue for every golden and 768 brute label case, including 256 real
+folds. Direct checks cover NULL/overflow/input/array/count/zone/footer aliases,
+argument versus date/unknown error identity and diagnostic OOM. The warmed loop
+now makes 30000 calls, alternating Issue and including short-capacity discovery,
+with unchanged error identity/allocation counters and no one-byte-quota rejection.
+
+The independent 422-zone 2026e oracle requires a new probe protocol and checks
+all eight policies twice per label, with/without Issue. Each OS checks 188532
+labels, 1508256 independent policy cases and 3016512 physical calls: 1893472
+FOUND, 415424 NONE, 204080 AMBIGUOUS, 415424 MISSING and 88112 UNKNOWN. The probe
+compares complete arrays, counts and error domain/code; both oracle JSONs agree.
+The first paired-probe compile failed a signed enum/int comparison warning.
+Only that application-probe cast changed afterward; product/tests/headers stayed
+identical. Initial maps, failed logs and receipts are retained. Already passed
+suite/example/static/shared checks are reused only after exact command/log hashes
+and all unchanged inputs are verified; their logs do not compile the probe.
+Remaining checks run on the resumed source identity. Final Windows/WSL maps
+agree on 2506 inputs, with that one noncompiled-probe delta recorded separately.
+
+Single/static/shared size and forbidden-symbol checks pass. Static owned xcron
+text grows by 176 bytes on Windows and 157 on WSL; data/BSS stay unchanged.
+Single objects include Core and grow by 276/341 text bytes. Static/shared figures
+own xcron only with separate companion Core, not equivalent deployment sizes.
+O2 main/selected stack reservations are unchanged: Windows184/2176, WSL main120
+plus an additional8-byte subtraction and selected2136. These exclude register
+pushes/callees and are not a maximum whole-call stack measurement.
+
+Both official performance comparisons exit1 on original noise gates, before
+their baseline-threshold phase. Separate read-only raw-median comparisons retain
+no Windows threshold failures and a WSL unchanged-RAW P99.9 violation (20.9us
+versus18.9us, above10%). Current formal throughput medians for raw/ALL/FIRST/LAST
+are Windows7.211M/6.660M/6.138M/6.102M and WSL6.822M/6.229M/5.733M/5.704M labels/s;
+whole32-call P99 medians are5.5/5.8/6.4/6.5us and7.7/7.6/10.4/9.7us. Original
+5% throughput/10% P99 and MAD3%/central6% contracts are unchanged. No qualified
+no-regression, speedup or production-tail claim follows from these noisy samples.
+
+Additional same-window diagnostics alternate saved before/current binaries in
+five forward/reverse rounds, retaining all eight warmups and forty measurements
+per OS. Original10000 batches of32 actual calls and every path remain; independent
+Gregorian expected checksums are required on every execution. Windows ALL raw
+current/before ratios are1.06812 throughput,0.94416 full-process cycles and0.96386
+P99. WSL records1.06369 throughput,0.93886 full-process CPU time and0.86022 P99.
+Unchanged RAW controls give0.98165/0.98927 throughput and1.01653/1.01064 CPU ratios.
+Windows ALL P95 rises1.13462; unchanged RAW P95/P99.9 also rise1.22727/1.32468.
+All observations, including threshold breaches and unchanged-mode variation, are
+retained rather than used to waive the failed original gates. Full-process CPU
+includes startup, zone construction, allocation/sort/output and cleanup outside
+the timed loop. Windows cycles and Linux CPU nanoseconds are incomparable units.
+Cold/history/error/with-Issue/recurring/worker contention are not performance
+qualified by this single precompiled POSIX fold workload.
+
+Portable evidence: `extlibs/xcron/tests/results/delivery-fastpath-20261108.json`.
+All raw maps, source/binary identities, failed-probe setup, accepted receipts,
+assembly, official/alternating samples and CPU counters remain under
+`out/service-extensions/xcron-delivery-fastpath/`. Continue budgeted recurring
+selection and gap compensation, then physical delivery/durable recovery and the
+remaining Redis/RPC/MQTT scope. Native Linux, >=72h and full production/performance
+acceptance stay open; all four libraries remain developing and goal stays active.

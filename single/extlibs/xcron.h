@@ -1241,7 +1241,9 @@ XRT_EXTERN_C_BEGIN
  * must avoid Local, the whole zone/footer ownership graph and one another.
  * Normal results preserve the ambient error; diagnostics may allocate.
  *
- * ALL+SKIP delegates one original complete Resolve directly. Other policies
+ * ALL+SKIP without Issue delegates complete validation/resolution once, retaining
+ * structural versus typed value-error identity independently of diagnostics.
+ * With Issue it validates all delivery outputs before resolution. Other policies
  * use one258-timestamp stack scratch, in addition to Resolve's own temporary,
  * and copy only selected results after checking capacity. Complete resolution
  * still enumerates known offset types and checks unknown coverage; this is a
@@ -4492,6 +4494,15 @@ static xcrondeliverystatus xcronDeliverySelected(const xcronzone* Z,const xdatet
 XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Z,const xdatetime* Local,xcrondeliverypolicy P,
     xtime* Out,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue)
 {
+    if(P.Fold==XCRON_FOLD_ALL && P.Missing==XCRON_MISSING_SKIP && !Issue){
+        /* Resolve performs the complete alias/span validation once. Structural
+         * failures preserve its Issue, so an ARGUMENT sentinel distinguishes
+         * those from typed value failures without consulting ambient errors. */
+        xcronzoneissue Work={.Code=XCRON_ZONE_ARGUMENT};
+        xcronzonestatus Status=xcronZoneResolve(Z,Local,Out,Capacity,Count,&Work);
+        if(Status==XCRON_ZONE_ERROR)return xcronDeliveryFail(Work.Code==XCRON_ZONE_ARGUMENT?XCRON_DELIVERY_ARGUMENT:XCRON_DELIVERY_ZONE,Work.Code,0,NULL);
+        return Status==XCRON_ZONE_CAPACITY?XCRON_DELIVERY_CAPACITY:Status==XCRON_ZONE_FOUND?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
+    }
     void* O[]={Out,Count,Issue};size_t S[]={Capacity<=SIZE_MAX/sizeof(*Out)?Capacity*sizeof(*Out):0,Count?sizeof(*Count):0,Issue?sizeof(*Issue):0};
     if(!Local || !Count || Capacity>SIZE_MAX/sizeof(*Out) || (!Out && Capacity) ||
         P.Fold<XCRON_FOLD_ALL || P.Fold>XCRON_FOLD_REJECT || P.Missing<XCRON_MISSING_SKIP || P.Missing>XCRON_MISSING_REJECT ||

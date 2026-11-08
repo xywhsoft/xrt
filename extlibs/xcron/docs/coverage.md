@@ -40,8 +40,14 @@ then verifies every policy, required selected capacity and untouched output tail
 Independent UTC stepping checks768 labels through64 arbitrary16-transition
 histories under all8 policies, including strict error/capacity results. Golden
 negative/half-hour/zero-delta DST, fractions, full-int64 endpoints, globally unknown
-coverage, aliased/wrapped outputs, diagnostic OOM and20000 warmed zero-heap/error-
-preserving calls accompany concurrent immutable owners. Modular/single, runnable
+coverage, aliased/wrapped outputs, diagnostic OOM and30000 warmed zero-heap/error-
+preserving calls accompany concurrent immutable owners. Golden/brute cases pair
+the whole output array/count with and without Issue. Delegated NULL/span/owner/
+footer aliases and argument versus date/unknown error identity are checked.
+The warmed loop includes capacity discovery and alternating optional Issue under
+one-byte quota. The IANA probe pairs both forms for every policy and requires its
+new protocol, rather than assuming an old executable performs the second call.
+Modular/single, runnable
 example and real external static/shared consumers exercise the new public API.
 This does not change scheduler selection or implement gap compensation yet.
 
