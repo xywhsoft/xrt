@@ -52,3 +52,15 @@ investigation rather than a scaling or production-performance claim.
 
 Live-service command/response integration, compensation, durable recovery and
 qualified native production performance/long-run acceptance remain open.
+
+SubmitBatchSelected atomically accepts1..64 already-ready selected leases under
+the [shared batch contract](executor.md#bounded-atomic-admission). Every nominal
+snapshot is copied before the sole native batch call. No extra instance storage
+is allocated; each lease retains its own token and full physical receipt. The
+[two-fold example](../examples/executor_batch/README.md) returns both repeated
+labels through real workers after poisoning caller input. Atomic native rejection
+does not transfer any of the originating scheduler's completion duties.
+
+See the [batch stage evidence](../tests/results/executor-batches-20261109.json)
+for the complete ownership tests, matched ready-array measurements and outstanding
+performance qualifications. The original scalar driver/report remains intact.

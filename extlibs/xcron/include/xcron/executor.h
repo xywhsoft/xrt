@@ -7,6 +7,7 @@
 #error "cron executor adapter requires scheduler and public XRT executor"
 #endif
 #if defined(XCRON_FEATURE_XCRON_EXECUTOR)
+#define XCRON_EXECUTOR_BATCH_MAX 64u
 typedef struct xcronexecutor xcronexecutor;
 typedef struct xcronexecution xcronexecution;
 typedef xcronrunresult (*xcronexecuteproc)(const xcronrun* Run,const xcronexecution* Execution,ptr Context);
@@ -67,6 +68,19 @@ XCRON_API bool xcronExecutorCreate(const xcronexecutorconfig* Config,xcronexecut
  * OWNER_CONFLICT completion, preventing owner-state reentry. Callback code stays
  * resident through executor drain/join before unloading the extension library. */
 XCRON_API bool xcronExecutorSubmit(xcronexecutor* Adapter,const xcronrun* Run,xcronexecutorissue* Issue);
+/* Atomic submission of1..BATCH_MAX already-ready leases. Does not wait to fill
+ * a batch. Success transfers every lease's physical completion duty; failure
+ * transfers none and invokes no Proc. Each lease still has its own token,
+ * result, Error and Drain receipt. IDs must be distinct and inactive. The full
+ * input array must be disjoint from owned adapter storage. Descriptors use at
+ * most BATCH_MAX*sizeof(xexecutoritem) stack bytes for descriptors;
+ * no new retained storage/allocation. The borrowed XRT executor must accept the
+ * entire batch in one worker queue; its atomic batch rejection is preserved,
+ * even when individual submissions could fit across multiple worker queues.
+ * Submitted/Rejected count leases, not API calls; invalid arguments count none.
+ * Native rejection retains all duties, so the owner may retry/fall back to scalar
+ * submission or Complete every rejected lease. All other Submit rules apply. */
+XCRON_API bool xcronExecutorSubmitBatch(xcronexecutor* Adapter,const xcronrun* Runs,size_t Count,xcronexecutorissue* Issue);
 /* Cooperative request. A queued callback observes it before Proc; running Proc
  * decides when to stop and which result to return. A late request never changes
  * an already completed outcome. Repeated requests while the ID exists succeed.

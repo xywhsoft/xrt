@@ -32,7 +32,8 @@ static void execNotify(ptr Raw)
 {
     execcontext* C=Raw;xrtAtomic32FetchAdd(&C->Notified,1,XMEMORY_RELEASE);xrtAtomic32Store(&C->NotifyEntered,1,XMEMORY_RELEASE);
     if(C->ProbeNotify){xcronexecutorstats S;xcronexecutorissue I;
-        testRequire(!xcronExecutorInspect(C->Adapter,&S,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"owner cancellation Notify reentry rejected");xrtAtomic32FetchAdd(&C->Reentry,1,XMEMORY_RELEASE);xrtClearError();}
+        testRequire(!xcronExecutorInspect(C->Adapter,&S,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"owner cancellation Notify reentry rejected");xrtClearError();xcronrun R=execLease(UINT64_MAX,1,NULL);
+        testRequire(!xcronExecutorSubmitBatch(C->Adapter,&R,1,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"batch owner Notify reentry rejected");xrtAtomic32FetchAdd(&C->Reentry,1,XMEMORY_RELEASE);xrtClearError();}
     if(C->BlockNotify)execUntil(&C->NotifyGate,1,"release notification tail");
 }
 static xcronexecutor* execAdapter(xexecutor* E,uint32 Limit,execcontext* C,bool Notify)
@@ -145,8 +146,9 @@ static void testExecOOMAndWarm(void)
 #endif
     testRequire(xrtAllocationBudgetLeave(&Scope),"leave warm owner quota");xrtClearError();xrtAllocationBudgetFree(Budget);execAdapterEnd(B);execPoolEnd(E);
 }
+#include "executor_batch_cases.h"
 int main(void)
 {
-    testExecResults();testExecQueueAndCancel();testExecNotifyTail();testExecOwnerConflict();testExecStress();testExecKernel();testExecOOMAndWarm();
+    testExecResults();testExecQueueAndCancel();testExecNotifyTail();testExecOwnerConflict();testExecStress();testExecKernel();testExecOOMAndWarm();testExecBatches();
     puts("[PASS] cron executor: results/errors/cancel/rejection/notify tails/32256 concurrent receipts/kernel/OOM/10000 zero-heap cycles");return 0;
 }

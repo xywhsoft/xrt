@@ -125,3 +125,35 @@ ID hash, owner completion records and error transport; it is an algorithm-cost
 reference, not a feature-equivalent competitor. Smoke runs do not establish
 accepted throughput or tail latency. Mixed arrivals, slow bodies, queue wait,
 adversarial contention and end-to-end scheduling latency remain to qualify.
+
+## Bounded atomic admission
+
+SubmitBatch accepts1..XCRON_EXECUTOR_BATCH_MAX (64) already-ready leases. It never
+waits to collect more work. All inputs are checked, slots and duplicate-ID entries
+are reserved, and one public XRT SubmitBatch call copies their descriptors. A
+duplicate anywhere, capacity/closed failure or native rejection returns every
+new reservation and transfers no physical completion duties. Existing leases
+survive rollback. Caller arrays must also be disjoint from adapter-owned storage.
+Each admitted lease retains its independent token, result, Error and Drain duty;
+there is no completion ordering promise. Counters count leases rather than calls.
+
+Native atomic batch capacity is one worker queue. A rejection can occur even when
+the pool has enough aggregate space for separate scalar submissions. The caller
+still owns every rejected lease and may retry, fall back to scalar submission,
+or Complete them itself. Typed native causes survive diagnostic allocation failure.
+No extra instance storage is allocated. At most64 native descriptors (2048 bytes
+on verified x64) occupy the call's stack, plus ordinary locals/callee frames.
+Temporary reservation links reuse inactive slot Next fields; they are traversed
+only on rejection, when native acceptance guarantees no callback. After success
+the owner never reads those links, which Drop may immediately overwrite.
+
+The [two-fold batch example](../examples/executor_batch/README.md) demonstrates
+the selected equivalent. The ready-array benchmark separates scalar and batch
+APIs using the same complete payload/nominal checks, actual workers and shared
+callback counters. Batch size is an explicit fact; it does not rewrite or replace
+the original scalar driver or its unqualified historical reports.
+
+The [batch stage evidence](../tests/results/executor-batches-20261109.json)
+retains complete validation, rejected runtime-tuning experiments, exact mutex
+call counts, all scalar/batch samples and unqualified noise failures. It does not
+establish linear scaling of arbitrary scalar callbacks or production acceptance.

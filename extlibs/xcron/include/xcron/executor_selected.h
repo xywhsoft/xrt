@@ -24,6 +24,12 @@ XCRON_API bool xcronExecutorCreateSelected(const xcronexecutorconfig* Config,xcr
  * transfers nothing and invokes no Proc. Caller may reuse Run storage after
  * return. Callback Data retains the scheduler's existing borrowed lifetime. */
 XCRON_API bool xcronExecutorSubmitSelected(xcronexecutor* Adapter,const xcronselectedrun* Run,xcronexecutorissue* Issue);
+/* Selected equivalent of SubmitBatch:1..BATCH_MAX leases, copied nominal
+ * snapshots before any worker dispatch, all-or-none native acceptance, no
+ * waiting to fill the batch and an independent physical receipt per lease.
+ * Input must be disjoint from adapter storage. Failure transfers no duties;
+ * the caller may retry/scalar-submit or Complete all rejected leases. */
+XCRON_API bool xcronExecutorSubmitBatchSelected(xcronexecutor* Adapter,const xcronselectedrun* Runs,size_t Count,xcronexecutorissue* Issue);
 /* Same bounded detached-batch/owner behavior as Drain. Copies the selected lease
  * metadata, even when native queued cancellation skipped Proc, before slot reuse.
  * Each Error transfers to the caller, which frees it with xrtErrorFree. Complete

@@ -54,3 +54,44 @@ static void testSEKernelAndLimits(void)
 #endif
     testRequire(!Scope.Rejections && xrtAllocationBudgetLeave(&Scope),"selected warm quota rejected nothing");xrtClearError();xrtAllocationBudgetFree(Budget);testRequire(xcronExecutorClose(B,true,NULL) && xcronExecutorClose(B,true,NULL),"selected close is idempotent");seError(xcronExecutorSubmitSelected(B,&Run,&I),&I,XCRON_EXECUTOR_CLOSED,"selected close rejects new submissions");seEnd(B);sePoolEnd(E);
 }
+static void seBatchReceipts(xcronexecutor* B,const xcronselectedrun* Expected,size_t Count,bool Cancelled)
+{
+    uint64 Seen=0;
+    for(size_t I=0;I<Count;++I){xcronselectedcompletion D=seReceipt(B);uint64 J=D.Run.Run.Id-Expected[0].Run.Id;
+        testRequire(J<Count && !(Seen&(UINT64_C(1)<<J)),"selected batch returns every ID exactly once");Seen|=UINT64_C(1)<<J;seSame(&D.Run,&Expected[J]);testRequire(D.Result==(Cancelled?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED) && D.Code==XCRON_EXECUTOR_OK && !D.Error,"selected batch per-lease result and metadata");}
+}
+static int32 seBatchForeign(ptr Raw)
+{selectedexeccontext* C=Raw;xcronselectedrun R=seLease(1,1);xcronexecutorissue I;seError(xcronExecutorSubmitBatchSelected(C->Adapter,&R,1,&I),&I,XCRON_EXECUTOR_THREAD,"foreign selected batch controller rejected");return 0;}
+static void testSEBatches(void)
+{
+    xexecutor* E=sePool(4,128);selectedexeccontext C={0};xcronexecutor* B=seAdapter(E,64,&C,false);xcronexecutorissue I;xcronexecutorstats S;xcronselectedrun Runs[64],Bad[64];
+    for(unsigned J=0;J<64;++J)Runs[J]=seLease(J+1,7);
+    memset(&I,0x5a,sizeof(I));xcronexecutorissue Previous=I;testRequire(!xcronExecutorSubmitBatchSelected(B,Runs,0,&I) && !xcronExecutorSubmitBatchSelected(B,Runs,65,&I) && !memcmp(&I,&Previous,sizeof(I)),"selected batch count arguments preserve outputs");xrtClearError();
+    testRequire(!xcronExecutorSubmitBatchSelected(B,(const xcronselectedrun*)B,1,&I) && !xcronExecutorSubmitBatchSelected(B,Runs,2,(xcronexecutorissue*)Runs) && !memcmp(&I,&Previous,sizeof(I)),"selected batch owned/input/output aliases preserve outputs");xrtClearError();
+    memcpy(Bad,Runs,sizeof(Runs));Bad[63].Candidates=0;testRequire(!xcronExecutorSubmitBatchSelected(B,Bad,64,&I) && !memcmp(&I,&Previous,sizeof(I)),"selected invalid final nominal field rejects whole batch");xrtClearError();
+    testRequire(!xcronExecutorSubmitBatch(B,&Runs[0].Run,1,&I) && !memcmp(&I,&Previous,sizeof(I)),"plain batch cannot truncate selected metadata");xrtClearError();
+    xthread* Foreign=xrtThreadCreate(seBatchForeign,&C,0);testRequire(Foreign && xrtThreadWaitFor(Foreign,10000)==XWAIT_OK,"foreign selected batch controller joined");xrtThreadDestroy(Foreign);
+    for(unsigned Position=1;Position<64;++Position){memcpy(Bad,Runs,sizeof(Runs));Bad[Position]=Runs[0];seError(xcronExecutorSubmitBatchSelected(B,Bad,64,&I),&I,XCRON_EXECUTOR_DUPLICATE,"every selected duplicate prefix rolls back");
+        testRequire(xcronExecutorInspect(B,&S,NULL) && !S.Active && !S.Producers && xcronExecutorSubmitBatchSelected(B,Runs,64,NULL),"selected maximum capacity/IDs reused after rollback");seBatchReceipts(B,Runs,64,false);}
+    xcronexecutorconfig PlainConfig={E,seProc,&C,NULL,NULL,1,0,SIZE_MAX};xcronexecutor* Plain=NULL;testRequire(xcronExecutorCreate(&PlainConfig,&Plain,NULL),"plain batch mode fixture");testRequire(!xcronExecutorSubmitBatchSelected(Plain,Runs,1,&I),"selected batch rejected on plain mode");xrtClearError();seEnd(Plain);seEnd(B);sePoolEnd(E);
+
+    E=sePool(4,128);C=(selectedexeccontext){.Block=true,.Mode=3};B=seAdapter(E,64,&C,true);memcpy(Bad,Runs,sizeof(Runs));testRequire(xcronExecutorSubmitBatchSelected(B,Runs,64,NULL),"selected full immutable batch admitted atomically");seWait(&C.Started,4,"four selected batch callbacks active");memset(Runs,0xa5,sizeof(Runs));
+    uint32 Requested;testRequire(xcronExecutorCancelJob(B,7,&Requested,NULL) && Requested==64 && xrtExecutorCancel(E) && xcronExecutorClose(B,true,NULL),"selected job tokens/native queued cancel/close retain all batch duties");seError(xcronExecutorDestroy(B,&I),&I,XCRON_EXECUTOR_BUSY,"active batch cannot destroy immutable labels");xrtAtomic32Store(&C.Gate,1,XMEMORY_RELEASE);seBatchReceipts(B,Bad,64,true);seEnd(B);sePoolEnd(E);memcpy(Runs,Bad,sizeof(Runs));
+
+    E=sePool(4,4);C=(selectedexeccontext){0};B=seAdapter(E,64,&C,false);seError(xcronExecutorSubmitBatchSelected(B,Runs,6,&I),&I,XCRON_EXECUTOR_REJECTED,"selected atomic native batch exceeds one queue despite aggregate space");testRequire(I.Cause==XERR_AGAIN && !xrtAtomic64Load(&C.Calls,XMEMORY_ACQUIRE) && xcronExecutorInspect(B,&S,NULL) && !S.Active && !S.Producers,"selected native rejection publishes no prefix");
+    testRequire(xcronExecutorSubmitBatchSelected(B,Runs,4,NULL),"selected native-rejected labels and IDs reusable");seBatchReceipts(B,Runs,4,false);seEnd(B);sePoolEnd(E);
+
+    E=sePool(2,8);C=(selectedexeccontext){.BlockNotify=true};B=seAdapter(E,2,&C,true);testRequire(xcronExecutorSubmitBatchSelected(B,Runs,2,NULL),"old selected batch publication-tail fixture");seWait(&C.Notified,2,"both old batch Notify tails blocked");seBatchReceipts(B,Runs,2,false);
+    testRequire(xcronExecutorInspect(B,&S,NULL) && !S.Active && S.Producers==2,"old batch tails live independently from drained receipts");seError(xcronExecutorDestroy(B,&I),&I,XCRON_EXECUTOR_BUSY,"both old batch publication tails protect adapter");
+    xcronselectedrun Reuse[2]={seLease(100,7),seLease(101,7)},Saved[2];memcpy(Saved,Reuse,sizeof(Reuse));testRequire(xcronExecutorSubmitBatchSelected(B,Reuse,2,NULL),"reuse both batch slots before earlier Notify tails finish");memset(Reuse,0xa5,sizeof(Reuse));xrtAtomic32Store(&C.NotifyGate,1,XMEMORY_RELEASE);seBatchReceipts(B,Saved,2,false);seEnd(B);sePoolEnd(E);
+
+    E=sePool(4,128);C=(selectedexeccontext){0};B=seAdapter(E,64,&C,false);testRequire(xcronExecutorSubmitBatchSelected(B,Runs,64,NULL),"warm selected batch");seBatchReceipts(B,Runs,64,false);xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&Budget),"selected batch warmed budget");xrtSetErrorInfo(XERR_STATE,"selected.batch.owner",23,"retain ambient error");const xerror* Ambient=xrtGetError();testRequire(xrtAllocationBudgetEnter(Budget,&Scope),"selected batch no requested heap quota");
+#if defined(XRT_FEATURE_MEMORY_STATS)
+    xmemstats Before,After;xrtMemStatsEnable(true);xrtMemStatsGet(&Before);
+#endif
+    for(unsigned Round=0;Round<512;++Round){for(unsigned J=0;J<64;++J)Runs[J]=seLease((uint64)Round*64+J+65,7);testRequire(xcronExecutorSubmitBatchSelected(B,Runs,64,NULL),"selected maximum zero-heap batch");seBatchReceipts(B,Runs,64,false);testRequire(xrtGetError()==Ambient,"selected batch preserves owner ambient error");}
+#if defined(XRT_FEATURE_MEMORY_STATS)
+    xrtMemStatsGet(&After);xrtMemStatsEnable(false);testRequire(Before.MallocCalls==After.MallocCalls && Before.CallocCalls==After.CallocCalls && Before.ReallocCalls==After.ReallocCalls && Before.BlockAllocCalls==After.BlockAllocCalls,"selected batch submission/labels/physical receipts request no heap");
+#endif
+    testRequire(!Scope.Rejections && xrtAllocationBudgetLeave(&Scope),"selected batch warm scope rejected nothing");xrtClearError();xrtAllocationBudgetFree(Budget);seEnd(B);sePoolEnd(E);
+}

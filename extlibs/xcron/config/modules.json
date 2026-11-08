@@ -563,16 +563,19 @@
         "extlibs/xcron/tests/single/test_single_xcron_executor_selected.c"
       ],
       "examples": [
-        "extlibs/xcron/examples/executor_selected/main.c"
+        "extlibs/xcron/examples/executor_selected/main.c",
+        "extlibs/xcron/examples/executor_batch/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_executor_selected.c"
+        "extlibs/xcron/bench/bench_executor_selected.c",
+        "extlibs/xcron/bench/bench_executor_batch.c"
       ],
       "docs": [
         "extlibs/xcron/docs/executor_selected.md",
         "extlibs/xcron/examples/executor_selected/README.md",
         "extlibs/xcron/docs/coverage.md",
-        "extlibs/xcron/docs/api/reference.md"
+        "extlibs/xcron/docs/api/reference.md",
+        "extlibs/xcron/examples/executor_batch/README.md"
       ]
     },
     {

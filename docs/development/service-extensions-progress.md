@@ -8346,3 +8346,107 @@ Selected live-service commands/responses, compensation, durable recovery,
 remaining Redis/RPC/MQTT5.0 scope/interop, the selected four-worker throughput
 cause, earlier Windows occurrence p95 investigation, qualified native performance
 and>=72h mixed-load acceptance remain open. Goal active; development stays on master.
+
+### 2026-11-09: bounded atomic executor batches without another runtime
+
+Investigated the fine-grained selected four-worker throughput drop on frozen
+de0255ba sources before choosing a change. Per-thread linker-wrapped mutex probes
+show4 ownership mutex acquisitions per scalar job, while SleepLock acquisitions
+and aggregate wait rise substantially at four workers. Probe timers/bookkeeping
+extend acquired lock holds, so trace throughput and wait percentages are not
+release measurements. Frozen ABBA queued-zero wake guards do not give a stable
+four-worker gain. Bounded32/128-pause worker probes worsen Windows four/eight-worker
+throughput and CPU; GetProcessTimes has coarse quantization. They are rejected;
+WSL spin probes are not run after that rejection. Neither experiment changes
+canonical XRT. All sources, failed compiler logs, samples and actual executables
+remain in out/service-extensions/xcron-executor-contention-20261109/.
+
+Added real xcronExecutorSubmitBatch and SubmitBatchSelected APIs, bounded to1..64
+already-ready leases. The caller does not wait to fill a batch. All fields,
+spans/modes and owned-input aliases are checked before reserving slots/hash IDs;
+one existing public XRT SubmitBatch call accepts the complete descriptor array
+or rejects it. A duplicate at any prefix or native failure rolls every new slot
+and hash entry back while retaining older leases. Failure transfers no physical
+duties; the caller may retry, scalar-submit or Complete all rejected leases.
+Native atomic capacity is one worker queue, even when separate scalar calls
+could use aggregate free space. This distinction is documented and tested.
+
+Each accepted lease retains its individual token, result, owned Error and full
+physical receipt, including native queued cancellation without Proc. Complete/
+Reap/Data lifetimes and owner/reentry/Notify-tail rules remain. Counters count
+leases rather than calls; native AGAIN remains typed even when diagnostic OOM
+sets the ambient error to MEMORY. The entire ordinary/selected payload is copied
+before any native dispatch. Caller arrays may be reused at return. Input arrays
+are additionally required to be disjoint from the adapter arena.
+
+No extra retained storage or public/private layout is added. Successful batch
+preparation requests no heap; callback/diagnostic/native cold costs remain. A maximum
+of64 native descriptors uses2048 x64 stack bytes, plus ordinary locals/callee
+frames. Pre-publication reservation links reuse slot Next fields, saving an
+extra index scratch array. They are traversed only on rejection, where native
+acceptance guarantees no callback. After success no submit traversal touches
+them, so Drop may publish/overwrite them immediately. Removing the two added
+batch blocks leaves the old executor source byte-for-byte after newline
+normalization: all scalar/create/drain/worker/Notify/lifetime code is preserved.
+Canonical Core, Core single headers/tools and the original scalar benchmark
+remain unchanged. Direct/generated old layouts and byte limits still agree.
+
+Windows/WSL each pass31 root modular/single programs, actual-only leaf tests,
+old/new runnable examples, root and isolated batch static/shared consumers,
+baseline/lean/extended/declaration layouts and the unchanged422-zone oracle
+(121664 queries,349582 Steps,714574 API calls and all prior metadata/counters).
+WSL root/lean suites run O2 ASan/UBSan/leak-halt; four O1 TSan programs cover
+plain/selected modular and single-header forms. Windows90 tooling tests and
+features/single/API/docs checks pass. Existing Windows symbolic-link permission
+skips1314 remain recorded. All2546 frozen code/config/tool input hashes match
+both validation and both final measurement maps. No production/generated C/H or
+config is edited while either pipeline can read it; publication is docs/evidence.
+
+New tests collect40910 plain and36936 selected batch receipts per program in
+addition to existing suites. They cover every internal duplicate position1..63,
+older scalar duplicate positions0..62, all IDs/capacity reused after rollback,
+count/mode/last-field/alias/foreign-owner/Notify-reentry errors, full native
+queues after live-job credit reservation, native one-queue limits, typed OOM,
+independent errors/results, poisoned inputs and cancellation of64 leases across
+running and queued tasks. Both slots are reused by a new batch while both old
+Notify tails still block. Each mode collects32768 warmed maximum-batch receipts
+with unchanged requested-allocation counters and ambient error identity. The
+new offline example resolves both New York01:30 occurrences, poisons submitted
+input and physically completes/reaps both leases before releasing resources.
+
+Retained initial failures are diagnostic consecutive-if formatting, a GCC
+maybe-uninitialized warning for the first index-array rollback design, and a
+new test incorrectly expecting typed MEMORY instead of retained AGAIN during
+diagnostic OOM. The scratch array is replaced by private Next links; the test
+expectation is corrected without changing runtime error behavior. No warning is
+disabled. Repeated --test options initially select only the final test, so that
+run is not claimed as both tests; final full root/lean suites cover every case.
+
+On both environments, deterministic ownership mutex counts for64000 validated
+jobs are256019/256025 (one/four-worker scalar) and67019/67025 (64-item batch).
+This is one native reference release per job plus three admission locks per
+batch, with unchanged cold lifecycle counts; it is not a zero-overhead claim.
+Sleep-lock counts also fall in the instrumented traces, but depend on scheduling.
+All12 formal scalar/ready-scalar/ready-batch executables are retained with hashes,
+plus all diagnostic executables. Original scalar workloads/reports are intact.
+
+First ready-array profiles construct64 available leases before either API path,
+retain all nominal/run-field/exact-once checks and both shared callback atomics,
+and include physical receipt collection, owner polling/timers and array work.
+Submission width1/64 is an explicit fact, not a forced same-workload regression
+pair. Independent Gregorian arithmetic verifies64000 callbacks and checksum
+12262312746650400000 for every measured process. Original five repeats/one
+warmup/MAD3%/central6% and5% throughput/10% latency settings remain unchanged.
+Windows ready scalar1/4 medians are1912777.353/846179.171 executions/s, batch1/4
+3425244.048/2440047.276. WSL scalar1/4 medians are1842903.850/164977.992, batch1/4
+2438615.290/1457184.847. Both complete reports retain noise-gate failures. These
+are unqualified component observations, not native Linux, fixed-arrival service,
+linear scaling or production acceptance. Arbitrary scalar fine-grained callback
+scaling and validation-counter contention are not declared resolved. Both
+platforms' actual/selected single/static/shared size/forbidden-symbol checks pass.
+
+Evidence: extlibs/xcron/tests/results/executor-batches-20261109.json.
+Selected live-service commands/responses and appropriate caller batching,
+compensation, durable recovery, remaining Redis/RPC/MQTT5.0 scope/interop, the
+earlier occurrence p95 investigation, qualified native performance and>=72h gates
+remain open. The full goal remains active; development stays on master.

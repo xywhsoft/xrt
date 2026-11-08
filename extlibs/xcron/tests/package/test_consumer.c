@@ -18,7 +18,7 @@ static bool consumerSelected(void)
     xcronselectedrun R;bool Seen=false;for(unsigned T=0;T<32 && !Seen;++T){xcronselectedpoll P;if(!xcronSchedulerPollSelected(S,(xcronclock){0,T},(xcronoccurrencebudget){1,1,1,1,1},&R,1,&P,NULL))return false;Seen=P.Poll.Count!=0;}
     if(!Seen || R.Run.Job!=Id || R.Run.ScheduledAt || R.Candidates!=1 || R.Local.Offset || R.Local.IsDST!=-1)return false;
     xexecutorconfig PC={1,2,0};xexecutor* Pool=xrtExecutorCreate(&PC);xcronexecutor* Adapter=NULL;xcronexecutorconfig EC={Pool,consumerSelectedExecute,NULL,NULL,NULL,1,0,65536};
-    if(!Pool || !xcronExecutorCreateSelected(&EC,&Adapter,NULL) || !xcronExecutorSubmitSelected(Adapter,&R,NULL))return false;
+    if(!Pool || !xcronExecutorCreateSelected(&EC,&Adapter,NULL) || !xcronExecutorSubmitBatchSelected(Adapter,&R,1,NULL))return false;
     size_t N=0;xcronselectedcompletion D;double Limit=xrtTimer()+10;while(!N){if(!xcronExecutorDrainSelected(Adapter,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
     if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || D.Run.Candidates!=1 || !xcronSchedulerComplete(S,D.Run.Run.Id,D.Result,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xcronExecutorDestroy(Adapter,NULL) || !xrtExecutorDestroy(Pool))return false;
     xcronselectedjobinfo Info;xcronselectedretired Retired;bool Found=false;bool OK=xcronSchedulerJobSelected(S,Id,&Info,NULL) && Info.State==XCRON_JOB_EXHAUSTED && Info.Succeeded==1 && xcronSchedulerReapSelected(S,&Retired,&Found,NULL) && Found && Retired.Id==Id && xcronSchedulerDestroy(S,NULL);
@@ -101,7 +101,7 @@ int main(void)
     if(Produced!=2 || Runs[0].ScheduledAt!=Candidates[0] || Runs[1].ScheduledAt!=Candidates[1])return 10;
 	xexecutorconfig PoolConfig={1,4,0}; xexecutor* Pool=xrtExecutorCreate(&PoolConfig); xcronexecutor* Adapter=NULL;
 	xcronexecutorconfig ExecutionConfig={Pool,consumerExecute,NULL,NULL,NULL,2,0,65536};
-	if (!Pool || !xcronExecutorCreate(&ExecutionConfig,&Adapter,NULL) || !xcronExecutorSubmit(Adapter,&Runs[0],NULL) || !xcronExecutorSubmit(Adapter,&Runs[1],NULL)) return 11;
+	if (!Pool || !xcronExecutorCreate(&ExecutionConfig,&Adapter,NULL) || !xcronExecutorSubmitBatch(Adapter,Runs,2,NULL)) return 11;
 	unsigned Returned=0; double Limit=xrtTimer()+10;
 	while (Returned<2) {xcroncompletion Completion; size_t N;
 		if (!xcronExecutorDrain(Adapter,&Completion,1,&N,NULL) || xrtTimer()>Limit) return 12;

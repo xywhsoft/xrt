@@ -296,3 +296,10 @@ slot while its old Notify tail remains, enforce owner/reentry boundaries, stress
 16384 concurrent receipts and complete real repeated-label kernel leases before
 reaping Data. Exact byte limits, typed factory/rejection diagnostic OOM and4096
 warmed no-requested-heap lifecycles cover ownership and bounded resources.
+
+Plain/selected atomic batches cover every internal duplicate-prefix position,
+older scalar leases around rollback, native one-queue limits and fully occupied
+native queues, typed diagnostic OOM, wrong-mode/owner/reentry/aliases, poisoned
+input, per-lease worker errors/cancellation and concurrent completion. Tests reuse
+both slots of a new batch while earlier Notify tails remain blocked. Each mode
+also completes32768 warmed maximum-batch receipts without requested heap changes.

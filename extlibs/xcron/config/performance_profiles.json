@@ -1627,6 +1627,214 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_executor_ready_scalar1",
+      "system": "executor",
+      "description": "Matched64-ready-lease array through actual XRT workers, full nominal/payload/exactly-once validation and two shared callback atomics; submission width1; no fill wait or production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_ready_scalar1",
+          "source": "extlibs/xcron/bench/bench_executor_batch.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_ready_scalar4",
+      "system": "executor",
+      "description": "Matched64-ready-lease array through actual XRT workers, full nominal/payload/exactly-once validation and two shared callback atomics; submission width1; no fill wait or production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_ready_scalar4",
+          "source": "extlibs/xcron/bench/bench_executor_batch.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "4",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_ready_batch1",
+      "system": "executor",
+      "description": "Matched64-ready-lease array through actual XRT workers, full nominal/payload/exactly-once validation and two shared callback atomics; submission width64; no fill wait or production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_ready_batch1",
+          "source": "extlibs/xcron/bench/bench_executor_batch.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "1",
+            "64"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "64"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_ready_batch4",
+      "system": "executor",
+      "description": "Matched64-ready-lease array through actual XRT workers, full nominal/payload/exactly-once validation and two shared callback atomics; submission width64; no fill wait or production/scaling qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_ready_batch4",
+          "source": "extlibs/xcron/bench/bench_executor_batch.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "4",
+            "64"
+          ],
+          "smoke_args": [
+            "2",
+            "4",
+            "64"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "submission_batch_size",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

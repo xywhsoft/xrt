@@ -41,7 +41,8 @@ static xcronrunresult seProc(const xcronrun* R,const xcronexecution* T,ptr Raw)
 static void seNotify(ptr Raw)
 {
     selectedexeccontext* C=Raw;xrtAtomic32FetchAdd(&C->Notified,1,XMEMORY_RELEASE);xrtAtomic32Store(&C->NotifyEntered,1,XMEMORY_RELEASE);
-    if(C->ProbeNotify){xcronexecutorstats S;xcronexecutorissue I;testRequire(!xcronExecutorInspect(C->Adapter,&S,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"selected owner notification reentry rejected");xrtClearError();xrtAtomic32FetchAdd(&C->Reentry,1,XMEMORY_RELEASE);}
+    if(C->ProbeNotify){xcronexecutorstats S;xcronexecutorissue I;testRequire(!xcronExecutorInspect(C->Adapter,&S,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"selected owner notification reentry rejected");xrtClearError();xcronselectedrun R=seLease(1000001,1);
+        testRequire(!xcronExecutorSubmitBatchSelected(C->Adapter,&R,1,&I) && I.Code==XCRON_EXECUTOR_REENTRY,"selected batch owner Notify reentry rejected");xrtClearError();xrtAtomic32FetchAdd(&C->Reentry,1,XMEMORY_RELEASE);}
     if(C->BlockNotify)seWait(&C->NotifyGate,1,"selected notification tail released");
 }
 static xcronexecutor* seAdapter(xexecutor* E,uint32 Slots,selectedexeccontext* C,bool Notify)
@@ -70,4 +71,4 @@ static void testSESnapshotAndResults(void)
 }
 #include "executor_selected_cases.h"
 int main(void)
-{testSESnapshotAndResults();testSEQueueAndTail();testSEOwnerAndStress();testSEKernelAndLimits();puts("[PASS] selected executor: immutable views, physical receipts, cancellation/rejection/notify reuse,16384 concurrent labels, kernel/OOM and4096 no-heap lifecycles");return 0;}
+{testSESnapshotAndResults();testSEQueueAndTail();testSEOwnerAndStress();testSEKernelAndLimits();testSEBatches();puts("[PASS] selected executor: immutable views, physical receipts, cancellation/rejection/notify reuse,16384 concurrent labels, kernel/OOM and4096 no-heap lifecycles; atomic64-lease batches, prefix rollback and32768 warm batch receipts");return 0;}

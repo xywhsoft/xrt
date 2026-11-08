@@ -133,3 +133,9 @@ into bounded per-slot storage, exposes it through an immutable callback token
 view and returns complete physical receipts. Read its
 [contract](docs/executor_selected.md) and run the
 [worker example](examples/executor_selected/README.md).
+
+Both executor modes support bounded atomic admission of up to64 already-ready
+leases through the existing XRT batch API. Each lease retains its own cancellation
+token and physical receipt; no fill wait or additional retained arena is added.
+See the [batch contract](docs/executor.md#bounded-atomic-admission) and the
+[two-fold batch example](examples/executor_batch/README.md).

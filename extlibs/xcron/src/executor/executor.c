@@ -185,6 +185,57 @@ XCRON_API bool xcronExecutorSubmit(xcronexecutor* B,const xcronrun* Run,xcronexe
     if(!B || !Run || !xcronExecutorOutputs(B,Run,sizeof(*Run),O,N,1) || !xcronExecutorMode(B,false) || !xcronExecutorRun(Run))return xcronExecutorFail(XCRON_EXECUTOR_ARGUMENT,XERR_NONE,NULL);
     return xcronExecutorSubmitValue(B,Run,NULL,0,Issue);
 }
+static void xcronExecutorCount(uint64* Value,size_t Count)
+{*Value=Count>UINT64_MAX-*Value?UINT64_MAX:*Value+(uint64)Count;}
+static bool xcronExecutorBatchRuns(const xcronexecutor* B,const void* Runs,size_t Count,size_t Stride)
+{
+    for(size_t I=0;I<Count;++I){
+        const xcronrun* R=(const xcronrun*)((const unsigned char*)Runs+I*Stride);
+        if(!xcronExecutorRun(R))return false;
+#if defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
+        if(B->Labels){const xcronselectedrun* S=(const xcronselectedrun*)R;
+            if(!S->Candidates || R->ScheduledAt%1000 || S->Local.Offset || S->Local.IsDST!=-1 || S->Local.Millisecond)return false;}
+#else
+        (void)B;
+#endif
+    }
+    return true;
+}
+static void xcronExecutorUnreserve(xcronexecutor* B,uint32 Head)
+{
+    while(Head!=XCRON_EXECUTOR_NONE){uint32 I=Head;xcronexecutorslot* S=&B->Slots[I];Head=S->Next;
+        xcronExecutorRemove(B,xcronExecutorFind(B,S->Done.Run.Id));S->Used=false;S->Next=B->Free;B->Free=I;--B->Stats.Active;}
+}
+static bool xcronExecutorBatchValue(xcronexecutor* B,const void* Runs,size_t Count,size_t Stride,xcronexecutorissue* Issue)
+{
+    if(!xcronExecutorOwner(B,Issue))return false;
+    if(B->Stats.Closed){xcronExecutorCount(&B->Stats.Rejected,Count);return xcronExecutorFail(XCRON_EXECUTOR_CLOSED,XERR_NONE,Issue);}
+    if(Count>B->Config.RunLimit-B->Stats.Active){xcronExecutorCount(&B->Stats.Rejected,Count);return xcronExecutorFail(XCRON_EXECUTOR_LIMIT,XERR_NONE,Issue);}
+    /* Reserved Next links are private until native all-or-none admission.
+     * On success Drop may overwrite them immediately; never traverse them then. */
+    xexecutoritem Items[XCRON_EXECUTOR_BATCH_MAX];uint32 Reserved=XCRON_EXECUTOR_NONE;
+    for(size_t J=0;J<Count;++J){
+        const xcronrun* R=(const xcronrun*)((const unsigned char*)Runs+J*Stride);uint32 P=xcronExecutorFind(B,R->Id);
+        if(B->Table[P]!=XCRON_EXECUTOR_NONE){xcronExecutorUnreserve(B,Reserved);xcronExecutorCount(&B->Stats.Rejected,Count);return xcronExecutorFail(XCRON_EXECUTOR_DUPLICATE,XERR_NONE,Issue);}
+        uint32 I=B->Free;xcronexecutorslot* S=&B->Slots[I];B->Free=S->Next;S->Next=Reserved;Reserved=I;S->Used=true;S->Done=(xcroncompletion){.Run=*R,.Result=XCRON_RUN_CANCELLED};xrtAtomic32Store(&S->Execution.Requested,0,XMEMORY_RELAXED);B->Table[P]=I;++B->Stats.Active;
+#if defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
+        if(B->Labels){const xcronselectedrun* Selected=(const xcronselectedrun*)R;B->Labels[I].Local=Selected->Local;B->Labels[I].Candidates=Selected->Candidates;}
+#endif
+        Items[J]=(xexecutoritem){xcronExecutorWork,S,xcronExecutorDrop,NULL};
+    }
+    xrtAtomic32FetchAdd(&B->Producers,(uint32)Count,XMEMORY_RELAXED);
+    if(!xrtExecutorSubmitBatch(B->Config.Executor,Items,Count)){
+        xerrkind Cause=xrtErrorKind(xrtGetError());xrtAtomic32FetchSub(&B->Producers,(uint32)Count,XMEMORY_RELAXED);xcronExecutorUnreserve(B,Reserved);xcronExecutorCount(&B->Stats.Rejected,Count);
+        return xcronExecutorFail(XCRON_EXECUTOR_REJECTED,Cause,Issue);
+    }
+    xcronExecutorCount(&B->Stats.Submitted,Count);if(B->Stats.Active>B->Stats.Peak)B->Stats.Peak=B->Stats.Active;xcronExecutorOK(Issue);return true;
+}
+XCRON_API bool xcronExecutorSubmitBatch(xcronexecutor* B,const xcronrun* Runs,size_t Count,xcronexecutorissue* Issue)
+{
+    void* O[]={Issue};size_t N[]={Issue?sizeof(*Issue):0};
+    if(!B || !Runs || !Count || Count>XCRON_EXECUTOR_BATCH_MAX || !xcronExecutorOutputs(B,Runs,Count*sizeof(*Runs),O,N,1) || xcronExecutorOverlap(B,B->Stats.Bytes,Runs,Count*sizeof(*Runs)) || !xcronExecutorMode(B,false) || !xcronExecutorBatchRuns(B,Runs,Count,sizeof(*Runs)))return xcronExecutorFail(XCRON_EXECUTOR_ARGUMENT,XERR_NONE,NULL);
+    return xcronExecutorBatchValue(B,Runs,Count,sizeof(*Runs),Issue);
+}
 static bool xcronExecutorRequest(xcronexecutor* B,xcronexecutorslot* S)
 {if(xrtAtomic32Exchange(&S->Execution.Requested,1,XMEMORY_ACQ_REL))return false;xcronExecutorIncrement(&B->Stats.CancelRequests);return true;}
 XCRON_API bool xcronExecutorCancel(xcronexecutor* B,xcronrunid Id,xcronexecutorissue* Issue)
@@ -248,6 +299,12 @@ XCRON_API bool xcronExecutorSubmitSelected(xcronexecutor* B,const xcronselectedr
     if(!B || !Run || !xcronExecutorOutputs(B,Run,sizeof(*Run),O,N,1) || !xcronExecutorMode(B,true) || !xcronExecutorRun(&Run->Run) || !Run->Candidates || Run->Run.ScheduledAt%1000 || Run->Local.Offset || Run->Local.IsDST!=-1 || Run->Local.Millisecond)
         return xcronExecutorFail(XCRON_EXECUTOR_ARGUMENT,XERR_NONE,NULL);
     return xcronExecutorSubmitValue(B,&Run->Run,&Run->Local,Run->Candidates,Issue);
+}
+XCRON_API bool xcronExecutorSubmitBatchSelected(xcronexecutor* B,const xcronselectedrun* Runs,size_t Count,xcronexecutorissue* Issue)
+{
+    void* O[]={Issue};size_t N[]={Issue?sizeof(*Issue):0};
+    if(!B || !Runs || !Count || Count>XCRON_EXECUTOR_BATCH_MAX || !xcronExecutorOutputs(B,Runs,Count*sizeof(*Runs),O,N,1) || xcronExecutorOverlap(B,B->Stats.Bytes,Runs,Count*sizeof(*Runs)) || !xcronExecutorMode(B,true) || !xcronExecutorBatchRuns(B,Runs,Count,sizeof(*Runs)))return xcronExecutorFail(XCRON_EXECUTOR_ARGUMENT,XERR_NONE,NULL);
+    return xcronExecutorBatchValue(B,Runs,Count,sizeof(*Runs),Issue);
 }
 XCRON_API bool xcronExecutorDrainSelected(xcronexecutor* B,xcronselectedcompletion* Completed,size_t Capacity,size_t* Count,xcronexecutorissue* Issue)
 {
