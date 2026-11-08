@@ -61,6 +61,70 @@ class MeasurePerformanceTest(unittest.TestCase):
 			with self.subTest(inputs=invalid), self.assertRaises(SystemExit):
 				measure_performance._benchmark_contract({**benchmark, "inputs": invalid}, set())
 
+	def test_rejects_invalid_or_overlapping_observation_declarations(self) -> None:
+		"""观测值必须独立声明，不能把受控事实或指标藏入同名字段。"""
+
+		benchmark = {
+			"name": "test", "source": "dev/bench/test.c", "suite": "core",
+			"args": [], "smoke_args": [], "facts": ["queries"],
+			"metrics": {"rate": {"direction": "higher", "unit": "ops/s"}},
+		}
+		measure_performance._benchmark_contract({**benchmark, "observations": ["steps"]}, set())
+		for invalid in (None, "steps", [None], [""], ["steps", "steps"], ["queries"], ["rate"]):
+			with self.subTest(observations=invalid), self.assertRaises(SystemExit):
+				measure_performance._benchmark_contract({**benchmark, "observations": invalid}, set())
+
+	def test_collects_each_real_child_observation_without_rounding(self) -> None:
+		"""实际子进程计数变化与大整数必须完整保留，预热不混入正式样本。"""
+
+		with tempfile.TemporaryDirectory() as directory:
+			path = str(Path(directory) / "counter")
+			code = (
+				"from pathlib import Path;import sys;p=Path(sys.argv[1]);"
+				"n=int(p.read_text())+1 if p.exists() else 1;p.write_text(str(n));"
+				"print('rate: 100');print('queries: 10');print('steps:',n);"
+				"print('large:',2**63+n)"
+			)
+			samples, facts, observations = measure_performance._collect_benchmark_samples(
+				Path(sys.executable), ["-c", code, path], {"rate"}, {"queries"}, {"steps", "large"},
+				{"warmups": 1, "repeats": 3, "timeout_seconds": 30}, "observed-child",
+			)
+		self.assertEqual(samples, {"rate": [100.0, 100.0, 100.0]})
+		self.assertEqual(facts, {"queries": "10"})
+		self.assertEqual(observations, [{"steps": str(n), "large": str(2**63+n)} for n in (2, 3, 4)])
+
+	def test_observations_do_not_waive_missing_fields_or_changing_facts(self) -> None:
+		"""缺少声明字段或稳定查询数漂移仍必须拒绝该次采样。"""
+
+		with self.assertRaises(SystemExit):
+			measure_performance._collect_benchmark_samples(
+				Path(sys.executable), ["-c", "print('rate: 1');print('queries: 10')"],
+				{"rate"}, {"queries"}, {"steps"},
+				{"warmups": 0, "repeats": 1, "timeout_seconds": 30}, "missing-observation",
+			)
+		with patch.object(measure_performance, "_run_benchmark", side_effect=[
+			({"rate": 1.0}, {"queries": "10", "steps": "9"}),
+			({"rate": 1.0}, {"queries": "11", "steps": "4"}),
+		]), self.assertRaisesRegex(SystemExit, "facts changed"):
+			measure_performance._collect_benchmark_samples(
+				Path("unused"), [], {"rate"}, {"queries"}, {"steps"},
+				{"warmups": 0, "repeats": 2, "timeout_seconds": 30}, "changing-fact",
+			)
+
+	def test_changed_observations_do_not_change_strict_metric_comparison(self) -> None:
+		"""内部工作量可减少；稳定后端和吞吐回归门槛继续严格生效。"""
+
+		baseline = self._report()
+		baseline["profiles"]["core"]["benchmarks"]["bench"]["observations"] = [{"steps": "351"}]
+		current = copy.deepcopy(baseline)
+		current["profiles"]["core"]["benchmarks"]["bench"]["observations"] = [{"steps": "4"}]
+		self.assertEqual(measure_performance._check_report(current, baseline), [])
+		current["profiles"]["core"]["benchmarks"]["bench"]["metrics"]["throughput"]["median"] = 80.0
+		self.assertEqual(len(measure_performance._check_report(current, baseline)), 1)
+		current["profiles"]["core"]["benchmarks"]["bench"]["facts"]["backend"] = "epoll"
+		with self.assertRaises(SystemExit):
+			measure_performance._check_report(current, baseline)
+
 	def test_parses_only_declared_metrics(self) -> None:
 		"""标题和运行参数不能被误当成受控性能指标。"""
 

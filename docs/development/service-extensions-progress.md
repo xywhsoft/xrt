@@ -8023,3 +8023,34 @@ goal remains paused; this user request performs migration/verification only.
 
 Portable feature evidence: extlibs/xcron/tests/results/occurrence-selection-20261108.json.
 Portable migration evidence: docs/development/service-extensions-mainline-20261108.json.
+
+
+### 2026-11-09: retain implementation work as per-sample observations
+
+Added optional performance observations, separate from strict workload facts and
+gated metrics. Declared fields must exist on every execution and cannot duplicate
+or overlap facts/metrics. Every measured sample retains its raw string dictionary,
+including exact integers beyond double precision; differing observation values do
+not bypass unchanged workload, environment/fingerprint, metric/noise contracts.
+Existing profiles without observations retain their report structure/schema2.
+
+The five occurrence profiles move only Step/segment/month/rule-year/check/offset/
+label work counts into observations. Batch size, kind, budget, query count and
+complete result-metadata checksum stay strict facts. Benchmark source/timed loops,
+arguments/defaults/5% throughput/10% latency and MAD3%/central6% gates are unchanged.
+The cycle description now names its workload and historical problem so it remains
+valid after optimization. New configuration/runner fingerprints require fresh
+sampling; older failed reports are retained and never force paired or rewritten.
+
+Windows/WSL each pass23 performance/size tool tests, including real child-process
+sampling, varying observations/large integers, missing fields, invalid/overlapping
+declarations, strict changing facts and regression rejection. Actual Cron CLI
+smoke preserves all counters separately from facts. Its initial checker incorrectly
+expected5 samples; smoke correctly reports1 sample/0 warmups. Initial reports,
+checker and failures remain; the checker now uses the reported repeat count and
+both corrected CLI runs pass. Smoke is not a qualified performance baseline.
+
+Evidence: docs/development/service-extensions-work-observations-20261109.json.
+Raw artifacts: out/service-extensions/xcron-ordered-occurrence-20261109/.
+Continue fresh mainline before/after measurement and ordered actual/gap traversal;
+full four-product scope/performance/native/>=72h acceptance stays open. Goal active.

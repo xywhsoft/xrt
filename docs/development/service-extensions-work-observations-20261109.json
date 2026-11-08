@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "stage": "per-sample algorithmic work observations without weakening workload/metric comparison",
+  "base_revision": "f0e0955c",
+  "runtime_source_changes": false,
+  "benchmark_source_and_arguments_unchanged": true,
+  "defaults_unchanged": true,
+  "original_failed_reports_preserved": true,
+  "production_accepted": false,
+  "smoke_scope": "CLI reports precede a neutral wording change to the historical cycle description; benchmark code/arguments/metrics/observations/defaults are identical. Description now remains applicable to before/after implementations.",
+  "verification": {
+    "windows": {
+      "unit_tests": 23,
+      "unit_log_sha256": "4a5688f25bd473706b2b7a8cd91f282952b3056356e3026d5b2c14a7d61b7eeb",
+      "smoke": {
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "native",
+          "--config",
+          "extlibs/xcron/config/performance_profiles.json",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--profiles",
+          "xcron_occurrence_last_sync",
+          "--smoke",
+          "--report",
+          "out\\service-extensions\\xcron-ordered-occurrence-20261109\\windows-observations-smoke.json"
+        ],
+        "exit_code": 0,
+        "report_sha256": "61cc47eb2135553aa7da69d94aedb063b4a2414d7ac08f03090daa3e6d7bbf1d",
+        "log_sha256": "f29ad0f9dcbb4279f92e5ce5483bcd6eb0bb1f1d4a6b3da7c6f1edf3a3b726e1",
+        "all_samples_observed": true,
+        "qualified": false
+      },
+      "initial_checker_failure": "Expected5 samples but smoke intentionally uses1; original sample/checker retained, no benchmark/program failure erased."
+    },
+    "wsl": {
+      "unit_tests": 23,
+      "unit_log_sha256": "258f0d385d4665497285ba5b419106aa7b7641baf2b36c09ca210a1a91dc7a77",
+      "smoke": {
+        "command": [
+          "/usr/bin/python3",
+          "-X",
+          "utf8",
+          "tools/measure_performance.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "x64",
+          "--config",
+          "extlibs/xcron/config/performance_profiles.json",
+          "--manifest",
+          "extlibs/xcron/config/modules.json",
+          "--profiles",
+          "xcron_occurrence_last_sync",
+          "--smoke",
+          "--report",
+          "out/service-extensions/xcron-ordered-occurrence-20261109/wsl-observations-smoke.json"
+        ],
+        "exit_code": 0,
+        "report_sha256": "432001f7ea7b87d477926c94affeb09d80d783cd8f760d8fe09d37eb65d8d4c5",
+        "log_sha256": "abb39f0654895f5015705628742562d4ce6ca8168f690db71197209daa7bee75",
+        "all_samples_observed": true,
+        "qualified": false
+      },
+      "initial_checker_failure": "Expected5 samples but smoke intentionally uses1; original sample/checker retained, no benchmark/program failure erased."
+    }
+  },
+  "changed_sha256": {
+    "tools/measure_performance.py": "a4bf20be498e7885b8225f4e433d606ad112b3a39c81d4fbcf43cda8affafe8e",
+    "tools/test_measure_performance.py": "62a2e30f1af003be1da1ff24a5c042b90ac73950d10131718f04deea4be1fef0",
+    "docs/PERFORMANCE.md": "32ab2dfff217df65263b7e8a1d74c5b383e934278b6abf6d8598df1fe60ce424",
+    "extlibs/xcron/config/performance_profiles.json": "0489f701f4db4c33175f5afb513746e6d221987c5ceb0db59ef9fc6d888e2671",
+    "docs/development/service-extensions-progress.md": "508c283a6725304ee93f3f1bf7a6da5152f394d71fb00ec313c300c747de26e5"
+  },
+  "local_evidence_directory": "out/service-extensions/xcron-ordered-occurrence-20261109"
+}

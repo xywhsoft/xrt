@@ -145,9 +145,20 @@ def _benchmark_contract(benchmark: object, names: set[str]) -> None:
 		raise SystemExit(f"invalid performance benchmark facts: {name}")
 	if len(facts) != len(set(facts)):
 		raise SystemExit(f"duplicate performance benchmark fact: {name}")
+	observations = benchmark.get("observations", [])
+	if not isinstance(observations, list) or not all(
+		isinstance(item, str) and item for item in observations
+	):
+		raise SystemExit(f"invalid performance benchmark observations: {name}")
+	if len(observations) != len(set(observations)):
+		raise SystemExit(f"duplicate performance benchmark observation: {name}")
+	if set(facts) & set(observations):
+		raise SystemExit(f"performance observation conflicts with fact: {name}")
 	metrics = benchmark.get("metrics")
 	if not isinstance(metrics, dict) or not metrics:
 		raise SystemExit(f"performance benchmark metrics are missing: {name}")
+	if set(observations) & set(metrics):
+		raise SystemExit(f"performance observation conflicts with metric: {name}")
 	if set(facts) & set(metrics):
 		raise SystemExit(f"performance fact conflicts with metric: {name}")
 	for metric_name, metric in metrics.items():
@@ -583,6 +594,36 @@ def _run_benchmark(
 
 
 
+def _collect_benchmark_samples(
+	executable: Path, arguments: list[str], metrics: set[str], facts: set[str],
+	observations: set[str], defaults: dict, name: str,
+) -> tuple[dict[str, list[float]], dict[str, str], list[dict[str, str]]]:
+	"""严格保留稳定工作负载事实，另存每次执行的非门禁观测值。"""
+
+	fields = facts | observations
+	for warmup in range(defaults["warmups"]):
+		print(f"[warmup] {name} {warmup + 1}/{defaults['warmups']}")
+		_run_benchmark(executable, arguments, metrics, fields, defaults["timeout_seconds"])
+	samples = {key: [] for key in metrics}
+	facts_result = None
+	observation_samples = []
+	for sample in range(defaults["repeats"]):
+		print(f"[run] {name} {sample + 1}/{defaults['repeats']}")
+		values, values_text = _run_benchmark(
+			executable, arguments, metrics, fields, defaults["timeout_seconds"]
+		)
+		current_facts = {key: value for key, value in values_text.items() if key in facts}
+		if facts_result is None:
+			facts_result = current_facts
+		elif current_facts != facts_result:
+			raise SystemExit(f"performance facts changed between samples: {name}")
+		observation_samples.append({key: value for key, value in values_text.items() if key in observations})
+		for key, value in values.items():
+			samples[key].append(value)
+	return samples, facts_result or {}, observation_samples
+
+
+
 def _metric_limit(metric: dict, defaults: dict) -> float:
 	"""读取指标专用阈值，未声明时使用方向默认值。"""
 
@@ -828,29 +869,12 @@ def main() -> int:
 			)
 			metric_names = set(benchmark["metrics"])
 			fact_names = set(benchmark.get("facts", []))
+			observation_names = set(benchmark.get("observations", []))
 			run_args = benchmark["smoke_args"] if arguments.smoke else benchmark["args"]
-			for warmup in range(defaults["warmups"]):
-				print(f"[warmup] {benchmark['name']} {warmup + 1}/{defaults['warmups']}")
-				_run_benchmark(
-					output, run_args, metric_names, fact_names,
-					defaults["timeout_seconds"]
-				)
-			samples = {name: [] for name in metric_names}
-			facts_result = None
-			for sample in range(defaults["repeats"]):
-				print(f"[run] {benchmark['name']} {sample + 1}/{defaults['repeats']}")
-				values, facts = _run_benchmark(
-					output, run_args, metric_names, fact_names,
-					defaults["timeout_seconds"]
-				)
-				if facts_result is None:
-					facts_result = facts
-				elif facts != facts_result:
-					raise SystemExit(
-						f"performance facts changed between samples: {benchmark['name']}"
-					)
-				for name, value in values.items():
-					samples[name].append(value)
+			samples, facts_result, observation_samples = _collect_benchmark_samples(
+				output, run_args, metric_names, fact_names, observation_names, defaults,
+				benchmark["name"],
+			)
 			metrics_result = {}
 			for name, metric in benchmark["metrics"].items():
 				summary = _metric_summary(samples[name])
@@ -892,6 +916,7 @@ def main() -> int:
 				"suite": benchmark["suite"],
 				"args": run_args,
 				"facts": facts_result or {},
+				**({"observations": observation_samples} if observation_names else {}),
 				"metrics": metrics_result,
 			}
 		result["profiles"][profile_value["name"]] = profile_result

@@ -1144,13 +1144,6 @@
             "kind",
             "budget",
             "queries",
-            "steps",
-            "segments",
-            "months",
-            "rule_years",
-            "checks",
-            "offsets",
-            "labels",
             "checksum"
           ],
           "metrics": {
@@ -1174,7 +1167,16 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
         }
       ]
     },
@@ -1202,13 +1204,6 @@
             "kind",
             "budget",
             "queries",
-            "steps",
-            "segments",
-            "months",
-            "rule_years",
-            "checks",
-            "offsets",
-            "labels",
             "checksum"
           ],
           "metrics": {
@@ -1232,7 +1227,16 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
         }
       ]
     },
@@ -1260,13 +1264,6 @@
             "kind",
             "budget",
             "queries",
-            "steps",
-            "segments",
-            "months",
-            "rule_years",
-            "checks",
-            "offsets",
-            "labels",
             "checksum"
           ],
           "metrics": {
@@ -1290,14 +1287,23 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
         }
       ]
     },
     {
       "name": "xcron_occurrence_cycle_reject_cursor16",
       "system": "occurrence",
-      "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap sequential400-year actual proof before missing rejection; worst-case optimization remains open; no production qualification",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap yearly nominal label with an unbounded UTC query window; originally exposed a sequential400-year proof before early missing rejection; no production qualification",
       "benchmarks": [
         {
           "name": "xcron_occurrence_cycle_reject_cursor16",
@@ -1318,13 +1324,6 @@
             "kind",
             "budget",
             "queries",
-            "steps",
-            "segments",
-            "months",
-            "rule_years",
-            "checks",
-            "offsets",
-            "labels",
             "checksum"
           ],
           "metrics": {
@@ -1348,7 +1347,16 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
         }
       ]
     },
@@ -1376,13 +1384,6 @@
             "kind",
             "budget",
             "queries",
-            "steps",
-            "segments",
-            "months",
-            "rule_years",
-            "checks",
-            "offsets",
-            "labels",
             "checksum"
           ],
           "metrics": {
@@ -1406,7 +1407,16 @@
               "direction": "lower",
               "unit": "us"
             }
-          }
+          },
+          "observations": [
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels"
+          ]
         }
       ]
     }
