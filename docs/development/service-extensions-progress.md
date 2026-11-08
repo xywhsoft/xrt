@@ -8054,3 +8054,66 @@ Evidence: docs/development/service-extensions-work-observations-20261109.json.
 Raw artifacts: out/service-extensions/xcron-ordered-occurrence-20261109/.
 Continue fresh mainline before/after measurement and ordered actual/gap traversal;
 full four-product scope/performance/native/>=72h acceptance stays open. Goal active.
+
+### 2026-11-09: ordered recurring actual/gap traversal on master
+
+Replaced the provisional-actual-then-gap composition with one ordered UTC walk.
+Every gap is resolved before actual labels in its following segment; FIRST/LAST
+filtering reuses the calendar and transition state within that segment. Complete
+global candidate/UNKNOWN resolution is retained. Actual absence may use its safe
+earlier periodic proof only before any actual label matches; selected absence
+keeps the maximum legal offset margin. Missing REJECT still walks gaps/mapping
+after actual absence. Public ABI remains occurrence64/budget20/issue128/cursor1024;
+x64 private value/control shrink880/904 to792/816. Private cursor magic is revised.
+
+New regressions require the earliest yearly missing gap to do the same work with
+a short or INT64_MAX horizon, dense120-label fold rejection to share exactly two
+segments while resolving121 labels, and the synthetic exclusively owned general
+POSIX fallback to yield each of403 actual rule years. The synthetic fixture is
+never used in performance measurements. Existing ownership, independent budgets,
+pending atomicity, optional Issue/OOM and native handoff tests remain.
+
+Windows and WSL each pass27 root modular/single programs, the runnable example,
+root and isolated occurrence static/shared consumers, and direct/generated ABI
+checks. WSL suites run O2 ASan/UBSan/leak-halt; both O1 TSan occurrence programs
+pass. Windows90 tool tests and feature/single/API/docs checks pass. Existing
+Windows symbolic-link fixture skips (system1314) are retained. Both independent
+422-zone oracle reports match exactly:121664 queries,243328 synchronous calls,
+349582 cursor Steps and714574 API calls. Expected found/none/ambiguous/missing/
+unknown outcomes match the earlier implementation; ordered work reduces segment
+visits317099 to173554 and Steps401818 to349582. Both backends use the same2526
+frozen execution input hashes; production C/H were never edited or regenerated
+while any of this stage's compiler/measurement pipelines could read them.
+
+Fresh formal before/after measurements use the same five profiles, timed driver,
+arguments, strict query/result-metadata facts, runner/config fingerprints and
+original5% throughput/10% latency/MAD3%/central6% gates. All five measured samples
+and executable hashes are retained per backend/phase. No baseline is rewritten
+or force paired. Per query, the yearly always-gap REJECT workload now needs2
+segments/4 months/2 rule years/1 Step at budget16, versus803/5601/2004/351. Ready
+LAST keeps both global resolutions, sharing2 rather than3 segments. Ordinary gap
+REJECT resolves1 label rather than computing a later unused actual result too.
+
+Descriptive throughput medians before->after: Windows LAST sync948220->1100482,
+cursor688030->754225, gap702712->1108057, yearly3949->943090 queries/s; WSL
+831517->966950,581044->636061,642367->1145312,3503->827322 respectively. Public
+composition controls change781419->752025 and733297->743446. These are NOT qualified
+performance results: all four reports fail original noise gates. CLI noise
+rejection precedes median comparison, so the unchanged strict comparator is also
+applied to original reports without relaxing environment/fingerprint/facts or
+thresholds. It exposes Windows LAST cursor batch p95 regression56.2->70.6us
+(10% limit); WSL medians have no threshold failure. The Windows tail regression
+remains unresolved; it is not dismissed as noise. The now-fast yearly sample is
+short at unchanged query count and needs a separate longer controlled workload
+for future qualification. No production tail/performance acceptance is claimed.
+
+Both platforms' single/static/shared size reports and dependency-symbol checks
+are retained. Source inputs, raw failures, scripts, before/after reports/binaries,
+full oracle and validation receipts remain under
+out/service-extensions/xcron-ordered-occurrence-20261109/.
+Portable evidence: extlibs/xcron/tests/results/occurrence-ordered-20261109.json.
+Evidence publication follows execution capture and changes no compiled input.
+Remaining work includes investigating the Windows tail, controlled native
+performance, job integration/compensation/durability, remaining Redis/RPC/MQTT
+features/interop and>=72h acceptance. Goal active; all development stays on
+D:/GIT/xrt master unless a concrete exception is needed.

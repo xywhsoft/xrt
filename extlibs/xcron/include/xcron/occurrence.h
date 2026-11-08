@@ -61,7 +61,7 @@ XCRON_API xcronoccurrencestatus xcronOccurrenceNext(const xcronexpression* Expre
 XCRON_API bool xcronOccurrenceCursorInit(xcronoccurrencecursor* Cursor,const xcronexpression* Expression,const xcronzone* Zone,
     xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrenceissue* Issue);
 /* Independent nonnegative per-Step upper bounds; zero is allowed. Segments
- * counts actual ordered-segment starts and gap transition-walk initializations;
+ * counts ordered UTC segment starts, including their bounded state/gap setup;
  * Months counts calendar visits/ready matches; RuleYears counts actual incremental
  * transition-search years from all engines (not fixed five-year state lookups);
  * Checks/Offsets count complete-label coverage/search checks and distinct offset

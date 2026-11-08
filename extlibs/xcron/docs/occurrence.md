@@ -38,21 +38,24 @@ anchor and canonical nominal label when known; unknown state without a known
 label leaves Local zero. Other policy/mapping errors carry their actual search
 anchor. This is explicit rejection, not shifted or compensated delivery.
 
-The current implementation first computes a provisional actual selected result/
-error or absence, then checks gaps from the rounded start through that anchor
-(or the proof limit for absence). It publishes only after both stages establish
-ordering. Thus an earlier missing event supersedes a later actual error. This
-sequential composition can traverse a complete400-year absence proof before
-reporting an early missing label for an always-gap expression. Interleaving these
-streams and accelerating dense rejected folds remain performance optimization
-work; no production acceptance is claimed for that worst case.
+The engine traverses UTC segments in order. At each segment start it checks the
+gap before searching actual labels, so an earlier missing event supersedes a
+later actual error and a gap wins a tie at the transition instant. A missing
+label at the first seasonal transition can terminate immediately, without first
+proving actual absence over400 years. Calendar and transition state are reused
+when FIRST/LAST filters consecutive actual candidates in the same segment. Each
+label still receives complete global resolution; no fold or UNKNOWN check is
+omitted to reduce work.
 
 History is completed before applying periodicity. The global proof limit includes
 `2*INT32_MAX` seconds after the proven periodic suffix begins, then a full400-year
 Gregorian cycle. This ensures the whole legal candidate-offset window lies in
 the periodic suffix. No arbitrary lookahead discards a500-year historical prefix.
-The original actual engine may also prove actual absence earlier, which implies
-selected actual absence independently of fold selection. Gaps are still checked.
+Actual absence can be proved at an earlier actual400-year bound while no actual
+matching label has been encountered, or by a complete continuous civil cycle.
+Once any actual label matches, selected absence requires the global proof bound.
+Even after actual absence is proved, missing REJECT continues checking gaps and
+mapping through its global limit.
 
 ## Budgeted execution and lifetime
 
@@ -68,7 +71,7 @@ component yields PENDING; all-zero pending calls change no cursor bytes.
 
 | Budget | Actual charged traversal |
 | --- | --- |
-| Segments | Actual ordered segment starts plus initial gap mapping checks and gap transition-walk initializations |
+| Segments | Ordered UTC segment starts, including their bounded state/gap setup and transition-walk initialization |
 | Months | Calendar visits and actual ready-match checks |
 | RuleYears | Incremental transition-search years across every engine; excludes fixed five-year state lookups |
 | Checks | Complete-label initial coverage/directory checks and completed footer searches |
@@ -88,8 +91,8 @@ Expression at Init/synchronous calls. Invalid structural flags/policies/spans/
 aliases preserve all outputs. Wrong identity is STATE. On invalid-identity calls,
 outputs must still avoid every borrowed owner, including the original zone.
 
-The private typed engine reuses dormant actual calendar/transition storage for
-the later gap stage and omits full candidate arrays. The public wrapper copies
+The private typed engine shares calendar/transition storage across the ordered
+actual/gap traversal and omits full candidate arrays. The public wrapper copies
 its private control state, initializes fixed storage, validates spans and emits
 result/Issue metadata. Those copies, bounded directory/state checks and calendar
 arithmetic remain costs. Budgets bound algorithmic traversal, not elapsed CPU/
