@@ -94,6 +94,22 @@
 #ifndef XCRON_MODULE_XCRON_DELIVERY
 #define XCRON_MODULE_XCRON_DELIVERY
 #endif
+#ifndef XCRON_MODULE_XCRON_OCCURRENCE
+#define XCRON_MODULE_XCRON_OCCURRENCE
+#endif
+#endif
+
+/* xcron_occurrence 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_OCCURRENCE)
+#ifndef XCRON_FEATURE_XCRON_OCCURRENCE
+#define XCRON_FEATURE_XCRON_OCCURRENCE
+#endif
+#ifndef XCRON_MODULE_XCRON_DELIVERY
+#define XCRON_MODULE_XCRON_DELIVERY
+#endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
 #endif
 
 /* xcron_delivery 及其直接依赖。 */
@@ -1289,6 +1305,91 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xcron/include/xcron/occurrence.h */
+/* ========================================================================== */
+
+#ifndef XCRON_OCCURRENCE_H
+#define XCRON_OCCURRENCE_H
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE) && (!defined(XCRON_FEATURE_XCRON_DELIVERY) || !defined(XCRON_FEATURE_XCRON_ZONED))
+#error "occurrence search requires delivery and zoned"
+#endif
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+typedef enum xcronoccurrencestatus {XCRON_OCCURRENCE_ERROR=-1,XCRON_OCCURRENCE_NONE=0,XCRON_OCCURRENCE_FOUND=1,XCRON_OCCURRENCE_PENDING=2} xcronoccurrencestatus;
+typedef enum xcronoccurrenceerror {XCRON_OCCURRENCE_OK=0,XCRON_OCCURRENCE_ARGUMENT=9001,XCRON_OCCURRENCE_EXPRESSION,XCRON_OCCURRENCE_WINDOW,XCRON_OCCURRENCE_ZONE,XCRON_OCCURRENCE_AMBIGUOUS,XCRON_OCCURRENCE_MISSING,XCRON_OCCURRENCE_STATE,XCRON_OCCURRENCE_RANGE} xcronoccurrenceerror;
+/* Local is canonical floating civil metadata: Offset0, IsDST-1, fraction0.
+ * Candidates is its complete global multiplicity, before window/policy filtering. */
+typedef struct xcronoccurrence {xtime When;xdatetime Local;size_t Candidates;} xcronoccurrence;
+typedef struct xcronoccurrencebudget {uint32 Segments,Months,RuleYears,Checks,Offsets;} xcronoccurrencebudget;
+typedef struct xcronoccurrenceissue {
+    xcronoccurrenceerror Code;xcronfield Field;xcronzoneerror Zone;size_t Candidates;
+    xtime When;xdatetime Local;
+    uint64 SegmentsExamined,MonthsExamined,RuleYearsExamined,ChecksExamined,OffsetsExamined,LabelsExamined;
+} xcronoccurrenceissue;
+#define XCRON_OCCURRENCE_CURSOR_BYTES 1024u
+typedef union xcronoccurrencecursor {uint64 Alignment;uint8 Storage[XCRON_OCCURRENCE_CURSOR_BYTES];} xcronoccurrencecursor;
+XRT_EXTERN_C_BEGIN
+/* Earliest selected actual occurrence in [Begin,End], or (Begin,End] with
+ * EXCLUSIVE. Whole-second rounding/full-int64 bounds match ZonedNext. Each
+ * matching label is resolved COMPLETELY before fold selection: FIRST/LAST refer
+ * to global candidates, including candidates outside this query window. REJECT
+ * fails AMBIGUOUS at the first actual matching instant in the window whose label
+ * has multiple global candidates. UNKNOWN completeness is never waived by policy.
+ *
+ * Missing SKIP ignores absent labels. Missing REJECT checks each positive-offset
+ * transition T in the rounded UTC window: enumerate matching labels in
+ * [T+Before.Offset,T+After.Offset), and reject the earliest label having ZERO
+ * global candidates. Another historical/future mapping can fill that apparent
+ * gap, so a positive offset change alone does not prove missing. Missing errors
+ * are anchored at T, including T==Begin unless exclusive. On a tie they precede
+ * an actual result/error at T. Mapping failures have their first encountered UTC
+ * anchor. Issue identifies that anchor/label when known. Before/after unknown
+ * mapping needed to decide a gap is ZONE/UNKNOWN. No shift/compensation occurs.
+ *
+ * History is completed before any periodic proof. A complete400-year suffix is
+ * applied only after the maximum legal offset window lies in the periodic zone;
+ * no arbitrary horizon is used. NONE/ERROR leave Next untouched; FOUND alone
+ * writes Next. Pending Issue exposes counters only, not provisional candidates.
+ * Code/Field/Zone remain typed under diagnostic OOM. Normal results preserve
+ * ambient errors and request no heap/IO/lock/retention; diagnostics may allocate.
+ * Outputs avoid Expression, the complete Zone/footer ownership graph and one
+ * another. Structural invalid flags/policies/spans/aliases preserve all outputs.
+ * This synchronous convenience loop never returns PENDING. It can perform large
+ * work: callers needing admission fairness use the cursor instead. No existing
+ * scheduler/executor/service job, clock/misfire/overlap or durable recovery change.
+ * Error domain: xrt.cron.occurrence. */
+XCRON_API xcronoccurrencestatus xcronOccurrenceNext(const xcronexpression* Expression,const xcronzone* Zone,
+    xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrence* Next,xcronoccurrenceissue* Issue);
+/* Init validates/snapshots Expression, bounds and Policy, records exact Zone
+ * identity, rounds bounds and computes the periodic suffix bound. No traversal.
+ * BORROWS Zone: keep that exact immutable owner live for every Step/terminal read.
+ * Local cursor storage must stay at its initialized address; copying/relocating/
+ * modifying bytes is invalid. Serialized same-address thread handoff is allowed.
+ * Init failure preserves Cursor. No heap, retention or Unit duty. Expression may
+ * change after Init; outputs also avoid Cursor and Expression during Init. */
+XCRON_API bool xcronOccurrenceCursorInit(xcronoccurrencecursor* Cursor,const xcronexpression* Expression,const xcronzone* Zone,
+    xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrenceissue* Issue);
+/* Independent nonnegative per-Step upper bounds; zero is allowed. Segments
+ * counts actual ordered-segment starts and gap transition-walk initializations;
+ * Months counts calendar visits/ready matches; RuleYears counts actual incremental
+ * transition-search years from all engines (not fixed five-year state lookups);
+ * Checks/Offsets count complete-label coverage/search checks and distinct offset
+ * probes as in DeliveryCursorStep. Labels counts completed resolution attempts,
+ * including failures; it has no separate budget and reflects already charged
+ * resolution work. Each traversal-counter delta is at most its own budget.
+ * Needed exhausted dimensions yield PENDING with Next untouched; an all-zero
+ * pending call changes no cursor bytes. Terminal results/issues repeat without
+ * traversal even at zero budget. State/argument failures do not advance Cursor.
+ * Work units do not bound elapsed CPU/OS time, diagnostics or a scheduler turn.
+ * Wrapper control copies, cold zeroing, bounded directory/state/validation work
+ * and terminal output copies remain costs; there is no zero-overhead claim. */
+XCRON_API xcronoccurrencestatus xcronOccurrenceCursorStep(xcronoccurrencecursor* Cursor,const xcronzone* Zone,
+    xcronoccurrencebudget Budget,xcronoccurrence* Next,xcronoccurrenceissue* Issue);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xcron/include/xcron.h */
 /* ========================================================================== */
 
@@ -1318,6 +1419,9 @@ XRT_EXTERN_C_END
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_DELIVERY)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_DELIVERY"
+#endif
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+#error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_OCCURRENCE"
 #endif
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_SCHEDULER)
@@ -1358,6 +1462,10 @@ typedef struct xcroncalendarvalue {
 void xcronCalendarValueInit(xcroncalendarvalue* Value,const xdatetime* First,const xdatetime* End,xcroncalendarstatus Status);
 /* Valid canonical ordered civil bounds; constant impossibility proof only. */
 void xcronCalendarValueBegin(const xcronexpression* Expression,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* Value);
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+/* Resume strictly after a canonical civil label, including outside xtime. */
+void xcronCalendarValueAfter(const xcronexpression* Expression,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* Value);
+#endif
 xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* Expression,xcroncalendarvalue* Value,uint32 MonthBudget);
 /* Product-private validated calendar operations; no XRT-private API dependency. */
 bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* Field);
@@ -1542,6 +1650,35 @@ struct xcrontzdb {uint32 Magic;xcrontzdbconfig Config;xallocationbudget* Budget;
 typedef bool (*xcrontzdbread)(ptr Context,xstrview Name,xbytesview* Data,ptr* Owned,xcrontzdbissue* Work);
 typedef struct xcrontzdbsource {const xcrontzdbentry* Entries;const xstrview* Names;size_t Count;xcrontzdbread Read;ptr Context;} xcrontzdbsource;
 bool xcronTzdbLoadSource(xcrontzdb* DB,xstrview Version,const xcrontzdbsource* Source,uint64 Expected,uint64* Revision,xcrontzdbissue* Issue);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xcron/src/occurrence/occurrence_internal.h */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+#ifndef XCRON_OCCURRENCE_INTERNAL_H
+#define XCRON_OCCURRENCE_INTERNAL_H
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+/* Product-private typed engine; immutable validated inputs, no diagnostics or
+ * retention. Reuse Search's dormant calendar/walk state for gap validation. */
+typedef struct xcronoccurrencevalue {
+    xcronzonedvalue Search;
+    xcronzoneresolution Resolve;
+    xcronoccurrence Candidate;
+    xcronoccurrenceissue Work;
+    xtime First,Limit,Bound,After;
+    xcrondeliverypolicy Policy;
+    uint32 Phase;
+    xcronoccurrencestatus Outcome,Status;
+    xcronoccurrenceerror OutcomeCode;
+    xcronzoneerror OutcomeZone;
+} xcronoccurrencevalue;
+void xcronOccurrenceValueInit(const xcronexpression* Expression,const xcronzone* Zone,xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrencevalue* Value);
+xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* Value,const xcronzone* Zone,xcronoccurrencebudget Budget);
 #endif
 #endif
 #endif
@@ -1964,6 +2101,14 @@ xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* E,xcroncalenda
 }
 void xcronCalendarValueBegin(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
 {xcronCalendarValueInit(V,First,End,xcronCalendarMayExist(E)?XCRON_CALENDAR_PENDING:XCRON_CALENDAR_NONE);}
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+void xcronCalendarValueAfter(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
+{
+    xdatetime Next=*First;
+    if(!xcronCalendarTick(&Next)){xcronCalendarValueInit(V,&Next,End,XCRON_CALENDAR_NONE);return;}
+    xcronCalendarValueBegin(E,&Next,End,V);
+}
+#endif
 /* Keep the legacy synchronous control loop specialized: measured cursor-state
  * setup/copy overhead is material for a single-month search. Date/bitmap rules
  * are shared; independent oracles cover both control paths. */
@@ -4686,6 +4831,183 @@ XCRON_API xcrondeliverystatus xcronDeliveryCursorStep(xcrondeliverycursor* C,con
     }
     if(Issue)*Issue=Work;
     return Required?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/occurrence/occurrence.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+#include <string.h>
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+#define XCRON_OCCURRENCE_CYCLE_MS INT64_C(12622780800000)
+static void xcronOccurrenceLocal(xtime T,int32 Offset,xdatetime* D)
+{xcronZoneDecompose(T,Offset,false,D);D->Offset=0;D->IsDST=-1;}
+void xcronOccurrenceValueInit(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrencevalue* V)
+{
+    memset(V,0,sizeof(*V));V->Policy=Policy;V->Work.Field=XCRON_FIELD_NONE;V->Status=XCRON_OCCURRENCE_NONE;
+    int64 R=Begin%1000,D=R?(R>0?1000-R:-R):((Flags&XCRON_SEARCH_EXCLUSIVE)?1000:0);
+    if(Begin>INT64_MAX-D || Begin+D>End)return;
+    V->First=Begin+D;V->Limit=End;xtime Repeat;
+    const int64 Margin=(int64)INT32_MAX*2000,Span=XCRON_OCCURRENCE_CYCLE_MS-1000;
+    if(xcronZoneRepeat(Z,V->First,&Repeat) && Repeat<=INT64_MAX-Margin && Repeat+Margin<=INT64_MAX-Span){
+        xtime ProofEnd=Repeat+Margin+Span;if(ProofEnd<V->Limit)V->Limit=ProofEnd;
+    }
+    xcronZonedValueInit(E,Z,V->First,V->Limit,0,&V->Search);V->Status=XCRON_OCCURRENCE_PENDING;
+}
+static xcronoccurrencestatus xcronOccurrenceFinish(xcronoccurrencevalue* V)
+{
+    V->Work.Code=V->OutcomeCode;V->Work.Zone=V->OutcomeZone;
+    V->Work.When=V->Candidate.When;V->Work.Local=V->Candidate.Local;V->Work.Candidates=V->Candidate.Candidates;
+    return V->Status=V->Outcome;
+}
+static xcronoccurrencestatus xcronOccurrenceGapFail(xcronoccurrencevalue* V,xcronoccurrenceerror Code,xcronzoneerror Zone,bool Label)
+{
+    V->Work.Code=Code;V->Work.Zone=Zone;V->Work.When=V->After;
+    if(Label)V->Work.Local=V->Search.Calendar.Date;
+    return V->Status=XCRON_OCCURRENCE_ERROR;
+}
+static void xcronOccurrenceGapBegin(xcronoccurrencevalue* V,const xcronzonestate* Before,const xcronzonestate* After)
+{
+    xdatetime First,End;xcronOccurrenceLocal(V->After,Before->Offset,&First);xcronOccurrenceLocal(V->After-1,After->Offset,&End);End.Millisecond=0;
+    xcronCalendarValueBegin(&V->Search.Expression,&First,&End,&V->Search.Calendar);V->Phase=5;
+}
+static void xcronOccurrencePrepareGap(xcronoccurrencevalue* V)
+{V->Bound=V->Outcome==XCRON_OCCURRENCE_NONE?V->Limit:V->Candidate.When;V->After=V->First;V->Phase=2;}
+static xcronzonestatus xcronOccurrenceResolve(xcronoccurrencevalue* V,const xcronzone* Z,xcronoccurrencebudget* B)
+{
+    uint64 Checks=V->Resolve.Checks,Offsets=V->Resolve.Offsets,Years=V->Resolve.RuleYears;
+    xcronzonestatus S=xcronZoneResolutionStep(&V->Resolve,Z,(xcronresolutionbudget){B->Checks,B->Offsets,B->RuleYears},NULL);
+    uint32 C=(uint32)(V->Resolve.Checks-Checks),O=(uint32)(V->Resolve.Offsets-Offsets),Y=(uint32)(V->Resolve.RuleYears-Years);
+    B->Checks-=C;B->Offsets-=O;B->RuleYears-=Y;V->Work.ChecksExamined+=C;V->Work.OffsetsExamined+=O;V->Work.RuleYearsExamined+=Y;
+    if(S!=XCRON_ZONE_WALK_PENDING)++V->Work.LabelsExamined;
+    return S;
+}
+xcronoccurrencestatus xcronOccurrenceValueStep(xcronoccurrencevalue* V,const xcronzone* Z,xcronoccurrencebudget B)
+{
+    if(!(B.Segments|B.Months|B.RuleYears|B.Checks|B.Offsets))return V->Status;
+    while(V->Status==XCRON_OCCURRENCE_PENDING){
+        if(V->Phase==0){
+            xcronzonedcursorissue Before=V->Search.Work;
+            xcronzonedstatus S=xcronZonedValueStep(&V->Search,Z,(xcronzonedbudget){B.Segments,B.Months,B.RuleYears});
+            uint32 Segments=V->Search.Work.SegmentsExamined-Before.SegmentsExamined,Months=(uint32)(V->Search.Work.MonthsExamined-Before.MonthsExamined),Years=(uint32)(V->Search.Work.RuleYearsExamined-Before.RuleYearsExamined);
+            B.Segments-=Segments;B.Months-=Months;B.RuleYears-=Years;V->Work.SegmentsExamined+=Segments;V->Work.MonthsExamined+=Months;V->Work.RuleYearsExamined+=Years;
+            if(S==XCRON_ZONED_PENDING)return V->Status;
+            if(S==XCRON_ZONED_FOUND){V->Candidate.When=V->Search.Result;xcronOccurrenceLocal(V->Search.Result,V->Search.Offset,&V->Candidate.Local);xcronZoneResolutionInit(&V->Candidate.Local,&V->Resolve);V->Phase=1;continue;}
+            memset(&V->Candidate,0,sizeof(V->Candidate));V->Outcome=S==XCRON_ZONED_NONE?XCRON_OCCURRENCE_NONE:XCRON_OCCURRENCE_ERROR;
+            if(S==XCRON_ZONED_ERROR){V->Candidate.When=V->Search.First;V->OutcomeCode=V->Search.Work.Code==XCRON_ZONED_ZONE?XCRON_OCCURRENCE_ZONE:XCRON_OCCURRENCE_RANGE;V->OutcomeZone=V->Search.Work.Zone;}
+            if(V->Policy.Missing==XCRON_MISSING_SKIP)return xcronOccurrenceFinish(V);
+            xcronOccurrencePrepareGap(V);continue;
+        }
+        if(V->Phase==1){
+            xcronzonestatus S=xcronOccurrenceResolve(V,Z,&B);if(S==XCRON_ZONE_WALK_PENDING)return V->Status;
+            V->Candidate.Candidates=V->Resolve.Count;V->Outcome=XCRON_OCCURRENCE_FOUND;
+            if(S==XCRON_ZONE_ERROR){V->Outcome=XCRON_OCCURRENCE_ERROR;V->OutcomeCode=XCRON_OCCURRENCE_ZONE;V->OutcomeZone=V->Resolve.Error;}
+            else if(!V->Resolve.Count){V->Outcome=XCRON_OCCURRENCE_ERROR;V->OutcomeCode=XCRON_OCCURRENCE_RANGE;}
+            else if(V->Resolve.Count>1 && V->Policy.Fold==XCRON_FOLD_REJECT){V->Outcome=XCRON_OCCURRENCE_ERROR;V->OutcomeCode=XCRON_OCCURRENCE_AMBIGUOUS;}
+            else if((V->Policy.Fold==XCRON_FOLD_FIRST && V->Candidate.When!=V->Resolve.First) || (V->Policy.Fold==XCRON_FOLD_LAST && V->Candidate.When!=V->Resolve.Last)){
+                xcronZonedValueRestart(&V->Search.Expression,Z,V->Candidate.When,V->Limit,XCRON_SEARCH_EXCLUSIVE,&V->Search);V->Phase=0;continue;
+            }
+            if(V->Policy.Missing==XCRON_MISSING_SKIP)return xcronOccurrenceFinish(V);
+            xcronOccurrencePrepareGap(V);continue;
+        }
+        if(V->Phase==2){
+            if(!B.Segments)return V->Status;
+            --B.Segments;++V->Work.SegmentsExamined;
+            xcronzonestate Before=xcronZoneStateValue(Z,V->After-1),After=xcronZoneStateValue(Z,V->After);
+            if(Before.Offset==XCRON_ZONE_OFFSET_UNKNOWN || After.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_ZONE,XCRON_ZONE_UNKNOWN,false);
+            if(After.Offset>Before.Offset){xcronOccurrenceGapBegin(V,&Before,&After);continue;}
+            V->Phase=3;
+        }
+        if(V->Phase==3){
+            if(V->After>=V->Bound)return xcronOccurrenceFinish(V);
+            if(!B.Segments)return V->Status;
+            --B.Segments;++V->Work.SegmentsExamined;xcronZoneWalkInit(Z,V->After,&V->Search.Transition);V->Phase=4;
+        }
+        if(V->Phase==4){
+            xcronzonewalk* W=&V->Search.Transition;uint32 Before=W->Years;xcronzonestatus S=xcronZoneWalkStep(W,B.RuleYears);uint32 Used=W->Years-Before;B.RuleYears-=Used;V->Work.RuleYearsExamined+=Used;
+            if(S==XCRON_ZONE_WALK_PENDING)return V->Status;
+            if(S==XCRON_ZONE_NONE || W->Result.When>V->Bound)return xcronOccurrenceFinish(V);
+            V->After=W->Result.When;
+            if(W->Result.Before.Offset==XCRON_ZONE_OFFSET_UNKNOWN || W->Result.After.Offset==XCRON_ZONE_OFFSET_UNKNOWN)return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_ZONE,XCRON_ZONE_UNKNOWN,false);
+            if(W->Result.After.Offset>W->Result.Before.Offset){xcronOccurrenceGapBegin(V,&W->Result.Before,&W->Result.After);continue;}
+            V->Phase=3;continue;
+        }
+        if(V->Phase==5){
+            xcroncalendarvalue* G=&V->Search.Calendar;uint32 Before=G->Months;xcroncalendarstatus S=xcronCalendarValueStep(&V->Search.Expression,G,B.Months);uint32 Used=G->Months-Before;B.Months-=Used;V->Work.MonthsExamined+=Used;
+            if(S==XCRON_CALENDAR_PENDING)return V->Status;
+            if(S==XCRON_CALENDAR_NONE){V->Phase=3;continue;}
+            int64 Seconds;if(!xcronZoneCivilSeconds(&G->Date,&Seconds))return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_RANGE,XCRON_ZONE_OK,false);
+            int64 Offset=Seconds-V->After/1000;
+            if(Offset<-INT32_MAX || Offset>INT32_MAX)return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_RANGE,XCRON_ZONE_OK,false);
+            xcronOccurrenceLocal(V->After,(int32)Offset,&G->Date);xcronZoneResolutionInit(&G->Date,&V->Resolve);V->Phase=6;
+        }
+        if(V->Phase==6){
+            xcronzonestatus S=xcronOccurrenceResolve(V,Z,&B);if(S==XCRON_ZONE_WALK_PENDING)return V->Status;
+            if(S==XCRON_ZONE_ERROR)return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_ZONE,V->Resolve.Error,true);
+            if(!V->Resolve.Count)return xcronOccurrenceGapFail(V,XCRON_OCCURRENCE_MISSING,XCRON_ZONE_OK,true);
+            xcroncalendarvalue* G=&V->Search.Calendar;xcronCalendarValueAfter(&V->Search.Expression,&G->Date,&G->End,G);V->Phase=5;
+        }
+    }return V->Status;
+}
+static bool xcronOccurrencePolicy(xcrondeliverypolicy P)
+{return P.Fold>=XCRON_FOLD_ALL && P.Fold<=XCRON_FOLD_REJECT && P.Missing>=XCRON_MISSING_SKIP && P.Missing<=XCRON_MISSING_REJECT;}
+static void xcronOccurrenceReport(xcronoccurrenceissue Work,xcronoccurrenceissue* Issue)
+{
+    if(Issue)*Issue=Work;
+    xerrkind Kind=Work.Code==XCRON_OCCURRENCE_ARGUMENT?XERR_ARGUMENT:Work.Code==XCRON_OCCURRENCE_ZONE || Work.Code==XCRON_OCCURRENCE_STATE?XERR_STATE:Work.Code==XCRON_OCCURRENCE_RANGE || Work.Code==XCRON_OCCURRENCE_WINDOW?XERR_RANGE:XERR_VALUE;
+    xrtSetErrorInfo(Kind,"xrt.cron.occurrence",Work.Code,"cron occurrence calculation failed");
+}
+static bool xcronOccurrenceInputs(const xcronexpression* E,xtime Begin,xtime End,xcronoccurrenceissue* Issue)
+{
+    xcronfield Field;
+    if(!xcronCalendarValidateExpression(E,&Field)){xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_EXPRESSION,.Field=Field},Issue);return false;}
+    if(Begin>End){xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_WINDOW,.Field=XCRON_FIELD_NONE},Issue);return false;}
+    return true;
+}
+XCRON_API xcronoccurrencestatus xcronOccurrenceNext(const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrence* Next,xcronoccurrenceissue* Issue)
+{
+    void* O[]={Next,Issue};size_t N[]={sizeof(*Next),Issue?sizeof(*Issue):0};
+    if(!E || !Next || (Flags&~XCRON_SEARCH_EXCLUSIVE) || !xcronOccurrencePolicy(Policy) || !xcronZoneOutputs(Z,E,sizeof(*E),O,N,2)){
+        xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_ARGUMENT,.Field=XCRON_FIELD_NONE},NULL);return XCRON_OCCURRENCE_ERROR;
+    }
+    if(!xcronOccurrenceInputs(E,Begin,End,Issue))return XCRON_OCCURRENCE_ERROR;
+    xcronoccurrencevalue V;xcronOccurrenceValueInit(E,Z,Begin,End,Flags,Policy,&V);xcronoccurrencestatus S;
+    do{S=xcronOccurrenceValueStep(&V,Z,(xcronoccurrencebudget){UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX,UINT32_MAX});}while(S==XCRON_OCCURRENCE_PENDING);
+    if(S==XCRON_OCCURRENCE_FOUND)*Next=V.Candidate;
+    if(S==XCRON_OCCURRENCE_ERROR)xcronOccurrenceReport(V.Work,Issue);else if(Issue)*Issue=V.Work;
+    return S;
+}
+#define XCRON_OCCURRENCE_CURSOR_MAGIC UINT32_C(0x584f4331)
+typedef struct xcronoccurrenceimpl {uint32 Magic;uintptr_t Address,Zone;xcronoccurrencevalue Value;} xcronoccurrenceimpl;
+typedef char xcron_occurrence_cursor_size_check[(sizeof(xcronoccurrenceimpl)<=sizeof(xcronoccurrencecursor))?1:-1];
+XCRON_API bool xcronOccurrenceCursorInit(xcronoccurrencecursor* C,const xcronexpression* E,const xcronzone* Z,xtime Begin,xtime End,uint32 Flags,xcrondeliverypolicy Policy,xcronoccurrenceissue* Issue)
+{
+    void* O[]={C,Issue};size_t N[]={sizeof(*C),Issue?sizeof(*Issue):0};
+    if(!C || !E || (Flags&~XCRON_SEARCH_EXCLUSIVE) || !xcronOccurrencePolicy(Policy) || !xcronZoneOutputs(Z,E,sizeof(*E),O,N,2)){
+        xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_ARGUMENT,.Field=XCRON_FIELD_NONE},NULL);return false;
+    }
+    if(!xcronOccurrenceInputs(E,Begin,End,Issue))return false;
+    xcronoccurrenceimpl I;memset(&I,0,sizeof(I));I.Magic=XCRON_OCCURRENCE_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Zone=(uintptr_t)Z;xcronOccurrenceValueInit(E,Z,Begin,End,Flags,Policy,&I.Value);
+    memset(C,0,sizeof(*C));memcpy(C,&I,sizeof(I));if(Issue)*Issue=I.Value.Work;return true;
+}
+XCRON_API xcronoccurrencestatus xcronOccurrenceCursorStep(xcronoccurrencecursor* C,const xcronzone* Z,xcronoccurrencebudget B,xcronoccurrence* Next,xcronoccurrenceissue* Issue)
+{
+    void* O[]={C,Next,Issue};size_t N[]={sizeof(*C),sizeof(*Next),Issue?sizeof(*Issue):0};
+    if(!C || !Next || !xcronZoneOutputs(Z,NULL,0,O,N,3)){
+        xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_ARGUMENT,.Field=XCRON_FIELD_NONE},NULL);return XCRON_OCCURRENCE_ERROR;
+    }
+    xcronoccurrenceimpl I;memcpy(&I,C,sizeof(I));
+    if(I.Magic!=XCRON_OCCURRENCE_CURSOR_MAGIC || I.Address!=(uintptr_t)C || I.Zone!=(uintptr_t)Z || I.Value.Phase>6 || !xcronOccurrencePolicy(I.Value.Policy) ||
+       (I.Value.Status!=XCRON_OCCURRENCE_PENDING && I.Value.Status!=XCRON_OCCURRENCE_FOUND && I.Value.Status!=XCRON_OCCURRENCE_NONE && I.Value.Status!=XCRON_OCCURRENCE_ERROR)){
+        xcronOccurrenceReport((xcronoccurrenceissue){.Code=XCRON_OCCURRENCE_STATE,.Field=XCRON_FIELD_NONE},Issue);return XCRON_OCCURRENCE_ERROR;
+    }
+    xcronoccurrencestatus S=xcronOccurrenceValueStep(&I.Value,Z,B);memcpy(C,&I,sizeof(I));if(S==XCRON_OCCURRENCE_FOUND)*Next=I.Value.Candidate;
+    if(S==XCRON_OCCURRENCE_ERROR)xcronOccurrenceReport(I.Value.Work,Issue);else if(Issue)*Issue=I.Value.Work;
+    return S;
 }
 #endif
 #endif

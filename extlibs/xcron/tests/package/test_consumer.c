@@ -117,7 +117,9 @@ int main(void)
 		do { DeliveryStatus=xcronDeliveryCursorStep(&DeliveryCursor,DeliveryZone,(xcrondeliverybudget){1,1,1},&CursorSelected,1,&SelectedCount,NULL); } while (DeliveryStatus==XCRON_DELIVERY_PENDING);
 	}
 	DeliveryOK=DeliveryOK && DeliveryStatus==XCRON_DELIVERY_FOUND && SelectedCount==1 && CursorSelected==Selected;
-	xcronZoneRelease(DeliveryZone);
+	xcronexpression OccurrenceExpression;xcronoccurrence Occurrence;
+    if(DeliveryOK && (!xcronExpressionCompile(XRT_STR_LITERAL("0 30 1 * * *"),XCRON_SECONDS6,&OccurrenceExpression,NULL) || xcronOccurrenceNext(&OccurrenceExpression,DeliveryZone,Selected-3600000,Selected,0,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Occurrence,NULL)!=XCRON_OCCURRENCE_FOUND || Occurrence.When!=Selected || Occurrence.Candidates!=2))DeliveryOK=false;
+    xcronZoneRelease(DeliveryZone);
 	if (!DeliveryOK) return 30;
 	return 0;
 }

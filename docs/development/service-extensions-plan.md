@@ -8,10 +8,13 @@ not complete a product.
 
 ## Source and commit policy
 
-- Start from `1d4109aff9d52d0452742669e81caa8bef626922` in the managed
-  `service-extensions` worktree, branch `codex/service-extensions`.
-- Preserve the dirty primary checkout and its staged rename. Do not stash,
-  reset, commit, or copy its unrelated work into this branch.
+- Historical origin: `1d4109aff9d52d0452742669e81caa8bef626922` in the managed
+  service-extensions worktree. Its committed history is integrated into master.
+- Current user instruction (2026-11-08): work directly in `D:/GIT/xrt` on master
+  by default; use a branch/worktree only for a concrete special necessity.
+  Preserve concurrent edits/index entries and stage only this task's paths.
+- During migration, retain source identities and ignored validation evidence,
+  preserve both histories and verify against actual mainline Core/tools.
 - Implement public specifications independently. Reference clients and servers
   are interoperability/performance comparators, not implementation sources.
 - Each locally verified feature is a separate commit. Stage explicit task-owned

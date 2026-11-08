@@ -118,5 +118,9 @@ preserve the remaining delivery scope.
 
 The developing `xcron_delivery` leaf provides explicit single-label fold/missing
 selection after complete resolution. Run its [offline example](examples/delivery/README.md)
-and read [selection semantics/costs](docs/delivery.md). Existing recurring kernel/
-service policies are unchanged; gap compensation and recurring selection remain.
+and read [selection semantics/costs](docs/delivery.md). The separate
+`xcron_occurrence` leaf adds budgeted complete recurring fold selection and
+transition-anchored missing-label rejection; see its [contract](docs/occurrence.md)
+and [runnable example](examples/occurrence/README.md). Existing kernel/service jobs
+are unchanged until explicit policy integration. Gap compensation and durability
+remain required.

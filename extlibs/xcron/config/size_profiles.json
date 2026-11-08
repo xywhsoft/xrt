@@ -169,6 +169,26 @@
         "_xrtFileOpen",
         "_xrtNetEngineCreate"
       ]
+    },
+    {
+      "name": "xcron_occurrence",
+      "system": "occurrence",
+      "suite": "xcron_occurrence",
+      "description": "Selected recurring label search including complete fold/gap policy checks; no file/network/scheduler/executor closure",
+      "forbid_symbols": [
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "xcronSchedulerCreate",
+        "xrtRootOpen",
+        "xrtFileOpen",
+        "xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal",
+        "_xcronSchedulerCreate",
+        "_xrtRootOpen",
+        "_xrtFileOpen",
+        "_xrtNetEngineCreate"
+      ]
     }
   ]
 }

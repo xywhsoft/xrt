@@ -12,6 +12,10 @@ typedef struct xcroncalendarvalue {
 void xcronCalendarValueInit(xcroncalendarvalue* Value,const xdatetime* First,const xdatetime* End,xcroncalendarstatus Status);
 /* Valid canonical ordered civil bounds; constant impossibility proof only. */
 void xcronCalendarValueBegin(const xcronexpression* Expression,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* Value);
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+/* Resume strictly after a canonical civil label, including outside xtime. */
+void xcronCalendarValueAfter(const xcronexpression* Expression,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* Value);
+#endif
 xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* Expression,xcroncalendarvalue* Value,uint32 MonthBudget);
 /* Product-private validated calendar operations; no XRT-private API dependency. */
 bool xcronCalendarValidateExpression(const xcronexpression* Expression,xcronfield* Field);

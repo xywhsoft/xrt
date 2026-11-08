@@ -194,6 +194,14 @@ xcroncalendarstatus xcronCalendarValueStep(const xcronexpression* E,xcroncalenda
 }
 void xcronCalendarValueBegin(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
 {xcronCalendarValueInit(V,First,End,xcronCalendarMayExist(E)?XCRON_CALENDAR_PENDING:XCRON_CALENDAR_NONE);}
+#if defined(XCRON_FEATURE_XCRON_OCCURRENCE)
+void xcronCalendarValueAfter(const xcronexpression* E,const xdatetime* First,const xdatetime* End,xcroncalendarvalue* V)
+{
+    xdatetime Next=*First;
+    if(!xcronCalendarTick(&Next)){xcronCalendarValueInit(V,&Next,End,XCRON_CALENDAR_NONE);return;}
+    xcronCalendarValueBegin(E,&Next,End,V);
+}
+#endif
 /* Keep the legacy synchronous control loop specialized: measured cursor-state
  * setup/copy overhead is material for a single-month search. Date/bitmap rules
  * are shared; independent oracles cover both control paths. */

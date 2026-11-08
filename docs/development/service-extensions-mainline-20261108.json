@@ -1,0 +1,1317 @@
+{
+  "schema": 1,
+  "scope": "Move all existing service-extension work to current local master and test there; keep prior integrated histories and default to direct mainline development.",
+  "source_head": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+  "mainline_base": "916f3197d011e41f07a685634bee5b07d367938d",
+  "workdir": "D:/GIT/xrt",
+  "branch": "master",
+  "new_development_branches": 0,
+  "remote_push": false,
+  "transfer": {
+    "source_files": 26,
+    "regular_evidence_files": 8425,
+    "regular_evidence_bytes": 1619572098,
+    "preserved_junctions": 37,
+    "preexisting_dangling_junctions": 37,
+    "all_hashes_match": true,
+    "robocopy_exit_code": 1,
+    "robocopy_failed_files": 0
+  },
+  "preserved_build_artifacts_manifest_sha256": "e9c58e061a9650257a6d9167f70ece962b636bfb2802c7abda7be6b1d77a8e6f",
+  "preserved_build_artifacts": {
+    "files": 297,
+    "bytes": 93763688
+  },
+  "pending_source_files": [
+    {
+      "path": "docs/development/service-extensions-progress.md",
+      "sha256": "5274f2b9b8749206daf304d996226964fc24164de4349863b4f9c7ae6c3ef21b",
+      "destination_before_sha256": "03764336a96c0dc2d100c103720b3dbfdde9b1581b02dbfda1e6157a001e195b",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/README.md",
+      "sha256": "d266daf9ee92df5f0a44dd6c310b5d81cf13870bdd5cb3dbabbf414619cf32e5",
+      "destination_before_sha256": "2347a31595562d33fc932bb2a52314f06a86af3789655d89398db0bf20727c95",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/bench/bench_occurrence.c",
+      "sha256": "ebee8ad254cfcfcc7813583c8392e9df721f3ce41c77e3bd7e38f2503ce26498",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/config/modules.json",
+      "sha256": "0f8fbd18fde0ee7a6ea702941bc17857ff2bd354dcd165ca3e7b54dbdb04f3d4",
+      "destination_before_sha256": "9466d35a7e99b879a1076e38de6c0de9123dfc8b7b6560ee00516332e3d3731e",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/config/performance_profiles.json",
+      "sha256": "3375f0faf9586c120fda32976fe4784ebc9fa36f49d3ba11c35b29b056f10260",
+      "destination_before_sha256": "0d30acf367b20de34c717ab3eef4af17d0599e35e400889ed06b035995ae0dae",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/config/size_profiles.json",
+      "sha256": "634eca4477f43c603958b1a072ec9e55c57000bce4a81f3b30f6c7b61ee6d196",
+      "destination_before_sha256": "6073cb795b442a7b6da4c666f23ce7cd4ab633732df9c1f9c95446fa3852a2c3",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/docs/api/reference.md",
+      "sha256": "a682603fa14a2b417450e318bc4a1687b1b4af6103a97f57319a730e2e4c4d3a",
+      "destination_before_sha256": "8bdfcccb8e0ab23ad407bd44c55103b5971ebde62f2f4e6dad762e3f561ff5ed",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/docs/coverage.md",
+      "sha256": "15aad1b87715729367dba1923b5888f3e3ada354bb0d99eb2769b1ef49bcd6f8",
+      "destination_before_sha256": "14355021349b5d7f5db70641780bff4ea6825caa339505a7af165eb8b5f45c74",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/docs/occurrence.md",
+      "sha256": "70e1089c4928aa82552c9f2e4761413f60a6bda83bbb56ade2569023eaa2f718",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/examples/occurrence/README.md",
+      "sha256": "4307fc9422e75685c750e473dd2e2325de827d67404df826b0d79529e069d8ed",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/examples/occurrence/main.c",
+      "sha256": "88b952eb70f104e5165e2df3aa6a7489f31f7675e37f3b6ff0d14118db89b3a0",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/include/xcron.h",
+      "sha256": "47518c47016fc5af5e4752fb9ec7d667ed5443725968f3da4cebba69a729e134",
+      "destination_before_sha256": "9ed2e694b0458e487990f7a47dccc34c90f99469109109fe04ab3c37e9f3f614",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/include/xcron/features.h",
+      "sha256": "b8ce40ab1c0af02b594ea7ad6e0c0e468721421a7a02c97fd6dbf78f4ab2b19d",
+      "destination_before_sha256": "e6962ef3e4ba36bf107d3d3b4920c1cf7eb59b7e6f7cc9cbd837b5a1c28b6b45",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/include/xcron/occurrence.h",
+      "sha256": "0462ab06af27a399941aa75f7dd190a66a82410fdf801cc5fbf1c9cf7af6f6cf",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/src/calendar/calendar.c",
+      "sha256": "57edf3f4eb7e307755a3850bb6c4f9f4a49e62a48691aed11a25cdb0f5266f2e",
+      "destination_before_sha256": "bb1073e169202c7e9ae139172a0fa8931ae876f19a4e55a6c856f79291dbcb04",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/src/calendar/calendar_internal.h",
+      "sha256": "b50613097950ccab2169312de06dcfa3f0fa6079793bc34bf67400d2d8ace088",
+      "destination_before_sha256": "80e72f232d1125ccdb55b7a6f96382a85441d3a101f7ce1a9d8ef324dbf0b9d5",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/src/occurrence/occurrence.c",
+      "sha256": "721b0b7e5bde79336e7e2a70f26cf4d383101a9535505988087be1e68432ec93",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/src/occurrence/occurrence_internal.h",
+      "sha256": "1413fd7657795b5248b67482cb77b135a5e06467a0a6eb6a66d57725761f8328",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/tests/occurrence_adversarial.h",
+      "sha256": "6937170e639c5120d8009d5db4bfbc9b0f6edc027367d4f79142b7a216d68225",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/tests/occurrence_probe.c",
+      "sha256": "957b3b6f74b9e6bf74cae3aa98df274508763d95b5133950699d2a7117c79e13",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/tests/package/test_consumer.c",
+      "sha256": "e53e321a65a68e5b7c02104fd07eb34c1536af13ffacab23372701bad45e0347",
+      "destination_before_sha256": "4b079f37045ae2a1579f9aaf8a72eaf57e1185eb78b239efffc7ef16423025df",
+      "new": false
+    },
+    {
+      "path": "extlibs/xcron/tests/single/test_single_xcron_occurrence.c",
+      "sha256": "48f1287c4bcaaa98c3c6992fd400501b632d9568905813b6845a78309f141390",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/tests/test_occurrence.c",
+      "sha256": "376abd44ecbd08f318e526af755c1bd873efae7c0334efcdc9c3f7f933adb6bc",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "extlibs/xcron/tests/test_occurrence_reference.py",
+      "sha256": "44dd45e99919dcfd8244ebd9e5101d2af854ed5d6edfcee7b347ea7052073ba8",
+      "destination_before_sha256": null,
+      "new": true
+    },
+    {
+      "path": "single/extlibs/xcron.h",
+      "sha256": "4e01a78e78ce54a8d634db756a7c390516167c0c8900ef7c61526499607a5987",
+      "destination_before_sha256": "f4630b91b631e8d23011ff8f0a861b989771b4517c9b84d9bc849f21de21b81e",
+      "new": false
+    },
+    {
+      "path": "single/extlibs/xcron_decl.h",
+      "sha256": "9003cb3132ca86ae9f5cdd4a5e35674bddea6e3fc23f66e210ee9899b7528c44",
+      "destination_before_sha256": "adbbf065467354257804711456841bdcd926e85a1fcb7e60a60acdb9f83d1950",
+      "new": false
+    }
+  ],
+  "copied_evidence_manifest_sha256": "ec91804dcb1063b141127a5149085acf2be53b0241b130a6fdf553d764289713",
+  "transfer_log_sha256": "0e6be4e4de91e366399e26d80cf031e566a09006b43770a808c57cf32b36436b",
+  "workflow_document": "docs/development/parallel-branch-integration.md",
+  "feature_evidence_path": "extlibs/xcron/tests/results/occurrence-selection-20261108.json",
+  "feature_evidence_sha256": "74c3edc00e7fdde6e9f0d305f5ca720969eebec0d64e4fec61b6f1607c9784cc",
+  "input_map_canonical_sha256": "31ac01068f499d5d0416f9289598994e57c455ceb265fb3a4632083529ed1c80",
+  "input_files": 2891,
+  "mainline_validation": {
+    "windows": {
+      "complete": true,
+      "workspace": "D:\\GIT\\xrt",
+      "branch": "master",
+      "base_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+      "final_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+      "receipts": [
+        {
+          "label": "xredis-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8884061cae7ddac854781da7b8716c2840d73b78856b07b982dd8dc861399078",
+          "test_programs": 30
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "99d91217bb728d74a7ca2abf01fcbcf2a337db863cba692aa2d956adfa4d3ef7",
+          "test_programs": 30
+        },
+        {
+          "label": "xmqtt-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6ff0bf6ee8439acd8cff598a94ee49d41296dd292fe9eb14ba6566b97b5b6880",
+          "test_programs": 14
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8a0092e1a3b823c97d0c5686f90d07915ad29d9cf28fb534041784726daf7519",
+          "test_programs": 27
+        },
+        {
+          "label": "occurrence-example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f4f69c549dd789b690238d8f5fec5c458a01b11ad44cbbe6b8ffe86558a97420",
+          "test_programs": 2
+        },
+        {
+          "label": "xredis-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c42746a4d05ee9814e16c09b2ae28f77f0f7b405e14c10724b9e6042d0ff3fca",
+          "test_programs": 0
+        },
+        {
+          "label": "xredis-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c57f6d4da04386bddeecc425e358856f5f8e67a0612ea4b624b6ed562d69e699",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "db3889031102a2c7a7f8752a148db02b1e98e979ffb4d36cf3587400296425ac",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "481ef1cb63a257465c8ce7468106cbea373245e51473584ae16f94d0a5520a27",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "9b2c28fc714f2208800ec73d2a0844d40c19fa966a375c99bd977aba5c34bc6b",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "28c47a1f9eab42342526281c6017a3be8d223f69db5fc5f622f6934f96264d9c",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5bf8e115bddb8ec248ee355c146cde92f0b6f51fc9bb404691e5cd5f1c7ae366",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6703dc89a3897e7c868aa162984ebcf0ec562dac53ffbcf09159b858ab016411",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\mainline-migration-20261108\\build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5322111a428d61434639349e78b35a5b42967ea484f58fbba8dfd9b4dd65ea29",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-leaf-consumers",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\mainline-migration-20261108\\verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5624ff1bd560305968fc8feea95781b8161a3bf33077388c2b7c28696e59655b",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out\\service-extensions\\mainline-migration-20261108\\windows-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\mainline-migration-20261108\\windows-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "bd31c99ea6d2c2d0d68a059241da4deab89babca094cb6bd5f1f49b581465b3d",
+          "test_programs": 0
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "log_sha256": "b3d86a8200f8326c3070e4dd35b6c95ac534be8a601fc822e2fad7681e1c81eb",
+          "test_programs": 1
+        },
+        {
+          "label": "xredis-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+          "test_programs": 0
+        },
+        {
+          "label": "xredis-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "test_programs": 0
+        },
+        {
+          "label": "xredis-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+          "test_programs": 0
+        },
+        {
+          "label": "xredis-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a370c1f762c9f10c510a4a9f4cf34526818a97a897ab35ca317114ebdcb24970",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c1dd669472228fc3a2f1f46af77b72c6b7c54fee393648702082b1b57da35e1c",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "019550b6b21ceb696027a55fcd60303be6aa6ef312cad6f5638a1689431d3e51",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "773c2a8402aace1f5fe9e55bf65b40284d6e526d1a8acef6e22155479e3d39aa",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "95c15c2c107dfcec1865169ac79cb10372bac6a05aef7a3023c5a04fac6e7cd0",
+          "test_programs": 0
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "workspace": "/mnt/d/GIT/xrt",
+      "branch": "master",
+      "base_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+      "final_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+      "receipts": [
+        {
+          "label": "xredis-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "122e83c572f562ef585e0b82dce0db68181ff9758b71f73c0aa2b6564aa3136b",
+          "test_programs": 30
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "87b8e3623b1ab265c16758d7d50be199da0a4c5280fe8d9224fc2c28d71ee959",
+          "test_programs": 30
+        },
+        {
+          "label": "xmqtt-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2bd459275cfae51094812d4a198ec76d041813ff901249048c2da042c9e50bae",
+          "test_programs": 14
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8e00424d6d16ee06630f413810204e0913ac0f0b37ad1d31b41425fd8c76a9ed",
+          "test_programs": 27
+        },
+        {
+          "label": "occurrence-example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b1567ccab7c8900b347e097dda1339669eaeffa34dcebd3bb830ad7e7d58081",
+          "test_programs": 2
+        },
+        {
+          "label": "xredis-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4b80e94146b799dbaa9c0623edcee29fcf869c7236036f0258f75065c5188fb1",
+          "test_programs": 0
+        },
+        {
+          "label": "xredis-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0eb8fca69bcbd18978be9e60952041c6ae546a2519eb6363e8f1b7983f9cb70a",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0926f6ed2fa48d196d82843805dbcc5cc0fad91bb0af8442c3aaad0203a78f9c",
+          "test_programs": 0
+        },
+        {
+          "label": "xrpc-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5d3596634b9e21d98528e7f1fbc87b62971a39187b291b5f1611c71f627bc69a",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "95b3bb9c75335c5f7047fe2e2c7a693ec3b66ecb683813b30be9133785f4a83b",
+          "test_programs": 0
+        },
+        {
+          "label": "xmqtt-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f8860df7c30ce8bb082270a94d54a7780ad18831d0e01601e49d6c96db55b29b",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f4e5671e094383e57261076a7c912af00fb235b29b8be9fafaf39533cf904cb5",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c7cc03b32f1e7fa36d456400028e71b191b3431a75f42cbfb9950df238692025",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/mainline-migration-20261108/build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d2eb2e0e06bf2027e4fbbb96f5eaabb93d247cb2b21bb7d19b73d759963c9231",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-leaf-consumers",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/mainline-migration-20261108/verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "86b5129f5e6b1bb3335dc3f5a23fbd6b14b86270a446bfec89c49449186576b5",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out/service-extensions/mainline-migration-20261108/wsl-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/mainline-migration-20261108/wsl-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "59f3d507275364e3578742ac02e27cecef90c6a93501294772a020e926b0c9c0",
+          "test_programs": 0
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_occurrence",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1b882cdae4a9c07b742567e446a0282b611520a651f2d52051306ab17a9d259a",
+          "test_programs": 1
+        },
+        {
+          "label": "tsan-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_occurrence"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0334781d4f4541ef85781ffabcfaba900e30457fb2c93d2b58d5901fa64bba13",
+          "test_programs": 1
+        }
+      ]
+    }
+  },
+  "modular_single_test_programs": {
+    "windows": 101,
+    "wsl": 101
+  },
+  "skips": {
+    "windows": {
+      "xredis-suite": [],
+      "xrpc-suite": [],
+      "xmqtt-suite": [],
+      "xcron-suite": [
+        "[SKIP] native symbolic link fixture: system=1314",
+        "[SKIP] native symbolic link fixture: system=1314"
+      ],
+      "occurrence-example": [],
+      "xredis-static": [],
+      "xredis-shared": [],
+      "xrpc-static": [],
+      "xrpc-shared": [],
+      "xmqtt-static": [],
+      "xmqtt-shared": [],
+      "xcron-static": [],
+      "xcron-shared": [],
+      "occurrence-probes": [],
+      "occurrence-leaf-consumers": [],
+      "occurrence-oracle": [],
+      "tools": [],
+      "xredis-features": [],
+      "xredis-single": [],
+      "xredis-reference": [],
+      "xredis-docs": [],
+      "xrpc-features": [],
+      "xrpc-single": [],
+      "xrpc-reference": [],
+      "xrpc-docs": [],
+      "xmqtt-features": [],
+      "xmqtt-single": [],
+      "xmqtt-reference": [],
+      "xmqtt-docs": [],
+      "xcron-features": [],
+      "xcron-single": [],
+      "xcron-reference": [],
+      "xcron-docs": []
+    },
+    "wsl": {
+      "xredis-suite": [],
+      "xrpc-suite": [],
+      "xmqtt-suite": [],
+      "xcron-suite": [],
+      "occurrence-example": [],
+      "xredis-static": [],
+      "xredis-shared": [],
+      "xrpc-static": [],
+      "xrpc-shared": [],
+      "xmqtt-static": [],
+      "xmqtt-shared": [],
+      "xcron-static": [],
+      "xcron-shared": [],
+      "occurrence-probes": [],
+      "occurrence-leaf-consumers": [],
+      "occurrence-oracle": [],
+      "tsan-modular": [],
+      "tsan-single": []
+    }
+  },
+  "oracle": {
+    "zones": 422,
+    "totals": {
+      "queries": 121664,
+      "found": 114452,
+      "none": 152,
+      "ambiguous": 1896,
+      "missing": 2860,
+      "unknown": 2304,
+      "cursor_steps": 401818,
+      "segments": 317099,
+      "months": 230634,
+      "rule_years": 31143,
+      "checks": 125602,
+      "offsets": 470552,
+      "labels": 125602,
+      "synchronous_calls": 243328,
+      "cursor_initializations": 121664,
+      "api_calls": 766810
+    },
+    "canonical_sha256": "171103d4a929d52f2c78571f099f067771907139a8aade23db93f21657d71987"
+  },
+  "limitations": [
+    "Historical37 cache junctions were already dangling before transfer; preserved as-is and no missing targets introduced.8425 existing regular evidence files were hash-verified.",
+    "Historical performance failures remain failed and are not current-mainline measurements. Production/native Linux/>=72h qualification remains open.",
+    "This report and the feature evidence are published after commands; publication JSON/Markdown is outside the captured execution-input set. No production C/H or test-driver edits follow the captured source identity."
+  ],
+  "recipes_sha256": {
+    "build_probe.py": "815af5ae2c8a847ef4e764147165030ebf7f46f2af5fd79f90296475ab8f4a39",
+    "layout.c": "70d5bef083c2eee24f7c1cddfffb58fda0399521408bc33787874981aba5bf27",
+    "publish_evidence.py": "795985c6bf5ed8ff5b83441ec87486226848ccb69bb6c2be53bc482c0fdf751f",
+    "test_mainline.py": "f8bcb33047e21a9892202132773dc9d856740248d5fb85567e7b3dfcfd1eab90",
+    "verify_leaf.py": "5ae84f3d942760f94196b67219723722acf6c432047edf32a75ac06beee9ac0a"
+  }
+}

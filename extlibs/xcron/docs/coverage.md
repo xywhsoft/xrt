@@ -264,3 +264,20 @@ modular/single suites, static/shared consumers, runnable example and separate
 TSan units pass; WSL is not native Linux qualification. Millisecond unpinned
 fixed-arrival/CPU results retain their failed noise gates. See
 [the stage record](../tests/results/precise-service-20261105.json).
+
+## Selected recurring search (developing)
+
+The [occurrence leaf](occurrence.md) composes complete global fold selection and
+transition-anchored missing-label rejection, including other segments filling an
+apparent gap and ties before an actual occurrence. Independent second-by-second
+models cover32 arbitrary8-transition histories,8 windows and all8 policies, with
+complete distinct-offset enumeration.256-fold,500-year historical prefix, full
+periodic always-gap absence, rare unspecified footer/full-int64 bounds, each budget
+dimension, snapshots, invalid/aliased/copied/wrong-zone cursors, diagnostic OOM,
+1024 warmed zero-requested-heap lifetimes and native handoff are separate cases.
+The frozen422-zone oracle enumerates Gregorian labels and complete distinct-offset
+mappings, derives coverage from RFC metadata and independently calculates footer
+M-rule transitions. Its required probe executes both sync Issue forms and a real
+cursor, verifying all metadata/budgets/pending output bytes. Scheduler/service
+policy integration, compensation, durable recovery and performance/native/>=72h
+qualification remain open.

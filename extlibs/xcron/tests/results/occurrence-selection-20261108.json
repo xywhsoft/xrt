@@ -1,0 +1,3944 @@
+{
+  "schema": 1,
+  "stage": "complete selected recurring occurrence calculation and mainline migration revalidation",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "native_linux_qualified": false,
+  "base_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+  "mainline_base_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+  "api": {
+    "added": [
+      "xcronOccurrenceNext",
+      "xcronOccurrenceCursorInit",
+      "xcronOccurrenceCursorStep"
+    ],
+    "public_reference": {
+      "functions": 73,
+      "constants": 199,
+      "types": 86
+    },
+    "x64_layout": {
+      "occurrence": 64,
+      "budget": 20,
+      "issue": 128,
+      "cursor": 1024,
+      "private_value": 880,
+      "private_control": 904
+    }
+  },
+  "contracts": [
+    "Global ALL/FIRST/LAST/REJECT selection after complete nominal resolution, independent of the query window. Missing REJECT examines matching labels in each forward-offset transition gap, globally resolves possible fills and anchors missing labels at the transition UTC boundary; gap failure wins a tie with an actual result/error.",
+    "UNKNOWN completeness is not waived. Fractional/full-int64 endpoints, canonical nominal metadata and completed historical prefix before a periodic proof. The global proof includes2*INT32_MAX seconds margin before a complete400-year periodic suffix. No arbitrary horizon.",
+    "Independent nonnegative Segments/Months/RuleYears/Checks/Offsets budgets bound actual traversal deltas; pending output/metadata atomicity and all-zero cursor-byte stability. Labels is accounting for completed resolutions, not an extra budget. Terminal results repeat without traversal.",
+    "Borrow exact immutable live zone and stable-address cursor; snapshot expression/bounds/policy; serialized native handoff. No retention/Unit duty/heap/IO/lock on normal paths. Typed failures survive diagnostic OOM. Cold1024 zeroing,904-byte control copies each way, validation/state checks and output/Issue copies remain costs.",
+    "The private typed engine reuses dormant actual calendar/walk storage for gap validation. A product-private civil-continue helper is guarded by FEATURE_OCCURRENCE. No Core source/dependency/shared runtime or existing scheduler/service job semantics changes."
+  ],
+  "verification": [
+    "Both pre-migration27 modular/single xcron programs, root and isolated-leaf static/shared consumers, example, direct/generated layouts, WSL O2 ASan/UBSan and two O1 TSan units, Windows85 tooling/generated/docs checks pass.",
+    "Independent second-by-second model:32 arbitrary8-transition histories,8 windows/all8 policies (2048 queries), with both synchronous Issue forms and real cursors. Separate256 folds,500-year nonperiodic history, always-gap full-cycle proof, rare unknown footer, full-int64 boundaries, filled apparent gaps, tie/window policies, zero budgets/snapshots/aliases/state/OOM,1024 warmed allocation/error-preserving lifetimes and joined handoff.",
+    "Fresh mainline Core/tools revalidation runs all four root modular/single suites and each root static/shared consumer, plus occurrence leaf/example/probe/oracle and TSan. Scope and actual counts are in the mainline receipts; historical measurements are not relabelled as mainline performance."
+  ],
+  "oracle": {
+    "version": "# version 2026e",
+    "zones": 422,
+    "totals": {
+      "queries": 121664,
+      "found": 114452,
+      "none": 152,
+      "ambiguous": 1896,
+      "missing": 2860,
+      "unknown": 2304,
+      "cursor_steps": 401818,
+      "segments": 317099,
+      "months": 230634,
+      "rule_years": 31143,
+      "checks": 125602,
+      "offsets": 470552,
+      "labels": 125602,
+      "synchronous_calls": 243328,
+      "cursor_initializations": 121664,
+      "api_calls": 766810
+    },
+    "oracle": "Explicit Gregorian labels, all distinct-offset zoneinfo/RFC states and global selection; gap labels anchored at complete stored and independently calculated footer M-rule transitions; per-Step bounds and pending atomicity physically checked by required probe protocol",
+    "full_parsed_report_sha256": "171103d4a929d52f2c78571f099f067771907139a8aade23db93f21657d71987",
+    "old_and_current_windows_wsl_reports_agree": true
+  },
+  "pre_migration": {
+    "functional_map_canonical_sha256": "88c65d757d265bcf3c4bc1f2d88d16335dd7d30060a4ed20cab3bd0622551324",
+    "measurement_map_canonical_sha256": "532eb6e277c5ab62a24283ed352b3d78f71d3af983df3aff18647dfe034961fb",
+    "input_count": 2521,
+    "receipts": {
+      "windows": [
+        {
+          "label": "suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6b9c1a6c72ed9ab1e706f64cae266cbc83a92f372f627a58a986c134895b3769"
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6f118c16362d7d61a45e598afca019213a9942a5230087a64e81db81a1659018"
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "490f18263c288f616cb51e4f3505b56582a14a71dfeb215ecb45e02f5b9a80b3"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5194346d0e83858775a572793b6d1df620cd864528786e9f3ea49963f6bcc990"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-occurrence\\build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "dea84328f2c418c075086ea79f38c8cb2eb84d6612f7e538957f0bdea1201b62"
+        },
+        {
+          "label": "leaf-consumers",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\xcron-occurrence\\verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8007beaa4f39f844e7e6f0f7db1e15a8638a8e8ee37433e9c63233dbd8b310c1"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out\\service-extensions\\xcron-occurrence\\windows-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\xcron-occurrence\\windows-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "bd31c99ea6d2c2d0d68a059241da4deab89babca094cb6bd5f1f49b581465b3d"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_api_reference",
+            "tools.test_build",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d9541975f5eaa5a53b62f5f88c1ef45189f8c51d933835c57b1e8785e4c9551c"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4"
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "95c15c2c107dfcec1865169ac79cb10372bac6a05aef7a3023c5a04fac6e7cd0"
+        }
+      ],
+      "wsl": [
+        {
+          "label": "suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "ed02a7dbe3e21a4825667f27fe4bd7be37ee3697c0ce12826bb765922761715f"
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "7b4ab34dcaf572245302eaba71c1d62660ee2deb224737777de31b8b691acb39"
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "43894fa4a330020c2113f8f85c01e91d7e335dc888c55e7617035733894e34ae"
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a5f8ea04c571ddedd2aac7b7025ece30fdb837d765fe0bf5cd288183912c016c"
+        },
+        {
+          "label": "probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-occurrence/build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d9655adb034070cb77475066cd40875c414ee44fa88aa05502353b488c5a66e9"
+        },
+        {
+          "label": "leaf-consumers",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/xcron-occurrence/verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "a8160211867c00114e6b227bafbaef22a9bdf94d58ee5cd6823866bd1c7cd74b"
+        },
+        {
+          "label": "oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out/service-extensions/xcron-occurrence/wsl-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/xcron-occurrence/wsl-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "59f3d507275364e3578742ac02e27cecef90c6a93501294772a020e926b0c9c0"
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_occurrence",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "ba34a91272437ae75f5091d1f7a63da8ab9ea3835476fab59095d6985f8e3fe1"
+        },
+        {
+          "label": "tsan-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_occurrence"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1a46d656890ecf97c4752d5962f9b31406fb4b5b910f245c983544e9e04a30ec"
+        }
+      ]
+    },
+    "layouts": {
+      "windows": [
+        {
+          "declarations": false,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024,
+            "private_value": 880,
+            "private_control": 904
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "declarations": false,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024,
+            "private_value": 880,
+            "private_control": 904
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024
+          }
+        }
+      ]
+    },
+    "size_reports": {
+      "windows": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "41dcee2cea463ca400c8ec821a1a8b018484ea1a472774badbabefc1d661eaf0",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_delivery": {
+            "suite": "xcron_delivery",
+            "description": "Explicit nominal-label selection and complete timezone dependency closure; no calendar/filesystem/network/scheduler",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronCalendarNext",
+              "xcronSchedulerCreate",
+              "xrtRootOpen",
+              "xrtFileOpen",
+              "xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronCalendarNext",
+              "_xcronSchedulerCreate",
+              "_xrtRootOpen",
+              "_xrtFileOpen",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 70260,
+                "data": 2376,
+                "bss": 11072,
+                "members": 1,
+                "load": 72636,
+                "file": 106485,
+                "path": "out/size/gnu/native/xcron_delivery/single/xcron_single.o",
+                "compile_seconds": 2.470316200000525,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 29704,
+                "data": 0,
+                "bss": 0,
+                "members": 4,
+                "load": 29704,
+                "file": 40938,
+                "path": "release/gnu/native/xcron_delivery/static/libxcron.a"
+              },
+              "shared": {
+                "text": 39019,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 39163,
+                "file": 75430,
+                "path": "release/gnu/native/xcron_delivery/shared/xcron.dll"
+              }
+            }
+          },
+          "xcron_occurrence": {
+            "suite": "xcron_occurrence",
+            "description": "Selected recurring label search including complete fold/gap policy checks; no file/network/scheduler/executor closure",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronSchedulerCreate",
+              "xrtRootOpen",
+              "xrtFileOpen",
+              "xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronSchedulerCreate",
+              "_xrtRootOpen",
+              "_xrtFileOpen",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 103732,
+                "data": 2376,
+                "bss": 11072,
+                "members": 1,
+                "load": 106108,
+                "file": 145851,
+                "path": "out/size/gnu/native/xcron_occurrence/single/xcron_single.o",
+                "compile_seconds": 3.272535899999639,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 59852,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 59852,
+                "file": 82946,
+                "path": "release/gnu/native/xcron_occurrence/static/libxcron.a"
+              },
+              "shared": {
+                "text": 69765,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 69909,
+                "file": 110162,
+                "path": "release/gnu/native/xcron_occurrence/shared/xcron.dll"
+              }
+            }
+          }
+        }
+      },
+      "wsl": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "41dcee2cea463ca400c8ec821a1a8b018484ea1a472774badbabefc1d661eaf0",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xcron_delivery": {
+            "suite": "xcron_delivery",
+            "description": "Explicit nominal-label selection and complete timezone dependency closure; no calendar/filesystem/network/scheduler",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronCalendarNext",
+              "xcronSchedulerCreate",
+              "xrtRootOpen",
+              "xrtFileOpen",
+              "xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronCalendarNext",
+              "_xcronSchedulerCreate",
+              "_xrtRootOpen",
+              "_xrtFileOpen",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 75949,
+                "data": 2424,
+                "bss": 10892,
+                "members": 1,
+                "load": 78373,
+                "file": 128592,
+                "path": "out/size/gnu/x64/xcron_delivery/single/xcron_single.o",
+                "compile_seconds": 1.6070311080002284,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 32285,
+                "data": 0,
+                "bss": 0,
+                "members": 4,
+                "load": 32285,
+                "file": 49902,
+                "path": "release/gnu/x64/xcron_delivery/static/libxcron.a"
+              },
+              "shared": {
+                "text": 36102,
+                "data": 728,
+                "bss": 8,
+                "members": 1,
+                "load": 36830,
+                "file": 47136,
+                "path": "release/gnu/x64/xcron_delivery/shared/libxcron.so"
+              }
+            }
+          },
+          "xcron_occurrence": {
+            "suite": "xcron_occurrence",
+            "description": "Selected recurring label search including complete fold/gap policy checks; no file/network/scheduler/executor closure",
+            "forbid_symbols": [
+              "xrtTimeLocal",
+              "xrtTimeFromLocal",
+              "xcronSchedulerCreate",
+              "xrtRootOpen",
+              "xrtFileOpen",
+              "xrtNetEngineCreate",
+              "_xrtTimeLocal",
+              "_xrtTimeFromLocal",
+              "_xcronSchedulerCreate",
+              "_xrtRootOpen",
+              "_xrtFileOpen",
+              "_xrtNetEngineCreate"
+            ],
+            "kinds": {
+              "single": {
+                "text": 111477,
+                "data": 2648,
+                "bss": 10892,
+                "members": 1,
+                "load": 114125,
+                "file": 177200,
+                "path": "out/size/gnu/x64/xcron_occurrence/single/xcron_single.o",
+                "compile_seconds": 2.118126975999985,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 64412,
+                "data": 224,
+                "bss": 0,
+                "members": 8,
+                "load": 64636,
+                "file": 104478,
+                "path": "release/gnu/x64/xcron_occurrence/static/libxcron.a"
+              },
+              "shared": {
+                "text": 69882,
+                "data": 960,
+                "bss": 8,
+                "members": 1,
+                "load": 70842,
+                "file": 86648,
+                "path": "release/gnu/x64/xcron_occurrence/shared/libxcron.so"
+              }
+            }
+          }
+        }
+      }
+    },
+    "size_scope": "Historical c2-based measurements. Single includes selected Core; static/shared own xcron with companion XRT. Delivery old single/static/shared text/data/BSS/file have zero growth in those old-stage reports; no equivalent total deployment-size/current-mainline claim."
+  },
+  "mainline": {
+    "workspace": "D:/GIT/xrt",
+    "branch": "master",
+    "base_revision": "916f3197d011e41f07a685634bee5b07d367938d",
+    "inputs_count": 2891,
+    "input_map_canonical_sha256": "31ac01068f499d5d0416f9289598994e57c455ceb265fb3a4632083529ed1c80",
+    "occurrence_receipts": {
+      "windows": [
+        {
+          "label": "xcron-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8a0092e1a3b823c97d0c5686f90d07915ad29d9cf28fb534041784726daf7519",
+          "test_programs": 27
+        },
+        {
+          "label": "occurrence-example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f4f69c549dd789b690238d8f5fec5c458a01b11ad44cbbe6b8ffe86558a97420",
+          "test_programs": 2
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5bf8e115bddb8ec248ee355c146cde92f0b6f51fc9bb404691e5cd5f1c7ae366",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6703dc89a3897e7c868aa162984ebcf0ec562dac53ffbcf09159b858ab016411",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-probes",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\mainline-migration-20261108\\build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5322111a428d61434639349e78b35a5b42967ea484f58fbba8dfd9b4dd65ea29",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-leaf-consumers",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "out\\service-extensions\\mainline-migration-20261108\\verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "5624ff1bd560305968fc8feea95781b8161a3bf33077388c2b7c28696e59655b",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-oracle",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out\\service-extensions\\mainline-migration-20261108\\windows-probe.exe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out\\service-extensions\\mainline-migration-20261108\\windows-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "bd31c99ea6d2c2d0d68a059241da4deab89babca094cb6bd5f1f49b581465b3d",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "95c15c2c107dfcec1865169ac79cb10372bac6a05aef7a3023c5a04fac6e7cd0",
+          "test_programs": 0
+        }
+      ],
+      "wsl": [
+        {
+          "label": "xcron-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log_sha256": "8e00424d6d16ee06630f413810204e0913ac0f0b37ad1d31b41425fd8c76a9ed",
+          "test_programs": 27
+        },
+        {
+          "label": "occurrence-example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2b1567ccab7c8900b347e097dda1339669eaeffa34dcebd3bb830ad7e7d58081",
+          "test_programs": 2
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f4e5671e094383e57261076a7c912af00fb235b29b8be9fafaf39533cf904cb5",
+          "test_programs": 0
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron,event_waiter",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "c7cc03b32f1e7fa36d456400028e71b191b3431a75f42cbfb9950df238692025",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-probes",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/mainline-migration-20261108/build_probe.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d2eb2e0e06bf2027e4fbbb96f5eaabb93d247cb2b21bb7d19b73d759963c9231",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-leaf-consumers",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "out/service-extensions/mainline-migration-20261108/verify_leaf.py"
+          ],
+          "exit_code": 0,
+          "log_sha256": "86b5129f5e6b1bb3335dc3f5a23fbd6b14b86270a446bfec89c49449186576b5",
+          "test_programs": 0
+        },
+        {
+          "label": "occurrence-oracle",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xcron/tests/test_occurrence_reference.py",
+            "--probe",
+            "out/service-extensions/mainline-migration-20261108/wsl-probe",
+            "--data",
+            "out/service-extensions/xcron-zoned-cursor/corpus",
+            "--output",
+            "out/service-extensions/mainline-migration-20261108/wsl-oracle.json"
+          ],
+          "exit_code": 0,
+          "log_sha256": "59f3d507275364e3578742ac02e27cecef90c6a93501294772a020e926b0c9c0",
+          "test_programs": 0
+        },
+        {
+          "label": "tsan-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--test",
+            "test_occurrence",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "log_sha256": "1b882cdae4a9c07b742567e446a0282b611520a651f2d52051306ab17a9d259a",
+          "test_programs": 1
+        },
+        {
+          "label": "tsan-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_occurrence,thread,memory_stats",
+            "--no-examples",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread",
+            "--single-test",
+            "test_single_xcron_occurrence"
+          ],
+          "exit_code": 0,
+          "log_sha256": "0334781d4f4541ef85781ffabcfaba900e30457fb2c93d2b58d5901fa64bba13",
+          "test_programs": 1
+        }
+      ]
+    },
+    "layouts": {
+      "windows": [
+        {
+          "declarations": false,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024,
+            "private_value": 880,
+            "private_control": 904
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "declarations": false,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024,
+            "private_value": 880,
+            "private_control": 904
+          }
+        },
+        {
+          "declarations": true,
+          "values": {
+            "occurrence": 64,
+            "budget": 20,
+            "issue": 128,
+            "cursor": 1024
+          }
+        }
+      ]
+    },
+    "all_four_extension_migration_evidence": "docs/development/service-extensions-mainline-20261108.json"
+  },
+  "performance": {
+    "windows": {
+      "source_scope": "Historical pre-migration c2a8b434-based dirty feature identity; NOT a measurement of integrated916f3197 Core/tools or current mainline. Original reports/samples/gates retained.",
+      "accepted": false,
+      "original_cursor_comparison": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T13:38:36.586030+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "f4ef8a0fe4cc7048a5964c0dda6b840c9302a0da468428d7704635536e5b1bdd",
+        "benchmark_fingerprint": "e905093ccfef602217fafc9099e5fbf58e7029f8a47622a6c7546b016253226e",
+        "profiles": {
+          "xcron_delivery_cursor_full": {
+            "description": "32-label batches: Init fixed2560 zeroing plus complete cursor resolution; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_full": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "0",
+                  "steps": "320000",
+                  "checks": "320000",
+                  "offsets": "640000",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      5327198.177,
+                      5356114.674,
+                      5365139.67,
+                      5308718.575,
+                      5259265.346
+                    ],
+                    "median": 5327198.177,
+                    "mean": 5323287.2884,
+                    "min": 5259265.346,
+                    "max": 5365139.67,
+                    "mad": 28916.49699999951,
+                    "relative_mad": 0.0054280873433328455,
+                    "range": 105874.32400000002,
+                    "relative_range": 0.019874297985967345,
+                    "central_range": 47396.09899999946,
+                    "relative_central_range": 0.008897003157237614,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      5.9,
+                      5.9,
+                      5.9,
+                      5.9,
+                      5.9
+                    ],
+                    "median": 5.9,
+                    "mean": 5.9,
+                    "min": 5.9,
+                    "max": 5.9,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      6.0,
+                      6.0,
+                      6.0,
+                      6.0,
+                      7.1
+                    ],
+                    "median": 6.0,
+                    "mean": 6.220000000000001,
+                    "min": 6.0,
+                    "max": 7.1,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 1.0999999999999996,
+                    "relative_range": 0.18333333333333326,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      7.5,
+                      6.1,
+                      6.0,
+                      7.5,
+                      8.8
+                    ],
+                    "median": 7.5,
+                    "mean": 7.18,
+                    "min": 6.0,
+                    "max": 8.8,
+                    "mad": 1.3000000000000007,
+                    "relative_mad": 0.17333333333333342,
+                    "range": 2.8000000000000007,
+                    "relative_range": 0.3733333333333334,
+                    "central_range": 1.4000000000000004,
+                    "relative_central_range": 0.1866666666666667,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      9.0,
+                      10.1,
+                      8.4,
+                      12.3,
+                      12.1
+                    ],
+                    "median": 10.1,
+                    "mean": 10.379999999999999,
+                    "min": 8.4,
+                    "max": 12.3,
+                    "mad": 1.6999999999999993,
+                    "relative_mad": 0.16831683168316824,
+                    "range": 3.9000000000000004,
+                    "relative_range": 0.3861386138613862,
+                    "central_range": 3.0999999999999996,
+                    "relative_central_range": 0.3069306930693069,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_delivery_cursor_offset1": {
+            "description": "32-label batches: Init plus independently one-offset Steps; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_offset1": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "1",
+                  "steps": "640000",
+                  "checks": "320000",
+                  "offsets": "640000",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      4627487.274,
+                      4653320.362,
+                      4671314.625,
+                      4644533.529,
+                      4681442.47
+                    ],
+                    "median": 4653320.362,
+                    "mean": 4655619.652,
+                    "min": 4627487.274,
+                    "max": 4681442.47,
+                    "mad": 17994.26300000027,
+                    "relative_mad": 0.0038669727420757947,
+                    "range": 53955.19599999953,
+                    "relative_range": 0.01159498848190404,
+                    "central_range": 26781.095999999903,
+                    "relative_central_range": 0.0057552658997433335,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      6.8,
+                      6.8,
+                      6.8,
+                      6.8,
+                      6.8
+                    ],
+                    "median": 6.8,
+                    "mean": 6.8,
+                    "min": 6.8,
+                    "max": 6.8,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.0,
+                    "relative_range": 0.0,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      6.9,
+                      6.9,
+                      6.9,
+                      6.9,
+                      6.8
+                    ],
+                    "median": 6.9,
+                    "mean": 6.88,
+                    "min": 6.8,
+                    "max": 6.9,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.10000000000000053,
+                    "relative_range": 0.014492753623188482,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      8.7,
+                      8.5,
+                      8.6,
+                      8.5,
+                      6.9
+                    ],
+                    "median": 8.5,
+                    "mean": 8.24,
+                    "min": 6.9,
+                    "max": 8.7,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.0117647058823529,
+                    "range": 1.799999999999999,
+                    "relative_range": 0.21176470588235283,
+                    "central_range": 0.09999999999999964,
+                    "relative_central_range": 0.0117647058823529,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      11.7,
+                      14.8,
+                      11.3,
+                      15.0,
+                      14.2
+                    ],
+                    "median": 14.2,
+                    "mean": 13.4,
+                    "min": 11.3,
+                    "max": 15.0,
+                    "mad": 0.8000000000000007,
+                    "relative_mad": 0.056338028169014134,
+                    "range": 3.6999999999999993,
+                    "relative_range": 0.2605633802816901,
+                    "central_range": 3.1000000000000014,
+                    "relative_central_range": 0.21830985915492968,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_delivery_cursor_sync": {
+            "description": "32-label batches: synchronous control in the same new benchmark program; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_sync": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "2"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "2",
+                  "steps": "0",
+                  "checks": "0",
+                  "offsets": "0",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      6797028.0,
+                      6943495.138,
+                      6907478.641,
+                      6984291.891,
+                      6929736.8
+                    ],
+                    "median": 6929736.8,
+                    "mean": 6912406.094,
+                    "min": 6797028.0,
+                    "max": 6984291.891,
+                    "mad": 22258.158999999985,
+                    "relative_mad": 0.0032119775458138594,
+                    "range": 187263.89099999983,
+                    "relative_range": 0.02702323283043013,
+                    "central_range": 36016.49700000044,
+                    "relative_central_range": 0.005197383109846313,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      4.5,
+                      4.5,
+                      4.5,
+                      4.5,
+                      4.6
+                    ],
+                    "median": 4.5,
+                    "mean": 4.5200000000000005,
+                    "min": 4.5,
+                    "max": 4.6,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.09999999999999964,
+                    "relative_range": 0.022222222222222143,
+                    "central_range": 0.0,
+                    "relative_central_range": 0.0,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      5.7,
+                      4.7,
+                      4.6,
+                      4.6,
+                      4.6
+                    ],
+                    "median": 4.6,
+                    "mean": 4.84,
+                    "min": 4.6,
+                    "max": 5.7,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 1.1000000000000005,
+                    "relative_range": 0.23913043478260884,
+                    "central_range": 0.10000000000000053,
+                    "relative_central_range": 0.021739130434782726,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      5.8,
+                      5.6,
+                      7.4,
+                      4.7,
+                      4.7
+                    ],
+                    "median": 5.6,
+                    "mean": 5.64,
+                    "min": 4.7,
+                    "max": 7.4,
+                    "mad": 0.8999999999999995,
+                    "relative_mad": 0.16071428571428564,
+                    "range": 2.7,
+                    "relative_range": 0.4821428571428572,
+                    "central_range": 1.0999999999999996,
+                    "relative_central_range": 0.19642857142857137,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      9.7,
+                      7.4,
+                      9.1,
+                      9.2,
+                      9.0
+                    ],
+                    "median": 9.1,
+                    "mean": 8.879999999999999,
+                    "min": 7.4,
+                    "max": 9.7,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.01098901098901095,
+                    "range": 2.299999999999999,
+                    "relative_range": 0.2527472527472526,
+                    "central_range": 0.1999999999999993,
+                    "relative_central_range": 0.0219780219780219,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "original_cursor_diagnostics": {
+        "environment_and_benchmark_match": true,
+        "threshold_diagnostic_only": [],
+        "noise_failures": [
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_mad=17.3%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_central_range=18.7%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_mad=16.8%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_central_range=30.7%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_mad=5.6%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_central_range=21.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_mad=16.1%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_central_range=19.6%"
+        ]
+      },
+      "occurrence_report": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T13:42:47.095768+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "d559f53bf7b4787aba7350ddd7ba42b427a798ae0cc88677e4930c41466b6d9f",
+        "benchmark_fingerprint": "d36a20abe0d03b010126227845c9caaff923f03280fbaf84664e2bf001c98aec",
+        "profiles": {
+          "xcron_occurrence_last_sync": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_last_sync": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "0",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "0",
+                  "budget": "0",
+                  "queries": "3200000",
+                  "steps": "0",
+                  "segments": "9600000",
+                  "months": "9600000",
+                  "rule_years": "16000000",
+                  "checks": "6400000",
+                  "offsets": "12800000",
+                  "labels": "6400000",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      941996.784,
+                      921441.683,
+                      937969.058,
+                      937553.213,
+                      943896.141
+                    ],
+                    "median": 937969.058,
+                    "mean": 936571.3757999999,
+                    "min": 921441.683,
+                    "max": 943896.141,
+                    "mad": 4027.726000000024,
+                    "relative_mad": 0.004294092609609329,
+                    "range": 22454.457999999984,
+                    "relative_range": 0.023939444279621414,
+                    "central_range": 4443.570999999996,
+                    "relative_central_range": 0.004737438790864673,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      32.5,
+                      32.9,
+                      32.6,
+                      32.6,
+                      32.5
+                    ],
+                    "median": 32.6,
+                    "mean": 32.62,
+                    "min": 32.5,
+                    "max": 32.9,
+                    "mad": 0.10000000000000142,
+                    "relative_mad": 0.0030674846625767306,
+                    "range": 0.3999999999999986,
+                    "relative_range": 0.012269938650306704,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.0030674846625767306,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      42.8,
+                      53.0,
+                      46.9,
+                      47.3,
+                      41.3
+                    ],
+                    "median": 46.9,
+                    "mean": 46.26,
+                    "min": 41.3,
+                    "max": 53.0,
+                    "mad": 4.100000000000001,
+                    "relative_mad": 0.08742004264392328,
+                    "range": 11.700000000000003,
+                    "relative_range": 0.24946695095948834,
+                    "central_range": 4.5,
+                    "relative_central_range": 0.09594882729211088,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      56.6,
+                      57.8,
+                      57.3,
+                      57.5,
+                      57.3
+                    ],
+                    "median": 57.3,
+                    "mean": 57.3,
+                    "min": 56.6,
+                    "max": 57.8,
+                    "mad": 0.20000000000000284,
+                    "relative_mad": 0.0034904013961606084,
+                    "range": 1.1999999999999957,
+                    "relative_range": 0.020942408376963276,
+                    "central_range": 0.20000000000000284,
+                    "relative_central_range": 0.0034904013961606084,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      67.2,
+                      69.8,
+                      69.9,
+                      69.7,
+                      69.6
+                    ],
+                    "median": 69.7,
+                    "mean": 69.24,
+                    "min": 67.2,
+                    "max": 69.9,
+                    "mad": 0.10000000000000853,
+                    "relative_mad": 0.001434720229555359,
+                    "range": 2.700000000000003,
+                    "relative_range": 0.03873744619799143,
+                    "central_range": 0.20000000000000284,
+                    "relative_central_range": 0.002869440459110514,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_last_cursor1": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_last_cursor1": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "0",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "0",
+                  "budget": "1",
+                  "queries": "3200000",
+                  "steps": "22400000",
+                  "segments": "9600000",
+                  "months": "9600000",
+                  "rule_years": "16000000",
+                  "checks": "6400000",
+                  "offsets": "12800000",
+                  "labels": "6400000",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      681920.504,
+                      646631.569,
+                      651445.6,
+                      660353.018,
+                      673291.136
+                    ],
+                    "median": 660353.018,
+                    "mean": 662728.3654,
+                    "min": 646631.569,
+                    "max": 681920.504,
+                    "mad": 12938.118000000017,
+                    "relative_mad": 0.019592729414920334,
+                    "range": 35288.93499999994,
+                    "relative_range": 0.05343949984037165,
+                    "central_range": 21845.53600000008,
+                    "relative_central_range": 0.03308160242253951,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      44.5,
+                      44.5,
+                      44.6,
+                      45.0,
+                      44.5
+                    ],
+                    "median": 44.5,
+                    "mean": 44.62,
+                    "min": 44.5,
+                    "max": 45.0,
+                    "mad": 0.0,
+                    "relative_mad": 0.0,
+                    "range": 0.5,
+                    "relative_range": 0.011235955056179775,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.002247191011235987,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      69.0,
+                      76.8,
+                      76.9,
+                      74.7,
+                      73.0
+                    ],
+                    "median": 74.7,
+                    "mean": 74.08,
+                    "min": 69.0,
+                    "max": 76.9,
+                    "mad": 2.0999999999999943,
+                    "relative_mad": 0.02811244979919671,
+                    "range": 7.900000000000006,
+                    "relative_range": 0.10575635876840703,
+                    "central_range": 3.799999999999997,
+                    "relative_central_range": 0.050870147255689384,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      80.5,
+                      83.3,
+                      83.4,
+                      81.1,
+                      80.7
+                    ],
+                    "median": 81.1,
+                    "mean": 81.8,
+                    "min": 80.5,
+                    "max": 83.4,
+                    "mad": 0.5999999999999943,
+                    "relative_mad": 0.0073982737361281675,
+                    "range": 2.9000000000000057,
+                    "relative_range": 0.03575832305795322,
+                    "central_range": 2.5999999999999943,
+                    "relative_central_range": 0.032059186189888955,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      99.3,
+                      109.0,
+                      107.4,
+                      97.4,
+                      97.0
+                    ],
+                    "median": 99.3,
+                    "mean": 102.02000000000001,
+                    "min": 97.0,
+                    "max": 109.0,
+                    "mad": 2.299999999999997,
+                    "relative_mad": 0.023162134944612257,
+                    "range": 12.0,
+                    "relative_range": 0.12084592145015106,
+                    "central_range": 10.0,
+                    "relative_central_range": 0.10070493454179255,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_gap_reject": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; NY missing REJECT including diagnostic allocation/clear; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_gap_reject": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "10000",
+                  "1",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "1",
+                  "budget": "0",
+                  "queries": "320000",
+                  "steps": "0",
+                  "segments": "1280000",
+                  "months": "960000",
+                  "rule_years": "1920000",
+                  "checks": "640000",
+                  "offsets": "1280000",
+                  "labels": "640000",
+                  "checksum": "1983864185856848384"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      627265.507,
+                      638083.453,
+                      710526.585,
+                      670302.64,
+                      660555.701
+                    ],
+                    "median": 660555.701,
+                    "mean": 661346.7772,
+                    "min": 627265.507,
+                    "max": 710526.585,
+                    "mad": 22472.24800000002,
+                    "relative_mad": 0.03402021656308439,
+                    "range": 83261.07799999998,
+                    "relative_range": 0.1260470205221951,
+                    "central_range": 32219.187000000034,
+                    "relative_central_range": 0.048775882111416424,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      44.3,
+                      44.4,
+                      43.8,
+                      43.9,
+                      43.9
+                    ],
+                    "median": 43.9,
+                    "mean": 44.059999999999995,
+                    "min": 43.8,
+                    "max": 44.4,
+                    "mad": 0.10000000000000142,
+                    "relative_mad": 0.0022779043280182557,
+                    "range": 0.6000000000000014,
+                    "relative_range": 0.013667425968109373,
+                    "central_range": 0.3999999999999986,
+                    "relative_central_range": 0.009111617312072861,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      77.5,
+                      77.8,
+                      50.0,
+                      72.1,
+                      71.1
+                    ],
+                    "median": 72.1,
+                    "mean": 69.7,
+                    "min": 50.0,
+                    "max": 77.8,
+                    "mad": 5.400000000000006,
+                    "relative_mad": 0.07489597780859926,
+                    "range": 27.799999999999997,
+                    "relative_range": 0.3855755894590846,
+                    "central_range": 6.400000000000006,
+                    "relative_central_range": 0.08876560332871021,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      86.6,
+                      82.2,
+                      73.0,
+                      81.3,
+                      76.9
+                    ],
+                    "median": 81.3,
+                    "mean": 80.0,
+                    "min": 73.0,
+                    "max": 86.6,
+                    "mad": 4.3999999999999915,
+                    "relative_mad": 0.05412054120541195,
+                    "range": 13.599999999999994,
+                    "relative_range": 0.1672816728167281,
+                    "central_range": 5.299999999999997,
+                    "relative_central_range": 0.06519065190651903,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      107.9,
+                      109.9,
+                      82.2,
+                      93.6,
+                      98.7
+                    ],
+                    "median": 98.7,
+                    "mean": 98.46000000000001,
+                    "min": 82.2,
+                    "max": 109.9,
+                    "mad": 9.200000000000003,
+                    "relative_mad": 0.0932117527862209,
+                    "range": 27.700000000000003,
+                    "relative_range": 0.28064842958459985,
+                    "central_range": 14.300000000000011,
+                    "relative_central_range": 0.14488348530901735,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_cycle_reject_cursor16": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap sequential400-year actual proof before missing rejection; worst-case optimization remains open; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_cycle_reject_cursor16": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100",
+                  "2",
+                  "16"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "2",
+                  "budget": "16",
+                  "queries": "3200",
+                  "steps": "1123200",
+                  "segments": "2569600",
+                  "months": "17923200",
+                  "rule_years": "6412800",
+                  "checks": "3200",
+                  "offsets": "6400",
+                  "labels": "3200",
+                  "checksum": "201879912995539200"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      3900.768,
+                      3722.137,
+                      3877.03,
+                      3839.117,
+                      3987.35
+                    ],
+                    "median": 3877.03,
+                    "mean": 3865.2804000000006,
+                    "min": 3722.137,
+                    "max": 3987.35,
+                    "mad": 37.91300000000001,
+                    "relative_mad": 0.009778877130174389,
+                    "range": 265.21299999999974,
+                    "relative_range": 0.06840622847901608,
+                    "central_range": 61.65099999999984,
+                    "relative_central_range": 0.015901605094621355,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      7876.9,
+                      7856.3,
+                      7826.8,
+                      7822.7,
+                      7827.3
+                    ],
+                    "median": 7827.3,
+                    "mean": 7842.0,
+                    "min": 7822.7,
+                    "max": 7876.9,
+                    "mad": 4.600000000000364,
+                    "relative_mad": 0.0005876866863414413,
+                    "range": 54.19999999999982,
+                    "relative_range": 0.006924482260805108,
+                    "central_range": 29.5,
+                    "relative_central_range": 0.0037688602711024237,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      9902.1,
+                      12650.5,
+                      11696.4,
+                      11817.6,
+                      9014.8
+                    ],
+                    "median": 11696.4,
+                    "mean": 11016.28,
+                    "min": 9014.8,
+                    "max": 12650.5,
+                    "mad": 954.1000000000004,
+                    "relative_mad": 0.0815721076570569,
+                    "range": 3635.7000000000007,
+                    "relative_range": 0.310839232584385,
+                    "central_range": 1915.5,
+                    "relative_central_range": 0.16376833897609522,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      12018.9,
+                      13209.4,
+                      12089.2,
+                      12973.3,
+                      11395.3
+                    ],
+                    "median": 12089.2,
+                    "mean": 12337.22,
+                    "min": 11395.3,
+                    "max": 13209.4,
+                    "mad": 693.9000000000015,
+                    "relative_mad": 0.05739833901333433,
+                    "range": 1814.1000000000004,
+                    "relative_range": 0.15005955729080503,
+                    "central_range": 954.3999999999996,
+                    "relative_central_range": 0.07894649770042679,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      12018.9,
+                      13209.4,
+                      12089.2,
+                      12973.3,
+                      11395.3
+                    ],
+                    "median": 12089.2,
+                    "mean": 12337.22,
+                    "min": 11395.3,
+                    "max": 13209.4,
+                    "mad": 693.9000000000015,
+                    "relative_mad": 0.05739833901333433,
+                    "range": 1814.1000000000004,
+                    "relative_range": 0.15005955729080503,
+                    "central_range": 954.3999999999996,
+                    "relative_central_range": 0.07894649770042679,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_public_composition": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; Equivalent LAST+SKIP public ZonedNext/Split/DeliveryResolve composition; internal counters unavailable, zero facts mean uninstrumented; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_public_composition": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "3",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "3",
+                  "budget": "0",
+                  "queries": "3200000",
+                  "steps": "0",
+                  "segments": "0",
+                  "months": "0",
+                  "rule_years": "0",
+                  "checks": "0",
+                  "offsets": "0",
+                  "labels": "0",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      769832.09,
+                      752947.98,
+                      716858.934,
+                      715605.031,
+                      694119.151
+                    ],
+                    "median": 716858.934,
+                    "mean": 729872.6372,
+                    "min": 694119.151,
+                    "max": 769832.09,
+                    "mad": 22739.783000000054,
+                    "relative_mad": 0.0317214195450064,
+                    "range": 75712.93900000001,
+                    "relative_range": 0.10561762629856547,
+                    "central_range": 37342.94900000002,
+                    "relative_central_range": 0.05209246509857966,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      38.5,
+                      38.6,
+                      38.7,
+                      38.7,
+                      38.8
+                    ],
+                    "median": 38.7,
+                    "mean": 38.660000000000004,
+                    "min": 38.5,
+                    "max": 38.8,
+                    "mad": 0.09999999999999432,
+                    "relative_mad": 0.0025839793281652278,
+                    "range": 0.29999999999999716,
+                    "relative_range": 0.00775193798449605,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.002583979328165411,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      64.5,
+                      65.1,
+                      69.1,
+                      69.1,
+                      68.7
+                    ],
+                    "median": 68.7,
+                    "mean": 67.3,
+                    "min": 64.5,
+                    "max": 69.1,
+                    "mad": 0.3999999999999915,
+                    "relative_mad": 0.005822416302765523,
+                    "range": 4.599999999999994,
+                    "relative_range": 0.06695778748180486,
+                    "central_range": 4.0,
+                    "relative_central_range": 0.05822416302765648,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      70.1,
+                      70.6,
+                      72.3,
+                      72.6,
+                      79.8
+                    ],
+                    "median": 72.3,
+                    "mean": 73.08,
+                    "min": 70.1,
+                    "max": 79.8,
+                    "mad": 1.7000000000000028,
+                    "relative_mad": 0.02351313969571235,
+                    "range": 9.700000000000003,
+                    "relative_range": 0.13416320885200558,
+                    "central_range": 2.0,
+                    "relative_central_range": 0.027662517289073308,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      85.1,
+                      94.0,
+                      94.7,
+                      96.6,
+                      113.4
+                    ],
+                    "median": 94.7,
+                    "mean": 96.76,
+                    "min": 85.1,
+                    "max": 113.4,
+                    "mad": 1.8999999999999915,
+                    "relative_mad": 0.020063357972544788,
+                    "range": 28.30000000000001,
+                    "relative_range": 0.2988384371700107,
+                    "central_range": 2.5999999999999943,
+                    "relative_central_range": 0.027455121436113984,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "noise_failures": {
+        "performance": [
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_mad=17.3%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_central_range=18.7%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_mad=16.8%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_central_range=30.7%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_mad=5.6%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_central_range=21.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_mad=16.1%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_central_range=19.6%"
+        ],
+        "occurrence-performance": [
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p95_us: relative_mad=8.7%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p95_us: relative_central_range=9.6%",
+          "[quality-fail] xcron_occurrence_last_cursor1/xcron_occurrence_last_cursor1/batch_p999_us: relative_central_range=10.1%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/queries_per_sec: relative_mad=3.4%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p95_us: relative_mad=7.5%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p95_us: relative_central_range=8.9%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p99_us: relative_mad=5.4%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p99_us: relative_central_range=6.5%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p999_us: relative_mad=9.3%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p999_us: relative_central_range=14.5%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p95_us: relative_mad=8.2%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p95_us: relative_central_range=16.4%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p99_us: relative_mad=5.7%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p99_us: relative_central_range=7.9%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p999_us: relative_mad=5.7%",
+          "[quality-fail] xcron_occurrence_cycle_reject_cursor16/xcron_occurrence_cycle_reject_cursor16/batch_p999_us: relative_central_range=7.9%",
+          "[quality-fail] xcron_occurrence_public_composition/xcron_occurrence_public_composition/queries_per_sec: relative_mad=3.2%"
+        ]
+      },
+      "receipts": {
+        "performance": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--profiles",
+            "xcron_delivery_cursor_full,xcron_delivery_cursor_offset1,xcron_delivery_cursor_sync",
+            "--report",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-occurrence\\windows-performance.json",
+            "--check",
+            "--baseline",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-delivery-cursor\\windows-cursor-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "513f3f86453374a191d4694556f22748919bdcf0067490bf212de16381c84d3e",
+          "report_created": true,
+          "report_sha256": "59af91fd8d68157c0dee01e941fdee81fb94d7bc45ba1d670150b520221d15ab"
+        },
+        "occurrence-performance": {
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--profiles",
+            "xcron_occurrence_last_sync,xcron_occurrence_last_cursor1,xcron_occurrence_gap_reject,xcron_occurrence_cycle_reject_cursor16,xcron_occurrence_public_composition",
+            "--report",
+            "C:\\Users\\Administrator\\.codex\\worktrees\\service-extensions\\xrt\\out\\service-extensions\\xcron-occurrence\\windows-occurrence-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "fd152757765e0228b192988fd631c26f2142a68c49325acd038a1ac0a9101656",
+          "report_created": true,
+          "report_sha256": "e831e159747021655f1ef7e10d960ca01a3c9cfb24f849847ff1fce6fea80a5a"
+        }
+      },
+      "independent_result_metadata_checksums_verified": true,
+      "public_composition_counter_scope": "Kind3 internal work counters are unavailable, not measured zero work; it compares LAST+SKIP result metadata only."
+    },
+    "wsl": {
+      "source_scope": "Historical pre-migration c2a8b434-based dirty feature identity; NOT a measurement of integrated916f3197 Core/tools or current mainline. Original reports/samples/gates retained.",
+      "accepted": false,
+      "original_cursor_comparison": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T13:40:29.991912+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "f4ef8a0fe4cc7048a5964c0dda6b840c9302a0da468428d7704635536e5b1bdd",
+        "benchmark_fingerprint": "e905093ccfef602217fafc9099e5fbf58e7029f8a47622a6c7546b016253226e",
+        "profiles": {
+          "xcron_delivery_cursor_full": {
+            "description": "32-label batches: Init fixed2560 zeroing plus complete cursor resolution; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_full": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "0",
+                  "steps": "320000",
+                  "checks": "320000",
+                  "offsets": "640000",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      4658027.898,
+                      4740579.21,
+                      4627761.653,
+                      4746922.288,
+                      4755761.903
+                    ],
+                    "median": 4740579.21,
+                    "mean": 4705810.5904,
+                    "min": 4627761.653,
+                    "max": 4755761.903,
+                    "mad": 15182.69299999997,
+                    "relative_mad": 0.0032027084302215405,
+                    "range": 128000.25,
+                    "relative_range": 0.027000972735565787,
+                    "central_range": 88894.38999999966,
+                    "relative_central_range": 0.018751799318632134,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      6.6,
+                      6.4,
+                      6.5,
+                      6.3,
+                      6.5
+                    ],
+                    "median": 6.5,
+                    "mean": 6.459999999999999,
+                    "min": 6.3,
+                    "max": 6.6,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.01538461538461533,
+                    "range": 0.2999999999999998,
+                    "relative_range": 0.04615384615384613,
+                    "central_range": 0.09999999999999964,
+                    "relative_central_range": 0.01538461538461533,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      8.2,
+                      8.1,
+                      11.2,
+                      7.9,
+                      8.1
+                    ],
+                    "median": 8.1,
+                    "mean": 8.7,
+                    "min": 7.9,
+                    "max": 11.2,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.012345679012345635,
+                    "range": 3.299999999999999,
+                    "relative_range": 0.4074074074074073,
+                    "central_range": 0.09999999999999964,
+                    "relative_central_range": 0.012345679012345635,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      8.3,
+                      8.3,
+                      11.6,
+                      11.4,
+                      9.6
+                    ],
+                    "median": 9.6,
+                    "mean": 9.84,
+                    "min": 8.3,
+                    "max": 11.6,
+                    "mad": 1.299999999999999,
+                    "relative_mad": 0.13541666666666657,
+                    "range": 3.299999999999999,
+                    "relative_range": 0.3437499999999999,
+                    "central_range": 3.0999999999999996,
+                    "relative_central_range": 0.32291666666666663,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      25.0,
+                      23.1,
+                      21.3,
+                      25.1,
+                      18.1
+                    ],
+                    "median": 23.1,
+                    "mean": 22.520000000000003,
+                    "min": 18.1,
+                    "max": 25.1,
+                    "mad": 1.8999999999999986,
+                    "relative_mad": 0.08225108225108219,
+                    "range": 7.0,
+                    "relative_range": 0.30303030303030304,
+                    "central_range": 3.6999999999999993,
+                    "relative_central_range": 0.16017316017316013,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_delivery_cursor_offset1": {
+            "description": "32-label batches: Init plus independently one-offset Steps; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_offset1": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "1",
+                  "steps": "640000",
+                  "checks": "320000",
+                  "offsets": "640000",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      4232401.147,
+                      4303602.999,
+                      4358776.328,
+                      4335632.122,
+                      4284077.156
+                    ],
+                    "median": 4303602.999,
+                    "mean": 4302897.9504,
+                    "min": 4232401.147,
+                    "max": 4358776.328,
+                    "mad": 32029.123000000603,
+                    "relative_mad": 0.007442397220989715,
+                    "range": 126375.18099999987,
+                    "relative_range": 0.029364971868772478,
+                    "central_range": 51554.966000000015,
+                    "relative_central_range": 0.011979489281882996,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      7.1,
+                      7.2,
+                      7.0,
+                      7.2,
+                      7.1
+                    ],
+                    "median": 7.1,
+                    "mean": 7.12,
+                    "min": 7.0,
+                    "max": 7.2,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.014084507042253471,
+                    "range": 0.20000000000000018,
+                    "relative_range": 0.028169014084507067,
+                    "central_range": 0.10000000000000053,
+                    "relative_central_range": 0.014084507042253596,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      8.9,
+                      7.3,
+                      8.8,
+                      7.4,
+                      8.9
+                    ],
+                    "median": 8.8,
+                    "mean": 8.260000000000002,
+                    "min": 7.3,
+                    "max": 8.9,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.011363636363636322,
+                    "range": 1.6000000000000005,
+                    "relative_range": 0.18181818181818185,
+                    "central_range": 1.5,
+                    "relative_central_range": 0.17045454545454544,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      10.4,
+                      12.5,
+                      12.6,
+                      11.5,
+                      11.0
+                    ],
+                    "median": 11.5,
+                    "mean": 11.6,
+                    "min": 10.4,
+                    "max": 12.6,
+                    "mad": 1.0,
+                    "relative_mad": 0.08695652173913043,
+                    "range": 2.1999999999999993,
+                    "relative_range": 0.1913043478260869,
+                    "central_range": 1.5,
+                    "relative_central_range": 0.13043478260869565,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      30.8,
+                      25.4,
+                      24.0,
+                      23.6,
+                      26.5
+                    ],
+                    "median": 25.4,
+                    "mean": 26.060000000000002,
+                    "min": 23.6,
+                    "max": 30.8,
+                    "mad": 1.3999999999999986,
+                    "relative_mad": 0.055118110236220416,
+                    "range": 7.199999999999999,
+                    "relative_range": 0.28346456692913385,
+                    "central_range": 2.5,
+                    "relative_central_range": 0.0984251968503937,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_delivery_cursor_sync": {
+            "description": "32-label batches: synchronous control in the same new benchmark program; precompiled POSIX fold only; no production qualification",
+            "benchmarks": {
+              "xcron_delivery_cursor_sync": {
+                "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+                "inputs": [],
+                "suite": "xcron_delivery",
+                "args": [
+                  "10000",
+                  "2"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "mode": "2",
+                  "steps": "0",
+                  "checks": "0",
+                  "offsets": "0",
+                  "checksum": "1990442678334928384"
+                },
+                "metrics": {
+                  "labels_per_sec": {
+                    "samples": [
+                      6212398.005,
+                      5737522.681,
+                      5396271.851,
+                      6419090.375,
+                      6062224.95
+                    ],
+                    "median": 6062224.95,
+                    "mean": 5965501.5724,
+                    "min": 5396271.851,
+                    "max": 6419090.375,
+                    "mad": 324702.2690000003,
+                    "relative_mad": 0.053561567193246486,
+                    "range": 1022818.5240000002,
+                    "relative_range": 0.1687199885250052,
+                    "central_range": 474875.324,
+                    "relative_central_range": 0.07833350426892358,
+                    "direction": "higher",
+                    "unit": "labels/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      4.9,
+                      4.7,
+                      4.9,
+                      4.7,
+                      4.8
+                    ],
+                    "median": 4.8,
+                    "mean": 4.8,
+                    "min": 4.7,
+                    "max": 4.9,
+                    "mad": 0.09999999999999964,
+                    "relative_mad": 0.02083333333333326,
+                    "range": 0.20000000000000018,
+                    "relative_range": 0.041666666666666706,
+                    "central_range": 0.20000000000000018,
+                    "relative_central_range": 0.041666666666666706,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      6.0,
+                      8.3,
+                      10.5,
+                      5.9,
+                      6.2
+                    ],
+                    "median": 6.2,
+                    "mean": 7.38,
+                    "min": 5.9,
+                    "max": 10.5,
+                    "mad": 0.2999999999999998,
+                    "relative_mad": 0.04838709677419352,
+                    "range": 4.6,
+                    "relative_range": 0.7419354838709676,
+                    "central_range": 2.3000000000000007,
+                    "relative_central_range": 0.370967741935484,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      8.3,
+                      8.5,
+                      10.8,
+                      9.7,
+                      8.2
+                    ],
+                    "median": 8.5,
+                    "mean": 9.1,
+                    "min": 8.2,
+                    "max": 10.8,
+                    "mad": 0.3000000000000007,
+                    "relative_mad": 0.035294117647058906,
+                    "range": 2.6000000000000014,
+                    "relative_range": 0.30588235294117666,
+                    "central_range": 1.3999999999999986,
+                    "relative_central_range": 0.164705882352941,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      26.5,
+                      24.9,
+                      28.8,
+                      23.0,
+                      29.3
+                    ],
+                    "median": 26.5,
+                    "mean": 26.5,
+                    "min": 23.0,
+                    "max": 29.3,
+                    "mad": 2.3000000000000007,
+                    "relative_mad": 0.0867924528301887,
+                    "range": 6.300000000000001,
+                    "relative_range": 0.2377358490566038,
+                    "central_range": 3.900000000000002,
+                    "relative_central_range": 0.1471698113207548,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "original_cursor_diagnostics": {
+        "environment_and_benchmark_match": true,
+        "threshold_diagnostic_only": [
+          "xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: baseline=22.9 current=25.4 limit=10.0%",
+          "xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: baseline=7.5 current=8.5 limit=10.0%",
+          "xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p999_us: baseline=19.5 current=26.5 limit=10.0%"
+        ],
+        "noise_failures": [
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_mad=13.5%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_central_range=32.3%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_mad=8.2%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_central_range=16.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p95_us: relative_central_range=17.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p99_us: relative_mad=8.7%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p99_us: relative_central_range=13.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_mad=5.5%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_central_range=9.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/labels_per_sec: relative_mad=5.4%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/labels_per_sec: relative_central_range=7.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p95_us: relative_mad=4.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p95_us: relative_central_range=37.1%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_mad=3.5%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_central_range=16.5%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p999_us: relative_mad=8.7%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p999_us: relative_central_range=14.7%"
+        ]
+      },
+      "occurrence_report": {
+        "schema": 2,
+        "product": "xcron",
+        "generated_at": "2026-11-08T13:49:38.907416+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 5,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+        "source_dirty": true,
+        "source_fingerprint": "d559f53bf7b4787aba7350ddd7ba42b427a798ae0cc88677e4930c41466b6d9f",
+        "benchmark_fingerprint": "d36a20abe0d03b010126227845c9caaff923f03280fbaf84664e2bf001c98aec",
+        "profiles": {
+          "xcron_occurrence_last_sync": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_last_sync": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "0",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "0",
+                  "budget": "0",
+                  "queries": "3200000",
+                  "steps": "0",
+                  "segments": "9600000",
+                  "months": "9600000",
+                  "rule_years": "16000000",
+                  "checks": "6400000",
+                  "offsets": "12800000",
+                  "labels": "6400000",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      760386.724,
+                      754521.254,
+                      783867.771,
+                      812900.99,
+                      842026.321
+                    ],
+                    "median": 783867.771,
+                    "mean": 790740.612,
+                    "min": 754521.254,
+                    "max": 842026.321,
+                    "mad": 29033.21900000004,
+                    "relative_mad": 0.0370384139699501,
+                    "range": 87505.06700000004,
+                    "relative_range": 0.1116324337309692,
+                    "central_range": 52514.265999999945,
+                    "relative_central_range": 0.0669937812764086,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      36.2,
+                      36.0,
+                      36.1,
+                      35.9,
+                      35.7
+                    ],
+                    "median": 36.0,
+                    "mean": 35.980000000000004,
+                    "min": 35.7,
+                    "max": 36.2,
+                    "mad": 0.10000000000000142,
+                    "relative_mad": 0.0027777777777778173,
+                    "range": 0.5,
+                    "relative_range": 0.013888888888888888,
+                    "central_range": 0.20000000000000284,
+                    "relative_central_range": 0.005555555555555635,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      61.2,
+                      60.9,
+                      61.2,
+                      59.5,
+                      53.8
+                    ],
+                    "median": 60.9,
+                    "mean": 59.32000000000001,
+                    "min": 53.8,
+                    "max": 61.2,
+                    "mad": 0.30000000000000426,
+                    "relative_mad": 0.004926108374384307,
+                    "range": 7.400000000000006,
+                    "relative_range": 0.12151067323481127,
+                    "central_range": 1.7000000000000028,
+                    "relative_central_range": 0.02791461412151072,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      76.9,
+                      77.4,
+                      71.6,
+                      69.0,
+                      61.9
+                    ],
+                    "median": 71.6,
+                    "mean": 71.36,
+                    "min": 61.9,
+                    "max": 77.4,
+                    "mad": 5.300000000000011,
+                    "relative_mad": 0.07402234636871524,
+                    "range": 15.500000000000007,
+                    "relative_range": 0.21648044692737442,
+                    "central_range": 7.900000000000006,
+                    "relative_central_range": 0.11033519553072635,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      149.5,
+                      236.9,
+                      124.9,
+                      111.3,
+                      95.8
+                    ],
+                    "median": 124.9,
+                    "mean": 143.68,
+                    "min": 95.8,
+                    "max": 236.9,
+                    "mad": 24.599999999999994,
+                    "relative_mad": 0.19695756605284223,
+                    "range": 141.10000000000002,
+                    "relative_range": 1.1297037630104085,
+                    "central_range": 38.2,
+                    "relative_central_range": 0.3058446757405925,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_last_cursor1": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_last_cursor1": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "0",
+                  "1"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "0",
+                  "budget": "1",
+                  "queries": "3200000",
+                  "steps": "22400000",
+                  "segments": "9600000",
+                  "months": "9600000",
+                  "rule_years": "16000000",
+                  "checks": "6400000",
+                  "offsets": "12800000",
+                  "labels": "6400000",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      580617.581,
+                      587422.772,
+                      567630.939,
+                      562845.106,
+                      575890.069
+                    ],
+                    "median": 575890.069,
+                    "mean": 574881.2934000001,
+                    "min": 562845.106,
+                    "max": 587422.772,
+                    "mad": 8259.130000000005,
+                    "relative_mad": 0.014341504472097442,
+                    "range": 24577.66599999997,
+                    "relative_range": 0.042677704171349355,
+                    "central_range": 12986.641999999993,
+                    "relative_central_range": 0.022550557300893465,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      51.1,
+                      51.0,
+                      51.1,
+                      51.2,
+                      51.2
+                    ],
+                    "median": 51.1,
+                    "mean": 51.120000000000005,
+                    "min": 51.0,
+                    "max": 51.2,
+                    "mad": 0.10000000000000142,
+                    "relative_mad": 0.001956947162426642,
+                    "range": 0.20000000000000284,
+                    "relative_range": 0.003913894324853284,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.001956947162426642,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      83.8,
+                      79.0,
+                      86.3,
+                      87.4,
+                      85.0
+                    ],
+                    "median": 85.0,
+                    "mean": 84.3,
+                    "min": 79.0,
+                    "max": 87.4,
+                    "mad": 1.2999999999999972,
+                    "relative_mad": 0.01529411764705879,
+                    "range": 8.400000000000006,
+                    "relative_range": 0.09882352941176477,
+                    "central_range": 2.5,
+                    "relative_central_range": 0.029411764705882353,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      91.5,
+                      89.3,
+                      94.3,
+                      93.9,
+                      92.8
+                    ],
+                    "median": 92.8,
+                    "mean": 92.36,
+                    "min": 89.3,
+                    "max": 94.3,
+                    "mad": 1.2999999999999972,
+                    "relative_mad": 0.014008620689655141,
+                    "range": 5.0,
+                    "relative_range": 0.05387931034482759,
+                    "central_range": 2.4000000000000057,
+                    "relative_central_range": 0.025862068965517303,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      134.5,
+                      129.7,
+                      142.5,
+                      131.6,
+                      133.8
+                    ],
+                    "median": 133.8,
+                    "mean": 134.42000000000002,
+                    "min": 129.7,
+                    "max": 142.5,
+                    "mad": 2.200000000000017,
+                    "relative_mad": 0.01644245142003002,
+                    "range": 12.800000000000011,
+                    "relative_range": 0.09566517189835583,
+                    "central_range": 2.9000000000000057,
+                    "relative_central_range": 0.021674140508221265,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_gap_reject": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; NY missing REJECT including diagnostic allocation/clear; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_gap_reject": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "10000",
+                  "1",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "1",
+                  "budget": "0",
+                  "queries": "320000",
+                  "steps": "0",
+                  "segments": "1280000",
+                  "months": "960000",
+                  "rule_years": "1920000",
+                  "checks": "640000",
+                  "offsets": "1280000",
+                  "labels": "640000",
+                  "checksum": "1983864185856848384"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      614233.399,
+                      638838.081,
+                      631108.687,
+                      596598.863,
+                      633683.945
+                    ],
+                    "median": 631108.687,
+                    "mean": 622892.595,
+                    "min": 596598.863,
+                    "max": 638838.081,
+                    "mad": 7729.393999999971,
+                    "relative_mad": 0.012247326267591006,
+                    "range": 42239.21799999999,
+                    "relative_range": 0.0669285954544308,
+                    "central_range": 19450.545999999973,
+                    "relative_central_range": 0.030819645491585463,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      46.8,
+                      47.6,
+                      46.9,
+                      46.8,
+                      46.9
+                    ],
+                    "median": 46.9,
+                    "mean": 47.0,
+                    "min": 46.8,
+                    "max": 47.6,
+                    "mad": 0.10000000000000142,
+                    "relative_mad": 0.0021321961620469386,
+                    "range": 0.8000000000000043,
+                    "relative_range": 0.017057569296375356,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.0021321961620469386,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      80.4,
+                      62.0,
+                      73.8,
+                      78.4,
+                      74.2
+                    ],
+                    "median": 74.2,
+                    "mean": 73.76,
+                    "min": 62.0,
+                    "max": 80.4,
+                    "mad": 4.200000000000003,
+                    "relative_mad": 0.056603773584905696,
+                    "range": 18.400000000000006,
+                    "relative_range": 0.24797843665768202,
+                    "central_range": 4.6000000000000085,
+                    "relative_central_range": 0.061994609164420594,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      92.3,
+                      81.6,
+                      84.1,
+                      86.4,
+                      82.1
+                    ],
+                    "median": 84.1,
+                    "mean": 85.3,
+                    "min": 81.6,
+                    "max": 92.3,
+                    "mad": 2.3000000000000114,
+                    "relative_mad": 0.027348394768133312,
+                    "range": 10.700000000000003,
+                    "relative_range": 0.12722948870392395,
+                    "central_range": 4.300000000000011,
+                    "relative_central_range": 0.05112960760998825,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      136.1,
+                      137.7,
+                      133.7,
+                      149.2,
+                      114.6
+                    ],
+                    "median": 136.1,
+                    "mean": 134.26,
+                    "min": 114.6,
+                    "max": 149.2,
+                    "mad": 2.4000000000000057,
+                    "relative_mad": 0.017634092578986082,
+                    "range": 34.599999999999994,
+                    "relative_range": 0.25422483468038204,
+                    "central_range": 4.0,
+                    "relative_central_range": 0.029390154298310066,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_cycle_reject_cursor16": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap sequential400-year actual proof before missing rejection; worst-case optimization remains open; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_cycle_reject_cursor16": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100",
+                  "2",
+                  "16"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "2",
+                  "budget": "16",
+                  "queries": "3200",
+                  "steps": "1123200",
+                  "segments": "2569600",
+                  "months": "17923200",
+                  "rule_years": "6412800",
+                  "checks": "3200",
+                  "offsets": "6400",
+                  "labels": "3200",
+                  "checksum": "201879912995539200"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      3553.559,
+                      3609.574,
+                      3559.0,
+                      3561.755,
+                      3520.681
+                    ],
+                    "median": 3559.0,
+                    "mean": 3560.9138,
+                    "min": 3520.681,
+                    "max": 3609.574,
+                    "mad": 5.4409999999998035,
+                    "relative_mad": 0.001528800224782187,
+                    "range": 88.89300000000003,
+                    "relative_range": 0.024976959820174213,
+                    "central_range": 8.195999999999913,
+                    "relative_central_range": 0.0023028940713683372,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      8376.6,
+                      8326.9,
+                      8429.4,
+                      8436.8,
+                      8426.9
+                    ],
+                    "median": 8426.9,
+                    "mean": 8399.32,
+                    "min": 8326.9,
+                    "max": 8436.8,
+                    "mad": 9.899999999999636,
+                    "relative_mad": 0.0011748092418326593,
+                    "range": 109.89999999999964,
+                    "relative_range": 0.013041569260344806,
+                    "central_range": 52.79999999999927,
+                    "relative_central_range": 0.006265649289774327,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      12289.099,
+                      12173.7,
+                      12522.4,
+                      12730.6,
+                      12648.0
+                    ],
+                    "median": 12522.4,
+                    "mean": 12472.7598,
+                    "min": 12173.7,
+                    "max": 12730.6,
+                    "mad": 208.20000000000073,
+                    "relative_mad": 0.016626205839136328,
+                    "range": 556.8999999999996,
+                    "relative_range": 0.044472305628314036,
+                    "central_range": 358.90099999999984,
+                    "relative_central_range": 0.028660719989778306,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      13266.099,
+                      13763.599,
+                      13333.2,
+                      13235.199,
+                      12812.4
+                    ],
+                    "median": 13266.099,
+                    "mean": 13282.099400000001,
+                    "min": 12812.4,
+                    "max": 13763.599,
+                    "mad": 67.10100000000057,
+                    "relative_mad": 0.005058080751545769,
+                    "range": 951.1990000000005,
+                    "relative_range": 0.07170148511631041,
+                    "central_range": 98.0010000000002,
+                    "relative_central_range": 0.007387326146141394,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      13266.099,
+                      13763.599,
+                      13333.2,
+                      13235.199,
+                      12812.4
+                    ],
+                    "median": 13266.099,
+                    "mean": 13282.099400000001,
+                    "min": 12812.4,
+                    "max": 13763.599,
+                    "mad": 67.10100000000057,
+                    "relative_mad": 0.005058080751545769,
+                    "range": 951.1990000000005,
+                    "relative_range": 0.07170148511631041,
+                    "central_range": 98.0010000000002,
+                    "relative_central_range": 0.007387326146141394,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          },
+          "xcron_occurrence_public_composition": {
+            "description": "Whole32-query batches including requested metadata, cold Init and every Step; Equivalent LAST+SKIP public ZonedNext/Split/DeliveryResolve composition; internal counters unavailable, zero facts mean uninstrumented; no production qualification",
+            "benchmarks": {
+              "xcron_occurrence_public_composition": {
+                "source": "extlibs/xcron/bench/bench_occurrence.c",
+                "inputs": [],
+                "suite": "xcron_occurrence",
+                "args": [
+                  "100000",
+                  "3",
+                  "0"
+                ],
+                "facts": {
+                  "batch_size": "32",
+                  "kind": "3",
+                  "budget": "0",
+                  "queries": "3200000",
+                  "steps": "0",
+                  "segments": "0",
+                  "months": "0",
+                  "rule_years": "0",
+                  "checks": "0",
+                  "offsets": "0",
+                  "labels": "0",
+                  "checksum": "1457694236807732224"
+                },
+                "metrics": {
+                  "queries_per_sec": {
+                    "samples": [
+                      711868.82,
+                      722537.876,
+                      709220.382,
+                      710060.146,
+                      706257.35
+                    ],
+                    "median": 710060.146,
+                    "mean": 711988.9148,
+                    "min": 706257.35,
+                    "max": 722537.876,
+                    "mad": 1808.673999999999,
+                    "relative_mad": 0.002547212387836226,
+                    "range": 16280.52600000007,
+                    "relative_range": 0.022928375985771875,
+                    "central_range": 2648.4379999999655,
+                    "relative_central_range": 0.003729878398216657,
+                    "direction": "higher",
+                    "unit": "queries/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p50_us": {
+                    "samples": [
+                      40.7,
+                      40.2,
+                      40.6,
+                      40.8,
+                      40.7
+                    ],
+                    "median": 40.7,
+                    "mean": 40.6,
+                    "min": 40.2,
+                    "max": 40.8,
+                    "mad": 0.09999999999999432,
+                    "relative_mad": 0.0024570024570023173,
+                    "range": 0.5999999999999943,
+                    "relative_range": 0.014742014742014602,
+                    "central_range": 0.10000000000000142,
+                    "relative_central_range": 0.0024570024570024916,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p95_us": {
+                    "samples": [
+                      69.9,
+                      68.5,
+                      68.9,
+                      69.5,
+                      69.6
+                    ],
+                    "median": 69.5,
+                    "mean": 69.28,
+                    "min": 68.5,
+                    "max": 69.9,
+                    "mad": 0.4000000000000057,
+                    "relative_mad": 0.005755395683453319,
+                    "range": 1.4000000000000057,
+                    "relative_range": 0.020143884892086412,
+                    "central_range": 0.6999999999999886,
+                    "relative_central_range": 0.010071942446043002,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p99_us": {
+                    "samples": [
+                      76.3,
+                      72.7,
+                      78.1,
+                      78.4,
+                      78.7
+                    ],
+                    "median": 78.1,
+                    "mean": 76.84,
+                    "min": 72.7,
+                    "max": 78.7,
+                    "mad": 0.6000000000000085,
+                    "relative_mad": 0.007682458386683849,
+                    "range": 6.0,
+                    "relative_range": 0.0768245838668374,
+                    "central_range": 2.1000000000000085,
+                    "relative_central_range": 0.026888604353393197,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "batch_p999_us": {
+                    "samples": [
+                      118.7,
+                      113.0,
+                      126.2,
+                      110.4,
+                      139.9
+                    ],
+                    "median": 118.7,
+                    "mean": 121.64000000000001,
+                    "min": 110.4,
+                    "max": 139.9,
+                    "mad": 7.5,
+                    "relative_mad": 0.06318449873631002,
+                    "range": 29.5,
+                    "relative_range": 0.2485256950294861,
+                    "central_range": 13.200000000000003,
+                    "relative_central_range": 0.11120471777590567,
+                    "direction": "lower",
+                    "unit": "us",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "noise_failures": {
+        "performance": [
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_mad=13.5%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p99_us: relative_central_range=32.3%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_mad=8.2%",
+          "[quality-fail] xcron_delivery_cursor_full/xcron_delivery_cursor_full/batch_p999_us: relative_central_range=16.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p95_us: relative_central_range=17.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p99_us: relative_mad=8.7%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p99_us: relative_central_range=13.0%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_mad=5.5%",
+          "[quality-fail] xcron_delivery_cursor_offset1/xcron_delivery_cursor_offset1/batch_p999_us: relative_central_range=9.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/labels_per_sec: relative_mad=5.4%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/labels_per_sec: relative_central_range=7.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p95_us: relative_mad=4.8%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p95_us: relative_central_range=37.1%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_mad=3.5%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p99_us: relative_central_range=16.5%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p999_us: relative_mad=8.7%",
+          "[quality-fail] xcron_delivery_cursor_sync/xcron_delivery_cursor_sync/batch_p999_us: relative_central_range=14.7%"
+        ],
+        "occurrence-performance": [
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/queries_per_sec: relative_mad=3.7%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/queries_per_sec: relative_central_range=6.7%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p99_us: relative_mad=7.4%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p99_us: relative_central_range=11.0%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p999_us: relative_mad=19.7%",
+          "[quality-fail] xcron_occurrence_last_sync/xcron_occurrence_last_sync/batch_p999_us: relative_central_range=30.6%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p95_us: relative_mad=5.7%",
+          "[quality-fail] xcron_occurrence_gap_reject/xcron_occurrence_gap_reject/batch_p95_us: relative_central_range=6.2%",
+          "[quality-fail] xcron_occurrence_public_composition/xcron_occurrence_public_composition/batch_p999_us: relative_mad=6.3%",
+          "[quality-fail] xcron_occurrence_public_composition/xcron_occurrence_public_composition/batch_p999_us: relative_central_range=11.1%"
+        ]
+      },
+      "receipts": {
+        "performance": {
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--profiles",
+            "xcron_delivery_cursor_full,xcron_delivery_cursor_offset1,xcron_delivery_cursor_sync",
+            "--report",
+            "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-occurrence/wsl-performance.json",
+            "--check",
+            "--baseline",
+            "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-delivery-cursor/wsl-cursor-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "fc8828617f2cb450dd89ad751eafbb1ceb95ffcf84fc3e80cdf08bee3fb086bb",
+          "report_created": true,
+          "report_sha256": "a517cfa0e7460eae42f135b2ef9739f429687aec70b96523de459e0ecdb4ce78"
+        },
+        "occurrence-performance": {
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--profiles",
+            "xcron_occurrence_last_sync,xcron_occurrence_last_cursor1,xcron_occurrence_gap_reject,xcron_occurrence_cycle_reject_cursor16,xcron_occurrence_public_composition",
+            "--report",
+            "/mnt/c/Users/Administrator/.codex/worktrees/service-extensions/xrt/out/service-extensions/xcron-occurrence/wsl-occurrence-performance.json"
+          ],
+          "exit_code": 1,
+          "log_sha256": "f480502c706c0915a90dcdf4fa9e7bef84a23e4ce85de005fba3a05208f87805",
+          "report_created": true,
+          "report_sha256": "d1e06170a83af7bcdb12705f8db589a6a16f4d285ea8224d2f96fb1e7c39e5b5"
+        }
+      },
+      "independent_result_metadata_checksums_verified": true,
+      "public_composition_counter_scope": "Kind3 internal work counters are unavailable, not measured zero work; it compares LAST+SKIP result metadata only."
+    }
+  },
+  "limitations": [
+    "Measured sequential composition proves actual absence before checking early gap errors. Always-gap REJECT:803 segments,5601 months,2004 rule years,351 budget16 Steps/query; throughput Windows3877/WSL3559. This is an open performance problem. Fuse ordered actual/gap traversal before physical integration; dense rejected folds also need optimization.",
+    "Whole32-query batch percentiles only, no per-operation percentile division. The100-batch cycle profile has coarse tail resolution. Both new formal reports fail original noise gates; no speedup/no-regression/production acceptance follows.",
+    "Windows symlink fixture is skipped1314 as before; WSL is not native Linux. Native Windows/Linux>=72h, fixed-arrival/worker/CPU/resource/durable acceptance remain open.",
+    "Existing kernel/service job policy integration, missing-label shift/compensation, physical delivery/durable recovery and remaining Redis/RPC/MQTT scope remain required. Migration/testing does not mark the long-term goal complete."
+  ],
+  "local_evidence_directory": "out/service-extensions/xcron-occurrence/",
+  "mainline_evidence_directory": "out/service-extensions/mainline-migration-20261108/"
+}

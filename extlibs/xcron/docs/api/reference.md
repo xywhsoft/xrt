@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `70` 个函数、`184` 个常量或宏、
-`80` 个公共类型。
+当前登记 `73` 个函数、`199` 个常量或宏、
+`86` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -194,6 +194,44 @@
 - `xcronexpressionerror`
 - `xcronexpressionissue`
 
+## `extlibs/xcron/include/xcron/occurrence.h`
+
+[查看带契约注释的公共头](../../include/xcron/occurrence.h)
+
+### 函数 (3)
+
+- `xcronOccurrenceCursorInit`
+- `xcronOccurrenceCursorStep`
+- `xcronOccurrenceNext`
+
+### 常量与宏 (16)
+
+- `XCRON_FEATURE_XCRON_OCCURRENCE`
+- `XCRON_FEATURE_XCRON_ZONED`
+- `XCRON_OCCURRENCE_AMBIGUOUS`
+- `XCRON_OCCURRENCE_ARGUMENT`
+- `XCRON_OCCURRENCE_CURSOR_BYTES`
+- `XCRON_OCCURRENCE_ERROR`
+- `XCRON_OCCURRENCE_EXPRESSION`
+- `XCRON_OCCURRENCE_FOUND`
+- `XCRON_OCCURRENCE_MISSING`
+- `XCRON_OCCURRENCE_NONE`
+- `XCRON_OCCURRENCE_OK`
+- `XCRON_OCCURRENCE_PENDING`
+- `XCRON_OCCURRENCE_RANGE`
+- `XCRON_OCCURRENCE_STATE`
+- `XCRON_OCCURRENCE_WINDOW`
+- `XCRON_OCCURRENCE_ZONE`
+
+### 类型 (6)
+
+- `xcronoccurrence`
+- `xcronoccurrencebudget`
+- `xcronoccurrencecursor`
+- `xcronoccurrenceerror`
+- `xcronoccurrenceissue`
+- `xcronoccurrencestatus`
+
 ## `extlibs/xcron/include/xcron/scheduler.h`
 
 [查看带契约注释的公共头](../../include/xcron/scheduler.h)
@@ -213,9 +251,8 @@
 - `xcronSchedulerReap`
 - `xcronSchedulerWake`
 
-### 常量与宏 (25)
+### 常量与宏 (24)
 
-- `XCRON_FEATURE_XCRON_ZONED`
 - `XCRON_JOB_CANCELLED`
 - `XCRON_JOB_EXHAUSTED`
 - `XCRON_JOB_FAULTED`

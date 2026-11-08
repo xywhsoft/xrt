@@ -37,6 +37,22 @@
 #ifndef XCRON_MODULE_XCRON_DELIVERY
 #define XCRON_MODULE_XCRON_DELIVERY
 #endif
+#ifndef XCRON_MODULE_XCRON_OCCURRENCE
+#define XCRON_MODULE_XCRON_OCCURRENCE
+#endif
+#endif
+
+/* xcron_occurrence 及其直接依赖。 */
+#if defined(XCRON_MODULE_ALL) || defined(XCRON_MODULE_XCRON_OCCURRENCE)
+#ifndef XCRON_FEATURE_XCRON_OCCURRENCE
+#define XCRON_FEATURE_XCRON_OCCURRENCE
+#endif
+#ifndef XCRON_MODULE_XCRON_DELIVERY
+#define XCRON_MODULE_XCRON_DELIVERY
+#endif
+#ifndef XCRON_MODULE_XCRON_ZONED
+#define XCRON_MODULE_XCRON_ZONED
+#endif
 #endif
 
 /* xcron_delivery 及其直接依赖。 */

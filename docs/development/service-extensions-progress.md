@@ -7870,3 +7870,151 @@ samples/checksums/CPU counters remain in `out/service-extensions/xcron-delivery-
 Continue recurring policy search, gap compensation and physical/durable delivery;
 remaining Redis/RPC/MQTT scope, native Linux, >=72h and production performance/
 reliability gates stay required. All four products developing; overall goal active.
+
+
+### 2026-11-08: complete selected recurring queries with budgeted gap rejection
+
+Added the optional developing xcron_occurrence calculation leaf, composing the
+existing delivery and zoned leaves. Next/Init/Step select the earliest actual
+match with globally complete ALL/FIRST/LAST/REJECT semantics; a candidate outside
+the query still determines FIRST/LAST. Missing REJECT checks matching labels in
+each positive-offset transition gap anchored at its UTC boundary, including the
+rounded start and preceding an actual result/error on a tie. Every apparent gap
+label is globally resolved: another segment can fill it. Unknown coverage is
+never replaced by a guessed result. Canonical nominal metadata accompanies the
+actual result or typed error when known. Signed-int64/fractional bounds remain.
+The proof limit completes history, then includes the maximum legal offset-window
+margin before a full400-year periodic suffix; no arbitrary400-year history cutoff.
+
+Five independent nonnegative budgets count actual segments, calendar months,
+transition-search years, complete-label checks and distinct offset probes across
+all engines. PENDING hides provisional metadata and preserves the output; all-zero
+pending calls preserve cursor bytes. Terminal results repeat without traversal.
+Init copies expression/bounds/policy and borrows the exact immutable zone at a
+stable address, without search/retention/Unit duty. Serialized native handoff is
+supported. Normal paths request no heap/IO/lock and preserve ambient error; typed
+issues survive diagnostic OOM. Private typed state is880 bytes on both x64 targets,
+control904, public cursor1024, occurrence64, budget20 and issue128. Cold zeroing,
+904-byte wrapper copies each way, validation/state lookups, canonical metadata
+and final result/Issue copies are explicit costs. No zero-overhead claim is made.
+The private engine reuses dormant actual calendar/walk storage for gap validation.
+
+No Core source/dependency/shared runtime changes. A guarded product-private helper
+continues canonical civil calendar search strictly after a label without requiring
+its civil value to fit xtime. Original synchronous/calendar/zoned control loops
+are unchanged. Root/leaf builds, umbrella/features, generated single/declarations,
+public API reference and runnable offline example are registered. The reference
+now has73 functions,199 constants/macros and86 public types. Existing kernel/
+service jobs keep their original actual-occurrence semantics pending integration.
+
+Both OSes pass27 modular/single programs, the standalone leaf example and actual
+root AND isolated leaf static/shared consumers. WSL O2 ASan/UBSan/leak-halt and two
+O1 TSan units pass; Windows85 tooling and generated/docs checks pass. New tests
+independently enumerate UTC seconds and all offsets for32 arbitrary8-transition
+histories under8 windows/all8 policies (2048 queries), with both sync Issue forms
+and cursors. Separate256-fold,500-year historical prefix, whole-cycle always-gap,
+rare unknown footer, full-int64, gap-fill/tie/window, independent zero-budget,
+snapshot/alias/state/OOM,1024 warmed zero-requested-heap and joined handoff cases
+pass. The existing Windows symlink fixture remains skipped1314; this is not native
+Linux or a completed production/long-run qualification.
+
+The frozen422-zone2026e oracle independently enumerates Gregorian labels, all
+stored/footer offsets and global candidates, RFC coverage and footer M-rule UTC
+transitions. Its new required protocol checks all nominal metadata, including
+Weekday/YearDay, and physically executes both sync forms plus a budgeted cursor.
+Both full reports agree:121664 queries (114452 FOUND,152 NONE,1896 AMBIGUOUS,
+2860 MISSING,2304 UNKNOWN),243328 synchronous calls,121664 cursor initializations,
+401818 Steps and766810 total API calls per OS. Actual cumulative work is317099
+segments,230634 months,31143 rule years,125602 checks,470552 offsets and125602
+completed label attempts. Every Step delta and pending output is verified.
+
+Final functional source maps agree on2521 inputs; all receipts pass on that
+captured identity. Prototype logs also pass. After functional, size and old-profile
+measurements terminate, only the performance JSON changes to append5 new profiles;
+original defaults/profiles/benchmarks remain intact. Actual loader validation and
+new performance runs use the separately captured measurement identity. No samples,
+failed gates, old baselines or benchmark fingerprints are rewritten/force paired.
+
+Size/forbidden-symbol checks pass. Existing delivery single/static/shared text,
+data, BSS and file sizes have ZERO growth on both OSes. Occurrence static owned
+closure text is59852 Windows/64412 WSL bytes, including its8 xcron sources/dependencies;
+single text103732/111477 includes selected Core. Shared owned text69765/69882 uses
+separate companion Core. These are not equivalent total deployment sizes.
+The original3 cursor benchmark fingerprints/environments match naturally. Both
+comparisons exit1 on original noise gates (8 Windows/17 WSL violations). Separate
+raw-median threshold diagnostics have no Windows failures and retain3 WSL tail
+breaches: offset1 P99.9 and sync P99/P99.9. No qualified no-regression follows.
+
+Five new whole32-query batch profiles retain independent Gregorian/nominal-metadata
+checksums. Typical LAST sync/cursor1 work counts agree:3 segments,3 months,5 rule
+years,2 checks,4 offset probes and2 complete labels/query; cursor1 uses7 Steps.
+The public-API LAST+SKIP composition is a same-fixture result comparator, with its
+internal traversal counters unavailable (zero facts mean uninstrumented). Error
+profiles include diagnostic allocation/clear. Throughput medians for last_sync,
+last_cursor1,gap_reject,cycle_reject_cursor16,public_composition are respectively
+Windows937969/660353/660556/3877/716859 and WSL783868/575890/631109/3559/710060
+queries/s. Whole-batch P99 is57.3/81.1/81.3/12089.2/72.3us and
+71.6/92.8/84.1/13266.099/78.1us. Both new reports exit1 on unchanged noise gates
+(17/10 violations). No speedup/production-tail or divided per-query percentile
+claim is made. The100-batch cycle profile has coarse tail resolution; worker/
+arrival/CPU/resource/durable paths and native mixed-load acceptance remain open.
+
+The measured always-gap REJECT path is a concrete performance limitation: current
+sequential composition first proves actual absence, then discovers an early missing
+label. Each query consumes803 segments,5601 months,2004 rule years and351 Steps at
+budget16 before returning MISSING. Prioritize fusing ordered segment search with
+gap validation so the early boundary can decide before a full cycle, and retain
+this exact workload/evidence. Dense rejected folds also remain an optimization
+concern. These are open performance requirements, not accepted final behavior.
+
+Portable evidence: extlibs/xcron/tests/results/occurrence-selection-20261108.json.
+Raw source maps, commands, all logs/receipts, oracle/probe/layout/consumer identities
+and original/new performance samples remain in out/service-extensions/xcron-occurrence/.
+Continue performance optimization, explicit nominal policy integration into jobs,
+gap compensation, physical delivery/durable recovery and the remaining Redis/RPC/
+MQTT scope. Native Linux,>=72h and production stability/performance gates stay
+required. All four products developing; overall goal active.
+
+
+### Mainline migration and fresh four-product verification
+
+At the user's explicit request, moved all26 pending service-extension source/
+documentation/generated files from the c2a8b434 worktree into D:/GIT/xrt master,
+retaining the already-integrated916f3197 history. Every overwritten destination
+was first verified to have the same base blob; all transferred source hashes
+matched. No development branch or merge commit was created for this migration.
+Updated the versioned workflow and local AGENTS guidance to default to direct
+master development, preserving concurrent work and requiring a concrete reason
+for branch/worktree exceptions. Remote publishing remains explicitly authorized
+separately; no remote push was performed.
+
+Copied and hash-verified8425 existing regular evidence files (1619572098 bytes),
+including raw failures, probes, frozen data and performance reports. Preserved37
+cache junctions whose targets were already absent before migration; no new target
+loss was introduced. Additionally retained297 surviving performance executables/
+size artifacts (93763688 bytes), with current hashes and provenance. Rebuildable
+object/test caches are not needed to retain the source/evidence history. All
+migration manifests and raw receipts are in out/service-extensions/mainline-migration-20261108/.
+
+Fresh tests execute on actual master Core/tools at D:/GIT/xrt, not the old worktree.
+Windows and WSL each pass101 root modular/single programs: xredis30, xrpc30,
+xmqtt14, xcron27. WSL suites use O2 ASan/UBSan/leak-halt. All4 root static/shared
+package consumers and the isolated occurrence static/shared consumers pass on
+both platforms. The runnable occurrence example, direct/generated layouts and
+new422-zone oracle also pass; both oracle reports match the pre-migration
+expected results and every Step budget/metadata field. Two O1 TSan occurrence
+units pass. Windows86 tooling tests and all4 products' feature/single/API/
+docs checks pass. Existing Windows symbolic-link fixture skips1314 remain recorded.
+
+Both final mainline execution maps agree on2891 source/config/tool inputs.
+The feature and migration evidence JSONs are published after validation; no
+production C/H or test-driver edits follow the captured input identity. Historical
+performance reports remain labelled c2-based pre-migration measurements, with
+all failed noise gates preserved. They are not relabelled as performance results
+for the integrated master Core. The sequential always-gap rejection performance
+problem, job integration/compensation/durability, remaining Redis/RPC/MQTT scope,
+native Linux and>=72h production acceptance remain open. The original long-term
+goal remains paused; this user request performs migration/verification only.
+
+Portable feature evidence: extlibs/xcron/tests/results/occurrence-selection-20261108.json.
+Portable migration evidence: docs/development/service-extensions-mainline-20261108.json.

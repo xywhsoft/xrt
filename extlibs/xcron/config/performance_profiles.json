@@ -1119,6 +1119,296 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_occurrence_last_sync",
+      "system": "occurrence",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_last_sync",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "100000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "0",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_occurrence_last_cursor1",
+      "system": "occurrence",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; LAST+SKIP complete recurring search; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_last_cursor1",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "100000",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "0",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_occurrence_gap_reject",
+      "system": "occurrence",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; NY missing REJECT including diagnostic allocation/clear; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_gap_reject",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "10000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_occurrence_cycle_reject_cursor16",
+      "system": "occurrence",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; Always-gap sequential400-year actual proof before missing rejection; worst-case optimization remains open; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_cycle_reject_cursor16",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "100",
+            "2",
+            "16"
+          ],
+          "smoke_args": [
+            "2",
+            "2",
+            "16"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_occurrence_public_composition",
+      "system": "occurrence",
+      "description": "Whole32-query batches including requested metadata, cold Init and every Step; Equivalent LAST+SKIP public ZonedNext/Split/DeliveryResolve composition; internal counters unavailable, zero facts mean uninstrumented; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_occurrence_public_composition",
+          "source": "extlibs/xcron/bench/bench_occurrence.c",
+          "suite": "xcron_occurrence",
+          "args": [
+            "100000",
+            "3",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "3",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "kind",
+            "budget",
+            "queries",
+            "steps",
+            "segments",
+            "months",
+            "rule_years",
+            "checks",
+            "offsets",
+            "labels",
+            "checksum"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "direction": "higher",
+              "unit": "queries/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }
