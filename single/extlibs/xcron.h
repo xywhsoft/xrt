@@ -1212,11 +1212,15 @@ XRT_EXTERN_C_END
 typedef enum xcronfoldpolicy {XCRON_FOLD_ALL=0,XCRON_FOLD_FIRST,XCRON_FOLD_LAST,XCRON_FOLD_REJECT} xcronfoldpolicy;
 typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT} xcronmissingpolicy;
 typedef struct xcrondeliverypolicy {xcronfoldpolicy Fold;xcronmissingpolicy Missing;} xcrondeliverypolicy;
-typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1} xcrondeliverystatus;
-typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING} xcrondeliveryerror;
+typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1,XCRON_DELIVERY_PENDING=2} xcrondeliverystatus;
+typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING,XCRON_DELIVERY_STATE} xcrondeliveryerror;
 /* Candidates is the complete actual multiplicity, before selection, when known.
  * Zone applies to ZONE errors. Count below is the SELECTED required capacity. */
 typedef struct xcrondeliveryissue {xcrondeliveryerror Code;xcronzoneerror Zone;size_t Candidates;} xcrondeliveryissue;
+typedef struct xcrondeliverybudget {uint32 Checks,Offsets,RuleYears;} xcrondeliverybudget;
+typedef struct xcrondeliverycursorissue {xcrondeliveryissue Issue;uint64 ChecksExamined,OffsetsExamined,RuleYearsExamined;} xcrondeliverycursorissue;
+#define XCRON_DELIVERY_CURSOR_BYTES 2560u
+typedef union xcrondeliverycursor {uint64 Alignment;uint8 Storage[XCRON_DELIVERY_CURSOR_BYTES];} xcrondeliverycursor;
 XRT_EXTERN_C_BEGIN
 /* Resolve ONE floating nominal civil label, then apply explicit policies to its
  * COMPLETE ascending candidate set. ALL keeps every candidate (including more
@@ -1252,6 +1256,33 @@ XRT_EXTERN_C_BEGIN
  * Error domain: xrt.cron.delivery. */
 XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Zone,const xdatetime* Local,xcrondeliverypolicy Policy,
     xtime* Candidates,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue);
+/* Resumable complete resolution with identical selection/unknown/fraction and
+ * capacity semantics. Init copies the label/policy, normalizes civil seconds and
+ * zeros fixed opaque storage; it traverses no candidates, coverage or rule years.
+ * Init failure preserves Cursor. Cursor BORROWS the exact immutable Zone and
+ * stays at a stable address: copying/relocation/mutation is invalid. No retention,
+ * heap or Unit duty. Serialized same-address thread handoff is allowed. Keep the
+ * zone alive for every Step, including terminal reads. Local may change after Init.
+ * Structural spans/aliases/policies preserve ALL outputs; typed invalid dates
+ * publish Issue even under diagnostic OOM. Outputs avoid Cursor, Local at Init,
+ * the zone/footer graph, one another and every other borrowed/retained owner. */
+XCRON_API bool xcronDeliveryCursorInit(xcrondeliverycursor* Cursor,const xcronzone* Zone,const xdatetime* Local,
+    xcrondeliverypolicy Policy,xcrondeliverycursorissue* Issue);
+/* Nonnegative independent per-Step upper bounds; zero is allowed. Checks counts
+ * one bounded initial offset-directory/coverage check plus each completed footer
+ * transition search; Offsets counts complete candidate offset probes (<=258).
+ * RuleYears counts actual transition-search years, not fixed five-year state
+ * lookup work. Needed exhausted dimensions yield PENDING, leaving Count/array
+ * untouched. All-zero pending calls do no traversal. Issue reports cumulative
+ * counters; its Candidates remains0 until completeness is established.
+ * Terminal results repeat with no further traversal, even with zero budgets.
+ * CAPACITY may be retried with a larger output; it never discards the result.
+ * Normal results preserve ambient error and request no heap/IO/lock. Errors may
+ * allocate diagnostics. Terminal emission copies at most258 timestamps, outside
+ * the traversal counters. Units bound algorithmic work, not elapsed CPU/OS or a
+ * complete scheduler turn. The synchronous Resolve never returns PENDING. */
+XCRON_API xcrondeliverystatus xcronDeliveryCursorStep(xcrondeliverycursor* Cursor,const xcronzone* Zone,xcrondeliverybudget Budget,
+    xtime* Candidates,size_t Capacity,size_t* Count,xcrondeliverycursorissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -1385,6 +1416,25 @@ void xcronZoneWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
 xcronzonestatus xcronZoneWalkStep(xcronzonewalk* Walk,uint32 YearBudget);
 void xcronZoneHistoryWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
 void xcronZoneHistoryWalkResult(const xcronzone* Zone,xcronzonewalk* Walk);
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+/* Compact typed resolution state; caller may omit candidate storage when only
+ * first/last/count is needed. No public opaque-array copy is needed per probe. */
+typedef struct xcronzoneresolution {
+    xcronzonewalk Walk;
+    int64 Local;
+    xtime UnknownEnd,First,Last;
+    uint64 Checks,Offsets,RuleYears;
+    uint32 Phase,Index,OffsetsCount,Count;
+    int32 Milli;
+    xcronzonestatus Status;
+    xcronzoneerror Error;
+} xcronzoneresolution;
+typedef struct xcronresolutionbudget {uint32 Checks,Offsets,RuleYears;} xcronresolutionbudget;
+void xcronZoneHistoryResolutionBegin(const xcronzone* Zone,xcronzoneresolution* Value);
+int32 xcronZoneHistoryResolutionOffset(const xcronzone* Zone,uint32 Index);
+void xcronZoneResolutionInit(const xdatetime* Local,xcronzoneresolution* Value);
+xcronzonestatus xcronZoneResolutionStep(xcronzoneresolution* Value,const xcronzone* Zone,xcronresolutionbudget Budget,uint8* Values);
+#endif
 /* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
  * False means no proven periodic suffix inside the xtime domain. */
 bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);
@@ -2773,6 +2823,29 @@ xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Z,const xdatetime* D,xt
     if(N)memcpy(Candidates,Values,N*sizeof(*Candidates));
     return N?XCRON_ZONE_FOUND:XCRON_ZONE_NONE;
 }
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+void xcronZoneHistoryResolutionBegin(const xcronzone* Z,xcronzoneresolution* V)
+{
+    const xcronzonehistory* H=Z->History;V->OffsetsCount=H->OffsetsCount;V->Phase=2;
+    int64 Low=V->Local-INT32_MAX-XCRON_TZIF_EPOCH_SECONDS,High=V->Local+INT32_MAX-XCRON_TZIF_EPOCH_SECONDS;
+    int64 Minimum=INT64_MIN/1000-1+(V->Milli<(1000+INT64_MIN%1000)?1:0)-XCRON_TZIF_EPOCH_SECONDS;
+    int64 Maximum=INT64_MAX/1000-(V->Milli>INT64_MAX%1000?1:0)-XCRON_TZIF_EPOCH_SECONDS;
+    if(Low<Minimum)Low=Minimum;
+    if(High>Maximum)High=Maximum;
+    if(Low>High){V->Status=XCRON_ZONE_NONE;return;}
+    uint32 A=0,B=H->RangesCount;
+    while(A<B){uint32 M=A+(B-A)/2;if(H->Ranges[M].End<=Low)A=M+1;else B=M;}
+    if(A<H->RangesCount && H->Ranges[A].Begin<=High){V->Error=XCRON_ZONE_UNKNOWN;V->Status=XCRON_ZONE_ERROR;return;}
+    if(!H->FooterUnknown || (!H->AllFooter && High<H->Last))return;
+    if(!H->AllFooter && Low<H->Last)Low=H->Last;
+    if(!xcronTzifNameKnown(xcronTzifFooterAt(H->Footer,Low).Abbreviation)){V->Error=XCRON_ZONE_UNKNOWN;V->Status=XCRON_ZONE_ERROR;return;}
+    xtime Start;
+    if(!xcronZoneSecondValue(Low+XCRON_TZIF_EPOCH_SECONDS,V->Milli,&Start) || !xcronZoneSecondValue(High+XCRON_TZIF_EPOCH_SECONDS,V->Milli,&V->UnknownEnd))return;
+    xcronZoneWalkInit(H->Footer,Start,&V->Walk);V->Phase=1;
+}
+int32 xcronZoneHistoryResolutionOffset(const xcronzone* Z,uint32 Index)
+{return Z->History->Offsets[Index];}
+#endif
 #endif
 #endif
 
@@ -4512,6 +4585,107 @@ XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Z,const xdat
     if(Status==XCRON_ZONE_ERROR)return xcronDeliveryFail(XCRON_DELIVERY_ZONE,Work.Code,0,Issue);
     if(Issue)*Issue=(xcrondeliveryissue){Status==XCRON_ZONE_CAPACITY?XCRON_DELIVERY_LIMIT:XCRON_DELIVERY_OK,XCRON_ZONE_OK,*Count};
     return Status==XCRON_ZONE_CAPACITY?XCRON_DELIVERY_CAPACITY:Status==XCRON_ZONE_FOUND?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xcron/src/delivery/delivery_cursor.c */
+/* ========================================================================== */
+
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+#include <string.h>
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+#define XCRON_DELIVERY_CURSOR_MAGIC UINT32_C(0x58444331)
+typedef struct xcrondeliveryimpl {uint32 Magic;uintptr_t Address,Zone;xcrondeliverypolicy Policy;xcronzoneresolution Value;} xcrondeliveryimpl;
+typedef char xcron_delivery_cursor_size_check[(sizeof(xcrondeliveryimpl)+258*sizeof(xtime)<=sizeof(xcrondeliverycursor))?1:-1];
+void xcronZoneResolutionInit(const xdatetime* D,xcronzoneresolution* V)
+{
+    memset(V,0,sizeof(*V));V->Milli=D->Millisecond;V->Status=XCRON_ZONE_NONE;
+    if(xcronZoneCivilSeconds(D,&V->Local))V->Status=XCRON_ZONE_WALK_PENDING;
+}
+xcronzonestatus xcronZoneResolutionStep(xcronzoneresolution* V,const xcronzone* Z,xcronresolutionbudget B,uint8* Values)
+{
+    while(V->Status==XCRON_ZONE_WALK_PENDING){
+        if(V->Phase==0){
+            if(!B.Checks)return V->Status;
+            --B.Checks;++V->Checks;
+            if(Z->History)xcronZoneHistoryResolutionBegin(Z,V);
+            else {V->OffsetsCount=Z->HasDST && Z->Offsets[0]!=Z->Offsets[1]?2:1;V->Phase=2;}
+            continue;
+        }
+        if(V->Phase==1){
+            if(!B.Checks)return V->Status;
+            uint32 Before=V->Walk.Years;xcronzonestatus S=xcronZoneWalkStep(&V->Walk,B.RuleYears);
+            uint32 Used=V->Walk.Years-Before;B.RuleYears-=Used;V->RuleYears+=Used;
+            if(S==XCRON_ZONE_WALK_PENDING)return V->Status;
+            --B.Checks;++V->Checks;
+            if(S!=XCRON_ZONE_FOUND || V->Walk.Result.When>V->UnknownEnd){V->Phase=2;continue;}
+            xstrview Name=V->Walk.Result.After.Abbreviation;
+            if(Name.Size==3 && !memcmp(Name.Data,"-00",3)){V->Error=XCRON_ZONE_UNKNOWN;return V->Status=XCRON_ZONE_ERROR;}
+            const xcronzone* Rules=V->Walk.Rules;xtime After=V->Walk.Result.When;xcronZoneWalkInit(Rules,After,&V->Walk);continue;
+        }
+        if(V->Index==V->OffsetsCount)return V->Status=V->Count?XCRON_ZONE_FOUND:XCRON_ZONE_NONE;
+        if(!B.Offsets)return V->Status;
+        int32 Offset;
+        if(Z->History)Offset=xcronZoneHistoryResolutionOffset(Z,V->Index);
+        else {bool Reversed=Z->Offsets[0]<Z->Offsets[1];Offset=Z->Offsets[V->OffsetsCount==1?0:(V->Index==0?(Reversed?1:0):(Reversed?0:1))];}
+        ++V->Index;--B.Offsets;++V->Offsets;xtime T;
+        if(xcronZoneSecondValue(V->Local-Offset,V->Milli,&T) && xcronZoneStateValue(Z,T).Offset==Offset){
+            if(!V->Count)V->First=T;
+            V->Last=T;if(Values)memcpy(Values+V->Count*sizeof(T),&T,sizeof(T));++V->Count;
+        }
+    }return V->Status;
+}
+static void xcronDeliveryCursorReport(xcrondeliverycursorissue Work,xcrondeliverycursorissue* Issue)
+{
+    if(Issue)*Issue=Work;
+    xerrkind Kind=Work.Issue.Code==XCRON_DELIVERY_ARGUMENT?XERR_ARGUMENT:
+        Work.Issue.Code==XCRON_DELIVERY_STATE || (Work.Issue.Code==XCRON_DELIVERY_ZONE && Work.Issue.Zone==XCRON_ZONE_UNKNOWN)?XERR_STATE:XERR_VALUE;
+    xrtSetErrorInfo(Kind,"xrt.cron.delivery",Work.Issue.Code,"cron nominal cursor operation failed");
+}
+static bool xcronDeliveryCivil(const xdatetime* D)
+{return D->Year && D->Month>=1 && D->Month<=12 && D->Day>=1 && D->Day<=xrtDaysInMonth(D->Year,D->Month) && D->Hour>=0 && D->Hour<=23 && D->Minute>=0 && D->Minute<=59 && D->Second>=0 && D->Second<=59 && D->Millisecond>=0 && D->Millisecond<=999;}
+static bool xcronDeliveryPolicy(xcrondeliverypolicy P)
+{return P.Fold>=XCRON_FOLD_ALL && P.Fold<=XCRON_FOLD_REJECT && P.Missing>=XCRON_MISSING_SKIP && P.Missing<=XCRON_MISSING_REJECT;}
+XCRON_API bool xcronDeliveryCursorInit(xcrondeliverycursor* C,const xcronzone* Z,const xdatetime* Local,xcrondeliverypolicy P,xcrondeliverycursorissue* Issue)
+{
+    void* O[]={C,Issue};size_t N[]={sizeof(*C),Issue?sizeof(*Issue):0};
+    if(!C || !Local || !xcronDeliveryPolicy(P) || !xcronZoneOutputs(Z,Local,sizeof(*Local),O,N,2)){
+        xcronDeliveryCursorReport((xcrondeliverycursorissue){.Issue.Code=XCRON_DELIVERY_ARGUMENT},NULL);return false;
+    }
+    if(!xcronDeliveryCivil(Local)){xcronDeliveryCursorReport((xcrondeliverycursorissue){.Issue={XCRON_DELIVERY_ZONE,XCRON_ZONE_DATE,0}},Issue);return false;}
+    xcrondeliveryimpl I;memset(&I,0,sizeof(I));I.Magic=XCRON_DELIVERY_CURSOR_MAGIC;I.Address=(uintptr_t)C;I.Zone=(uintptr_t)Z;I.Policy=P;xcronZoneResolutionInit(Local,&I.Value);
+    memset(C,0,sizeof(*C));memcpy(C,&I,sizeof(I));if(Issue)*Issue=(xcrondeliverycursorissue){0};return true;
+}
+XCRON_API xcrondeliverystatus xcronDeliveryCursorStep(xcrondeliverycursor* C,const xcronzone* Z,xcrondeliverybudget B,xtime* Out,size_t Capacity,size_t* Count,xcrondeliverycursorissue* Issue)
+{
+    void* O[]={C,Out,Count,Issue};size_t N[]={sizeof(*C),Capacity<=SIZE_MAX/sizeof(*Out)?Capacity*sizeof(*Out):0,Count?sizeof(*Count):0,Issue?sizeof(*Issue):0};
+    if(!C || !Count || Capacity>SIZE_MAX/sizeof(*Out) || (!Out && Capacity) || !xcronZoneOutputs(Z,NULL,0,O,N,4)){
+        xcronDeliveryCursorReport((xcrondeliverycursorissue){.Issue.Code=XCRON_DELIVERY_ARGUMENT},NULL);return XCRON_DELIVERY_ERROR;
+    }
+    xcrondeliveryimpl I;memcpy(&I,C,sizeof(I));xcronzoneresolution* V=&I.Value;
+    if(I.Magic!=XCRON_DELIVERY_CURSOR_MAGIC || I.Address!=(uintptr_t)C || I.Zone!=(uintptr_t)Z || !xcronDeliveryPolicy(I.Policy) || V->Phase>2 || V->Count>258 || V->Index>V->OffsetsCount || V->OffsetsCount>258 ||
+        (V->Status!=XCRON_ZONE_WALK_PENDING && V->Status!=XCRON_ZONE_FOUND && V->Status!=XCRON_ZONE_NONE && V->Status!=XCRON_ZONE_ERROR)){
+        xcronDeliveryCursorReport((xcrondeliverycursorissue){.Issue.Code=XCRON_DELIVERY_STATE},Issue);return XCRON_DELIVERY_ERROR;
+    }
+    xcronzonestatus Status=xcronZoneResolutionStep(V,Z,(xcronresolutionbudget){B.Checks,B.Offsets,B.RuleYears},I.Policy.Fold==XCRON_FOLD_ALL?C->Storage+sizeof(I):NULL);
+    memcpy(C,&I,sizeof(I));xcrondeliverycursorissue Work={.ChecksExamined=V->Checks,.OffsetsExamined=V->Offsets,.RuleYearsExamined=V->RuleYears};
+    if(Status==XCRON_ZONE_WALK_PENDING){if(Issue)*Issue=Work;return XCRON_DELIVERY_PENDING;}
+    Work.Issue.Candidates=V->Count;
+    if(Status==XCRON_ZONE_ERROR){Work.Issue.Code=XCRON_DELIVERY_ZONE;Work.Issue.Zone=V->Error;}
+    else if(!V->Count && I.Policy.Missing==XCRON_MISSING_REJECT)Work.Issue.Code=XCRON_DELIVERY_MISSING;
+    else if(V->Count>1 && I.Policy.Fold==XCRON_FOLD_REJECT)Work.Issue.Code=XCRON_DELIVERY_AMBIGUOUS;
+    if(Work.Issue.Code!=XCRON_DELIVERY_OK){xcronDeliveryCursorReport(Work,Issue);return XCRON_DELIVERY_ERROR;}
+    size_t Required=I.Policy.Fold==XCRON_FOLD_ALL?V->Count:V->Count?1:0;*Count=Required;
+    if(Required>Capacity){Work.Issue.Code=XCRON_DELIVERY_LIMIT;if(Issue)*Issue=Work;return XCRON_DELIVERY_CAPACITY;}
+    if(Required){
+        if(I.Policy.Fold==XCRON_FOLD_ALL)memcpy(Out,C->Storage+sizeof(I),Required*sizeof(*Out));
+        else *Out=I.Policy.Fold==XCRON_FOLD_LAST?V->Last:V->First;
+    }
+    if(Issue)*Issue=Work;
+    return Required?XCRON_DELIVERY_FOUND:XCRON_DELIVERY_NONE;
 }
 #endif
 #endif

@@ -11,12 +11,14 @@ static xcronzone* deliveryZone(cstr Rule)
 {xcronzone* Z=NULL;testRequire(xcronZoneCreatePosix((xstrview){Rule,strlen(Rule)},XCRON_ZONE_TZIF3,&Z,NULL),"delivery fixture rule");return Z;}
 static xtime deliveryTime(int64 Y,int M,int D,int H,int Minute,int S,int Milli)
 {xtime T;testRequire(xrtDateTime(Y,M,D,H,Minute,S,Milli,&T),"delivery fixture timestamp");return T;}
+#include "delivery_cursor_cases.h"
 static void deliveryExpect(const xcronzone* Z,const xdatetime* D,const xtime* Expected,size_t N)
 {
     for(int F=0;F<4;++F)for(int M=0;M<2;++M){xcrondeliverypolicy P={(xcronfoldpolicy)F,(xcronmissingpolicy)M};xtime Out[258];memset(Out,0x5a,sizeof(Out));xtime Before[258];memcpy(Before,Out,sizeof(Out));size_t Count=777;xcrondeliveryissue I;
         xcrondeliverystatus S=xcronDeliveryResolve(Z,D,P,Out,258,&Count,&I);
         xtime WithoutIssue[258];memcpy(WithoutIssue,Before,sizeof(WithoutIssue));size_t WithoutCount=777;
         testRequire(xcronDeliveryResolve(Z,D,P,WithoutIssue,258,&WithoutCount,NULL)==S && WithoutCount==Count && !memcmp(Out,WithoutIssue,sizeof(Out)),"optional Issue preserves every result and untouched array byte");
+        deliveryCursorExpect(Z,D,P,Expected,N);
         bool Missing=!N && M==XCRON_MISSING_REJECT,Ambiguous=N>1 && F==XCRON_FOLD_REJECT;
         if(Missing || Ambiguous){testRequire(S==XCRON_DELIVERY_ERROR && I.Code==(Missing?XCRON_DELIVERY_MISSING:XCRON_DELIVERY_AMBIGUOUS) && I.Candidates==N && Count==777 && !memcmp(Out,Before,sizeof(Out)),"policy rejection preserves count/array and complete typed multiplicity");xrtClearError();continue;}
         size_t Need=F==XCRON_FOLD_ALL?N:N?1:0;
@@ -141,8 +143,8 @@ static void testDeliveryThreads(void)
 {xcronzone* Z=deliveryZone("EST5EDT,M3.2.0,M11.1.0");xthread* Threads[4];for(unsigned J=0;J<4;++J){testRequire(xcronZoneRetain(Z),"reader owner");Threads[J]=xrtThreadCreate(deliveryReader,Z,0);testRequire(Threads[J]!=NULL,"reader start");}xcronZoneRelease(Z);for(unsigned J=0;J<4;++J){testRequire(xrtThreadWaitFor(Threads[J],15000)==XWAIT_OK && !xrtThreadExitCode(Threads[J]),"reader physical join");xrtThreadDestroy(Threads[J]);}}
 #endif
 int main(void)
-{testDeliveryGolden();testDeliveryMany();testDeliveryBrute();testDeliveryBoundsAndFailures();testDeliveryNullIssue();testDeliveryWarm();
+{testDeliveryGolden();testDeliveryMany();testDeliveryBrute();testDeliveryBoundsAndFailures();testDeliveryNullIssue();testDeliveryWarm();testDeliveryCursorArguments();testDeliveryCursorCoverage();testDeliveryCursorWarm();
 #if defined(XRT_FEATURE_THREAD)
-testDeliveryThreads();
+testDeliveryThreads();testDeliveryCursorHandoff();
 #endif
 puts("[PASS] nominal label selection: complete256-fold/first/last/reject/missing/unknown/capacity/full-int64/aliases/OOM/zero-heap/concurrency");return 0;}

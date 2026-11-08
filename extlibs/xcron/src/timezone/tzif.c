@@ -322,4 +322,27 @@ xcronzonestatus xcronZoneHistoryResolve(const xcronzone* Z,const xdatetime* D,xt
     if(N)memcpy(Candidates,Values,N*sizeof(*Candidates));
     return N?XCRON_ZONE_FOUND:XCRON_ZONE_NONE;
 }
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+void xcronZoneHistoryResolutionBegin(const xcronzone* Z,xcronzoneresolution* V)
+{
+    const xcronzonehistory* H=Z->History;V->OffsetsCount=H->OffsetsCount;V->Phase=2;
+    int64 Low=V->Local-INT32_MAX-XCRON_TZIF_EPOCH_SECONDS,High=V->Local+INT32_MAX-XCRON_TZIF_EPOCH_SECONDS;
+    int64 Minimum=INT64_MIN/1000-1+(V->Milli<(1000+INT64_MIN%1000)?1:0)-XCRON_TZIF_EPOCH_SECONDS;
+    int64 Maximum=INT64_MAX/1000-(V->Milli>INT64_MAX%1000?1:0)-XCRON_TZIF_EPOCH_SECONDS;
+    if(Low<Minimum)Low=Minimum;
+    if(High>Maximum)High=Maximum;
+    if(Low>High){V->Status=XCRON_ZONE_NONE;return;}
+    uint32 A=0,B=H->RangesCount;
+    while(A<B){uint32 M=A+(B-A)/2;if(H->Ranges[M].End<=Low)A=M+1;else B=M;}
+    if(A<H->RangesCount && H->Ranges[A].Begin<=High){V->Error=XCRON_ZONE_UNKNOWN;V->Status=XCRON_ZONE_ERROR;return;}
+    if(!H->FooterUnknown || (!H->AllFooter && High<H->Last))return;
+    if(!H->AllFooter && Low<H->Last)Low=H->Last;
+    if(!xcronTzifNameKnown(xcronTzifFooterAt(H->Footer,Low).Abbreviation)){V->Error=XCRON_ZONE_UNKNOWN;V->Status=XCRON_ZONE_ERROR;return;}
+    xtime Start;
+    if(!xcronZoneSecondValue(Low+XCRON_TZIF_EPOCH_SECONDS,V->Milli,&Start) || !xcronZoneSecondValue(High+XCRON_TZIF_EPOCH_SECONDS,V->Milli,&V->UnknownEnd))return;
+    xcronZoneWalkInit(H->Footer,Start,&V->Walk);V->Phase=1;
+}
+int32 xcronZoneHistoryResolutionOffset(const xcronzone* Z,uint32 Index)
+{return Z->History->Offsets[Index];}
+#endif
 #endif

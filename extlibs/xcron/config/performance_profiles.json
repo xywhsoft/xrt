@@ -969,6 +969,156 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_delivery_cursor_full",
+      "system": "delivery",
+      "description": "32-label batches: Init fixed2560 zeroing plus complete cursor resolution; precompiled POSIX fold only; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_cursor_full",
+          "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "0"
+          ],
+          "facts": [
+            "batch_size",
+            "mode",
+            "steps",
+            "checks",
+            "offsets",
+            "checksum"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_delivery_cursor_offset1",
+      "system": "delivery",
+      "description": "32-label batches: Init plus independently one-offset Steps; precompiled POSIX fold only; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_cursor_offset1",
+          "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "1"
+          ],
+          "smoke_args": [
+            "100",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "mode",
+            "steps",
+            "checks",
+            "offsets",
+            "checksum"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_delivery_cursor_sync",
+      "system": "delivery",
+      "description": "32-label batches: synchronous control in the same new benchmark program; precompiled POSIX fold only; no production qualification",
+      "benchmarks": [
+        {
+          "name": "xcron_delivery_cursor_sync",
+          "source": "extlibs/xcron/bench/bench_delivery_cursor.c",
+          "suite": "xcron_delivery",
+          "args": [
+            "10000",
+            "2"
+          ],
+          "smoke_args": [
+            "100",
+            "2"
+          ],
+          "facts": [
+            "batch_size",
+            "mode",
+            "steps",
+            "checks",
+            "offsets",
+            "checksum"
+          ],
+          "metrics": {
+            "labels_per_sec": {
+              "direction": "higher",
+              "unit": "labels/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

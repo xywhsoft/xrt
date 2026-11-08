@@ -3,7 +3,7 @@
 The expression leaf is a bounded immutable compiler. A separate calendar leaf
 implements Gregorian UTC/civil matching/search; a developing timezone leaf
 provides explicit POSIX rules and owned non-leap TZif history. Explicit named
-database snapshots/reload are available. Leap-aware conversion, nominal delivery
+database snapshots/reload are available. Leap-aware conversion, recurring nominal delivery
 policies and persistence are pending. Live service and executor stages are
 described below. Expression syntax
 and deliberate dialect boundaries are documented in [the guide](../README.md).
@@ -50,6 +50,17 @@ new protocol, rather than assuming an old executable performs the second call.
 Modular/single, runnable
 example and real external static/shared consumers exercise the new public API.
 This does not change scheduler selection or implement gap compensation yet.
+
+The resumable cursor also runs every golden and768 independent UTC-stepped label
+under all8 policies, checking each Check/Offset/RuleYear delta, pending output
+atomicity, complete multiplicity, terminal capacity retry and copied input.
+The real unspecified-footer case yields through9 rule years over the non-leap
+century before returning UNKNOWN. A separate private general-engine model
+disables the constructor shortcut and verifies403 actual one-year resumptions;
+it is not counted as normal public-case latency. Invalid/copy/wrong-zone/alias/
+diagnostic-OOM cases,1024 warmed zero-heap resets and serialized thread handoff
+accompany the public API. The cursor IANA probe additionally checks every result
+against independent zoneinfo/RFC expectations, with each actual budget delta.
 
 ## Gregorian calendar contracts
 

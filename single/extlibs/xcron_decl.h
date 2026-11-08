@@ -3651,11 +3651,15 @@ XRT_EXTERN_C_END
 typedef enum xcronfoldpolicy {XCRON_FOLD_ALL=0,XCRON_FOLD_FIRST,XCRON_FOLD_LAST,XCRON_FOLD_REJECT} xcronfoldpolicy;
 typedef enum xcronmissingpolicy {XCRON_MISSING_SKIP=0,XCRON_MISSING_REJECT} xcronmissingpolicy;
 typedef struct xcrondeliverypolicy {xcronfoldpolicy Fold;xcronmissingpolicy Missing;} xcrondeliverypolicy;
-typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1} xcrondeliverystatus;
-typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING} xcrondeliveryerror;
+typedef enum xcrondeliverystatus {XCRON_DELIVERY_CAPACITY=-2,XCRON_DELIVERY_ERROR=-1,XCRON_DELIVERY_NONE=0,XCRON_DELIVERY_FOUND=1,XCRON_DELIVERY_PENDING=2} xcrondeliverystatus;
+typedef enum xcrondeliveryerror {XCRON_DELIVERY_OK=0,XCRON_DELIVERY_ARGUMENT=8001,XCRON_DELIVERY_ZONE,XCRON_DELIVERY_LIMIT,XCRON_DELIVERY_AMBIGUOUS,XCRON_DELIVERY_MISSING,XCRON_DELIVERY_STATE} xcrondeliveryerror;
 /* Candidates is the complete actual multiplicity, before selection, when known.
  * Zone applies to ZONE errors. Count below is the SELECTED required capacity. */
 typedef struct xcrondeliveryissue {xcrondeliveryerror Code;xcronzoneerror Zone;size_t Candidates;} xcrondeliveryissue;
+typedef struct xcrondeliverybudget {uint32 Checks,Offsets,RuleYears;} xcrondeliverybudget;
+typedef struct xcrondeliverycursorissue {xcrondeliveryissue Issue;uint64 ChecksExamined,OffsetsExamined,RuleYearsExamined;} xcrondeliverycursorissue;
+#define XCRON_DELIVERY_CURSOR_BYTES 2560u
+typedef union xcrondeliverycursor {uint64 Alignment;uint8 Storage[XCRON_DELIVERY_CURSOR_BYTES];} xcrondeliverycursor;
 XRT_EXTERN_C_BEGIN
 /* Resolve ONE floating nominal civil label, then apply explicit policies to its
  * COMPLETE ascending candidate set. ALL keeps every candidate (including more
@@ -3691,6 +3695,33 @@ XRT_EXTERN_C_BEGIN
  * Error domain: xrt.cron.delivery. */
 XCRON_API xcrondeliverystatus xcronDeliveryResolve(const xcronzone* Zone,const xdatetime* Local,xcrondeliverypolicy Policy,
     xtime* Candidates,size_t Capacity,size_t* Count,xcrondeliveryissue* Issue);
+/* Resumable complete resolution with identical selection/unknown/fraction and
+ * capacity semantics. Init copies the label/policy, normalizes civil seconds and
+ * zeros fixed opaque storage; it traverses no candidates, coverage or rule years.
+ * Init failure preserves Cursor. Cursor BORROWS the exact immutable Zone and
+ * stays at a stable address: copying/relocation/mutation is invalid. No retention,
+ * heap or Unit duty. Serialized same-address thread handoff is allowed. Keep the
+ * zone alive for every Step, including terminal reads. Local may change after Init.
+ * Structural spans/aliases/policies preserve ALL outputs; typed invalid dates
+ * publish Issue even under diagnostic OOM. Outputs avoid Cursor, Local at Init,
+ * the zone/footer graph, one another and every other borrowed/retained owner. */
+XCRON_API bool xcronDeliveryCursorInit(xcrondeliverycursor* Cursor,const xcronzone* Zone,const xdatetime* Local,
+    xcrondeliverypolicy Policy,xcrondeliverycursorissue* Issue);
+/* Nonnegative independent per-Step upper bounds; zero is allowed. Checks counts
+ * one bounded initial offset-directory/coverage check plus each completed footer
+ * transition search; Offsets counts complete candidate offset probes (<=258).
+ * RuleYears counts actual transition-search years, not fixed five-year state
+ * lookup work. Needed exhausted dimensions yield PENDING, leaving Count/array
+ * untouched. All-zero pending calls do no traversal. Issue reports cumulative
+ * counters; its Candidates remains0 until completeness is established.
+ * Terminal results repeat with no further traversal, even with zero budgets.
+ * CAPACITY may be retried with a larger output; it never discards the result.
+ * Normal results preserve ambient error and request no heap/IO/lock. Errors may
+ * allocate diagnostics. Terminal emission copies at most258 timestamps, outside
+ * the traversal counters. Units bound algorithmic work, not elapsed CPU/OS or a
+ * complete scheduler turn. The synchronous Resolve never returns PENDING. */
+XCRON_API xcrondeliverystatus xcronDeliveryCursorStep(xcrondeliverycursor* Cursor,const xcronzone* Zone,xcrondeliverybudget Budget,
+    xtime* Candidates,size_t Capacity,size_t* Count,xcrondeliverycursorissue* Issue);
 XRT_EXTERN_C_END
 #endif
 #endif

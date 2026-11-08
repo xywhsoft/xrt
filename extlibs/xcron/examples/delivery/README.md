@@ -10,7 +10,12 @@ The offline example creates explicit owned rules, selects both ends of a repeate
 01:30 label with FIRST/LAST and asserts one hour difference. It then explicitly
 skips a missing 02:30 label and releases its zone. No installed timezone data,
 network, service or environment change is required. Expected output:
-`Selected first/last repeated label one hour apart; missing label skipped.`
+`Selected first/last repeated label one hour apart; resumed one-offset steps; missing label skipped.`
+
+The same retained zone and stable caller cursor also resolve both fold candidates
+using one offset per Step. PENDING leaves result storage untouched. The cursor
+owns no resource and has no Unit duty; its borrowed zone stays live through all
+steps. The example releases the zone after all synchronous/resumable queries.
 
 This example exercises one-label conversion. The existing scheduler still uses
 all actual instants; recurring policy integration and gap compensation remain

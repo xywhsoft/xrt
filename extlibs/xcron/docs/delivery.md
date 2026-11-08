@@ -69,3 +69,44 @@ capacity/atomicity, unknown coverage, signed-int64 endpoints, alias/OOM,
 no-allocation/error identity and concurrent immutable owners. Benchmarks separate
 the original complete resolver, direct ALL and selected FIRST/LAST paths, timing
 whole batches rather than inventing per-operation percentiles.
+
+## Resumable label calculation
+
+CursorInit/Step add budgeted resolution of the same one nominal label. Init
+copies its canonical civil seconds/fraction and policy, borrows the exact zone
+and initializes2560 bytes of caller storage. No zone retention or Unit duty is
+introduced. Local may be changed afterward; the zone must stay immutable/live
+for every Step and terminal read. Cursor address is its identity; serialized
+same-address handoff is supported, copying/relocation/modification is invalid.
+
+Checks budgets one bounded initial offset-directory/coverage setup and every
+completed footer transition search. A setup may binary-search the capped history
+directory and perform fixed five-year state lookup. Offsets budgets individual
+distinct offset probes; known binary offsets are already sorted, POSIX offsets
+are ordered/deduplicated without a scan. RuleYears budgets actual incremental
+footer transition-search years, including the complete403-year fallback. Each
+cumulative delta is at most its corresponding budget. Zero in a needed dimension
+yields PENDING; all-zero pending calls do no traversal. These units do not bound
+elapsed CPU/OS time, diagnostics or a complete scheduler owner turn.
+
+Unknown coverage is established before candidate selection. Stored unspecified
+ranges use the full legal offset window, clipped to representable milliseconds.
+An unspecified footer is checked through resumable transition walking, rather
+than hiding an unbounded synchronous Resolve call inside Step. First/last cannot
+stop at the first plausible candidate or weaken global completeness.
+
+PENDING leaves Count/the public result array unchanged and reports no partial
+candidate multiplicity. Terminal results repeat without traversal at zero budget;
+CAPACITY can be retried with a larger span. At most258 final timestamps are copied
+outside the traversal counters. Argument/alias failure preserves all outputs;
+wrong identity publishes STATE without advancing. Callers keep outputs disjoint
+from all borrowed owners, including an original zone on invalid identity calls.
+
+The public cursor has internal result staging for ALL. Its compact private
+resolver retains first/last/count independently and can omit that array; future
+scheduler query state need not embed the public2560-byte object. Step copies
+only control state and newly found ALL timestamps, rather than copying the whole
+opaque object on every yield. Cold zeroing, validation, control copies and final
+result copies remain real costs. Original synchronous APIs never return PENDING.
+This stage still does not implement recurring policy search, gap compensation,
+physical delivery or durable recovery. Their full scope remains required.

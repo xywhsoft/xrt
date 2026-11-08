@@ -41,6 +41,25 @@ void xcronZoneWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
 xcronzonestatus xcronZoneWalkStep(xcronzonewalk* Walk,uint32 YearBudget);
 void xcronZoneHistoryWalkInit(const xcronzone* Zone,xtime After,xcronzonewalk* Walk);
 void xcronZoneHistoryWalkResult(const xcronzone* Zone,xcronzonewalk* Walk);
+#if defined(XCRON_FEATURE_XCRON_DELIVERY)
+/* Compact typed resolution state; caller may omit candidate storage when only
+ * first/last/count is needed. No public opaque-array copy is needed per probe. */
+typedef struct xcronzoneresolution {
+    xcronzonewalk Walk;
+    int64 Local;
+    xtime UnknownEnd,First,Last;
+    uint64 Checks,Offsets,RuleYears;
+    uint32 Phase,Index,OffsetsCount,Count;
+    int32 Milli;
+    xcronzonestatus Status;
+    xcronzoneerror Error;
+} xcronzoneresolution;
+typedef struct xcronresolutionbudget {uint32 Checks,Offsets,RuleYears;} xcronresolutionbudget;
+void xcronZoneHistoryResolutionBegin(const xcronzone* Zone,xcronzoneresolution* Value);
+int32 xcronZoneHistoryResolutionOffset(const xcronzone* Zone,uint32 Index);
+void xcronZoneResolutionInit(const xdatetime* Local,xcronzoneresolution* Value);
+xcronzonestatus xcronZoneResolutionStep(xcronzoneresolution* Value,const xcronzone* Zone,xcronresolutionbudget Budget,uint8* Values);
+#endif
 /* Earliest >=Begin from which the complete zone repeats every Gregorian cycle.
  * False means no proven periodic suffix inside the xtime domain. */
 bool xcronZoneRepeat(const xcronzone* Zone,xtime Begin,xtime* First);

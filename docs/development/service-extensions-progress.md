@@ -7794,3 +7794,79 @@ assembly, official/alternating samples and CPU counters remain under
 selection and gap compensation, then physical delivery/durable recovery and the
 remaining Redis/RPC/MQTT scope. Native Linux, >=72h and full production/performance
 acceptance stay open; all four libraries remain developing and goal stays active.
+
+### 2026-11-08: resumable complete nominal-label resolution
+
+Added DeliveryCursorInit/Step to the optional delivery leaf. Independent Checks,
+Offsets and RuleYears budgets bound actual traversal increments; zero in a needed
+dimension yields PENDING. Unknown coverage is established before candidate probes,
+including incremental footer transition searches. Complete all/first/last/reject
+and missing skip/reject semantics match the original synchronous API. PENDING
+preserves public Count/array and hides partial multiplicity; terminal results and
+retryable capacity discovery repeat without traversal. No scheduler job semantics
+change yet. Cursor borrows the exact immutable zone at a stable address and permits
+serialized thread handoff; normal operations request no heap/IO/locks or retention.
+
+The private typed resolver is208 bytes on both x64 platforms; public control is240
+bytes inside2560 caller-owned bytes with space for258 ALL timestamps. Init includes
+fixed-storage zeroing; Step copies only control plus newly found ALL values, then
+copies selected terminal results. FIRST/LAST/REJECT omit full-array staging in the
+private engine, allowing future scheduler state to use the compact representation.
+These are counted design costs, not a zero-overhead or elapsed owner-turn bound.
+Existing synchronous resolution code is unchanged; guarded TZif helpers are new.
+
+Both platforms pass25 modular/single programs, updated runnable example, real
+static/shared consumers and direct/generated public layouts. WSL O2 ASan/UBSan/
+leak-halt and two O1 TSan units pass; Windows85 tooling/generated/docs checks pass.
+Every golden and768 independently UTC-stepped label runs all8 cursor policies,
+including256 simultaneous actual folds, full-int64 fractions, zero budgets,
+unchanged pending arrays, terminal capacity retries and copied inputs. Dedicated
+cases cover invalid/copied/wrong-zone/aliased cursors, diagnostic OOM,1024 warmed
+zero-requested-heap resets/error identity and native serialized handoff. A real
+leap-only unknown footer yields over9 actual rule years across2100 before UNKNOWN;
+a separately labelled private general-engine model exercises403 one-year resumptions
+with the constructor shortcut disabled. This model is not normal public latency.
+
+Both frozen422-zone2026e oracle reports agree. In cursor mode each OS checks188532
+labels,1508256 complete cursor resolutions,4025606 actual Steps,1508256 Checks and
+5746024 offset probes. The same run pairs3016512 original synchronous resolutions
+with/without Issue against independent zoneinfo/RFC expectations. Init+Step+sync
+therefore totals8550374 API calls, not a count of distinct policy cases. This corpus
+needs no footer search years; the explicit9/403-year cases cover that dimension.
+
+Prototype failures are retained: an indentation warning, incorrect6-versus8-year
+fixture expectation, and an empty-season fixture removed by the constructor shortcut.
+Final full validation initially failed only a package-consumer local variable name
+collision. After all readers terminated, only that consumer variable was renamed;
+successful suite/example commands/log hashes and absence of consumer compilation
+were verified before reuse. Initial/failed/resumed receipts and source maps remain.
+Windows/WSL final functional maps agree on2510 inputs. Subsequent measurement maps
+differ only by appending three new performance profiles; original profiles/defaults,
+old timed source, arguments, gates and benchmark fingerprints are unchanged for
+the original four-profile comparison, which completed before that metadata change.
+
+Size/forbidden-symbol checks pass. Static owned xcron text grows4600 Windows/4969
+WSL bytes; data/BSS are unchanged. Single objects include Core and grow4960/5202
+text bytes; static/shared own xcron with a separate companion Core. No equivalence
+between these deployment sizes is implied. Original formal comparisons both exit1
+on noise and retain8 Windows/11 WSL raw-median threshold violations diagnostically.
+One additional forward/reverse alternating collection keeps8 warmups+40 samples
+per OS. ALL current/before throughput ratios are1.06629/1.01821, while unchanged RAW
+is0.94296/0.95006; tail violations also remain. These observations do not certify a
+speedup or no-regression and do not waive original failed gates or noisy baselines.
+
+New full/one-offset/synchronous-control profiles time10000 whole32-label batches,
+including every Init and Step. Independent Gregorian checksums and exact aggregate
+step/check/offset facts agree. Throughput medians are Windows4.891M/4.288M/6.429M
+and WSL4.756M/4.359M/6.300M labels/s; whole-batch P99 is11.0/12.6/8.6us and
+11.3/11.3/7.5us. Both new reports exit1 on original noise gates. This precompiled
+two-fold POSIX workload includes cursor cold zeroing/validation/control/result
+copies, excludes zone construction/history/unknown/errors/recurrence/worker load,
+and establishes no per-operation percentile or production acceptance.
+
+Portable evidence: `extlibs/xcron/tests/results/delivery-cursor-20261108.json`.
+Raw maps, original failures, exact commands/logs, saved binaries, oracle reports,
+samples/checksums/CPU counters remain in `out/service-extensions/xcron-delivery-cursor/`.
+Continue recurring policy search, gap compensation and physical/durable delivery;
+remaining Redis/RPC/MQTT scope, native Linux, >=72h and production performance/
+reliability gates stay required. All four products developing; overall goal active.

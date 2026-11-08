@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `68` 个函数、`181` 个常量或宏、
-`77` 个公共类型。
+当前登记 `70` 个函数、`184` 个常量或宏、
+`80` 个公共类型。
 
 ## `extlibs/xcron/include/xcron/calendar.h`
 
@@ -54,21 +54,26 @@
 
 [查看带契约注释的公共头](../../include/xcron/delivery.h)
 
-### 函数 (1)
+### 函数 (3)
 
+- `xcronDeliveryCursorInit`
+- `xcronDeliveryCursorStep`
 - `xcronDeliveryResolve`
 
-### 常量与宏 (18)
+### 常量与宏 (21)
 
 - `XCRON_DELIVERY_AMBIGUOUS`
 - `XCRON_DELIVERY_ARGUMENT`
 - `XCRON_DELIVERY_CAPACITY`
+- `XCRON_DELIVERY_CURSOR_BYTES`
 - `XCRON_DELIVERY_ERROR`
 - `XCRON_DELIVERY_FOUND`
 - `XCRON_DELIVERY_LIMIT`
 - `XCRON_DELIVERY_MISSING`
 - `XCRON_DELIVERY_NONE`
 - `XCRON_DELIVERY_OK`
+- `XCRON_DELIVERY_PENDING`
+- `XCRON_DELIVERY_STATE`
 - `XCRON_DELIVERY_ZONE`
 - `XCRON_FEATURE_XCRON_DELIVERY`
 - `XCRON_FEATURE_XCRON_TIMEZONE`
@@ -79,8 +84,11 @@
 - `XCRON_MISSING_REJECT`
 - `XCRON_MISSING_SKIP`
 
-### 类型 (8)
+### 类型 (11)
 
+- `xcrondeliverybudget`
+- `xcrondeliverycursor`
+- `xcrondeliverycursorissue`
 - `xcrondeliveryerror`
 - `xcrondeliveryissue`
 - `xcrondeliverypolicy`

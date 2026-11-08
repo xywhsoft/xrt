@@ -112,6 +112,11 @@ int main(void)
 	if (!xcronZoneCreatePosix(XRT_STR_LITERAL("EST5EDT,M3.2.0,M11.1.0"),XCRON_ZONE_TZIF3,&DeliveryZone,NULL)) return 29;
 	xdatetime Local={.Year=2024,.Month=11,.Day=3,.Hour=1,.Minute=30};xtime Selected;size_t SelectedCount;xcrondeliveryissue DeliveryIssue;
 	bool DeliveryOK=xcronDeliveryResolve(DeliveryZone,&Local,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Selected,1,&SelectedCount,&DeliveryIssue)==XCRON_DELIVERY_FOUND && SelectedCount==1 && DeliveryIssue.Candidates==2;
+	xcrondeliverycursor DeliveryCursor;xcrondeliverystatus DeliveryStatus=XCRON_DELIVERY_ERROR;xtime CursorSelected;
+	if (DeliveryOK && xcronDeliveryCursorInit(&DeliveryCursor,DeliveryZone,&Local,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},NULL)) {
+		do { DeliveryStatus=xcronDeliveryCursorStep(&DeliveryCursor,DeliveryZone,(xcrondeliverybudget){1,1,1},&CursorSelected,1,&SelectedCount,NULL); } while (DeliveryStatus==XCRON_DELIVERY_PENDING);
+	}
+	DeliveryOK=DeliveryOK && DeliveryStatus==XCRON_DELIVERY_FOUND && SelectedCount==1 && CursorSelected==Selected;
 	xcronZoneRelease(DeliveryZone);
 	if (!DeliveryOK) return 30;
 	return 0;

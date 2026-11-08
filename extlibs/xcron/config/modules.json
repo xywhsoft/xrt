@@ -335,7 +335,8 @@
       ],
       "internal_headers": [],
       "sources": [
-        "extlibs/xcron/src/delivery/delivery.c"
+        "extlibs/xcron/src/delivery/delivery.c",
+        "extlibs/xcron/src/delivery/delivery_cursor.c"
       ],
       "tests": [
         "extlibs/xcron/tests/test_delivery.c"
@@ -347,7 +348,8 @@
         "extlibs/xcron/examples/delivery/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_delivery.c"
+        "extlibs/xcron/bench/bench_delivery.c",
+        "extlibs/xcron/bench/bench_delivery_cursor.c"
       ],
       "docs": [
         "extlibs/xcron/docs/delivery.md",

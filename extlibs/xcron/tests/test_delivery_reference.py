@@ -22,10 +22,12 @@ def main():
     parser.add_argument('--probe', required=True)
     parser.add_argument('--data', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--cursor', action='store_true', help='check sync pair plus budgeted cursor with per-Step counters')
     args = parser.parse_args()
     manifest = json.loads((args.data / 'manifest.json').read_text())
     totals = dict(labels=0, calls=0, found=0, none=0, ambiguous=0, missing=0, unknown=0)
     files = []
+    execution = dict(cursor_initializations=0, cursor_steps=0, checks=0, offsets=0, rule_years=0)
     for name, digest in manifest['files'].items():
         path = args.data / name
         raw = path.read_bytes()
@@ -74,9 +76,9 @@ def main():
         centers = sorted(centers)
         labels = [EPOCH + dt.timedelta(seconds=c, milliseconds=137) for c in centers]
         text = ''.join(f'{d.year} {d.month} {d.day} {d.hour} {d.minute} {d.second} 137\n' for d in labels)
-        process = subprocess.run([args.probe, str(path)], input=text, text=True, capture_output=True, timeout=120, check=True)
+        process = subprocess.run([args.probe, str(path), *(['--cursor'] if args.cursor else [])], input=text, text=True, capture_output=True, timeout=120, check=True)
         lines = process.stdout.splitlines()
-        assert lines and lines.pop(0) == 'paired_issue=2', (name, 'probe must check both Issue forms')
+        assert lines and lines.pop(0) == ('cursor_compare=3' if args.cursor else 'paired_issue=2'), (name, 'wrong probe protocol')
         assert len(lines) == len(centers), (name, process.stderr)
         for center, line in zip(centers, lines):
             uncertain = unknown(center)
@@ -86,6 +88,15 @@ def main():
             for index, segment in enumerate(segments):
                 fold, missing = divmod(index, 2)
                 values = list(map(int, segment.split()))
+                if args.cursor:
+                    steps, checks, probes, years = values[-4:]
+                    values = values[:-4]
+                    assert steps > 0 and 0 <= probes <= 258
+                    execution['cursor_initializations'] += 1
+                    execution['cursor_steps'] += steps
+                    execution['checks'] += checks
+                    execution['offsets'] += probes
+                    execution['rule_years'] += years
                 n = len(candidates)
                 if uncertain:
                     expected = [-1, 777, 8002, 2009, 0]
@@ -108,8 +119,14 @@ def main():
     totals['policy_cases'] = totals['calls']
     for key in ['calls', 'found', 'none', 'ambiguous', 'missing', 'unknown']:
         totals[key] *= 2
-    report = dict(schema=2, version=manifest['version'], zones=len(files), totals=totals, files=files,
+    report = dict(schema=3 if args.cursor else 2, version=manifest['version'], zones=len(files), totals=totals, files=files,
                   oracle='zoneinfo states, explicit RFC coverage, all distinct stored/footer offsets; all8 policies with and without Issue, complete arrays/counts/error domains paired; input bytes retired before queries')
+    if args.cursor:
+        execution['synchronous_resolutions'] = totals['calls']
+        execution['completed_cursor_resolutions'] = totals['policy_cases']
+        execution['api_calls'] = totals['calls'] + execution['cursor_initializations'] + execution['cursor_steps']
+        report['execution'] = execution
+        report['oracle'] += '; cursor arrays/issues and each independent traversal budget also checked; outcome totals above count synchronous pair'
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print('[PASS] IANA delivery selection', manifest['version'], len(files), totals)
 
