@@ -1529,6 +1529,104 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_executor_selected_1",
+      "system": "executor",
+      "description": "Selected metadata adapter: synthetic64-lease batches through real XRT workers, immutable token view, full payload/exactly-once validation and physical receipt collection; component baseline only",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_selected_1",
+          "source": "extlibs/xcron/bench/bench_executor_selected.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "1"
+          ],
+          "smoke_args": [
+            "2",
+            "1"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_executor_selected_4",
+      "system": "executor",
+      "description": "Selected metadata adapter: synthetic64-lease batches through real XRT workers, immutable token view, full payload/exactly-once validation and physical receipt collection; component baseline only",
+      "benchmarks": [
+        {
+          "name": "xcron_executor_selected_4",
+          "source": "extlibs/xcron/bench/bench_executor_selected.c",
+          "suite": "xcron_executor_selected",
+          "args": [
+            "1000",
+            "4"
+          ],
+          "smoke_args": [
+            "2",
+            "4"
+          ],
+          "facts": [
+            "batch_size",
+            "threads",
+            "rounds",
+            "callbacks",
+            "checksum"
+          ],
+          "metrics": {
+            "executions_per_sec": {
+              "direction": "higher",
+              "unit": "executions/s"
+            },
+            "batch_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "batch_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        }
+      ]
     }
   ]
 }

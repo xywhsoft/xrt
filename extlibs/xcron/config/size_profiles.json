@@ -207,6 +207,20 @@
         "_xrtThreadCreate",
         "_xrtExecutorCreate"
       ]
+    },
+    {
+      "name": "xcron_executor_selected",
+      "system": "executor",
+      "suite": "xcron_executor_selected",
+      "description": "Selected lease metadata adapter and borrowed XRT Executor closure; no live service/network/host timezone",
+      "forbid_symbols": [
+        "xrtNetEngineCreate",
+        "xrtTimeLocal",
+        "xrtTimeFromLocal",
+        "_xrtNetEngineCreate",
+        "_xrtTimeLocal",
+        "_xrtTimeFromLocal"
+      ]
     }
   ]
 }

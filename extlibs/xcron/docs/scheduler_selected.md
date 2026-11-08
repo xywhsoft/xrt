@@ -34,9 +34,9 @@ Each lease snapshots canonical nominal Local and complete Candidates before
 successor calculation changes the job's latest issue. Future faults preserve
 all physical leases and borrowed Data until completion and retirement. Pending
 issues expose only counters. Fault recording does not allocate diagnostics.
-Next is meaningful only with HasNext. The existing executor adapter can submit
-the embedded Run; its callback receives the plain run. The owner keeps nominal
-Local/Candidates separately when its business callback needs those fields.
+Next is meaningful only with HasNext. The ordinary executor adapter can submit
+the embedded Run. Use the optional [selected adapter](executor_selected.md) to
+provide an immutable nominal callback view and complete copied receipts.
 
 Misfire/overlap policies match the [actual kernel](scheduler.md). Discarded ranges
 are not enumerated or validated. Missing REJECT covers retained recurrence search

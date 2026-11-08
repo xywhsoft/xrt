@@ -133,7 +133,8 @@
         "xcron_tzdb_file",
         "xcron_delivery",
         "xcron_occurrence",
-        "xcron_scheduler_selected"
+        "xcron_scheduler_selected",
+        "xcron_executor_selected"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -543,6 +544,38 @@
       ]
     },
     {
+      "name": "xcron_executor_selected",
+      "state": "developing",
+      "feature": "XCRON_FEATURE_XCRON_EXECUTOR_SELECTED",
+      "depends": [
+        "xcron_executor",
+        "xcron_scheduler_selected"
+      ],
+      "public_headers": [
+        "extlibs/xcron/include/xcron/executor_selected.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xcron/tests/test_executor_selected.c"
+      ],
+      "single_tests": [
+        "extlibs/xcron/tests/single/test_single_xcron_executor_selected.c"
+      ],
+      "examples": [
+        "extlibs/xcron/examples/executor_selected/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_executor_selected.c"
+      ],
+      "docs": [
+        "extlibs/xcron/docs/executor_selected.md",
+        "extlibs/xcron/examples/executor_selected/README.md",
+        "extlibs/xcron/docs/coverage.md",
+        "extlibs/xcron/docs/api/reference.md"
+      ]
+    },
+    {
       "name": "xcron_service",
       "state": "developing",
       "feature": "XCRON_FEATURE_XCRON_SERVICE",
@@ -606,7 +639,8 @@
         "extlibs/xcron/tests/test_tzdb_file.c",
         "extlibs/xcron/tests/test_delivery.c",
         "extlibs/xcron/tests/test_occurrence.c",
-        "extlibs/xcron/tests/test_scheduler_selected.c"
+        "extlibs/xcron/tests/test_scheduler_selected.c",
+        "extlibs/xcron/tests/test_executor_selected.c"
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_expression.c",
@@ -622,7 +656,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c",
         "extlibs/xcron/tests/single/test_single_xcron_delivery.c",
         "extlibs/xcron/tests/single/test_single_xcron_occurrence.c",
-        "extlibs/xcron/tests/single/test_single_xcron_scheduler_selected.c"
+        "extlibs/xcron/tests/single/test_single_xcron_scheduler_selected.c",
+        "extlibs/xcron/tests/single/test_single_xcron_executor_selected.c"
       ],
       "examples": [],
       "benchmarks": [],

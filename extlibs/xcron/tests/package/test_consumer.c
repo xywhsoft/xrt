@@ -8,6 +8,8 @@ static xcronrunresult consumerExecute(const xcronrun* Run,const xcronexecution* 
 {(void)Run;(void)Context;return xcronExecutionCancelled(Token)?XCRON_RUN_CANCELLED:XCRON_RUN_SUCCEEDED;}
 static bool consumerClock(xcronclock* Clock,ptr Context)
 {(void)Context;*Clock=(xcronclock){XRT_TIME_UNIX_EPOCH,1};return true;}
+static xcronrunresult consumerSelectedExecute(const xcronrun* Run,const xcronexecution* Token,ptr Context)
+{(void)Context;const xcronexecutionlabel* L=xcronExecutionSelected(Token);return L && !Run->ScheduledAt && L->Candidates==1 && L->Local.Year==1 && L->Local.Month==1 && L->Local.Day==1 && !L->Local.Hour && !L->Local.Minute && !L->Local.Second && !L->Local.Offset && L->Local.IsDST==-1?XCRON_RUN_SUCCEEDED:XCRON_RUN_FAILED;}
 static bool consumerSelected(void)
 {
     xcronzone* Z=NULL;xcronscheduler* S=NULL;xcronschedulerconfig C={1,1,8,0,65536};xcronjobconfig J={.RunningLimit=1};xcronjobid Id;
@@ -15,10 +17,10 @@ static bool consumerSelected(void)
     J.Zone=Z;if(!xcronSchedulerCreateSelected(&C,&S,NULL) || !xcronSchedulerAddSelected(S,&J,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Id,NULL))return false;
     xcronselectedrun R;bool Seen=false;for(unsigned T=0;T<32 && !Seen;++T){xcronselectedpoll P;if(!xcronSchedulerPollSelected(S,(xcronclock){0,T},(xcronoccurrencebudget){1,1,1,1,1},&R,1,&P,NULL))return false;Seen=P.Poll.Count!=0;}
     if(!Seen || R.Run.Job!=Id || R.Run.ScheduledAt || R.Candidates!=1 || R.Local.Offset || R.Local.IsDST!=-1)return false;
-    xexecutorconfig PC={1,2,0};xexecutor* Pool=xrtExecutorCreate(&PC);xcronexecutor* Adapter=NULL;xcronexecutorconfig EC={Pool,consumerExecute,NULL,NULL,NULL,1,0,65536};
-    if(!Pool || !xcronExecutorCreate(&EC,&Adapter,NULL) || !xcronExecutorSubmit(Adapter,&R.Run,NULL))return false;
-    size_t N=0;xcroncompletion D;double Limit=xrtTimer()+10;while(!N){if(!xcronExecutorDrain(Adapter,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
-    if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || !xcronSchedulerComplete(S,D.Run.Id,D.Result,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xcronExecutorDestroy(Adapter,NULL) || !xrtExecutorDestroy(Pool))return false;
+    xexecutorconfig PC={1,2,0};xexecutor* Pool=xrtExecutorCreate(&PC);xcronexecutor* Adapter=NULL;xcronexecutorconfig EC={Pool,consumerSelectedExecute,NULL,NULL,NULL,1,0,65536};
+    if(!Pool || !xcronExecutorCreateSelected(&EC,&Adapter,NULL) || !xcronExecutorSubmitSelected(Adapter,&R,NULL))return false;
+    size_t N=0;xcronselectedcompletion D;double Limit=xrtTimer()+10;while(!N){if(!xcronExecutorDrainSelected(Adapter,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
+    if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || D.Run.Candidates!=1 || !xcronSchedulerComplete(S,D.Run.Run.Id,D.Result,NULL) || !xrtExecutorClose(Pool) || xrtExecutorWaitFor(Pool,10000)!=XWAIT_OK || !xcronExecutorDestroy(Adapter,NULL) || !xrtExecutorDestroy(Pool))return false;
     xcronselectedjobinfo Info;xcronselectedretired Retired;bool Found=false;bool OK=xcronSchedulerJobSelected(S,Id,&Info,NULL) && Info.State==XCRON_JOB_EXHAUSTED && Info.Succeeded==1 && xcronSchedulerReapSelected(S,&Retired,&Found,NULL) && Found && Retired.Id==Id && xcronSchedulerDestroy(S,NULL);
     xcronZoneRelease(Z);return OK;
 }

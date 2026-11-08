@@ -127,3 +127,9 @@ five global budgets; see its [contract](docs/scheduler_selected.md) and
 [offline lease example](examples/scheduler_selected/README.md). Actual-mode jobs
 keep their original semantics. Live-service command integration, gap compensation
 and durability remain required.
+
+The optional `xcron_executor_selected` adapter copies selected nominal metadata
+into bounded per-slot storage, exposes it through an immutable callback token
+view and returns complete physical receipts. Read its
+[contract](docs/executor_selected.md) and run the
+[worker example](examples/executor_selected/README.md).

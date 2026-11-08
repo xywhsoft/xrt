@@ -8269,3 +8269,80 @@ Live-service selected commands/responses and worker nominal metadata, compensati
 durable recovery, remaining Redis/RPC/MQTT5.0 scope/interop, controlled native
 Windows/Linux performance (including the earlier Windows p95 cause) and>=72h
 mixed-load acceptance remain open. Goal active; development stays on master.
+
+### 2026-11-09: preserve selected metadata through real worker lifetimes
+
+Added the optional xcron_executor_selected leaf and four actual exported APIs
+in the existing executor implementation: CreateSelected, SubmitSelected,
+DrainSelected and ExecutionSelected. It retains the existing config/callback
+signature and borrowed XRT pool. Submission copies the complete ordinary lease
+and nominal Local/global Candidates before dispatch; the callback can request
+an immutable borrowed view only during Proc. Drain returns a complete copied
+selected receipt and transfers its owned worker Error, including when native
+queued cancellation skipped Proc. Caller submission storage may be reused at
+return; copied receipts survive slot reuse. The original physical Complete/Reap
+and borrowed Data duties are unchanged. Plain/selected Submit/Drain reject mode
+mismatches atomically; shared owner/cancel/close/inspect/destroy behavior remains.
+
+The existing worker dispatch and publication/Notify-tail bodies match their
+committed source byte-for-byte after newline normalization. No new runtime,
+worker, registry or per-execution allocation is introduced. One bounded arena
+preallocates selected labels. Verified x64 old public config/completion/stats/run
+stay56/80/64/64 bytes; actual-only private owner stays176 and hot slot104/token
+offset88 stay unchanged. Enabling the optional capability adds an8-byte owner
+pointer, including plain instances in that build; selected mode adds56 bytes per
+slot. Two-slot extended plain/selected allocations request408/520 bytes. Submit
+and Drain each copy56 additional nominal bytes, mode checks and an optional
+getter pointer lookup remain real costs. Direct/generated new label/completion
+sizes agree at56/136. No zero-overhead claim is made.
+
+Windows/WSL each pass31 root modular/single programs, the isolated actual-only
+leaf, the new offline example, root and isolated selected static/shared consumers
+and baseline/lean/extended/declaration layout checks. Root consumers use actual
+selected worker callbacks and full receipts. WSL root/actual-leaf suites run O2
+ASan/UBSan/leak-halt; both selected O1 TSan programs pass. Existing2048 independent
+selected job traces and the complete422-zone oracle remain exact (121664 queries,
+349582 Steps,714574 API calls and every prior counter/metadata field). Windows90
+tool tests and features/single/API/docs checks pass; existing Windows native
+symbolic-link permission skips1314 remain recorded, not disabled.
+
+Selected tests cover16384 concurrent exact-once metadata receipts per program,
+poisoned submission storage and blocked immutable views, worker failure/error
+ownership and invalid results, late cancellation, close with active Data, queued
+native cancellation without Proc, duplicate/capacity/rejection rollback, typed
+diagnostic OOM, owner conflict/foreign controller/Notify reentry, sole-slot reuse
+while an old Notify blocks and producer-tail BUSY destruction. Real repeated-label
+scheduler jobs retain owned Data through both actual workers and physical
+Complete/Reap. Exact byte caps, aliases/overflow/factory OOM, ambient error identity
+and4096 warmed no-requested-heap cycles cover bounded resources. The initial new
+test-format warning is retained in prototype-windows-2.log; fixing its newline
+disabled no warning and later prototypes/full validation pass.
+
+All2542 code/config/tool input hashes agree across both full validation and both
+final measurement maps. No production/generated C/H was edited or regenerated
+while a compiler or measurement pipeline could read it. Only this stage's final
+evidence and documentation are published after all those child processes ended.
+All failed logs, raw samples, source witnesses, complete validation receipts and
+four actual measured executables with hashes remain in the raw stage directory.
+
+First unpinned five-repeat component profiles include64 synthetic leases/batch,
+real XRT workers, immutable view validation, two shared callback atomics, complete
+owner payload/exact-once validation and receipt collection/timer/polling costs.
+Independent Gregorian arithmetic checks every measured run's full checksum and
+64000 callbacks. Original MAD3%/central6%,5% throughput/10% latency settings and
+one warmup remain unchanged; no historical baseline or fingerprint is rewritten.
+Windows1/4-worker medians are1971529.877/808674.040 executions/s; WSL medians are
+2023408.369/170236.269. Both reports fail noise gates. Four workers are materially
+slower than one in both environments; the cause is not isolated and is an explicit
+performance investigation item, not explained away as noise or attributed to a
+specific layer. These are unqualified component baselines, not fixed-arrival or
+live-service latency, plain-adapter speedups, linear scaling or native Linux
+qualification. Both platforms' actual/selected single/static/shared size and
+forbidden-symbol checks pass.
+
+Evidence: extlibs/xcron/tests/results/selected-executor-20261109.json.
+Raw data: out/service-extensions/xcron-selected-executor-20261109/.
+Selected live-service commands/responses, compensation, durable recovery,
+remaining Redis/RPC/MQTT5.0 scope/interop, the selected four-worker throughput
+cause, earlier Windows occurrence p95 investigation, qualified native performance
+and>=72h mixed-load acceptance remain open. Goal active; development stays on master.

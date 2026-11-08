@@ -51,6 +51,10 @@
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_EXECUTOR"
 #endif
 #include <xcron/executor.h>
+#if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_EXECUTOR_SELECTED)
+#error "XCRON_FEATURE_XCRON requires selected executor"
+#endif
+#include <xcron/executor_selected.h>
 
 #if defined(XCRON_FEATURE_XCRON) && !defined(XCRON_FEATURE_XCRON_SERVICE)
 #error "XCRON_FEATURE_XCRON requires XCRON_FEATURE_XCRON_SERVICE"

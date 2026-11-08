@@ -286,3 +286,13 @@ zero-budget/calculation-only turns, physical fault lifetimes, exact byte limits,
 OOM,1024 warmed no-requested-heap cycles, policy-range/rollback and native handoff
 cases. Live-service command integration, compensation, durable recovery and
 performance/native/>=72h qualification remain open.
+
+## Selected execution metadata (developing)
+
+The [selected adapter](executor_selected.md) copies nominal Local/global Candidates
+before any callback can run. Tests poison caller submission storage, retain views
+through blocked bodies, cancel native queued tasks without Proc, reuse the sole
+slot while its old Notify tail remains, enforce owner/reentry boundaries, stress
+16384 concurrent receipts and complete real repeated-label kernel leases before
+reaping Data. Exact byte limits, typed factory/rejection diagnostic OOM and4096
+warmed no-requested-heap lifecycles cover ownership and bounded resources.
