@@ -279,4 +279,3 @@ bool xllm_session__journal_append_ledger(xllm_session *pSession, const char *sKi
                                          const char *sPath);
 
 #endif
-
