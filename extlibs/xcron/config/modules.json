@@ -641,13 +641,15 @@
         "extlibs/xcron/examples/service_selected/main.c"
       ],
       "benchmarks": [
-        "extlibs/xcron/bench/bench_service_selected.c"
+        "extlibs/xcron/bench/bench_service_selected.c",
+        "extlibs/xcron/bench/bench_service_arrivals.c"
       ],
       "docs": [
         "extlibs/xcron/docs/service_selected.md",
         "extlibs/xcron/docs/coverage.md",
         "extlibs/xcron/docs/api/reference.md",
-        "extlibs/xcron/examples/service_selected/README.md"
+        "extlibs/xcron/examples/service_selected/README.md",
+        "extlibs/xcron/docs/service_arrivals.md"
       ]
     },
     {

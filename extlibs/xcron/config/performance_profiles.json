@@ -2043,6 +2043,1032 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_arrivals_scalar1",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_scalar1",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_scalar2",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_scalar2",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "2",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "2",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_scalar4",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_scalar4",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "4",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "4",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_scalar8",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_scalar8",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "8",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "8",
+            "1",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_batch1",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_batch1",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "1",
+            "64",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "1",
+            "64",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_batch2",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_batch2",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "2",
+            "64",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "2",
+            "64",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_batch4",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_batch4",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "4",
+            "64",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "4",
+            "64",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_batch8",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_batch8",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "8",
+            "64",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "8",
+            "64",
+            "0"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xcron_arrivals_batch4_slow",
+      "system": "service",
+      "description": "Real256 UTC arrivals/second, complete expected callback/receipt map, nominal checks, per-event claim and shared callback count; CPU/retained bytes/requested heap observed; 2200ms full-output consumer stall; catch-up preserves every arrival; no native Linux/endurance/production acceptance",
+      "benchmarks": [
+        {
+          "name": "xcron_arrivals_batch4_slow",
+          "source": "extlibs/xcron/bench/bench_service_arrivals.c",
+          "suite": "xcron_service_selected,memory_stats",
+          "args": [
+            "4",
+            "256",
+            "4",
+            "64",
+            "2200"
+          ],
+          "smoke_args": [
+            "2",
+            "32",
+            "4",
+            "64",
+            "2200"
+          ],
+          "facts": [
+            "periods",
+            "arrival_rate_per_sec",
+            "threads",
+            "submission_batch_size",
+            "consumer_pause_ms",
+            "samples",
+            "callbacks",
+            "checksum",
+            "memory_stats_enabled"
+          ],
+          "observations": [
+            "window_cpu_ms",
+            "service_bytes",
+            "fixture_bytes",
+            "native_batch_calls",
+            "batched_attempts",
+            "waiter_backend",
+            "malloc_calls",
+            "calloc_calls",
+            "realloc_calls",
+            "block_alloc_calls",
+            "requested_bytes",
+            "pause_ready_credits",
+            "consumer_pause_observed_ms"
+          ],
+          "metrics": {
+            "start_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "start_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "owner_to_worker_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p50_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p95_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p99_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_p999_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "receipt_lateness_max_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            }
+          }
+        }
+      ]
     }
   ]
 }

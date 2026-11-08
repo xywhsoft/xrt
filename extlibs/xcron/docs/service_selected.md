@@ -95,3 +95,12 @@ checks. The separate two-round mechanism check uses the preserved executables:
 scalar widths issue no native groups; batch widths publish two groups/128 leases.
 These are unqualified component observations. Four-worker scalar throughput and
 real fixed-arrival/native production performance still require investigation.
+
+The later [fixed-arrival stage](service_arrivals.md) adds real-clock start/receipt
+distributions, complete expected-event accounting and a stalled consumer. Its
+[evidence](../tests/results/service-arrivals-20261109.json) retains every native
+warmup/sample output and all eighteen formal executables. In the first reports,
+Windows worker-start P99 is around1ms while the polling consumer's receipt P99
+is mostly16ms; WSL normal receipt P99 is1..4ms. The consumer wait mechanism needs
+isolated investigation. Reports retain79/62 failed noise checks. This does not
+establish production tails, native Linux endurance or complete cold-path costs.

@@ -8522,3 +8522,63 @@ Compensation, durable recovery, complete Redis/RPC/MQTT5.0 scope/interop, the
 four-worker scalar scaling and earlier occurrence p95 investigations, qualified
 native Windows/Linux real-arrival performance and>=72h release gates remain open.
 The overall goal stays active; subsequent work continues on master by default.
+
+
+## 2026-11-09 - real selected-service fixed arrivals and complete event accounting
+
+Worked directly on master fromdf107b8c, preserving every prior source/driver and
+profile. Added a separate C fixed-arrival workload for actual default service
+clocks:4 immutable UTC second boundaries x256 pre-admitted jobs,1/2/4/8 workers
+and scalar/batch64 initial admission, plus an explicit2200ms full-output consumer
+pause. A missed admission deadline invalidates the process; it is never moved
+forward. CATCH_UP+WAIT preserve all backlog. Each native process requires1024
+unique callback/physical-receipt pairs, full nominal/global Candidates and every
+Run/payload/observation field, checksum524800, four successes per original Data
+retirement and complete physical owner/pool joins. No skip/coalesce/clock
+regression, rejected admission/retry or sticky service failure is accepted.
+
+New profiles retain P50/P95/P99/P99.9/max for real scheduled-to-worker start,
+monotonic owner-to-worker delay and scheduled-to-Drain-return latency, including
+consumer polling/queue waits and fixture costs. The controller'sxrtSleep(1),
+per-event callback claim, shared callback counter, two nominal checks, opaque ID
+lookup and full record validation remain counted. CPU/requested heap/component
+and fixture bytes, native batch/backend and actual consumer pause observations
+are separate from stable workload facts. Native CPU instrumentation is restricted
+to the benchmark; no production runtime/Core/public API/generated header changed.
+CPU/heap windows exclude creation/admission/shutdown, CRT/OS/borrowed native
+storage and can miss initial work if the first deadline crosses between separate
+pre-window checks/snapshots. Complete cold-path accounting therefore remains
+open; no intentional in-process first-callback warmup is performed.
+
+Windows modular, memory-stat-disabled and single forms each pass both64-event
+scalar and96-event three-period stalled-consumer cases. WSL modular/single
+ASAN+UBSAN/leak-halt and modular/single TSan pass both cases; invalid argument
+sets return the expected failure. Windows90 tool tests, feature/single/API/docs
+checks pass. This stage changes benchmark/config/documentation assets, so existing
+unchanged production suites/packages were not relabelled as rerun.
+
+Final functional/formal input maps are identical on2558 source/config/tool files.
+Seven diagnostic and eighteen actual formal binaries plus source copies/hashes
+are retained. Per platform nine profiles have one warmup/five formal runs; every
+one of54 native process stdout records is preserved and independently matched
+against every stored sample/fact/observation. Original MAD3%/central6% noise and
+5% throughput/10% latency regression settings remain. Reports keep79 Windows and
+62 WSL failed noise checks. No favorable retry/filter or forced comparison.
+
+Windows normal start P99 medians are around1ms, receipt P99 mostly16ms; WSL normal
+receipt P99 is1..4ms. Slow-profile start/receipt P99 medians are1235/2219ms and
+1203/2201ms respectively; all1024 expected events survive. The observed consumer
+polling gap needs isolated readiness-wait measurement. Windows process CPU
+increments include many0 and15.625ms values, which are coarse observations, not
+zero-cost claims. Both environments observe zero XRT heap request increments
+inside their counter windows; this is not a whole-lifecycle/cold-path claim.
+
+Evidence: extlibs/xcron/tests/results/service-arrivals-20261109.json.
+The first prototype omitted memory_stats.h and failed compilation; explicit
+include corrected, no warning suppressed. An out-only orchestration bracket error
+failed before any native execution; source/log retained before the first complete
+formal collection. Functional source was frozen throughout both formal pipelines.
+Next: bounded efficient completion-readiness wait/isolation of polling delay and
+strict initial counter-window alignment, then remaining compensation/recovery,
+Redis/RPC/MQTT5.0 scope/interop and qualified native performance/>=72h gates.
+The full goal remains active; default development stays on master.

@@ -131,6 +131,12 @@ completion/retirement receipts; see its [contract](docs/service_selected.md) and
 [service example](examples/service_selected/README.md). Gap compensation and
 durability remain required.
 
+The [real fixed-arrival workloads](docs/service_arrivals.md) measure selected
+service start/receipt tails with1/2/4/8 workers and a full-output consumer stall,
+while verifying every expected callback, nominal receipt and Data retirement.
+They complement the synthetic throughput fixture; production qualification is
+still open.
+
 The optional `xcron_executor_selected` adapter copies selected nominal metadata
 into bounded per-slot storage, exposes it through an immutable callback token
 view and returns complete physical receipts. Read its
