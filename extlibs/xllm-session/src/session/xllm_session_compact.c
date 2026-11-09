@@ -935,7 +935,7 @@ xllm_compaction *xllmSessionPrepareCompactionWithBudget(xllm_session *pSession, 
         for (size_t i=0u; i<pSession->iEntryCount; ++i)
             if (pSession->pEntries[i].tMessage.eRole==XLLM_ROLE_USER &&
                 pSession->pEntries[i].uSequence>uFloor) uLastUser=pSession->pEntries[i].uSequence;
-        if (bForce && bDefault)
+        if ((bForce || tStats.ePressure>=XLLM_SESSION_PRESSURE_COMPACT) && bDefault)
         {
             tPlan.uThroughSequence=0u; tPlan.uPrefixThroughSequence=0u;
             /* Prefer keeping the newest user request verbatim. If the entire
