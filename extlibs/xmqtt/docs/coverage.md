@@ -11,7 +11,9 @@ those pure checks from negotiated inbound/runtime state. The developing
 QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
 Optional [enhanced authentication](client_auth.md) integrates initial AUTH/final
-CONNACK verification and reauthentication. Session/expiry/subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
+CONNACK verification and reauthentication. Optional [TLS](client_tls.md) adds
+verified TLS 1.2/1.3 and mutual authentication. Session/expiry/subscription recovery
+state, reconnect, persistence and WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
 | Contract | Verification |

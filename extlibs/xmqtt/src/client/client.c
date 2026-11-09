@@ -1,6 +1,7 @@
 #include <xmqtt/client.h>
 #include <xmqtt/client_auth.h>
 #include <xmqtt/client_dial.h>
+#include <xmqtt/client_tls.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -39,7 +40,7 @@ typedef struct xmqttreceivetwo {
 } xmqttreceivetwo;
 typedef struct xmqttstartup {xatomic32 Refs;xmqttclient* Client;size_t Bytes;unsigned char Data[];} xmqttstartup;
 typedef struct xmqttalias {size_t Size,Capacity;char Topic[];} xmqttalias;
-enum {XMQTT_TX_ALIAS=8};
+enum {XMQTT_TX_ALIAS=8,XMQTT_TX_TLS=16};
 typedef struct xmqttsendtopic {uint32 Refs;size_t Size;char Data[];} xmqttsendtopic;
 typedef struct xmqttsendaliasslot {xmqttsendtopic *Planned,*Actual;} xmqttsendaliasslot;
 typedef struct xmqttsendaliases {xmqttsendaliasslot* Pages[256];} xmqttsendaliases;
@@ -48,6 +49,13 @@ typedef struct xmqttsendaliasrequest {
     xmqttsendtopic* Topic;xmqttsendaliasslot* Slot;size_t FrameBytes,TailOffset;
     uint16 Alias;uint8 PrefixBytes,Mode,RawHeader;unsigned char Prefix[7];
 } xmqttsendaliasrequest;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+typedef struct xmqtttlsfence {xmqttrequest *Previous,*Next;uint64 Cut;} xmqtttlsfence;
+typedef struct xmqtttlsplan {xtlssession* Session;xtlsstreamconfig Config;} xmqtttlsplan;
+typedef struct xmqtttlsstate {
+    xmqtttlsplan Plan;xtlsstream* Stream;xmqttrequest *Head,*Tail;size_t Bytes,Calls;bool Open;
+} xmqtttlsstate;
+#endif
 struct xmqttmessage {xatomic32 Refs;xmqttbox Box;xmqttpacket Packet;xmqttmessage* Next;xmqttproperty Props[];};
 struct xmqttrequest {
     xatomic32 Refs,NativeRefs;
@@ -100,11 +108,79 @@ struct xmqttclient {
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     xnetdial* Dial;
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    xmqtttlsstate* TLS;
+#endif
     xmqttproperty Scratch[];
 };
 static void xmqttClientWork(xnetworker* Worker,ptr Data);
 static bool xmqttClientWakeLocked(xmqttclient* C);
+static void xmqttClientWake(xmqttclient* C);
 static void xmqttClientFail(xmqttclient* C,xmqttclientstatus Status,const xerror* Cause);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+static void xmqttTlsFail(xmqttclient* C,xtlsresult Result)
+{
+    const xerror* E=C->TLS->Stream?xrtTlsStreamError(C->TLS->Stream):NULL;
+    if(!E && Result==XTLS_ERROR)E=xrtGetError();
+    xerrkind K=E?xrtErrorKind(E):XERR_NONE;
+    xmqttClientFail(C,K==XERR_MEMORY?XMQTT_STATUS_MEMORY:K==XERR_RANGE || K==XERR_AGAIN?XMQTT_STATUS_LIMIT:K==XERR_TIMEOUT?XMQTT_STATUS_TIMEOUT:XMQTT_STATUS_TRANSPORT,E);
+}
+#endif
+static bool xmqttTransportOpen(xmqttclient* C)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS)return C->TLS->Stream && C->TLS->Open && xrtTlsStreamState(C->TLS->Stream)==XTLS_STREAM_OPEN;
+#endif
+    return C->Stream && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
+}
+static size_t xmqttTransportAvailable(xmqttclient* C)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS)return C->TLS->Stream?xrtTlsStreamAvailable(C->TLS->Stream):0;
+#endif
+    return xrtNetStreamAvailable(C->Stream);
+}
+static size_t xmqttTransportRead(xmqttclient* C,void* Data,size_t Size)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){size_t N=0;xtlsresult S=xrtTlsStreamRead(C->TLS->Stream,Data,Size,&N);
+        if(S!=XTLS_OK && S!=XTLS_AGAIN && S!=XTLS_CLOSED)xmqttTlsFail(C,S);
+        return N;}
+#endif
+    return xrtNetStreamRead(C->Stream,Data,Size);
+}
+static size_t xmqttTransportWritable(xmqttclient* C)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS)return xmqttTransportOpen(C)?SIZE_MAX:0;
+#endif
+    return xrtNetStreamWritable(C->Stream);
+}
+static bool xmqttTransportClose(xmqttclient* C,bool Abort)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS && C->TLS->Stream)return Abort?xrtTlsStreamAbort(C->TLS->Stream):xrtTlsStreamClose(C->TLS->Stream);
+#endif
+    return !C->Stream || (Abort?xrtNetStreamAbort(C->Stream):xrtNetStreamClose(C->Stream));
+}
+static xnetresult xmqttTransportSend(xmqttclient* C,cbytes Data,size_t* Size)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){if(!C->TLS->Bytes || !C->TLS->Calls){*Size=0;xmqttClientWake(C);return XNET_RESULT_AGAIN;}
+        size_t N=0,Capacity=*Size;if(Capacity>C->TLS->Bytes)Capacity=C->TLS->Bytes;--C->TLS->Calls;
+        xtlsresult S=xrtTlsStreamSend(C->TLS->Stream,Data,Capacity,&N);*Size=N;C->TLS->Bytes-=N;
+        if(S!=XTLS_OK && S!=XTLS_AGAIN){xmqttTlsFail(C,S);return N?XNET_RESULT_OK:XNET_RESULT_ERROR;}
+        return N?XNET_RESULT_OK:XNET_RESULT_AGAIN;}
+#endif
+    return xrtNetStreamSend(C->Stream,Data,*Size);
+}
+static xnetresult xmqttTransportSendRef(xmqttclient* C,cbytes Data,size_t* Size,xnetreleaseproc Release,ptr User)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){xnetresult S=xmqttTransportSend(C,Data,Size);if(S==XNET_RESULT_OK)Release(User,Data,*Size);return S;}
+#endif
+    return xrtNetStreamSendRef(C->Stream,Data,*Size,Release,User);
+}
 static bool xmqttClientError(xerrkind Kind,cstr Message)
 {xrtSetErrorInfo(Kind,"xrt.mqtt.client",1,Message);return false;}
 static void xmqttClientRef(xmqttclient* C)
@@ -287,6 +363,24 @@ static size_t xmqttSendAliasPadding(size_t Bytes)
 {return (0u-Bytes)&(_Alignof(xmqttsendaliasrequest)-1u);}
 static xmqttsendaliasrequest* xmqttSendAliasRequest(const xmqttrequest* R)
 {return (xmqttsendaliasrequest*)(R->Wire+R->Bytes+xmqttSendAliasPadding(R->Bytes));}
+static size_t xmqttRequestExtra(size_t Bytes,bool Alias,bool TLS)
+{
+    size_t N=Alias?xmqttSendAliasPadding(Bytes)+sizeof(xmqttsendaliasrequest):0;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(TLS)N+=((0u-Bytes-N)&(_Alignof(xmqtttlsfence)-1u))+sizeof(xmqtttlsfence);
+#else
+    (void)TLS;
+#endif
+    return N;
+}
+static bool xmqttClientUsesTls(const xmqttclient* C)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    return C->TLS!=NULL;
+#else
+    (void)C;return false;
+#endif
+}
 static size_t xmqttRequestWireBytes(const xmqttrequest* R)
 {if(R->Capabilities&XMQTT_TX_ALIAS){size_t Bytes=xmqttSendAliasRequest(R)->FrameBytes;if(Bytes)return Bytes;}return R->Bytes;}
 static void xmqttSendTopicDropLocked(xmqttclient* C,xmqttsendtopic* T)
@@ -327,6 +421,9 @@ static void xmqttRequestDrop(const void* Data)
     xmqttclient* C=R->Client;size_t Bytes=R->Bytes;uint16 Id=R->Identifier;xrtCancelDestroy(R->Cancel);
     xrtMutexLock(&C->Gate);
     if(R->Capabilities&XMQTT_TX_ALIAS){xmqttSendTopicDropLocked(C,xmqttSendAliasRequest(R)->Topic);C->Info.PrivateBytes-=xmqttSendAliasPadding(Bytes)+sizeof(xmqttsendaliasrequest);}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(R->Capabilities&XMQTT_TX_TLS)C->Info.PrivateBytes-=xmqttRequestExtra(Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,true)-xmqttRequestExtra(Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,false);
+#endif
     xmqttIdentifierReleaseLocked(C,Id);--C->Info.Requests;C->Info.OutgoingBytes-=Bytes;xrtMutexUnlock(&C->Gate);xrtFree(R);xmqttClientDrop(C);
 }
 static bool xmqttRequestRetainProducer(const void* Data)
@@ -343,6 +440,63 @@ static void xmqttRequestNativeDrop(ptr Data,cbytes Bytes,size_t Size)
 {
     (void)Bytes;(void)Size;xmqttrequest* R=Data;
     (void)xrtAtomic32FetchSub(&R->NativeRefs,1,XMEMORY_ACQ_REL);xmqttClientWake(R->Client);xmqttRequestDrop(R);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+static xmqtttlsfence* xmqttTlsFence(const xmqttrequest* R)
+{
+    size_t At=R->Bytes+xmqttRequestExtra(R->Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,true)-sizeof(xmqtttlsfence);
+    return (xmqtttlsfence*)(R->Wire+At);
+}
+static void xmqttTlsUnlink(xmqttclient* C,xmqttrequest* R)
+{
+    xmqtttlsfence* F=xmqttTlsFence(R);xmqtttlsstate* T=C->TLS;
+    if(F->Previous)xmqttTlsFence(F->Previous)->Next=F->Next;else T->Head=F->Next;
+    if(F->Next)xmqttTlsFence(F->Next)->Previous=F->Previous;else T->Tail=F->Previous;
+    F->Previous=F->Next=NULL;
+}
+static void xmqttTlsAppend(xmqttclient* C,xmqttrequest* R,uint64 Cut)
+{
+    xmqtttlsstate* T=C->TLS;xmqtttlsfence* F=xmqttTlsFence(R);F->Cut=Cut;F->Previous=T->Tail;F->Next=NULL;
+    if(T->Tail)xmqttTlsFence(T->Tail)->Next=R;else T->Head=R;T->Tail=R;
+}
+static void xmqttTlsReleaseFence(xmqttclient* C,xmqttrequest* R)
+{
+    xmqttTlsUnlink(C,R);(void)xrtAtomic32FetchSub(&R->NativeRefs,1,XMEMORY_RELEASE);xmqttRequestDrop(R);
+}
+static void xmqttTlsProgress(xmqttclient* C)
+{
+    xmqtttlsstate* T=C->TLS;
+    if(!T || !T->Head || !T->Stream || !T->Open || C->ReadEnded || C->NativeClosed || C->ApplicationNativeClosing || C->DrainClosing || xmqttClientClosing(C))return;
+    xtlswriteprogress W={sizeof(W),0,0};
+    if(!xrtTlsStreamWriteProgress(T->Stream,&W)){xmqttTlsFail(C,XTLS_ERROR);return;}
+    while(T->Head && xmqttTlsFence(T->Head)->Cut<=W.Completed)xmqttTlsReleaseFence(C,T->Head);
+}
+#endif
+/* Raw TCP keeps its existing per-segment leases. TLS copies plaintext into its
+ * authenticated record buffers and holds one actual request credit until the
+ * saved ciphertext prefix retires, independently of early protocol ACKs. */
+static xnetresult xmqttRequestSend(xmqttclient* C,xmqttrequest* R,const xnetref* Refs,size_t Count,size_t* Size)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){if(!C->TLS->Bytes || !C->TLS->Calls){*Size=0;xmqttClientWake(C);return XNET_RESULT_AGAIN;}
+        bool Added=!xrtAtomic32Load(&R->NativeRefs,XMEMORY_RELAXED);
+        if(Added){xmqttRequestRef(R);xrtAtomic32Store(&R->NativeRefs,1,XMEMORY_RELAXED);xmqttTlsAppend(C,R,UINT64_MAX);}
+        xnetspan Spans[3];size_t Left=C->TLS->Bytes,SpanCount=0;
+        for(size_t I=0;I<Count && Left;++I){size_t N=Refs[I].Size;if(N>Left)N=Left;Spans[SpanCount++]=(xnetspan){Refs[I].Data,N};Left-=N;}
+        size_t N=0;--C->TLS->Calls;xtlsresult S=xrtTlsStreamSendVec(C->TLS->Stream,Spans,SpanCount,&N);*Size=N;C->TLS->Bytes-=N;
+        if(N && C->TLS->Stream){xtlswriteprogress W={sizeof(W),0,0};
+            if(xrtTlsStreamWriteProgress(C->TLS->Stream,&W)){xmqttTlsUnlink(C,R);xmqttTlsAppend(C,R,W.Produced);}
+            else xmqttTlsFail(C,XTLS_ERROR);
+        }else if(!N && Added && xrtAtomic32Load(&R->NativeRefs,XMEMORY_RELAXED))xmqttTlsReleaseFence(C,R);
+        if(S!=XTLS_OK && S!=XTLS_AGAIN){xmqttTlsFail(C,S);return N?XNET_RESULT_OK:XNET_RESULT_ERROR;}
+        return N?XNET_RESULT_OK:XNET_RESULT_AGAIN;
+    }
+#endif
+    for(size_t I=0;I<Count;++I)xmqttRequestRef(R);
+    (void)xrtAtomic32FetchAdd(&R->NativeRefs,(uint32)Count,XMEMORY_RELAXED);
+    xnetresult S=Count==1?xrtNetStreamSendRef(C->Stream,Refs[0].Data,Refs[0].Size,xmqttRequestNativeDrop,R):xrtNetStreamSendRefs(C->Stream,Refs,Count);
+    if(S!=XNET_RESULT_OK){(void)xrtAtomic32FetchSub(&R->NativeRefs,(uint32)Count,XMEMORY_RELAXED);for(size_t I=0;I<Count;++I)xmqttRequestDrop(R);}
+    (void)Size;return S;
 }
 static void xmqttRequestFinish(xmqttclient* C,xmqttrequest** Link,xmqttclientstatus Status)
 {
@@ -513,13 +667,13 @@ static bool xmqttAuthSend(xmqttclient* C,size_t* Budget)
 {
     xmqttauthstate* A=C->Auth;if(!A)return true;
     xrtMutexLock(&C->Gate);xmqttauthwire* W=A->Out;xrtMutexUnlock(&C->Gate);
-    while(W && W->Offset<W->Bytes && *Budget){size_t N=W->Bytes-W->Offset,Available=xrtNetStreamWritable(C->Stream);
+    while(W && W->Offset<W->Bytes && *Budget){size_t N=W->Bytes-W->Offset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>*Budget)N=*Budget;
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(!N)return false;
         (void)xrtAtomic32FetchAdd(&W->Refs,1,XMEMORY_RELAXED);
-        xnetresult S=xrtNetStreamSendRef(C->Stream,W->Wire+W->Offset,N,xmqttAuthWireRelease,W);
+        xnetresult S=xmqttTransportSendRef(C,W->Wire+W->Offset,&N,xmqttAuthWireRelease,W);
         if(S!=XNET_RESULT_OK){xmqttAuthWireDrop(W);if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         W->Offset+=N;*Budget-=N;xrtMutexLock(&C->Gate);A->Sent+=N;xrtMutexUnlock(&C->Gate);
         double SentAt=xrtTimer();if(!A->ProtocolReady)C->PingDeadline=SentAt;
@@ -645,6 +799,44 @@ static xmqttclientstatus xmqttDialFailure(xnetresult Result,const xerror* Cause)
     xerrkind Kind=Cause?xrtErrorKind(Cause):XERR_NONE;
     return Kind==XERR_MEMORY?XMQTT_STATUS_MEMORY:(Kind==XERR_RANGE || Kind==XERR_AGAIN)?XMQTT_STATUS_LIMIT:XMQTT_STATUS_TRANSPORT;
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+static void xmqttTlsWritten(xtlsstream* S,ptr Data)
+{(void)S;xmqttClientWake(Data);}
+static void xmqttTlsOpen(xtlsstream* S,ptr Data)
+{
+    xmqttclient* C=Data;
+    if(!xrtTlsStreamSetWriteProgress(S,xmqttTlsWritten))xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());
+    else C->TLS->Open=true;
+    xmqttClientWake(C);
+}
+static void xmqttTlsRead(xtlsstream* S,const xnetbuf* B,ptr Data)
+{(void)S;(void)B;xmqttClientWake(Data);}
+static void xmqttTlsEnd(xtlsstream* S,ptr Data)
+{(void)S;xmqttclient* C=Data;C->ReadEnded=true;xmqttClientWake(C);}
+static void xmqttTlsClosed(xtlsstream* S,xnetresult Result,const xerror* Cause,ptr Data)
+{
+    xmqttclient* C=Data;C->NativeClosed=true;C->TLS->Open=false;
+    while(C->TLS->Head)xmqttTlsReleaseFence(C,C->TLS->Head);
+    xrtMutexLock(&C->Gate);bool Expected=C->ApplicationClose && C->ApplicationNativeClosing && Result==XNET_RESULT_OK;xrtMutexUnlock(&C->Gate);
+    if(!Expected)xmqttClientFail(C,xmqttDialFailure(Result,Cause),Cause);
+    C->TLS->Stream=NULL;xmqttClientWake(C);
+    /* Break the actual Client -> TLS -> Client cycle. Native/runtime references
+     * retain TLS and its owned Client credit through final Session destruction.
+     * The separate real TCP caller reference remains for WaitRetired. */
+    xrtTlsStreamDestroy(S);
+}
+static const xtlsstreamownershipv1 xmqttTlsEvents={sizeof(xtlsstreamownershipv1),
+    {xmqttTlsOpen,xmqttTlsRead,xmqttTlsEnd,xmqttTlsWritten,xmqttTlsWritten,xmqttTlsClosed,NULL},xmqttClientDrop,&xmqttPrivateOps};
+static bool xmqttTlsAttach(xmqttclient* C,xnetstream* S)
+{
+    if(!xrtNetStreamRef(S))return false; /* Client's independent retirement handle. */
+    xmqttClientRef(C);
+    if(xrtTlsStreamAttachOwnedV1(S,C->TLS->Plan.Session,&C->TLS->Plan.Config,C,&xmqttTlsEvents,&C->TLS->Stream)){
+        C->TLS->Plan.Session=NULL;return true;
+    }
+    xmqttClientDrop(C);xrtNetStreamDestroy(S);return false;
+}
+#endif
 static void xmqttClientDialDone(xnetdial* D,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
 {
     xmqttclient* C=Data;
@@ -653,13 +845,19 @@ static void xmqttClientDialDone(xnetdial* D,xnetresult Result,xnetstream* Stream
     xrtMutexLock(&C->Gate);C->Dial=NULL;C->Stream=Stream;xrtMutexUnlock(&C->Gate);
     if(Stream){
         if(xmqttClientClosing(C))(void)xrtNetStreamAbort(Stream);
-        else {xmqttClientRef(C);
+        else {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+            if(C->TLS){if(!xmqttTlsAttach(C,Stream)){xmqttClientFail(C,xmqttDialFailure(XNET_RESULT_ERROR,xrtGetError()),xrtGetError());(void)xrtNetStreamAbort(Stream);}}
+            else
+#endif
+            {xmqttClientRef(C);
             if(!xrtNetStreamSetEventsOwnedV1(Stream,C,&xmqttClientEvents)){
                 xmqttClientDrop(C);const xerror* Error=xrtNetStreamError(Stream);if(!Error)Error=xrtGetError();
                 xmqttClientFail(C,xmqttDialFailure(XNET_RESULT_ERROR,Error),Error);(void)xrtNetStreamAbort(Stream);}
             else {xnetstreamstats I;
                 if(!xrtNetStreamStats(Stream,&I))xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());
                 else if(I.ReadEnded){C->ReadEnded=true;xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,NULL);}}
+            }
         }
     }else {C->NativeClosed=true;xmqttClientFail(C,xmqttDialFailure(Result,Cause),Cause);}
     /* A queued client turn also holds C through the physical Done/Drop tail.
@@ -953,25 +1151,25 @@ static void xmqttClientReadPump(xmqttclient* C)
             }
         }
         if(Needed>C->InputCapacity && !xmqttClientGrow(C,Needed))return;
-        if(Read==C->Config.ReadBytes || !xrtNetStreamAvailable(C->Stream))break;
+        if(Read==C->Config.ReadBytes || !xmqttTransportAvailable(C))break;
         size_t Count=C->InputCapacity-C->InputBytes;
         if(Count>C->Config.ReadBytes-Read)Count=C->Config.ReadBytes-Read;
-        size_t N=xrtNetStreamRead(C->Stream,C->Input+C->InputBytes,Count);if(!N)break;
+        size_t N=xmqttTransportRead(C,C->Input+C->InputBytes,Count);if(!N)break;
         Read+=N;C->InputBytes+=N;
     }
-    if(Packets==C->Config.WorkPackets || (Read==C->Config.ReadBytes && xrtNetStreamAvailable(C->Stream)))xmqttClientWake(C);
+    if(Packets==C->Config.WorkPackets || (Read==C->Config.ReadBytes && xmqttTransportAvailable(C)))xmqttClientWake(C);
 }
 static bool xmqttClientSendStartup(xmqttclient* C,size_t* Budget)
 {
     xmqttstartup* W=C->Startup;
     while(W && C->SetupOffset<W->Bytes && *Budget){
-        size_t N=W->Bytes-C->SetupOffset,Available=xrtNetStreamWritable(C->Stream);
+        size_t N=W->Bytes-C->SetupOffset,Available=xmqttTransportWritable(C);
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(N>*Budget)N=*Budget;
         if(N>Available)N=Available;
         if(!N)return false;
         (void)xrtAtomic32FetchAdd(&W->Refs,1,XMEMORY_RELAXED);
-        xnetresult S=xrtNetStreamSendRef(C->Stream,W->Data+C->SetupOffset,N,xmqttStartupRelease,W);
+        xnetresult S=xmqttTransportSendRef(C,W->Data+C->SetupOffset,&N,xmqttStartupRelease,W);
         if(S!=XNET_RESULT_OK){xmqttStartupDrop(W);if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         C->SetupOffset+=N;*Budget-=N;
         if(C->SetupOffset==W->Bytes){C->PingDeadline=xrtTimer();C->NextPing=C->Peer.KeepAlive?C->PingDeadline+C->Peer.KeepAlive:INFINITY;}
@@ -984,11 +1182,11 @@ static bool xmqttClientSendPing(xmqttclient* C,size_t* Budget)
     if(C->Peer.SendPacketBytes<2){xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);return false;}
     static const unsigned char Ping[]={0xc0,0};
     while(C->PingOffset<2 && *Budget){
-        size_t N=2-C->PingOffset,Available=xrtNetStreamWritable(C->Stream);
+        size_t N=2-C->PingOffset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>*Budget)N=*Budget;
         if(!N)return false;
-        xnetresult S=xrtNetStreamSend(C->Stream,Ping+C->PingOffset,N);
+        xnetresult S=xmqttTransportSend(C,Ping+C->PingOffset,&N);
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         if(!C->PingOutstanding){C->PingOutstanding=true;
             if(xmqttClientProtocolReady(C))C->PingDeadline=xmqttClientDeadline(xrtTimer(),C->Config.PingTimeout);}
@@ -1005,12 +1203,12 @@ static bool xmqttClientSendAcks(xmqttclient* C,size_t* Budget,bool One)
     while(F && F->Count && *Budget){uint16 Id=F->Identifiers[F->Head];
         const unsigned char Ack[]={0x40,2,(unsigned char)(Id>>8),(unsigned char)Id};
         if(C->Peer.SendPacketBytes<sizeof(Ack)){xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);return false;}
-        size_t N=sizeof(Ack)-F->Offset,Available=xrtNetStreamWritable(C->Stream);
+        size_t N=sizeof(Ack)-F->Offset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>*Budget)N=*Budget;
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(!N)return false;
-        xnetresult S=xrtNetStreamSend(C->Stream,Ack+F->Offset,N);
+        xnetresult S=xmqttTransportSend(C,Ack+F->Offset,&N);
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         F->Offset+=(unsigned)N;*Budget-=N;if(C->Peer.KeepAlive)C->NextPing=xrtTimer()+C->Peer.KeepAlive;
         if(F->Offset==sizeof(Ack)){F->Offset=0;F->Head=(F->Head+1)%F->Capacity;--F->Count;
@@ -1025,12 +1223,12 @@ static bool xmqttClientSendTwoAcks(xmqttclient* C,size_t* Budget,bool PartialOnl
         unsigned char Ack[]={A.Type,2,(unsigned char)(A.Identifier>>8),(unsigned char)A.Identifier,0x92};
         size_t Bytes=A.Unknown && C->Config.Version==XMQTT_VERSION_5?5:4;Ack[1]=(unsigned char)(Bytes-2);
         if(C->Peer.SendPacketBytes<Bytes){xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);return false;}
-        size_t N=Bytes-F->Offset,Available=xrtNetStreamWritable(C->Stream);
+        size_t N=Bytes-F->Offset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>*Budget)N=*Budget;
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(!N)return false;
-        xnetresult S=xrtNetStreamSend(C->Stream,Ack+F->Offset,N);
+        xnetresult S=xmqttTransportSend(C,Ack+F->Offset,&N);
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         F->Offset+=(unsigned)N;*Budget-=N;if(C->Peer.KeepAlive)C->NextPing=xrtTimer()+C->Peer.KeepAlive;
         if(F->Offset==Bytes){unsigned char* State=F->State+A.Identifier;
@@ -1083,7 +1281,7 @@ static size_t xmqttSendAliasRefs(xmqttrequest* R,size_t Bytes,xnetref Refs[3])
 static bool xmqttClientSendAliasRequest(xmqttclient* C,xmqttrequest* R,size_t* Budget)
 {
     size_t Bytes=xmqttRequestWireBytes(R);
-    while(R->Offset<Bytes && *Budget){size_t N=Bytes-R->Offset,Available=xrtNetStreamWritable(C->Stream);
+    while(R->Offset<Bytes && *Budget){size_t N=Bytes-R->Offset,Available=xmqttTransportWritable(C);
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(N>*Budget)N=*Budget;
         if(N>Available)N=Available;
@@ -1091,9 +1289,8 @@ static bool xmqttClientSendAliasRequest(xmqttclient* C,xmqttrequest* R,size_t* B
         xnetref Refs[3];size_t Count=1;
         if(xmqttSendAliasRequest(R)->Mode!=1)Count=xmqttSendAliasRefs(R,N,Refs);
         else Refs[0]=(xnetref){R->Wire+R->Offset,N,xmqttRequestNativeDrop,R};
-        for(size_t I=0;I<Count;++I){xmqttRequestRef(R);}(void)xrtAtomic32FetchAdd(&R->NativeRefs,(uint32)Count,XMEMORY_RELAXED);
-        xnetresult S=Count==1?xrtNetStreamSendRef(C->Stream,Refs[0].Data,Refs[0].Size,xmqttRequestNativeDrop,R):xrtNetStreamSendRefs(C->Stream,Refs,Count);
-        if(S!=XNET_RESULT_OK){(void)xrtAtomic32FetchSub(&R->NativeRefs,(uint32)Count,XMEMORY_RELAXED);for(size_t I=0;I<Count;++I)xmqttRequestDrop(R);if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
+        xnetresult S=xmqttRequestSend(C,R,Refs,Count,&N);
+        if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         if(R->Qos && !R->Credit){R->Credit=true;++C->SendInflight;}
         R->Offset+=N;*Budget-=N;C->Partial=R->Offset==Bytes?NULL:R;
         if(C->Peer.KeepAlive)C->NextPing=xrtTimer()+C->Peer.KeepAlive;
@@ -1106,14 +1303,13 @@ static bool xmqttClientSendAliasRequest(xmqttclient* C,xmqttrequest* R,size_t* B
 static bool xmqttClientSendRequest(xmqttclient* C,xmqttrequest* R,size_t* Budget)
 {
     if(R->Capabilities&XMQTT_TX_ALIAS)return xmqttClientSendAliasRequest(C,R,Budget);
-    while(R->Offset<R->Bytes && *Budget){size_t N=R->Bytes-R->Offset,Available=xrtNetStreamWritable(C->Stream);
+    while(R->Offset<R->Bytes && *Budget){size_t N=R->Bytes-R->Offset,Available=xmqttTransportWritable(C);
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(N>*Budget)N=*Budget;
         if(N>Available)N=Available;
         if(!N)return false;
-        xmqttRequestRef(R);(void)xrtAtomic32FetchAdd(&R->NativeRefs,1,XMEMORY_RELAXED);
-        xnetresult S=xrtNetStreamSendRef(C->Stream,R->Wire+R->Offset,N,xmqttRequestNativeDrop,R);
-        if(S!=XNET_RESULT_OK){(void)xrtAtomic32FetchSub(&R->NativeRefs,1,XMEMORY_RELAXED);xmqttRequestDrop(R);if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
+        xnetref Ref={R->Wire+R->Offset,N,xmqttRequestNativeDrop,R};xnetresult S=xmqttRequestSend(C,R,&Ref,1,&N);
+        if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         if(R->Qos && !R->Credit){R->Credit=true;++C->SendInflight;}
         R->Offset+=N;*Budget-=N;C->Partial=R->Offset==R->Bytes?NULL:R;
         if(C->Peer.KeepAlive)C->NextPing=xrtTimer()+C->Peer.KeepAlive;
@@ -1125,14 +1321,13 @@ static bool xmqttClientSendRequest(xmqttclient* C,xmqttrequest* R,size_t* Budget
 static bool xmqttClientSendPubrel(xmqttclient* C,xmqttrequest* R,size_t* Budget)
 {
     if(C->Peer.SendPacketBytes<4){xmqttClientFail(C,XMQTT_STATUS_RESTRICTED,NULL);return false;}
-    while(R->State.Release.Offset<4 && *Budget){size_t N=4-R->State.Release.Offset,Available=xrtNetStreamWritable(C->Stream);
+    while(R->State.Release.Offset<4 && *Budget){size_t N=4-R->State.Release.Offset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>*Budget)N=*Budget;
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(!N)return false;
-        xmqttRequestRef(R);(void)xrtAtomic32FetchAdd(&R->NativeRefs,1,XMEMORY_RELAXED);
-        xnetresult S=xrtNetStreamSendRef(C->Stream,R->State.Release.Wire+R->State.Release.Offset,N,xmqttRequestNativeDrop,R);
-        if(S!=XNET_RESULT_OK){(void)xrtAtomic32FetchSub(&R->NativeRefs,1,XMEMORY_RELAXED);xmqttRequestDrop(R);if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
+        xnetref Ref={R->State.Release.Wire+R->State.Release.Offset,N,xmqttRequestNativeDrop,R};xnetresult S=xmqttRequestSend(C,R,&Ref,1,&N);
+        if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         R->State.Release.Offset+=(uint8)N;*Budget-=N;C->Partial=R->State.Release.Offset==4?NULL:R;
         if(C->Peer.KeepAlive)C->NextPing=xrtTimer()+C->Peer.KeepAlive;
     }
@@ -1195,7 +1390,7 @@ static void xmqttClientDrainStop(xmqttclient* C,bool Abort)
 {
     C->Draining=false;
     if(C->Timer){uint64 Id=C->Timer;C->Timer=0;C->TimerAt=INFINITY;(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
-    if(Abort)(void)xrtNetStreamAbort(C->Stream);
+    if(Abort)(void)xmqttTransportClose(C,true);
 }
 static void xmqttClientDrainError(xmqttclient* C)
 {
@@ -1207,16 +1402,16 @@ static void xmqttClientDrainError(xmqttclient* C)
     }
     if(C->DrainClosing)return;
     const unsigned char Wire[]={0xe0,1,Reason};size_t Budget=C->Config.WriteBytes;
-    while(Offset<sizeof(Wire) && Budget){size_t N=sizeof(Wire)-Offset,Available=xrtNetStreamWritable(C->Stream);
+    while(Offset<sizeof(Wire) && Budget){size_t N=sizeof(Wire)-Offset,Available=xmqttTransportWritable(C);
         if(N>Available)N=Available;
         if(N>Budget)N=Budget;
         if(N>C->Config.WriteChunkBytes)N=C->Config.WriteChunkBytes;
         if(!N)return;
-        xnetresult S=xrtNetStreamSend(C->Stream,Wire+Offset,N);
+        xnetresult S=xmqttTransportSend(C,Wire+Offset,&N);
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientDrainStop(C,true);return;}
         Offset+=N;Budget-=N;xrtMutexLock(&C->Gate);C->Info.DisconnectBytes=Offset;xrtMutexUnlock(&C->Gate);
     }
-    if(Offset==sizeof(Wire)){C->DrainClosing=true;if(!xrtNetStreamClose(C->Stream))xmqttClientDrainStop(C,true);}
+    if(Offset==sizeof(Wire)){C->DrainClosing=true;if(!xmqttTransportClose(C,false))xmqttClientDrainStop(C,true);}
     else xmqttClientWake(C);
 }
 /* The accepted application request owns its wire and producer lease. Drain
@@ -1239,7 +1434,7 @@ static void xmqttClientStopApplication(xmqttclient* C)
         if(Status!=XMQTT_STATUS_OK)goto Failed;
         if(!Sent)return;
         C->ApplicationNativeClosing=true;
-        if(!xrtNetStreamClose(C->Stream)){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());goto Failed;}
+        if(!xmqttTransportClose(C,false)){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());goto Failed;}
     }
     if(!C->NativeClosed || xrtAtomic32Load(&R->NativeRefs,XMEMORY_ACQUIRE))return;
     Status=XMQTT_STATUS_OK;
@@ -1250,7 +1445,7 @@ Failed:
      * before the disconnect request and the application-close state retire. */
     xmqttClientCollect(C);
     xrtMutexLock(&C->Gate);Status=C->Info.CloseStatus;xrtMutexUnlock(&C->Gate);
-    (void)xrtNetStreamAbort(C->Stream);
+    (void)xmqttTransportClose(C,true);
     {size_t Count=0;while(C->Requests && Count++<C->Config.WorkPackets)xmqttRequestFinish(C,&C->Requests,Status);}
     if(C->Requests){xmqttClientWake(C);return;}
 Finish:
@@ -1268,6 +1463,9 @@ static void xmqttClientStop(xmqttclient* C)
 #endif
         if(C->Timer){uint64 Id=C->Timer;C->Timer=0;(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
         xmqttReadyFinish(C,C->Info.CloseStatus);xmqttStartupRetire(C);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+        if(C->TLS && C->TLS->Plan.Session){xtlssession* S=C->TLS->Plan.Session;C->TLS->Plan.Session=NULL;xrtTlsSessionDestroy(S);}
+#endif
         xrtMutexLock(&C->Gate);bool Diagnostic=C->Info.LocalReason && !C->AbortRequested;xrtMutexUnlock(&C->Gate);
         /* Never append a diagnostic inside a partial MQTT packet. Already
          * fully accepted output frames may drain ahead of the final packet. */
@@ -1276,7 +1474,7 @@ static void xmqttClientStop(xmqttclient* C)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
             C->Stream &&
 #endif
-            C->Peer.SendPacketBytes>=3 && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
+            C->Peer.SendPacketBytes>=3 && xmqttTransportOpen(C);
         if(C->Draining){C->DrainDeadline=xmqttClientDeadline(xrtTimer(),C->Config.CloseTimeout);xmqttClientSchedule(C,C->DrainDeadline);
             if(!C->Timer)C->Draining=false;else {xrtMutexLock(&C->Gate);C->Info.DrainStarted=true;xrtMutexUnlock(&C->Gate);}}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
@@ -1286,7 +1484,7 @@ static void xmqttClientStop(xmqttclient* C)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
             && C->Stream
 #endif
-        )(void)xrtNetStreamAbort(C->Stream);
+        )(void)xmqttTransportClose(C,true);
         xmqttClientNotify(C); /* CLOSING is observable; reentrant Close may abort. */
     }
     if(C->Draining)xmqttClientDrainError(C);
@@ -1302,6 +1500,9 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
     (void)Worker;xmqttclient* C=Data;
     xrtMutexLock(&C->Gate);C->Posted=false;bool Started=C->Started;xmqttrequest* Disconnect=C->Disconnect;xrtMutexUnlock(&C->Gate);
     if(!Started){xmqttClientDrop(C);return;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){C->TLS->Bytes=C->Config.WriteBytes;C->TLS->Calls=C->Config.WorkPackets;}
+#endif
     xmqttClientCollect(C);
     if(Disconnect){
         if(xrtCancelRequested(Disconnect->Cancel))xmqttClientFail(C,XMQTT_STATUS_CANCELLED,NULL);
@@ -1310,6 +1511,9 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
     }
     if(C->ReadyPromise && xrtCancelRequested(C->ReadyCancel))xmqttClientFail(C,XMQTT_STATUS_CANCELLED,NULL);
     double Now=xrtTimer();
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    xmqttTlsProgress(C);
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     xmqttAuthWork(C);
 #endif
@@ -1319,7 +1523,7 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
         xmqttclientstatus S=xrtCancelRequested(R->Cancel)?XMQTT_STATUS_CANCELLED:Now>=R->Deadline?XMQTT_STATUS_TIMEOUT:XMQTT_STATUS_OK;
         if(S!=XMQTT_STATUS_OK){bool Partial=R->Offset!=0;xmqttRequestFinish(C,Link,S);if(Partial)xmqttClientFail(C,S,NULL);continue;}
         if(R->Type==XMQTT_PACKET_PUBLISH && !R->Qos && R->Offset==xmqttRequestWireBytes(R) && !xrtAtomic32Load(&R->NativeRefs,XMEMORY_ACQUIRE)){
-            if(xrtNetStreamState(C->Stream)!=XNET_STREAM_OPEN || C->ReadEnded){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,NULL);break;}
+            if(!xmqttTransportOpen(C) || C->ReadEnded){xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,NULL);break;}
             xmqttRequestFinish(C,Link,XMQTT_STATUS_OK);continue;
         }
         Link=&R->Next;
@@ -1328,7 +1532,7 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
        && C->Stream
 #endif
-       && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN){
+       && xmqttTransportOpen(C)){
         /* Startup must be queued before an immediate/coalesced CONNACK. */
         if(!C->Info.Ready){size_t Budget=C->Config.WriteBytes;(void)xmqttClientSendStartup(C,&Budget);}
         if(!xmqttClientClosing(C))xmqttClientReadPump(C);
@@ -1371,6 +1575,9 @@ static void xmqttClientFree(xmqttclient* C)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     xrtNetDialDestroy(C->Dial);
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS){if(C->TLS->Stream || C->TLS->Head)abort();xrtTlsSessionDestroy(C->TLS->Plan.Session);xrtFree(C->TLS);}
+#endif
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
     if(C->SendAliases){for(size_t Page=0;Page<256;++Page){xmqttsendaliasslot* Slots=C->SendAliases->Pages[Page];if(!Slots)continue;
         for(size_t I=0;I<256;++I){xmqttSendTopicDropLocked(C,Slots[I].Planned);xmqttSendTopicDropLocked(C,Slots[I].Actual);}xrtFree(Slots);}xrtFree(C->SendAliases);}
@@ -1380,9 +1587,14 @@ static void xmqttClientFree(xmqttclient* C)
 #endif
     xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
-static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan)
+static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan)
 {
-    bool Planned=false;size_t HostBytes=0;
+    bool Planned=false;size_t HostBytes=0,TlsBytes=0;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    const xmqtttlsplan* TLS=TlsPlan;if(TLS)TlsBytes=sizeof(xmqtttlsstate);
+#else
+    (void)TlsPlan;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     const xmqttdialplan* D=DialPlan;char* HostCopy=NULL;Planned=D!=NULL;
     if(D && !D->Addresses)HostBytes=D->Host.Size+1;
@@ -1414,7 +1626,7 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     size_t SetupCount=Connect->Properties.Count+Connect->Body.Connect.WillProperties.Count;
     if(SetupCount>(SIZE_MAX-sizeof(xmqttclient))/sizeof(xmqttproperty) || K.Codec.MaxProperties>(SIZE_MAX-sizeof(xmqttclient))/sizeof(xmqttproperty)-SetupCount || WireBytes>K.MaxSetupBytes || WireBytes>SIZE_MAX-sizeof(xmqttstartup))return xmqttClientError(XERR_RANGE,"MQTT client setup capacity");
     size_t ClientBytes=sizeof(xmqttclient)+(SetupCount+K.Codec.MaxProperties)*sizeof(xmqttproperty),StartupBytes=sizeof(xmqttstartup)+WireBytes;
-    if(ClientBytes>K.MaxPrivateBytes || K.InitialInputBytes>K.MaxPrivateBytes-ClientBytes || StartupBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes || AuthBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes || HostBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes-AuthBytes)return xmqttClientError(XERR_RANGE,"MQTT private setup budget");
+    if(ClientBytes>K.MaxPrivateBytes || K.InitialInputBytes>K.MaxPrivateBytes-ClientBytes || StartupBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes || AuthBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes || HostBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes-AuthBytes || TlsBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes-AuthBytes-HostBytes)return xmqttClientError(XERR_RANGE,"MQTT private setup budget");
     if(!xrtNetEnginePin(Engine))return false;
     xmqttclient* C=xrtMalloc(ClientBytes);if(!C){xrtNetEngineUnpin(Engine);return false;}memset(C,0,ClientBytes);
     if(!xrtMutexInit(&C->Gate)){xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
@@ -1422,10 +1634,13 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     if(!xrtCondInit(&C->RetirementReady)){xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
     C->Engine=Engine;C->Config=K;C->ProblemInfo=ProblemInfo;C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));xrtAtomic32Init(&C->Refs,1);
     xrtAtomicPtrInit(&C->SendFlow,NULL);
-    C->Info.Size=sizeof(C->Info);C->Info.State=XMQTT_CLIENT_CONNECTING;C->Info.PrivateBytes=ClientBytes+K.InitialInputBytes+StartupBytes+AuthBytes+HostBytes;C->Info.StartupBytes=WireBytes;
+    C->Info.Size=sizeof(C->Info);C->Info.State=XMQTT_CLIENT_CONNECTING;C->Info.PrivateBytes=ClientBytes+K.InitialInputBytes+StartupBytes+AuthBytes+HostBytes+TlsBytes;C->Info.StartupBytes=WireBytes;
     C->SetupProps=C->Scratch;C->Props=C->Scratch+SetupCount;C->Peer.ReceivePacketBytes=ReceiveBytes;
     C->Peer.SendPacketBytes=XMQTT_PACKET_MAX_BYTES;C->Peer.KeepAlive=Connect->Body.Connect.KeepAlive;
     C->SetupDeadline=xmqttClientDeadline(Now,K.SetupTimeout);C->NextPing=C->PingDeadline=C->TimerAt=INFINITY;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(TLS){C->TLS=xrtCalloc(1,sizeof(*C->TLS));if(!C->TLS)goto Fail;C->TLS->Plan=*TLS;}
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(AuthConfig){C->Auth=xrtCalloc(1,AuthBytes);if(!C->Auth)goto Fail;C->Auth->Config=*(const xmqttauthconfig*)AuthConfig;
         C->Auth->Method=(xstrview){C->Auth->MethodBytes,Method.Size};if(Method.Size)memcpy(C->Auth->MethodBytes,Method.Data,Method.Size);
@@ -1466,10 +1681,13 @@ Fail:
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     xrtFree(HostCopy);
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    if(C->TLS)C->TLS->Plan.Session=NULL; /* failure transfers no plan ownership */
+#endif
     xrtPromiseDestroy(C->ReadyPromise);C->ReadyPromise=NULL;if(C->ReadyBox)xmqttReadyFree(C->ReadyBox,NULL);xmqttStartupRetire(C);xmqttClientFree(C);return false;
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL);}
+{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 {
@@ -1480,7 +1698,7 @@ static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Out)
 {
     double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL);
+    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL);
 }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
@@ -1489,8 +1707,44 @@ XMQTT_API bool xmqttClientDialConfigInit(xmqttclientdialconfig* K)
     if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid Dial config output");
     *K=(xmqttclientdialconfig){sizeof(*K),XNET_FAMILY_UNSPEC,30000,250,8,1024};return true;
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+XMQTT_API bool xmqttClientTlsConfigInit(xmqttclienttlsconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid TLS config output");
+    memset(K,0,sizeof(*K));K->Size=sizeof(*K);xrtTlsClientConfigInit(&K->Session);xrtTlsStreamConfigInit(&K->Stream);
+    xmqttClientDialConfigInit(&K->Dial);K->MaxMetadataBytes=65536;K->ServerNameFromHost=true;return true;
+}
+static bool xmqttTlsPlanCreate(const xmqttclienttlsconfig* K,xstrview Host,xmqttclient** Out,xmqtttlsplan* Plan)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)) || K->Size!=sizeof(*K) || xrtMemRangesOverlap(K,sizeof(*K),Out,sizeof(*Out)) ||
+       !K->MaxMetadataBytes || K->MaxMetadataBytes>1024u*1024u || K->Stream.HandshakeTimeout<0 || K->Stream.CloseTimeout<0 ||
+       !K->Stream.AsyncBytesLimit || !K->Stream.AsyncCountLimit || !K->Stream.AsyncBatch || K->Session.ProtocolCount>256)
+        return xmqttClientError(XERR_ARGUMENT,"invalid TLS config, metadata bounds or output overlap");
+    xtlsclientconfig S=K->Session;
+    if(K->ServerNameFromHost && !S.ServerName.Size && Host.Size){
+        bool Numeric=memchr(Host.Data,':',Host.Size)!=NULL;
+        if(!Numeric && Host.Size<32){char Text[32];memcpy(Text,Host.Data,Host.Size);Text[Host.Size]=0;xnetaddr A;
+            xerror* Saved=xrtTakeError();Numeric=xrtNetAddrParse(&A,Text,1);xrtSetErrorTake(Saved);}
+        if(Numeric){if(!S.VerifyName.Size)S.VerifyName=Host;}else S.ServerName=Host;
+    }
+    if(!S.ServerName.Size && !S.VerifyName.Size)return xmqttClientError(XERR_ARGUMENT,"TLS peer identity is required");
+    size_t Bytes=S.ProtocolCount*sizeof(xstrview);
+    if(!xrtMemRangeValid(S.Protocols,Bytes) || xrtMemRangesOverlap(S.Protocols,Bytes,Out,sizeof(*Out)) || Bytes>K->MaxMetadataBytes)
+        return xmqttClientError(XERR_ARGUMENT,"invalid TLS ALPN descriptors");
+    for(size_t I=0;I<S.ProtocolCount+2;++I){xstrview V=I==0?S.ServerName:I==1?S.VerifyName:S.Protocols[I-2];
+        if(V.Size>K->MaxMetadataBytes-Bytes || !xrtMemRangeValid(V.Data,V.Size) || xrtMemRangesOverlap(V.Data,V.Size,Out,sizeof(*Out)) ||
+           (I<2 && V.Size && memchr(V.Data,0,V.Size)))return xmqttClientError(XERR_ARGUMENT,"invalid or excessive TLS metadata");
+        Bytes+=V.Size;
+    }
+    if(K->ClientAuth && (!xrtMemRangeValid(K->ClientAuth,sizeof(*K->ClientAuth)) || xrtMemRangesOverlap(K->ClientAuth,sizeof(*K->ClientAuth),Out,sizeof(*Out))))
+        return xmqttClientError(XERR_ARGUMENT,"invalid TLS client authentication descriptor");
+    Plan->Session=K->ClientAuth?xrtTlsClientCreateAuthV1(&S,K->ClientAuth,NULL):xrtTlsClientCreate(&S,NULL);
+    if(!Plan->Session)return false;
+    Plan->Config=K->Stream;return true;
+}
+#endif
 static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Host,uint16 Port,uint64 Affinity,
-    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const void* Auth,const xmqttpacket* Connect,xmqttclient** Out,double Entered)
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const void* Auth,const xmqttpacket* Connect,xmqttclient** Out,double Entered,const void* TLS)
 {
     if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) || xrtMemRangesOverlap(Dial,sizeof(*Dial),Out,sizeof(*Out)))))
         return xmqttClientError(XERR_ARGUMENT,"invalid Dial config/output");
@@ -1510,29 +1764,78 @@ static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnet
         xrtMemRangesOverlap(Host.Data,Host.Size,Out,sizeof(*Out)) || memchr(Host.Data,0,Host.Size))return xmqttClientError(XERR_ARGUMENT,"invalid Dial host, Resolver or port");
     xmqttdialplan P={0};P.Resolver=Resolver;P.Addresses=Addresses;P.Host=Host;P.Port=Port;xrtNetDialConfigInit(&P.Config);
     P.Config.Family=K.Family;P.Config.Timeout=K.Timeout;P.Config.FallbackDelay=K.FallbackDelay;P.Config.MaxAttempts=K.MaxAttempts;
-    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    xmqtttlsplan T={0};if(TLS && !xmqttTlsPlanCreate(TLS,Host,Out,&T))return false;
+    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL);
+    if(!OK)xrtTlsSessionDestroy(T.Session);
+    return OK;
+#else
+    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS);
+#endif
 }
 XMQTT_API bool xmqttClientDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
-{return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,xrtTimer());}
+{return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,xrtTimer(),NULL);}
 XMQTT_API bool xmqttClientDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,Entered);
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,Entered,NULL);
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 XMQTT_API bool xmqttClientDialAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,Entered);
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,Entered,NULL);
 }
 XMQTT_API bool xmqttClientDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
     const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
 {
     double Entered=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered);
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered,NULL);
+}
+#endif
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+static bool xmqttClientTlsFactory(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* L,const xnetaddr* Address,xstrview H,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* K,const xmqttclienttlsconfig* TLS,const void* Auth,const xmqttpacket* Q,xmqttclient** Out,double Entered)
+{
+    if(!TLS || !xrtMemRangeValid(TLS,sizeof(*TLS)) || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) ||
+       xrtMemRangesOverlap(TLS,sizeof(*TLS),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid TLS config/output");
+    xnetaddrlist* Temporary=NULL;
+    if(Address){if(!xrtMemRangeValid(Address,sizeof(*Address)) || xrtMemRangesOverlap(Address,sizeof(*Address),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid TLS numeric endpoint/output");
+        Temporary=xrtNetAddrListCreate(Address,1);if(!Temporary)return false;L=Temporary;}
+    bool OK=xmqttClientDialCreate(E,Resolver,L,H,Port,Affinity,K,&TLS->Dial,Auth,Q,Out,Entered,TLS);
+    xrtNetAddrListDestroy(Temporary);return OK;
+}
+XMQTT_API bool xmqttClientTlsConnect(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");
+    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,NULL,Q,O,At);
+}
+XMQTT_API bool xmqttClientTlsDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
+{return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,NULL,Q,O,xrtTimer());}
+XMQTT_API bool xmqttClientTlsDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");
+    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,NULL,Q,O,At);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+XMQTT_API bool xmqttClientTlsConnectAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!R)return xmqttClientError(XERR_ARGUMENT,"TLS numeric endpoint is NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientTlsFactory(E,NULL,NULL,R,(xstrview){0},0,A,C,T,&K,Q,O,At);
+}
+XMQTT_API bool xmqttClientTlsDialAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientTlsFactory(E,R,NULL,NULL,H,P,A,C,T,&K,Q,O,At);
+}
+XMQTT_API bool xmqttClientTlsDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,const xmqttclienttlsconfig* T,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"TLS endpoints are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientTlsFactory(E,NULL,L,NULL,(xstrview){0},0,A,C,T,&K,Q,O,At);
 }
 #endif
 #endif
@@ -1553,7 +1856,7 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     if(Alias){Encoding=*Codec;Encoding.MaxPacketBytes=XMQTT_PACKET_MAX_BYTES;Codec=&Encoding;}
     size_t Bytes;bool Valid=C->Config.Version==XMQTT_VERSION_5?xmqttPacketSize5(Packet,XMQTT_CLIENT_TO_SERVER,Codec,&Bytes):xmqttPacketSize311(Packet,XMQTT_CLIENT_TO_SERVER,Codec,&Bytes);
     if(!Valid){if(!Subscription && !P->Body.Publish.Topic.Size)xmqttClientError(XERR_ARGUMENT,"empty publish topic requires a valid outgoing alias");return XMQTT_ADMISSION_ERROR;}
-    size_t Extra=Alias?xmqttSendAliasPadding(Bytes)+sizeof(xmqttsendaliasrequest):0;
+    size_t Extra=xmqttRequestExtra(Bytes,Alias,xmqttClientUsesTls(C));
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XMQTT_CLIENT_CLOSING){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_CLOSED;}
     if(C->Info.Requests==C->Config.MaxRequests || Bytes>C->Config.MaxOutgoingBytes-C->Info.OutgoingBytes || Bytes>SIZE_MAX-sizeof(xmqttrequest) || Extra>SIZE_MAX-sizeof(xmqttrequest)-Bytes || Extra>C->Config.MaxPrivateBytes-C->Info.PrivateBytes){
@@ -1567,6 +1870,7 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     xmqttrequest* R=xrtMalloc(sizeof(*R)+Bytes+Extra);xfuture* F=NULL;xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
     if(!R)goto UndoReservation;
     memset(R,0,sizeof(*R));R->Client=C;R->Bytes=Bytes;R->Deadline=Deadline;R->Type=Type;R->Retain=!Subscription && (P->Flags&1u)!=0;R->Qos=Qos;R->Identifier=Identifier;R->State.Release.Wire[0]=0x62;R->State.Release.Wire[1]=2;R->State.Release.Wire[2]=(unsigned char)(Identifier>>8);R->State.Release.Wire[3]=(unsigned char)Identifier;xrtAtomic32Init(&R->Refs,1);xrtAtomic32Init(&R->NativeRefs,0);
+    if(xmqttClientUsesTls(C))R->Capabilities|=XMQTT_TX_TLS;
     if(Alias){R->Capabilities|=XMQTT_TX_ALIAS;xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);memset(A,0,sizeof(*A));A->Alias=AliasId;}
     if(Subscription){
         R->Result.Subscription=xmqttBoxAllocate(C->Quota,sizeof(*R->Result.Subscription),&Failure);
@@ -1638,17 +1942,19 @@ XMQTT_API xmqttclientadmission xmqttClientDisconnectAsync(xmqttclient* C,const x
     if(!C->Info.Ready){xrtMutexUnlock(&C->Gate);xmqttClientError(XERR_STATE,"graceful disconnect requires accepted CONNACK");return XMQTT_ADMISSION_ERROR;}
     xmqttnegotiated Peer=C->Peer;xrtMutexUnlock(&C->Gate);size_t Bytes=0;xmqttnegotiationissue Issue;
     if(xmqttNegotiatedPacketCheck(&Peer,Packet,&C->Config.Codec,&Bytes,&Issue)!=XMQTT_NEGOTIATION_DONE){xmqttClientError(XERR_ARGUMENT,"DISCONNECT violates packet or negotiated limits");return XMQTT_ADMISSION_ERROR;}
+    size_t Extra=xmqttRequestExtra(Bytes,false,xmqttClientUsesTls(C));
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XMQTT_CLIENT_CLOSING){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_CLOSED;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(C->Auth && C->Auth->Active){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_OVERLOADED;}
 #endif
-    if(C->DisconnectReserved || C->Info.Requests==C->Config.MaxRequests || Bytes>C->Config.MaxOutgoingBytes-C->Info.OutgoingBytes || Bytes>SIZE_MAX-sizeof(xmqttrequest)){
+    if(C->DisconnectReserved || C->Info.Requests==C->Config.MaxRequests || Bytes>C->Config.MaxOutgoingBytes-C->Info.OutgoingBytes || Bytes>SIZE_MAX-sizeof(xmqttrequest) || Extra>SIZE_MAX-sizeof(xmqttrequest)-Bytes || Extra>C->Config.MaxPrivateBytes-C->Info.PrivateBytes){
         ++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_OVERLOADED;}
-    C->DisconnectReserved=true;++C->Info.Requests;C->Info.OutgoingBytes+=Bytes;xmqttClientRef(C);xrtMutexUnlock(&C->Gate);
-    xmqttrequest* R=xrtMalloc(sizeof(*R)+Bytes);xfuture* F=NULL;xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;xmqttclientadmission Admission=XMQTT_ADMISSION_ERROR;
+    C->DisconnectReserved=true;++C->Info.Requests;C->Info.OutgoingBytes+=Bytes;C->Info.PrivateBytes+=Extra;xmqttClientRef(C);xrtMutexUnlock(&C->Gate);
+    xmqttrequest* R=xrtMalloc(sizeof(*R)+Bytes+Extra);xfuture* F=NULL;xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;xmqttclientadmission Admission=XMQTT_ADMISSION_ERROR;
     if(!R)goto UndoReservation;
     memset(R,0,sizeof(*R));R->Client=C;R->Bytes=Bytes;R->Deadline=Deadline;R->Type=XMQTT_PACKET_DISCONNECT;xrtAtomic32Init(&R->Refs,1);xrtAtomic32Init(&R->NativeRefs,0);
+    if(xmqttClientUsesTls(C))R->Capabilities|=XMQTT_TX_TLS;
     R->Result.Write=xmqttBoxAllocate(C->Quota,sizeof(*R->Result.Write),&Failure);
     if(!R->Result.Write){if(Failure==XMQTT_STATUS_LIMIT)Admission=XMQTT_ADMISSION_OVERLOADED;goto Failed;}
     R->Result.Write->Box=(xmqttbox){C->Quota,sizeof(*R->Result.Write)};R->Result.Write->Value.Reason=Packet->Reason;
@@ -1665,7 +1971,7 @@ Failed:
     xrtMutexLock(&C->Gate);C->DisconnectReserved=false;if(Admission!=XMQTT_ADMISSION_ERROR)++C->Info.Rejected;xrtMutexUnlock(&C->Gate);
     xrtPromiseDestroy(R->Promise);xrtFutureDestroy(F);if(R->Result.Write)xmqttWriteFree(R->Result.Write,NULL);xmqttRequestDrop(R);return Admission;
 UndoReservation:
-    xrtMutexLock(&C->Gate);C->DisconnectReserved=false;--C->Info.Requests;C->Info.OutgoingBytes-=Bytes;xrtMutexUnlock(&C->Gate);xmqttClientDrop(C);return XMQTT_ADMISSION_ERROR;
+    xrtMutexLock(&C->Gate);C->DisconnectReserved=false;--C->Info.Requests;C->Info.OutgoingBytes-=Bytes;C->Info.PrivateBytes-=Extra;xrtMutexUnlock(&C->Gate);xmqttClientDrop(C);return XMQTT_ADMISSION_ERROR;
 }
 XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* C,const xmqttpacket* Packet,int64 Timeout,xfuture** Out)
 {

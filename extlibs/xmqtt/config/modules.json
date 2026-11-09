@@ -102,7 +102,8 @@
         "xmqtt_negotiation",
         "xmqtt_client",
         "xmqtt_client_auth",
-        "xmqtt_client_dial"
+        "xmqtt_client_dial",
+        "xmqtt_client_tls"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -442,12 +443,95 @@
       ]
     },
     {
+      "name": "xmqtt_client_tls",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_TLS",
+      "depends": [
+        "xmqtt_client_dial",
+        "tls_stream_write_progress",
+        "tls_client_auth",
+        "tls_client_resume",
+        "tls_record_aes",
+        "tls_record_chacha",
+        "tls_schedule_sha256",
+        "tls_schedule_sha384",
+        "tls_key_exchange_x25519",
+        "tls_key_exchange_p256",
+        "tls_key_exchange_p384"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_tls.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xmqtt/examples/tls/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_tls.md"
+      ]
+    },
+    {
+      "name": "xmqtt_client_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_tls",
+        "tls_server",
+        "tls_identity_rsa",
+        "xmqtt_client_auth"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_tls.c",
+        "extlibs/xmqtt/tests/test_client_tls_select.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c"
+      ],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_tls.c"
+      ],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_client_tls_uring_tests",
+      "state": "implemented",
+      "feature": null,
+      "asset_platforms": [
+        "linux"
+      ],
+      "depends": [
+        "xmqtt_client_tls_tests",
+        "net_port_uring"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_tls_uring.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
       "name": "xmqtt_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
         "xmqtt",
-        "memory_stats"
+        "memory_stats",
+        "xmqtt_client_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -461,7 +545,9 @@
         "extlibs/xmqtt/tests/test_negotiation.c",
         "extlibs/xmqtt/tests/test_client.c",
         "extlibs/xmqtt/tests/test_client_auth.c",
-        "extlibs/xmqtt/tests/test_client_dial.c"
+        "extlibs/xmqtt/tests/test_client_dial.c",
+        "extlibs/xmqtt/tests/test_client_tls.c",
+        "extlibs/xmqtt/tests/test_client_tls_select.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -476,7 +562,10 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -496,7 +585,10 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c": "xmqtt_client_auth",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c": "xmqtt_client_dial",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c": "xmqtt",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c": "xmqtt_client_dial"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c": "xmqtt_client_dial",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c": "xmqtt_client_tls_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c": "xmqtt_client_tls_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c": "xmqtt_client_tls_tests"
       }
     }
   ]

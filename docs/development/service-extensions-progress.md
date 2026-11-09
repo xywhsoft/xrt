@@ -8989,3 +8989,55 @@ out/service-extensions/xmqtt-tls-20261109. This is the necessary Core prerequisi
 MQTT TLS integration is still outstanding. All four products and the original
 goal remain developing, including remaining protocol/durability scope, qualified
 throughput/P99 profiles, native Linux and at least72h production release gates.
+
+## 2026-11-09: MQTT verified TLS transport on master
+
+Developed directly at D:/GIT/xrt master, without creating/switching branches.
+The prior service branch remains an ancestor; the old worktree is a preserved
+historical backup. No Core/Redis/RPC/Cron canonical inputs changed in this stage.
+
+Optional xmqtt_client_tls now provides numeric/hostname/prepared-address setup,
+TLS1.2/1.3 peer verification, optional native mutual authentication and all three
+MQTT enhanced-auth compositions. Names/ALPN/shared contexts and signing identity
+are captured before DNS; original deadlines cover DNS/TCP/TLS/MQTT gates.
+The existing bounded protocol owner handles QoS/aliases/subscriptions/auth.
+One actual request lease and aligned24-byte fence plus padding observe native
+ciphertext-prefix retirement without extending an earlier QoS0 cut for later
+output. ACK completion remains separate from physical quota/id retirement.
+TLS output shares WriteBytes/WorkPackets budgets. Graceful shutdown includes
+authenticated native close; Wait observes actual final Session/verifier tails.
+
+3050 frozen inputs identify actual-mainline verification: Windows and WSL each
+pass27 full MQTT and9 TLS-disabled client/auth/Dial programs. WSL adds explicit
+io_uring, TSan and ten ASan repetitions of the slow-reader/lifecycle suite;
+normal WSL correctness uses ASan/UBSan/leak-halt. Each OS verifies four root/leaf
+static/shared consumers, plus72 independent SSL literal-MQTT cases and4 real
+examples per isolated package:304 executions across both OSes. Strict CA/name,
+mutual-auth refusal/success, TLS versions, ALPN/SNI and authenticated shutdown
+are checked. Runtime keys remain temporary. Generated/API/docs/maturity checks
+and89 focused tool tests pass. Example, performance and size profiles are runnable.
+
+The original1KiB slow-peer window intermittently left Linux's kernel window at
+3072 bytes with1.8MiB queued and100% receive-window limitation, despite empty,
+unpaused native TLS input. Accepted fixture uses32KiB only while paused and
+restores4MiB on resume; original prefix/quota/byte/deadline assertions stay.
+Macro/policy/ALPN/overlap-fixture/link-command failures remain archived. D-disk
+exhaustion interrupted one archive and one compile; own artifacts/build caches
+were moved to C with per-file SHA256 checks and junctions preserving old paths.
+Affected steps pass after rerun; no unrelated artifacts were removed.
+
+Seven alternating300000-message/window32 samples per before/plain/TLS-compiled
+variant retain all42 raw outputs. WSL throughput pairs qualify and change
+-0.69%/-1.19%, within the original5% gate. Windows pairs and all P99 comparisons
+fail original noise gates and remain unqualified. Twelve20000-message TLS QoS1
+baseline runs include both native peers, with handshake outside the timer.
+These unpinned closed-loop results do not establish broker parity, fixed-arrival
+behavior or production acceptance. Public ClientConfig272/Info160 and request
+header104 stay fixed; measured TLS config200/state88/fence24 plus padding and
+selected Client/Dial pointer costs are recorded explicitly.
+
+Evidence: extlibs/xmqtt/tests/results/client-tls-20261109.json and
+out/service-extensions/xmqtt-tls-client-20261109. All four products remain
+developing. MQTT ticket cache/reconnect/durable session recovery, WebSocket,
+pinned brokers, qualified deployment P99/native Linux and at least72h native
+production gates remain required by the original goal.

@@ -2211,6 +2211,87 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_tls",
+      "system": "client",
+      "description": "TLS1.3 AES128-GCM/X25519 local QoS1 closed-loop workload; includes native client/server record crypto, callback trust fixture and physical retirement, not real-broker/fixed-arrival or production acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_tls_qos1_v5",
+          "source": "extlibs/xmqtt/bench/bench_client_tls.c",
+          "suite": "xmqtt_client_tls_tests,time",
+          "args": [
+            "20000",
+            "5",
+            "32"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "16"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/tests/support/tls_peer.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publishes/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        },
+        {
+          "name": "xmqtt_client_tls_qos1_v311",
+          "source": "extlibs/xmqtt/bench/bench_client_tls.c",
+          "suite": "xmqtt_client_tls_tests,time",
+          "args": [
+            "20000",
+            "4",
+            "32"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "16"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/tests/support/tls_peer.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publishes/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        }
+      ]
     }
   ]
 }

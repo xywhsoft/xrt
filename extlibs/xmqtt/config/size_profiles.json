@@ -81,6 +81,12 @@
       "system": "client",
       "suite": "xmqtt_client_dial",
       "description": "Bounded DNS/prepared-address MQTT client and public Core Dial dependency closure"
+    },
+    {
+      "name": "xmqtt_client_tls",
+      "system": "client",
+      "suite": "xmqtt_client_tls",
+      "description": "Verified TLS client/Dial/native prefix retirement with AES/ChaCha, SHA256/384 and X25519/P256/P384; private-key signing backends are separate"
     }
   ]
 }

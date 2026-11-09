@@ -22,7 +22,8 @@ typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCE
 /* A resolved Future is a typed outcome, not necessarily operation success.
  * QoS-0 OK observes complete native write-buffer retirement while open; it
  * does not acknowledge broker receipt, routing, storage or subscriber delivery.
- * Accepting ANY prefix into TCP makes delivery uncertain. Never auto-replayed.
+ * Accepting ANY plaintext prefix into the selected TCP/TLS transport makes
+ * delivery uncertain. AcceptedBytes counts that plaintext. Never auto-replayed.
  * QoS-1 completes after a corresponding PUBACK; PEER_ACCEPTED/REJECTED denotes
  * its decision, not subscriber delivery or durable storage. Puback (if present)
  * owns its reason/properties and may be separately retained. Local metadata
@@ -190,7 +191,8 @@ XMQTT_API xmqttclientadmission xmqttClientUnsubscribe(xmqttclient* Client,
  * Timeout is finite >=0 ms from entry, covering admission, drain and native close;
  * 0 expires immediately. Cancellation/Close/errors abort without reopening.
  * ACCEPTED returns a typed xmqttwriteresult Future: OK means the native queue
- * drained and TCP closed normally, NOT a broker ACK/Will-suppression guarantee.
+ * drained and the selected transport closed normally (authenticated close for
+ * TLS), NOT a broker ACK/Will-suppression guarantee.
  * AcceptedBytes and MAY_HAVE_REACHED_PEER are uncertain even on OK; Reason is
  * the requested reason, Identifier=0 and Puback=NULL. Failure preserves first
  * error and any accepted prefix. The result may outlive Client/Engine. WaitFor

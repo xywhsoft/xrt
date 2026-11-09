@@ -11,8 +11,10 @@ snapshot logical topics and select safe compact/full frames. See the
 [local receive-alias example](examples/receive_alias/README.md).
 Optional [MQTT5 enhanced authentication](docs/client_auth.md) now provides
 bounded multi-round AUTH, explicit final-proof verification and reauthentication
-with concurrent ordinary traffic. Reconnect, durable sessions and TLS/WebSocket
-remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
+with concurrent ordinary traffic. Optional [verified TLS](docs/client_tls.md)
+provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
+numeric, hostname and prepared-address factories. Reconnect, durable sessions
+and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 No broker or production/performance acceptance is claimed.
 

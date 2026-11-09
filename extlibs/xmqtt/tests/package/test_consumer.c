@@ -6,6 +6,19 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+    xmqttclienttlsconfig TLS;xmqttclient* TLSClient=(xmqttclient*)(uintptr_t)1;
+    if(!xmqttClientTlsConfigInit(&TLS) || TLS.MaxMetadataBytes!=65536 || !TLS.ServerNameFromHost || TLS.ClientAuth ||
+       xmqttClientTlsConnect(NULL,NULL,0,NULL,&TLS,NULL,&TLSClient) || TLSClient!=(xmqttclient*)(uintptr_t)1 ||
+       xmqttClientTlsDial(NULL,NULL,(xstrview){0},0,0,NULL,&TLS,NULL,&TLSClient) ||
+       xmqttClientTlsDialAddresses(NULL,NULL,0,NULL,&TLS,NULL,&TLSClient))return 25;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+    if(xmqttClientTlsConnectAuth(NULL,NULL,0,NULL,&TLS,NULL,NULL,&TLSClient) ||
+       xmqttClientTlsDialAuth(NULL,NULL,(xstrview){0},0,0,NULL,&TLS,NULL,NULL,&TLSClient) ||
+       xmqttClientTlsDialAddressesAuth(NULL,NULL,0,NULL,&TLS,NULL,NULL,&TLSClient))return 26;
+#endif
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
     xmqttclientdialconfig Dial;xmqttclient* DialClient=(xmqttclient*)(uintptr_t)1;
     if(!xmqttClientDialConfigInit(&Dial) || Dial.MaxAttempts!=8 ||
