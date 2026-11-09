@@ -216,6 +216,7 @@ struct xnetstream {
 	bool ReadPending;
 	bool ReadDirect;
 	bool WritePending;
+	bool WriteConsuming; /* Worker-only: releasers may append, not drive this prefix again. */
 	bool WatchPending;
 	bool WriteDrained;
 	bool OpenEmitted;

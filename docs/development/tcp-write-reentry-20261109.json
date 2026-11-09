@@ -1,0 +1,2436 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "serialize native TCP prefix consumption across reentrant user release callbacks",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "cd34984c80895746b6075dce6a953470784940dd",
+  "state": "verified correctness stage; four products developing; original goal active",
+  "source_identity": {
+    "inputs": 6274,
+    "source_map_path": "out/service-extensions/tcp-write-observer-20261109/frozen-source.json",
+    "source_map_sha256": "e75eb4dd8a527cf70bb614a945dcf195cc812373450366351f28d9caeea985e5",
+    "core_before_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+    "core_after_sha256": "1d5847a2adaea30eebd2a49f1d5c66db11f14d4a86394c674d26d47a9b86d257",
+    "publication_report_excluded_from_self_hash": true
+  },
+  "behavior": [
+    "A worker-only WriteConsuming flag spans buffer consumption and exact byte-credit return. Reentrant sends can append but cannot drive the same already-sent prefix. The enclosing readiness/completion driver resumes FIFO writes.",
+    "No added allocation, lock, queue, shared runtime or public API. The added private bool occupies existing padding in all six measured platform/profile pairs; private bool offsets change, sizeof Stream and following aligned members do not.",
+    "Seven real-loopback scenarios cover copied and batch-ref appends, a single initial ref, close/abort from releaser and high/low-water appends; peer bytes/order, original release pointer/size, exactly-once callbacks, zero pending credit and actual physical retirement are asserted.",
+    "Regression is registered under net_tcp_retire plus explicit Windows IOCP and Linux io_uring test-only modules; single header regenerated from authoritative source."
+  ],
+  "prototype": {
+    "trace_platform": "windows",
+    "before": "drops2 read=64 drains=0 low=0; expected48 bytes; timed out waiting for Drain",
+    "after": "drops2 read=48 drains=1 low=0; exact prefix retirement with later data still queued",
+    "final_same_test_before_exit": 1,
+    "final_same_test_after_exit": 0,
+    "platforms": [
+      "windows",
+      "wsl"
+    ]
+  },
+  "platforms": {
+    "windows": {
+      "environment": {
+        "os": "Windows-10-10.0.19045-SP0",
+        "compiler": "gcc (GCC) 16.2.0",
+        "python": "3.12.10",
+        "architecture": "AMD64"
+      },
+      "package_consumer_runs": 8,
+      "four_library_programs": {
+        "xredis-tests": 30,
+        "xrpc-tests": 30,
+        "xmqtt-tests": 22,
+        "xcron-tests": 34
+      },
+      "total_four_library_programs": 116,
+      "foundation_and_tls_receipts": [
+        {
+          "label": "core",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "net_tcp,net_tcp_retire,net_tcp_ownership_tests,net_tcp_iocp_tests,net_tcp_write_reentry_iocp_tests"
+          ],
+          "exit_code": 0,
+          "programs": 30,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-core.log",
+          "log_sha256": "b2317e65efef0b7c493dd922a4396d7c90418782f9bb967b7438dd0a7a9c41b0",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp.exe": "89dce8ef192a3f3fc9adac95735072e406c31ffdbc3376fd1ad7d36459c9d526",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_bind.exe": "e03b1ca56f4b909fee037eec696ddb36bb200b1650296328504e6b8616085541",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_connect_timer.exe": "64af56ad6320a6fd9eb03ea2cf36574eb04f8ffc1b04fba682f7b9a5cabd5d71",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_edges.exe": "31ced4c8375f014b60db63bd6082bcf4f85ccfaf2b8dbf29d135eedecf96986c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_invalid.exe": "6af8f9ea4c5d38623da894bd40409987780d8bb696c1b5e50a91ce67726e518b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_lifetime.exe": "7690dd6f553d326836840983eaaa82166ecea62158d67a616fca9e5fa79ca5c2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_oom.exe": "d29a20b2334752a068abb376d8f6e0849e7ce9e7df934bb21d40fb2d8854bdfd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_pull.exe": "74f3bfdce4168a13631b3afbcf4d3082bc6592d2332c013e3226df5667808401",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_slow.exe": "f9b4de141984d7282532c6940d673138dffc30e3d86a6bfcc373ffa2714448dd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_threads.exe": "c28f0f95c7a2cdd1beaea0d46813efddc5f244735a64040e118a59871815f8eb",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_retire.exe": "dce2d5aab9a1a3d57d525a3160b750b1531eab45181a7cf53c644563a95d3e45",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_tcp_write_reentry.exe": "169817438ce8b6c8840a2da1bb5065e60bab8f6449bac0fb86eaa9725c7bd1ed",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_ownership.exe": "62bcf2eaf37bb40cb98ee8c4032086294002ddb3a55187ba8855b1ee4aa2c846",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_listener_events_ownership.exe": "8f110e6af98ea7fb614b6680cbf1b9c6cdea0b9706960ffdef5f79d551cca222",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_stream_events_ownership.exe": "a95cdcd57edc453f2c8c9d22af92448602fed9677172ec69101c61cedf53bbab",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_connect_timer_iocp.exe": "5ead124e7e513bb9a58fa010a51fce78e235efa4276e8e0289dcc7432ef72b1e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_edges_iocp.exe": "16d193ed42afd9a81740238fbcd732109947d7803ce3691e385aeb81f6b3fd70",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_iocp.exe": "69a12a91f4f46fd37d3385de4bd0934ec4965018f92e9978b8a30b7d95c03066",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_lifetime_iocp.exe": "3d62d757d9792ec7ceb937c54225dd949a52fe345c2c0f06fa062e12b054aa9b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_oom_iocp.exe": "9b053cdc22a359212ae8ef90cd4130ed1cd50e30daf4756de9f3ec9339b4e407",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_pull_iocp.exe": "b9ec2682460a94f9d54319dde6fee35bf8c6deb0a11cb5855c0be8554715a49f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_slow_iocp.exe": "79f98bacf89fa88614c2fe82b737ccc4ac3327099b34f599ba4e98d1f3ae2e22",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_net_tcp_threads_iocp.exe": "0e17f5a3316f42f27fa688502586641126a3d44ddf03c1b99cc707b21d26ea53",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_tcp_write_reentry_iocp.exe": "d005dbf00ea150031723948ea4b0e2beb902eeee35128aceab9c9d9dec72a9ca",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_tcp.exe": "568abafcd922270817b2f6a116bda145499c0f0638a42129ac8c35cf13b97479",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_tcp_retire.exe": "1924c31ee269ef9138cea6d29b5ab2feeb367589e2fad747ab3968858a08038c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_tcp_write_reentry.exe": "3ee8f955099cfb1fbacc81cc989bb4c9562707126f11afc8999fca0fbb94a896",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_tcp_ownership.exe": "8daf1948ab5062c81c3e9aeb735acf9701f2bbd08ed78d26fa1c40a888e38c6c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_listener_events_ownership.exe": "a26d87ecf79a0d393b3be4204bab4a7024dfb74387c499c163fc06ae1b292661",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/core/test_single_net_stream_events_ownership.exe": "f63c0accbce02c65b598ab83461f24c3055ac63ec59e23b68cab21cb0712384f"
+          }
+        },
+        {
+          "label": "xredis-root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xredis-root.log",
+          "log_sha256": "5b0869742e290aff3a84944523d4ce9b34a3f74931967fc0450df1e9ebb2b5eb",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xrpc-root.log",
+          "log_sha256": "e7a27539ae01ca3f99f601bf9fcc24163a9332f0dbd3d585dd3929d57ca024a0",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xmqtt-root.log",
+          "log_sha256": "841622152dd185ce4ec39884ba2cbad386e99c739f7d18b757d9b5fe787c429f",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-root/test_single_xmqtt_dial_auth.exe": "ac61cf4839cf1291be86cc70332b2623e61cac6535ac8cad76334a22ca25e4e4"
+          }
+        },
+        {
+          "label": "xcron-root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xcron-root.log",
+          "log_sha256": "8a756c6d8df67637a10b9087b4007497f649d705eeabad0a63878795c04ad83a",
+          "binaries": {}
+        },
+        {
+          "label": "test_tls_stream_reentrant_close",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_tests",
+            "--test",
+            "test_tls_stream_reentrant_close",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-test_tls_stream_reentrant_close.log",
+          "log_sha256": "cdb44aeb4ef942da579bd6192688f2dd4715a5818d1559b502798fdb00f580f2",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/test_tls_stream_reentrant_close/test_tls_stream_reentrant_close.exe": "8e3c82604ce76b0cce3d0d75a07df4b26a4e5982e097416d69bc5be0b1c95969"
+          }
+        },
+        {
+          "label": "test_tls_stream_backpressure",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_tests",
+            "--test",
+            "test_tls_stream_backpressure",
+            "--no-single"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-test_tls_stream_backpressure.log",
+          "log_sha256": "e82c9b50fe1db9113317b1fed1ca2de4ba78e7c923391087e687017d63f623ee",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/test_tls_stream_backpressure/test_tls_stream_backpressure.exe": "21845721d689b3a15d7e7eed347408ed55c252f5a476ccef6f192d86e6bec6e5"
+          }
+        },
+        {
+          "label": "tls-future",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_future_tests"
+          ],
+          "exit_code": 0,
+          "programs": 2,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-tls-future.log",
+          "log_sha256": "88a204a9a53c66b16ff59825085bd86b9861c0db3e84c2137eac1aaa6927d8cf",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/tls-future/test_tls_stream_future.exe": "7746bb8222088f23d0df9ac9cff341d5536705358b8cec2b96035b2caa0fc583",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/tls-future/test_single_tls_stream_future_transport.exe": "dff28dd939e48dfc10dd453df577b5933a0d419b05740e650944e907088f1403"
+          }
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "binaries": {}
+        },
+        {
+          "label": "api",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-api.log",
+          "log_sha256": "538a1ac1d64c854e7121d23d99144e8c96710859e2b655d9a349f5530d6fb1e7",
+          "binaries": {}
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py"
+          ],
+          "exit_code": 1,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-docs.log",
+          "log_sha256": "301d30d322ddec3ab6afc6412c5faa60792c93bfb6943757f2067482668cde6e",
+          "binaries": {}
+        },
+        {
+          "label": "docs-corrected",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--module-prefix",
+            "net_tcp",
+            "--function-prefix",
+            "xrtNet",
+            "--constant-prefix",
+            "XNET",
+            "--type-prefix",
+            "xnet"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-docs-corrected.log",
+          "log_sha256": "a920b88ffec423c7d88018b8b48c516dad64aaeac6e9783406869c694eb04b1a",
+          "binaries": {}
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_features.py",
+            "--check"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-features.log",
+          "log_sha256": "dc13349ca84e3edf80028bd0b76441a06a4bb498f8d4d51c748183acea42ef8f",
+          "binaries": {}
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-maturity.log",
+          "log_sha256": "09c490d38880ef44f63e71a923d4d911c03bbe196139d8b1195bbaf3bc101a14",
+          "binaries": {}
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_build",
+            "tools.test_extension_layout",
+            "tools.test_extension_single",
+            "tools.test_scope"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-tools.log",
+          "log_sha256": "39ba4959a0d09dfa0da7e8b708e619347308ac7a350141b0288f70aa037c13ff",
+          "binaries": {}
+        }
+      ],
+      "four_library_and_package_receipts": [
+        {
+          "label": "xredis-tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests"
+          ],
+          "exit_code": 0,
+          "programs": 30,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xredis-tests.log",
+          "log_sha256": "8884061cae7ddac854781da7b8716c2840d73b78856b07b982dd8dc861399078",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_command.exe": "d7fd10d9ed359e095c6c36ec35fca625e5e4b43690bc3cbacc1c9a345fe8728e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_reader.exe": "7531d3f6c52646f4014c1290f012ac92f19473a435ec3bcb467cfc2be9be6915",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_reply.exe": "1df8da1675f58f292a94a8b1f0773b0c1c7deb27b0290cc24de15f250215ac57",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_client.exe": "bace2461c2d764331d9fc653940ab907c3dbe77675fc2acfdc09a97a4b8d0aac",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_client_init.exe": "cb6f17aa47fdac89154f89044d996e402e3d3d64328a211ab072a897da295e98",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_openloop.exe": "9915eeaa55bd0d67aaa7d3b68627ed2a1507fddd6487eadac5edfd311b8544b2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_dial.exe": "6653472c7319a8f51ea095088dac5dd833c7d5b761da639266fb024b3952708e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_tls.exe": "0877c1ed197f05a24cebdac84e335aea2e8a78e2f5417a0fc0d6c1092618a4ad",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_tls_openloop.exe": "77f51f4380284468eb40dfd1fc1269a8bebe06b2f180e86e00df6fe2d951f4b5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_tls_auth.exe": "c62dda97ea9a129b05d985e10e87d572ecfda2648f3707e9ed293d12919af1df",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_transaction.exe": "d425e6d5a46c5390432b198e54e7612de2073af8ae16da06bdb740e787cbb57d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_watch.exe": "e591da2e8a169137a7d3f81e497377071d20051faeec665297e37fd543d73dfd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_pool.exe": "81a447e868d55a9e11bb0baead6c7a46d80f59e0af71bbcb74438706599ae79b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_pool_sessions.exe": "545fdf27546c5b7753c41374f527b2e818b7802665dcc247983fcd54f648e644",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_pool_connect.exe": "741f5279e8f1b1a1ddbe1b1fd74e9a4679b9b7e26b093119a77c58afb78b406c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_command.exe": "99056347be3c553ab2dbe166ba69763e9e662dc47ae96a4dcb64b69b608ccfce",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_reader.exe": "0c6618581c6044ff3bd04378578f9525fb98b8da0e1980fd61632cd54291dc79",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_reply.exe": "c72564ab06b467967a26641fa435be20edbbb7ae83731b0dbf0643feec624081",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_client.exe": "1efcd50db6a7d8f9942d5ca40d1c41b46c9d9e82e22a45ae384eb739bc89f2a5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_client_init.exe": "645c4599685c287e84518464430c35b4cf0066f68b0216207a87aed585b8ce2f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_openloop.exe": "786896798737eefff4c91a1f0907efc9bb27efb55277076a6b4dd2ce7f7e6c56",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_dial.exe": "7338c159aa84bdc020e42be87b8f2f3df9a153aa110dfcc75d71eb0faf83808b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_tls.exe": "728a7ebeaed38c95798e9fc34374e83f7cf6270b768891e69b714866e7b68dfd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_tls_openloop.exe": "d92bd6fb535e62c56d054dac312cc277d9477c16dcd81edf3fabff0aa3be5dff",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_tls_auth.exe": "a708d0c7072775b7fe2f43f23173626d7df01bcfb50517c4ee8ad221f822b3e0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_transaction.exe": "4df706946cacd845f767bd472be55cef2538cbcdd791152b015b1f1d1a781c6a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_watch.exe": "f91d255c5d0b1d66fd108a4f517cbd993abb63d0525a1b4ac89cc21699bc5d14",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_pool.exe": "47fcef3da6df6d1f7fa50ca6872c0b6a3862f38c49a407dda07eec11619cbf16",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_pool_sessions.exe": "fbe131795eafd2e5ba105bb8cbcdb00a31b712953846acae42030e26d0f6373d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xredis-tests/test_single_xredis_pool_connect.exe": "08d1f4c50ab713eecb9991df2a016b7dbe4a76ffd813165ba68a6efe88e00343"
+          }
+        },
+        {
+          "label": "xredis-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xredis-static.log",
+          "log_sha256": "c42746a4d05ee9814e16c09b2ae28f77f0f7b405e14c10724b9e6042d0ff3fca",
+          "binaries": {}
+        },
+        {
+          "label": "xredis-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xredis-shared.log",
+          "log_sha256": "c57f6d4da04386bddeecc425e358856f5f8e67a0612ea4b624b6ed562d69e699",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests"
+          ],
+          "exit_code": 0,
+          "programs": 30,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xrpc-tests.log",
+          "log_sha256": "99d91217bb728d74a7ca2abf01fcbcf2a337db863cba692aa2d956adfa4d3ef7",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_decode.exe": "3e37bd5ef00d1609c4645332f5bee0495074de1d320189f4d73ca9ba8e44c33e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_encode.exe": "91c6510432a3c7cf5be4cab58c36c1521db47d4b4a6d53f918d1c4fc95d3913d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_dispatch.exe": "6361e68b27692465895bf917b4a1d082c87facad7b27dda283e1c5f8d99cec9d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_methods.exe": "838bd408a621a162bea8f23124e647bcc248b6d29325d959aa6163ad75662790",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_id.exe": "21f02585b4ed5b4b48ab399d8f9e2e1e43a0bdf9f9be7978211fbd12a1c0f365",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_pending.exe": "81984c1f59ea75dbeeab92c680125ddd45a1ff86926f7ba35d8a586d43492f71",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_response.exe": "216a8ff473dd1cd8dc585cf9ba74702fae92ad1b235eff0694fd3c59f8957385",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_receive.exe": "64506bb231b39d45f6cbeeb54d8990aac14eec31da8729d43b705a8943634e31",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_call.exe": "294afb3de7a937e0d845d3c1b20e927b7f5a6f6f06905e8c77ebde40bf22d477",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_http_client.exe": "14cc9f8ca36c75da2146b2d25971935ea066edd7eb4e140861ecf660f11b36f0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_server.exe": "3a91ff2c6302bf3a885e60e400b3101554537b0194b96c2b3cbfc356bed1cea7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_http_server.exe": "2019f285794eb644836396208882d96be072adaf4669ca0a70d91bd00ccd39a7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_http_dial.exe": "6d003663fd4e5bf71ebe9949dee8110dca226b53403013f50cbcd7ef266a9441",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_http_tls.exe": "dd5a935c0bcc1351c1cfebb8a8b3d7e0882f0a39977915c2e92454abb3019943",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_http_server_tls.exe": "9a504fa83739a846b506a571c34d5b386e50a21ec31c2f833472d5fbef8f4d3d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_decode.exe": "ed853ea9c0df5237145d48bfb7fdfbb18a78b7cc45ea86392693b3978802caee",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_encode.exe": "bf6af799948c14a0b718b359b20e5321932a798151e5b67d8c8bbebd62adbb42",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_dispatch.exe": "104d30e12ef9cb2b78e1d41c58ed12df8122410b8e1636bdc3b83d963e07f6a1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_methods.exe": "da835a92ddf3a99cfc409eaef5a14981c2c62d747cab510f5fd1bbc52a9d48d7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_id.exe": "628792fcaa9b0c53127da31506c6e2f5df5359875aecddd5bdcabc86c93b027d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_pending.exe": "2085f845e8cdaf788916bd3829c65900db6024b4c40d1f6d165a2e7da0e3673e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_response.exe": "99dcf1351d3ac8d4f3ee50b9891594fe44b1391ac695cb1a1da7a3c93c0896db",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_receive.exe": "7beb84fa7f9d5e36937ffa0dc49e32d1d104918d90e3e59a0a00be10f0a101c2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_call.exe": "e074d0ea84131aa220621a30f36baa695d1cff85c170774c5a61c6f39e833c3a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_http_client.exe": "5baf1168f7ff23c91552b96707a1a776041339875f42c9c2a41c80f3b08a22b1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_server.exe": "f056d9c1b53e4a5871479ba6256eae9cc7004efa88bcb81faeb8a484e94e4275",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_http_server.exe": "eef8e0f9319a1960b518189c746396af3d4a6847f6bd7b14b99f13b6b9cef1a4",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_http_dial.exe": "ea5e43e20b90c6ad5bf6b3886802f488707cc17bc33d60f7a2b914969427c90c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_http_tls.exe": "19b505d797d37815487ae60b0d7d2973980033346ec09a77dc4ebcf2ea953631",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xrpc-tests/test_single_xrpc_http_server_tls.exe": "b071975eed98619e8d2fd691617e0a2cff3ce1f672eb5d5dd8bbf5a8ac81a780"
+          }
+        },
+        {
+          "label": "xrpc-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xrpc-static.log",
+          "log_sha256": "db3889031102a2c7a7f8752a148db02b1e98e979ffb4d36cf3587400296425ac",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xrpc-shared.log",
+          "log_sha256": "481ef1cb63a257465c8ce7468106cbea373245e51473584ae16f94d0a5520a27",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests"
+          ],
+          "exit_code": 0,
+          "programs": 22,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xmqtt-tests.log",
+          "log_sha256": "80b2fc11f44fed8c50915ae1f0e541926a1b61476f05f2661befba161301d905",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_wire.exe": "88e2db305cfba4d701eddc0e63a7e2d19f93a5f6035c91e6cb56ce3574ba9927",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_properties.exe": "6145874edf508a6f32988f98c887c05444e50ada9380bd0bbce4f03a3cc28c5a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_packet.exe": "e841750816face35ec05bef10c054177cc683dd34734f67b2432bd0ac3aa8cdd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_codec5.exe": "0352a781ad7199c685fcff47f0c674edc354123f9392451454b743d5764f2b86",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_codec311.exe": "163fa1d7814b141b44170bd31e52a219db7a21205ebf43e2ebd2ec1e3d157013",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_negotiation.exe": "a232cde7c96b8ab6a915f588deae8687d4891000e62ba843f924bb3aac412b8c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_client.exe": "b294d7e6bdf62339f198a23d459161f3e36e14b5c714c882e1674b80656d738b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_client_auth.exe": "609c6f046b7a5040ef5262e57caa2cf79e3d8a6dfb37c524e997436fdcf2e27f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_client_dial.exe": "79fa76f905670829ebbf13c2ad5223c9a75526268c9384af19142251f4fc8a80",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_wire.exe": "7b74494d6d6231d846c4ff73800e03729731db6040dfa3f79a5306b9f339cd23",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_properties.exe": "642f692bacd0553e4291a0d12b3c4b81f3d69fbac422c76891d49ac1249f5bd6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_codec5.exe": "a559f803ad8d7dd32bed08b66ff90ce10e3b05c5473fd34ca4e74be6c65736ec",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_codec311.exe": "5b3c97d5c5d5b797e0ea5d42f0822baecbca1c24231301af986ead42fabd9821",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_negotiation.exe": "0f076b0f6ce7b01aaa185a879968c8a007df46555b4d2d10171e719c38849292",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_client.exe": "d579800563a12f0f09a790441d1bcca805c71f885ea3bdf62391def8876cbf54",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_client_auth.exe": "5e6c1d699850925e480fdbe08cb29ac7abf6fad1f9f544fc4b39e6ea37bd9bd5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_auth_cancel_retirement.exe": "e99a071274b28167bd0da974fd0eb9bed9e529bdf5d079bba26fb3cfb48f9202",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_auth_completion_reservation.exe": "1fca56a23afd43bea83b5300f086f8fcceb0218cb8626f008acc1fa57e64a586",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_client_dial.exe": "1f4c1ee0d2b787c48dddba7986b91c5a5f5579eb15a20bc7f44bc0e5be631ab3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_dial_auth.exe": "ac61cf4839cf1291be86cc70332b2623e61cac6535ac8cad76334a22ca25e4e4",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xmqtt-tests/test_single_xmqtt_dial_retirement.exe": "07fa2bd7d1036ae07384ee09e1f26626d3a577eccc7225abcd6b9d542acf9a5d"
+          }
+        },
+        {
+          "label": "xmqtt-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xmqtt-static.log",
+          "log_sha256": "41d6259cb02fe90e5363558046bdbbd0cae84232c0f9def168c82fcef4588a81",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xmqtt-shared.log",
+          "log_sha256": "9d4f2eb6a9bc560fa6b442a0e1ff1c516ca95023127d4cd186afef96270becaf",
+          "binaries": {}
+        },
+        {
+          "label": "xcron-tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter"
+          ],
+          "exit_code": 0,
+          "programs": 34,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xcron-tests.log",
+          "log_sha256": "f0a2431f9c1fd73fc47643d66df22bf5a31d8faa026a89a39355a6666df67322",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_expression.exe": "2ab381967e7d8402ceb4c0b7bd004c748002072c601f0f18e42e59190609f47b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_calendar.exe": "f79837c8416381260bba9b5f2396a6a9b31c8b1f1419a1286b62dc222dde4fd6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_timezone.exe": "3d489f8982ab062de5f87c7aeffc91fb9d3fa825a00d611d86d73fcb41ab3600",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_tzif.exe": "9fc84836cf384a0bcca5580b9d8ce8c253953d82f46842edb826e2f32351130f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_zoned.exe": "2d833ac9546460bc18612b441dc2ac3820458781a476ac8e3dc17b1a1ba396ae",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_scheduler.exe": "0bc1c27e499065177241857b961ced29e2d4ecf408e8022efd4b96d273975f7d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_executor.exe": "2330b768249c924aa27fd1e78a48d02d786846169050c8971a197122d983bbc9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_service.exe": "467aedbf825729499a66719f11ad00e56cefc7881ac4b9a5a1eccbde21be832f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_tzdb.exe": "4548c20aa72a9fe88b730f3a6ec07240c9ed56c0f5844b789b74ea81dbff1d89",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_tzdb_file.exe": "3c365f36135c58c3d5707730b55546a0a099a8c5de1c66ae4868c689aaae4b31",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_delivery.exe": "7a64247901729908dda5f223c0e1147998f49e493f08da3c189e8ab24502e8aa",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_occurrence.exe": "3bcff59dd43f0872cfa1646a93f72f2ba5e1fe7b9196c6d0fb86f047995e3f40",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_scheduler_selected.exe": "9c660b89e6ec48686c2425dd4bc96032e69eca712702897d657149ff06c57da9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_executor_selected.exe": "a5b96fa30e670b3d6695ea3c03d9eec1b11947afd888997ba7cda44699577bc0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_service_selected.exe": "ad911ea851a60d3d8a01ca46ba00f8d45d79f6ea2f337b8479445b396c7b2d6a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_event_waiter.exe": "d32365090b9b7da24b886a5a2f4515d332159825410200efa706a2183f0a1aaf",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_expression.exe": "334c0e98c6fcec9262ab54aeea4ab1f440a9d569f5f0c37dd660a5efb744c672",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_calendar.exe": "9eee3f56ab88184296e6a443438b98e0141d35121946d009effd570dee429f32",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_timezone.exe": "e3f0bad41250f3ed0704c3721812e6b258c6e53102f101fc017fe1e9a3cf3430",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_tzif.exe": "326189931b43ebb719fb32078d5039a003df93eea251eed8060e28a6b3060374",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_zoned.exe": "53035b0de903aba8d5b2076a1e4d5fa87afd494815877392cc3720123b9dbb0f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_scheduler.exe": "56536f5c48b65a3b094793c4923e91db27f110ac4fe9fc3e5cde22e4159c9531",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_executor.exe": "c8a3d16be2744656d05c83024fb72233004434657eadcf700bacd78c82f06a45",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_service.exe": "bdfb42623b5959f69aeb0f266c0024ae58aeaa3be2ef44717b2639707e13590c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_service_waiter.exe": "427561483cf04f87c95e5d37a90228e817d03d6e86a0d6bbeb86c0a42285b272",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_tzdb.exe": "cb98b91c3967f36428a08616ff95c96688a075a610686b8ef6ce0047176d63d1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_tzdb_file.exe": "2276bc77333f6fc37f6a72e953bb0ba780935ecf2cc24d911baae428c399e489",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_delivery.exe": "4997bfed95b0e9f15325f0aac86c3365c6d9ab2043657aebde1229adbaddfc89",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_occurrence.exe": "bbc6fafcfae67ff53a5e92a87299484e2a17ca84ac058c69ad11b0fb56d4a8e3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_scheduler_selected.exe": "cd2f326750039e3d3b1016b840c980c70e52540984638fe41b18ab554fc9d727",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_executor_selected.exe": "138e3dda0838a024a0203796aa87da72d946f2501229f6d63651192f4f4421c0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_service_selected.exe": "bf6a012177db7632631587fe7cdad799939610c2d160594e97329b4bf5a1a1c0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_xcron_service_readable.exe": "f9f7dd7de4c1b63c2d2df66b235d634fc6835f6c8272905fbadf71d1d90e6e7f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/windows/xcron-tests/test_single_event_waiter.exe": "68003aaffa2b1d6af4276a2273bc10731b54d4464d909029e65f040c5b29a383"
+          }
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xcron-static.log",
+          "log_sha256": "f71e1b2d4e102f728ccfd918cc8cf6ce8b4886bab2827b2ea036cf9d04779261",
+          "binaries": {}
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/windows-xcron-shared.log",
+          "log_sha256": "ccecf1e52d3320856dd5e41e63f80880709e5eb3d005a1cdc6354d73368b7b7d",
+          "binaries": {}
+        }
+      ],
+      "probe_receipts": [
+        {
+          "label": "regression-before-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-before.c",
+            "-lws2_32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-before.exe"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-before",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-before.exe"
+          ],
+          "exit_code": 1,
+          "expected_exit_code": 1,
+          "log_sha256": "2df7aa4d21b42df0f36890317cc50dc32ccb983bbfbca6ef2e33d19fadf20a3f"
+        },
+        {
+          "label": "qos1-before-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-before.c",
+            "-lws2_32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-before.exe"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-after-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-after.c",
+            "-lws2_32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-after.exe"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-after",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-regression-after.exe"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "f937335e6c75f8b530c8102880766ef1582d20a1e9f859983032ea73454e5f30"
+        },
+        {
+          "label": "qos1-after-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-after.c",
+            "-lws2_32",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-after.exe"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "layout": [
+        {
+          "profile": "base",
+          "version": "before",
+          "layout": {
+            "stream": 704,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "8f19861df1e7e7711110719c30dddb9841d504712967dc194728b836a0a783d8"
+        },
+        {
+          "profile": "base",
+          "version": "after",
+          "layout": {
+            "stream": 704,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "67b74d3bb4a495f461419fb932982ec5b5250dc83e9fd984e66b74dce81a9db3"
+        },
+        {
+          "profile": "retire",
+          "version": "before",
+          "layout": {
+            "stream": 744,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "f9c70ef8cc4e6ff7e1158c273549e2cf9f32c775f750d436b1222b8613caf387"
+        },
+        {
+          "profile": "retire",
+          "version": "after",
+          "layout": {
+            "stream": 744,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "5f89f2d81b0dc0a0820e3acb6b8c9744fc67f634c7283f4d38f8cb24aa096ddc"
+        },
+        {
+          "profile": "future-retire",
+          "version": "before",
+          "layout": {
+            "stream": 800,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "35714fad614a0fec28f746b934bd2cdca9fbcf666cf2eb30d7277e15ab69754d"
+        },
+        {
+          "profile": "future-retire",
+          "version": "after",
+          "layout": {
+            "stream": 800,
+            "mutex": 24,
+            "cond": 16,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "116c779ef1b05444888819837c7342f4a00dbd45e17a9c9e46dd8c7df112a798"
+        }
+      ],
+      "measurements": {
+        "complete": true,
+        "source_map_sha256": "e75eb4dd8a527cf70bb614a945dcf195cc812373450366351f28d9caeea985e5",
+        "samples": {
+          "before": [
+            {
+              "publishes_per_sec": 391518.713,
+              "latency_p50_us": 77.5,
+              "latency_p99_us": 150.2,
+              "latency_max_us": 305.3,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 388797.449,
+              "latency_p50_us": 77.5,
+              "latency_p99_us": 149.1,
+              "latency_max_us": 1360.5,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 398915.004,
+              "latency_p50_us": 75.2,
+              "latency_p99_us": 142.7,
+              "latency_max_us": 7147.2,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 304770.883,
+              "latency_p50_us": 96.9,
+              "latency_p99_us": 193.2,
+              "latency_max_us": 2542.8,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 393977.709,
+              "latency_p50_us": 75.4,
+              "latency_p99_us": 164.7,
+              "latency_max_us": 6132.8,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 382036.589,
+              "latency_p50_us": 77.5,
+              "latency_p99_us": 147.8,
+              "latency_max_us": 11080.0,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 384869.3,
+              "latency_p50_us": 78.6,
+              "latency_p99_us": 142.9,
+              "latency_max_us": 324.6,
+              "checksum": 9306512250.0
+            }
+          ],
+          "after": [
+            {
+              "publishes_per_sec": 367606.739,
+              "latency_p50_us": 79.8,
+              "latency_p99_us": 160.7,
+              "latency_max_us": 937.0,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 362580.31,
+              "latency_p50_us": 81.5,
+              "latency_p99_us": 156.4,
+              "latency_max_us": 379.8,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 415018.639,
+              "latency_p50_us": 74.1,
+              "latency_p99_us": 131.3,
+              "latency_max_us": 356.2,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 412473.189,
+              "latency_p50_us": 74.2,
+              "latency_p99_us": 132.2,
+              "latency_max_us": 5543.0,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 391222.531,
+              "latency_p50_us": 76.5,
+              "latency_p99_us": 148.2,
+              "latency_max_us": 4846.3,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 391014.946,
+              "latency_p50_us": 77.8,
+              "latency_p99_us": 143.8,
+              "latency_max_us": 2700.2,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 378074.692,
+              "latency_p50_us": 78.5,
+              "latency_p99_us": 156.1,
+              "latency_max_us": 288.0,
+              "checksum": 9306512250.0
+            }
+          ]
+        },
+        "summary": {
+          "before": {
+            "publishes_per_sec": {
+              "median": 388797.449,
+              "relative_mad": 0.013323801412081669,
+              "relative_central_range": 0.03071295871594053,
+              "noise_qualified": true
+            },
+            "latency_p50_us": {
+              "median": 77.5,
+              "relative_mad": 0.0141935483870967,
+              "relative_central_range": 0.041290322580645016,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 149.1,
+              "relative_mad": 0.041582830315224605,
+              "relative_central_range": 0.14621059691482216,
+              "noise_qualified": false
+            }
+          },
+          "after": {
+            "publishes_per_sec": {
+              "median": 391014.946,
+              "relative_mad": 0.05487831915253699,
+              "relative_central_range": 0.1147435678839755,
+              "noise_qualified": false
+            },
+            "latency_p50_us": {
+              "median": 77.8,
+              "relative_mad": 0.02570694087403599,
+              "relative_central_range": 0.0719794344473007,
+              "noise_qualified": false
+            },
+            "latency_p99_us": {
+              "median": 148.2,
+              "relative_mad": 0.05533063427800282,
+              "relative_central_range": 0.16329284750337394,
+              "noise_qualified": false
+            }
+          }
+        },
+        "binaries": {
+          "before": {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-before.exe",
+            "sha256": "96597f44105f8f477ebdda1227f2e185fea3ba6f8958af64de22211ebe19d8ce"
+          },
+          "after": {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\tcp-write-observer-20261109\\windows-qos1-after.exe",
+            "sha256": "f7d3aa05b0215cab9548e57e824dffa0b33d8ba0253575ef9b252c311e7d3142"
+          }
+        },
+        "scope": "Same current MQTT client/fixture/workload and before/after immutable Core headers;7 alternating samples of300000 MQTT5 QoS1/window32. Original3% relative MAD,6% central range and5% throughput/10% P99 limits. Unpinned loopback fixture; no broker parity/fixed-arrival/native Linux claim."
+      },
+      "performance_comparison": {
+        "publishes_per_sec": {
+          "after_over_before": 1.0057034762077361,
+          "noise_qualified": false,
+          "limit_ratio": 0.95,
+          "limit_direction": "minimum",
+          "decision": "unqualified"
+        },
+        "latency_p99_us": {
+          "after_over_before": 0.993963782696177,
+          "noise_qualified": false,
+          "limit_ratio": 1.1,
+          "limit_direction": "maximum",
+          "decision": "unqualified"
+        }
+      },
+      "package_archive": {
+        "path": "out/service-extensions/tcp-write-observer-20261109/windows-package-index.json",
+        "sha256": "8c4a444be236dbde364cb6d1f1b30ebe6f55b948a2118bb6d7e8150e62835eb9",
+        "files": 40
+      }
+    },
+    "wsl": {
+      "environment": {
+        "os": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "python": "3.14.4",
+        "architecture": "x86_64"
+      },
+      "package_consumer_runs": 8,
+      "four_library_programs": {
+        "xredis-tests": 30,
+        "xrpc-tests": 30,
+        "xmqtt-tests": 22,
+        "xcron-tests": 34
+      },
+      "total_four_library_programs": 116,
+      "foundation_and_tls_receipts": [
+        {
+          "label": "core",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "net_tcp,net_tcp_retire,net_tcp_ownership_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 21,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-core.log",
+          "log_sha256": "bab6efd1703aba32d86da73069d6f6ba923e010eee3c3a232f6d0258579ed993",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp": "495f53a1be253f88bf87badc7294ed168b1398dcdca64d1313cacbc9be6aaafd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_bind": "321e02b572ec9f7c8958b25b060fc5b22bcdceb05a72be495a30326a578bcc81",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_connect_timer": "f8b9d1b3b23975d4dd1f5c761152b24d9dd0f9413c4f4ec164bbbff34a15e1b1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_edges": "d34277299cf7089047c23d6a701edb025021a5809702be4100767286c50e77be",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_invalid": "d2cc35c37b337740b070648cd8525ff1ca7884134e7d2b6688a3a973749f7fb6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_lifetime": "b02d1368011373cba8fa526e0c984167697781d709a24fbbf4109c745a8c5d40",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_oom": "7f588e4fd163fb7ad8231790af6956a04bf37fa158ac590e520d8ad71966d299",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_pull": "415dd0d19a5c0bce66487f7d07db6572d147b36b4375ac615c423b9fca6943d0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_slow": "205c1aa486e279b0235f911b979d4156da2a6307267c38a6fa9325f53083622a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_threads": "344d431f1fbf7eeee630c0c7fd1a0a4d9c1bc39dbb6e06d73113f92dbdcb10b9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_retire": "eb74503c13d4920f0bbd8390f07b28001c97687831fbbf7975c973c52ba6c8d7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_tcp_write_reentry": "12a07f62d3fb8122c8a443f86b889f0e94c98506aeda6af464eff3b036efd882",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_tcp_ownership": "28035a04132cec2b1c21bca5abc51bfa8052078abf451b3f19c9fb27c8c1c6c5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_listener_events_ownership": "d7d030187eb44e7a99a663392cbf852fa1c1b40363f9e29d0d068298f97b6cb7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_net_stream_events_ownership": "88c02bd6d6c10c79fa4e43d0b3cccd3f9e36ad17af558b7c7d12e2aca6b366d1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_tcp": "d34abd05387ec90de1c795a21109c1e17320b6229f18fc92a4e984887a4b9c7e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_tcp_retire": "2b8d2d543080a6695dbca9851007742dba330a5ce7a3a8e31efae58e922b67c3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_tcp_write_reentry": "bb1f8f990dadfbc47c9bf3365310a82f44463eb7d7c9a40f703838e6324f2617",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_tcp_ownership": "1469557dc7a48e8ab322ddb07c076e636ea6b383228ee60861e0c761838eb6e2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_listener_events_ownership": "60eaedaf99993aff13d548be39eff59076b3a680d5f6413dcb2fb76d98b2cbcf",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/core/test_single_net_stream_events_ownership": "f79a3534fcc95d46194e3017bf1f4137aa0b99909abf5b82ecf7a5cc0359c2fd"
+          }
+        },
+        {
+          "label": "uring",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "net_tcp_write_reentry_uring_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-uring.log",
+          "log_sha256": "bfcd8970703d6ffb5296687f648f33be246388c42caa19ddabb60fda8d79596a",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/uring/test_tcp_write_reentry_uring": "62d82368ed2bd31aa9599d0fc5f80692a14598ad0c706e6f23b4b59a3ea3fb0f"
+          }
+        },
+        {
+          "label": "xredis-root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xredis-root.log",
+          "log_sha256": "87f414ba866fb2dad01ed71e0d4dcf36541ac1cffab9e4171157d56bb6eab2c6",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xrpc-root.log",
+          "log_sha256": "b91f94ae3109220696c52e949f8947465f01e708f8555a6371a1d62eee3d6e55",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xmqtt-root.log",
+          "log_sha256": "156943ab09f3888c37cb93067a886db550d8dc39743c8312c84b45f11c81760e",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-root/test_single_xmqtt_dial_auth": "5bac0e71e23f2211c05f7b48c666e5a346592e82877a8dc52b65c843eedf10d6"
+          }
+        },
+        {
+          "label": "xcron-root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xcron-root.log",
+          "log_sha256": "0c48264171146597900813dd4f1a2e43209fd19762f8c11f9dd5530a2a380e27",
+          "binaries": {}
+        },
+        {
+          "label": "test_tls_stream_reentrant_close",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_tests",
+            "--test",
+            "test_tls_stream_reentrant_close",
+            "--no-single",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-test_tls_stream_reentrant_close.log",
+          "log_sha256": "b7d92b2d43faac1280fba4981401a0916eb95eb7cfeb89aadfd20d8870bcc143",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/test_tls_stream_reentrant_close/test_tls_stream_reentrant_close": "0ef80513d03d86c65038822e734316ae3c4116bc9986a1030bce8d98f00b574d"
+          }
+        },
+        {
+          "label": "test_tls_stream_backpressure",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_tests",
+            "--test",
+            "test_tls_stream_backpressure",
+            "--no-single",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-test_tls_stream_backpressure.log",
+          "log_sha256": "d72efe9f7f23071ffc3113d5a7d8b7102b3d8ba5ff96bf79960cc7eecccb4e1a",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/test_tls_stream_backpressure/test_tls_stream_backpressure": "242af2f15bae469260f086091d7ad5ca94a3c2858ebe87328013b31802e87686"
+          }
+        },
+        {
+          "label": "tls-future",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "tls_stream_future_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 2,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-tls-future.log",
+          "log_sha256": "c57ca7b8ece2072b495c55b88fb4361ce825d65df10f8ece316a65b60b17e7e0",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/tls-future/test_tls_stream_future": "424bbb555edff186cf6139b55edd2ad6f8c670002914703f9c4e76d13eeab314",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/tls-future/test_single_tls_stream_future_transport": "7ca7565cafcc57dd53e9c147c441a33add5e5892b797d9c4a4cf06ed2f41adfc"
+          }
+        },
+        {
+          "label": "tsan-test_tcp_write_reentry",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "net_tcp_retire",
+            "--test",
+            "test_tcp_write_reentry",
+            "--cflag=-O1",
+            "--cflag=-g",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-tsan-test_tcp_write_reentry.log",
+          "log_sha256": "155a81908310dc46a5adae7aa126dc5828f41f4b0f32724687f4fed82e23e5a4",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/tsan-test_tcp_write_reentry/test_tcp_write_reentry": "700a0e530c21b997c87022b99325ae69b2de616dd5f434586ed3d822b3d2ef8c"
+          }
+        },
+        {
+          "label": "tsan-test_single_net_tcp_write_reentry",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--suite",
+            "net_tcp_retire",
+            "--single-test",
+            "test_single_net_tcp_write_reentry",
+            "--cflag=-O1",
+            "--cflag=-g",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread"
+          ],
+          "exit_code": 0,
+          "programs": 1,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-tsan-test_single_net_tcp_write_reentry.log",
+          "log_sha256": "0e00313129c22f5d7ed737da77a875400282fbdf7647f9d57ef8a0c8c1faca7e",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/tsan-test_single_net_tcp_write_reentry/test_single_net_tcp_write_reentry": "13858df70766de7c07877a44c9c50b199779064e5d2e938190152dc0b401ec4f"
+          }
+        }
+      ],
+      "four_library_and_package_receipts": [
+        {
+          "label": "xredis-tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 30,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xredis-tests.log",
+          "log_sha256": "3e1410d8ea066f38ab3b4e671b969b3aeeb4883869e6fddd37a4dce004349d6e",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_command": "e159397f340737fb784ca27544ae173608a965b9fda027c143cf681288526c1c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_reader": "feb48143c4d9ad0068ce1b334b3305bbd82f87e3d5c5850cee178e35f08a3d65",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_reply": "791dc97162260f6d637d803c6dd640ff17939fbe151fc1dfabf636e6c2304856",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_client": "7531fcd808dff0d3d1f69fc50b98b5b3547047279e6c0456718a92c23f263004",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_client_init": "70846596b57e444aa81a585779740d748e5c70e87a56dad10e7ad542d4ec6653",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_openloop": "96c6cdec975f80f3adcccb9c9fee1490d228967448755f7b9e14e7cd39d17f71",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_dial": "24b46327b4375b6171264916114faabea160f09076a6a9d8ef9e29142d3cb350",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_tls": "f20125ad4b1bf835805adb6b932dfe2e0940d594a203520a0e85a31d4555c40e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_tls_openloop": "e37c5cb8707efbf42b18687aa6256d19cd73baaec98f5b7f1b69c01b92104732",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_tls_auth": "bef442fa1cd6fa55c2b06a5d276e51c76b0a203d28493f224238ae3b06fc1e9b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_transaction": "8d006febc0b2f5d03f9ceda80f4991baf6111bdc5acb5621d3528139ba1018d7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_watch": "d809a8d48123fdde9d9d1e9f1071f6e60e512fdf4343498309fa9a422e1f1933",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_pool": "02ebaa3e80eea6974af900fba32e95accee4767e40cc6274ef3213ecfbdcdf69",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_pool_sessions": "4579f8356a163e942009f38c315de6923503b01a0539db57f3cb9f14fb1448a2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_pool_connect": "d6148162b4085c3336f62cadc558363462fa9ed507456abaab0f7dbc3cb2adb2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_command": "f1d9acbbb6b958adbafaa363df0d55abf7843ab49d486efac5fdd81ffd187e8e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_reader": "0cf018961215e99dfb513fa90fd980610fe87dcc9783c59aa9c40d3148163b6b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_reply": "9c4d6e2630ad7aa8a0d016760d05a4273a03dbe9d7e8be5c9ea42993545ddf21",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_client": "1d2bb87551fa967a0c00211a1699a4cb86600720ea4adca09df9757ec50ae5e9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_client_init": "19b43c27483fe808170039b81e6ef7497c97053ac8bd6b713ad2c2ef44a93fb9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_openloop": "4b8f5bb08c5be35f6458823edff9800b13be5e77e08b908a68415ed9f2da418a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_dial": "7c837d17f4e816d84ebd8d66af84e07ddcb6671050b015f79eb7a52ebfa6ea1b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_tls": "cc1790ee1cc88c2b24127befc48c229ff53022c6a38692340c197b13861208ad",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_tls_openloop": "b50f5c59bfab35251a791bb94cbacaeec0b69072219030303e5a364a557ea303",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_tls_auth": "ce59f37afa34189ada803d163009feaff9efbaf914aa432c5707128d02fa5643",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_transaction": "ea0035aa2d2ffb0bc42a2537502cff28d232b0fe5d6f87ca259d88c8fd776b66",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_watch": "b4e66b7e399d5dd66f799dfa1efffa6e5e76a524df02cde18c08294e321294d0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_pool": "43706342ece6c23e6b6f7dd498fdc59834a9783eea15dc56217453f8d9fcf812",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_pool_sessions": "9e5f1969a4330bab21bef0dd9bb5aaa777211edba1d3ea8d8515af46cfdab15a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xredis-tests/test_single_xredis_pool_connect": "e6e8a88361ac105037fd0d15de551f071625906bd8f3a6df52acc2bcea901b9d"
+          }
+        },
+        {
+          "label": "xredis-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xredis-static.log",
+          "log_sha256": "4b80e94146b799dbaa9c0623edcee29fcf869c7236036f0258f75065c5188fb1",
+          "binaries": {}
+        },
+        {
+          "label": "xredis-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xredis-shared.log",
+          "log_sha256": "0eb8fca69bcbd18978be9e60952041c6ae546a2519eb6363e8f1b7983f9cb70a",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 30,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xrpc-tests.log",
+          "log_sha256": "b1f3054fad88d71a23ecd407b0dfab47ec738c4e06e58afe7dbabb2c4f6619bd",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_decode": "d56ebf34c62208844003fa8bb2fa92a4a1eb5c71d2d788ea68fbfded348e6cec",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_encode": "8b2ea0915547e984dd0f22e7695816fcab8299a3e8adf30fa11efd52ad09d2e2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_dispatch": "3ff9f46fa5672599145b7a93b9e9a382c4207b6bd7f8eb2ba1335de7a40bc0e2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_methods": "8ff40da949e14404bb72d02c9591411d774451b36f87c3afd25b30dd057312b7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_id": "828a8ab1eb9477cfd71805aca6533c7ad4f15af7147418a0225c4d0c8e0a686e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_pending": "2ce7cf705892a9f5beaae845beabeb5f64e9882d2afd3586fee21ba783a40486",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_response": "dd86da8b4819bf635fddeccb35c3369c155df4c8d835da9e3513200422f20838",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_receive": "3634146071029fbe74b7d99bc286e5069663d53b93abdacd5aa966a8cc112034",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_call": "e432128c3f0626769240c166d3edcafd25a5a647cc4ddd5d01a2f136be745126",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_http_client": "0c884ea7574f0c581e799e6816173696a3a4451f202a72905d6a1d0f19b58964",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_server": "d59b164c891ea30c811a2d85b23dd9759bae5926d4c21628847abe6b22197db2",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_http_server": "9ea2943a164393c8ff8f638d7b86e0aebdae5668981b3ba4d84da278399dbd66",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_http_dial": "0ba437888364c64616a95aaf2d084aa518d11529c7a89e7dffe8b154e976b91a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_http_tls": "d97931bbbd969732ecd4b085d7c0b0e94292b11be86e1fe1e325f81efc75e09d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_http_server_tls": "5638365c19acb5728e9bd4334a979f38a66488932fdae13e2971c4aaa2d3655b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_decode": "5e26ac4df22ae9bcd62ca4547434a02d7afb47cc7a5e27bc0516f6c9a523da8a",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_encode": "c114b975d9e7389535ee46c3bd86841d937b11f2ab04bb336f773e955faf7679",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_dispatch": "3390d388816bf60e8a5e46d65479f2580a3fbb4c4dc6d9025671ee9fc37f13ec",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_methods": "2c9aa13bb41dc76547f96c6a2df6025577973136b13abfe9805ca659f9d49897",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_id": "59f01f3c821c9213e844e5467c75515b73c7e046a3f2005296ce4bddecebdd39",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_pending": "a6bdfeec8089a2dace64eb117da96afdd16720fe0a43f52da505ddd4b2e3a923",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_response": "f71fafb6b8f165280edefe4e9e35fc666954741243b3d5e3ebc4bff4e369942d",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_receive": "73a2d7453fa1e0b1925e8f22c081545c2e20ea2bbf339211d379d1b32885fe8b",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_call": "fc6007302818f8838a024d1d9cd077895b88856c04ec69d04a478194fc9f55a9",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_http_client": "f0c6e3419c5e1f9eca14d35bf82246dc6eab6dff4395c747997c29c902254e57",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_server": "1f442e175914f983fc95deadb9aad95f64636e25c9a8e687d7b2d43e70f2ff00",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_http_server": "5a6c9cccc14554a6d0ade04f16b3e36013cfc822ff5fb4ce54c0f47f158784c5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_http_dial": "9f3be90c07d50fe68f14ef7ac4521075c4b9cce9349e7f2f84fa49360e2c3dd3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_http_tls": "15db9f53f27d93305067d8dedfd3ad8f5c799b67a5eb11a83513d7f44b1a1679",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xrpc-tests/test_single_xrpc_http_server_tls": "f3d9ac9e704b702ad45ed9ca79efddedf706ce44480b1d769c96facb09840caa"
+          }
+        },
+        {
+          "label": "xrpc-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xrpc-static.log",
+          "log_sha256": "0926f6ed2fa48d196d82843805dbcc5cc0fad91bb0af8442c3aaad0203a78f9c",
+          "binaries": {}
+        },
+        {
+          "label": "xrpc-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xrpc-shared.log",
+          "log_sha256": "5d3596634b9e21d98528e7f1fbc87b62971a39187b291b5f1611c71f627bc69a",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 22,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xmqtt-tests.log",
+          "log_sha256": "5596c49335174b5e41c441ba01a798d35131e593d5d3883a5f052d81999591b2",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_wire": "5095173a0dc830cac41a7362b68dbd15e8aa23ad76a7065597923ef4de14cda5",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_properties": "2b40ef9d1f0e57390a71dadfad1ed33d869872ac6ad9cd563c16ef00f9eecaa3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_packet": "fb04d3abac44ee8e6b675cca55e4631d792d0f5057bd32d6a6ca2585c448a6fb",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_codec5": "ea96889547227445d818f86b2125e74490baf6dc897f637ea40986b8313d87a0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_codec311": "eff4d11d34a54fc87c4a5ddba82ab65e24e8823d19498bccf111c1808c7801ac",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_negotiation": "7ea2c9249f094f227c0a3cc1c2939c94136fe7bb41490048eba623ffa887d567",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_client": "b3215a7fefae9395d90a4c2b18bb3f09fdfe22864a08fd42979fbbff8d1aab51",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_client_auth": "393a822aa723155ad63751cfd62ab8bbf89b408bf37061012142c5f5a2abb6c6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_client_dial": "bce3827b1e30069335fdfd8f8460b76d916e84bfd2f6f14f202764cb8759639f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_wire": "6e26f726e5b8c873fed4e09da687351a61e823997dea29086a1171d478bb49b7",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_properties": "dabea46ccff92c811c96aa031b255aac548a0a7d8cb5ecca6f2c44643c78c296",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_packet": "9b0e5f97d455e5807f649980c2252e4a76c95103dc5f566d80f6b79bac20d222",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_codec5": "e738ea29c3be787b52cb06eeb8ff2b507f6de9e7a8505fb47ae93aad6a773306",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_codec311": "55a26a48cea3e62564ab4c7f9defcea381ac022e55f3e07bf667535d7069cf40",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_negotiation": "a2ce9798ea39536c6c3651180c2e361ae969f9e16c315b3b2b2866517feefc19",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_client": "32f0a415efac660c4da7409f5a515bc14001e2209025651131cf9259ed282c35",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_client_auth": "18cd64ab15379fb4a343067dc4731933f92cdd69efa365710e70240c344935b8",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_auth_cancel_retirement": "cc599056d33430b887a368596fc0219993f89927fd7e5d80337b468b3e94e982",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_auth_completion_reservation": "784cc3cd1d0bce53a478bfafd5d11e56031a3d65227c82c0786f6435b36c2524",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_client_dial": "dd4fa24bd81c3bc430713e762d79030dda3f6023b1dc1cfcd7cb7c9b70edfe0f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_dial_auth": "5bac0e71e23f2211c05f7b48c666e5a346592e82877a8dc52b65c843eedf10d6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xmqtt-tests/test_single_xmqtt_dial_retirement": "62a2dcb6237f319245244db42797d6c10cf29637895ec52afb2d8d37b1992a12"
+          }
+        },
+        {
+          "label": "xmqtt-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xmqtt-static.log",
+          "log_sha256": "543902149b9b86936eb93b12d8c92402e701439b04bf4b03df49f2f023f4a264",
+          "binaries": {}
+        },
+        {
+          "label": "xmqtt-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xmqtt-shared.log",
+          "log_sha256": "e46008ca07c580b0ed726b9c69bb6fb0389c7736c16924fb927f8bff799436ae",
+          "binaries": {}
+        },
+        {
+          "label": "xcron-tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--no-examples",
+            "--jobs",
+            "4",
+            "--cflag=-O2",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--cflag=-O1",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "programs": 34,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xcron-tests.log",
+          "log_sha256": "5bad90293c22801a779ff05b67d1e39f07c39b6403de5eb07ee395f57a16db39",
+          "binaries": {
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_expression": "7444c8947a8fec1345237cb1024548fd6b040fa78ca8f36a02c27655146d3e37",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_calendar": "32209f4aa2e6add9950b1bb2bc7d2c368917ccbf5068a99e541e9d2cdbd64ab3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_timezone": "8bf44bb76a7a73879e92f1e78391f0829bf0cd3b784129ab8daaa621fe4d3baa",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_tzif": "3ecae0ec01a1149366dda2c22ab9c624fd3b1832877c64886440e0e4e339028c",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_zoned": "5745dae4adb9a06db1403a6a192b9b035c97a0699e11595f3cdbecaf1e9c9579",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_scheduler": "3ee327a1e06ac3500ae9ebc0284049d5847d995f3b8dd8263fcbf857678983cc",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_executor": "beabc05b2c5f4a7deb9b27d9a06a4e5055cddb17d83846bc00e4fae71220a8ee",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_service": "60aafe04ccb1486449e18b373686c15e27949d3881d98050cb45fe5f2c8ab110",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_tzdb": "85c9aa29b72b2e85d53ce5204e32d1be831a6f06777f535105c76088d8fa6f41",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_tzdb_file": "9e261ba397fea15cb77e5bd9826cefb5f2e5ed2a2c23b3c6ec562ed218ef7688",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_delivery": "af002d1eb8c3b3d1c4a71a855cc444278e475c95370fb66180d3e5707fcbecb6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_occurrence": "169badfaf700d9a0b43b92e3d6afdc52a46c800e3bf8b718a2d3f6c8b091c4bd",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_scheduler_selected": "ec2e20ae5c9e558e05adab2418a427b7edc2401027cc0cf2d7076d4d061f005e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_executor_selected": "bcafb4be0d83c27d722c83024e57dc9ab1f146df9b42d33a3ec72d016237e3fe",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_service_selected": "0d892741cbc03b8ecf25c76fd5daaa2decca119e9db01df66d6c5f726643074e",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_event_waiter": "63040761598e1ec8a433339d3378d4d90585339c3960fec0e3776c09463314ef",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_expression": "bb4aa79d910d58ef6c86faf585895b0b73a83cd4f825e8a56013028ab6326b23",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_calendar": "eee5f7a28325896c60442ce541a8c1fe8fb8f60b927059f85710fcdd1dd6b9d6",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_timezone": "61360953d0c304f90c177f828673d50b3d72c06060687d01c9eaf4ae515b9c21",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_tzif": "6fa9e9900a94a0072853267584dfc7c5cff51ec00331b6a1b1d8ec470fd886d3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_zoned": "9a8e88929e88a978e264408937eab1b7d1aaaca98d43f8db0a83bbbe1937aa43",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_scheduler": "dd08d71b9249fa1e6a364092edd7b3ea5bb4c7254e950cd2dd5eb9d533aad160",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_executor": "7f543be2bbb3ac9de5a2709b116f4a089285c2bdae8f21cb51253cbcf46bc0b0",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_service": "ea7734f81e022d119e4f1044a13b7f9709a715377ff25f5c2c3e6ee930858fba",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_service_waiter": "03d18f0dd4f8627545b802868264c637a6f63a6b522c67a9112c7f1806cc48b3",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_tzdb": "4bf74adfb77dcb9f162c80caea2d167b5b04036e4e9430aac6452c0602145875",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_tzdb_file": "d99c549bda9ed03b53d112311d734e30e024a3d82dcd676f7d82ff9919219d47",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_delivery": "d2896052775240f4694507ff22f1d01316d3e31a8839882fef63ff85456811bb",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_occurrence": "7a5fbb019e008361836ba1e97c9d37a1498de0ec38b8a22d29f10731e444941f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_scheduler_selected": "db3819dfb97c0e03360fcdf49aefd1c18235ed73cbc8add0cd8450c436689242",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_executor_selected": "14418d0883aee55dc2d21df96672ff2de7d157a6b06231842925f29bb3608ca1",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_service_selected": "09accca474729ede4fe493d3663f2a235a469b21276030a9199843f5b5bd661f",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_xcron_service_readable": "0343966883385e6e5b84d0210a2cbd0e54e84a7fd0a0a9f98dce5b2d6171a019",
+            "out/service-extensions/tcp-write-observer-20261109/binaries/wsl/xcron-tests/test_single_event_waiter": "d51becc7b5264db60caab284ace1ab34ca5d9c72af558b428fcacff629314208"
+          }
+        },
+        {
+          "label": "xcron-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xcron-static.log",
+          "log_sha256": "2037d601feebce1f0ae9ee270250ebe3c81cd19cd17981fab4a34f22d57b1c0d",
+          "binaries": {}
+        },
+        {
+          "label": "xcron-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "programs": 0,
+          "log": "out/service-extensions/tcp-write-observer-20261109/wsl-xcron-shared.log",
+          "log_sha256": "01f7173764cd9fae443311efa35aa84d53a637c8f2eca018be34f965719fba32",
+          "binaries": {}
+        }
+      ],
+      "probe_receipts": [
+        {
+          "label": "regression-before-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-before.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-before"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-before",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-before"
+          ],
+          "exit_code": 1,
+          "expected_exit_code": 1,
+          "log_sha256": "9bc99a46d67e7a25d99804f2afc24b5158ce27918e496096e118b29d0e95cb9b"
+        },
+        {
+          "label": "qos1-before-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-before.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-before"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-after-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-after.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-after"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "label": "regression-after",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-regression-after"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "a75f1ae3dc153497bd4c7a144f31116ea5504670616cd8942664653d63e777ad"
+        },
+        {
+          "label": "qos1-after-build",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Iinclude",
+            "-Iextlibs/xmqtt/include",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-after.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-after"
+          ],
+          "exit_code": 0,
+          "expected_exit_code": 0,
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "layout": [
+        {
+          "profile": "base",
+          "version": "before",
+          "layout": {
+            "stream": 704,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "53ca18db2760c3efaa144a59b916a9ccbf06c67bb53024ca8f6872188cce02af"
+        },
+        {
+          "profile": "base",
+          "version": "after",
+          "layout": {
+            "stream": 704,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "939eb7cc6c050b91f931ef0b4cdb2adf0a3ae05877a146016fab30780c09f313"
+        },
+        {
+          "profile": "retire",
+          "version": "before",
+          "layout": {
+            "stream": 880,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "94bde95446fa105462a258dcbefe8a1a4be44912374ac343cc5cac2a8c2462c6"
+        },
+        {
+          "profile": "retire",
+          "version": "after",
+          "layout": {
+            "stream": 880,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "9911baeae2564f5f730d143ef31420d739ae3e7516f3868fbd71046cd8e8c26e"
+        },
+        {
+          "profile": "future-retire",
+          "version": "before",
+          "layout": {
+            "stream": 936,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 674,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "cc2ac3a3f53bd09fdc1ca4bc7f198cf2f85dc40b0a0ba1817d02fc69e7bda689"
+        },
+        {
+          "profile": "future-retire",
+          "version": "after",
+          "layout": {
+            "stream": 936,
+            "mutex": 96,
+            "cond": 80,
+            "pending": 673,
+            "watch": 675,
+            "depth": 684,
+            "next": 696
+          },
+          "binary_sha256": "0e750390f362e2f5cec1cdb8a96514e856ec2ecc9c10c716757a41c541b71354"
+        }
+      ],
+      "measurements": {
+        "complete": true,
+        "source_map_sha256": "e75eb4dd8a527cf70bb614a945dcf195cc812373450366351f28d9caeea985e5",
+        "samples": {
+          "before": [
+            {
+              "publishes_per_sec": 120768.384,
+              "latency_p50_us": 252.9,
+              "latency_p99_us": 460.1,
+              "latency_max_us": 1357.8,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 120051.485,
+              "latency_p50_us": 252.8,
+              "latency_p99_us": 470.5,
+              "latency_max_us": 1103.1,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 118066.056,
+              "latency_p50_us": 255.5,
+              "latency_p99_us": 485.6,
+              "latency_max_us": 3039.4,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 121442.194,
+              "latency_p50_us": 252.3,
+              "latency_p99_us": 449.8,
+              "latency_max_us": 883.9,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 120328.26,
+              "latency_p50_us": 251.9,
+              "latency_p99_us": 432.9,
+              "latency_max_us": 3433.3,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 113922.059,
+              "latency_p50_us": 255.5,
+              "latency_p99_us": 550.0,
+              "latency_max_us": 7714.3,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 115856.25,
+              "latency_p50_us": 255.9,
+              "latency_p99_us": 530.3,
+              "latency_max_us": 1449.6,
+              "checksum": 9306512250.0
+            }
+          ],
+          "after": [
+            {
+              "publishes_per_sec": 120714.968,
+              "latency_p50_us": 252.8,
+              "latency_p99_us": 418.2,
+              "latency_max_us": 763.2,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 119339.434,
+              "latency_p50_us": 252.3,
+              "latency_p99_us": 502.4,
+              "latency_max_us": 3239.8,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 120170.825,
+              "latency_p50_us": 253.2,
+              "latency_p99_us": 407.1,
+              "latency_max_us": 1161.1,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 118353.285,
+              "latency_p50_us": 252.5,
+              "latency_p99_us": 528.1,
+              "latency_max_us": 1400.6,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 120178.937,
+              "latency_p50_us": 252.1,
+              "latency_p99_us": 444.4,
+              "latency_max_us": 885.3,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 120835.524,
+              "latency_p50_us": 252.4,
+              "latency_p99_us": 446.5,
+              "latency_max_us": 2937.5,
+              "checksum": 9306512250.0
+            },
+            {
+              "publishes_per_sec": 118193.779,
+              "latency_p50_us": 252.4,
+              "latency_p99_us": 439.5,
+              "latency_max_us": 5844.4,
+              "checksum": 9306512250.0
+            }
+          ]
+        },
+        "summary": {
+          "before": {
+            "publishes_per_sec": {
+              "median": 120051.485,
+              "relative_mad": 0.011584271531501694,
+              "relative_central_range": 0.04091689494719707,
+              "noise_qualified": true
+            },
+            "latency_p50_us": {
+              "median": 252.9,
+              "relative_mad": 0.0039541320680110716,
+              "relative_central_range": 0.012653222617635384,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 470.5,
+              "relative_mad": 0.04399574920297553,
+              "relative_central_range": 0.1710945802337937,
+              "noise_qualified": false
+            }
+          },
+          "after": {
+            "publishes_per_sec": {
+              "median": 120170.825,
+              "relative_mad": 0.005531284319634219,
+              "relative_central_range": 0.01965271520770528,
+              "noise_qualified": true
+            },
+            "latency_p50_us": {
+              "median": 252.4,
+              "relative_mad": 0.0003961965134706589,
+              "relative_central_range": 0.0019809825673534074,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 444.4,
+              "relative_mad": 0.05895589558955893,
+              "relative_central_range": 0.18946894689468946,
+              "noise_qualified": false
+            }
+          }
+        },
+        "binaries": {
+          "before": {
+            "path": "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-before",
+            "sha256": "9eb53a0e9633232365117929d965c4808d5d8895b325f619eb3983c1ff09d237"
+          },
+          "after": {
+            "path": "/mnt/d/GIT/xrt/out/service-extensions/tcp-write-observer-20261109/wsl-qos1-after",
+            "sha256": "d790032407db1578ba888446d8cd3680f1bc6b8f1272b67b301c1641d70950b2"
+          }
+        },
+        "scope": "Same current MQTT client/fixture/workload and before/after immutable Core headers;7 alternating samples of300000 MQTT5 QoS1/window32. Original3% relative MAD,6% central range and5% throughput/10% P99 limits. Unpinned loopback fixture; no broker parity/fixed-arrival/native Linux claim."
+      },
+      "performance_comparison": {
+        "publishes_per_sec": {
+          "after_over_before": 1.0009940735010483,
+          "noise_qualified": true,
+          "limit_ratio": 0.95,
+          "limit_direction": "minimum",
+          "decision": "pass"
+        },
+        "latency_p99_us": {
+          "after_over_before": 0.9445270988310308,
+          "noise_qualified": false,
+          "limit_ratio": 1.1,
+          "limit_direction": "maximum",
+          "decision": "unqualified"
+        }
+      },
+      "package_archive": {
+        "path": "out/service-extensions/tcp-write-observer-20261109/wsl-package-index.json",
+        "sha256": "324b989126bd9ae675c50be00b0a53e8b00d87c20d73c1dfb40200f7887b9f8f",
+        "files": 32
+      }
+    }
+  },
+  "shared_tools_tests": 61,
+  "failures_and_corrections": [
+    "The first combined Core run failed the existing Stream-size assertion on both OSes. Saved old/current layout probes prove identical704 base,744/880 retirement and800/936 Future+retirement sizes (Windows/WSL). The assertion now separately budgets the real optional mutex+cond storage, keeping the original base/Future/dial limits.",
+    "One new-test formatting revision failed -Werror=misleading-indentation; the corrected readable source and all earlier logs/source are retained.",
+    "The first base layout probe referenced disabled xcond; enabling the cond declaration profile fixed the diagnostic only.",
+    "The initial docs command omitted required Core family/prefix arguments; the corrected net_tcp family command passes and both receipts are retained.",
+    "Initial extension public-root targets compiled and launched0/1 programs because they aggregate examples; these are not counted as complete tests. Explicit *_tests aggregators plus event_waiter subsequently executed116 programs per OS."
+  ],
+  "limits": [
+    "WSL Linux executions are not native Linux production acceptance.",
+    "Same-workload immutable Core comparison uses an unpinned local byte-peer MQTT5 QoS1 fixture,7 alternating300000-publish/window32 samples, original3% MAD/6% central range and5% throughput/10% P99 limits; retain every failed noise gate. No broker parity/fixed-arrival/general zero-cost claim.",
+    "No native >=72h soak or complete performance/release acceptance is established. All four products remain developing; MQTT TLS/WebSocket/session/expiry/reconnect/durable scope, remaining Redis/RPC/Cron scope and known xcron tzdb_file formal-profile gap remain."
+  ],
+  "evidence_root": "out/service-extensions/tcp-write-observer-20261109"
+}

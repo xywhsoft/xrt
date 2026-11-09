@@ -9470,16 +9470,60 @@
 				"src/network/tcp_retire.c"
 			],
 			"tests": [
-				"tests/network/test_net_tcp_retire.c"
+				"tests/network/test_net_tcp_retire.c",
+				"tests/network/test_tcp_write_reentry.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_net_tcp_retire.c"
+				"tests/single/test_single_net_tcp_retire.c",
+				"tests/single/test_single_net_tcp_write_reentry.c"
 			],
 			"examples": [],
 			"benchmarks": [],
 			"docs": [
 				"docs/api/tcp.md"
 			]
+		},
+		{
+			"name": "net_tcp_write_reentry_iocp_tests",
+			"state": "implemented",
+			"asset_platforms": [
+				"windows"
+			],
+			"feature": null,
+			"depends": [
+				"net_tcp_retire",
+				"net_port_iocp"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/network/test_tcp_write_reentry_iocp.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": []
+		},
+		{
+			"name": "net_tcp_write_reentry_uring_tests",
+			"state": "implemented",
+			"asset_platforms": [
+				"linux"
+			],
+			"feature": null,
+			"depends": [
+				"net_tcp_retire",
+				"net_port_uring"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/network/test_tcp_write_reentry_uring.c"
+			],
+			"single_tests": [],
+			"examples": [],
+			"docs": []
 		},
 		{
 			"name": "net_tcp_file",

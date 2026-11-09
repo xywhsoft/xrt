@@ -53505,6 +53505,7 @@ struct xnetstream {
 	bool ReadPending;
 	bool ReadDirect;
 	bool WritePending;
+	bool WriteConsuming; /* Worker-only: releasers may append, not drive this prefix again. */
 	bool WatchPending;
 	bool WriteDrained;
 	bool OpenEmitted;
@@ -161844,12 +161845,16 @@ static bool __xrtNetStreamConsumeWrite(
 	size_t iSize
 )
 {
+	/* Buffer releasers can submit more data on this Worker. Keep the just-sent
+	 * prefix private until BOTH its views and byte credit have retired. */
+	pStream->WriteConsuming = true;
 	size_t iConsumed = xrtNetBufConsume(
 		&pStream->WriteBuffer,
 		iSize
 	);
 
 	if ( iConsumed != iSize ) {
+		pStream->WriteConsuming = false;
 		__xrtNetStreamSetError(
 			XERR_INTERNAL,
 			XNET_ERROR_STREAM_WRITE,
@@ -161860,6 +161865,7 @@ static bool __xrtNetStreamConsumeWrite(
 		return false;
 	}
 	__xrtNetStreamReleaseSendBudget(pStream, iConsumed);
+	pStream->WriteConsuming = false;
 	return true;
 }
 
@@ -163127,7 +163133,7 @@ static void __xrtNetStreamDriveWrite(xnetstream* pStream)
 {
 	xnetstreamstate State = xrtNetStreamState(pStream);
 
-	if ( pStream->WritePending ||
+	if ( pStream->WriteConsuming || pStream->WritePending ||
 		 pStream->AbortRequested ||
 		 xrtAtomic32Load(&pStream->AbortGate, XMEMORY_ACQUIRE) ||
 		 ((State != XNET_STREAM_OPEN) &&

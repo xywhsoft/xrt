@@ -8841,3 +8841,62 @@ Evidence: extlibs/xmqtt/tests/results/dial-retirement-20261109.json. The origina
 four-library goal stays active; MQTT TLS/WebSocket/session/expiry/reconnect/durable
 state, remaining Redis/RPC/Cron scope and full native/performance/>=72h production
 release requirements remain.
+
+
+## 2026-11-09 - serialize TCP prefix consumption across reentrant release callbacks
+
+Developed directly on master from cd34984c; no branch, checkout or worktree
+operation. The MQTT TLS prerequisite probe exposed a real Core TCP defect: the
+first release callback of a vector write could append and drive the still-being-
+consumed original prefix again. The Windows byte-peer diagnostic received64 bytes
+instead of48, with no Drain and incorrect byte credit. The final identical
+regression fails on the saved old header and passes on current Core on both OSes.
+
+A worker-only WriteConsuming flag now spans buffer consumption and exact credit
+return. Nested sends remain admissible and append FIFO; the enclosing readiness
+or completion driver resumes after the completed prefix is fully consumed. No
+allocation, lock, queue, runtime or public API is added. Before/current private
+Stream sizes are identical in all three measured profiles: base/retire/Future+
+retire704/744/800 bytes on Windows and704/880/936 on WSL. The flag occupies prior
+padding; private bool offsets change, following aligned fields do not.
+
+Seven real-loopback scenarios exercise copy/ref-batch/single-ref appends,
+close/abort from the releaser, and high/low-water appends. They assert exact peer
+bytes and FIFO order, release pointer/size and exactly-once counts, zero remaining
+credit and actual physical retirement. The test is registered for modular/single
+selection plus explicit IOCP and io_uring. The single header is regenerated.
+
+Frozen6274 C/header/config/tool inputs remain identical throughout final
+validation and measurement. This Core change therefore reruns all four explicit
+*_tests aggregators plus event_waiter: xredis30, xrpc30, xmqtt22, xcron/waiter34,
+116 C programs per OS. Windows additionally passes30 Core TCP/retire/ownership/
+IOCP programs and four related TLS programs. WSL passes22 select/epoll/io_uring
+Core programs, four TLS programs under ASan/UBSan/leak checking, plus two TSan
+reentrant-write executions. Both OSes pass eight root static/shared consumers;
+executed test binaries and actual package closures are archived with hashes.
+Generated/features/API/docs checks and61 shared-tool unit tests pass.
+
+Initial combined testing exposed an existing size assertion that omitted the
+optional physical-retirement mutex/cond. Old/current layout probes prove no
+size growth; that test now separately budgets those actual platform primitives,
+retaining the original base/Future/dial limits. Earlier test-format, diagnostic
+feature-selection and docs-invocation failures remain preserved. Initial public
+root targets launched0/1 programs because they collect examples; those runs are
+not counted as complete tests. Explicit test aggregators provide the116 counts.
+
+Seven alternating300000-QoS1/window32 samples use the same current MQTT client,
+fixture and compiler flags, changing only immutable before/current Core headers.
+WSL throughput medians120051.485/120170.825 publishes/s qualify under the original
+3% MAD/6% central-range noise limits and remain within the5% regression limit.
+Windows medians388797.449/391014.946 are descriptive only: current-sample noise
+fails. Both platforms' P99 comparisons remain unqualified. All28 formal outputs
+are retained; no baseline/noise/regression threshold is forced or relaxed. These
+unpinned loopback measurements do not establish general performance acceptance,
+broker parity, fixed-arrival behavior or native Linux production performance.
+
+Evidence: docs/development/tcp-write-reentry-20261109.json, with raw artifacts in
+out/service-extensions/tcp-write-observer-20261109. All four products remain
+developing and the original goal remains active. MQTT TLS/WebSocket/session/
+expiry/reconnect/durable state, remaining Redis/RPC/Cron scope, native Linux,
+>=72h soak and full release/performance acceptance (including the retained xcron
+tzdb_file formal-profile gap) remain outstanding.

@@ -16,7 +16,7 @@ int main(void)
 	xnetspan Span;
 	xnetref Ref;
 	/* Native ownership admission and deferred owned-event retirement add
-	 * fixed metadata. The x64 base is 696 bytes (800 with dial/Future);
+	 * fixed metadata. The x64 base budget is 704 bytes, with separately gated additions;
 	 * retain a bounded 128-byte allowance above the earlier IO-only budget. */
 	size_t iStreamSizeLimit = 576u + 128u;
 
@@ -28,6 +28,10 @@ int main(void)
 		/* TinyCC POSIX uses a pthread mutex for WaitLock. Account for that
 		 * fixed platform storage while keeping the remaining Future budget. */
 		iStreamSizeLimit += (56u + sizeof(xrt_spinlock) + 7u) & ~(size_t)7u;
+	#endif
+	#if defined(XRT_FEATURE_NET_TCP_RETIRE)
+		/* Optional physical-retirement wait owns these actual platform primitives. */
+		iStreamSizeLimit += sizeof(xmutex) + sizeof(xcond);
 	#endif
 	testRequire(sizeof(xnetstream) <= iStreamSizeLimit,
 		"TCP stream fixed object is too large");
