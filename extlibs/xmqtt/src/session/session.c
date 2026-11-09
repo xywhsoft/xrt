@@ -19,7 +19,7 @@ struct xmqttsession {
     xatomic32 Refs;xmutex Gate;xmqttsessionconfig Config;xmqttnegotiated Peer;
     size_t BaseBytes,LiveBytes,Objects,Active,RxCount,Prepared,Buckets;
     xmqttsessionpacket **Hash,*Head,*Tail,*ReadyHead[2],*ReadyTail[2],*Selected;
-    unsigned char *Ids,*Receive;uint16 Next,Quota,InitialQuota;uint64 Generation;
+    unsigned char *Ids,*Receive;uint16 Next,Quota,InitialQuota;uint64 Generation,Selection;
     bool Connected,HasState,Persistent,InfiniteExpiry;uint32 Expiry;double LastNow,ExpiresAt,ClosedAt;
     unsigned char Data[];
 };
@@ -164,7 +164,7 @@ XMQTT_API xmqttsessionstatus xmqttSessionOpen(xmqttsession* S,const xmqttpacket*
     xmqttsessionpacket* Drop=Reset?xmqttSessionClearLocked(S):NULL;
     S->Connected=S->HasState=true;S->Persistent=!Connect->Body.Connect.CleanStart;S->Peer=N;
     S->Peer.ClientId=S->Config.ClientId;S->Peer.AuthMethod=S->Peer.ServerReference=S->Peer.ResponseInfo=(xstrview){0};S->Peer.HasAuthMethod=false;
-    S->LastNow=Now;S->ExpiresAt=INFINITY;S->InfiniteExpiry=true;++S->Generation;S->Quota=S->InitialQuota=N.SendReceiveMaximum;
+    S->LastNow=Now;S->ExpiresAt=INFINITY;S->InfiniteExpiry=true;++S->Generation;S->Selection=0;S->Quota=S->InitialQuota=N.SendReceiveMaximum;
     for(xmqttsessionpacket* P=S->Head;P;P=P->Next){P->ReleaseSent=false;xmqttSessionReadyAdd(S,P);}
     *Out=N;xrtMutexUnlock(&S->Gate);xmqttSessionListRelease(Drop);return Reset?XMQTT_SESSION_RESET:XMQTT_SESSION_DONE;
 }
@@ -238,7 +238,7 @@ XMQTT_API xmqttsessionstatus xmqttSessionPublish(xmqttsession* S,const xmqttpack
 }
 static xmqttsessionframe xmqttSessionFrame(xmqttsession* S,xmqttsessionpacket* P)
 {
-    xmqttsessionframe F={0};F.Size=sizeof(F);F.Packet=P;F.Generation=S->Generation;F.Type=(xmqttpackettype)P->SelectedType;F.Identifier=P->Identifier;
+    xmqttsessionframe F={0};F.Size=sizeof(F);F.Packet=P;F.Generation=S->Generation;F.Selection=S->Selection;F.Type=(xmqttpackettype)P->SelectedType;F.Identifier=P->Identifier;
     if(F.Type==XMQTT_PACKET_PUBREL)F.Prefix=(xbytesview){P->Release,4};
     else {F.Prefix=(xbytesview){P->Retry?&P->Duplicate:P->Packet.Wire.Data,1};F.Tail=(xbytesview){P->Packet.Wire.Data+1,P->Bytes-1};}
     return F;
@@ -249,11 +249,12 @@ XMQTT_API xmqttsessionstatus xmqttSessionNext(xmqttsession* S,xmqttsessionframe*
     xrtMutexLock(&S->Gate);if(!S->Connected){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"cannot select frame offline");}
     xmqttsessionpacket* P=S->ReadyHead[1]?S->ReadyHead[1]:S->Quota?S->ReadyHead[0]:NULL;
     if(S->Selected || !P){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_EMPTY;}
+    if(S->Selection==UINT64_MAX){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"session selection sequence exhausted");}
     if(!xmqttSessionSeparate(Out,sizeof(*Out),P,P->Allocation)){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_ERROR,"frame output overlaps owned packet");}
     bool Release=P->Stage==XMQTT_SESSION_PUBREL;
     if((Release?4:P->Bytes)>S->Peer.SendPacketBytes || (!Release && (P->Qos>S->Peer.MaximumQos || ((P->Packet.Flags&1u) && !S->Peer.RetainAvailable)))){
         xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"resumed packet exceeds new peer capability");}
-    xmqttSessionReadyRemove(S,P);P->Need=false;P->SelectedType=Release?XMQTT_PACKET_PUBREL:XMQTT_PACKET_PUBLISH;P->Retry=P->Attempted;S->Selected=P;
+    xmqttSessionReadyRemove(S,P);P->Need=false;P->SelectedType=Release?XMQTT_PACKET_PUBREL:XMQTT_PACKET_PUBLISH;P->Retry=P->Attempted;S->Selected=P;++S->Selection;
     if(!Release){--S->Quota;P->Attempted=true;}
     xmqttSessionPacketRef(P);xmqttSessionPacketRef(P);*Out=xmqttSessionFrame(S,P);
     xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DONE;
@@ -262,7 +263,7 @@ XMQTT_API xmqttsessionstatus xmqttSessionSent(xmqttsession* S,const xmqttsession
 {
     if(!S || !xmqttSessionSpan(F,sizeof(*F)) || F->Size!=sizeof(*F))return xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session frame token");
     xrtMutexLock(&S->Gate);xmqttsessionpacket* P=S->Selected;
-    if(!S->Connected || !P || F->Packet!=P || F->Generation!=S->Generation){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"stale session frame generation");}
+    if(!S->Connected || !P || F->Packet!=P || F->Generation!=S->Generation || F->Selection!=S->Selection){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"stale session frame selection");}
     xmqttsessionframe Expected=xmqttSessionFrame(S,P);
     if(F->Type!=Expected.Type || F->Identifier!=Expected.Identifier || F->Prefix.Data!=Expected.Prefix.Data || F->Prefix.Size!=Expected.Prefix.Size || F->Tail.Data!=Expected.Tail.Data || F->Tail.Size!=Expected.Tail.Size){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_ERROR,"altered session frame token");}
     S->Selected=NULL;if(F->Type==XMQTT_PACKET_PUBLISH)P->Sent=true;else P->ReleaseSent=true;

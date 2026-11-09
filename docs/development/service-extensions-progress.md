@@ -9246,3 +9246,43 @@ remains a backup; subsequent development continues directly on master. These are
 regression checks, not performance/native-deployment/72h release qualification.
 Evidence: docs/development/service-extensions-mainline-20261110.json and
 out/service-extensions/mainline-verified-20261110. The four-product goal remains active.
+
+## 2026-11-10: exact MQTT frame selections during repeated PUBREL
+
+A retained earlier PUBREL frame could finish a later selection in the same
+connection: Packet, Generation, type/id and immutable spans were identical.
+A new regression demonstrates old Sent returning DONE where STATE_ERROR is
+required. Next now issues a distinct Generation/Selection pair; stale Sent
+leaves the actual selection and physical reference intact. uint64 sequence
+exhaustion is transactional; accepted Open resets it under a new generation.
+
+Rebuild consumers for the developing frame ABI64->72 on x64; earlier field
+offsets and config112/info88/packet-info32 remain. Fixed managed state grows8
+bytes. No extra successful-path allocation/payload copy/gate. Tests cover256
+repeated selections/version, changed/old-size tokens, diagnostic OOM, PUBCOMP
+while a repeated frame is selected, ready-flow fencing, retained owner destruction
+and controlled UINT64_MAX/reconnect boundaries in the single implementation.
+
+Both OSes cover33 MQTT root programs,2 minimal units and the example. WSL adds
+ASan/UBSan/leak,2 TSan units and10 extra lifecycle runs. A new literal peer case
+checks a rejected old PUBREL token, a one-byte repeated write cut and reconnect.
+Thirteen modular/single/root/leaf/static/shared/ASan forms pass182 cases over364
+actual TCP connections. Eight package consumers and89 focused tools pass.
+An OOM-test scope typedef typo initially fails compilation after13 modular
+passes/OS; correcting only that test and running the last modular plus19 singles
+completes coverage, with exact source delta, old failures and all binaries retained.
+
+Both root archives retain8 other MQTT and139 Core objects byte-identically.
+Matched7-sample/1-warmup primitive comparisons use preserved pre-phase binaries
+and unchanged benchmark source/arguments. Qualified pairs: Win9/12, WSL4/12;
+all qualified pairs and raw medians stay inside5% throughput loss, but full
+matrices remain unqualified under unchanged3% MAD/6% central-range bounds.
+Pure leaf text: Win74132, WSL75680 bytes; no Client/Engine/Future/Promise symbols.
+This is not broker/P99/native deployment/72h performance acceptance.
+
+A separate controlled reference-count audit also confirms Next can wrap its
+unchecked two-reference increment (artificial boundary, restored before free).
+Fix bounded atomic reservation next, before Client attachment. The full goal
+remains active and all products developing. Portable evidence:
+extlibs/xmqtt/tests/results/selection-20261110.json; raw sources, programs and
+failures: out/service-extensions/xmqtt-selection-20261110. No branch or push.

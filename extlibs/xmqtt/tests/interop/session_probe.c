@@ -41,9 +41,9 @@ int main(int Argc,char** Argv)
 {
     if(Argc!=4)return 2;
     unsigned long Port=strtoul(Argv[1],NULL,10);unsigned V=(unsigned)strtoul(Argv[2],NULL,10),Scenario=(unsigned)strtoul(Argv[3],NULL,10);
-    if(!Port || Port>65535 || (V!=5 && V!=311) || Scenario>5)return 2;
+    if(!Port || Port>65535 || (V!=5 && V!=311) || Scenario>6)return 2;
     Version=V==5?XMQTT_VERSION_5:XMQTT_VERSION_311;xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=Version;K.ClientId=XRT_STR_LITERAL("session-wire");xmqttsession* S=NULL;spCheck(xmqttSessionCreate(&K,&S),"session create");
-    const xmqttsessionpacket* Held=NULL;xmqttsessionframe Old={0};unsigned Delivered=0;
+    const xmqttsessionpacket* Held=NULL;xmqttsessionframe Old={0},Partial={0};unsigned Delivered=0;
     for(unsigned Round=0;Round<2;++Round){Deadline=xrtTimer()+10;xnetaddr Address;xrtNetAddrLoopback(&Address,XNET_FAMILY_IPV4,(uint16)Port);Socket=xrtNetSocketOpen(XNET_FAMILY_IPV4,XNET_SOCKET_STREAM,0);
         spCheck(Socket && xrtNetSocketConnect(Socket,&Address)==XNET_RESULT_OK && xrtNetSocketSet(Socket,XNET_OPTION_NONBLOCK,1) && xrtNetSocketSet(Socket,XNET_OPTION_NO_DELAY,1),"loopback connection");
         xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.ClientId=K.ClientId;xmqttproperty E={0};E.Id=XMQTT_PROPERTY_SESSION_EXPIRY;E.Type=XMQTT_PROPERTY_UINT32;E.Value.Number=60;
@@ -62,7 +62,11 @@ int main(int Argc,char** Argv)
             xmqttsessionframe F;spCheck(xmqttSessionNext(S,&F)==XMQTT_SESSION_DONE,"required first/retry frame");
             if(!Round && Scenario==2){spSend(F.Prefix.Data,F.Prefix.Size);spSend(F.Tail.Data,6);Old=F;}
             else {spFrame(S,&F,true);
-                if(!Round && (Scenario==1 || Scenario==3)){Ack=spPacket();spCheck(xmqttSessionAcknowledge(S,&Ack)==XMQTT_SESSION_DONE && Ack.Type==XMQTT_PACKET_PUBREC,"first PUBREC");if(Scenario==3){spCheck(xmqttSessionNext(S,&Old)==XMQTT_SESSION_DONE,"first PUBREL plan");spSend(Old.Prefix.Data,1);}}
+                if(!Round && (Scenario==1 || Scenario==3 || Scenario==6)){Ack=spPacket();spCheck(xmqttSessionAcknowledge(S,&Ack)==XMQTT_SESSION_DONE && Ack.Type==XMQTT_PACKET_PUBREC,"first PUBREC");if(Scenario==3){spCheck(xmqttSessionNext(S,&Old)==XMQTT_SESSION_DONE,"first PUBREL plan");spSend(Old.Prefix.Data,1);}
+                    if(Scenario==6){spCheck(xmqttSessionNext(S,&Old)==XMQTT_SESSION_DONE,"old PUBREL selection");spFrame(S,&Old,false);spCheck(xmqttSessionSent(S,&Old)==XMQTT_SESSION_DONE,"old PUBREL emitted");
+                        Ack=spPacket();spCheck(Ack.Type==XMQTT_PACKET_PUBREC && xmqttSessionAcknowledge(S,&Ack)==XMQTT_SESSION_DUPLICATE,"literal duplicate PUBREC");
+                        spCheck(xmqttSessionNext(S,&Partial)==XMQTT_SESSION_DONE && Partial.Generation==Old.Generation && Partial.Selection!=Old.Selection,"distinct same-generation frame");
+                        spCheck(xmqttSessionSent(S,&Old)==XMQTT_SESSION_STATE_ERROR,"old frame cannot finish new repeat");xrtClearError();spSend(Partial.Prefix.Data,1);}}
                 if(Round){Ack=spPacket();spCheck(xmqttSessionAcknowledge(S,&Ack)==XMQTT_SESSION_DONE,"resumed acknowledgement");if(Scenario==2){spCheck(Ack.Type==XMQTT_PACKET_PUBREC && xmqttSessionNext(S,&F)==XMQTT_SESSION_DONE,"resumed QoS2 transition");spFrame(S,&F,true);Ack=spPacket();spCheck(xmqttSessionAcknowledge(S,&Ack)==XMQTT_SESSION_DONE && Ack.Type==XMQTT_PACKET_PUBCOMP,"resumed QoS2 completion");}}}
         }
         if(Round)spControl(XMQTT_PACKET_DISCONNECT,0,0);
@@ -70,6 +74,7 @@ int main(int Argc,char** Argv)
     }
     if(Scenario==4)spCheck(Delivered==1,"one volatile local delivery across reconnect");
     spCheck(xmqttSessionDestroy(S),"session unique owner destruction");if(Held)spCheck(xmqttSessionPacket(Held)->Body.Publish.Payload.Size==3,"retained payload beyond session");
-    if(Old.Packet){spCheck(Old.Prefix.Data[0]==(Scenario==3?0x62:0x34),"immutable old partial frame");xmqttSessionPacketRelease(Old.Packet);}xmqttSessionPacketRelease(Held);
+    if(Old.Packet){spCheck(Old.Prefix.Data[0]==(Scenario==3 || Scenario==6?0x62:0x34),"immutable old partial frame");xmqttSessionPacketRelease(Old.Packet);}
+    if(Partial.Packet){spCheck(Partial.Prefix.Data[0]==0x62,"immutable repeated partial frame");xmqttSessionPacketRelease(Partial.Packet);}xmqttSessionPacketRelease(Held);
     puts("[PASS] public session state over two actual TCP connections; literal-peer replay/dedup/reset and physical retained lifetime");return 0;
 }

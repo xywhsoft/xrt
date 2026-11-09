@@ -36,6 +36,16 @@ report Sent only after the complete frame is accepted by the transport. End is
 required after any abandoned/partial output. An exposed PUBLISH is conservatively
 retried with DUP even if its first transport accepted no bytes.
 
+Each successful Next issues a distinct `(Generation, Selection)` token. This
+distinguishes repeated PUBREL frames even when their packet, identifier and
+immutable wire spans are identical. Sent rejects a token from an earlier
+selection without finishing the current one or releasing its selection reference.
+Selection numbers do not wrap: exhausting uint64 returns RESTRICTED without
+changing output or ready/quota state. A later accepted Open starts a new
+generation and restarts selection numbering. Old frame references remain readable.
+This appends Selection to the developing frame ABI (64 to72 bytes on x64);
+rebuild consumers. The existing public field offsets remain unchanged.
+
 ACKs correlate to live sent flows. PUBREC transitions to PUBREL, duplicate PUBREC
 coalesces another PUBREL, and final/negative acknowledgements retire the flow.
 Unmatched PUBCOMP never completes a new flow or creates send credit. The state
@@ -79,10 +89,13 @@ pending work. No arbitrary business exactly-once guarantee is inferred.
 Default limits are128 outgoing objects,64 incoming QoS2 ids and16MiB of owned
 bytes including metadata. Create allocates a fixed state block, an outgoing id
 bitmap/hash table (when enabled), a packed two-bit incoming map (when enabled),
-and copied identity. Incoming transitions and all ACK/frame/replay selection paths
+and copied identity. Successful incoming transitions and ACK/frame/replay paths
 allocate nothing. Each Publish creates one object containing descriptors and
 canonical wire; packet Size/Write/Read validation and one payload copy are real
 costs. An unused descriptor slot can remain after alias removal and is charged.
+The selection guard adds one uint64 to fixed session state, one checked increment
+per successful Next, and a token comparison at Sent. It adds no packet allocation,
+payload copy or mutex acquisition. The caller's frame grows by eight bytes on x64.
 No payload copy/allocation is needed to emit a retry or PUBREL.
 
 List/ready queues permit constant-time admission/removal/selection; identifier

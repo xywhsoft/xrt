@@ -68,6 +68,72 @@ static void testSessionFlows(xmqttversion V)
     sessionStatus(xmqttSessionPublish(S,&P,&Out),XMQTT_SESSION_LIMIT,"id held through actual references");testRequire(Out==(const xmqttsessionpacket*)(uintptr_t)1,"collision output changed");
     xmqttSessionPacketRelease(One);One=sessionPublish(S,1,1);xmqttSessionPacketRelease(One);xmqttSessionPacketRelease(Two);sessionEnd(S,2);sessionStatus(xmqttSessionReset(S),XMQTT_SESSION_DONE,"offline administrative termination");I=sessionInfo(S);testRequire(!I.Objects && I.LiveBytes==I.BaseBytes,"all packet resources refunded");testRequire(xmqttSessionDestroy(S),"destroy flows");
 }
+static void testSessionRepeatedSelection(xmqttversion V)
+{
+    xmqttsession* S=sessionCreate(V,2,0,1024*1024);
+    sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"repeat-selection open");
+    const xmqttsessionpacket* P=sessionPublish(S,2,27);xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,27,0),XMQTT_SESSION_DONE,"repeat-selection PUBREC");
+    xmqttsessionframe Old=sessionNext(S);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,27,0),XMQTT_SESSION_DUPLICATE,"queue repeat while old PUBREL selected");
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_DONE,"emit old PUBREL but retain its frame reference");
+    F=sessionNext(S);testRequire(F.Generation==Old.Generation && F.Selection>Old.Selection,"distinct selection in the same connection");xmqttsessioninfo Before=sessionInfo(S);
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"same-generation earlier selection cannot finish current PUBREL");
+    xrtClearError();xmqttsessioninfo After=sessionInfo(S);testRequire(sessionSameInfo(&Before,&After),"stale selection changed session state");
+    xallocationbudget* Budget=NULL;xallocationscope Scope={0};
+    testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"stale-token diagnostic OOM scope");
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"stale selection status survives diagnostic OOM");xrtClearError();
+    testRequire(xrtAllocationBudgetLeave(&Scope),"stale-token OOM leave");xallocationbudgetinfo Usage={0};Usage.Size=sizeof(Usage);
+    testRequire(xrtAllocationBudgetInfo(Budget,&Usage) && !Usage.LiveBytes,"stale-token error leaked quota");xrtAllocationBudgetFree(Budget);
+    sessionEmpty(S);uint64 Last=F.Selection;sessionSent(S,&F);
+    for(unsigned I=0;I<256;++I){
+        sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,27,0),XMQTT_SESSION_DUPLICATE,"repeat selected PUBREL");F=sessionNext(S);
+        testRequire(F.Selection>Last,"selection sequence advanced");Last=F.Selection;
+        sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"retained earlier selection stays stale");xrtClearError();
+        xmqttsessionframe Altered=F;Altered.Selection^=1;
+        sessionStatus(xmqttSessionSent(S,&Altered),XMQTT_SESSION_STATE_ERROR,"altered selection cannot finish current frame");xrtClearError();
+        Altered=F;Altered.Size-=sizeof(Altered.Selection);
+        sessionStatus(xmqttSessionSent(S,&Altered),XMQTT_SESSION_ERROR,"old frame layout requires caller rebuild");xrtClearError();
+        sessionEmpty(S);sessionSent(S,&F);
+    }
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBCOMP,27,0),XMQTT_SESSION_DONE,"repeat-selection final PUBCOMP");
+    testRequire(Old.Prefix.Data[0]==0x62 && sessionPacketInfo(P).Stage==XMQTT_SESSION_COMPLETE,"retained old frame survives completion");
+    xmqttSessionPacketRelease(P);sessionEnd(S,2);testRequire(xmqttSessionDestroy(S),"repeat-selection destroy");
+    testRequire(Old.Prefix.Data[0]==0x62 && Old.Prefix.Size==4,"old selection bytes outlive session owner");xmqttSessionPacketRelease(Old.Packet);
+}
+#if defined(XMQTT_SINGLE_HEADER)
+/* Controlled white-box boundary; the modular test uses only the public API. */
+static void testSessionSelectionLimit(xmqttversion V)
+{
+    xmqttsession* S=sessionCreate(V,1,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"selection-limit open");
+    S->Selection=UINT64_MAX-2;
+    const xmqttsessionpacket* P=sessionPublish(S,2,7);xmqttsessionframe F=sessionNext(S);testRequire(F.Selection==UINT64_MAX-1,"penultimate selection");sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DONE,"selection-limit PUBREC");xmqttsessionframe Old=sessionNext(S);
+    testRequire(Old.Selection==UINT64_MAX,"last representable selection");sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_DONE,"last selection emitted");
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DUPLICATE,"exhausted selection still queued");
+    xmqttsessioninfo Before=sessionInfo(S);memset(&F,0xa5,sizeof(F));xmqttsessionframe Unchanged=F;
+    sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_RESTRICTED,"selection sequence cannot wrap");xrtClearError();
+    xmqttsessioninfo After=sessionInfo(S);testRequire(!memcmp(&F,&Unchanged,sizeof(F)) && sessionSameInfo(&Before,&After),"selection exhaustion is transactional");
+    sessionEnd(S,2);sessionStatus(sessionOpen(S,V,false,true,60,1,3),XMQTT_SESSION_DONE,"selection-limit reconnect");F=sessionNext(S);
+    testRequire(F.Selection==1 && F.Generation!=Old.Generation && F.Packet==Old.Packet,"new generation restarts sequence for the same packet");
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"old exhausted generation remains stale");xrtClearError();sessionEmpty(S);sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBCOMP,7,0),XMQTT_SESSION_DONE,"selection-limit PUBCOMP");xmqttSessionPacketRelease(Old.Packet);xmqttSessionPacketRelease(P);sessionEnd(S,4);testRequire(xmqttSessionDestroy(S),"selection-limit destroy");
+}
+#endif
+static void testSessionSelectedCompletion(xmqttversion V)
+{
+    xmqttsession* S=sessionCreate(V,2,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"selected completion open");
+    const xmqttsessionpacket* P=sessionPublish(S,2,10);xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,10,0),XMQTT_SESSION_DONE,"selected completion PUBREC");xmqttsessionframe Old=sessionNext(S);
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_DONE,"prior PUBREL emitted");
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,10,0),XMQTT_SESSION_DUPLICATE,"repeat before final ACK");F=sessionNext(S);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBCOMP,10,0),XMQTT_SESSION_DONE,"final ACK while repeat selected");xmqttSessionPacketRelease(P);
+    P=sessionPublish(S,1,11);sessionEmpty(S);
+    sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"old completion cannot remove final frame fence");xrtClearError();sessionEmpty(S);sessionSent(S,&F);
+    F=sessionNext(S);testRequire(F.Identifier==11,"next packet waits for actual current frame");sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBACK,11,0),XMQTT_SESSION_DONE,"next packet completes");xmqttSessionPacketRelease(P);
+    sessionEnd(S,2);testRequire(xmqttSessionDestroy(S) && Old.Prefix.Data[0]==0x62,"selected completion physical lifetime");xmqttSessionPacketRelease(Old.Packet);
+}
 static void testSessionReplay(xmqttversion V)
 {
     for(unsigned Cut=0;Cut<6;++Cut){
@@ -209,6 +275,11 @@ static void testSessionThreads(void)
 }
 int main(void)
 {
+    testSessionRepeatedSelection(XMQTT_VERSION_5);testSessionRepeatedSelection(XMQTT_VERSION_311);
+    testSessionSelectedCompletion(XMQTT_VERSION_5);testSessionSelectedCompletion(XMQTT_VERSION_311);
+#if defined(XMQTT_SINGLE_HEADER)
+    testSessionSelectionLimit(XMQTT_VERSION_5);testSessionSelectionLimit(XMQTT_VERSION_311);
+#endif
     testSessionFlows(XMQTT_VERSION_5);testSessionFlows(XMQTT_VERSION_311);testSessionReplay(XMQTT_VERSION_5);testSessionReplay(XMQTT_VERSION_311);testSessionIncoming(XMQTT_VERSION_5);testSessionIncoming(XMQTT_VERSION_311);testSessionSnapshot();testSessionIdentityExpiry(XMQTT_VERSION_5);testSessionIdentityExpiry(XMQTT_VERSION_311);testSessionBoundsAndArguments();testSessionIdentifierSpace();testSessionPeerAndNegative();testSessionNegotiationAtomicity();testSessionAllocation();testSessionThreads();
     puts("[PASS] xmqtt session: QoS state/replay cuts/partial generations/identity/expiry/limits/full ids/snapshots/zero-allocation ACKs/OOM/retained physical lifetime/threads");return 0;
 }

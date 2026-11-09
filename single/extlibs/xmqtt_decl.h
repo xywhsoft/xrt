@@ -3911,12 +3911,14 @@ typedef struct xmqttsessionpacketinfo {
 /* One retained Packet reference is transferred by Next. Prefix/Tail are
  * immutable slices of that object, even after End, ACK, Reset or Destroy.
  * Do not interleave frames. Sent finishes this exact generation's selection;
+ * Generation/Selection identify this exact selection, including repeated
+ * PUBREL selections in one connection. Do not reuse an earlier token.
  * End abandons a partial selection. Release Packet once its actual native
  * writes no longer borrow these slices. Releasing early cannot free the
  * session's outstanding selection, but leaves Next blocked until Sent/End. */
 typedef struct xmqttsessionframe {
     size_t Size;const xmqttsessionpacket* Packet;uint64 Generation;
-    xmqttpackettype Type;uint16 Identifier;xbytesview Prefix,Tail;
+    xmqttpackettype Type;uint16 Identifier;xbytesview Prefix,Tail;uint64 Selection;
 } xmqttsessionframe;
 XRT_EXTERN_C_BEGIN
 /* Caller-driven in-memory protocol state, not a transport, retry timer, Future
@@ -3970,7 +3972,10 @@ XMQTT_API xmqttsessionstatus xmqttSessionPublish(xmqttsession* Session,
 /* One outstanding frame selection. Empty/quota exhaustion preserves output.
  * PUBREL progress bypasses exhausted PUBLISH quota. New/retried PUBLISH use
  * DUP0/DUP1 respectively; PUBREL always uses fixed flags2 and original id.
- * A resumed peer's packet/QoS/retain restrictions fail without dropping state. */
+ * A resumed peer's packet/QoS/retain restrictions fail without dropping state.
+ * Selection numbers never wrap within a generation; exhaustion is RESTRICTED
+ * without consuming the ready frame or changing output. End/Open starts a new
+ * generation. Sent rejects stale selection tokens without changing state. */
 XMQTT_API xmqttsessionstatus xmqttSessionNext(xmqttsession* Session,xmqttsessionframe* Frame);
 XMQTT_API xmqttsessionstatus xmqttSessionSent(xmqttsession* Session,const xmqttsessionframe* Frame);
 /* After full frame validation, correlate PUBACK/PUBREC/PUBCOMP. Negative ACKs

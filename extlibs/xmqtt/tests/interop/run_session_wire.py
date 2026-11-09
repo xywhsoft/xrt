@@ -42,11 +42,15 @@ def peer(listener,version,scenario,result):
                     if scenario==2:assert exact(s,7)==original[:7],'partial PUBLISH prefix'
                     else:
                         assert exact(s,len(original))==original,'first PUBLISH exact bytes'
-                        if scenario in [1,3]:
+                        if scenario in [1,3,6]:
                             send(s,b'\x50\x02\0\x1f')
                             if scenario==3:assert exact(s,1)==b'\x62','partial PUBREL prefix'
+                            if scenario==6:
+                                assert frame(s)==(0x62,b'\0\x1f'),'first full PUBREL'
+                                send(s,b'\x50\x02\0\x1f')
+                                assert exact(s,1)==b'\x62','partial repeated PUBREL after stale token rejection'
                 else:
-                    if scenario in [1,3]:assert frame(s)==(0x62,b'\0\x1f'),'PUBREC means only PUBREL replay'
+                    if scenario in [1,3,6]:assert frame(s)==(0x62,b'\0\x1f'),'PUBREC means only PUBREL replay'
                     else:
                         expected=publish(version,qos=1 if scenario==0 else 2,duplicate=True)
                         assert exact(s,len(expected))==expected,'DUP/original-id binary replay'
@@ -63,13 +67,13 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--probe',type=Path,required=True);p.add_argument('--report',type=Path,required=True);a=p.parse_args();rows=[]
     a.report.parent.mkdir(parents=True,exist_ok=True)
     for version in [5,311]:
-        for scenario in range(6):
+        for scenario in range(7):
             listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(2);listener.settimeout(15);port=listener.getsockname()[1];result={}
             thread=threading.Thread(target=peer,args=(listener,version,scenario,result));thread.start()
             run=subprocess.run([str(a.probe.resolve()),str(port),str(version),str(scenario)],capture_output=True,text=True,timeout=40);thread.join(20)
             row=dict(version=version,scenario=scenario,exit_code=run.returncode,stdout=run.stdout,stderr=run.stderr,peer=result);rows.append(row);print(version,scenario,run.returncode,flush=True)
             a.report.write_text(json.dumps(dict(complete=False,cases=rows),indent=2)+'\n');assert not thread.is_alive() and not run.returncode and not result.get('failed') and result.get('two_connections'),row
-    a.report.write_text(json.dumps(dict(complete=True,scope='Session state over a test-only public Core socket driver; existing Client integration/durable recovery/broker/performance acceptance not inferred',platform=platform.platform(),runner_sha256=digest(__file__),common_runner_sha256=digest(Path(__file__).with_name('run_mqtt_tls.py')),probe_sha256=digest(a.probe),cases=rows),indent=2)+'\n');print('[PASS]12 two-connection session TCP/literal replay, dedup and missing-state cases')
+    a.report.write_text(json.dumps(dict(complete=True,scope='Session state over a test-only public Core socket driver; existing Client integration/durable recovery/broker/performance acceptance not inferred',platform=platform.platform(),runner_sha256=digest(__file__),common_runner_sha256=digest(Path(__file__).with_name('run_mqtt_tls.py')),probe_sha256=digest(a.probe),cases=rows),indent=2)+'\n');print('[PASS]14 two-connection session TCP/literal replay, dedup, stale selection and missing-state cases')
 
 
 if __name__=='__main__':main()
