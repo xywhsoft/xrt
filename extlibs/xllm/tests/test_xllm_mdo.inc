@@ -1109,10 +1109,10 @@ static void test_dialect_anthropic(void)
                 xllmMessageUnit(&tReplay);
             }
             CHECK(pCall->pResponse && pCall->pResponse->eFinish == XLLM_FINISH_TOOL_CALLS &&
-                      pCall->pResponse->tUsage.uInputTokens == 11u &&
+                      pCall->pResponse->tUsage.uInputTokens == 14u &&
                       pCall->pResponse->tUsage.uOutputTokens == 4u &&
                       pCall->pResponse->tUsage.uCachedInputTokens == 3u &&
-                      pCall->pResponse->tUsage.uTotalTokens == 15u,
+                      pCall->pResponse->tUsage.uTotalTokens == 18u,
                   "anthropic usage and finish normalized");
             xllmCallDestroy(pCall);
         }

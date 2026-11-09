@@ -377,7 +377,7 @@ typedef enum xllm_tool_choice {
 /* ------------------------------------------------------------------ */
 
 typedef struct xllm_usage {
-    uint64_t uInputTokens;
+    uint64_t uInputTokens; /* inclusive input: cache reads/writes are subsets */
     uint64_t uOutputTokens;
     uint64_t uTotalTokens;
     uint64_t uCachedInputTokens;

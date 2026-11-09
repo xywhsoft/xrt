@@ -683,10 +683,10 @@ static void test_dialect_anthropic(void)
                 xllmMessageUnit(&tReplay);
             }
             CHECK(pCall->pResponse && pCall->pResponse->eFinish == XLLM_FINISH_TOOL_CALLS &&
-                pCall->pResponse->tUsage.uInputTokens == 11u &&
+                pCall->pResponse->tUsage.uInputTokens == 14u &&
                 pCall->pResponse->tUsage.uOutputTokens == 4u &&
                 pCall->pResponse->tUsage.uCachedInputTokens == 3u &&
-                pCall->pResponse->tUsage.uTotalTokens == 15u, "anthropic usage and finish normalized");
+                pCall->pResponse->tUsage.uTotalTokens == 18u, "anthropic usage and finish normalized");
             xllmCallDestroy(pCall);
         }
     }
@@ -2231,6 +2231,42 @@ cleanup:
     test_server_stop(&tServerCtx);
 }
 
+static void test_anthropic_cached_context(void)
+{
+    static const char json[] = "{\"content\":[{\"type\":\"text\",\"text\":\"OK\"}],"
+        "\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":100,\"cache_read_input_tokens\":7000,"
+        "\"cache_creation_input_tokens\":1000,\"output_tokens\":100}}";
+    for (int mode = 0; mode < 3; ++mode)
+    {
+        xllm_call *call = calloc(1u, sizeof(*call));
+        CHECK(call != NULL, "cached context parser allocates");
+        if (!call) continue;
+        call->pDialect = xllm__dialect_anthropic(); call->uHttpStatus = 200u;
+        call->sSelectedModel = xllm__strdup("claude-fixture");
+        bool ok;
+        if (!mode) ok = call->pDialect->DecodeJsonBody(call, xrtStrView(json));
+        else
+        {
+            call->bSse = call->bStreamWanted = true;
+            const char *start = mode == 1 ?
+                "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":100,\"cache_read_input_tokens\":7000,\"cache_creation_input_tokens\":1000}}}\n\n" :
+                "data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":0}}}\n\n";
+            static const char delta[] = "data: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},"
+                "\"usage\":{\"input_tokens\":100,\"cache_read_input_tokens\":7000,\"cache_creation_input_tokens\":1000,\"output_tokens\":100}}\n\n";
+            static const char end[] = "data: {\"type\":\"message_stop\"}\n\n";
+            ok = xllm__sse_feed(call, start, strlen(start)) &&
+                xllm__sse_feed(call, delta, sizeof(delta)-1u) &&
+                xllm__sse_feed(call, delta, sizeof(delta)-1u) &&
+                xllm__sse_feed(call, end, sizeof(end)-1u) && xllm__sse_finish(call);
+        }
+        CHECK(ok && call->pResponse && call->pResponse->tUsage.uInputTokens == 8100u &&
+            call->pResponse->tUsage.uOutputTokens == 100u && call->pResponse->tUsage.uTotalTokens == 8200u &&
+            call->pResponse->tUsage.uCachedInputTokens == 7000u && call->pResponse->tUsage.uCacheWriteTokens == 1000u,
+            "cached input includes reads/writes once for JSON, SSE and late repeated usage");
+        xllmCallDestroy(call);
+    }
+}
+
 int main(void)
 {
     printf("xllm v2 tests\n");
@@ -2239,6 +2275,7 @@ int main(void)
     test_v3_model();
     test_v3_blocks_and_refusal();
     test_dialect_anthropic();
+    test_anthropic_cached_context();
     test_anthropic_history_replay();
     test_dialect_responses();
     test_keepalive_and_concurrency();
