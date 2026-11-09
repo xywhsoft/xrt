@@ -1,0 +1,787 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "scope": "Register and execute actual anchored-root reload benchmarks for the previously uncovered tzdb_file system; retain the maturity failure and unqualified raw performance evidence.",
+  "workdir": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "c201a6faf5c41fff29d6ba2bfafa25fee7174c65",
+  "initial_failure": "xcron release maturity: missing formal performance profile for tzdb_file",
+  "initial_failure_receipts_sha256": "ac19c333db5be820f9e2ee58d941f4dc832b8205d5bd36801ce3b2022e7b7ef4",
+  "production_api_changes": false,
+  "source_sha256": {
+    "extlibs/xcron/bench/bench_tzdb_file.c": "ca7647c7258767f92631c20c5ea32ab1bc9b2d010eb58c7b84f76d75e2f6dab4",
+    "extlibs/xcron/config/modules.json": "aeba5c7af8873523deec2e789558a5b5880d686c95aff59e073ec56bd0a74a0b",
+    "extlibs/xcron/config/performance_profiles.json": "8870c4358b48e1830656b75b73a0f59667a47a266a426aa1b65c0b11b6430de1",
+    "extlibs/xcron/docs/tzdb.md": "d0dd66038183e3c7efce0654b99bb009abf20ea9fda77b456dd651b3d4378c26"
+  },
+  "checks": {
+    "windows_file_tests": 2,
+    "wsl_asan_ubsan_leak_file_tests": 2,
+    "wsl_asan_benchmark_cases": 2,
+    "wsl_asan_invalid_arguments": 3,
+    "feature_single_api_docs_maturity_pass": true
+  },
+  "performance_accepted": false,
+  "performance_qualification": "Both 7-sample matrices exceed original noise bounds; no baseline/comparator/native deployment or release acceptance. Windows local test compilation may overlap the initial measurements. WSL measures DrvFs under /mnt/d, not native Linux storage.",
+  "thresholds": {
+    "relative_mad": 0.03,
+    "relative_central_range": 0.06,
+    "throughput_regression": 0.05,
+    "latency_regression": 0.1
+  },
+  "evidence_directory": "out/service-extensions/mainline-recheck-20261110",
+  "performance": {
+    "windows": {
+      "report_sha256": "f4a99df7f339c48c3da7dfff63424510dcdb232aadfe6f6e0cc9d74fe335fe22",
+      "profiles": {
+        "xcron_tzdb_file_1_reload": {
+          "facts": {
+            "reloads": "512",
+            "names": "1",
+            "input_bytes": "54",
+            "final_revision": "512",
+            "checksum": "131328"
+          },
+          "noise_qualified": false,
+          "metrics": {
+            "reloads_per_sec": {
+              "samples": [
+                41192.325,
+                44605.52,
+                45784.598,
+                47195.03,
+                45604.347,
+                34528.338,
+                45588.51
+              ],
+              "median": 45588.51,
+              "relative_mad": 0.02156223136048985,
+              "relative_central_range": 0.10073312332427624,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p50_us": {
+              "samples": [
+                21.0,
+                21.4,
+                20.6,
+                20.2,
+                20.7,
+                33.6,
+                20.5
+              ],
+              "median": 20.7,
+              "relative_mad": 0.01449275362318844,
+              "relative_central_range": 0.04347826086956515,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p95_us": {
+              "samples": [
+                38.7,
+                27.1,
+                26.9,
+                25.8,
+                28.0,
+                37.8,
+                25.8
+              ],
+              "median": 27.1,
+              "relative_mad": 0.04797047970479707,
+              "relative_central_range": 0.4428044280442803,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p99_us": {
+              "samples": [
+                42.5,
+                32.1,
+                37.6,
+                33.5,
+                34.0,
+                41.0,
+                39.7
+              ],
+              "median": 37.6,
+              "relative_mad": 0.09574468085106387,
+              "relative_central_range": 0.19946808510638298,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p999_us": {
+              "samples": [
+                68.5,
+                40.9,
+                60.4,
+                45.3,
+                46.0,
+                46.2,
+                53.7
+              ],
+              "median": 46.2,
+              "relative_mad": 0.1147186147186148,
+              "relative_central_range": 0.3268398268398269,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        },
+        "xcron_tzdb_file_16_reload": {
+          "facts": {
+            "reloads": "256",
+            "names": "16",
+            "input_bytes": "864",
+            "final_revision": "256",
+            "checksum": "32896"
+          },
+          "noise_qualified": false,
+          "metrics": {
+            "reloads_per_sec": {
+              "samples": [
+                3028.21,
+                2984.49,
+                3057.498,
+                3070.004,
+                3057.52,
+                2983.422,
+                2889.58
+              ],
+              "median": 3028.21,
+              "relative_mad": 0.013801552732472275,
+              "relative_central_range": 0.024469240904692855,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p50_us": {
+              "samples": [
+                319.5,
+                326.4,
+                323.6,
+                322.3,
+                325.5,
+                327.3,
+                330.1
+              ],
+              "median": 325.5,
+              "relative_mad": 0.005837173579108993,
+              "relative_central_range": 0.015360983102918587,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p95_us": {
+              "samples": [
+                398.8,
+                403.7,
+                342.9,
+                341.9,
+                341.0,
+                373.9,
+                422.3
+              ],
+              "median": 373.9,
+              "relative_mad": 0.08290986894891683,
+              "relative_central_range": 0.1652848355175181,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p99_us": {
+              "samples": [
+                490.9,
+                465.6,
+                385.3,
+                379.5,
+                352.3,
+                492.5,
+                481.1
+              ],
+              "median": 465.6,
+              "relative_mad": 0.057774914089347026,
+              "relative_central_range": 0.23926116838487965,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p999_us": {
+              "samples": [
+                611.1,
+                501.7,
+                412.4,
+                440.2,
+                384.6,
+                530.4,
+                589.1
+              ],
+              "median": 501.7,
+              "relative_mad": 0.17420769384094087,
+              "relative_central_range": 0.3522025114610326,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        }
+      },
+      "checks": [
+        {
+          "label": "tests",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb_file",
+            "--no-examples",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-tests.log",
+          "sha256": "57148c952cbbccf08add6001a4f707f4491a5d81e28f25764fc9334c5a94fb1a",
+          "seconds": 25.296999999991385,
+          "programs": 2
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-maturity.log",
+          "sha256": "0eedc7cde0ccfcffcfff578728f3d2f9f5300c87ff6a7d25d75259d3e2c00383",
+          "seconds": 0.6090000000112923,
+          "programs": 0
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-features.log",
+          "sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "seconds": 0.0629999999946449,
+          "programs": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-single.log",
+          "sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "seconds": 0.2649999999994179,
+          "programs": 0
+        },
+        {
+          "label": "api",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-api.log",
+          "sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "seconds": 0.11000000000058208,
+          "programs": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log": "windows-fix-docs.log",
+          "sha256": "6f546cc7e5a3f5eb8b84132539c0aa342f079a5fa7d0150eebda5fecd78898eb",
+          "seconds": 0.17100000000209548,
+          "programs": 0
+        }
+      ]
+    },
+    "wsl": {
+      "report_sha256": "01b1b43472034f9b8961d7de919ca4a961ae5beecac23c6d7379f83d83e2949b",
+      "profiles": {
+        "xcron_tzdb_file_1_reload": {
+          "facts": {
+            "reloads": "512",
+            "names": "1",
+            "input_bytes": "54",
+            "final_revision": "512",
+            "checksum": "131328"
+          },
+          "noise_qualified": false,
+          "metrics": {
+            "reloads_per_sec": {
+              "samples": [
+                1058.962,
+                1057.318,
+                1043.262,
+                1047.702,
+                1057.182,
+                1040.132,
+                1055.887
+              ],
+              "median": 1055.887,
+              "relative_mad": 0.002912243450293493,
+              "relative_central_range": 0.01331203054872353,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p50_us": {
+              "samples": [
+                927.3,
+                927.4,
+                929.5,
+                930.0,
+                926.4,
+                935.9,
+                929.1
+              ],
+              "median": 929.1,
+              "relative_mad": 0.0018297276934668447,
+              "relative_central_range": 0.0029060381013884893,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p95_us": {
+              "samples": [
+                1124.6,
+                1102.1,
+                1156.2,
+                1129.6,
+                1091.0,
+                1112.0,
+                1091.4
+              ],
+              "median": 1112.0,
+              "relative_mad": 0.01582733812949632,
+              "relative_central_range": 0.03435251798561135,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p99_us": {
+              "samples": [
+                1227.2,
+                1178.3,
+                1268.6,
+                1269.1,
+                1270.0,
+                1223.5,
+                1215.1
+              ],
+              "median": 1227.2,
+              "relative_mad": 0.03373533246414591,
+              "relative_central_range": 0.04400260756192959,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p999_us": {
+              "samples": [
+                1380.9,
+                1301.1,
+                1348.4,
+                1712.1,
+                1363.9,
+                1328.5,
+                1332.9
+              ],
+              "median": 1348.4,
+              "relative_mad": 0.01475823197864142,
+              "relative_central_range": 0.03886087214476423,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        },
+        "xcron_tzdb_file_16_reload": {
+          "facts": {
+            "reloads": "256",
+            "names": "16",
+            "input_bytes": "864",
+            "final_revision": "256",
+            "checksum": "32896"
+          },
+          "noise_qualified": false,
+          "metrics": {
+            "reloads_per_sec": {
+              "samples": [
+                67.227,
+                67.061,
+                66.293,
+                67.06,
+                67.124,
+                66.563,
+                65.871
+              ],
+              "median": 67.06,
+              "relative_mad": 0.0024903071875932237,
+              "relative_central_range": 0.012391887861616296,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p50_us": {
+              "samples": [
+                14778.898,
+                14779.7,
+                14986.499,
+                14804.399,
+                14811.802,
+                14846.5,
+                14898.603
+              ],
+              "median": 14811.802,
+              "relative_mad": 0.0022214717696064567,
+              "relative_central_range": 0.008027585029829485,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p95_us": {
+              "samples": [
+                16020.598,
+                16116.499,
+                16025.699,
+                15741.203,
+                15684.203,
+                16164.4,
+                16445.503
+              ],
+              "median": 16025.699,
+              "relative_mad": 0.008654911089993585,
+              "relative_central_range": 0.02640739726859965,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p99_us": {
+              "samples": [
+                16610.397,
+                16700.499,
+                16771.299,
+                16335.902,
+                16178.002,
+                17300.499,
+                17507.303
+              ],
+              "median": 16700.499,
+              "relative_mad": 0.0218315033580733,
+              "relative_central_range": 0.057758573561185196,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "reload_p999_us": {
+              "samples": [
+                16655.097,
+                16792.199,
+                16844.199,
+                16384.702,
+                16451.002,
+                17493.903,
+                18726.502
+              ],
+              "median": 16792.199,
+              "relative_mad": 0.020318780166909654,
+              "relative_central_range": 0.06210627923120718,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        }
+      },
+      "checks": [
+        {
+          "label": "tests",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tzdb_file",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-tests.log",
+          "sha256": "c4a15b4ef5c83b6f8d6912d0f057377c21a5cf22b6dc2c016c988c96662a9d2d",
+          "seconds": 46.928932537004584,
+          "programs": 2
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-maturity.log",
+          "sha256": "35054b62a4568d7224440667c827df05e6c03c0ca1ba195e10400a5eeb9ecdc0",
+          "seconds": 7.940849945996888,
+          "programs": 0
+        },
+        {
+          "label": "features",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-features.log",
+          "sha256": "2a2d7ce83e7e6d4e783be2807199d88d4d7be95481a9344cd2be92d64720f16a",
+          "seconds": 0.12605448000249453,
+          "programs": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-single.log",
+          "sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15",
+          "seconds": 3.5821475309930975,
+          "programs": 0
+        },
+        {
+          "label": "api",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-api.log",
+          "sha256": "f7b8713cf4126e71837fc42689f12f15ae5e0cac027b176a241bd53b26219e87",
+          "seconds": 0.2767384049948305,
+          "programs": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "log": "wsl-fix-docs.log",
+          "sha256": "61f1f358004e946a97eca536694a92feacf0f94dd5da4b5d1699ee14a99ed940",
+          "seconds": 0.3781726070010336,
+          "programs": 0
+        },
+        {
+          "label": "performance",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xcron/config/performance_profiles.json",
+            "--profiles",
+            "xcron_tzdb_file_1_reload,xcron_tzdb_file_16_reload",
+            "--repeats",
+            "7",
+            "--warmups",
+            "1",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-performance.json"
+          ],
+          "exit_code": 1,
+          "log": "wsl-fix-performance.log",
+          "sha256": "8bca218b3b605de36ec8d730cb356d7c8ca9322a50f5dce53f413d0a2437a765",
+          "seconds": 90.31033245498838,
+          "programs": 0
+        }
+      ]
+    }
+  },
+  "asan_benchmark_receipts": [
+    {
+      "label": "build",
+      "command": [
+        "gcc",
+        "-std=c11",
+        "-O2",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-pthread",
+        "-I/mnt/d/GIT/xrt/include",
+        "-I/mnt/d/GIT/xrt/extlibs/xcron/include",
+        "-DXRT_FEATURE_ATOMIC",
+        "-DXRT_FEATURE_STRING",
+        "-DXRT_FEATURE_UNICODE",
+        "-DXRT_FEATURE_TIME",
+        "-DXRT_FEATURE_SYNC",
+        "-DXRT_FEATURE_MUTEX",
+        "-DXRT_FEATURE_PATH",
+        "-DXRT_FEATURE_PATH_SYSTEM",
+        "-DXRT_FEATURE_FILE",
+        "-DXRT_FEATURE_DIR",
+        "-DXRT_FEATURE_FILE_LINK",
+        "-DXRT_FEATURE_FILE_ROOT",
+        "-DXCRON_FEATURE_XCRON_TIMEZONE",
+        "-DXCRON_FEATURE_XCRON_TZDB",
+        "-DXCRON_FEATURE_XCRON_TZDB_FILE",
+        "/mnt/d/GIT/xrt/extlibs/xcron/bench/bench_tzdb_file.c",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/extlibs__xcron__src__timezone__timezone.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/extlibs__xcron__src__timezone__tzif.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/extlibs__xcron__src__tzdb__tzdb.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/extlibs__xcron__src__tzdb_file__tzdb_file.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__concurrency__mutex.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__concurrency__sync.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__core__atomic.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__core__core.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__core__error.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__core__ownership.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__core__ownership_scope.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__dir.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file_link.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file_root.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file_root_dir.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file_root_posix.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__file_root_windows.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__path.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__fs__path_system.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__memory__allocator.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__memory__heap.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__system__time.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__text__string.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__text__string_buffer.o",
+        "/mnt/d/GIT/xrt/out/gcc/x64/xcron_tzdb_file/obj/src__text__unicode.o",
+        "-lm",
+        "-o",
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan"
+      ],
+      "exit_code": 0,
+      "expected_exit": 0,
+      "log": "wsl-bench-asan-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "one",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan",
+        "8",
+        "1"
+      ],
+      "exit_code": 0,
+      "expected_exit": 0,
+      "log": "wsl-bench-asan-one.log",
+      "sha256": "766f923da4648373f646993ccef4cf3ba2bc078d0ecf4c71fa4057fd20596098"
+    },
+    {
+      "label": "sixteen",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan",
+        "8",
+        "16"
+      ],
+      "exit_code": 0,
+      "expected_exit": 0,
+      "log": "wsl-bench-asan-sixteen.log",
+      "sha256": "200e4d4ea5361d5be675c40ecb7107fe0cc9ce2eb3063ec1937501059a22e4d7"
+    },
+    {
+      "label": "invalid-zero",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan",
+        "0",
+        "1"
+      ],
+      "exit_code": 1,
+      "expected_exit": 1,
+      "log": "wsl-bench-asan-invalid-zero.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "invalid-limit",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan",
+        "8",
+        "129"
+      ],
+      "exit_code": 1,
+      "expected_exit": 1,
+      "log": "wsl-bench-asan-invalid-limit.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "invalid-text",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/mainline-recheck-20261110/wsl-tzdb-file-bench-asan",
+        "abc"
+      ],
+      "exit_code": 1,
+      "expected_exit": 1,
+      "log": "wsl-bench-asan-invalid-text.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

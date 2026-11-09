@@ -3783,6 +3783,104 @@
           }
         }
       ]
+    },
+    {
+      "name": "xcron_tzdb_file_1_reload",
+      "system": "tzdb_file",
+      "description": "Anchored-root TZif reload with warm filesystem cache: resolve/open/stat/read/close, decode/copy, atomic CAS publication and retired snapshot release; setup and final lookup validation excluded; no disk-cold or production qualification.",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_file_1_reload",
+          "source": "extlibs/xcron/bench/bench_tzdb_file.c",
+          "suite": "xcron_tzdb_file",
+          "args": [
+            "512",
+            "1"
+          ],
+          "smoke_args": [
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "reloads_per_sec": {
+              "direction": "higher",
+              "unit": "reloads/s"
+            },
+            "reload_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "reloads",
+            "names",
+            "input_bytes",
+            "final_revision",
+            "checksum"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "xcron_tzdb_file_16_reload",
+      "system": "tzdb_file",
+      "description": "Anchored-root TZif reload with warm filesystem cache: resolve/open/stat/read/close, decode/copy, atomic CAS publication and retired snapshot release; setup and final lookup validation excluded; no disk-cold or production qualification.",
+      "benchmarks": [
+        {
+          "name": "xcron_tzdb_file_16_reload",
+          "source": "extlibs/xcron/bench/bench_tzdb_file.c",
+          "suite": "xcron_tzdb_file",
+          "args": [
+            "256",
+            "16"
+          ],
+          "smoke_args": [
+            "8",
+            "16"
+          ],
+          "metrics": {
+            "reloads_per_sec": {
+              "direction": "higher",
+              "unit": "reloads/s"
+            },
+            "reload_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "reload_p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "reloads",
+            "names",
+            "input_bytes",
+            "final_revision",
+            "checksum"
+          ]
+        }
+      ]
     }
   ]
 }

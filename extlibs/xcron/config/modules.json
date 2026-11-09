@@ -326,7 +326,9 @@
       "examples": [
         "extlibs/xcron/examples/tzdb_file/main.c"
       ],
-      "benchmarks": [],
+      "benchmarks": [
+        "extlibs/xcron/bench/bench_tzdb_file.c"
+      ],
       "docs": [
         "extlibs/xcron/docs/tzdb.md",
         "extlibs/xcron/docs/api/reference.md",

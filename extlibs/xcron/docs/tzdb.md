@@ -126,3 +126,16 @@ Run the [memory snapshot example](../examples/tzdb/README.md) and
 package, adversarial/quota/lifetime/concurrent and IO-fault tests accompany the
 APIs. Native Linux, production mixed-load/latency, nominal DST delivery, durable
 recovery and the full long-run gates remain open.
+
+The `xcron_tzdb_file_1_reload` and `xcron_tzdb_file_16_reload` performance profiles
+execute real anchored-root reloads of one or sixteen pinned 54-byte UTC files.
+Timed work includes path resolution, file open/stat/read/close, TZif validation,
+snapshot construction, revision-checked publication and old snapshot release.
+Fixture creation, final lookup validation and cleanup are outside timing. Files
+are created before measurement, so these are warm filesystem-cache measurements;
+they do not measure cold storage or scheduler delivery latency. Each run checks
+every published revision and the final names/UTC offsets, then removes its files.
+
+```sh
+python tools/measure_performance.py --config extlibs/xcron/config/performance_profiles.json --profiles xcron_tzdb_file_1_reload,xcron_tzdb_file_16_reload --repeats 7 --warmups 1
+```

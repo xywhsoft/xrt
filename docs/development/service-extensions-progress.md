@@ -9201,3 +9201,23 @@ refuse unowned retained sessions. Future/deadline/cancel and pending receive-pay
 ownership, reconnect/offline queues, durable store/crash recovery, MQTT WebSocket
 and remaining Redis/RPC/Cron plus native>=72h acceptance remain under the full
 unchanged goal. All four products remain developing.
+
+## 2026-11-10: restore anchored-file performance registration during mainline checks
+
+Fresh four-root Windows regression passes127 module/single programs but the
+xcron maturity check reports missing tzdb_file performance coverage. Adds a real
+anchored-root reload driver and1/16-name profiles, without changing product C/H
+or runtime APIs. It creates pinned UTC fixtures outside timing, checks each CAS
+revision and final names/offsets, and removes its own files. Timed work includes
+resolve/open/stat/read/close, TZif decode/copy, publication and old snapshot free.
+
+Windows and WSL each pass both file-loader tests and generated/API/docs/maturity
+checks. WSL additionally runs the benchmark with ASan/UBSan/leak halt for both
+workloads and three invalid-argument cases. Seven measured samples and one warmup
+per profile execute on both platforms. Both matrices remain noise-unqualified
+under unchanged3% MAD/6% central-range bounds; no accepted performance baseline.
+Windows initial local compile overlap and WSL DrvFs storage are explicit limits.
+Original failed maturity/quality logs and executable/source hashes remain in
+out/service-extensions/mainline-recheck-20261110. Portable evidence:
+extlibs/xcron/tests/results/tzdb-file-profile-20261110.json. Full mainline and
+packaging revalidation follows this focused fix; four products remain developing.
