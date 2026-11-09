@@ -1,0 +1,3 @@
+#define TEST_WRITE_PROGRESS_NATIVE
+#define TEST_WRITE_PROGRESS_BACKEND XNET_PORT_URING
+#include "test_tls_stream_write_progress.c"

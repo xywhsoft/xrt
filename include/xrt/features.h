@@ -1464,6 +1464,19 @@
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC
@@ -1536,6 +1549,16 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
+#endif
+#endif
+
+/* net_tcp_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#define XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
 #endif
 #endif
 

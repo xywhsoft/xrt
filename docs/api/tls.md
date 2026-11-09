@@ -9820,7 +9820,7 @@ Session = xrtTlsClientCreate(&Config, Pool);
 
 Certificate 使用严格公共 parser，拒绝非空请求上下文和客户端未请求的每个 CertificateEntry 扩展。状态机先精确测量完整线路链，再用一次分配保存证书视图与独立 DER；证书视图数组按目标 ABI 的 `xx509cert` 对齐，不能假设父对象尾地址天然满足 64 位字段对齐。链长度没有固定张数上限，只受握手消息和整数上限约束。信任验证和 transcript 更新都成功后才发布对端快照。CertificateVerify 必须使用 ClientHello 真实提供的方案，并以消息加入 transcript 之前的摘要验证 RFC 8446 上下文签名；自定义信任回调不能绕过此步骤。
 
-启用客户端验证后，`xrtTlsClientCertificateCount()` 返回当前已经认证的链长度，`xrtTlsClientCertificate()` 按索引借用稳定到会话销毁的 `xx509cert`；原始 DER 位于 `Certificate.Raw`，不需要重复的 DER 指针和长度 API。握手尚未收到证书或本次使用 PSK 恢复时数量为零，因为恢复线路没有重传证书；按索引查询此时返回状态错误，不能把票据中的身份摘要伪装成证书。
+启用客户端验证后，`xrtTlsClientCertificateCount()` 返回当前已经认证的链长度，`xrtTlsClientCertificate()` 按索引借用稳定到会话销毁的 `xx509cert`；原始 DER 位于 `Certificate.Raw`，不需要重复的 DER 指针和长度 API。完整握手产生的恢复凭据共享这条不可变链，后续恢复会话仍可借用它；仅从 parts 构造且未导入 DER 的凭据没有链，此时数量为零、索引查询返回状态错误。Getter 不代表本轮重新传输了证书或按当前策略重新认证；启用 `XTLS_VERIFY_RESUME_PEER_V1` 才会在恢复时重新验证，仍须检查握手 Ready。票据的不透明身份摘要不能代替证书。
 
 CertificateVerify 通过后，客户端严格按服务端握手流量秘密校验 Finished。校验使用加入服务端 Finished 之前的 transcript；成功后先把服务端 Finished 纳入临时 transcript，再派生主秘密和双向应用流量秘密，并以仍在生效的客户端握手写 epoch 排队客户端 Finished。只有该记录完整进入有界 Send 队列后，状态机才一次提交 transcript、应用收发 epoch 和 `XTLS_STATE_READY`；输出空间不足返回 `XTLS_AGAIN`，不会消费服务端 Finished 或提前切换密钥。
 
@@ -13869,3 +13869,37 @@ bool queued = xrtTlsClientCertificateQueuedV1(session);
 /* 无论 queued 状态如何，都继续接收并处理服务器告警和关闭。 */
 (void)queued;
 ```
+
+
+## TLS 密文前缀完成进度
+
+可选模块 `tls_stream_write_progress` 提供 `xtlswriteprogress`、
+`xtlsstreamwriteproc`、`xrtTlsStreamSetWriteProgress` 和
+`xrtTlsStreamWriteProgress`。它复用现有 TLS Stream 驱动和零复制密文转移，
+不创建 Future、每次写入的监视节点或新的运行时。
+
+先在所属 Worker 上调用 `xrtTlsStreamSetWriteProgress(Stream, Notify)`，
+然后在一次成功发送后用 `xrtTlsStreamWriteProgress` 保存 `Produced`。
+后续快照中 `Completed >= 保存值`，且传输仍存活、没有异常关闭时，表示该
+密文前缀已经离开本地原生发送队列。后续新数据不会延长已保存的边界。
+计数包含 TLS 握手、控制和应用记录，不是明文字节数，也不确认对端收到、
+认证解密或业务处理。`Drain` 仍表示两级队列全部排空，两者用途不同。
+
+两项 API 都要求所属 Worker。快照的 `Size` 必须为 `sizeof(xtlswriteprogress)`；
+失败保持输出不变。首次启用建立单 Stream 的局部计数纪元；重复设置或传入
+空通知过程不重置它。空通知过程支持主动查询。计数与可裁剪诊断统计无关，
+关闭、异常、中断原生事件绑定或计数溢出不能被解释为成功完成。
+
+注册或更换通知不会重放既有进度，应立即查询一次。尚未编码的异步写明文不在
+密文边界内，应先观察其成功写结果，再保存快照。
+
+通知使用当前 TLS 事件 Data，沿用其代码和拥有者的有效期。它合并多次写进展，
+在已有的延后驱动任务内触发，不从 Send/SendVec 或原生写完成调用栈内重入。
+通知内可发送或请求关闭，不得在所属 Worker 阻塞等待。关闭或更换 TLS 事件会清除
+通知，更换事件保留计数纪元；更换底层 TCP 事件会使纪元失效。TLS 拥有传输期间不得
+直接向借用的原生 TCP Stream 写数据。
+
+V1 拥有图策略不证明独立注册的观察过程；保留通知时拒绝图接纳。移除通知并
+等待实际驱动任务静止后，可继续使用原有认证拥有图流程。该限制不代替实际
+所有权：原生事件的真实拥有者仍覆盖内部写进展上下文，TLS 事件 Data 的真实
+拥有者仍保持到其会话析构。未选此模块时不包含相应私有字段或发送路径分支。

@@ -47,6 +47,13 @@ struct xtlsstream {
 	/* A protocol handoff never replaces the session's original context. */
 	const xtlsstreamownershipv1* EventPolicy;
 	xatomicptr EventData;
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		uint64 WriteCompleted;
+		xtlsstreamwriteproc WriteProgress;
+		bool WriteProgressEnabled;
+		bool WriteProgressPending;
+		bool WriteProgressOverflow;
+	#endif
 	xerror* Error;
 	uint64 HandshakeTimer;
 	uint64 CloseTimer;

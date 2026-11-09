@@ -191,6 +191,12 @@ struct xnetstream {
 	xnetstreamconfig Config;
 	xnetstreamevents Events;
 	xatomicptr Data;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		/* Internal protocol hook. Its context borrows the current event owner;
+		 * replacement clears both fields before retiring that owner. */
+		void (*WriteProgress)(xnetstream*, size_t, ptr);
+		ptr WriteProgressData;
+	#endif
 	__xrt_net_stream_events_owner* EventOwner;
 	__xrt_net_stream_events_owner* RetiredEventOwners;
 	__xrt_net_stream_events_owner* RetiredEventOwnersTail;

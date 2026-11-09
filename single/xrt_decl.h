@@ -671,6 +671,9 @@
 #if !defined(XRT_FEATURE_NET_TCP_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SYNC 1
 #endif
+#if !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS 1
+#endif
 #if !defined(XRT_FEATURE_NET_UDP)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP 1
 #endif
@@ -1024,6 +1027,9 @@
 #endif
 #if !defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC 1
+#endif
+#if !defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS 1
 #endif
 #if !defined(XRT_FEATURE_TLS_VERIFY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_VERIFY 1
@@ -1856,6 +1862,9 @@
 #if !defined(XRT_MODULE_NET_TCP_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SYNC 1
 #endif
+#if !defined(XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_WRITE_PROGRESS 1
+#endif
 #if !defined(XRT_MODULE_NET_UDP)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP 1
 #endif
@@ -2209,6 +2218,9 @@
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_WRITE_PROGRESS 1
 #endif
 #if !defined(XRT_MODULE_TLS_VERIFY)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_VERIFY 1
@@ -3873,6 +3885,19 @@
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC
@@ -3945,6 +3970,16 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
+#endif
+#endif
+
+/* net_tcp_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#define XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
 #endif
 #endif
 
@@ -34720,6 +34755,11 @@ XRT_EXTERN_C_END
 	#error "XRT TLS Stream Future support requires TLS Stream and Future"
 #endif
 
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) && \
+	(!defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS))
+	#error "XRT TLS write progress requires TLS Stream and native write progress"
+#endif
+
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
@@ -34866,6 +34906,16 @@ typedef struct xtlsstreamevents {
 	void (*Ticket)(xtlsstream* pStream, ptr pData);
 } xtlsstreamevents;
 
+/* Ciphertext byte cursors in one Stream-local epoch, not plaintext delivery
+ * acknowledgements. Compare a saved Produced cursor with a later Completed
+ * cursor while the stream is live. Later output does not extend the saved cut. */
+typedef struct xtlswriteprogress {
+	size_t Size;
+	uint64 Produced;
+	uint64 Completed;
+} xtlswriteprogress;
+typedef void (*xtlsstreamwriteproc)(xtlsstream* pStream, ptr pData);
+
 /* One real owner for event data AND every borrowed callback/configuration
  * context used by this session. The descriptor/code stays resident; Ops must
  * enumerate actual references, including shared owner records (never flatten
@@ -34970,6 +35020,30 @@ typedef struct xtlslistenerstats {
 
 
 XRT_EXTERN_C_BEGIN
+
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+/* Owning Worker only, after TCP opens. First success starts a permanent cursor
+ * epoch covering all currently pending output, including handshake/control
+ * records. Registration does not replay earlier progress: query immediately.
+ * No allocation or per-write watch node. Replacing/removing the callback
+ * preserves the epoch. NULL polls without notifications. Data is the current
+ * event Data; the same owner/code lifetime contract applies through destruction.
+ * Notifications coalesce and are deferred outside Send/SendVec and native write
+ * completion; no callback acknowledges peer receipt. Closing or replacing TLS events clears
+ * the callback; replacing native events invalidates the epoch. An observer is
+ * opaque to ownership graph admission: remove it before certified collection.
+ * Never write directly to the borrowed TCP transport while TLS owns it. */
+XRT_API bool xrtTlsStreamSetWriteProgress(xtlsstream* pStream,
+	xtlsstreamwriteproc pProgress);
+/* Owning Worker snapshot. Size must match; all outputs stay unchanged on error.
+ * Requires an enabled epoch and a live, non-aborting transport. Produced includes
+ * the TLS ciphertext queue plus TCP accepted output. Pending async plaintext is
+ * outside the cut: first observe its successful write result. Failure/abort/close invalidates
+ * success comparisons: settle the enclosing protocol operation with that outcome.
+ * Counter overflow is a range error, never wraparound or false completion. */
+XRT_API bool xrtTlsStreamWriteProgress(xtlsstream* pStream,
+	xtlswriteprogress* pProgress);
+#endif
 
 
 
@@ -48213,6 +48287,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_NET_TCP_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SYNC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#undef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP)
 #undef XRT_FEATURE_NET_UDP
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP
@@ -48684,6 +48762,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #undef XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+#undef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_VERIFY)
 #undef XRT_FEATURE_TLS_VERIFY
@@ -49793,6 +49875,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_NET_TCP_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_SYNC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#undef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP)
 #undef XRT_MODULE_NET_UDP
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_UDP
@@ -50264,6 +50350,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC)
 #undef XRT_MODULE_TLS_STREAM_LISTENER_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#undef XRT_MODULE_TLS_STREAM_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_WRITE_PROGRESS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_VERIFY)
 #undef XRT_MODULE_TLS_VERIFY
@@ -51990,6 +52080,19 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC
@@ -52062,6 +52165,16 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
+#endif
+#endif
+
+/* net_tcp_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#define XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
 #endif
 #endif
 

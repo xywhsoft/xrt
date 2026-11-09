@@ -1,0 +1,910 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "optional TLS native ciphertext prefix progress prerequisite; all current work developed and tested on master",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "9483aa5c7347bb8457e4389ce37e888fab8615ea",
+  "review_parent": "15af1b9d43558beeab857370d92bd6a39502b250",
+  "state": "verified correctness stage; MQTT TLS integration and original four-product goal remain developing",
+  "migration": {
+    "prior_report": "docs/development/service-extensions-mainline-20261108.json",
+    "feature_commit": "05dc625df2a0c6c0f34f8f79b612777dd09e0d17",
+    "service_branch_is_ancestor": true,
+    "old_worktree": "C:/Users/Administrator/.codex/worktrees/service-extensions/xrt",
+    "old_worktree_preserved_as_historical_scene": true,
+    "old_dirty_files_already_integrated_and_subsequently_improved": true,
+    "new_branch_operations": 0,
+    "remote_push": false
+  },
+  "source_identity": {
+    "frozen-source.json": {
+      "inputs": 2592,
+      "path": "out/service-extensions/xmqtt-tls-20261109/frozen-source.json",
+      "sha256": "121f7ccdee8f4e94fa5800b03a17848750342ac74e5f840a3b6356eb974c2f58"
+    },
+    "mainline-source.json": {
+      "inputs": 3025,
+      "path": "out/service-extensions/xmqtt-tls-20261109/mainline-source.json",
+      "sha256": "2d2c16efda28e5e918a879e0f38fcdf38add2e6150f8002d00933b3f0aa8d18b"
+    },
+    "mainline-final-source.json": {
+      "inputs": 3025,
+      "path": "out/service-extensions/xmqtt-tls-20261109/mainline-final-source.json",
+      "sha256": "c8380a04477925af04408d151f3a33bd97bfcc03616015d215840d874e21513d"
+    },
+    "generated-restore-source.json": {
+      "inputs": 885,
+      "path": "out/service-extensions/xmqtt-tls-20261109/generated-restore-source.json",
+      "sha256": "0d468b1c85d4276ecd6e4e7ad470dcfb87107dd29225fc1805a42410d2b46436"
+    }
+  },
+  "behavior": [
+    "The existing full Drain/conditional Writable events cannot prove retirement of an earlier ciphertext prefix while later output stays queued. A real TLS slow-peer prototype retires the first cut with 1279668 later bytes pending and zero Drain/Writable notifications.",
+    "Optional net_tcp_write_progress and tls_stream_write_progress leaves reuse native exact prefix/credit retirement and the existing TLS DriveCommand. No new shared runtime, copied ciphertext or per-write observer node is introduced. Mandatory local uint64 cursors do not depend on optional network diagnostics.",
+    "Worker-only SetWriteProgress starts one permanent local cursor epoch. WriteProgress returns Completed plus current native/TLS ciphertext queues as Produced. Compare a saved Produced cut while live; later output does not extend it. Handshake/control bytes are included. This does not acknowledge peer receipt or decryption.",
+    "Notifications coalesce in the existing deferred DriveTask, outside synchronous Send/SendVec and native write completion. Existing event Data/owner lifetime applies. TLS event replacement removes the observer but preserves the epoch; native replacement invalidates the epoch. Terminal close clears the observer. Active observers are opaque to V1 graph admission; remove them and quiesce before certified collection.",
+    "Snapshot validates size, output/owner overlap, Worker, native/TLS binding and live state. Errors preserve output; counter overflow never wraps. Unencoded async plaintext is outside a cut. Failure/abort/close settles the enclosing operation and cannot be interpreted as successful prefix completion.",
+    "Enabling the feature grows private TCP/TLS structs by16/24 bytes on each measured OS, from704/360 to720/384. Unselected layouts remain704/360. Public Config32 and Events56 stay unchanged. Activation/query pass a one-byte allocation budget with zero PeakBytes, LiveCount and Rejections. This is not a pooled/RSS or zero-overhead claim."
+  ],
+  "tests": [
+    "Real TLS1.3 slow-peer traffic proves the first cut can complete with later data queued; exact decrypted HEAD/tail/MORE bytes and order, callback reentrant Send, no callback in Send, remove/re-add epoch preservation, foreign-thread rejection, overflow, native rebind invalidation, TLS handoff and actual Engine join are asserted.",
+    "Modular, generated single header, NET_STATS_LEVEL0 and explicit io_uring variants run. Core TCP ownership/retirement and TLS/Future suites run with the new leaf selected; owned graph admission tests use actual retained verifier/trust nodes and reject/remove an opaque observer.",
+    "Windows/WSL each freshly execute all four explicit product test aggregators plus event_waiter, and all eight root static/shared package consumers. WSL correctness runs use ASan/UBSan/leak-halt. Separate generic leaf and full-crypto static/shared packages plus public-only real TLS consumers pass on both OSes. WSL additionally passes three progress and two owned-graph TSan executions.",
+    "Generated single/features/API/docs and maturity checks pass;66 focused shared-tool unit tests pass. Compilation, execution and packaged artifacts are retained with source/log/binary hashes. WSL is not native Linux production qualification."
+  ],
+  "existing_fixture_corrections": [
+    "The original owned TLS graph test fails on the saved pre-change Core too: a legacy verifier and missing real verifier/trust ownership leaf prevent admission. The corrected fixture uses an OwnedV1 verifier, exact finite policy, a real refcounted trust leaf and early release of its external verifier alias. Same corrected fixture passes before/current Core without the new leaf, and optional observer refusal/removal is covered on current Core. No Core graph admission check is weakened.",
+    "The original TLS ticket-resume test and loopback benchmark expected zero resumed peer certificates, contradicting the authoritative public header and docs/design/tls-resume-peer.md since commit1d4109af. Original test failure is replayed on pre-change Core. Tests now assert one certificate and exact original DER in full/resumed rounds; resumed status, ticket, KeyUpdate and payload checks remain. Core certificate getters are unchanged.",
+    "Fresh Windows Cron testing fails the old combined Active/Producers rollback assertion. A blocked native Notify on before/current Core deterministically proves Active0 and Producers1 after rollback, with every slot still reusable; this is permitted by the documented separate receipt/publication duties. The fixture now quiesces prior successful publishers before attributing zero producers to a new failed batch, retains the original strict rollback assertions, and adds a controlled regression retaining one old publisher while all64 slots are reused (Active64/Producers65). Production Cron code is unchanged. Full Cron34 programs rerun on each OS, plus two WSL TSan executor programs. Other successful product/package receipts remain reusable because their commands do not compile the only amended Cron test header."
+  ],
+  "retained_failures": [
+    "Initial module/backend selection omissions, test format errors, test wakeup sequencing, and a failed diagnostic timer accessing a freed raw test handle are preserved in ignored artifacts. Accepted test holds raw context through Engine join and posts application resume explicitly; no failed diagnostic timer remains in tracked tests.",
+    "prepare.py initially used an overbroad bench replacement-count assertion; prepare-observed.py targets the intended callback and completes both probes. Initial public package consumer commands supplied bare library names as paths; packages-fixed.py uses proper -l flags, with the original failures retained.",
+    "The first fresh four-product orchestration completed30 xredis programs per OS, then its post-run source-freeze check rejected automatic regeneration of single/extlibs/xredis_decl.h. Both orchestration exits1, receipts, binaries and the old input map are retained in pre-extension-regeneration. All four extension declaration headers were then explicitly regenerated from the canonical manifest (20 feature restore macro lines each), generated/features/API/docs checks pass for each extension, and the full four-product verification restarts with that3025-input map. The final map differs only in the subsequently corrected Cron test header; each OS reruns the full Cron suite. An additional18 unrelated extension declaration headers receive only the same20 generated macro-restore lines, keeping the22 affected generated declaration headers consistent with the new Core feature registry. Their exact before/after hashes and separate generation-input map are retained; no unrelated canonical implementation is changed. Core2592-input validation/measurement scope remains unchanged.",
+    "The controlled Cron probe initially substituted an include placeholder inside macro names and failed compilation; the corrected include-only replacement passes before/current Core. One Windows prototype wrapper exited1 while printing Unicode diagnostics, after its underlying WSL TSan process had already returned0 and saved its receipt. Final actual-mainline Cron/TSan runs provide the acceptance evidence.",
+    "GCC15 WSL TSan O1 ownership compilation warns psk.c output counts may be uninitialized and -Werror stops before any program executes. Inspection confirms successful helpers initialize both outputs and failures return. Strict O2 TSan runs both ownership programs successfully without disabling that warning or changing the parser. Original O1 failure remains recorded."
+  ],
+  "performance_interpretation": "Seven alternating50000-message64-byte samples per before/current-no-leaf/compiled-inactive/active-client-observer variant on each OS,56 formal outputs total, all retained. Original3% MAD/6% central-range,5% throughput/10% P99 gates unchanged. All throughput comparisons are noise-unqualified; only Windows before/current-no-leaf P99 qualifies and stays within10%. Other tails remain unqualified. These unpinned loopback results do not establish feature overhead, broker parity, fixed-arrival performance or production acceptance. The active probe itself queries a public snapshot and increments one relaxed atomic notification counter.",
+  "platforms": {
+    "windows": {
+      "validation": {
+        "validation": [
+          {
+            "label": "progress",
+            "exit_code": 0,
+            "programs": 3,
+            "log_sha256": "7ba0cd10d73074373e52467b43b835635eee3d703bba9c52fc88255c9067a4e4"
+          },
+          {
+            "label": "ownership",
+            "exit_code": 0,
+            "programs": 2,
+            "log_sha256": "9e0182eee1187df551eb9f04bbf3812e736fc060e873ae2544983a7b86a0d3e3"
+          },
+          {
+            "label": "native-test_tls_stream_ownership",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "e0996c5d15af3eba30ffd9ac002ea78feed43f24336cd85d1e7c7012c937a6d3"
+          },
+          {
+            "label": "native-test_single_tls_stream_ownership",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "e0996c5d15af3eba30ffd9ac002ea78feed43f24336cd85d1e7c7012c937a6d3"
+          },
+          {
+            "label": "tcp",
+            "exit_code": 0,
+            "programs": 21,
+            "log_sha256": "e7c2b0983b1a81a82d9b2495494851ea41a00de32d1446a73ce9e0e70a251f3d"
+          },
+          {
+            "label": "tls",
+            "exit_code": 0,
+            "programs": 16,
+            "log_sha256": "293b7559d5323daf7058607db07b909abb3af3dd185351720444f1820f7eecb8"
+          },
+          {
+            "label": "package-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "2c31f84113cc96fd930d33186729c68830921cad75bb06ea75fc13fe4c873dbf"
+          },
+          {
+            "label": "package-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "f0cdf73c96bb6913ef43165037251ca9d990b1f211417374690eb6e5ff9453af"
+          },
+          {
+            "label": "single",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+          },
+          {
+            "label": "features",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "dc13349ca84e3edf80028bd0b76441a06a4bb498f8d4d51c748183acea42ef8f"
+          },
+          {
+            "label": "api",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "538a1ac1d64c854e7121d23d99144e8c96710859e2b655d9a349f5530d6fb1e7"
+          },
+          {
+            "label": "docs",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "7494e70e92d118935362467c0c091cf2e5493a84eee691999b945698d2aabd74"
+          },
+          {
+            "label": "maturity",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "de5d036d92c4313ebc6e6ec98e2a31862fbfe6a3ae6878cc74d15a9904066158"
+          },
+          {
+            "label": "tools",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "ec470ac8ee54dec00be214e2f7ec2308d5008020098f97c1a26b9d6878f580ba"
+          }
+        ],
+        "mainline": [
+          {
+            "label": "xredis-suite",
+            "exit_code": 0,
+            "programs": 30,
+            "log_sha256": "4754923044dc4df99cfbc44bab644c0e8214994974861b4d2ca4eda7fab716ef"
+          },
+          {
+            "label": "xrpc-suite",
+            "exit_code": 0,
+            "programs": 30,
+            "log_sha256": "99d91217bb728d74a7ca2abf01fcbcf2a337db863cba692aa2d956adfa4d3ef7"
+          },
+          {
+            "label": "xmqtt-suite",
+            "exit_code": 0,
+            "programs": 22,
+            "log_sha256": "80b2fc11f44fed8c50915ae1f0e541926a1b61476f05f2661befba161301d905"
+          },
+          {
+            "label": "xredis-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "c42746a4d05ee9814e16c09b2ae28f77f0f7b405e14c10724b9e6042d0ff3fca"
+          },
+          {
+            "label": "xredis-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "c57f6d4da04386bddeecc425e358856f5f8e67a0612ea4b624b6ed562d69e699"
+          },
+          {
+            "label": "xrpc-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "db3889031102a2c7a7f8752a148db02b1e98e979ffb4d36cf3587400296425ac"
+          },
+          {
+            "label": "xrpc-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "481ef1cb63a257465c8ce7468106cbea373245e51473584ae16f94d0a5520a27"
+          },
+          {
+            "label": "xmqtt-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "41d6259cb02fe90e5363558046bdbbd0cae84232c0f9def168c82fcef4588a81"
+          },
+          {
+            "label": "xmqtt-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "9d4f2eb6a9bc560fa6b442a0e1ff1c516ca95023127d4cd186afef96270becaf"
+          },
+          {
+            "label": "xcron-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "1b69f33a838ae2f390e8e56b77cf572dee7f35159bf5e061ef5537fb00e97e47"
+          },
+          {
+            "label": "xcron-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "23fa8f387b980b626af6ac791558a9bd5bc1fae1d45994d5343af10e29503bfa"
+          },
+          {
+            "label": "mainline-xcron-corrected",
+            "exit_code": 0,
+            "programs": 34,
+            "log_sha256": "248d19c8fc6cc391e2c03f8536e7e591c2b36250f145ea59262e6becfa42fbca"
+          }
+        ]
+      },
+      "layout": {
+        "before": {
+          "tcp": 704,
+          "tls": 360,
+          "config": 32,
+          "events": 56
+        },
+        "base": {
+          "tcp": 704,
+          "tls": 360,
+          "config": 32,
+          "events": 56
+        },
+        "compiled": {
+          "tcp": 720,
+          "tls": 384,
+          "config": 32,
+          "events": 56
+        }
+      },
+      "performance": {
+        "protocol": {
+          "rounds": 7,
+          "alternating_order": true,
+          "full_handshakes": 2,
+          "resumed_handshakes": 2,
+          "messages": 50000,
+          "payload": 64,
+          "pinned": false,
+          "mad_limit": 0.03,
+          "central_range_limit": 0.06,
+          "throughput_regression_limit": 0.05,
+          "p99_regression_limit": 0.1,
+          "observed_callback": "client only; public snapshot query and one relaxed atomic notification count"
+        },
+        "statistics": {
+          "before": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                34328.039,
+                34509.505,
+                34662.922,
+                35428.037,
+                35573.121,
+                36641.295,
+                36781.36
+              ],
+              "median": 35428.037,
+              "mad_fraction": 0.025926697547481937,
+              "central_range_fraction": 0.06017239961672167,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                51.4,
+                52.0,
+                55.1,
+                55.2,
+                55.3,
+                55.3,
+                55.7
+              ],
+              "median": 55.2,
+              "mad_fraction": 0.0018115942028985763,
+              "central_range_fraction": 0.05978260869565212,
+              "noise_qualified": true
+            }
+          },
+          "base": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                33502.119,
+                34376.493,
+                34733.971,
+                34964.223,
+                35131.415,
+                35540.389,
+                35567.453
+              ],
+              "median": 34964.223,
+              "mad_fraction": 0.016478730272370266,
+              "central_range_fraction": 0.033288198625206135,
+              "noise_qualified": true
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                54.5,
+                54.8,
+                55.7,
+                56.1,
+                56.4,
+                56.7,
+                57.5
+              ],
+              "median": 56.1,
+              "mad_fraction": 0.010695187165775426,
+              "central_range_fraction": 0.033868092691622206,
+              "noise_qualified": true
+            }
+          },
+          "compiled": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                33456.037,
+                33714.405,
+                34091.259,
+                34344.832,
+                35242.167,
+                37748.649,
+                37938.924
+              ],
+              "median": 34344.832,
+              "mad_fraction": 0.025878565951349113,
+              "central_range_fraction": 0.11746291261520797,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                48.3,
+                48.6,
+                56.7,
+                57.1,
+                57.7,
+                57.8,
+                58.8
+              ],
+              "median": 57.1,
+              "mad_fraction": 0.012259194395796773,
+              "central_range_fraction": 0.16112084063047277,
+              "noise_qualified": false
+            }
+          },
+          "observed": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                31858.666,
+                33473.541,
+                33510.38,
+                33760.644,
+                33846.109,
+                34813.778,
+                37118.37
+              ],
+              "median": 33760.644,
+              "mad_fraction": 0.00850407355973431,
+              "central_range_fraction": 0.03969820599393782,
+              "noise_qualified": true
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                49.5,
+                54.1,
+                57.0,
+                58.1,
+                58.2,
+                59.7,
+                61.7
+              ],
+              "median": 58.1,
+              "mad_fraction": 0.027538726333907082,
+              "central_range_fraction": 0.09638554216867472,
+              "noise_qualified": false
+            }
+          }
+        },
+        "comparisons": [
+          {
+            "before": "before",
+            "after": "base",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": -0.0130917216779467,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "before",
+            "after": "base",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": 0.016304347826086918,
+            "noise_qualified": true,
+            "regression_within_limit": true
+          },
+          {
+            "before": "base",
+            "after": "compiled",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": -0.017714993981133076,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "base",
+            "after": "compiled",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": 0.017825311942959,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "compiled",
+            "after": "observed",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": -0.017009487773881116,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "compiled",
+            "after": "observed",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": 0.017513134851138368,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          }
+        ],
+        "binary_sha256": {
+          "before": "4eebd9a1cd4b623bc539c32a46abe4d35ae3d424fd2159117b597ce7e197b148",
+          "base": "2267a6887cb09fe6b9a10f6ccba4fb9002947ed9c1f64a2b7949fe479eae9118",
+          "compiled": "7f800a840bf2b161d8da5723fed380df749db25280a0f15825172400f7da77fc",
+          "observed": "592da2696fc66f97da96325108ca4d64bb9c88711bae30a60413da8c00f7be35"
+        }
+      },
+      "receipt_files": {
+        "validation": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/windows-validation.json",
+          "sha256": "a00c3d180c774189c362343b956775620548134efd7989bfed291086ae2b6429"
+        },
+        "packages": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/windows-packages.json",
+          "sha256": "cfe01357983a865d47e6f5fa9087e188e4dfcca9cf83c64343ad678f4b4ba20d"
+        },
+        "probes": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/windows-probes.json",
+          "sha256": "4dfd1e330fe61ec9fa940947eb97d32d69776c33f0521000de89992f45158edf"
+        },
+        "mainline": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/windows-mainline-final.json",
+          "sha256": "75e4e6ffd96cc75571e4eea350fcfaae297866ac656c0772ff30a7b6697a1d42"
+        },
+        "performance": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/windows-performance.json",
+          "sha256": "c501a2650cb1e1f3438cd02d3560c63a61072da512bd31f44b1527a2d8a4f191"
+        }
+      },
+      "mainline_artifact_manifest": {
+        "path": "out/service-extensions/xmqtt-tls-20261109/windows-mainline-artifacts.json",
+        "sha256": "be5ee9458340b2e4f40508b5b3d5fdd6c225878efbdf512774d9c8f2583ed735"
+      }
+    },
+    "wsl": {
+      "validation": {
+        "validation": [
+          {
+            "label": "progress",
+            "exit_code": 0,
+            "programs": 3,
+            "log_sha256": "802ac0d5a8a22d502d6d66d9a44af9a9bd69401e1bc52581a3ad20be6e8edb51"
+          },
+          {
+            "label": "uring",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "b12c715cf3c75cbbb9e3c4192923fde5385c8f266f610baf8fbf9b429a08f147"
+          },
+          {
+            "label": "ownership",
+            "exit_code": 0,
+            "programs": 2,
+            "log_sha256": "9173ad4d42cf72f7e85f449354293f5bed3743ac8f171bf93bbd0e4f20dc9847"
+          },
+          {
+            "label": "native-test_tls_stream_ownership",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "c6e6ebe683b059b80a53f7cc1c41f294036510e2a0513fe61f1972ad09743e7c"
+          },
+          {
+            "label": "native-test_single_tls_stream_ownership",
+            "exit_code": 0,
+            "programs": 1,
+            "log_sha256": "c6e6ebe683b059b80a53f7cc1c41f294036510e2a0513fe61f1972ad09743e7c"
+          },
+          {
+            "label": "tcp",
+            "exit_code": 0,
+            "programs": 21,
+            "log_sha256": "47ceb6418aa910a245dfa881a7a83cee6614346cf2c510c968975619ebb2dc52"
+          },
+          {
+            "label": "tls",
+            "exit_code": 0,
+            "programs": 16,
+            "log_sha256": "0f457ca68ff2faa5976dceeb062b2952a87242aad031ca3a07d935dfed5da0f1"
+          },
+          {
+            "label": "package-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "8fd91bc5720a05e0bc428bca0d00b05ca1e147d8b92e1e59a242cfc535c9ddd5"
+          },
+          {
+            "label": "package-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "9d2b98ca524f4e2bb63b3f4525898d88cecdc101483ca350f503aa3fd37e15d7"
+          },
+          {
+            "label": "tsan-progress",
+            "exit_code": 0,
+            "programs": 3,
+            "log_sha256": "ee8ab359190e7abb385c0fb2d48d9f18f36e88b35f67abc869018efdc2fcc79b"
+          },
+          {
+            "label": "tsan-ownership",
+            "exit_code": 1,
+            "programs": 0,
+            "log_sha256": "a66c7bcce20d7dd353e7f54bac7963c2a5fe62b514e96a5253cda5bea0f0c79e"
+          },
+          {
+            "label": "tsan-ownership-o2",
+            "exit_code": 0,
+            "programs": 2,
+            "log_sha256": "f6a74304cc1c5752e04f85d5b55050f01d3746c5d043a76227e111465cf60640"
+          }
+        ],
+        "mainline": [
+          {
+            "label": "xredis-suite",
+            "exit_code": 0,
+            "programs": 30,
+            "log_sha256": "dd1c2fe4fd89f65dd2c18581ad16e06b06c7d2463e00bd94393d12140c2fc285"
+          },
+          {
+            "label": "xrpc-suite",
+            "exit_code": 0,
+            "programs": 30,
+            "log_sha256": "b1f3054fad88d71a23ecd407b0dfab47ec738c4e06e58afe7dbabb2c4f6619bd"
+          },
+          {
+            "label": "xmqtt-suite",
+            "exit_code": 0,
+            "programs": 22,
+            "log_sha256": "5596c49335174b5e41c441ba01a798d35131e593d5d3883a5f052d81999591b2"
+          },
+          {
+            "label": "xredis-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "4b80e94146b799dbaa9c0623edcee29fcf869c7236036f0258f75065c5188fb1"
+          },
+          {
+            "label": "xredis-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "0eb8fca69bcbd18978be9e60952041c6ae546a2519eb6363e8f1b7983f9cb70a"
+          },
+          {
+            "label": "xrpc-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "0926f6ed2fa48d196d82843805dbcc5cc0fad91bb0af8442c3aaad0203a78f9c"
+          },
+          {
+            "label": "xrpc-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "5d3596634b9e21d98528e7f1fbc87b62971a39187b291b5f1611c71f627bc69a"
+          },
+          {
+            "label": "xmqtt-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "543902149b9b86936eb93b12d8c92402e701439b04bf4b03df49f2f023f4a264"
+          },
+          {
+            "label": "xmqtt-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "e46008ca07c580b0ed726b9c69bb6fb0389c7736c16924fb927f8bff799436ae"
+          },
+          {
+            "label": "xcron-static",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "466d38d1e7fab52e64ac49e9bb43fc8d3ec3fa249122351a28cce5276a27fc1c"
+          },
+          {
+            "label": "xcron-shared",
+            "exit_code": 0,
+            "programs": 0,
+            "log_sha256": "75262bfc9c9345dd99c87beffb75e9ba823cbbc56a1be55d7cb30b05bf953200"
+          },
+          {
+            "label": "mainline-xcron-corrected",
+            "exit_code": 0,
+            "programs": 34,
+            "log_sha256": "a7830cb5d774de51a1ae81843821395ddd165dcac9019476263c91b4d2088084"
+          },
+          {
+            "label": "cron-tsan-corrected",
+            "exit_code": 0,
+            "programs": 2,
+            "log_sha256": "dc008dfc0619d8f2805b7191db2641fbedb7f210b7ddac49ef4b36cd9364a67f"
+          }
+        ]
+      },
+      "layout": {
+        "before": {
+          "tcp": 704,
+          "tls": 360,
+          "config": 32,
+          "events": 56
+        },
+        "base": {
+          "tcp": 704,
+          "tls": 360,
+          "config": 32,
+          "events": 56
+        },
+        "compiled": {
+          "tcp": 720,
+          "tls": 384,
+          "config": 32,
+          "events": 56
+        }
+      },
+      "performance": {
+        "protocol": {
+          "rounds": 7,
+          "alternating_order": true,
+          "full_handshakes": 2,
+          "resumed_handshakes": 2,
+          "messages": 50000,
+          "payload": 64,
+          "pinned": false,
+          "mad_limit": 0.03,
+          "central_range_limit": 0.06,
+          "throughput_regression_limit": 0.05,
+          "p99_regression_limit": 0.1,
+          "observed_callback": "client only; public snapshot query and one relaxed atomic notification count"
+        },
+        "statistics": {
+          "before": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                15910.758,
+                15945.117,
+                16260.67,
+                16288.107,
+                17277.938,
+                17668.322,
+                17771.037
+              ],
+              "median": 16288.107,
+              "mad_fraction": 0.023167148889677615,
+              "central_range_fraction": 0.10579528977799568,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                106.1,
+                110.2,
+                110.9,
+                114.6,
+                116.1,
+                117.5,
+                120.8
+              ],
+              "median": 114.6,
+              "mad_fraction": 0.032286212914485066,
+              "central_range_fraction": 0.06369982547993017,
+              "noise_qualified": false
+            }
+          },
+          "base": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                15754.082,
+                16026.691,
+                16089.657,
+                16377.152,
+                17079.489,
+                17106.945,
+                18218.513
+              ],
+              "median": 16377.152,
+              "mad_fraction": 0.03804507645773818,
+              "central_range_fraction": 0.06596104133368237,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                104.2,
+                110.2,
+                111.9,
+                113.5,
+                113.8,
+                114.8,
+                117.1
+              ],
+              "median": 113.5,
+              "mad_fraction": 0.014096916299559422,
+              "central_range_fraction": 0.04052863436123343,
+              "noise_qualified": true
+            }
+          },
+          "compiled": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                14927.557,
+                14956.538,
+                16011.594,
+                16467.003,
+                16641.0,
+                16725.05,
+                17991.114
+              ],
+              "median": 16467.003,
+              "mad_fraction": 0.02765585213046973,
+              "central_range_fraction": 0.10739732056889761,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                106.0,
+                113.2,
+                113.5,
+                118.5,
+                119.9,
+                124.9,
+                136.2
+              ],
+              "median": 118.5,
+              "mad_fraction": 0.04472573839662445,
+              "central_range_fraction": 0.0987341772151899,
+              "noise_qualified": false
+            }
+          },
+          "observed": {
+            "tls_stream_round_trips_per_sec": {
+              "samples": [
+                15170.709,
+                15721.566,
+                16914.586,
+                17070.135,
+                17166.593,
+                17507.586,
+                17800.475
+              ],
+              "median": 17070.135,
+              "mad_fraction": 0.025626686607926708,
+              "central_range_fraction": 0.10462834652450018,
+              "noise_qualified": false
+            },
+            "tls_stream_latency_p99_us": {
+              "samples": [
+                106.2,
+                109.0,
+                110.2,
+                110.7,
+                121.0,
+                128.3,
+                131.0
+              ],
+              "median": 110.7,
+              "mad_fraction": 0.04065040650406504,
+              "central_range_fraction": 0.17434507678410127,
+              "noise_qualified": false
+            }
+          }
+        },
+        "comparisons": [
+          {
+            "before": "before",
+            "after": "base",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": 0.005466872239972442,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "before",
+            "after": "base",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": -0.009598603839441444,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "base",
+            "after": "compiled",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": 0.0054863629524841695,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "base",
+            "after": "compiled",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": 0.044052863436123246,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "compiled",
+            "after": "observed",
+            "metric": "tls_stream_round_trips_per_sec",
+            "change_fraction": 0.036626701288631436,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          },
+          {
+            "before": "compiled",
+            "after": "observed",
+            "metric": "tls_stream_latency_p99_us",
+            "change_fraction": -0.0658227848101266,
+            "noise_qualified": false,
+            "regression_within_limit": null
+          }
+        ],
+        "binary_sha256": {
+          "before": "dc0e5f9fdca8e06039d101e4180198ec6e7e560462d50c5d5881c401a65d705d",
+          "base": "46c80ed0b57e19013b8cd60b24d2b5b54419e6f9992e8d30698ea835f22da00c",
+          "compiled": "7c6fa988824a126b025c06331c4a9126231ae4b8bba729ad1edbf66460a998a8",
+          "observed": "23f6173428c41410ff557da56a8e7ded31cd2d08b77e842f8ee2118ad32f2345"
+        }
+      },
+      "receipt_files": {
+        "validation": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/wsl-validation.json",
+          "sha256": "192fe3b1bbaf73f48d51d79b9e6c5666a37eb9d00ef13062de5bf5ffeb84a391"
+        },
+        "packages": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/wsl-packages.json",
+          "sha256": "5ae061888a24a458fd9d0200f2a3a20ce6899c677de0ce689459dc41e561fc3a"
+        },
+        "probes": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/wsl-probes.json",
+          "sha256": "498a507b437196d9cf265efac5af00074004300c8ed869713da88bf2202f18e2"
+        },
+        "mainline": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/wsl-mainline-final.json",
+          "sha256": "91f147d7545d85b19ff31d811cfd5fc523fef33ef6578cd8266dadb824ead7ef"
+        },
+        "performance": {
+          "path": "out/service-extensions/xmqtt-tls-20261109/wsl-performance.json",
+          "sha256": "0fc5920a8948847af6071f29215c9643a2ec015d0e41361bb78ec47a45b341c1"
+        }
+      },
+      "mainline_artifact_manifest": {
+        "path": "out/service-extensions/xmqtt-tls-20261109/wsl-mainline-artifacts.json",
+        "sha256": "200399e5eb117cd49bd1248ef55472112efa35ce81a3a2b1a34260eeaa9c5280"
+      }
+    }
+  },
+  "outstanding": [
+    "MQTT TLS integration is not implemented by this prerequisite stage.",
+    "Remaining MQTT5/3.1.1 WebSocket/session/expiry/reconnect/durable-state scope and Redis/RPC/Cron requirements remain.",
+    "Native Linux qualification, qualified throughput/P99 profiles, at least72h soak and full release acceptance remain; all four products stay developing."
+  ],
+  "raw_artifacts": "out/service-extensions/xmqtt-tls-20261109",
+  "generated_declarations": {
+    "affected_headers": 22,
+    "added_restore_lines_per_header": 20,
+    "additional_headers_manifest": {
+      "path": "out/service-extensions/xmqtt-tls-20261109/generated-restore-changes.json",
+      "sha256": "b80340ac3d12cb5c1eb715af22da72f4843a8c323338a788604f6a6ab2b49c52"
+    },
+    "all_extensions_check": {
+      "path": "out/service-extensions/xmqtt-tls-20261109/all-extension-declaration-tests.json",
+      "sha256": "acba599bb25bb2e87a96cd66be735ce7788acc8c081112d416759df243339209",
+      "unit_tests": 5
+    },
+    "description": "Only generated restoration guards for the two new Core feature macros are added to the affected declaration headers. All catalog declaration outputs match the canonical generator, and five existing shared-tool tests compile/check all catalog extensions. Unrelated canonical implementations are untouched."
+  },
+  "cron_fixture_evidence": "extlibs/xcron/tests/results/executor-publication-tail-20261109.json"
+}

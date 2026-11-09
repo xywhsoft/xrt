@@ -1517,6 +1517,19 @@
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* net_tcp_server_sync 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_SERVER_SYNC)
 #ifndef XRT_FEATURE_NET_TCP_SERVER_SYNC
@@ -1589,6 +1602,16 @@
 #endif
 #ifndef XRT_MODULE_COND
 #define XRT_MODULE_COND
+#endif
+#endif
+
+/* net_tcp_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_NET_TCP_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#define XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_NET_TCP
+#define XRT_MODULE_NET_TCP
 #endif
 #endif
 
@@ -32364,6 +32387,11 @@ XRT_EXTERN_C_END
 	#error "XRT TLS Stream Future support requires TLS Stream and Future"
 #endif
 
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) && \
+	(!defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS))
+	#error "XRT TLS write progress requires TLS Stream and native write progress"
+#endif
+
 #if defined(XRT_FEATURE_TLS_STREAM_DIAL_FUTURE) && \
 	(!defined(XRT_FEATURE_TLS_STREAM_DIAL) || \
 	 !defined(XRT_FEATURE_FUTURE) || \
@@ -32510,6 +32538,16 @@ typedef struct xtlsstreamevents {
 	void (*Ticket)(xtlsstream* pStream, ptr pData);
 } xtlsstreamevents;
 
+/* Ciphertext byte cursors in one Stream-local epoch, not plaintext delivery
+ * acknowledgements. Compare a saved Produced cursor with a later Completed
+ * cursor while the stream is live. Later output does not extend the saved cut. */
+typedef struct xtlswriteprogress {
+	size_t Size;
+	uint64 Produced;
+	uint64 Completed;
+} xtlswriteprogress;
+typedef void (*xtlsstreamwriteproc)(xtlsstream* pStream, ptr pData);
+
 /* One real owner for event data AND every borrowed callback/configuration
  * context used by this session. The descriptor/code stays resident; Ops must
  * enumerate actual references, including shared owner records (never flatten
@@ -32614,6 +32652,30 @@ typedef struct xtlslistenerstats {
 
 
 XRT_EXTERN_C_BEGIN
+
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+/* Owning Worker only, after TCP opens. First success starts a permanent cursor
+ * epoch covering all currently pending output, including handshake/control
+ * records. Registration does not replay earlier progress: query immediately.
+ * No allocation or per-write watch node. Replacing/removing the callback
+ * preserves the epoch. NULL polls without notifications. Data is the current
+ * event Data; the same owner/code lifetime contract applies through destruction.
+ * Notifications coalesce and are deferred outside Send/SendVec and native write
+ * completion; no callback acknowledges peer receipt. Closing or replacing TLS events clears
+ * the callback; replacing native events invalidates the epoch. An observer is
+ * opaque to ownership graph admission: remove it before certified collection.
+ * Never write directly to the borrowed TCP transport while TLS owns it. */
+XRT_API bool xrtTlsStreamSetWriteProgress(xtlsstream* pStream,
+	xtlsstreamwriteproc pProgress);
+/* Owning Worker snapshot. Size must match; all outputs stay unchanged on error.
+ * Requires an enabled epoch and a live, non-aborting transport. Produced includes
+ * the TLS ciphertext queue plus TCP accepted output. Pending async plaintext is
+ * outside the cut: first observe its successful write result. Failure/abort/close invalidates
+ * success comparisons: settle the enclosing protocol operation with that outcome.
+ * Counter overflow is a range error, never wraparound or false completion. */
+XRT_API bool xrtTlsStreamWriteProgress(xtlsstream* pStream,
+	xtlswriteprogress* pProgress);
+#endif
 
 
 
@@ -53287,6 +53349,7 @@ enum
 #if defined(XRT_FEATURE_NET_TCP) || \
 	defined(XRT_FEATURE_NET_TCP_DIAL) || \
 	defined(XRT_FEATURE_NET_PROXY_DIAL) || \
+	defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS) || \
 	defined(XRT_FEATURE_NET_TCP_RETIRE) || \
 	defined(XRT_FEATURE_NET_TCP_FILE)
 #ifndef XRT_INTERNAL_TCP_H
@@ -53480,6 +53543,12 @@ struct xnetstream {
 	xnetstreamconfig Config;
 	xnetstreamevents Events;
 	xatomicptr Data;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		/* Internal protocol hook. Its context borrows the current event owner;
+		 * replacement clears both fields before retiring that owner. */
+		void (*WriteProgress)(xnetstream*, size_t, ptr);
+		ptr WriteProgressData;
+	#endif
 	__xrt_net_stream_events_owner* EventOwner;
 	__xrt_net_stream_events_owner* RetiredEventOwners;
 	__xrt_net_stream_events_owner* RetiredEventOwnersTail;
@@ -56219,6 +56288,7 @@ bool __xrtTlsServerResumeSelect(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TLS_STREAM) || \
+	defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) || \
 	defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE) || \
@@ -56272,6 +56342,13 @@ struct xtlsstream {
 	/* A protocol handoff never replaces the session's original context. */
 	const xtlsstreamownershipv1* EventPolicy;
 	xatomicptr EventData;
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		uint64 WriteCompleted;
+		xtlsstreamwriteproc WriteProgress;
+		bool WriteProgressEnabled;
+		bool WriteProgressPending;
+		bool WriteProgressOverflow;
+	#endif
 	xerror* Error;
 	uint64 HandshakeTimer;
 	uint64 CloseTimer;
@@ -161102,6 +161179,7 @@ XRT_API void xrtWsDeflaterDestroy(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_NET_TCP) || \
+	defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS) || \
 	defined(XRT_FEATURE_NET_TCP_FILE)
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -161866,6 +161944,10 @@ static bool __xrtNetStreamConsumeWrite(
 	}
 	__xrtNetStreamReleaseSendBudget(pStream, iConsumed);
 	pStream->WriteConsuming = false;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		if (pStream->WriteProgress)
+			pStream->WriteProgress(pStream, iConsumed, pStream->WriteProgressData);
+	#endif
 	return true;
 }
 
@@ -162620,6 +162702,10 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		XNET_STREAM_CLOSED,
 		XMEMORY_RELEASE
 	);
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressData = NULL;
+	#endif
 	if ( pStream->Events.Close != NULL ) {
 		pStream->Events.Close(
 			pStream,
@@ -164128,6 +164214,10 @@ static bool __xrtNetStreamSetEvents(
 		#endif
 		return false;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressData = NULL;
+	#endif
 	__xrtNetStreamRetireEvents(pStream);
 	pStream->EventOwner = pOwner;
 	memset(&pStream->Events, 0, sizeof(pStream->Events));
@@ -167556,6 +167646,11 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 		pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail || !__xrtNetStreamEventsOwned(pStream) ||
 		pStream->ActiveDepth || pStream->StartPending ||
 		xrtAtomic32Load(&pStream->ControlRequests, XMEMORY_ACQUIRE)) return false;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		if (pStream->WriteProgress && (!pStream->EventOwner ||
+			pStream->WriteProgressData != pStream->EventOwner->Data)) return false;
+		if (!pStream->WriteProgress && pStream->WriteProgressData) return false;
+	#endif
 	if (!__xrtNetStreamBuffersOwnership(pStream, NULL, NULL)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if (!__xrtNetDialControlOwnership(pStream, NULL, NULL)) return false;
@@ -198808,7 +198903,8 @@ xtlsresult __xrtTlsServer12ChangeCipherSpec(
 /* source: src/tls/stream.c */
 /* ========================================================================== */
 
-#if defined(XRT_FEATURE_TLS_STREAM)
+#if defined(XRT_FEATURE_TLS_STREAM) || \
+	defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
 #if defined(XRT_FEATURE_TLS_CLIENT_RESUME)
 #endif
 
@@ -198831,6 +198927,9 @@ static void __xrtTlsStreamTransportDrop(const void*);
 
 static void __xrtTlsStreamDrive(xtlsstream* pStream);
 static void __xrtTlsStreamProgressClose(xtlsstream* pStream);
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+static void __xrtTlsStreamPublishWriteProgress(xtlsstream* pStream);
+#endif
 
 
 
@@ -199840,6 +199939,9 @@ static void __xrtTlsStreamDriveTask(xnetworker* pWorker, ptr pData)
 	(void)pWorker;
 	pStream->DrivePosted = false;
 	__xrtTlsStreamDrive(pStream);
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		__xrtTlsStreamPublishWriteProgress(pStream);
+	#endif
 	xrtTlsStreamDestroy(pStream);
 }
 
@@ -199869,6 +199971,92 @@ static void __xrtTlsStreamScheduleDrive(xtlsstream* pStream)
 		xrtTlsStreamDestroy(pStream);
 	}
 }
+
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+/* This hook runs after the native prefix and its byte credit are consistent.
+ * It never calls application code or reads optional diagnostic statistics. */
+static void __xrtTlsStreamWritten(xnetstream* pTransport, size_t iSize, ptr pData)
+{
+	(void)pTransport;
+	xtlsstream* s = pData;
+	if ((uint64)iSize > UINT64_MAX - s->WriteCompleted)
+		s->WriteProgressOverflow = true;
+	else s->WriteCompleted += (uint64)iSize;
+	if (s->WriteProgress) {
+		s->WriteProgressPending = true;
+		__xrtTlsStreamScheduleDrive(s);
+	}
+}
+
+static bool __xrtTlsStreamProgressTransport(xtlsstream* s, xnetstream* tcp)
+{
+	const xnetstreamevents* e = &xrtTlsStreamTransportOwnershipV1Get()->Events;
+	return tcp && xrtAtomicPtrLoad(&tcp->Data, XMEMORY_RELAXED) == s &&
+		tcp->Events.Read == e->Read && tcp->Events.Close == e->Close &&
+		!xrtAtomic32Load(&tcp->AbortGate, XMEMORY_ACQUIRE) &&
+		!xrtAtomic32Load(&tcp->CloseGate, XMEMORY_ACQUIRE) &&
+		xrtNetStreamState(tcp) == XNET_STREAM_OPEN &&
+		xrtTlsStreamState(s) != XTLS_STREAM_FAILED &&
+		xrtTlsStreamState(s) != XTLS_STREAM_CLOSED && !s->CloseEmitted &&
+		!xrtAtomic32Load(&s->AbortGate, XMEMORY_ACQUIRE);
+}
+
+XRT_API bool xrtTlsStreamSetWriteProgress(xtlsstream* s, xtlsstreamwriteproc proc)
+{
+	if (!__xrtTlsStreamWorker(s, "set-tls-write-progress")) return false;
+	xnetstream* tcp = xrtAtomicPtrLoad(&s->Transport, XMEMORY_ACQUIRE);
+	if (!__xrtTlsStreamProgressTransport(s, tcp) ||
+		(s->WriteProgressEnabled && (tcp->WriteProgress != __xrtTlsStreamWritten ||
+		 tcp->WriteProgressData != s)) ||
+		(!s->WriteProgressEnabled && tcp->WriteProgress)) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	if (!s->WriteProgressEnabled) {
+		s->WriteProgressEnabled = true;
+		tcp->WriteProgressData = s;
+		tcp->WriteProgress = __xrtTlsStreamWritten;
+	}
+	s->WriteProgress = proc;
+	s->WriteProgressPending = false;
+	return true;
+}
+
+XRT_API bool xrtTlsStreamWriteProgress(xtlsstream* s, xtlswriteprogress* out)
+{
+	if (!__xrtTlsStreamWorker(s, "get-tls-write-progress")) return false;
+	xnetstream* tcp = xrtAtomicPtrLoad(&s->Transport, XMEMORY_ACQUIRE);
+	if (!out || !xrtMemRangeValid(out, sizeof(*out)) || out->Size != sizeof(*out) ||
+		xrtMemRangesOverlap(out, sizeof(*out), s, sizeof(*s)) ||
+		xrtMemRangesOverlap(out, sizeof(*out), s->Session, sizeof(*s->Session)) ||
+		xrtMemRangesOverlap(out, sizeof(*out), tcp, sizeof(*tcp))) {
+		__xrtErrorSetInvalidArgument(); return false;
+	}
+	if (!s->WriteProgressEnabled || !__xrtTlsStreamProgressTransport(s, tcp) ||
+		tcp->WriteProgress != __xrtTlsStreamWritten || tcp->WriteProgressData != s) {
+		__xrtErrorSetInvalidState(); return false;
+	}
+	uint64 pending = (uint64)xrtNetStreamPending(tcp);
+	uint64 cipher = (uint64)xrtTlsSessionSendSize(s->Session);
+	if (s->WriteProgressOverflow || pending > UINT64_MAX - s->WriteCompleted ||
+		cipher > UINT64_MAX - s->WriteCompleted - pending) {
+		__xrtTlsStreamSetError(XERR_RANGE, XTLS_ERROR_LIMIT, "get-tls-write-progress",
+			"TLS write progress cursor overflow", NULL); return false;
+	}
+	xtlswriteprogress value = {sizeof(value), s->WriteCompleted + pending + cipher,
+		s->WriteCompleted};
+	*out = value;
+	return true;
+}
+
+static void __xrtTlsStreamPublishWriteProgress(xtlsstream* s)
+{
+	if (!s->WriteProgressPending || !s->WriteProgress || s->CloseEmitted ||
+		xrtTlsStreamState(s) == XTLS_STREAM_FAILED ||
+		xrtAtomic32Load(&s->AbortGate, XMEMORY_ACQUIRE)) return;
+	s->WriteProgressPending = false;
+	s->WriteProgress(s, __xrtTlsStreamEventDataCurrent(s));
+}
+#endif
 
 
 
@@ -200157,6 +200345,10 @@ static void __xrtTlsStreamTransportClose(
 		return;
 	}
 	pStream->CloseEmitted = true;
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressPending = false;
+	#endif
 	__xrtTlsStreamCancelTimer(pStream, pStream->HandshakeTimer);
 	__xrtTlsStreamCancelTimer(pStream, pStream->CloseTimer);
 	if ( bClean ) {
@@ -200348,6 +200540,10 @@ XRT_API bool xrtTlsStreamSetEvents(
 			return false;
 		}
 	#endif
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressPending = false;
+	#endif
 	memset(&pStream->Events, 0, sizeof(pStream->Events));
 	if ( pEvents != NULL ) {
 		pStream->Events = *pEvents;
@@ -200433,6 +200629,9 @@ XRT_API bool xrtTlsStreamBindEventsOwnedV1(xtlsstream* s, ptr data,
 		} else
 		#endif
 		{
+			#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+				s->WriteProgress=NULL;s->WriteProgressPending=false;
+			#endif
 			s->Events=policy->Events;s->EventPolicy=policy;
 			xrtAtomicPtrStore(&s->EventData,data,XMEMORY_RELEASE);
 			ok=true;
@@ -201808,6 +202007,10 @@ static bool __xrtTlsStreamOwnershipCount(const void* pData, size_t* pCount)
 		!s->OwnershipPolicy || !s->OwnershipStorageHeld || !s->OwnershipEngine ||
 		!s->OwnershipDataHeld || !xrtAtomicPtrLoad(&s->Data, XMEMORY_ACQUIRE) || !s->Session ||
 		s->ActiveDepth || s->Driving || s->Sending) return false;
+	#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+		/* V1 does not certify an independently registered observer function. */
+		if (s->WriteProgress) return false;
+	#endif
 	#if defined(XRT_FEATURE_TLS_STREAM_LISTENER)
 		if (s->ManagedOpen || s->ManagedClose || s->ManagedData) return false;
 	#endif

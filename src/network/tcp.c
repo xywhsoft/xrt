@@ -762,6 +762,10 @@ static bool __xrtNetStreamConsumeWrite(
 	}
 	__xrtNetStreamReleaseSendBudget(pStream, iConsumed);
 	pStream->WriteConsuming = false;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		if (pStream->WriteProgress)
+			pStream->WriteProgress(pStream, iConsumed, pStream->WriteProgressData);
+	#endif
 	return true;
 }
 
@@ -1516,6 +1520,10 @@ static void __xrtNetStreamTryFinish(xnetstream* pStream)
 		XNET_STREAM_CLOSED,
 		XMEMORY_RELEASE
 	);
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressData = NULL;
+	#endif
 	if ( pStream->Events.Close != NULL ) {
 		pStream->Events.Close(
 			pStream,
@@ -3024,6 +3032,10 @@ static bool __xrtNetStreamSetEvents(
 		#endif
 		return false;
 	}
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		pStream->WriteProgress = NULL;
+		pStream->WriteProgressData = NULL;
+	#endif
 	__xrtNetStreamRetireEvents(pStream);
 	pStream->EventOwner = pOwner;
 	memset(&pStream->Events, 0, sizeof(pStream->Events));

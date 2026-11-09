@@ -107,6 +107,11 @@ static bool __xrtNetStreamCount(const void* pData, size_t* pCount)
 		pStream->RetiredEventOwners || pStream->RetiredEventOwnersTail || !__xrtNetStreamEventsOwned(pStream) ||
 		pStream->ActiveDepth || pStream->StartPending ||
 		xrtAtomic32Load(&pStream->ControlRequests, XMEMORY_ACQUIRE)) return false;
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		if (pStream->WriteProgress && (!pStream->EventOwner ||
+			pStream->WriteProgressData != pStream->EventOwner->Data)) return false;
+		if (!pStream->WriteProgress && pStream->WriteProgressData) return false;
+	#endif
 	if (!__xrtNetStreamBuffersOwnership(pStream, NULL, NULL)) return false;
 	#if defined(XRT_FEATURE_NET_TCP_DIAL)
 		if (!__xrtNetDialControlOwnership(pStream, NULL, NULL)) return false;

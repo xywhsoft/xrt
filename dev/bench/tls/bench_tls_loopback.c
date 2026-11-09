@@ -295,7 +295,7 @@ static void benchTlsOpen(xtlsstream* pStream, ptr pData)
 
 		if (
 			(xrtTlsClientResumed(pSession) != bExpected) ||
-			(xrtTlsClientCertificateCount(pSession) != (bExpected ? 0u : 1u))
+			(xrtTlsClientCertificateCount(pSession) != 1u)
 		) {
 			benchTlsFail(pContext, "client authentication state mismatch");
 			(void)xrtTlsStreamAbort(pStream);

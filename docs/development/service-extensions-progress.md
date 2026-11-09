@@ -8920,3 +8920,72 @@ leak-halt; two corrected WSL executor programs additionally pass TSan. The origi
 Windows failure, prior inputs/binaries, controlled probes and corrected receipts
 are retained. Evidence: extlibs/xcron/tests/results/executor-publication-tail-20261109.json.
 The four-product production/performance goal remains active.
+
+
+## 2026-11-09 - optional TLS ciphertext prefix retirement on master
+
+All current development remains in D:/GIT/xrt master. The old service-extension
+branch is already an ancestor; the26 old dirty source paths were migrated in
+05dc625d and subsequently improved on master. The old worktree is a preserved
+historical scene, not a second current implementation. No branch/worktree switch,
+creation or remote push is performed in this stage.
+
+A real TLS slow-peer probe demonstrates the prerequisite gap: the saved first
+ciphertext cut can retire with1279668 later bytes pending and no Drain/Writable
+edge. New optional net_tcp_write_progress/tls_stream_write_progress leaves expose
+one local permanent Produced/Completed epoch, independent of diagnostic stats.
+The exact native consumed prefix and byte credit are consistent before counting.
+Public Worker-only SetWriteProgress/WriteProgress reuse the existing TLS driver,
+zero-copy ciphertext transfer and deferred DriveCommand; no shared runtime or
+per-write watch node is added. Notifications coalesce outside Send/SendVec and
+native completion, use existing event Data/owner lifetimes, and clear on terminal
+close or TLS event replacement. Native rebind invalidates the epoch. Active
+independent observers refuse V1 graph admission until removed and quiescent.
+Failure/abort/close/overflow never imply successful prefix completion; pending
+unencoded async plaintext is outside a captured cut. This is local native queue
+retirement, not peer acknowledgement.
+
+Before/current unselected private TCP/TLS sizes remain704/360 bytes on both OSes;
+selected sizes720/384 add16/24 bytes. Public Config32/Events56 stay unchanged.
+Activation/snapshot pass a one-byte budget with zero allocation counters. No RSS,
+pool-size or zero-overhead claim is made. Twenty-two affected extension declaration
+headers receive only20 generated restore lines each for the two Core feature
+macros; every catalog declaration matches the generator and five existing shared
+tool tests compile/check the catalog. Canonical unrelated implementations stay intact.
+
+Core validation freezes2592 inputs: Windows44 and WSL45 progress/ownership/TCP/
+TLS program executions pass, including stats-off single and explicit io_uring;
+WSL correctness uses ASan/UBSan/leak-halt and five additional TSan executions pass.
+Generic and full-crypto static/shared packages and public-only actual-TLS consumers
+pass on each OS. Sixty-six focused shared-tool tests and generated/API/docs/
+maturity checks pass. Fresh four-product aggregators plus event_waiter pass
+Redis30/RPC30/MQTT22/Cron34 programs,116 per OS, with eight root static/shared
+consumers each. The final3025-input product map differs from the preceding map
+only in the corrected Cron test fixture documented by15af1b9d; complete Cron
+suites rerun on both OSes plus two WSL executor TSan programs. Other retained
+successful commands do not compile that fixture. Generation separately freezes885
+header/config/tool inputs. Actual binaries and package closures are archived.
+
+The original legacy verifier graph fixture fails on saved old Core too. Its
+corrected OwnedV1 verifier has a real trust leaf and no unregistered creator alias;
+old/current Core accept the corrected graph without weakening admission checks.
+The original resumed-chain test also fails before this change: the authoritative
+header/design shares the immutable original chain. Tests now require one
+certificate and exact original DER; the benchmark aligns its visibility count.
+Ticket/resumption/KeyUpdate/byte checks remain; production getters are unchanged. GCC15 WSL TSan O1 ownership compilation
+warns about psk.c output counters and executes0 programs; strict O2 runs both
+programs successfully without disabling that warning or changing the parser.
+These and earlier fixture/probe/packaging/source-freeze failures remain preserved.
+
+Seven alternating50000-message64-byte samples for each before/no-leaf/compiled-
+inactive/active-observer variant retain all56 formal outputs. All throughput
+pairs fail original noise gates. Only Windows before/no-leaf P99 qualifies and
+stays within10%; other tails remain unqualified. No baseline, noise or regression
+threshold is forced or relaxed. These unpinned loopback results do not establish
+general feature overhead, broker parity, fixed-arrival or native production acceptance.
+
+Evidence: docs/development/tls-write-progress-20261109.json and
+out/service-extensions/xmqtt-tls-20261109. This is the necessary Core prerequisite;
+MQTT TLS integration is still outstanding. All four products and the original
+goal remain developing, including remaining protocol/durability scope, qualified
+throughput/P99 profiles, native Linux and at least72h production release gates.

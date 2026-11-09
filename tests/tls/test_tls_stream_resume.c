@@ -284,9 +284,13 @@ static void testTlsStreamResumeOpen(xtlsstream* pStream, ptr pData)
 	} else {
 		testRequire(xrtTlsClientResumed(pSession) == (iRound != 0),
 			"TLS stream client resumed state mismatch");
-		testRequire(xrtTlsClientCertificateCount(pSession) ==
-			(iRound == 0 ? 1u : 0),
-			"TLS stream resumed certificate visibility mismatch");
+		/* Issued tickets share the immutable chain, as specified by the public
+         * client API. Visibility is not a new trust/verification decision. */
+        const xx509cert* Certificate=xrtTlsClientCertificate(pSession,0);
+        testRequire(xrtTlsClientCertificateCount(pSession)==1u && Certificate &&
+            Certificate->Raw.Size==sizeof(X509_LEGACY_RSA_CERT) &&
+            !memcmp(Certificate->Raw.Data,X509_LEGACY_RSA_CERT,sizeof(X509_LEGACY_RSA_CERT)),
+            "TLS stream full/resumed shared certificate chain mismatch");
 		testRequire((xrtTlsClientKeyUpdate(pSession,
 			XTLS_KEY_UPDATE_REQUESTED) == XTLS_OK) &&
 			(xrtTlsStreamFlush(pStream) == XTLS_OK),

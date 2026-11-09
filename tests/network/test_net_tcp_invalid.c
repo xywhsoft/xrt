@@ -33,6 +33,9 @@ int main(void)
 		/* Optional physical-retirement wait owns these actual platform primitives. */
 		iStreamSizeLimit += sizeof(xmutex) + sizeof(xcond);
 	#endif
+	#if defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+		iStreamSizeLimit += 2u * sizeof(ptr);
+	#endif
 	testRequire(sizeof(xnetstream) <= iStreamSizeLimit,
 		"TCP stream fixed object is too large");
 

@@ -19,10 +19,38 @@ struct Scene {
     xnetengine* engine;xnetlistener* listener;xtlsstream* client;xtlsstream* server;
     xtlsserverconfig serverConfig;Owner* clientOwner;Owner* serverOwner;
     xatomic32 opened,closed,drops,frees;
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+    xatomic32 progressRemoved;
+#endif
     bool failCleanup;
     xrtownershipref refs[64];const xrtownershipadapterv1* adapters[64];
     const xrtownershippreparationv1* preparations[64];size_t nodes;
 };
+/* A verifier is a real child of its client Session. Give its callback context
+ * an actual independently counted leaf; never certify a legacy opaque verifier. */
+typedef struct TrustOwner {volatile int32 refs;const void* claim;bool cleared;} TrustOwner;
+static bool trustCount(const void* data,size_t* count)
+{const TrustOwner* t=data;if(!t||!count||t->cleared)return false;int32 n=__xrtAtomicRefLoad(&t->refs);if(n<=0)return false;*count=(size_t)n;return true;}
+static bool trustTrace(const void* data,xrtownershipvisitor visit,ptr user)
+{(void)user;size_t n;return visit&&trustCount(data,&n);}
+static const xrtownershipops trustOps={trustCount,trustTrace};
+static bool trustHold(const void* data)
+{TrustOwner* t=(TrustOwner*)data;xrtownershipscope m={0};if(!xrtOwnershipMutationBegin(&m))return false;bool ok=!t->cleared&&xrtRefRetain(&t->refs)>=0;CHECK(xrtOwnershipScopeEnd(&m));return ok;}
+static void trustDrop(ptr data)
+{TrustOwner* t=data;int32 n=xrtOwnershipRefRelease(&t->refs);CHECK(n>=0);if(!n)xrtFree(t);}
+static void trustAdapterDrop(const void* data){trustDrop((ptr)data);}
+static bool trustClaim(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;size_t n;if(!token||(t->claim&&t->claim!=token)||!trustCount(t,&n))return false;t->claim=token;return true;}
+static void trustRestore(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;CHECK(t->claim==token&&!t->cleared);t->claim=NULL;}
+static void trustClear(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;CHECK(t->claim==token&&!t->cleared);t->cleared=true;}
+static bool trustFinish(const void* data,const void* token)
+{const TrustOwner* t=data;return t&&t->claim==token&&t->cleared;}
+static const xrtownershipadapterv1 trustAdapter={sizeof(trustAdapter),trustHold,trustAdapterDrop,trustClaim,trustRestore,NULL,trustClear,trustFinish};
+static xtlsverifydecision trustVerify(const xtlspeer* peer,ptr data)
+{(void)data;return testTlsServerAccept(peer,NULL);}
+static const xtlsverifiercontextownershipv1 trustPolicy={sizeof(trustPolicy),trustVerify,NULL,NULL,trustDrop,&trustOps};
 static unsigned cases,refusals,finishedFailures;
 static bool ownerCount(const void* data,size_t* count)
 {const Owner* o=data;if(!o||!count||o->cleared)return false;int32 n=__xrtAtomicRefLoad(&o->refs);if(n<=0)return false;*count=(size_t)n;return true;}
@@ -51,10 +79,21 @@ static void nativeOwnerDrop(const void* data)
     xrtAtomic32FetchAdd(&s->drops,1,XMEMORY_ACQ_REL);ownerDrop(data);
     if(fail)xrtSetErrorKind(XERR_STATE);
 }
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+static void opaqueProgress(xtlsstream* stream,ptr data){(void)stream;(void)data;}
+static void removeProgress(xnetworker* worker,ptr data)
+{
+    (void)worker;Owner* o=data;CHECK(xrtTlsStreamSetWriteProgress(o->stream,NULL));
+    xrtAtomic32Store(&o->scene->progressRemoved,1,XMEMORY_RELEASE);
+}
+#endif
 static void opened(xtlsstream* stream,ptr data)
 {
     Owner* o=data;xrtownershipscope m={0};CHECK(xrtOwnershipMutationBegin(&m));
     CHECK(!o->stream);o->stream=xrtTlsStreamRef(stream);CHECK(o->stream);CHECK(xrtOwnershipScopeEnd(&m));
+    #if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+    CHECK(xrtTlsStreamSetWriteProgress(stream,o->server?NULL:opaqueProgress));
+#endif
     if(o->server){size_t written=0;CHECK(xrtTlsStreamSend(stream,"a\0b",3,&written)==XTLS_OK&&written==3);}
     xrtAtomic32FetchAdd(&o->scene->opened,1,XMEMORY_ACQ_REL);
 }
@@ -82,6 +121,11 @@ static const xrtownershipadapterv1* resolve(xrtownershipref ref,const xrtownersh
     if(ref.Ops==xrtTlsStreamOwnershipQuiescenceV1Get()->Ops)return xrtTlsStreamOwnershipAdapterV1(ref,owners,1,prepare);
     if(ref.Ops==xrtNetBufPoolOwnershipQuiescenceV1Get()->Ops)return xrtNetBufPoolOwnershipAdapterV1(ref,prepare);
     if(ref.Ops==&ownerOps)return &ownerAdapter;
+    if(ref.Ops==&trustOps)return &trustAdapter;
+    if(ref.Ops==xrtTlsVerifierOwnershipQuiescenceV1Get()->Ops){
+        const xtlsverifiercontextownershipv1* policies[]={&trustPolicy};
+        return xrtTlsVerifierOwnershipAdapterV1(ref,policies,1,prepare);
+    }
     const xrtownershipadapterv1* adapter=xrtNetBytesOwnershipAdapterV1(ref);
     return adapter?adapter:xrtErrorOwnershipAdapterV1(ref);
 }
@@ -129,7 +173,9 @@ static void lifecycle(xnetportbackend backend,bool failure)
     xmemdebugsnapshot before;xrtMemDebugSnapshot(&before);Scene s={0};s.failCleanup=failure;
     xrtAtomic32Init(&s.opened,0);xrtAtomic32Init(&s.closed,0);xrtAtomic32Init(&s.drops,0);xrtAtomic32Init(&s.frees,0);
     xtlscontext* context=testTlsServerContext();xtlsidentity* identity=testTlsServerIdentity();CHECK(context&&identity);
-    xtlsverifierconfig v;xrtTlsVerifierConfigInit(&v);v.Verify=testTlsServerAccept;xtlsverifier* verifier=xrtTlsVerifierCreate(&v);CHECK(verifier);
+    TrustOwner* trust=xrtCalloc(1,sizeof(*trust));CHECK(trust);trust->refs=1;
+    xtlsverifierconfig v;xrtTlsVerifierConfigInit(&v);v.Verify=trustVerify;v.Release=trustDrop;v.Context=trust;
+    xtlsverifylimits limits;xrtTlsVerifyLimitsInit(&limits);xtlsverifier* verifier=xrtTlsVerifierCreateOwnedV1(&v,&limits,&trustPolicy);CHECK(verifier);
     xtlsclientconfig client;xrtTlsClientConfigInit(&client);client.Context=context;client.Verifier=verifier;client.ServerName=XRT_STR_LITERAL("example.com");
     xrtTlsServerConfigInit(&s.serverConfig);s.serverConfig.Context=context;s.serverConfig.Identity=identity;
     xnetengineconfig config;xrtNetEngineConfigInit(&config);config.Workers=1;config.NodeCacheBytes=0;config.Backend=backend;
@@ -138,12 +184,32 @@ static void lifecycle(xnetportbackend backend,bool failure)
     const xnetlistenerevents events={acceptStream,NULL,NULL};s.listener=xrtNetListen(s.engine,&listen,&events,NULL,&s);CHECK(s.listener);
     xnetaddr address;CHECK(xrtNetListenerLocal(s.listener,&address));s.clientOwner=owner(&s,false);
     s.client=xrtTlsStreamConnectOwnedV1(s.engine,&address,0,&listen.Stream,&client,NULL,s.clientOwner,&streamPolicy);CHECK(s.client);
+    /* Session retained its real reference during construction. No unregistered
+     * creator alias remains outside the graph being collected below. */
+    xrtTlsVerifierRelease(verifier);verifier=NULL;
     double due=__xrtWaitAfter(10000);
     while(xrtAtomic32Load(&s.opened,XMEMORY_ACQUIRE)!=2||xrtTlsStreamAvailable(s.client)!=3){
         if(__xrtWaitExpired(due)){fprintf(stderr,"handshake open=%u client=%d server=%d avail=%zu closed=%u error=%d\n",
             xrtAtomic32Load(&s.opened,XMEMORY_ACQUIRE),(int)xrtTlsStreamState(s.client),s.server?(int)xrtTlsStreamState(s.server):-1,
             xrtTlsStreamAvailable(s.client),xrtAtomic32Load(&s.closed,XMEMORY_ACQUIRE),xrtGetError()?(int)xrtErrorKind(xrtGetError()):0);CHECK(false);}
         xrtThreadYield();}
+#if defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+    /* An independently registered function is not certified by a V1 event policy.
+     * Remove it through the actual Worker, then the original graph must admit. */
+    for(;;){xrtownershipscope f={0};bool checked=false;
+        if(xrtOwnershipFreezeTryBegin(&f)){
+            if(!xrtNetEngineOwnershipQuiescenceV1Get()->Busy(s.engine)){
+                size_t n=0;xrtownershipref ref=xrtTlsStreamOwnership(s.client);
+                CHECK(!ref.Ops->Count(ref.Data,&n));checked=true;
+            }
+            CHECK(xrtOwnershipScopeEnd(&f));
+        }
+        if(checked)break;
+        CHECK(!__xrtWaitExpired(due));xrtThreadYield();
+    }
+    CHECK(xrtNetEnginePost(s.engine,0,removeProgress,s.clientOwner));
+    while(!xrtAtomic32Load(&s.progressRemoved,XMEMORY_ACQUIRE)){CHECK(!__xrtWaitExpired(due));xrtThreadYield();}
+#endif
     CHECK(xrtNetListenerClose(s.listener));xrtNetListenerDestroy(s.listener);s.listener=NULL;
     /* The activation is now a real participant. Exercise ordinary cancellation
      * here; the separate Future fixture retains its entire pending graph. */
