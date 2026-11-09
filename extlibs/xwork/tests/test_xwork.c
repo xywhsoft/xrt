@@ -2111,6 +2111,59 @@ static void test_host_recovery(void)
     xrtCancelDestroy(Cancel);xllmSessionDestroy(Session);
 }
 
+typedef struct context_recovery_mock {
+    unsigned normal, summaries, status;
+    uint64_t largest_summary, smallest_summary;
+} context_recovery_mock;
+
+static xllm_result context_recovery_complete(void *data, const xllm_request *request,
+    const xllm_stream_callbacks *callbacks, xllm_response **response, xllm_error *error)
+{
+    context_recovery_mock *mock=data;
+    bool summary=request->iMessageCount && request->pMessages[0].sContent &&
+        strstr(request->pMessages[0].sContent,"Create a precise continuation summary");
+    uint64_t tokens=0u;
+    for(size_t i=0;i<request->iMessageCount;++i) tokens+=xllmEstimateMessageTokens(&request->pMessages[i]);
+    if(summary)
+    {
+        ++mock->summaries;
+        if(tokens>mock->largest_summary)mock->largest_summary=tokens;
+        if(!mock->smallest_summary||tokens<mock->smallest_summary)mock->smallest_summary=tokens;
+        CHECK(tokens<=13876u && !request->iToolCount,"complete summary respects input budget without tool definitions");
+        if(tokens<=2500u) return style_summary_complete(NULL,request,callbacks,response,error);
+    }
+    else if(++mock->normal>1u)
+    { *response=mock_response("Completed after safe context recovery.",0u);return *response?XLLM_RESULT_OK:XLLM_RESULT_ERROR; }
+    xllmErrorInit(error);error->eCode=XLLM_ERROR_UPSTREAM;error->iHttpStatus=mock->status;
+    snprintf(error->sProviderCode,sizeof(error->sProviderCode),"%s",mock->status==413?"request_too_large":"1261");
+    return XLLM_RESULT_ERROR;
+}
+
+static void test_context_rejection_recovery(void)
+{
+    for(unsigned mode=0u;mode<2u;++mode)
+    {
+        xllm_session_config c;xllmSessionConfigInit(&c);
+        c.uContextWindowTokens=c.uMaxInputTokens=15000u;c.uOutputReserveTokens=c.uMaxOutputTokens=c.uSummaryMaxTokens=1024u;
+        c.uSafetyReserveTokens=100u;c.uKeepRecentTokens=1000u;
+        xllm_error model_error;xllm_session *s=xllmSessionCreate(&c,&model_error);
+        CHECK(s!=NULL,"context rejection fixture creates session");if(!s)continue;
+        char history[2501];memset(history,'x',2500);history[2500]=0;
+        for(int i=0;i<8;++i){uint64_t turn=xllmSessionBeginTurn(s);
+            CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,history,0u)&&xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,history,0u),"context recovery seeds completed history");}
+        context_recovery_mock mock={0};mock.status=mode?413u:400u;
+        xwork_agent_config a;xworkAgentConfigInit(&a);a.pSession=s;a.sModel="mock-model";a.sWorkspaceRoot=".";
+        a.OnModelComplete=context_recovery_complete;a.pModelUserData=&mock;a.bAutoSaveSession=false;a.uCompactionQualityRetries=10u;
+        xwork_error e;xwork_agent *agent=xworkAgentCreate(&a,&e);xwork_run_result run={0};
+        CHECK(agent && xworkAgentRun(agent,"Continue without losing completed work.",&run,&e)==XWORK_RESULT_OK,
+            "context/413 rejection compacts and resumes automatically");
+        CHECK(mock.normal==2u && mock.summaries>1u && mock.smallest_summary<=2500u &&
+            mock.smallest_summary<mock.largest_summary && run.uCompactions>0u,
+            "summary rejection shrinks safe prefix instead of waiting or resending oversized body");
+        xworkRunResultUnit(&run);xworkAgentDestroy(agent);xllmSessionDestroy(s);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -2120,6 +2173,7 @@ int main(int argc, char** argv)
     g_sSelfPath = argc > 0 ? argv[0] : NULL;
     printf("xwork migrated compatibility tests\n");
     test_host_recovery();
+    test_context_rejection_recovery();
     test_path_boundaries();
     test_process_text_normalization();
     test_stream_restart();
