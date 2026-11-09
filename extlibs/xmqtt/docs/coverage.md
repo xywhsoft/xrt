@@ -210,3 +210,8 @@ Each platform passes23 literal-byte cases through each Auth Dial factory, with
 ASan/UBSan/leak and applicable TSan results in the
 [stage report](../tests/results/client-dial-20261109.json). External DNS/broker
 qualification, transport/session completeness and production acceptance remain.
+
+Completed Dial controllers now release the client's reference in terminal Done.
+The private retirement diagnostic observes no completed controller on a live
+connection, verifies pending ownership/cancellation and continues QoS1 traffic
+after completion. It runs separately from product dependencies.

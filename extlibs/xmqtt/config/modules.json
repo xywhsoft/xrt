@@ -428,7 +428,8 @@
         "extlibs/xmqtt/tests/test_client_dial.c"
       ],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c"
       ],
       "examples": [
         "extlibs/xmqtt/examples/dial/main.c"
@@ -474,7 +475,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -493,7 +495,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c": "xmqtt_client_auth",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c": "xmqtt_client_auth",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c": "xmqtt_client_dial",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c": "xmqtt"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c": "xmqtt",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c": "xmqtt_client_dial"
       }
     }
   ]

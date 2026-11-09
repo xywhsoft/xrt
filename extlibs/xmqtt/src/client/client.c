@@ -647,10 +647,10 @@ static xmqttclientstatus xmqttDialFailure(xnetresult Result,const xerror* Cause)
 }
 static void xmqttClientDialDone(xnetdial* D,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
 {
-    (void)D;xmqttclient* C=Data;
+    xmqttclient* C=Data;
     /* Pair with factory publication before accessing its immutable setup. The
      * owning Worker serializes all subsequent transport/state operations. */
-    xrtMutexLock(&C->Gate);C->Stream=Stream;xrtMutexUnlock(&C->Gate);
+    xrtMutexLock(&C->Gate);C->Dial=NULL;C->Stream=Stream;xrtMutexUnlock(&C->Gate);
     if(Stream){
         if(xmqttClientClosing(C))(void)xrtNetStreamAbort(Stream);
         else {xmqttClientRef(C);
@@ -665,6 +665,10 @@ static void xmqttClientDialDone(xnetdial* D,xnetresult Result,xnetstream* Stream
     /* A queued client turn also holds C through the physical Done/Drop tail.
      * Initially callback-less winners retain buffered input; that turn reads it. */
     xmqttClientWake(C);
+    /* Consume the Client's caller reference after detaching its field. Core's
+     * active Done invocation owns D through its callback tail. Successful
+     * connections need no completed controller, candidates or old failures. */
+    xrtNetDialDestroy(D);
 }
 static const xnetdialownershipv1 xmqttClientDialEvents={sizeof(xnetdialownershipv1),xmqttClientDialDone,xmqttClientDrop,&xmqttPrivateOps};
 #endif

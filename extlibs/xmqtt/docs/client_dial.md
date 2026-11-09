@@ -52,9 +52,13 @@ Ownership moves from the owned Dial callback to that binding, with a queued
 client reference spanning the Done/Drop callback tail. No per-request transport
 vtable, extra shared runtime or payload copy is introduced. Factory copies/scans,
 Core canonicalization, candidate allocation, posts, synchronization and the event
-binding are real costs; no zero-overhead claim. The completed Dial handle and
-its bounded cold control storage remain retained until Client Destroy; this
-lifetime benchmark does not establish zero extra steady retained bytes.
+binding are real costs; no zero-overhead claim. On terminal Done, the client
+detaches and releases its caller reference to the completed Dial. This avoids
+pinning cold controllers, selected address arrays and earlier candidate failures
+to a live connection until Destroy. Pending dials remain owned/cancellable. Core
+keeps its own actual callback/runtime/Resolver references through their tails;
+a detached shared lookup can therefore still outlive the Client. Heap-pool caches
+and other native owners mean released requested bytes are not an RSS guarantee.
 
 See [example](../examples/dial/README.md) and `tests/test_client_dial.c`. Tests
 exercise MQTT5/3.1.1 byte writes, DNS/prepared/family/max-attempt paths, queued QoS1,
@@ -67,3 +71,5 @@ Hostname samples include the first cold fixture lookup then cached resolution;
 this is not an external resolver/broker or fixed-arrival production comparison.
 
 Stage evidence: [validation and cost report](../tests/results/client-dial-20261109.json).
+
+Completed-controller release evidence: [retirement report](../tests/results/dial-retirement-20261109.json).

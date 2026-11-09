@@ -1,0 +1,2707 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "release client-owned completed Dial controllers in terminal callback",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "1c62259c2bff3e23c7f6b171a594a72efd21b224",
+  "state": "developing; original four-library goal active",
+  "source_identity": {
+    "inputs": 6269,
+    "source_map_sha256": "f11c6d908c1df3f9bf1cee265f2abb34bb83ddd237150e92c7adee7a5f15f09d",
+    "production_delta": {
+      "only_changed_function": "xmqttClientDialDone",
+      "all_other_client_source_identical": true,
+      "before_sha256": "91a221b8a066d74779f22d28a30d945fd80c81b7b4244dcfde534b7955405407",
+      "after_sha256": "3330ac4bc5fe75ddf4426448cf26a1209e8027edaf4e4235e35f7aa62f63e52d"
+    },
+    "core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27"
+  },
+  "behavior": [
+    "detach Client.Dial under its existing gate after factory publication, release the client caller reference as final Done action",
+    "real Core runtime/callback/Resolver owners retain native control storage through their own tails; no fabricated worker reference and no premature shared-query destruction",
+    "pending controls stay owned/cancellable; logical result/protocol/ownership/public layout and every other client function remain unchanged; no added allocation/lock/queue/runtime",
+    "new private observation proves live success has no completed client handle, pending DNS retains it, cancel detaches it, and ordinary QoS1 and retained results remain usable",
+    "old one-endpoint controller has540/541 requested body+host bytes and24 selected-address bytes on the Windows diagnostic; exact before/current residency per OS retained below; heap-pool caching is not RSS release"
+  ],
+  "platforms": {
+    "windows": {
+      "validation": {
+        "complete": true,
+        "source_map_sha256": "f11c6d908c1df3f9bf1cee265f2abb34bb83ddd237150e92c7adee7a5f15f09d",
+        "receipts": [
+          {
+            "label": "dial",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "log_sha256": "a5d1d99026d91e89b0f9981fbdcda702a30149a6ffd8329afe8c37855ec3afd5",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/dial/test_client_dial.exe": "57b6404319011b8387e8e6831066168634a264b21917aef65683c089dabbc1da",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/dial/test_single_xmqtt_client_dial.exe": "c9852f072146a1cdb0d4b63889f088980081f89650539ff489a2888de6481e5f",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/dial/test_single_xmqtt_dial_retirement.exe": "375c75f7559b02a40b30baacd808515624f528d4307b7ca99ac0ec759221342f"
+            },
+            "programs": 3
+          },
+          {
+            "label": "auth-composition",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt",
+              "--single-test",
+              "test_single_xmqtt_dial_auth",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "log_sha256": "841622152dd185ce4ec39884ba2cbad386e99c739f7d18b757d9b5fe787c429f",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/auth-composition/test_single_xmqtt_dial_auth.exe": "aa5091b6e09d9eafec48aa88cfb54d4bb7feda5188034c4626b2220d0cf82372"
+            },
+            "programs": 1
+          },
+          {
+            "label": "example",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "log_sha256": "d0dc1ac423ea82aa7c3895f7e2ab37d64927ad3a55d1551292b5f47946999222",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/example/test_client_dial.exe": "57b6404319011b8387e8e6831066168634a264b21917aef65683c089dabbc1da",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/windows/example/examples_dial_main.exe": "2b0907ae22c1a501497eb391ae173142806f506eca2281496a629055de838e98"
+            },
+            "programs": 2
+          },
+          {
+            "label": "host-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-lws2_32",
+              "-o",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-host-probe.exe"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "host-wire",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-host-probe.exe",
+              "--output",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-host-wire.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "ac5f6d82322bfdacba029dd25a338d1f904fc7b6de789cae3213edfafd345fcb",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "prepared-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "-DAP_DIAL_PREPARED",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-lws2_32",
+              "-o",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-prepared-probe.exe"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "prepared-wire",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-prepared-probe.exe",
+              "--output",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-prepared-wire.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "ac5f6d82322bfdacba029dd25a338d1f904fc7b6de789cae3213edfafd345fcb",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "f3b6c3d2d2d79153783544d6fcb8fed69d974006abb2289c1fef5cdecd83f3e2",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "8d4b56731fcc235e27f951cc757402bdcfe2657627a20ec7b2fa86c2651b7e7c",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "a6b42e600dba9ad31f904b80dbf5eb6b50a950609661947925bfaddd1883876c",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "93e702e1ba7c72cff4b22db340c8d8db4bf8a6714b2862236f3082d27af40983",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "single",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/amalgamate.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "features",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_extension_features.py",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "api",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_api_reference.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "docs",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_api_docs.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "32c4001d8cd33cd7acdf4d914b740645dea4dd96badde00a75df137332f27ddb",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "maturity",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_release_maturity.py"
+            ],
+            "exit_code": 0,
+            "log_sha256": "796dc68574142d04e6914e5c044d74868f4cf76f82ff6fde2ddb67ed413658a2",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "tools",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "unittest",
+              "tools.test_extension_layout",
+              "tools.test_extension_single",
+              "tools.test_api_reference",
+              "tools.test_scope"
+            ],
+            "exit_code": 0,
+            "log_sha256": "d006b446880b6f6050b9f2a5d07122ab8fa7eaf02b22e57ab14c41c0ae6993fa",
+            "binaries": {},
+            "programs": 0
+          }
+        ]
+      },
+      "wire": {
+        "host": {
+          "probe_sha256": "06e53814d8665c8f1af4f92a9fc2ffc8d09baa9ee6aeeb480f51261963ebbead",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        },
+        "prepared": {
+          "probe_sha256": "8c19368f076e87b8926c5f795ee0c1edd1a3e39e52a521ec14d57c8e75597fc7",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        }
+      },
+      "measurements": {
+        "complete": true,
+        "source_map_sha256": "f11c6d908c1df3f9bf1cee265f2abb34bb83ddd237150e92c7adee7a5f15f09d",
+        "retention": {
+          "before": "mode=0 held=1 before=13474 after=12934 blocks=7/6 control=540 addresses=24\nmode=1 held=1 before=13475 after=12934 blocks=7/6 control=541 addresses=24\n",
+          "after": "mode=0 held=0 before=12934 after=12934 blocks=6/6 control=0 addresses=0\nmode=1 held=0 before=12934 after=12934 blocks=6/6 control=0 addresses=0\n"
+        },
+        "samples": {
+          "0": {
+            "before": [
+              {
+                "connections_per_sec": 3857.153,
+                "setup_p99_us": 250.0,
+                "cycle_p99_us": 363.3,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3861.819,
+                "setup_p99_us": 252.1,
+                "cycle_p99_us": 377.7,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3853.276,
+                "setup_p99_us": 251.2,
+                "cycle_p99_us": 371.0,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3825.155,
+                "setup_p99_us": 269.4,
+                "cycle_p99_us": 379.6,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3865.906,
+                "setup_p99_us": 248.5,
+                "cycle_p99_us": 359.9,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3860.209,
+                "setup_p99_us": 255.9,
+                "cycle_p99_us": 367.0,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3813.843,
+                "setup_p99_us": 265.6,
+                "cycle_p99_us": 395.2,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3851.447,
+                "setup_p99_us": 259.3,
+                "cycle_p99_us": 370.2,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3849.621,
+                "setup_p99_us": 250.2,
+                "cycle_p99_us": 356.7,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3862.179,
+                "setup_p99_us": 254.2,
+                "cycle_p99_us": 361.7,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3829.509,
+                "setup_p99_us": 261.7,
+                "cycle_p99_us": 370.3,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3871.966,
+                "setup_p99_us": 254.0,
+                "cycle_p99_us": 363.4,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3870.529,
+                "setup_p99_us": 251.3,
+                "cycle_p99_us": 365.5,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3886.132,
+                "setup_p99_us": 251.6,
+                "cycle_p99_us": 367.9,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          },
+          "1": {
+            "before": [
+              {
+                "connections_per_sec": 3811.547,
+                "setup_p99_us": 248.3,
+                "cycle_p99_us": 355.9,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3765.291,
+                "setup_p99_us": 251.0,
+                "cycle_p99_us": 372.9,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3809.958,
+                "setup_p99_us": 263.2,
+                "cycle_p99_us": 376.7,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3791.998,
+                "setup_p99_us": 288.6,
+                "cycle_p99_us": 412.9,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3822.237,
+                "setup_p99_us": 251.1,
+                "cycle_p99_us": 358.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3827.939,
+                "setup_p99_us": 242.6,
+                "cycle_p99_us": 349.6,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3788.192,
+                "setup_p99_us": 258.6,
+                "cycle_p99_us": 376.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3830.983,
+                "setup_p99_us": 250.0,
+                "cycle_p99_us": 366.6,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3836.103,
+                "setup_p99_us": 248.1,
+                "cycle_p99_us": 352.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3820.704,
+                "setup_p99_us": 259.4,
+                "cycle_p99_us": 371.0,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3804.452,
+                "setup_p99_us": 248.1,
+                "cycle_p99_us": 364.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3814.47,
+                "setup_p99_us": 269.2,
+                "cycle_p99_us": 381.4,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3800.851,
+                "setup_p99_us": 251.8,
+                "cycle_p99_us": 371.3,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3811.883,
+                "setup_p99_us": 258.5,
+                "cycle_p99_us": 368.0,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          },
+          "2": {
+            "before": [
+              {
+                "connections_per_sec": 3697.016,
+                "setup_p99_us": 277.9,
+                "cycle_p99_us": 397.8,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3735.654,
+                "setup_p99_us": 256.3,
+                "cycle_p99_us": 369.8,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3699.256,
+                "setup_p99_us": 266.1,
+                "cycle_p99_us": 381.4,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3699.621,
+                "setup_p99_us": 265.7,
+                "cycle_p99_us": 388.4,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3705.007,
+                "setup_p99_us": 261.8,
+                "cycle_p99_us": 377.2,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3438.968,
+                "setup_p99_us": 295.5,
+                "cycle_p99_us": 419.4,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3670.551,
+                "setup_p99_us": 277.2,
+                "cycle_p99_us": 386.1,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3728.138,
+                "setup_p99_us": 259.5,
+                "cycle_p99_us": 374.1,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3698.316,
+                "setup_p99_us": 265.7,
+                "cycle_p99_us": 389.5,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3668.88,
+                "setup_p99_us": 266.2,
+                "cycle_p99_us": 381.2,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3717.708,
+                "setup_p99_us": 264.8,
+                "cycle_p99_us": 380.5,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3705.355,
+                "setup_p99_us": 272.8,
+                "cycle_p99_us": 378.2,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3671.428,
+                "setup_p99_us": 256.9,
+                "cycle_p99_us": 373.5,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3293.988,
+                "setup_p99_us": 312.3,
+                "cycle_p99_us": 430.0,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          }
+        },
+        "summary": {
+          "0": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3857.153,
+                "relative_mad": 0.0012097005226394098,
+                "relative_central_range": 0.009505456485651402,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 252.1,
+                "relative_mad": 0.014280047600158646,
+                "relative_central_range": 0.06188020626735432,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 371.0,
+                "relative_mad": 0.020754716981132043,
+                "relative_central_range": 0.04393530997304585,
+                "noise_qualified": true
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3862.179,
+                "relative_mad": 0.0027787422592272315,
+                "relative_central_range": 0.005785594090796879,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 254.0,
+                "relative_mad": 0.010629921259842474,
+                "relative_central_range": 0.031496062992125984,
+                "noise_qualified": true
+              },
+              "cycle_p99_us": {
+                "median": 365.5,
+                "relative_mad": 0.010396716826265421,
+                "relative_central_range": 0.023255813953488372,
+                "noise_qualified": true
+              }
+            }
+          },
+          "1": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3809.958,
+                "relative_mad": 0.0047139627260983025,
+                "relative_central_range": 0.008935794042873983,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 251.1,
+                "relative_mad": 0.029868578255675144,
+                "relative_central_range": 0.05933890880127431,
+                "noise_qualified": true
+              },
+              "cycle_p99_us": {
+                "median": 372.9,
+                "relative_mad": 0.03781174577634746,
+                "relative_central_range": 0.05604719764011809,
+                "noise_qualified": false
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3814.47,
+                "relative_mad": 0.002626315058186216,
+                "relative_central_range": 0.006955356838564715,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 251.8,
+                "relative_mad": 0.014694201747418653,
+                "relative_central_range": 0.04487688641779183,
+                "noise_qualified": true
+              },
+              "cycle_p99_us": {
+                "median": 368.0,
+                "relative_mad": 0.008695652173913012,
+                "relative_central_range": 0.017663043478260868,
+                "noise_qualified": true
+              }
+            }
+          },
+          "2": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3699.256,
+                "relative_mad": 0.0015546369323994349,
+                "relative_central_range": 0.009314305363024385,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 266.1,
+                "relative_mad": 0.03682826005261184,
+                "relative_central_range": 0.06050357008643354,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 386.1,
+                "relative_mad": 0.023051023051023137,
+                "relative_central_range": 0.05335405335405341,
+                "noise_qualified": true
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3698.316,
+                "relative_mad": 0.007270336012390483,
+                "relative_central_range": 0.013202765799352997,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 265.7,
+                "relative_mad": 0.023334587881068833,
+                "relative_central_range": 0.05005645464809941,
+                "noise_qualified": true
+              },
+              "cycle_p99_us": {
+                "median": 380.5,
+                "relative_mad": 0.016819973718791004,
+                "relative_central_range": 0.04047306176084094,
+                "noise_qualified": true
+              }
+            }
+          }
+        },
+        "binaries": {
+          "before": {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-benchmark-before.exe",
+            "sha256": "014cf260724f4b8c659cd2337972390510862d75d00e4479f31b6a0735d02fff"
+          },
+          "after": {
+            "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-retirement-20261109\\windows-benchmark-after.exe",
+            "sha256": "071d6efc01febe985376f2d416df4eea460f415ea4901fc6aab90c396bd6dace"
+          }
+        },
+        "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+        "scope": "Alternating before/after immutable headers, identical current Core and unchanged lifecycle driver;7 samples of2000 connections for each numeric/prepared/hostname mode. Retain every sample and original3% MAD/6% central range and5% throughput/10% tail limits; no pinned/fixed-arrival/broker parity claim."
+      },
+      "paired_comparisons": {
+        "0": {
+          "connections_per_sec": {
+            "relative_change": 0.0013030336105412932,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": 0.00753669178897276,
+            "noise_qualified": false,
+            "within_original_limit": null
+          },
+          "cycle_p99_us": {
+            "relative_change": -0.014824797843665749,
+            "noise_qualified": true,
+            "within_original_limit": true
+          }
+        },
+        "1": {
+          "connections_per_sec": {
+            "relative_change": 0.001184265023393971,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": 0.002787733970529782,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "cycle_p99_us": {
+            "relative_change": -0.013140252078305159,
+            "noise_qualified": false,
+            "within_original_limit": null
+          }
+        },
+        "2": {
+          "connections_per_sec": {
+            "relative_change": -0.00025410514979229415,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": -0.001503194287861831,
+            "noise_qualified": false,
+            "within_original_limit": null
+          },
+          "cycle_p99_us": {
+            "relative_change": -0.014504014504014617,
+            "noise_qualified": true,
+            "within_original_limit": true
+          }
+        }
+      }
+    },
+    "wsl": {
+      "validation": {
+        "complete": true,
+        "source_map_sha256": "f11c6d908c1df3f9bf1cee265f2abb34bb83ddd237150e92c7adee7a5f15f09d",
+        "receipts": [
+          {
+            "label": "dial",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "log_sha256": "2b3d9cf587216ea792db9ef1612c455bf1113b50851f3f287185fd8b5043cf42",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/dial/test_client_dial": "569a97e2f5bfa491bfa0c23be1ea895e6f5db303b1c7619c2043eb92e5a77f06",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/dial/test_single_xmqtt_client_dial": "427a9adbc3cdfdc21c3c0c2f6ab06aa044256fbba98fca246bf9446f1f35c324",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/dial/test_single_xmqtt_dial_retirement": "dc383ef1399c4ffe2f2ac89b6afbe49f9c458f35356cce4e2ee5e3cfc4b16c7f"
+            },
+            "programs": 3
+          },
+          {
+            "label": "auth-composition",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt",
+              "--single-test",
+              "test_single_xmqtt_dial_auth",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "log_sha256": "4066b1b30ed64f5fb2cada2c20011b5100da4a566c9f03cdcf84a621893df825",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/auth-composition/test_single_xmqtt_dial_auth": "6730e6f4eec3108b690c39bddb4f1794a0e8f444137b92de0a00525ee3df35f6"
+            },
+            "programs": 1
+          },
+          {
+            "label": "example",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-single",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "log_sha256": "309d63dd1f28c4618bdda09d7bd13e42a72c63465e69878e046719c86c85b812",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/example/test_client_dial": "569a97e2f5bfa491bfa0c23be1ea895e6f5db303b1c7619c2043eb92e5a77f06",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/example/examples_dial_main": "b8ce9bb9aba5c32eddade7c5703c904e6d6f9de5fa8c77eb16073def0ecd3b8f"
+            },
+            "programs": 2
+          },
+          {
+            "label": "host-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-pthread",
+              "-lm",
+              "-fsanitize=address,undefined",
+              "-fno-omit-frame-pointer",
+              "-o",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-host-probe"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "host-wire",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-host-probe",
+              "--output",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-host-wire.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "1e1b5b1a3b5b1468e6200465ad1ced4326bdb7db58e700396c895fc9757366ad",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "prepared-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "-DAP_DIAL_PREPARED",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-pthread",
+              "-lm",
+              "-fsanitize=address,undefined",
+              "-fno-omit-frame-pointer",
+              "-o",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-prepared-probe"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "prepared-wire",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-prepared-probe",
+              "--output",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-prepared-wire.json"
+            ],
+            "exit_code": 0,
+            "log_sha256": "1e1b5b1a3b5b1468e6200465ad1ced4326bdb7db58e700396c895fc9757366ad",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "bcd2156f9cd1a981f27312eac6df2c43ecb33d58f1eadf32d50ce84ca727ef5c",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "b27564202353d6336d87e63d6b64c31b3c5a2ec2518f1f1fb0d4e8e28881cbfe",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "4b89d03e429598fc25236cc0a6d6ad70408da687da9800b3bcf64a2eef0bd968",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "e99f337a97f7d467ea6389903e986cde2745484c0f756626abbd4324928f03af",
+            "binaries": {},
+            "programs": 0
+          },
+          {
+            "label": "tsan-dial",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--suite",
+              "xmqtt_client_dial"
+            ],
+            "exit_code": 0,
+            "log_sha256": "61ef2049c5f410ddf66d7024571db3b13e94b68d286412ab7c8868b412c888bd",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/tsan-dial/test_client_dial": "00ffb154ef76081d2a3999a11dd3a5062e688a61cd8a4c417b78d0b91cdaab9f",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/tsan-dial/test_single_xmqtt_client_dial": "f3427aebe6863316e8707b85203b43d573068036f840a4d40df6517e6243f7aa",
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/tsan-dial/test_single_xmqtt_dial_retirement": "045f7f8d762b7fe2daecdb626506958281c0f05e0208ef79f38b0ef53dfa6247"
+            },
+            "programs": 3
+          },
+          {
+            "label": "tsan-auth-composition",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "4",
+              "--cflag=-O2",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--suite",
+              "xmqtt",
+              "--single-test",
+              "test_single_xmqtt_dial_auth"
+            ],
+            "exit_code": 0,
+            "log_sha256": "9c2d3ff92217b950caff674f20cff3419d9e12fb0e3e82d8c1ad7e9f27ec9921",
+            "binaries": {
+              "out/service-extensions/xmqtt-dial-retirement-20261109/binaries/wsl/tsan-auth-composition/test_single_xmqtt_dial_auth": "b8a5d8afc55c4e693f7f381f2f3c225407b47616410c5497eaa97a0430e8ebba"
+            },
+            "programs": 1
+          }
+        ]
+      },
+      "wire": {
+        "host": {
+          "probe_sha256": "5558817660ece8214e6ed213a35699b658a4fe849551afbce259c665b8fc6615",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        },
+        "prepared": {
+          "probe_sha256": "c79320b041b06a0a15aadd2016ec85c0edf3b60b4cc100ae4011d2fb0b0fcf59",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        }
+      },
+      "measurements": {
+        "complete": true,
+        "source_map_sha256": "f11c6d908c1df3f9bf1cee265f2abb34bb83ddd237150e92c7adee7a5f15f09d",
+        "retention": {
+          "before": "mode=0 held=1 before=13962 after=13422 blocks=7/6 control=540 addresses=24\nmode=1 held=1 before=13963 after=13422 blocks=7/6 control=541 addresses=24\n",
+          "after": "mode=0 held=0 before=13422 after=13422 blocks=6/6 control=0 addresses=0\nmode=1 held=0 before=13422 after=13422 blocks=6/6 control=0 addresses=0\n"
+        },
+        "samples": {
+          "0": {
+            "before": [
+              {
+                "connections_per_sec": 3268.563,
+                "setup_p99_us": 248.1,
+                "cycle_p99_us": 465.7,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3317.819,
+                "setup_p99_us": 215.4,
+                "cycle_p99_us": 442.4,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3295.606,
+                "setup_p99_us": 215.0,
+                "cycle_p99_us": 439.0,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3274.199,
+                "setup_p99_us": 237.6,
+                "cycle_p99_us": 468.4,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3309.677,
+                "setup_p99_us": 203.8,
+                "cycle_p99_us": 427.6,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3290.237,
+                "setup_p99_us": 225.0,
+                "cycle_p99_us": 456.8,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3295.475,
+                "setup_p99_us": 220.4,
+                "cycle_p99_us": 454.3,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3310.785,
+                "setup_p99_us": 239.6,
+                "cycle_p99_us": 464.8,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3316.129,
+                "setup_p99_us": 214.7,
+                "cycle_p99_us": 455.5,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3298.98,
+                "setup_p99_us": 231.5,
+                "cycle_p99_us": 448.2,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3290.718,
+                "setup_p99_us": 230.7,
+                "cycle_p99_us": 453.7,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3310.28,
+                "setup_p99_us": 220.0,
+                "cycle_p99_us": 472.0,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3271.055,
+                "setup_p99_us": 226.2,
+                "cycle_p99_us": 488.2,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3310.795,
+                "setup_p99_us": 216.2,
+                "cycle_p99_us": 447.5,
+                "mode": 0.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          },
+          "1": {
+            "before": [
+              {
+                "connections_per_sec": 3339.318,
+                "setup_p99_us": 241.6,
+                "cycle_p99_us": 456.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3401.242,
+                "setup_p99_us": 211.8,
+                "cycle_p99_us": 436.7,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3385.094,
+                "setup_p99_us": 217.5,
+                "cycle_p99_us": 441.3,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3373.093,
+                "setup_p99_us": 208.6,
+                "cycle_p99_us": 440.2,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3244.365,
+                "setup_p99_us": 242.4,
+                "cycle_p99_us": 483.0,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3360.838,
+                "setup_p99_us": 233.0,
+                "cycle_p99_us": 482.7,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3380.946,
+                "setup_p99_us": 222.5,
+                "cycle_p99_us": 450.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3371.694,
+                "setup_p99_us": 239.8,
+                "cycle_p99_us": 466.1,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3456.122,
+                "setup_p99_us": 207.2,
+                "cycle_p99_us": 434.0,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3381.8,
+                "setup_p99_us": 213.3,
+                "cycle_p99_us": 430.8,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3373.338,
+                "setup_p99_us": 221.7,
+                "cycle_p99_us": 459.0,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3317.431,
+                "setup_p99_us": 227.1,
+                "cycle_p99_us": 463.6,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3386.514,
+                "setup_p99_us": 208.7,
+                "cycle_p99_us": 441.5,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3420.089,
+                "setup_p99_us": 214.9,
+                "cycle_p99_us": 451.1,
+                "mode": 1.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          },
+          "2": {
+            "before": [
+              {
+                "connections_per_sec": 3230.754,
+                "setup_p99_us": 233.7,
+                "cycle_p99_us": 458.5,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3170.55,
+                "setup_p99_us": 271.0,
+                "cycle_p99_us": 514.1,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3231.154,
+                "setup_p99_us": 228.1,
+                "cycle_p99_us": 448.0,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3208.621,
+                "setup_p99_us": 232.7,
+                "cycle_p99_us": 467.4,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3064.982,
+                "setup_p99_us": 259.9,
+                "cycle_p99_us": 509.1,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3232.894,
+                "setup_p99_us": 243.2,
+                "cycle_p99_us": 461.6,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3225.368,
+                "setup_p99_us": 222.1,
+                "cycle_p99_us": 464.2,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              }
+            ],
+            "after": [
+              {
+                "connections_per_sec": 3015.776,
+                "setup_p99_us": 252.5,
+                "cycle_p99_us": 494.4,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3232.219,
+                "setup_p99_us": 230.2,
+                "cycle_p99_us": 461.9,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3206.083,
+                "setup_p99_us": 243.2,
+                "cycle_p99_us": 477.9,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3258.309,
+                "setup_p99_us": 241.2,
+                "cycle_p99_us": 477.1,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3170.22,
+                "setup_p99_us": 265.1,
+                "cycle_p99_us": 506.6,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3194.244,
+                "setup_p99_us": 250.2,
+                "cycle_p99_us": 478.0,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              },
+              {
+                "connections_per_sec": 3247.013,
+                "setup_p99_us": 233.2,
+                "cycle_p99_us": 463.8,
+                "mode": 2.0,
+                "measured_ops": 2000.0
+              }
+            ]
+          }
+        },
+        "summary": {
+          "0": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3295.475,
+                "relative_mad": 0.004309545664889045,
+                "relative_central_range": 0.010765671109627615,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 220.4,
+                "relative_mad": 0.024500907441016358,
+                "relative_central_range": 0.102540834845735,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 454.3,
+                "relative_mad": 0.02619414483821271,
+                "relative_central_range": 0.058771736737838406,
+                "noise_qualified": true
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3310.28,
+                "relative_mad": 0.00176692001885028,
+                "relative_central_range": 0.006065045857148103,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 226.2,
+                "relative_mad": 0.027409372236958395,
+                "relative_central_range": 0.06763925729442977,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 455.5,
+                "relative_mad": 0.01756311745334797,
+                "relative_central_range": 0.05225027442371023,
+                "noise_qualified": true
+              }
+            }
+          },
+          "1": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3373.093,
+                "relative_mad": 0.0036331639833232154,
+                "relative_central_range": 0.013570927335830896,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 222.5,
+                "relative_mad": 0.048089887640449386,
+                "relative_central_range": 0.13393258426966284,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 450.8,
+                "relative_mad": 0.023513753327417973,
+                "relative_central_range": 0.09427684117125111,
+                "noise_qualified": false
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3381.8,
+                "relative_mad": 0.002988349399728021,
+                "relative_central_range": 0.01431042640014193,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 214.9,
+                "relative_mad": 0.03164262447650062,
+                "relative_central_range": 0.0856212191717078,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 451.1,
+                "relative_mad": 0.02771004211926402,
+                "relative_central_range": 0.06561737973841725,
+                "noise_qualified": false
+              }
+            }
+          },
+          "2": {
+            "before": {
+              "connections_per_sec": {
+                "median": 3225.368,
+                "relative_mad": 0.002333377152622535,
+                "relative_central_range": 0.018789793908788027,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 233.7,
+                "relative_mad": 0.04065040650406504,
+                "relative_central_range": 0.13607188703465975,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 464.2,
+                "relative_mad": 0.012279190004308464,
+                "relative_central_range": 0.10900473933649295,
+                "noise_qualified": false
+              }
+            },
+            "after": {
+              "connections_per_sec": {
+                "median": 3206.083,
+                "relative_mad": 0.011185923758056259,
+                "relative_central_range": 0.02395228071138524,
+                "noise_qualified": true
+              },
+              "setup_p99_us": {
+                "median": 243.2,
+                "relative_mad": 0.038240131578947414,
+                "relative_central_range": 0.079358552631579,
+                "noise_qualified": false
+              },
+              "cycle_p99_us": {
+                "median": 477.9,
+                "relative_mad": 0.02950408035153791,
+                "relative_central_range": 0.06403013182674193,
+                "noise_qualified": false
+              }
+            }
+          }
+        },
+        "binaries": {
+          "before": {
+            "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-benchmark-before",
+            "sha256": "584e6631681b7159b8b2f727fe753911d8e87d625116ebae24a89400cf58dc79"
+          },
+          "after": {
+            "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-retirement-20261109/wsl-benchmark-after",
+            "sha256": "325165176ebb51b25064566104a479a397a430304d580612de2a0d20681a94bd"
+          }
+        },
+        "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+        "scope": "Alternating before/after immutable headers, identical current Core and unchanged lifecycle driver;7 samples of2000 connections for each numeric/prepared/hostname mode. Retain every sample and original3% MAD/6% central range and5% throughput/10% tail limits; no pinned/fixed-arrival/broker parity claim."
+      },
+      "paired_comparisons": {
+        "0": {
+          "connections_per_sec": {
+            "relative_change": 0.0044925238395072675,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": 0.02631578947368407,
+            "noise_qualified": false,
+            "within_original_limit": null
+          },
+          "cycle_p99_us": {
+            "relative_change": 0.0026414263702398966,
+            "noise_qualified": true,
+            "within_original_limit": true
+          }
+        },
+        "1": {
+          "connections_per_sec": {
+            "relative_change": 0.002581310387825164,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": -0.034157303370786485,
+            "noise_qualified": false,
+            "within_original_limit": null
+          },
+          "cycle_p99_us": {
+            "relative_change": 0.000665483584738169,
+            "noise_qualified": false,
+            "within_original_limit": null
+          }
+        },
+        "2": {
+          "connections_per_sec": {
+            "relative_change": -0.0059791626877925275,
+            "noise_qualified": true,
+            "within_original_limit": true
+          },
+          "setup_p99_us": {
+            "relative_change": 0.04065040650406515,
+            "noise_qualified": false,
+            "within_original_limit": null
+          },
+          "cycle_p99_us": {
+            "relative_change": 0.029513140887548417,
+            "noise_qualified": false,
+            "within_original_limit": null
+          }
+        }
+      }
+    }
+  },
+  "regressions": {
+    "before.log": {
+      "sha256": "7c6a6b6c2e7850f82487946858bb3aa166a950660a4e4aee53fec201e9b950b1",
+      "output": "mode=0 held=1 before=13474 after=12934 blocks=7/6 control=540 addresses=24\nmode=1 held=1 before=13475 after=12934 blocks=7/6 control=541 addresses=24\n\nexit=0\n"
+    },
+    "after.log": {
+      "sha256": "d831c321fff263d03030b70abaf54ed331a9540b8410161277a6b5b278737d1c",
+      "output": "mode=0 held=0 before=12934 after=12934 blocks=6/6 control=0 addresses=0\nmode=1 held=0 before=12934 after=12934 blocks=6/6 control=0 addresses=0\n"
+    },
+    "retirement-before-unit.log": {
+      "sha256": "58b57365f2bfe4b17f5dc1d0d03df8b3b0e3c08ce53ea8bab78126bb0229cf8c",
+      "output": "[FAIL] completed controller not retained on live connection\n\nexit=1\n"
+    }
+  },
+  "scope": "Only the cold Done function changed in production. Targeted Dial/composition/example/consumer/independent-wire checks match that scope; no fresh whole-four-library root pass is claimed. Seven alternating2000-cycle samples per numeric/prepared/hostname mode use identical current Core and unchanged lifecycle driver; every sample/original quality threshold remains.",
+  "limits": [
+    "uncertified samples cannot support regression/no-overhead claims; no forced acceptance",
+    "other independent native/Resolver/cache owners may retain data; client-reference release and budget bytes do not prove native RSS reduction",
+    "remaining MQTT TLS/WebSocket/session/expiry/reconnect/durable and other four-library scope, complete performance/native Linux/>=72h production gates remain active"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-dial-retirement-20261109",
+  "artifact_index_sha256": "62481bb3b7fab91500b1856b1b83473b7f1476b08bdbb0ad113d9ac9cfab620e",
+  "retained_package_artifacts": {
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/static/libxmqtt.a": {
+      "sha256": "6491bc7b875977df4b9dcdef9761e69d5e56691799e1bd43d53d6ca8f697daa6",
+      "bytes": 161432
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/static/libxrt.a": {
+      "sha256": "e9fdb768c8e8d1c60705898a4ad81d3273033646e1b3bf0ca239dec132fc30a5",
+      "bytes": 558792
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/static/packages.json": {
+      "sha256": "fddcdf64023ca6eb2fcef28566d380c9309fe817d73cd14fe99ec80e0b929639",
+      "bytes": 1941
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/static/test_package_xmqtt.exe": {
+      "sha256": "6fc72e1e4c36683ec5ce0e0f82204f80c2b51fcb8f3d44856391ebc478a12639",
+      "bytes": 629322
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/libxmqtt.dll.a": {
+      "sha256": "42c056b0c264f515cb36859ac7945ad19bac980d2a89eb16b229e84f0987988e",
+      "bytes": 40378
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/libxrt.dll.a": {
+      "sha256": "6ee183460a10edcfffe624607909d359dab12abb611bda4c6fd7619fe79ad7cd",
+      "bytes": 379260
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/packages.json": {
+      "sha256": "ab11c08ffaf70ca5679bbcc2ab1997d43cb206ce09c3d340f2591b22ddd8d379",
+      "bytes": 1965
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/test_package_xmqtt.exe": {
+      "sha256": "b007d9e56ff2d10f70a96fa009d86625e25fbd020605646198fc354d3e33270c",
+      "bytes": 61839
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/xmqtt.dll": {
+      "sha256": "c3d623e507fb141b3e15b2ad19fd5dd858bde573ac682e7c94189637e6519d02",
+      "bytes": 185086
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt/shared/xrt.dll": {
+      "sha256": "8c5c88e34f4db93685a95c3c35cd0de7f613f3767b65da58d8b7084f4f03fd0c",
+      "bytes": 505291
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/static/libxmqtt.a": {
+      "sha256": "25fc79c888d48c45e7b0dbbfbd9f5703bcf12a880d2a8c59a26afb4d6fbada1e",
+      "bytes": 144152
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/static/libxrt.a": {
+      "sha256": "5a3f55d8e1a20fa083ba61254eda5867dd7bd83c931aa8bdfe8bab1b889effa3",
+      "bytes": 558792
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/static/packages.json": {
+      "sha256": "7c0622527d2e9185a48d260129ddc2668af1e28825855fd4a57a7ea07ba63820",
+      "bytes": 1953
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/static/test_package_xmqtt.exe": {
+      "sha256": "9388f6643f40fc6f1be72743de68151f7caa1227add0450cc79fc1aee3f386c9",
+      "bytes": 615277
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/libxmqtt.dll.a": {
+      "sha256": "a3da4ff958448621370f8e009258d887c905d71730d07c3cc204569750827f61",
+      "bytes": 32434
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/libxrt.dll.a": {
+      "sha256": "06979d2d8f073cdcc654a9a8704085956d1d0ff167dcc0fc9b3b21e2c7a8ff75",
+      "bytes": 379260
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/packages.json": {
+      "sha256": "411092c33160d6c99ec89b66b5f9011d8c62e1bfd240c810111c52fa5d214a5c",
+      "bytes": 1977
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/test_package_xmqtt.exe": {
+      "sha256": "f8097a993bee3216331a422d1826e37151c263f47abb33b8a9bed9f0d2bb4636",
+      "bytes": 59409
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/xmqtt.dll": {
+      "sha256": "ce8c8e9bbb7ea53329a879d7316241d89f6a839f3541e2b8aa98d9cb0b7e1e7a",
+      "bytes": 171041
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/windows/xmqtt_client_dial/shared/xrt.dll": {
+      "sha256": "1dcaf6b5bada232f3263fc2ac55fa58cd8155eade64c064fa5776fdbe5e6307c",
+      "bytes": 505291
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/static/libxmqtt.a": {
+      "sha256": "02b6e42353adb173d109160f5574483b7905437b6a6bb1fd41141d1c45be69cb",
+      "bytes": 207844
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/static/libxrt.a": {
+      "sha256": "96485d9d7601e5ac06fe76dcc5fedc2e2ecf6a83242acdfa5d6708cd84ded4e1",
+      "bytes": 715452
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/static/packages.json": {
+      "sha256": "be4bd9e8c23355033677567ee4ef973a22e7f8e19f9aba56765181473e127bf5",
+      "bytes": 1871
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/static/test_package_xmqtt": {
+      "sha256": "ee8a852a7ebe0bcdf6354710b6a6768ed0fb9e451bc60ae27f5bce6f534dbf1d",
+      "bytes": 560176
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/shared/libxmqtt.so": {
+      "sha256": "968331cd71c2b6accc5c811816dfe65342e39c44420e007966aa3bb9f532db98",
+      "bytes": 150712
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/shared/libxrt.so": {
+      "sha256": "3a30b64549ab617e4ac933963c03e9679f28c9de79e10e31256f4cf6beaced84",
+      "bytes": 472408
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/shared/packages.json": {
+      "sha256": "11ba0093b91dc6518d51d8677355fc2499c015d571b4ce0dfeb4b0628989e85c",
+      "bytes": 1899
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt/shared/test_package_xmqtt": {
+      "sha256": "339a4fbb10a11415e3d51635982fd79849fe155613b39b3d0b17b05d268ef877",
+      "bytes": 25848
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/static/libxmqtt.a": {
+      "sha256": "7cc1a8ff39e2ce82a84e89a44094527ff0667363bbc7ada4b7d3b31f96c2ad89",
+      "bytes": 186702
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/static/libxrt.a": {
+      "sha256": "96485d9d7601e5ac06fe76dcc5fedc2e2ecf6a83242acdfa5d6708cd84ded4e1",
+      "bytes": 715452
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/static/packages.json": {
+      "sha256": "07ec0eb90eca1a03271cba7e0e185cedb33b2130ce8766fa51176bb8e8727f1b",
+      "bytes": 1883
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/static/test_package_xmqtt": {
+      "sha256": "22a68bea2c4d52dcd8510d978ecbd863d81d7a64971a8f6288a0f1ff030a3c2f",
+      "bytes": 542600
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/shared/libxmqtt.so": {
+      "sha256": "e53f182c08b1d3e43c7319d001e995e3ca6147ffba4e9dba1cc5ed4d6eaf858f",
+      "bytes": 141280
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/shared/libxrt.so": {
+      "sha256": "3a30b64549ab617e4ac933963c03e9679f28c9de79e10e31256f4cf6beaced84",
+      "bytes": 472408
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/shared/packages.json": {
+      "sha256": "aa5bb7c18ddfa59d7cf3582e509fe0ffc3045953d820ca25119d5d5069d00fa7",
+      "bytes": 1911
+    },
+    "out/service-extensions/xmqtt-dial-retirement-20261109/packages/wsl/xmqtt_client_dial/shared/test_package_xmqtt": {
+      "sha256": "03d604f1086f743c540e95e0962da5b861ec3ebe86398db0ff305ef3f70a97a6",
+      "bytes": 17160
+    }
+  }
+}

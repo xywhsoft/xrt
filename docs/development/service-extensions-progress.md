@@ -8789,3 +8789,55 @@ Evidence: extlibs/xmqtt/tests/results/client-dial-20261109.json. All four produc
 remain developing. Native Linux/>=72h, strict release completeness (including
 the retained xcron tzdb_file profile gap), remaining Redis/RPC/Cron work and MQTT
 TLS/WebSocket/session/expiry/reconnect/durable state remain in the active goal.
+
+
+## 2026-11-09 - release completed Dial control references before readiness
+
+Developed directly on master from1c62259c. The prior Dial stage measured and
+documented one bounded completed controller retained until Client Destroy. A
+worker-owned observation now reproduces that cost while the connection is live:
+prepared/hostname constructors retain540/541 requested controller+host bytes in
+the constructor allocation scope and24 selected-address bytes. Manual reference
+release leaves QoS1 traffic valid, proving the controller is no longer needed.
+
+Terminal Done now clears Client.Dial under its existing publication gate and
+releases exactly the client's caller reference as its final action. Core keeps
+actual callback/runtime/Resolver references through their tails. Pending dials
+remain owned and cancellable; failed/cancelled outcomes keep their original cause
+and shared DNS jobs remain independently Resolver-owned. Source normalization
+proves every other client function is byte-identical; public/private layouts,
+message hot paths and Core remain unchanged; no allocation, queue or lock is added.
+
+The new private single-header regression fails on the saved old header, observes
+no completed handle on a live current connection, checks pending/terminal cancel
+ownership, exercises fallback and continues QoS1. It holds its raw observation
+context through actual fixture Engine join. Windows/WSL each pass the three Dial
+programs, root Auth composition and Dial unit/example (five distinct programs,
+six executions),46 independent byte-peer cases and four root/Dial static/shared
+consumers. WSL ASan/UBSan/leak and four TSan program executions pass; targeted
+shared-tool and generated/API/docs checks pass. Executed binaries/package
+closures, old/current source headers and all failures remain retained. This is
+matching targeted validation, not a newly rerun complete four-library suite.
+
+Current requested constructor-scope live bytes are12934 on Windows and13422 on
+WSL in both one-endpoint scenarios, versus13474/13475 and13962/13963 before.
+Controls are no longer held by Client after Done; saved metadata accounts for
+at least564/565 requested controller/address bytes per connection here. Old
+candidate-error storage also retires when its last actual owner releases it.
+Heap caches/independent owners mean this is not a process-RSS release guarantee.
+
+Same current Core and unchanged lifecycle driver use seven alternating2000-cycle
+samples per numeric/prepared/hostname variant, all84 formal outputs across both
+platforms retained. Windows before/current throughput medians are
+3857.153/3862.179,3809.958/3814.47,3699.256/3698.316 cycles/s; WSL
+3295.475/3310.28,3373.093/3381.8,3225.368/3206.083. All throughput pairs qualify
+under original3% MAD/6% central range and stay within the5% regression limit.
+Qualified cycle-P99 pairs (Windows numeric/hostname and WSL numeric) stay within
+10%; other setup/cycle tail comparisons remain unqualified and are not accepted.
+No source, baseline or noise threshold was forced. Unpinned loopback lifecycle
+measurements still do not establish broker parity/fixed-arrival/native acceptance.
+
+Evidence: extlibs/xmqtt/tests/results/dial-retirement-20261109.json. The original
+four-library goal stays active; MQTT TLS/WebSocket/session/expiry/reconnect/durable
+state, remaining Redis/RPC/Cron scope and full native/performance/>=72h production
+release requirements remain.
