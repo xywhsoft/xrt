@@ -9221,3 +9221,28 @@ Original failed maturity/quality logs and executable/source hashes remain in
 out/service-extensions/mainline-recheck-20261110. Portable evidence:
 extlibs/xcron/tests/results/tzdb-file-profile-20261110.json. Full mainline and
 packaging revalidation follows this focused fix; four products remain developing.
+
+## 2026-11-10: reconfirm mainline migration and rerun all four products
+
+The preserved service branch is an ancestor of master. All26 pending source,
+documentation and generated files in the retired worktree still match their
+original migration archive; no new pending paths exist. They were integrated at
+05dc625d and improved on master, so the backup is not reapplied over current work.
+The existing direct-master workflow and retired-worktree guidance remain in force.
+
+Fresh validation executes against ad6e19774f0bd61561023687ed3f3246cefb8325 at D:/GIT/xrt master.
+Windows and WSL each pass127 root modular/single programs: Redis30, RPC30,
+MQTT33 and Cron34. WSL uses ASan/UBSan with leak detection and halt on errors.
+All four roots also pass static/shared package consumer verification on both
+platforms (eight package commands each). All four feature/single/API/docs/maturity
+checks and89 focused shared-tool tests pass. Exact counts, commands, binaries and
+logs are preserved with source identity in the portable report and C-backed stage.
+The initial capture script mistook mocked tool stdout for a real test path after
+89 tools already passed. The raw error/log/recipe remain; the corrected capture
+reruns tools and resumes packaging while verifying prior successful suite hashes.
+
+No product source changes, new branch, merge, checkout or push. The old worktree
+remains a backup; subsequent development continues directly on master. These are
+regression checks, not performance/native-deployment/72h release qualification.
+Evidence: docs/development/service-extensions-mainline-20261110.json and
+out/service-extensions/mainline-verified-20261110. The four-product goal remains active.
