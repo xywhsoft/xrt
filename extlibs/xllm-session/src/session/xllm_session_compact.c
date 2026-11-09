@@ -877,6 +877,13 @@ static bool xllm_session__ops_summarize(xllm_session *pSession, const char *sPro
 xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForce,
                                               xllm_error *pError)
 {
+    return xllmSessionPrepareCompactionWithBudget(pSession, bForce, 0u, pError);
+}
+
+xllm_compaction *xllmSessionPrepareCompactionWithBudget(xllm_session *pSession, bool bForce,
+                                                        uint64_t uPromptBudgetTokens,
+                                                        xllm_error *pError)
+{
     xllm_session_stats tStats;
     xllm_compaction *pCompaction = NULL;
     xllm_compaction_plan tPlan = {0};
@@ -922,6 +929,9 @@ xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForc
                             "no completed prefix is safe to compact yet");
         return NULL;
     }
+    uint64_t uBudget = xllm_session__input_budget(pSession);
+    if (uPromptBudgetTokens && uPromptBudgetTokens < uBudget) uBudget = uPromptBudgetTokens;
+retry_smaller_prefix:
     if (tPlan.uPrefixThroughSequence != 0u)
     {
         if (tPlan.uPrefixThroughSequence <= pSession->uCompactedThrough ||
@@ -965,20 +975,7 @@ xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForc
         /* Split turn: serialize the prefix range and frame it with the Pi
          * turn-context template; pBuildPrompt keeps its single-text contract. */
         char *sPrefix = NULL;
-        const char *sOriginal = "";
         xllm_session_buf tFramed = {0};
-        size_t i;
-        for (i = 0u; i < pSession->iEntryCount; ++i)
-        {
-            const xllm_session_entry *pEntry = &pSession->pEntries[i];
-            if (pEntry->uSequence > tPlan.uThroughSequence &&
-                pEntry->uSequence <= tPlan.uPrefixThroughSequence &&
-                pEntry->tMessage.eRole == XLLM_ROLE_USER && pEntry->tMessage.sContent)
-            {
-                sOriginal = pEntry->tMessage.sContent;
-                break;
-            }
-        }
         if (!xllm_session__ops_serialize(pSession, tPlan.uThroughSequence,
                                          tPlan.uPrefixThroughSequence, &sPrefix, pError))
         {
@@ -993,9 +990,9 @@ xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForc
                                     "\n**Turn Context (split turn):**\n"
                                     "This is the PREFIX of a turn that was too large to keep. "
                                     "The SUFFIX (recent work) is retained.\n\n"
-                                    "## Original Request\n") ||
-            !xllm_session__buf_cstr(&tFramed, sOriginal) ||
-            !xllm_session__buf_cstr(&tFramed, "\n\n## Early Progress\n") ||
+                                    "## Original Request\n"
+                                    "When part of this prefix, the request appears once in Early Progress below.\n\n"
+                                    "## Early Progress\n") ||
             !xllm_session__buf_cstr(&tFramed, sPrefix) ||
             !xllm_session__buf_cstr(&tFramed,
                                     "\n\n## Context for Suffix\n"
@@ -1026,6 +1023,32 @@ xllm_compaction *xllmSessionPrepareCompaction(xllm_session *pSession, bool bForc
         return NULL;
     }
     free(sCandidates);
+    sCandidates = NULL;
+    if (xllmEstimateTextTokens(sPrompt) > uBudget)
+    {
+        free(sPrompt); sPrompt = NULL;
+        uint64_t uThrough = tPlan.uPrefixThroughSequence ? tPlan.uPrefixThroughSequence : tPlan.uThroughSequence;
+        uint64_t uFloor = pSession->uCompactedThrough > pSession->uTailFloor ? pSession->uCompactedThrough : pSession->uTailFloor;
+        uint64_t uMid = uFloor + (uThrough - uFloor) / 2u, uSmaller = 0u;
+        /* Never split a tool pair or truncate a large user message to fit. */
+        for (size_t i = 0u; i < pSession->iEntryCount; ++i)
+        {
+            const xllm_session_entry *pEntry = &pSession->pEntries[i];
+            if (pEntry->uSequence <= uFloor || pEntry->uSequence >= uThrough ||
+                (pEntry->uFlags & XLLM_SESSION_ENTRY_PINNED) || pEntry->tMessage.eRole == XLLM_ROLE_USER ||
+                !xllm_session__plan_pair_safe(pSession, pEntry->uSequence)) continue;
+            if (!uSmaller || pEntry->uSequence <= uMid) uSmaller = pEntry->uSequence;
+            if (pEntry->uSequence > uMid) break;
+        }
+        if (!uSmaller)
+        {
+            xllm_session__error(pError, XLLM_ERROR_LIMIT, "no complete compaction prefix fits the summary input budget");
+            return NULL;
+        }
+        tPlan.uThroughSequence = pSession->uCompactedThrough;
+        tPlan.uPrefixThroughSequence = uSmaller;
+        goto retry_smaller_prefix;
+    }
     pCompaction = (xllm_compaction *)xllm_session__calloc(1u, sizeof(*pCompaction));
     if (!pCompaction)
     {

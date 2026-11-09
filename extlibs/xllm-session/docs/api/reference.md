@@ -4,14 +4,14 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `85` 个函数、`50` 个常量或宏、
+当前登记 `86` 个函数、`50` 个常量或宏、
 `38` 个公共类型。
 
 ## `extlibs/xllm-session/include/xllm-session/api.h`
 
 [查看带契约注释的公共头](../../include/xllm-session/api.h)
 
-### 函数 (85)
+### 函数 (86)
 
 - `xllmSessionAbortModelCall`
 - `xllmSessionAddAssistantResponse`
@@ -71,6 +71,7 @@
 - `xllmSessionPendingToolCallAt`
 - `xllmSessionPendingToolCallCount`
 - `xllmSessionPrepareCompaction`
+- `xllmSessionPrepareCompactionWithBudget`
 - `xllmSessionRecordUsage`
 - `xllmSessionRecover`
 - `xllmSessionRestore`

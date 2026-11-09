@@ -543,6 +543,10 @@ XRT_API bool xllmSessionSnapshotBuildRequest(const xllm_session_snapshot* pSnaps
  * valid summary was obtained. Destroying it without commit aborts safely.
  */
 XRT_API xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError);
+/* Select a smaller pair-complete prefix if the prompt cannot fit. Zero uses
+ * the session input budget; callers reserve their own system/correction
+ * messages first. Failure leaves history unchanged, including large inputs. */
+XRT_API xllm_compaction* xllmSessionPrepareCompactionWithBudget(xllm_session* pSession, bool bForce, uint64_t uPromptBudgetTokens, xllm_error* pError);
 /* Mark the externally executed summary call as started. Compatibility auto
  * compaction calls this internally. Destroying an uncommitted transaction
  * aborts it and restores the prior session state. */

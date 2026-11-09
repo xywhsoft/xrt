@@ -2383,12 +2383,53 @@ static void test_compaction_parts(void)
     free(serialized); xllmSessionDestroy(session);
 }
 
+static void test_compaction_prompt_budget(void)
+{
+    xllm_session_config c; xllm_error e; xllmSessionConfigInit(&c);
+    c.uContextWindowTokens = c.uMaxInputTokens = 10000u;
+    c.uMaxOutputTokens = c.uOutputReserveTokens = c.uSummaryMaxTokens = 1024u;
+    c.uSafetyReserveTokens = 512u; c.uKeepRecentTokens = 1000u;
+    xllm_session *s = xllmSessionCreate(&c, &e);
+    char *original = make_large_output(24000u, 0u), *reply = make_large_output(2000u, 1u);
+    SESSION_CHECK(s && original && reply, "summary budget fixture allocates");
+    if (!s || !original || !reply) goto done;
+    uint64_t turn = xllmSessionBeginTurn(s);
+    SESSION_CHECK(xllmSessionAddText(s, turn, XLLM_ROLE_USER, original, 0u), "large request retained");
+    for (int i=0; i<4; ++i)
+        SESSION_CHECK(xllmSessionAddText(s, turn, XLLM_ROLE_ASSISTANT, reply, 0u), "split assistant retained");
+    uint64_t sequence = xllmSessionLastSequence(s);
+    xllm_compaction *q = xllmSessionPrepareCompactionWithBudget(s, true, 8000u, &e);
+    const char *prompt = q ? xllmCompactionPrompt(q) : NULL;
+    const char *first = prompt ? strstr(prompt, original) : NULL;
+    SESSION_CHECK(q && xllmCompactionEstimatedTokens(q)<=8000u && first &&
+        !strstr(first+strlen(original), original), "split summary contains original request exactly once and fits");
+    xllmCompactionDestroy(q);
+    q = xllmSessionPrepareCompactionWithBudget(s, true, 4000u, &e);
+    SESSION_CHECK(!q && e.eCode == XLLM_ERROR_LIMIT && xllmSessionLastSequence(s)==sequence &&
+        !s->pActiveCompaction && !s->uCompactedThrough, "oversized single input is rejected without truncation or transaction mutation");
+    xllmCompactionDestroy(q); xllmSessionDestroy(s); s=xllmSessionCreate(&c,&e);
+    for (int i=0; s && i<12; ++i)
+    {
+        turn=xllmSessionBeginTurn(s);
+        SESSION_CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,reply,0u) &&
+            xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,reply,0u), "chunk prefix fixture adds turn");
+    }
+    q=s?xllmSessionPrepareCompactionWithBudget(s,true,2000u,&e):NULL;
+    SESSION_CHECK(q && xllmCompactionEstimatedTokens(q)<=2000u &&
+        q->uThroughSequence<xllmSessionLastSequence(s) && xllm_session__plan_pair_safe(s,q->uThroughSequence),
+        "oversized history selects a smaller complete prefix within budget");
+    xllmCompactionDestroy(q);
+done:
+    free(original); free(reply); xllmSessionDestroy(s);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
     printf("xllm-session v3 tests\n");
     test_tool_image_text();
     test_compaction_parts();
+    test_compaction_prompt_budget();
     test_default_profile();
     test_compaction_user_bridge();
     test_add_reference();
