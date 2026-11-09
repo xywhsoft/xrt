@@ -119,6 +119,84 @@ static void testSessionSelectionLimit(xmqttversion V)
     sessionStatus(xmqttSessionSent(S,&Old),XMQTT_SESSION_STATE_ERROR,"old exhausted generation remains stale");xrtClearError();sessionEmpty(S);sessionSent(S,&F);
     sessionStatus(sessionAck(S,XMQTT_PACKET_PUBCOMP,7,0),XMQTT_SESSION_DONE,"selection-limit PUBCOMP");xmqttSessionPacketRelease(Old.Packet);xmqttSessionPacketRelease(P);sessionEnd(S,4);testRequire(xmqttSessionDestroy(S),"selection-limit destroy");
 }
+static void testSessionReferenceLimit(xmqttversion V,unsigned Qos)
+{
+    const uint32 Limit=UINT32_MAX/2u,Counts[]={Limit-1,Limit,UINT32_MAX-1,UINT32_MAX,0};
+    xmqttsession* S=sessionCreate(V,1,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"reference-limit open");
+    const xmqttsessionpacket* P=sessionPublish(S,Qos,7);xmqttsessionpacket* R=(xmqttsessionpacket*)P;
+    if(Qos==2){xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DONE,"reference-limit PUBREC");}
+    uint32 Original=xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED);testRequire(Original==2,"active and caller references");
+    for(size_t I=0;I<sizeof(Counts)/sizeof(Counts[0]);++I){
+        xmqttsessioninfo Before=sessionInfo(S);uint64 Selection=S->Selection;uint8 Kind=R->ReadyKind,Type=R->SelectedType;bool Attempted=R->Attempted;
+        xmqttsessionframe F;memset(&F,0xa5,sizeof(F));xmqttsessionframe Unchanged=F;
+        xrtAtomic32Store(&R->Refs,Counts[I],XMEMORY_RELAXED);xmqttsessionstatus Status=xmqttSessionNext(S,&F);uint32 AfterRefs=xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED);
+        /* Restore real references before cleanup or any fatal assertion, including on old wrapped-count code. */
+        xrtAtomic32Store(&R->Refs,Original+(Status==XMQTT_SESSION_DONE?2u:0u),XMEMORY_RELAXED);
+        if(Status==XMQTT_SESSION_DONE)sessionSent(S,&F);
+        sessionStatus(Status,XMQTT_SESSION_RESTRICTED,"Next must reserve both references below the shared cap");xrtClearError();
+        xmqttsessioninfo After=sessionInfo(S);testRequire(AfterRefs==Counts[I] && !memcmp(&F,&Unchanged,sizeof(F)) && sessionSameInfo(&Before,&After),"reference rejection changed output/quota/objects");
+        testRequire(S->Selection==Selection && !S->Selected && R->Need && R->ReadyKind==Kind && R->SelectedType==Type && R->Attempted==Attempted,"reference rejection consumed ready state or selection sequence");
+    }
+    xallocationbudget* Budget=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&Budget) && xrtAllocationBudgetEnter(Budget,&Scope),"reference-limit diagnostic OOM scope");
+    xmqttsessionframe F;memset(&F,0xa5,sizeof(F));xmqttsessionframe Unchanged=F;uint64 Sequence=S->Selection;
+    xrtAtomic32Store(&R->Refs,Limit-1,XMEMORY_RELAXED);xmqttsessionstatus Status=xmqttSessionNext(S,&F);uint32 Refs=xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED);
+    xrtAtomic32Store(&R->Refs,Original,XMEMORY_RELAXED);sessionStatus(Status,XMQTT_SESSION_RESTRICTED,"reference bound survives diagnostic OOM");xrtClearError();
+    testRequire(Refs==Limit-1 && !memcmp(&F,&Unchanged,sizeof(F)) && S->Selection==Sequence && R->Need,"OOM rejection changed references or ready state");
+    testRequire(xrtAllocationBudgetLeave(&Scope),"reference-limit OOM leave");xallocationbudgetinfo Usage={0};Usage.Size=sizeof(Usage);
+    testRequire(xrtAllocationBudgetInfo(Budget,&Usage) && !Usage.LiveBytes,"reference-limit diagnostic quota leaked");xrtAllocationBudgetFree(Budget);
+    xrtAtomic32Store(&R->Refs,Limit-2,XMEMORY_RELAXED);uint64 Selection=S->Selection;F=sessionNext(S);
+    testRequire(xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED)==Limit && F.Selection==Selection+1,"atomic two-reference boundary reservation");
+    sessionWire(&F,V,2,Qos==2?XMQTT_PACKET_PUBREL:XMQTT_PACKET_PUBLISH,7);sessionSent(S,&F);
+    testRequire(xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED)==Limit-2,"selection references refunded exactly");
+    testRequire(xmqttSessionPacketRetain(P) && xmqttSessionPacketRetain(P) && !xmqttSessionPacketRetain(P) && xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED)==Limit,"manual Retain shares the same reference cap");xrtClearError();
+    xmqttSessionPacketRelease(P);xmqttSessionPacketRelease(P);xrtAtomic32Store(&R->Refs,Original,XMEMORY_RELAXED);
+    sessionStatus(sessionAck(S,Qos==2?XMQTT_PACKET_PUBCOMP:XMQTT_PACKET_PUBACK,7,0),XMQTT_SESSION_DONE,"reference-limit final ACK");xmqttSessionPacketRelease(P);
+    testRequire(!sessionInfo(S).Objects,"reference-limit physical packet refund");sessionEnd(S,2);testRequire(xmqttSessionDestroy(S),"reference-limit destroy");
+}
+#if defined(XMQTT_SESSION_REFERENCE_PROBE)
+static const xmqttsessionpacket* sessionRefPressurePacket;
+static unsigned sessionRefPressureMode;
+static bool sessionRefPressureRan,sessionRefRefundRan;
+static void sessionRefFillCapacity(void)
+{
+    testRequire(xmqttSessionPacketRetain(sessionRefPressurePacket) && xmqttSessionPacketRetain(sessionRefPressurePacket),"concurrent retain fills two slots");sessionRefPressureRan=true;
+}
+static void sessionRefReleaseDuringRefund(void)
+{
+    testRequire(xrtAtomic32Load(sessionRefProbeTarget,XMEMORY_RELAXED)==UINT32_MAX/2u+2u,"at most two speculative references above cap");
+    testRequire(!xmqttSessionPacketRetain(sessionRefPressurePacket),"public Retain cannot grow speculative excess");xrtClearError();
+    if(sessionRefPressureMode==1)xmqttSessionPacketRelease(sessionRefPressurePacket);
+    else if(sessionRefPressureMode==2){
+        /* Equivalent to releasing the fabricated external references one by
+         * one, stopping at active+caller+two speculative references. No free. */
+        (void)xrtAtomic32FetchSub(sessionRefProbeTarget,UINT32_MAX/2u-2u,XMEMORY_ACQ_REL);
+        testRequire(xrtAtomic32Load(sessionRefProbeTarget,XMEMORY_RELAXED)==4,"protected active/caller references remain before refund");
+    }
+    sessionRefRefundRan=true;
+}
+static void testSessionReferenceInterleaving(xmqttversion V,unsigned Qos)
+{
+    xmqttsession* S=sessionCreate(V,1,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"reference interleaving open");
+    const xmqttsessionpacket* P=sessionPublish(S,Qos,7);xmqttsessionpacket* R=(xmqttsessionpacket*)P;
+    if(Qos==2){xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DONE,"reference interleaving PUBREC");}
+    uint32 Original=xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED);testRequire(Original==2,"reference interleaving real ownership");
+    for(unsigned Mode=0;Mode<3;++Mode){
+        xmqttsessioninfo Before=sessionInfo(S);uint64 Sequence=S->Selection;xmqttsessionframe F;memset(&F,0xa5,sizeof(F));xmqttsessionframe Unchanged=F;
+        sessionRefPressurePacket=P;sessionRefPressureMode=Mode;sessionRefPressureRan=sessionRefRefundRan=false;
+        sessionRefProbeTarget=&R->Refs;sessionRefProbePressure=sessionRefFillCapacity;sessionRefProbeRefund=sessionRefReleaseDuringRefund;
+        xrtAtomic32Store(&R->Refs,UINT32_MAX/2u-2u,XMEMORY_RELAXED);xmqttsessionstatus Status=xmqttSessionNext(S,&F);uint32 AfterRefs=xrtAtomic32Load(&R->Refs,XMEMORY_RELAXED);
+        sessionRefProbeTarget=NULL;sessionRefProbePressure=sessionRefProbeRefund=NULL;
+        /* Discard the fabricated reference history before any physical release. */
+        xrtAtomic32Store(&R->Refs,Original+(Status==XMQTT_SESSION_DONE?2u:0u),XMEMORY_RELAXED);if(Status==XMQTT_SESSION_DONE)sessionSent(S,&F);
+        sessionStatus(Status,XMQTT_SESSION_RESTRICTED,"competing Retain refuses the entire frame reservation");xrtClearError();
+        xmqttsessioninfo After=sessionInfo(S);uint32 Expected=Mode==2?2u:UINT32_MAX/2u-(Mode==1?1u:0u);
+        testRequire(sessionRefPressureRan && sessionRefRefundRan && AfterRefs==Expected,"reference refund lost concurrent updates");
+        testRequire(!memcmp(&F,&Unchanged,sizeof(F)) && sessionSameInfo(&Before,&After) && S->Selection==Sequence && !S->Selected && R->Need,"refused interleaving consumed output/ready/quota/sequence");
+    }
+    xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);sessionStatus(sessionAck(S,Qos==2?XMQTT_PACKET_PUBCOMP:XMQTT_PACKET_PUBACK,7,0),XMQTT_SESSION_DONE,"interleaving final ACK");xmqttSessionPacketRelease(P);
+    testRequire(!sessionInfo(S).Objects,"interleaving physical packet refund");sessionEnd(S,2);testRequire(xmqttSessionDestroy(S),"interleaving destroy");
+}
+#endif
 #endif
 static void testSessionSelectedCompletion(xmqttversion V)
 {
@@ -273,12 +351,34 @@ static void testSessionThreads(void)
     for(unsigned I=0;I<8;++I){testRequire(xrtThreadWaitFor(Threads[I],15000)==XWAIT_OK && xrtThreadExitCode(Threads[I])==0,"reader join");xrtThreadDestroy(Threads[I]);}
     testRequire(xmqttSessionDestroy(S) && xmqttSessionPacket(P)->Body.Publish.Payload.Size==3,"held packet after threads/session join");xmqttSessionPacketRelease(P);
 }
+static void testSessionConcurrentSelection(xmqttversion V)
+{
+    xmqttsession* S=sessionCreate(V,1,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,1,1),XMQTT_SESSION_DONE,"contended selection open");
+    const xmqttsessionpacket* P=sessionPublish(S,2,7);xmqttsessionframe F=sessionNext(S);sessionSent(S,&F);
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DONE,"contended selection PUBREC");
+    xatomic32 Start;xrtAtomic32Init(&Start,0);sessionReader R={S,P,&Start};xthread* Threads[8];
+    for(unsigned I=0;I<8;++I){testRequire(xmqttSessionPacketRetain(P),"contended reader owns packet");Threads[I]=xrtThreadCreate(sessionReadThread,&R,0);testRequire(Threads[I]!=NULL,"contended reader thread");}
+    xrtAtomic32Store(&Start,1,XMEMORY_RELEASE);
+    for(unsigned I=0;I<5000;++I){F=sessionNext(S);testRequire(F.Type==XMQTT_PACKET_PUBREL && F.Identifier==7,"contended frame identity");sessionSent(S,&F);
+        if(I!=4999)sessionStatus(sessionAck(S,XMQTT_PACKET_PUBREC,7,0),XMQTT_SESSION_DUPLICATE,"contended repeated PUBREC");}
+    for(unsigned I=0;I<8;++I){testRequire(xrtThreadWaitFor(Threads[I],15000)==XWAIT_OK && xrtThreadExitCode(Threads[I])==0,"contended reader join");xrtThreadDestroy(Threads[I]);}
+    sessionStatus(sessionAck(S,XMQTT_PACKET_PUBCOMP,7,0),XMQTT_SESSION_DONE,"contended final PUBCOMP");xmqttSessionPacketRelease(P);
+    xmqttsessioninfo Info=sessionInfo(S);testRequire(!Info.Objects && Info.LiveBytes==Info.BaseBytes,"contended frame references fully refunded");
+    sessionEnd(S,2);testRequire(xmqttSessionDestroy(S),"contended selection destroy");
+}
 int main(void)
 {
+    testSessionConcurrentSelection(XMQTT_VERSION_5);testSessionConcurrentSelection(XMQTT_VERSION_311);
     testSessionRepeatedSelection(XMQTT_VERSION_5);testSessionRepeatedSelection(XMQTT_VERSION_311);
     testSessionSelectedCompletion(XMQTT_VERSION_5);testSessionSelectedCompletion(XMQTT_VERSION_311);
 #if defined(XMQTT_SINGLE_HEADER)
     testSessionSelectionLimit(XMQTT_VERSION_5);testSessionSelectionLimit(XMQTT_VERSION_311);
+    testSessionReferenceLimit(XMQTT_VERSION_5,1);testSessionReferenceLimit(XMQTT_VERSION_5,2);
+    testSessionReferenceLimit(XMQTT_VERSION_311,1);testSessionReferenceLimit(XMQTT_VERSION_311,2);
+#if defined(XMQTT_SESSION_REFERENCE_PROBE)
+    testSessionReferenceInterleaving(XMQTT_VERSION_5,1);testSessionReferenceInterleaving(XMQTT_VERSION_5,2);
+    testSessionReferenceInterleaving(XMQTT_VERSION_311,1);testSessionReferenceInterleaving(XMQTT_VERSION_311,2);
+#endif
 #endif
     testSessionFlows(XMQTT_VERSION_5);testSessionFlows(XMQTT_VERSION_311);testSessionReplay(XMQTT_VERSION_5);testSessionReplay(XMQTT_VERSION_311);testSessionIncoming(XMQTT_VERSION_5);testSessionIncoming(XMQTT_VERSION_311);testSessionSnapshot();testSessionIdentityExpiry(XMQTT_VERSION_5);testSessionIdentityExpiry(XMQTT_VERSION_311);testSessionBoundsAndArguments();testSessionIdentifierSpace();testSessionPeerAndNegative();testSessionNegotiationAtomicity();testSessionAllocation();testSessionThreads();
     puts("[PASS] xmqtt session: QoS state/replay cuts/partial generations/identity/expiry/limits/full ids/snapshots/zero-allocation ACKs/OOM/retained physical lifetime/threads");return 0;

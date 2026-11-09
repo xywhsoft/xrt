@@ -1,0 +1,651 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Bounded session frame references with a protected-owner fetch/check/refund.",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "e51b4550ddf2a0b894737e5e53fb0a20c2bbfc3d",
+  "previous_goal_turn": "progress: exact frame selections committed at e51b4550",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "source_identity": {
+    "inputs": 2605,
+    "before_sha256": "b19d328362d86abd302b490e8a7d7cd8dee3c93111d9cb701bb7c32882b51348",
+    "final_sha256": "292aa7158e8fd7ab419e39dbf2bab025d180b2d19c0799ba1643bfca2596b02e",
+    "changed_previous_inputs": [
+      "extlibs/xmqtt/docs/session.md",
+      "extlibs/xmqtt/include/xmqtt/session.h",
+      "extlibs/xmqtt/src/session/session.c",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c",
+      "extlibs/xmqtt/tests/test_session.c",
+      "single/extlibs/xmqtt.h",
+      "single/extlibs/xmqtt_decl.h"
+    ],
+    "new_inputs": [
+      "extlibs/xmqtt/tests/session_reference_probe.h"
+    ]
+  },
+  "regression": {
+    "old_next_status": 1,
+    "expected_status": -4,
+    "red_log_sha256": "17cdac2743b792393b0e6afd69495d90988141ad9c75e529bf09673b45b68312",
+    "red_binary_sha256": "ebe52befbde68c9ac8338c41b83f3508ab20a1ed795084e051093da3404a0b8e",
+    "red_source_sha256": "64c34c3753b97b3b44408997d4f8f75c3f5bca34c14d8c5f9fdfed9bfad311b4",
+    "parent_audit": "extlibs/xmqtt/tests/results/selection-20261110.json"
+  },
+  "contract": [
+    "Public Retain keeps its original CAS and UINT32_MAX/2 admitted-reference cap. Next holds Gate and the ready-list active reference throughout its two-count speculation.",
+    "Only one speculation per packet: supported internal counts <=cap+2, below UINT32_MAX. Refusal refunds with a raw decrement before ready/quota/sequence/output mutation. Concurrent valid releases cannot remove the protected active reference. No over-cap frame is published.",
+    "Successful Next uses one RMW instead of two; refusal adds one refund RMW. No owner CAS retry, new allocation/copy/gate/object fields. Valid reference ownership and serialized protocol ownership remain preconditions.",
+    "Public x64 config112/info88/frame72/packet-info32, managed base/peak and checksum facts remain unchanged. Capacity may be briefly reserved by an in-flight Next."
+  ],
+  "tests": {
+    "injected_count_phase_version_boundaries": 20,
+    "diagnostic_oom_cases": 4,
+    "controlled_interleavings": 12,
+    "control_detail": "3 schedules x2 QoS phases x2 versions: fill slots just before reserve; refund with no release, one public Release or aggregate release down to active+caller+two internal counts. Restore fabricated history before physical release.",
+    "real_contention_per_run": "Two versions each with8 retained readers x5000 Retain/Info/PacketInfo/Release loops and5000 owner PUBREL selections; strict joins and physical refunds.",
+    "sdk_contains_test_hooks": false,
+    "focused_tools": 89
+  },
+  "platforms": {
+    "windows": {
+      "final_programs": {
+        "root_session": 2,
+        "minimal_session": 2,
+        "example": 1,
+        "tsan": 0,
+        "extra_asan_runs": 0
+      },
+      "asan_ubsan_leak": false,
+      "package_consumers": 4,
+      "wire": {
+        "windows-root-static-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "d6dbd3557a999aa826dea88991bae9c5ed979a4db252a7ace420bc805a0688fb"
+        },
+        "windows-root-shared-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "41f1a2f87967e37419b01ae38fb97ba2117da8fa108a252f850211e30c0b186f"
+        },
+        "windows-leaf-static-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "d6dbd3557a999aa826dea88991bae9c5ed979a4db252a7ace420bc805a0688fb"
+        },
+        "windows-leaf-shared-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "f3347377f87639eb22bea9704baef5c932dfcccc0e63a374a5aad8f960bff90c"
+        },
+        "windows-modular-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "7315017e01b1fcad4095002017739e3e7c91a625488e5fabed2b56339b58dfea"
+        },
+        "windows-single-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "a80f39b404e302f03235643298b18c9f7a20e12bd3922e9a1250287df46d8d84"
+        }
+      },
+      "validation_sha256": "e61a4163512e03ebeeaeae02543fcf4b172caf14db4b2dfea4238e56e7b6fd58",
+      "regular": {
+        "qualified_pairs": 8,
+        "qualified_all_within_five_percent": true,
+        "raw_all_within_five_percent": true,
+        "full_matrix_qualified": false,
+        "cases": [
+          {
+            "name": "session_5_qos1_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.961398032943887,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos1_1024",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9951425824545518,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos1_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9990224603959619,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9576275827621002,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_1024",
+            "noise_qualified": {
+              "before": true,
+              "after": false
+            },
+            "throughput_ratio": 0.9907712436375469,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9902702797193917,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.0514334783126,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_1024",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9997715119059675,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.0124421243316468,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_64",
+            "noise_qualified": {
+              "before": false,
+              "after": false
+            },
+            "throughput_ratio": 1.101870587146405,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_1024",
+            "noise_qualified": {
+              "before": false,
+              "after": false
+            },
+            "throughput_ratio": 0.9637300070703311,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_65536",
+            "noise_qualified": {
+              "before": false,
+              "after": false
+            },
+            "throughput_ratio": 1.0310999304137969,
+            "within_five_percent": true
+          }
+        ],
+        "facts": {
+          "after": {
+            "session_base_bytes": "27085",
+            "session_single_packet_peak_bytes": "27441",
+            "session_config_bytes": "112",
+            "session_info_bytes": "88",
+            "session_frame_bytes": "72",
+            "session_packet_info_bytes": "32",
+            "checksum": "2749786225"
+          },
+          "before": {
+            "session_base_bytes": "27085",
+            "session_single_packet_peak_bytes": "27441",
+            "session_config_bytes": "112",
+            "session_info_bytes": "88",
+            "session_frame_bytes": "72",
+            "session_packet_info_bytes": "32",
+            "checksum": "2749786225"
+          }
+        },
+        "report_sha256": "5fa5085630fb17578ce683d452056cecf48b4e55a5806fe1ac77f0a727c75ab7",
+        "build_sha256": "323479df5bf9e604d8b6129c9acba2ff5057b67e36ad5d1b78cab6557ba19c74"
+      },
+      "contention": {
+        "scope": "Same-source closed-loop in-memory PUBREL selection/Sent/duplicate-PUBREC; timer reads and sampling included. Readers only Retain/Release. Not broker/fixed-arrival end-to-end P99 acceptance.",
+        "source_sha256": "5a710d99afbfff2498205c04a3e9fe7bbfc8fab2b618e628dddf3286c4e50f9d",
+        "cases": [
+          {
+            "readers": 0,
+            "ratios": {
+              "cycles_per_sec": 0.9303016131650248,
+              "cycle_p50_us": 1.0,
+              "cycle_p99_us": 1.0,
+              "cycle_p999_us": 1.0
+            },
+            "noise_qualified": {
+              "cycles_per_sec": false,
+              "cycle_p50_us": true,
+              "cycle_p99_us": false,
+              "cycle_p999_us": true
+            },
+            "facts": {
+              "after": {
+                "cycles": "500000",
+                "readers": "0",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              },
+              "before": {
+                "cycles": "500000",
+                "readers": "0",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              }
+            }
+          },
+          {
+            "readers": 8,
+            "ratios": {
+              "cycles_per_sec": 1.2392662769330314,
+              "cycle_p50_us": 0.8333333333333334,
+              "cycle_p99_us": 0.8,
+              "cycle_p999_us": 0.8461538461538461
+            },
+            "noise_qualified": {
+              "cycles_per_sec": false,
+              "cycle_p50_us": false,
+              "cycle_p99_us": false,
+              "cycle_p999_us": false
+            },
+            "facts": {
+              "after": {
+                "cycles": "500000",
+                "readers": "8",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              },
+              "before": {
+                "cycles": "500000",
+                "readers": "8",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              }
+            }
+          }
+        ],
+        "report_sha256": "ccd4380fe82f434d227665b1ac148006c1f322263adf5c8f3ac19cd10efa00ca",
+        "build_sha256": "ba7899b6f23d5fa1bf4e00c85081a267ea09012a37d0e9db869d481f7dbe7b3a"
+      },
+      "size": {
+        "text": 74196,
+        "data": 0,
+        "bss": 0,
+        "members": 8,
+        "load": 74196,
+        "file": 103786,
+        "path": "release/gnu/native/xmqtt_session/static/libxmqtt.a"
+      }
+    },
+    "wsl": {
+      "final_programs": {
+        "root_session": 2,
+        "minimal_session": 2,
+        "example": 1,
+        "tsan": 2,
+        "extra_asan_runs": 10
+      },
+      "asan_ubsan_leak": true,
+      "package_consumers": 4,
+      "wire": {
+        "wsl-root-static-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "fb839275ec8a3ac017b4abb322246f41a04321ab86b1afb426df55f98266de23"
+        },
+        "wsl-root-shared-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "8797c072dc52bacfebc14256b12667e630aebd4a0a15e3e9515c203463fc7dad"
+        },
+        "wsl-leaf-static-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "c3956ecd2f348b4dc63092de298e5a7fe8caf3967d053785b0bce7bcaf76b622"
+        },
+        "wsl-leaf-shared-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "79cc516bb60971be82427a62d6662695d65018d9581d9b8b51c88d6e7cb3cea7"
+        },
+        "wsl-modular-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "0d811c504eaa43200e0c98b899dbd5992af211183230368ff4aabacbd9dc3ef1"
+        },
+        "wsl-single-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "718b4ab0fc2f80d66724baa522d5294ec739485cb6dd9b1ee7ff9c9ce178fbfe"
+        },
+        "wsl-asan-wire.json": {
+          "cases": 14,
+          "connections": 28,
+          "sha256": "6e6c0785c3f7a73828904f633010c4fd8106b8b302ea4b09b752d9eda4b5fbd1"
+        }
+      },
+      "validation_sha256": "5d71a47bffc7cc793a0187fb6a24108c6527d243de9c306c3d3aec67d69cf3ab",
+      "regular": {
+        "qualified_pairs": 7,
+        "qualified_all_within_five_percent": true,
+        "raw_all_within_five_percent": true,
+        "full_matrix_qualified": false,
+        "cases": [
+          {
+            "name": "session_5_qos1_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.0166409140875292,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos1_1024",
+            "noise_qualified": {
+              "before": false,
+              "after": true
+            },
+            "throughput_ratio": 1.0127389165962544,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos1_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9668165517367144,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_64",
+            "noise_qualified": {
+              "before": true,
+              "after": false
+            },
+            "throughput_ratio": 0.9946174101203349,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_1024",
+            "noise_qualified": {
+              "before": false,
+              "after": false
+            },
+            "throughput_ratio": 1.02450598872292,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_5_qos2_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.0215463313749,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.0118026739537362,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_1024",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9799756450236949,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos1_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": false
+            },
+            "throughput_ratio": 0.9703109866042576,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_64",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 1.021990532528705,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_1024",
+            "noise_qualified": {
+              "before": true,
+              "after": false
+            },
+            "throughput_ratio": 0.997353121172204,
+            "within_five_percent": true
+          },
+          {
+            "name": "session_4_qos2_65536",
+            "noise_qualified": {
+              "before": true,
+              "after": true
+            },
+            "throughput_ratio": 0.9974756434439841,
+            "within_five_percent": true
+          }
+        ],
+        "facts": {
+          "after": {
+            "session_base_bytes": "27157",
+            "session_single_packet_peak_bytes": "27513",
+            "session_config_bytes": "112",
+            "session_info_bytes": "88",
+            "session_frame_bytes": "72",
+            "session_packet_info_bytes": "32",
+            "checksum": "2749786225"
+          },
+          "before": {
+            "session_base_bytes": "27157",
+            "session_single_packet_peak_bytes": "27513",
+            "session_config_bytes": "112",
+            "session_info_bytes": "88",
+            "session_frame_bytes": "72",
+            "session_packet_info_bytes": "32",
+            "checksum": "2749786225"
+          }
+        },
+        "report_sha256": "b0d0a444fb03d8e0fc8e99a59b51326d896abffa87257bf014acb04e3dda98a5",
+        "build_sha256": "c8a979c92280cecbedb03fe215eacf502e6a04f10c48970da7850790d2be48e9"
+      },
+      "contention": {
+        "scope": "Same-source closed-loop in-memory PUBREL selection/Sent/duplicate-PUBREC; timer reads and sampling included. Readers only Retain/Release. Not broker/fixed-arrival end-to-end P99 acceptance.",
+        "source_sha256": "5a710d99afbfff2498205c04a3e9fe7bbfc8fab2b618e628dddf3286c4e50f9d",
+        "cases": [
+          {
+            "readers": 0,
+            "ratios": {
+              "cycles_per_sec": 0.9650634973370521,
+              "cycle_p50_us": 1.0,
+              "cycle_p99_us": 2.0,
+              "cycle_p999_us": 1.0
+            },
+            "noise_qualified": {
+              "cycles_per_sec": true,
+              "cycle_p50_us": true,
+              "cycle_p99_us": false,
+              "cycle_p999_us": true
+            },
+            "facts": {
+              "after": {
+                "cycles": "500000",
+                "readers": "0",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              },
+              "before": {
+                "cycles": "500000",
+                "readers": "0",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              }
+            }
+          },
+          {
+            "readers": 8,
+            "ratios": {
+              "cycles_per_sec": 1.007801209866209,
+              "cycle_p50_us": 1.0,
+              "cycle_p99_us": 1.1818181818181817,
+              "cycle_p999_us": 0.9838709677419354
+            },
+            "noise_qualified": {
+              "cycles_per_sec": false,
+              "cycle_p50_us": false,
+              "cycle_p99_us": false,
+              "cycle_p999_us": false
+            },
+            "facts": {
+              "after": {
+                "cycles": "500000",
+                "readers": "8",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              },
+              "before": {
+                "cycles": "500000",
+                "readers": "8",
+                "frame_bytes": "72",
+                "checksum": "125000750000"
+              }
+            }
+          }
+        ],
+        "report_sha256": "03007efc5a9d41fa5969abc095eceac26db0a6b824955c813823443096f85e01",
+        "build_sha256": "9018bad764ec95e40e871f6f47893486c1a80f082f6f50823e754c3bdc8b80f3"
+      },
+      "size": {
+        "text": 75728,
+        "data": 0,
+        "bss": 0,
+        "members": 8,
+        "load": 75728,
+        "file": 136550,
+        "path": "release/gnu/x64/xmqtt_session/static/libxmqtt.a"
+      }
+    }
+  },
+  "tcp": {
+    "variants": 13,
+    "cases": 182,
+    "connections": 364,
+    "scope": "Test-only Core socket driver, not Client/broker durability acceptance."
+  },
+  "archive_comparison": {
+    "windows": {
+      "libxmqtt.a": {
+        "members": 9,
+        "changed": [
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "byte_identical": 8,
+        "archive_bytes_equal": false
+      },
+      "libxrt.a": {
+        "members": 139,
+        "changed": [],
+        "byte_identical": 139,
+        "archive_bytes_equal": false
+      }
+    },
+    "wsl": {
+      "libxmqtt.a": {
+        "members": 9,
+        "changed": [
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "byte_identical": 8,
+        "archive_bytes_equal": false
+      },
+      "libxrt.a": {
+        "members": 139,
+        "changed": [],
+        "byte_identical": 139,
+        "archive_bytes_equal": true
+      }
+    }
+  },
+  "rejected_cas": {
+    "reason": "Qualified small-payload Windows cases exceed original5% throughput loss. Raw8-reader tail also worsens, with noise unqualified.",
+    "source_and_results": "cas-proposal",
+    "regular_sha256": "87dad18d9001d13f9f7b951d11f175ef0578a8c8bfe7a14ff07c071b1efb7334",
+    "contention_sha256": "39ac519bca216a318ae9627d0db70eec914ed0683a85ad2fb187bb33b5c016cf",
+    "initial_full_root_programs_each": 33,
+    "final_scope": "The33-program full suites belong to rejected CAS code. Final source reruns all Session tests in root/minimal forms; unchanged8 MQTT/139 Core object identities are separately proved."
+  },
+  "performance_limits": [
+    "Same benchmark sources/arguments link parent/current MQTT archives and one common parent Core archive. Build commands, binary/library hashes and raw7 samples/1 warmup retained.",
+    "Qualified regular pairs: Windows8/12 and WSL7/12; all qualified and raw median ratios meet5% throughput loss. Full matrices remain noise-unqualified under3% MAD/6% central range.",
+    "Closed-loop0/8-retainer diagnostics include timer reads/sample stores. Very small timings are quantized; P99 noise remains unqualified, including Linux8-reader raw P99 ratio above1.10. No fixed-arrival/network/native>=72h acceptance."
+  ],
+  "preparation_errors": {
+    "benchmark": {
+      "reason": "Parallel direct helper builds used the same current-bench_obj directory for both OSes. The Windows link rejected Linux objects. No timing was run.",
+      "product_tests_affected": false,
+      "resolution": "Preserve initial logs/recipe; use mode-specific executables, no shared object directory, and verified before/current MQTT archives with one common Core archive.",
+      "archive_check_correction": "Windows archive container bytes differ but all139 Core members are byte-identical; compare members and link one common parent Core archive for both drivers. Linux container is also identical."
+    },
+    "selector": {
+      "reason": "The CLI rejects combined modular and single start selectors before compilation. Use separate --test and --single-test commands.",
+      "programs_executed": 0,
+      "product_source_affected": false
+    },
+    "metadata": "Initial long shell publication recipe was truncated and raised SyntaxError before writing report/progress; retain publish.py and use this complete patch-written recipe.",
+    "product_source_or_tests_affected": false
+  },
+  "remaining": [
+    "Client attachment and cross-connection pending receive/Future lifetimes",
+    "MQTT reconnect/offline/durable store/crash recovery/WebSocket",
+    "Remaining Redis/RPC/Cron and comparator/fixed-arrival P99/native>=72h release gates"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-frame-refs-20261110",
+  "evidence_storage": "C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-frame-refs-20261110",
+  "evidence_files": 1615,
+  "evidence_index_sha256": "a5c53332750f5c2341da73fe9d249f568425335b9af39481673a3e5037576f51"
+}

@@ -1514,6 +1514,14 @@ XMQTT_API xmqttsessionstatus xmqttSessionReceiveComplete(xmqttsession* Session,u
 XMQTT_API bool xmqttSessionInfo(xmqttsession* Session,xmqttsessioninfo* Info);
 XMQTT_API const xmqttpacket* xmqttSessionPacket(const xmqttsessionpacket* Packet);
 XMQTT_API bool xmqttSessionPacketInfo(const xmqttsessionpacket* Packet,xmqttsessionpacketinfo* Info);
+/* Successfully held packet references share a UINT32_MAX/2 cap, including
+ * active/selected state and caller frames. Next speculatively adds two internal
+ * references, checks and refunds them on refusal before changing ready/quota/
+ * selection/output state. Its protected active reference and sole protocol
+ * owner bound this internal count to cap+2; no overflowing frame is published.
+ * Capacity may be briefly reserved by such a pending Next. Insufficient room
+ * is RESTRICTED; releases allow retry. Retain uses CAS at the same public cap.
+ * A stable live reference is required on entry. */
 XMQTT_API bool xmqttSessionPacketRetain(const xmqttsessionpacket* Packet);
 XMQTT_API void xmqttSessionPacketRelease(const xmqttsessionpacket* Packet);
 /* Offline unique-owner destruction; stop concurrent Session entries first.
@@ -5658,8 +5666,17 @@ static bool xmqttSessionSizePacket(xmqttsession* S,const xmqttpacket* P,xmqttdir
 {return S->Config.Version==XMQTT_VERSION_5?xmqttPacketSize5(P,D,&S->Config.Codec,N):xmqttPacketSize311(P,D,&S->Config.Codec,N);}
 static void xmqttSessionDrop(xmqttsession* S)
 {if(xrtAtomic32FetchSub(&S->Refs,1,XMEMORY_ACQ_REL)==1){xrtMutexUnit(&S->Gate);xrtFree(S);}}
-static void xmqttSessionPacketRef(xmqttsessionpacket* P)
-{(void)xrtAtomic32FetchAdd(&P->Refs,1,XMEMORY_RELAXED);}
+/* Next holds Gate and the ready list's active reference. There is one
+ * speculative two-reference reservation per packet at most. Public Retain
+ * cannot increment at/above its cap, so a supported count is at most cap+2,
+ * far below UINT32_MAX. Refund is a raw decrement, never a physical release;
+ * the active reference keeps it nonzero while concurrent callers release. */
+static bool xmqttSessionPacketRef(xmqttsessionpacket* P)
+{
+    uint32 N=xrtAtomic32FetchAdd(&P->Refs,2,XMEMORY_RELAXED);
+    if(N && N<=UINT32_MAX/2u-2u)return true;
+    (void)xrtAtomic32FetchSub(&P->Refs,2,XMEMORY_RELAXED);return false;
+}
 XMQTT_API bool xmqttSessionPacketRetain(const xmqttsessionpacket* Packet)
 {
     if(!Packet){xmqttSessionFailure(XMQTT_SESSION_ERROR,"session packet is NULL");return false;}
@@ -5853,9 +5870,10 @@ XMQTT_API xmqttsessionstatus xmqttSessionNext(xmqttsession* S,xmqttsessionframe*
     bool Release=P->Stage==XMQTT_SESSION_PUBREL;
     if((Release?4:P->Bytes)>S->Peer.SendPacketBytes || (!Release && (P->Qos>S->Peer.MaximumQos || ((P->Packet.Flags&1u) && !S->Peer.RetainAvailable)))){
         xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"resumed packet exceeds new peer capability");}
+    if(!xmqttSessionPacketRef(P)){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"session packet reference limit");}
     xmqttSessionReadyRemove(S,P);P->Need=false;P->SelectedType=Release?XMQTT_PACKET_PUBREL:XMQTT_PACKET_PUBLISH;P->Retry=P->Attempted;S->Selected=P;++S->Selection;
     if(!Release){--S->Quota;P->Attempted=true;}
-    xmqttSessionPacketRef(P);xmqttSessionPacketRef(P);*Out=xmqttSessionFrame(S,P);
+    *Out=xmqttSessionFrame(S,P);
     xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_DONE;
 }
 XMQTT_API xmqttsessionstatus xmqttSessionSent(xmqttsession* S,const xmqttsessionframe* F)

@@ -4,6 +4,9 @@
 #include <xmqtt/features.h>
 #define XRT_IMPLEMENTATION
 #include "../../../../single/xrt.h"
+#include "../session_reference_probe.h"
 #define XMQTT_IMPLEMENTATION
 #include "../../../../single/extlibs/xmqtt.h"
+#undef xrtAtomic32FetchAdd
+#undef xrtAtomic32FetchSub
 #include "../test_session.c"

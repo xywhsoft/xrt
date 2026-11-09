@@ -9286,3 +9286,43 @@ Fix bounded atomic reservation next, before Client attachment. The full goal
 remains active and all products developing. Portable evidence:
 extlibs/xmqtt/tests/results/selection-20261110.json; raw sources, programs and
 failures: out/service-extensions/xmqtt-selection-20261110. No branch or push.
+
+## 2026-11-10: bounded MQTT frame reference reservation
+
+The earlier controlled audit is resolved: unchecked Next increments could exceed
+the public cap and wrap. New boundaries first reproduce DONE instead of RESTRICTED.
+The bulk-CAS proposal passes correctness but qualified small-payload throughput
+exceeds5% loss; raw contended tail also worsens. Its complete evidence is retained
+and it is rejected. The final owner holds Gate and an active reference, adds2
+internal counts, checks and refunds before ready/quota/sequence/output mutation.
+One speculation/packet bounds supported internal counts to cap+2. The active
+reference prevents a physical free during refund; public Retain keeps original
+CAS. No over-cap frame is published. One successful RMW replaces two; refusal
+adds a raw refund RMW. No extra allocation/copy/gate/storage or ABI change.
+
+Both OSes rerun2 final root Session and2 minimal programs plus the example.
+WSL adds ASan/UBSan/leak,2 TSan programs and10 lifecycle repeats. Controlled
+single tests cover20 count/phase/version boundaries, exact success, Retain cap,
+4 OOM cases and12 forced pressure/refund schedules, including aggregate release
+down to protected active/caller references. Real8-reader contention runs for
+both versions with5000 owner frames/version and strict physical cleanup.
+Test interception hooks are absent from generated/packaged SDK code.
+
+All8 root/leaf static/shared consumers,182 literal two-connection cases across13
+forms (364 TCP connections), generated/API/docs/maturity and89 tools pass.
+The earlier33-program suites belong to rejected CAS code, not the final source.
+Other8 MQTT/139 Core archive members remain byte-identical/OS. Windows container
+metadata differs; comparison uses member bodies and timings link one common Core.
+
+Same-source7-sample/1-warmup regular pairs qualify Win8/12 and WSL7/12 under
+unchanged3% MAD/6% central range; all qualified and raw median ratios meet5%
+throughput loss. Closed-loop0/8-retainer P99 remains noise-unqualified and tiny
+timings quantized; Linux8-reader raw P99 exceeds1.10. No complete performance,
+fixed-arrival/broker/native-deployment/72h acceptance. Rejected CAS, two isolated
+constant-operation proposals and all failed benchmark/selector/publication
+preparation attempts remain preserved. Final x64 layouts and managed sizes agree.
+
+Continue with Client attachment and pending payload/Future ownership. Full goal
+stays active, all products developing. Evidence: extlibs/xmqtt/tests/results/
+frame-refs-20261110.json and out/service-extensions/xmqtt-frame-refs-20261110.
+No branch operation or remote push.

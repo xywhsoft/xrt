@@ -98,6 +98,25 @@ per successful Next, and a token comparison at Sent. It adds no packet allocatio
 payload copy or mutex acquisition. The caller's frame grows by eight bytes on x64.
 No payload copy/allocation is needed to emit a retry or PUBREL.
 
+Successfully held references have one inclusive `UINT32_MAX/2` cap shared by
+active state, the selected frame, caller frames and explicit Retain calls.
+Next adds two internal references with one fetch-add, checks its returned count
+and refunds both on refusal before consuming ready/quota state, a selection
+number or output. If two slots are unavailable it returns RESTRICTED, even when
+a one-reference Retain could still succeed. Releases permit retry. Capacity may
+be briefly unavailable while another Next reservation is being checked.
+
+The protocol owner holds Gate and the ready list's active reference throughout
+this reservation. There can be only one such two-reference speculation per
+packet; public Retain still uses the original checked CAS. Thus a supported
+internal count is at most cap+2 (far below UINT32_MAX), and concurrent releases
+cannot remove the protected active reference. Refund uses a raw atomic decrement,
+not PacketRelease, and cannot physically free that active packet. No over-cap
+frame is published. The successful Next path uses one RMW instead of two; refusal
+adds one refund RMW. There is no CAS retry loop in Next, nor any extra allocation,
+copy, gate or per-object storage. These invariants depend on valid reference
+ownership and the existing serialized protocol-owner contract.
+
 List/ready queues permit constant-time admission/removal/selection; identifier
 lookup uses a bounded hash and bitmap. Auto assignment scans at most65535 ids
 on a fragmented bitmap. Open/reset/expiry visit retained active state; rolling

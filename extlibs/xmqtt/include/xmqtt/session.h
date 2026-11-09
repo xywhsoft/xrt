@@ -126,6 +126,14 @@ XMQTT_API xmqttsessionstatus xmqttSessionReceiveComplete(xmqttsession* Session,u
 XMQTT_API bool xmqttSessionInfo(xmqttsession* Session,xmqttsessioninfo* Info);
 XMQTT_API const xmqttpacket* xmqttSessionPacket(const xmqttsessionpacket* Packet);
 XMQTT_API bool xmqttSessionPacketInfo(const xmqttsessionpacket* Packet,xmqttsessionpacketinfo* Info);
+/* Successfully held packet references share a UINT32_MAX/2 cap, including
+ * active/selected state and caller frames. Next speculatively adds two internal
+ * references, checks and refunds them on refusal before changing ready/quota/
+ * selection/output state. Its protected active reference and sole protocol
+ * owner bound this internal count to cap+2; no overflowing frame is published.
+ * Capacity may be briefly reserved by such a pending Next. Insufficient room
+ * is RESTRICTED; releases allow retry. Retain uses CAS at the same public cap.
+ * A stable live reference is required on entry. */
 XMQTT_API bool xmqttSessionPacketRetain(const xmqttsessionpacket* Packet);
 XMQTT_API void xmqttSessionPacketRelease(const xmqttsessionpacket* Packet);
 /* Offline unique-owner destruction; stop concurrent Session entries first.
