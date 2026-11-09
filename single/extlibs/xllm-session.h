@@ -4051,6 +4051,11 @@ uint64_t xllm_session__profile_fingerprint(const xllm_model_profile *pProfile)
         uHash = (uHash ^ 0xffu) * 1099511628211ull;
     }
     uHash = (uHash ^ (uint64_t)pProfile->eProvider) * 1099511628211ull;
+    /* Older Anthropic checkpoints excluded cached input. A tokenizer/profile
+     * match must not bless that undercount as exact after the usage contract
+     * changes. Invalidate only that dialect's legacy anchor on profile apply. */
+    if (pProfile->eProvider == XLLM_PROVIDER_ANTHROPIC)
+        uHash = (uHash ^ 0x63616368652d7631ull) * 1099511628211ull;
     return (uHash & INT64_MAX) | 1u; /* persistence's nonnegative integer range */
 }
 
