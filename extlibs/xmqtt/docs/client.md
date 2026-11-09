@@ -9,7 +9,9 @@ application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error D
 retirement. There is no protocol fallback/replay.
 
 This stage does **not** complete the planned client. Subscription recovery,
-TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
+WebSocket, reconnect, expiry/recovery and durable sessions remain work.
+Optional [Dial](client_dial.md) and [TLS](client_tls.md) leaves provide hostname/
+prepared-address setup and verified TLS on the same bounded protocol owner.
 The base factory refuses enhanced authentication; use [client_auth](client_auth.md)
 for the optional authenticated factory. Positive receive Topic Alias
 Maximum enables bounded incoming aliases. QoS-2 receives use the volatile current-connection contract below.

@@ -1,0 +1,386 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "Pinned real-broker interoperability for current volatile MQTT client",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "3ff4403a766d95df6fbf5de61ee1d01885be4a77",
+  "review_parent": "3ff4403a766d95df6fbf5de61ee1d01885be4a77",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "source_identity": {
+    "inputs": 3066,
+    "frozen": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/frozen-source.json",
+      "sha256": "4e7cda59c073e72620b433f737f809bf0e8e993f78d75c2040b6019ed2a5ca26"
+    },
+    "before": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/before-source.json",
+      "sha256": "d3a2cd36e35e7bdbe40ec0b3e634bec1f1fa4ffd3c25b584f34e702651643a38"
+    },
+    "all_previous_3061_inputs_unchanged": true,
+    "new_inputs": [
+      "extlibs/xmqtt/tests/interop/broker.lock.json",
+      "extlibs/xmqtt/tests/interop/broker_probe.c",
+      "extlibs/xmqtt/tests/interop/build_broker_probe.py",
+      "extlibs/xmqtt/tests/interop/run_broker.py",
+      "extlibs/xmqtt/tests/interop/single_broker_probe.c"
+    ],
+    "orchestration": {
+      "formal.py": {
+        "path": "out/service-extensions/xmqtt-broker-20261109/formal.py",
+        "sha256": "5a826133ed7e875ed4bf7167228c8e53c1e90dddafbfcbfe546a09c02353f0fb"
+      },
+      "pin.py": {
+        "path": "out/service-extensions/xmqtt-broker-20261109/pin.py",
+        "sha256": "98a832985226450d4718874a802c1bd371e1d6a5e418f2a1272232d19ef23b9d"
+      },
+      "publish.py": {
+        "path": "out/service-extensions/xmqtt-broker-20261109/publish.py",
+        "sha256": "e2f3b72b87781f671c24a46f0df05ad694a8b289a76f9da7c9f8f14e232ded4e"
+      }
+    }
+  },
+  "scope": [
+    "Adds only public-API test probes, builders, independent literal-session seeding, opt-in process harness, pinned fixture metadata and documentation. Core/four-product runtime, configuration and generated declarations/implementation are unchanged.",
+    "Builds original Mosquitto2.1.2 archive without modifying1949 original files. Third-party implementation source is not a protocol algorithm reference; only public build/configuration/CLI/API interfaces are used. Broker/libmosquitto are not product dependencies.",
+    "Real MQTT5/311 TCP/TLS with all three factories, binary65537-byte payloads, small37/41-byte read/write and13-byte chunks, QoS0/1/2 ACKs, subscribe/unsubscribe, outgoing aliases/NoLocal, retained deletion, abort Will, auth positive/negative, physical native retirement and retained message after all owners/Engine join.",
+    "Literal Python CONNECTs independently confirm retained SessionPresent=1. Current client must fail closed with STATUS_SESSION. This exposes the remaining MQTT session recovery gap; it is not recovery or durable/reconnect qualification.",
+    "Native Windows clients use WSL localhost forwarding to the same Linux broker. WSL Linux clients and broker are not native deployment qualification. Broker sockets are loopback-only; keys/passwords are temporary, never recorded or installed as services."
+  ],
+  "tests": {
+    "scenario_executions": 680,
+    "distinct_cases_per_variant": 68,
+    "matrices": [
+      {
+        "client": "windows",
+        "kind": "static",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/static/matrix.json",
+          "sha256": "53162e3210023a02dd97de4d21bc6cfe01682f0361d7034db6079bf5b49efdcd"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/static/probe.exe",
+          "sha256": "0147d483aac5497f26aceda87c13b2634df7190109dcc1b4b61502f3a4c86fee"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Windows native client via WSL interoperability",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "windows",
+        "kind": "shared",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/shared/matrix.json",
+          "sha256": "58818356cc1f936591c5e42894455a938d40e7bdf3f03794c617840a1a0b35e0"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/shared/probe.exe",
+          "sha256": "6af25191d5df3d3dc108d55990e6f12964a0111c9395cea121587d7b60d553a9"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Windows native client via WSL interoperability",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "windows",
+        "kind": "modular",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/modular/matrix.json",
+          "sha256": "30edb999bd0f72300e67fdea0146ec778f65ce35909c35066caf7507693ceac0"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/modular/probe.exe",
+          "sha256": "7ea7c14c41cc1b033592c685a90e8271539003b178f701453379b97cb96fc5b7"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Windows native client via WSL interoperability",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "windows",
+        "kind": "single",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/single/matrix.json",
+          "sha256": "d6bcab19d75a82de3b50a50d2748aeedbd60a6fb7cd07606d939be8b7b5a9415"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/windows/single/probe.exe",
+          "sha256": "40caf9ff11321d98a89626e90b3cc4317b3a84d58eb6ccf05798298647ba04bd"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Windows native client via WSL interoperability",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "static",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/static/matrix.json",
+          "sha256": "0d9d7e66732ed7d26aa43c34a7d5d9cc4bd2beebb02e6ffb29572ea4fc7066fc"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/static/probe",
+          "sha256": "e3b508970de4f3accbb3a19deefba29b6850a6a9419031b90e9c3143694237cf"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "shared",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/shared/matrix.json",
+          "sha256": "dc8e750f05ddbbe0899674432b26970ccebd6e559be400f28252b6344d7318b9"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/shared/probe",
+          "sha256": "8a55a52db1d95c391dd5e21c325459e3f200e12c5695e7dbce226bfd16b68cb3"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "modular",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/modular/matrix.json",
+          "sha256": "6ba7f2fbe721d128f76b59ed440f97f3d294ee45d083d5b23d0146ab10e353c0"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/modular/probe",
+          "sha256": "784aaab5aa53908528607bdcc5357abdbfda6e7a5e41c5bd3ff28981532f89a7"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "single",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/single/matrix.json",
+          "sha256": "e6a82bec1c72b4797ed58fda7038b3280ee0b325b0b297d6ca7485bbb0aaaad9"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/single/probe",
+          "sha256": "3bc74c685118c8f2e7c0d29e5952ae4b42e2b569f2037004b9cfd3a13a4c5523"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "asan",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/asan/matrix.json",
+          "sha256": "78e07e8551cce6194927e1a83d104580baacba506c5a4da0c3f3b256e2cf0013"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/asan/probe",
+          "sha256": "9e53c6fc7e3d350afd7e4329a471bf82b1f5fefb0ac42b97771859580b570f11"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      },
+      {
+        "client": "wsl",
+        "kind": "tsan",
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/tsan/matrix.json",
+          "sha256": "e0393eed72bfc347fd09331ba8f55f5b2d04ffc097bc074b20e86d20309ef747"
+        },
+        "binary": {
+          "path": "out/service-extensions/xmqtt-broker-20261109/wsl/tsan/probe",
+          "sha256": "07be2ca5e37b66f4b6c8a3834e15d818b86848d73a1d1665411ee50550ae2d62"
+        },
+        "cases": 68,
+        "broker_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "client_platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "reaped_brokers": 2
+      }
+    ],
+    "sanitizers": [
+      "WSL modular ASan/UBSan with leak/halt:68",
+      "WSL modular TSan halt:68"
+    ],
+    "sanitizer_limitations": "GCC15 warns that atomic_thread_fence is not supported by TSan; existing Core fences are unchanged and the warning remains in the build log. Applicable exercised paths pass; this does not prove all synchronization or production correctness.",
+    "checks": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/checks.json",
+      "sha256": "abebd174c3f206811deb7719d200bc6eabb3d877de19666faa5e0a7e269168c0"
+    },
+    "check_receipts": [
+      {
+        "label": "single",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/amalgamate.py",
+          "--check",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json"
+        ],
+        "exit_code": 0,
+        "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+      },
+      {
+        "label": "features",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/generate_extension_features.py",
+          "extlibs/xmqtt/config/modules.json",
+          "--check"
+        ],
+        "exit_code": 0,
+        "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+      },
+      {
+        "label": "api",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/generate_api_reference.py",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--check"
+        ],
+        "exit_code": 0,
+        "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+      },
+      {
+        "label": "docs",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/check_api_docs.py",
+          "--manifest",
+          "extlibs/xmqtt/config/modules.json",
+          "--module-prefix",
+          "xmqtt",
+          "--function-prefix",
+          "xmqtt",
+          "--constant-prefix",
+          "XMQTT",
+          "--type-prefix",
+          "xmqtt"
+        ],
+        "exit_code": 0,
+        "log_sha256": "0eb10d02e37d81a9dabb27f61d45570303b160125ecfc174405a951489377ba6"
+      },
+      {
+        "label": "maturity",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/check_release_maturity.py"
+        ],
+        "exit_code": 0,
+        "log_sha256": "de5d036d92c4313ebc6e6ec98e2a31862fbfe6a3ae6878cc74d15a9904066158"
+      },
+      {
+        "label": "python",
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "-m",
+          "py_compile",
+          "extlibs/xmqtt/tests/interop/build_broker_probe.py",
+          "extlibs/xmqtt/tests/interop/run_broker.py"
+        ],
+        "exit_code": 0,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "build_and_run_receipts": [
+      {
+        "path": "out/service-extensions/xmqtt-broker-20261109/windows-receipts.json",
+        "sha256": "ffb9e5fe79bc2c7c3c13e3de58afdb2f1ca68557da799889c8018a5ce04212dd"
+      },
+      {
+        "path": "out/service-extensions/xmqtt-broker-20261109/wsl-receipts.json",
+        "sha256": "91cd7b5def07d233f4879dcee792eaf3967b5db45fc466784f0451e60105b6a6"
+      }
+    ],
+    "reused_packages": "Static/shared leaf packages are byte-identical to the previously validated actual-mainline TLS-resume artifacts; every previous canonical input is unchanged. Newly compiled public consumers execute the real-broker matrix. Previous full-suite results are not counted as new runs.",
+    "deliberate_fixture_failure": {
+      "report": {
+        "path": "out/service-extensions/xmqtt-broker-20261109/cleanup-failure.json",
+        "sha256": "13f2a38f21f02769ec3d34115e59fa9f445305f74492c6e9691a1c3ce4ee157f"
+      },
+      "expected_client_exit": 1,
+      "broker_reaped": true,
+      "temporary_material_removed": true
+    }
+  },
+  "fixture": {
+    "lock": {
+      "path": "extlibs/xmqtt/tests/interop/broker.lock.json",
+      "sha256": "ca369cc12275dcb6895f7a09b93517d79a2d5f3e4026ecc3cdbe106a69f7d4e4"
+    },
+    "original_files": 1949,
+    "modified_original_files": 0,
+    "original_file_hashes": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/upstream-original-files.json",
+      "sha256": "26d96dc1919d4ac93b63f3453637564cccac2e1ee12d1daa828b11176717c6c8"
+    },
+    "source_download": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/source-download.json",
+      "sha256": "14bf172ff1de3175f415b4ba694928cd7c1ab9ffda97253513036ea829644a70"
+    },
+    "broker": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/build-linux/src/mosquitto",
+      "sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85"
+    },
+    "password_tool": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/build-linux/apps/mosquitto_passwd/mosquitto_passwd",
+      "sha256": "00b12805a9680cd328a05d706c4eb67f82af5de0721025294fddfd96348b2b9e"
+    },
+    "cmake_cache": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/build-linux/CMakeCache.txt",
+      "sha256": "f712a85a4b03dacf0aa9a02ac186f73bcc73d7b054214e8d512b585d2d26a1c7"
+    },
+    "build_log": {
+      "path": "out/service-extensions/xmqtt-broker-20261109/linux-build-all.log",
+      "sha256": "85f19c7e8684289d9817294794e59af81e4f7b4131a8aa295470542194f36a55"
+    }
+  },
+  "failed_attempts": [
+    "Official native Windows installer download timed out/returned empty response/TLS transport failure; incomplete files remain preserved and were never executed. Native Windows broker not tested.",
+    "Unmodified upstream CMake static-target header lookup needed extracted OpenSSL multiarch, libcommon and deps include directories. Missing cJSON/header failures remain preserved; successful build changes flags only.",
+    "Initial max_topic_alias placement before listeners rejected by broker2.1.2. Fixture corrected to listener scope; original failure retained.",
+    "Earlier44-case/68-case prototype matrices are provisional and not added to the formal680 count. Their original results/logs are preserved.",
+    "Initial Windows evidence publisher stat-ed a WSL .so symlink before excluding build trees and failed with WinError1920. Failed script/hash/diagnostic are preserved; exclusion now precedes file stat. Protocol/sanitizer results are unchanged."
+  ],
+  "performance": "No product execution-path change. This phase is interoperability correctness, not performance qualification. Original throughput/tail-latency/noise/resource acceptance gates remain; no broker parity, fixed-arrival latency, native deployment or production acceptance is inferred.",
+  "evidence_index": {
+    "path": "out/service-extensions/xmqtt-broker-20261109/evidence-files.json",
+    "sha256": "b965793235a05b41a21c3f7ad1094b09fb4036c3c124fdafbab926d81a03a27a"
+  },
+  "evidence_storage": "D canonical repository remains master. This stage uses a D out-path junction to C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-broker-20261109; unrelated source/artifacts were not removed.",
+  "remaining": [
+    "MQTT durable sessions/expiry/reconnect/replay and WebSocket",
+    "Native Windows broker and native Linux deployment matrix, additional pinned brokers/independent clients",
+    "Four-product independent comparator throughput/qualified P99/native >=72h mixed-load and failure-injection release gates",
+    "Other final Redis/RPC/Cron scope remains governed by the unchanged service-extensions plan; all four remain developing"
+  ]
+}

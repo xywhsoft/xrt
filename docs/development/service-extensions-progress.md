@@ -9094,3 +9094,47 @@ canonical work remains D:/GIT/xrt master). Native mTLS resumption/TLS1.2 ticket
 resumption, cross-connection cache/reconnect, MQTT durable session recovery and
 WebSocket remain pending, alongside the original four-product qualified P99,
 pinned-broker, native Linux and at least72h native production gates.
+
+## 2026-11-09: pinned real MQTT broker interoperability on master
+
+Adds an opt-in public-API probe and process harness against Eclipse Mosquitto
+2.1.2. The official source archive, licenses, extracted fixture packages, tools,
+runtime libraries and built broker/password tool have recorded SHA256 identities.
+All1949 original upstream files match the archive. Upstream build include paths
+are supplied through CMake flags; upstream code is unchanged and is not used as
+a protocol implementation reference or product dependency.
+
+The68-case matrix covers MQTT5/311, TCP/TLS, numeric/hostname/prepared factories,
+65537-byte binary QoS0/1/2, both QoS2 ACKs, subscriptions, outgoing aliases,
+No Local ordering, retained delivery/deletion, abnormal-close Will, basic auth
+success/refusal,37/41-byte read/write and13-byte chunks, physical retirement,
+and retained messages after all Client/Resolver/Engine owners join. Independent
+literal Python CONNECTs seed and observe SessionPresent=1. Current clients must
+return STATUS_SESSION; these24 cases per run expose unsupported MQTT session
+recovery rather than claiming recovery or durability.
+
+Windows native and WSL clients each pass modular/single/static/shared matrices;
+WSL adds fully instrumented ASan/UBSan/leak-halt and applicable TSan-halt matrices:
+680 scenario executions across10 variants. GCC's existing atomic_thread_fence
+TSan instrumentation warning remains recorded. All20 matrix broker processes are
+reaped. An additional intentional failing client exits1 while its own broker is
+reaped and temporary runtime keys/passwords disappear. Single/features/API/docs/
+maturity checks and Python compilation pass. Previously validated static/shared
+leaf packages remain byte-identical; their new consumers run the actual matrix.
+All previous3061 frozen canonical inputs remain unchanged, with five new test/
+pin inputs. No Core or product runtime/generated code change.
+
+The broker runs in WSL Linux, with native Windows clients using localhost
+forwarding. Official native Windows installer downloads failed (timeout, empty
+reply or TLS transport error); incomplete files remain preserved and were never
+executed. Earlier missing-header/dependency and listener-option-placement errors
+remain archived alongside successful builds. Old prototype runs are excluded
+from the680 formal count. These are correctness checks, not a performance result.
+
+Evidence: extlibs/xmqtt/tests/results/broker-20261109.json and
+out/service-extensions/xmqtt-broker-20261109 (C-backed stage storage, canonical
+sources D:/GIT/xrt master). No branch operation or remote push. Native Windows
+broker/native Linux deployment, additional brokers/enhanced-auth algorithms,
+MQTT durable session/expiry/reconnect/replay and WebSocket remain pending.
+All four products remain developing under the unchanged scope and comparator/
+qualified P99/native >=72h release gates.

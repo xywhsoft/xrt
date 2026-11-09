@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "scope": "Optional test broker; independent product implementation uses no broker source or runtime library",
+  "broker": {
+    "name": "Eclipse Mosquitto",
+    "version": "2.1.2",
+    "source_url": "https://mosquitto.org/files/source/mosquitto-2.1.2.tar.gz",
+    "sha256": "fd905380691ac65ea5a93779e8214941829e3d6e038d5edff9eac5fd74cbed02",
+    "bytes": 2882727,
+    "release": "https://github.com/eclipse-mosquitto/mosquitto/releases/tag/v2.1.2",
+    "license": "EPL-2.0 OR BSD-3-Clause",
+    "license_files": {
+      "LICENSE.txt": "33d1851e40fddba7eff95bcc01d1a178a87340a1126893012892913d5e6fdfa6",
+      "edl-v10": "86fc4a3f97cb769c04e8da557036c1066eb8bb22b2d0a5dd31464990fe84047c",
+      "epl-v20": "8c349f80764d0648e645f41ef23772a70c995a0924b5235f735f4a3d09df127c"
+    },
+    "original_files": 1949,
+    "modified_original_files": 0
+  },
+  "fixture_build": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+    "tools": {
+      "gcc": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cmake": "cmake version 4.2.3",
+      "ninja": "1.13.2",
+      "openssl": "OpenSSL 3.5.5 27 Jan 2026 (Library: OpenSSL 3.5.5 27 Jan 2026)",
+      "python": "Python 3.14.4"
+    },
+    "packages": [
+      {
+        "file": "libcjson-dev_1.7.19-2_amd64.deb",
+        "sha256": "75f9311d30f10782fe847dcddcbfc619c529e869eb377c9865fc0faf42ea9aba",
+        "metadata": "Package: libcjson-dev\nVersion: 1.7.19-2\nArchitecture: amd64",
+        "use": "test-broker development headers/runtime only; not an xmqtt dependency"
+      },
+      {
+        "file": "libcjson1_1.7.19-2_amd64.deb",
+        "sha256": "1c47d315a46d610708aecdcafbc5b2c59c28f174dfb8a562290a17620bda3549",
+        "metadata": "Package: libcjson1\nVersion: 1.7.19-2\nArchitecture: amd64",
+        "use": "test-broker development headers/runtime only; not an xmqtt dependency"
+      },
+      {
+        "file": "libssl-dev_3.5.5-1ubuntu3.7_amd64.deb",
+        "sha256": "d1cf6cafb141490b7020e392964b1f901835d60cb88c3a68ef0f95ef5e930de4",
+        "metadata": "Package: libssl-dev\nVersion: 3.5.5-1ubuntu3.7\nArchitecture: amd64",
+        "use": "test-broker development headers/runtime only; not an xmqtt dependency"
+      }
+    ],
+    "runtime_libraries": {
+      "/usr/lib/x86_64-linux-gnu/libssl.so.3": "63b47f444efa588e291e9b650a5ba2ab02f856356f2d50f13a2e477db9119e09",
+      "/usr/lib/x86_64-linux-gnu/libcrypto.so.3": "5385f0436ac2e284ba8c5fb1488874057c29c04be72dea32add832694f381e28",
+      "/usr/lib/x86_64-linux-gnu/libc.so.6": "85e64f97e348786a8fb4d9f3d52fec289e2fb86bba20f0731dfe61990525e0f7",
+      "/usr/lib/x86_64-linux-gnu/libm.so.6": "1c488db6f4fe8cecb72456bc018de000b7a9b539c2994864b0416b5e8371b3d8",
+      "/usr/lib/x86_64-linux-gnu/libz.so.1": "27fa6c6cb94fb5b099ead61758a300dbc392d1dbf307fff6c16a9b8e57fdc9de",
+      "/usr/lib/x86_64-linux-gnu/libzstd.so.1": "060eeb79531d435306665fd78329d8a9dd579f95876c5960bb67937825362a80",
+      "fixture/libcjson.so.1.7.19": "47eb4b2dd59fcfe5839255dff2877a1852503a40d1c7c3806463be5ff8bcc19f"
+    },
+    "configuration": [
+      "CMAKE_BUILD_TYPE=Release",
+      "WITH_TLS=ON",
+      "WITH_DOCS=OFF",
+      "WITH_DYNAMIC_SECURITY=OFF",
+      "WITH_CTRL_SHELL=OFF",
+      "WITH_WEBSOCKETS=OFF",
+      "WITH_STATIC_LIBRARIES=ON",
+      "WITH_TESTS=OFF",
+      "Explicit extracted OpenSSL/cJSON header and system runtime library paths",
+      "CMAKE_C_FLAGS include OpenSSL multiarch headers, upstream libcommon and deps directories for unmodified static target"
+    ],
+    "qualification_topology": "WSL Linux broker; WSL Linux client and native Windows client using WSL localhost forwarding; not native Windows broker or native Linux deployment acceptance"
+  }
+}

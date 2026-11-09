@@ -210,10 +210,31 @@ enhanced-auth composition are covered. Winner event installation preserves a
 native EOF snapshot; a deterministic red/green case prevents setup-timeout masking.
 Each platform passes23 literal-byte cases through each Auth Dial factory, with
 ASan/UBSan/leak and applicable TSan results in the
-[stage report](../tests/results/client-dial-20261109.json). External DNS/broker
-qualification, transport/session completeness and production acceptance remain.
+[stage report](../tests/results/client-dial-20261109.json). External DNS/additional broker
+qualification, remaining transports/sessions and production acceptance remain.
 
 Completed Dial controllers now release the client's reference in terminal Done.
 The private retirement diagnostic observes no completed controller on a live
 connection, verifies pending ownership/cancellation and continues QoS1 traffic
 after completion. It runs separately from product dependencies.
+
+## Pinned real-broker volatile-client checks
+
+The optional [broker harness](../tests/interop/README.md) pins Eclipse Mosquitto
+2.1.2 and verifies the unmodified source archive, fixture dependencies and actual
+binary identity. Its 68-case matrix covers MQTT5/311, TCP/TLS, three connection
+factories, binary QoS0/1/2, subscriptions, outgoing aliases/No Local, retained
+delivery/deletion, abnormal-close Will, basic authentication success/refusal,
+fragmented work budgets and physical retirement. Retained messages survive actual
+Client/Resolver/Engine destruction. No broker code/library enters the product.
+
+Independent literal CONNECTs seed a retained broker session and verify Session
+Present=1. The current client must explicitly refuse it with STATUS_SESSION.
+These cases expose the session-recovery gap rather than qualifying replay or
+durability. Enhanced-auth algorithms, recovery/expiry, other brokers and native
+Windows-broker/native Linux deployment matrices remain separate work.
+
+The [stage report](../tests/results/broker-20261109.json) records actual build
+variants, sanitizer results, failed bootstrap attempts and topology. WSL broker
+tests, including native Windows clients via localhost forwarding, do not establish
+native deployment, independent comparator throughput/P99 or >=72h acceptance.
