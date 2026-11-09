@@ -2114,6 +2114,7 @@ static void test_host_recovery(void)
 typedef struct context_recovery_mock {
     unsigned normal, summaries, status;
     uint64_t largest_summary, smallest_summary;
+    bool reject_normal, reject_summary;
 } context_recovery_mock;
 
 static xllm_result context_recovery_complete(void *data, const xllm_request *request,
@@ -2130,9 +2131,9 @@ static xllm_result context_recovery_complete(void *data, const xllm_request *req
         if(tokens>mock->largest_summary)mock->largest_summary=tokens;
         if(!mock->smallest_summary||tokens<mock->smallest_summary)mock->smallest_summary=tokens;
         CHECK(tokens<=13876u && !request->iToolCount,"complete summary respects input budget without tool definitions");
-        if(tokens<=2500u) return style_summary_complete(NULL,request,callbacks,response,error);
+        if(tokens<=2500u && !mock->reject_summary) return style_summary_complete(NULL,request,callbacks,response,error);
     }
-    else if(++mock->normal>1u)
+    else if(++mock->normal>1u && !mock->reject_normal)
     { *response=mock_response("Completed after safe context recovery.",0u);return *response?XLLM_RESULT_OK:XLLM_RESULT_ERROR; }
     xllmErrorInit(error);error->eCode=XLLM_ERROR_UPSTREAM;error->iHttpStatus=mock->status;
     snprintf(error->sProviderCode,sizeof(error->sProviderCode),"%s",mock->status==413?"request_too_large":"1261");
@@ -2164,6 +2165,36 @@ static void test_context_rejection_recovery(void)
     }
 }
 
+static xwork_result context_limit_policy(void *data,xwork_agent_extension_context *context,xwork_error *error)
+{
+    (void)error;
+    if(context->ePhase==XWORK_AGENT_EXTENSION_RECOVERY)
+    { *(unsigned*)data=context->uRecoveryAttempt;return XWORK_RESULT_ERROR; }
+    return XWORK_RESULT_OK;
+}
+
+static void test_context_recovery_retry_budget(void)
+{
+    for(unsigned mode=0;mode<2;++mode)
+    {
+        xllm_session_config c;xllmSessionConfigInit(&c);xllm_error model_error;
+        xllm_session *s=xllmSessionCreate(&c,&model_error);CHECK(s!=NULL,"retry-budget session creates");if(!s)continue;
+        uint64_t turn=xllmSessionBeginTurn(s);
+        CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,"completed old request",0u)&&
+            xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,"completed old answer",0u),"retry-budget safe history exists");
+        context_recovery_mock mock={0};mock.status=400u;mock.reject_normal=true;mock.reject_summary=mode!=0;
+        unsigned attempt=0;xwork_agent_config a;xworkAgentConfigInit(&a);a.pSession=s;a.sModel="mock-model";a.sWorkspaceRoot=".";
+        a.OnModelComplete=context_recovery_complete;a.pModelUserData=&mock;a.bAutoSaveSession=false;a.uCompactionQualityRetries=1u;
+        a.OnExtension=context_limit_policy;a.pExtensionUserData=&attempt;a.OnOwnerRetain=recovery_owner_retain;a.OnOwnerRelease=recovery_owner_release;
+        xwork_error e;xwork_agent *agent=xworkAgentCreate(&a,&e);xwork_run_result run={0};
+        CHECK(agent&&xworkAgentRun(agent,"new request",&run,&e)==XWORK_RESULT_ERROR && attempt==2u,
+            "one configured retry reaches recovery policy after exactly two rejected attempts");
+        CHECK(mode?(mock.normal==1u&&mock.summaries==2u):(mock.normal==2u&&mock.summaries==1u),
+            "main and summary retries both obey the same configured recovery budget");
+        xworkRunResultUnit(&run);xworkAgentDestroy(agent);xllmSessionDestroy(s);
+    }
+}
+
 int main(int argc, char** argv)
 {
     if ( argc == 2 && strcmp(argv[1], "--mcp-test-server") == 0 ) {
@@ -2174,6 +2205,7 @@ int main(int argc, char** argv)
     printf("xwork migrated compatibility tests\n");
     test_host_recovery();
     test_context_rejection_recovery();
+    test_context_recovery_retry_budget();
     test_path_boundaries();
     test_process_text_normalization();
     test_stream_restart();

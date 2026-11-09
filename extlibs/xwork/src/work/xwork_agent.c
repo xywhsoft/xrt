@@ -1172,7 +1172,7 @@ retry_summary_request:
             {
                 xllmCompactionDestroy(pCompaction); pCompaction=NULL;
                 free(sRejectedSummary); sRejectedSummary=NULL;
-                if (++uContextRecoveries<=pAgent->uCompactionQualityRetries+1u && uSummaryBudget>uFixed*2u)
+                if (++uContextRecoveries<=pAgent->uCompactionQualityRetries && uSummaryBudget>uFixed*2u)
                 { uSummaryBudget=uSummaryBudget*3u/4u; goto retry_compaction_prepare; }
                 if (xwork__recover(pAgent,"context",pError,uContextRecoveries,true))
                 { uSummaryBudget=0u; uContextRecoveries=0u; goto retry_compaction_prepare; }
@@ -1867,7 +1867,7 @@ retry_request_build:
                 /* The rejected request executed no tools. Keep every committed
                  * result, compact its safe history prefix and rebuild the wire
                  * request. Replaying the identical oversized body cannot heal. */
-                if (++uModelContextRecoveries>pAgent->uCompactionQualityRetries+1u &&
+                if (++uModelContextRecoveries>pAgent->uCompactionQualityRetries &&
                     !xwork__recover(pAgent,"context",pError,uModelContextRecoveries,true))
                 { eResult=XWORK_RESULT_ERROR; goto cleanup; }
                 eResult=xwork__compact_if_needed(pAgent,uTurn,&tRun,true,pError);
