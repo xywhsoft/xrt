@@ -62,7 +62,18 @@
       "name": "xmqtt_client",
       "system": "client",
       "suite": "xmqtt_client",
-      "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately"
+      "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately",
+      "forbid_symbols": [
+        "xmqttClientConnectAuth",
+        "xmqttClientReauthenticate",
+        "xmqttAuthRespond"
+      ]
+    },
+    {
+      "name": "xmqtt_client_auth",
+      "system": "client",
+      "suite": "xmqtt_client_auth",
+      "description": "Optional enhanced AUTH ticket/state/wire/reauth support plus the existing bounded MQTT TCP client and public Core closure"
     }
   ]
 }

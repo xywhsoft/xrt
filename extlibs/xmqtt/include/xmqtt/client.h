@@ -14,7 +14,8 @@ typedef enum xmqttclientstatus {
     XMQTT_STATUS_OK=0,XMQTT_STATUS_REJECTED,XMQTT_STATUS_TIMEOUT,XMQTT_STATUS_CANCELLED,
     XMQTT_STATUS_CLOSED,XMQTT_STATUS_TRANSPORT,XMQTT_STATUS_PROTOCOL,XMQTT_STATUS_LIMIT,
     XMQTT_STATUS_MEMORY,XMQTT_STATUS_UNSUPPORTED,XMQTT_STATUS_SESSION,
-    XMQTT_STATUS_INITIALIZATION,XMQTT_STATUS_SERVER_DISCONNECT,XMQTT_STATUS_RESTRICTED
+    XMQTT_STATUS_INITIALIZATION,XMQTT_STATUS_SERVER_DISCONNECT,XMQTT_STATUS_RESTRICTED,
+    XMQTT_STATUS_AUTHENTICATION
 } xmqttclientstatus;
 typedef enum xmqttdelivery {XMQTT_NOT_SENT=0,XMQTT_MAY_HAVE_REACHED_PEER,XMQTT_PEER_ACCEPTED,XMQTT_PEER_REJECTED} xmqttdelivery;
 typedef enum xmqttclientadmission {XMQTT_ADMISSION_ERROR=-1,XMQTT_ADMISSION_ACCEPTED=0,XMQTT_ADMISSION_OVERLOADED,XMQTT_ADMISSION_CLOSED} xmqttclientadmission;
@@ -109,8 +110,8 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
  * topic to their existing allocation, charged to object/message bytes. Packet
  * Topic is logical/resolved; Wire preserves the original alias-bearing frame.
  * Rebinding/Destroy never changes retained messages. Aliases are connection-only,
- * including when QoS2 duplicate delivery is suppressed. Enhanced auth remains
- * explicitly unsupported;
+ * including when QoS2 duplicate delivery is suppressed. Enhanced authentication uses the optional
+ * client_auth factory and ticket API;
  * Subscriptions operate on this connection; automatic resubscription, reconnect
  * and durable sessions remain separate pending work.
  * No state is restored: MQTT 5 SessionPresent without local state closes.

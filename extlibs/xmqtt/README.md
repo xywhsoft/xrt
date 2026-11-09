@@ -9,8 +9,10 @@ SUBSCRIBE/UNSUBSCRIBE with owned per-filter reasons, shared outgoing identifiers
 MQTT5 incoming Topic Aliases are opt-in through CONNECT; outgoing aliases
 snapshot logical topics and select safe compact/full frames. See the
 [local receive-alias example](examples/receive_alias/README.md).
-Enhanced authentication, reconnect, durable
-sessions and TLS/WebSocket remain pending.
+Optional [MQTT5 enhanced authentication](docs/client_auth.md) now provides
+bounded multi-round AUTH, explicit final-proof verification and reauthentication
+with concurrent ordinary traffic. Reconnect, durable sessions and TLS/WebSocket
+remain pending.
 No broker or production/performance acceptance is claimed.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt

@@ -26,4 +26,5 @@
 #error "XMQTT_FEATURE_XMQTT requires XMQTT_FEATURE_XMQTT_CLIENT"
 #endif
 #include <xmqtt/client.h>
+#include <xmqtt/client_auth.h>
 #endif

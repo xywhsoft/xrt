@@ -2068,6 +2068,37 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_auth",
+      "system": "client",
+      "description": "Two-round MQTT5 enhanced reauthentication on real loopback TCP with fixture tokens, nonblocking Notify decisions and signalled Future waits; excludes cryptographic work and external broker parity.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_auth",
+          "source": "extlibs/xmqtt/bench/bench_client_auth.c",
+          "suite": "xmqtt_client_auth,time",
+          "args": [
+            "2000"
+          ],
+          "smoke_args": [
+            "50"
+          ],
+          "metrics": {
+            "reauths_per_sec": {
+              "direction": "higher",
+              "unit": "reauth/s"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "inputs": [
+            "extlibs/xmqtt/examples/common/auth_peer.h"
+          ]
+        }
+      ]
     }
   ]
 }

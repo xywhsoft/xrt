@@ -8,9 +8,10 @@ server keep-alive override, PINGREQ/PINGRESP,
 application graceful DISCONNECT, abortive Close, bounded automatic MQTT5 error DISCONNECT and physical
 retirement. There is no protocol fallback/replay.
 
-This stage does **not** complete the planned client. Subscription recovery, enhanced authentication,
+This stage does **not** complete the planned client. Subscription recovery,
 TLS/WebSocket/DNS, reconnect, expiry/recovery and durable sessions remain work.
-Enhanced authentication is refused at creation; positive receive Topic Alias
+The base factory refuses enhanced authentication; use [client_auth](client_auth.md)
+for the optional authenticated factory. Positive receive Topic Alias
 Maximum enables bounded incoming aliases. QoS-2 receives use the volatile current-connection contract below.
 SessionPresent with no local
 session closes with SESSION, also for the explicit 3.1.1 mode.
@@ -641,7 +642,7 @@ independent byte peer (including fragmented/reordered ACKs and host-worker rules
 Rules follow the [MQTT5 OASIS standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
 sections 2.2.1, 3.8-3.11 and the equivalent
 [MQTT3.1.1 sections](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html).
-Subscription/session recovery, durable state, expiry, enhanced auth,
+Subscription/session recovery, durable state, expiry,
 DNS/TLS/WebSocket and full performance/production qualification are incomplete.
 
 
@@ -817,6 +818,11 @@ options. `--case NAME` selects a case. JSON includes independently observed wire
 lengths checked against every corresponding result's AcceptedBytes; maximum
 topics are recorded by length/hash rather than repeated large strings. Local
 peer sockets/threads and library owners are closed each run. Mappings remain
-connection-local; session/reconnect/store/expiry/auth/transports and production
+connection-local; session/reconnect/store/expiry/transports and production
 qualification are still pending. Wire semantics follow
 [OASIS MQTT5 section 3.3.2.3.4](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html).
+
+
+Optional MQTT5 enhanced authentication is available through the separate
+[client_auth leaf](client_auth.md), factory and unique cross-thread tickets.
+The base factory continues to reject Authentication Method in CONNECT.

@@ -25,6 +25,19 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT
 #define XMQTT_MODULE_XMQTT_CLIENT
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#define XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#endif
+#endif
+
+/* xmqtt_client_auth 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_AUTH)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_AUTH
+#define XMQTT_FEATURE_XMQTT_CLIENT_AUTH
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
 #endif
 
 /* xmqtt_client 及其直接依赖。 */

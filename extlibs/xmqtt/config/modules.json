@@ -100,7 +100,8 @@
         "xmqtt_codec5",
         "xmqtt_codec311",
         "xmqtt_negotiation",
-        "xmqtt_client"
+        "xmqtt_client",
+        "xmqtt_client_auth"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -378,6 +379,36 @@
       ]
     },
     {
+      "name": "xmqtt_client_auth",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_AUTH",
+      "depends": [
+        "xmqtt_client"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_auth.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_auth.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/auth/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_auth.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/client_auth.md"
+      ]
+    },
+    {
       "name": "xmqtt_tests",
       "state": "implemented",
       "feature": null,
@@ -395,7 +426,8 @@
         "extlibs/xmqtt/tests/test_codec5.c",
         "extlibs/xmqtt/tests/test_codec311.c",
         "extlibs/xmqtt/tests/test_negotiation.c",
-        "extlibs/xmqtt/tests/test_client.c"
+        "extlibs/xmqtt/tests/test_client.c",
+        "extlibs/xmqtt/tests/test_client_auth.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -404,7 +436,10 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -418,7 +453,10 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec5.c": "xmqtt_codec5",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_codec311.c": "xmqtt_codec311",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_negotiation.c": "xmqtt_negotiation",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c": "xmqtt_client"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client.c": "xmqtt_client",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_auth.c": "xmqtt_client_auth",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c": "xmqtt_client_auth",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c": "xmqtt_client_auth"
       }
     }
   ]

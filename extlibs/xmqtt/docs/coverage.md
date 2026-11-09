@@ -10,8 +10,8 @@ those pure checks from negotiated inbound/runtime state. The developing
 [TCP client](client.md) integrates handshake, basic credentials, keep-alive,
 QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK flow, bounded automatic MQTT5 error
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
-Session/auth/expiry/
-subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
+Optional [enhanced authentication](client_auth.md) integrates initial AUTH/final
+CONNACK verification and reauthentication. Session/expiry/subscription recovery state, reconnect, persistence and TLS/WebSocket remain pending.
 There is no pinned-broker or final performance/production acceptance yet.
 
 | Contract | Verification |
@@ -178,3 +178,21 @@ standalone byte peer covers 30 send cases and checks actual wire bytes against
 results, alongside deterministic cancel/deadline and allocator unit cases.
 This is current-connection functionality. Session/store/reconnect, detailed
 alias/subscription performance and native production qualification remain.
+
+
+## Enhanced MQTT5 authentication
+
+The optional leaf covers multiple challenge rounds, method equality/empty methods,
+binary data, initial/final verification gates, coalesced early publications,
+reauthentication alongside ordinary traffic, one-byte output frame boundaries,
+single-use cross-thread ticket lifetimes, whole/decision deadlines, cancellation,
+rejection and server protocol/close failures. Allocation-prefix tests cover factory,
+reauth producer/result/wire and worker message/ticket/native failures, with physical
+quota retirement. Round/aggregate/private/object quotas remain distinct. An
+independent stdlib socket peer validates literal protocol bytes and negative
+sequences. Algorithm and pinned-broker interoperability remain required.
+
+Deterministic completion-reservation scheduling proves that a new reauth admission
+cannot replace a producer whose final proof is being completed. Independent
+Keep Alive cases pause application work for multiple intervals before CONNACK,
+defer server PINGRESP until CONNACK and verify heartbeats during final proof.

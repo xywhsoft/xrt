@@ -1,0 +1,3236 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "bounded MQTT5 enhanced authentication on the existing client",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+  "before_extension_revision": "28d16ca9",
+  "state": "developing; full long-term goal remains active",
+  "source_identity": {
+    "inputs": 6258,
+    "frozen_map_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+    "changed_mqtt_input_hashes": {
+      "extlibs/xmqtt/bench/bench_client_auth.c": "b911eac977793321048ff568b8bde0f6be75095259f3a2deb02468c4448de3c8",
+      "extlibs/xmqtt/config/modules.json": "2845b0cc1072414bcd0daf385be970aea3bf60ffe486ac6814ec183ae79ec7d2",
+      "extlibs/xmqtt/config/performance_profiles.json": "cd7af2e22ba2bb12da2683d141d10b86d1ce16bcd84b8ed5244a840261c66617",
+      "extlibs/xmqtt/config/size_profiles.json": "4b1a040b8e70af51666bafefb3beee8ef28ff1412fb3bd1b1e3bc0eb3a36f021",
+      "extlibs/xmqtt/examples/auth/main.c": "71b822d0b563f204db80b42bab53602b113692385e719b7c92a5185e0db1c34c",
+      "extlibs/xmqtt/examples/common/auth_peer.h": "4392f3c57d14bac7ed48625039836bf32e2c144f4793cbef957fa9c7795c5f54",
+      "extlibs/xmqtt/include/xmqtt.h": "0f673d5f319d519d359e19b1388334add61af761f571946da4d25f34cdbcf040",
+      "extlibs/xmqtt/include/xmqtt/client.h": "09175d6dea8d505da3e643a603b0f12ce9341143610ab99e04288a153374a1fa",
+      "extlibs/xmqtt/include/xmqtt/client_auth.h": "251600e8ce3005cfc27fe15bdab338a5ad6b15ba8a09bde58ed5e661e1c83398",
+      "extlibs/xmqtt/include/xmqtt/features.h": "ca06cc0ce4f398adeb35bb2ca5af141f9ac86021bbed47cf007a605a97012c10",
+      "extlibs/xmqtt/src/client/client.c": "1853791fa789903a2e820c282a02c91e3f9780d322afa7f4f50e368ed048fc19",
+      "extlibs/xmqtt/tests/interop/auth_probe.c": "62d200239124a5ab5891f38d260ad00a81f26d07e72dfb54fda8f974954204f9",
+      "extlibs/xmqtt/tests/interop/run_auth_wire.py": "19b0ed7be87f246f4f07711aaa45ff689c82e738c130c469d0e42502abfd0de8",
+      "extlibs/xmqtt/tests/interop/single_auth_probe.c": "3a7ca58d1d08ea4153cb1b40f8111ee12967cd81ffc0b036e92ab78a457ed3f1",
+      "extlibs/xmqtt/tests/package/test_consumer.c": "4733878ea64b026fa09a853016174496c9471902321f4e39a43c77e129d1a0f1",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_cancel_retirement.c": "a96a7711a636770c47f25fca96c85a0a24cd1b6405f684b95e67b87fc079fdb5",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_auth_completion_reservation.c": "09103008f6c1da022fd825d18c145aaf6c7496287bacf01eb2dd2d3b73622317",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_client_auth.c": "5b8ab7885888d5a1c900a837bfa1a856fec291f2b8859afe1d9726923cffa77f",
+      "extlibs/xmqtt/tests/test_client_auth.c": "a093ec5e23ff46e8d8e30220edd4a13df467a2db7805d5915ac6c93107c82613",
+      "single/extlibs/xmqtt.h": "b423985569963362c8a753536c1079dd8af433a8471fcdc5bdc7a5608dc84151",
+      "single/extlibs/xmqtt_decl.h": "c9fab539f1fa053db5a385002e721f35928c6f541f925cb202242dba8a76721a"
+    },
+    "other_products_reuse_proof": {
+      "production_and_tool_inputs_outside_xmqtt_unchanged": true,
+      "compared_inputs": 6147,
+      "previous_functional_source_sha256": "f8d3f420126d10eb5cb6dfde3ddf7f0d2e95e0ff54e96626f01d6a38b906e0a0",
+      "new_source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+      "scope": "Reuse xredis30/xrpc30/xcron34 executions from the prior combined validation; they do not depend on xmqtt. Rerun every xmqtt root/base/auth example/interop/package/sanitizer/affected-tool target after the keepalive/completion corrections."
+    },
+    "production_tool_inputs_frozen_during_current_validation_and_measurement": true
+  },
+  "implementation": [
+    "optional xmqtt_client_auth leaf; no new runtime; existing public client layouts unchanged; optional private pointer and per-auth state/method snapshot",
+    "initial AUTH18 rounds, application verification of CONNACK proof before Ready/application sends/TakeMessage, bounded early-PUBLISH quarantine; client AUTH19 reauthentication preserves ordinary traffic",
+    "one unique quota-owned immutable ticket/message mailbox, one encoded output, one typed reauth result/Future; tickets pin Client until release and retained messages/results independently outlive Client/Engine",
+    "32 challenges/1MiB aggregate/5s local-decision defaults plus original finite whole deadline; private wire reservations independent of ordinary request quota; rollback/OOM/Close/cancel/physical native retirement",
+    "packet-boundary arbitration and Keep Alive before CONNACK and during application proof computation, delayed PONG budget until CONNACK, negotiated override uses last control-output time",
+    "erasure of AUTH/CONNACK wire and authenticated input after last native/caller lease; CONNECT retires on CONNACK before local proof; caller/kernel/algorithm state excluded",
+    "client-legal rejection diagnostic80; stale cancellation cannot target a later exchange; late decisions reject even if timer owner delayed; completing reauth remains reserved through producer/result detachment"
+  ],
+  "platforms": {
+    "windows": {
+      "validation": {
+        "mqtt_root_programs": 18,
+        "reused_other_root_programs": 94,
+        "combined_root_programs": 112,
+        "reused_receipts": [
+          {
+            "label": "xredis-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xredis/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xredis_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 119.906,
+            "log_sha256": "1738dde658c141dd3b3c6279fc43aa78130e6507d4659331ce3f9aeb3e2f8e21",
+            "programs": 30
+          },
+          {
+            "label": "xrpc-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xrpc/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xrpc_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 119.313,
+            "log_sha256": "ff226f79c529a5996865b2515ed8408fc94c23cfbc6debb5da4c8c161fe8f8d1",
+            "programs": 30
+          },
+          {
+            "label": "xcron-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xcron_tests,event_waiter",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 36.047,
+            "log_sha256": "f255be41c734a0bba81f13a9f6fae216633d8afdd04d15de7777cdefcab98a09",
+            "programs": 34
+          }
+        ],
+        "current_receipts": [
+          {
+            "label": "xmqtt-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 55.859,
+            "log_sha256": "f33e626ee01a4bbbcd555b46e6eaf6cc74ab46b5b8106e4517299f0566b48279",
+            "programs": 18
+          },
+          {
+            "label": "base-client",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 38.5,
+            "log_sha256": "0153167bbe55bac301abb5bdd50788840c4b1ae13329e14d3f954687543ceebe",
+            "programs": 2
+          },
+          {
+            "label": "auth-example",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 6.579,
+            "log_sha256": "3dd34fda87717ae165e71592feeccf957a0b70e3116b688c548671507a2e86a5",
+            "programs": 2
+          },
+          {
+            "label": "probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_auth_probe.c",
+              "-lws2_32",
+              "-o",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-auth-probe.exe"
+            ],
+            "exit_code": 0,
+            "seconds": 11.687,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0
+          },
+          {
+            "label": "wire-peer",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-auth-probe.exe",
+              "--output",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-keepalive-wire-peer.json"
+            ],
+            "exit_code": 0,
+            "seconds": 4.406,
+            "log_sha256": "ac5f6d82322bfdacba029dd25a338d1f904fc7b6de789cae3213edfafd345fcb",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 2.312,
+            "log_sha256": "5fd6c5aeff32ebda75f1f36195a75d4c9145db64b8ca94332d9f647fa4e9832e",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.938,
+            "log_sha256": "74161f8b2f02a2f73b11ebd433ef4dc70de4c68b05e2f1b949475daf0ed4e0a0",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 31.469,
+            "log_sha256": "441ea116888946e52dcfd910d662f746bf165828b60c94e9ed9b876ce3f93d7e",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 31.859,
+            "log_sha256": "d69885857841db71eeb071eb015febdede386847999a6cf18e85b18a87b135fd",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 31.407,
+            "log_sha256": "fb225d2723536c4c00b122ce71f9e64fca35eca8f2fe79db26751f8a2afa6b9b",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 30.078,
+            "log_sha256": "2d810d20d1f9136ec10fd4c5dccdaacadde096c7d3e18b63123e87cafe8e6816",
+            "programs": 0
+          },
+          {
+            "label": "features",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_extension_features.py",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.078,
+            "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+            "programs": 0
+          },
+          {
+            "label": "single",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/amalgamate.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.203,
+            "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+            "programs": 0
+          },
+          {
+            "label": "reference",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_api_reference.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.094,
+            "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+            "programs": 0
+          },
+          {
+            "label": "docs",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_api_docs.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 0.188,
+            "log_sha256": "74683903756bacd1a15e869d5265d33a462bda7cea605926683802ebb2d1f3fc",
+            "programs": 0
+          },
+          {
+            "label": "maturity",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_release_maturity.py"
+            ],
+            "exit_code": 0,
+            "seconds": 1.453,
+            "log_sha256": "796dc68574142d04e6914e5c044d74868f4cf76f82ff6fde2ddb67ed413658a2",
+            "programs": 0
+          },
+          {
+            "label": "tools",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "unittest",
+              "tools.test_extension_layout",
+              "tools.test_extension_single",
+              "tools.test_api_reference",
+              "tools.test_build",
+              "tools.test_scope",
+              "tools.test_measure_performance",
+              "tools.test_measure_size"
+            ],
+            "exit_code": 0,
+            "seconds": 53.828,
+            "log_sha256": "a38a4846c611b4faa5addca5ac0cdf98270a62d853e27d15964e53e1b68941a4",
+            "programs": 1
+          }
+        ],
+        "independent_byte_peer": {
+          "probe_sha256": "9c9a0313187b76885e14969c6545d4ab7f6044b43b7b959884f0270dfbdf6564",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        },
+        "post_size_consumers": [
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "fb225d2723536c4c00b122ce71f9e64fca35eca8f2fe79db26751f8a2afa6b9b"
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "2d810d20d1f9136ec10fd4c5dccdaacadde096c7d3e18b63123e87cafe8e6816"
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "441ea116888946e52dcfd910d662f746bf165828b60c94e9ed9b876ce3f93d7e"
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "d69885857841db71eeb071eb015febdede386847999a6cf18e85b18a87b135fd"
+          }
+        ]
+      },
+      "layouts": {
+        "before": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1168
+        },
+        "base": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1168
+        },
+        "auth-enabled": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1176
+        }
+      },
+      "auth_layouts": {
+        "auth_config": 32,
+        "auth_result": 32,
+        "state_base": 144,
+        "ticket": 48,
+        "wire_base": 32
+      },
+      "allocation": {
+        "metrics": {
+          "reauths_per_sec": 10983.121,
+          "latency_p50_us": 85.3,
+          "latency_p99_us": 140.8,
+          "latency_max_us": 155.4,
+          "accepted_auth_bytes": 31500.0,
+          "process_heap_blocks_per_reauth": 15.0,
+          "process_heap_bytes_per_reauth": 1766.0
+        },
+        "binary_sha256": "17ff319ef8beb9cb88f645e36df5c3553ca358402815dd7a2aacb3d00ebaeffc",
+        "scope": "Entire process, including the local peer, fixture decisions and Future observation."
+      },
+      "performance": {
+        "formal_2000_exchanges": {
+          "source": "extlibs/xmqtt/bench/bench_client_auth.c",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/auth_peer.h"
+          ],
+          "suite": "xmqtt_client_auth,time",
+          "args": [
+            "2000"
+          ],
+          "facts": {},
+          "metrics": {
+            "reauths_per_sec": {
+              "samples": [
+                11081.493,
+                11228.518,
+                11236.264,
+                11419.371,
+                11149.44
+              ],
+              "median": 11228.518,
+              "mean": 11223.017199999998,
+              "min": 11081.493,
+              "max": 11419.371,
+              "mad": 79.07799999999952,
+              "relative_mad": 0.007042603485161579,
+              "range": 337.8779999999988,
+              "relative_range": 0.03009105921191014,
+              "central_range": 86.8239999999987,
+              "relative_central_range": 0.007732454095901053,
+              "direction": "higher",
+              "unit": "reauth/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "latency_p99_us": {
+              "samples": [
+                135.6,
+                128.5,
+                132.4,
+                119.2,
+                143.6
+              ],
+              "median": 132.4,
+              "mean": 131.85999999999999,
+              "min": 119.2,
+              "max": 143.6,
+              "mad": 3.9000000000000057,
+              "relative_mad": 0.029456193353474363,
+              "range": 24.39999999999999,
+              "relative_range": 0.1842900302114803,
+              "central_range": 7.099999999999994,
+              "relative_central_range": 0.05362537764350449,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.1,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        },
+        "formal_policy": {
+          "repeats": 5,
+          "warmups": 1,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+          "source_fingerprint": "da3f9e82890abd962ca1299904b1137c90a993d8b3ed5913e917a6ddbe883b6a",
+          "benchmark_fingerprint": "df2c08269d20bb7b980e10550014dccb9b68db616fd740a0803238a3ef9b7b61",
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "compiler_version": "gcc.EXE (GCC) 16.2.0"
+        },
+        "short_ordinary": {
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 366905.155,
+                "latency_p50_us": 84.6,
+                "latency_p99_us": 139.6,
+                "latency_max_us": 171.0,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 381286.46,
+                "latency_p50_us": 81.1,
+                "latency_p99_us": 113.5,
+                "latency_max_us": 133.0,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 367611.018,
+                "latency_p50_us": 85.6,
+                "latency_p99_us": 113.0,
+                "latency_max_us": 119.7,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 263817.438,
+                "latency_p50_us": 116.0,
+                "latency_p99_us": 182.5,
+                "latency_max_us": 226.3,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 383602.281,
+                "latency_p50_us": 79.6,
+                "latency_p99_us": 121.8,
+                "latency_max_us": 139.4,
+                "checksum": 4501500.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 383087.944,
+                "latency_p50_us": 81.0,
+                "latency_p99_us": 110.6,
+                "latency_max_us": 120.4,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 377448.698,
+                "latency_p50_us": 83.5,
+                "latency_p99_us": 105.5,
+                "latency_max_us": 110.5,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 384674.565,
+                "latency_p50_us": 77.1,
+                "latency_p99_us": 133.9,
+                "latency_max_us": 176.3,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 380440.296,
+                "latency_p50_us": 82.4,
+                "latency_p99_us": 120.3,
+                "latency_max_us": 133.4,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 397387.837,
+                "latency_p50_us": 76.9,
+                "latency_p99_us": 145.6,
+                "latency_max_us": 177.7,
+                "checksum": 4501500.0
+              }
+            ],
+            "auth-enabled": [
+              {
+                "publishes_per_sec": 384946.043,
+                "latency_p50_us": 79.0,
+                "latency_p99_us": 120.1,
+                "latency_max_us": 129.2,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 347226.241,
+                "latency_p50_us": 82.3,
+                "latency_p99_us": 190.2,
+                "latency_max_us": 241.8,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 350532.81,
+                "latency_p50_us": 90.7,
+                "latency_p99_us": 134.4,
+                "latency_max_us": 159.6,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 367039.824,
+                "latency_p50_us": 83.5,
+                "latency_p99_us": 132.0,
+                "latency_max_us": 148.9,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 388535.609,
+                "latency_p50_us": 80.4,
+                "latency_p99_us": 105.8,
+                "latency_max_us": 111.9,
+                "checksum": 4501500.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 367611.018,
+                "relative_mad": 0.0372008490779241,
+                "relative_central_range": 0.03912098467081309,
+                "noise_qualified": false
+              },
+              "latency_p99_us": {
+                "median": 121.8,
+                "relative_mad": 0.07224958949096878,
+                "relative_central_range": 0.21428571428571425,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 383087.944,
+                "relative_mad": 0.006911332088279042,
+                "relative_central_range": 0.011052994661716707,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 120.3,
+                "relative_mad": 0.11305070656691611,
+                "relative_central_range": 0.19368246051537832,
+                "noise_qualified": false
+              }
+            },
+            "auth-enabled": {
+              "publishes_per_sec": {
+                "median": 367039.824,
+                "relative_mad": 0.04878549364169263,
+                "relative_central_range": 0.09375885326274569,
+                "noise_qualified": false
+              },
+              "latency_p99_us": {
+                "median": 132.0,
+                "relative_mad": 0.09015151515151519,
+                "relative_central_range": 0.10833333333333342,
+                "noise_qualified": false
+              }
+            }
+          },
+          "binaries": {
+            "before": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-qos1-before.exe",
+              "sha256": "d98fdc1454153edc44d304a0fee7075f2c7a64dfc3acf53cb96adb8d43a54be6"
+            },
+            "base": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-qos1-base.exe",
+              "sha256": "041272bf4368a248e69042fb6dd5a8be37882a8993ee739cc5e223f779cb466c"
+            },
+            "auth-enabled": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-auth-20261109\\windows-qos1-auth-enabled.exe",
+              "sha256": "77d3c40967556c41dcadfd0ebbaedbe29b7539f5ffda4faeae74cd903ac75105"
+            }
+          },
+          "same_current_core_for_all_variants": true,
+          "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+          "common_core_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+          "before_extension_header_sha256": "5c84032630958862276758bc39b6b4770532484f68ca277dbeb267dca2369b9f",
+          "workload_sha256": "dfbf48638b596a9c18620917f0025726a8c6109079edfeadd4029916fefd0a4b",
+          "policy": "Unpinned alternating samples; retain all values. Noise qualification is mandatory before claiming performance equivalence."
+        },
+        "long_ordinary": {
+          "scope": "Additional longer workload to resolve the unqualified 3000-operation samples; same binaries/common Core; binary hashes checked every sample and full source map checked before/after the series; 300000 QoS1 publications, window32, every sample retained.",
+          "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 379266.032,
+                "latency_p50_us": 78.4,
+                "latency_p99_us": 153.1,
+                "latency_max_us": 842.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 393400.471,
+                "latency_p50_us": 75.8,
+                "latency_p99_us": 146.2,
+                "latency_max_us": 8168.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 407556.865,
+                "latency_p50_us": 75.1,
+                "latency_p99_us": 134.5,
+                "latency_max_us": 236.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 398553.993,
+                "latency_p50_us": 77.0,
+                "latency_p99_us": 133.1,
+                "latency_max_us": 829.7,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 388264.272,
+                "latency_p50_us": 77.5,
+                "latency_p99_us": 136.7,
+                "latency_max_us": 241.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 396390.626,
+                "latency_p50_us": 75.9,
+                "latency_p99_us": 136.4,
+                "latency_max_us": 5990.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 398018.029,
+                "latency_p50_us": 76.6,
+                "latency_p99_us": 135.1,
+                "latency_max_us": 245.3,
+                "checksum": 9306512250.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 395258.427,
+                "latency_p50_us": 76.5,
+                "latency_p99_us": 143.6,
+                "latency_max_us": 365.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 385840.18,
+                "latency_p50_us": 77.6,
+                "latency_p99_us": 142.7,
+                "latency_max_us": 9145.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 391998.372,
+                "latency_p50_us": 76.9,
+                "latency_p99_us": 149.6,
+                "latency_max_us": 274.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 394585.913,
+                "latency_p50_us": 77.4,
+                "latency_p99_us": 136.6,
+                "latency_max_us": 308.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 397890.966,
+                "latency_p50_us": 76.0,
+                "latency_p99_us": 134.2,
+                "latency_max_us": 7168.7,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 399106.268,
+                "latency_p50_us": 76.0,
+                "latency_p99_us": 139.1,
+                "latency_max_us": 1003.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 406193.146,
+                "latency_p50_us": 74.6,
+                "latency_p99_us": 136.6,
+                "latency_max_us": 6541.4,
+                "checksum": 9306512250.0
+              }
+            ],
+            "auth-enabled": [
+              {
+                "publishes_per_sec": 392110.015,
+                "latency_p50_us": 76.8,
+                "latency_p99_us": 151.9,
+                "latency_max_us": 993.9,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 373030.91,
+                "latency_p50_us": 82.0,
+                "latency_p99_us": 150.3,
+                "latency_max_us": 1029.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 409983.817,
+                "latency_p50_us": 74.8,
+                "latency_p99_us": 135.4,
+                "latency_max_us": 635.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 397524.799,
+                "latency_p50_us": 75.7,
+                "latency_p99_us": 145.3,
+                "latency_max_us": 6698.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 409934.461,
+                "latency_p50_us": 74.6,
+                "latency_p99_us": 131.3,
+                "latency_max_us": 244.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 393468.063,
+                "latency_p50_us": 77.0,
+                "latency_p99_us": 140.1,
+                "latency_max_us": 299.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 397177.918,
+                "latency_p50_us": 77.1,
+                "latency_p99_us": 135.9,
+                "latency_max_us": 240.9,
+                "checksum": 9306512250.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 396390.626,
+                "relative_mad": 0.007543455379290351,
+                "relative_central_range": 0.025958537677427368,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 136.4,
+                "relative_mad": 0.013929618768328487,
+                "relative_central_range": 0.08577712609970665,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 395258.427,
+                "relative_mad": 0.008247907640436092,
+                "relative_central_range": 0.01798290817971607,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 139.1,
+                "relative_mad": 0.025880661394680045,
+                "relative_central_range": 0.0503235082674335,
+                "noise_qualified": true
+              }
+            },
+            "auth-enabled": {
+              "publishes_per_sec": {
+                "median": 397177.918,
+                "relative_mad": 0.012759780366238767,
+                "relative_central_range": 0.04487773663187387,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 140.1,
+                "relative_mad": 0.03711634546752332,
+                "relative_central_range": 0.10635260528194151,
+                "noise_qualified": false
+              }
+            }
+          },
+          "binaries": {
+            "before": "d98fdc1454153edc44d304a0fee7075f2c7a64dfc3acf53cb96adb8d43a54be6",
+            "base": "041272bf4368a248e69042fb6dd5a8be37882a8993ee739cc5e223f779cb466c",
+            "auth-enabled": "77d3c40967556c41dcadfd0ebbaedbe29b7539f5ffda4faeae74cd903ac75105"
+          }
+        },
+        "long_auth": {
+          "scope": "Additional 20000-exchange samples, same two-round fixture-token benchmark binary; original 2000-exchange noise report is preserved.",
+          "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+          "samples": [
+            {
+              "reauths_per_sec": 11100.017,
+              "latency_p50_us": 85.4,
+              "latency_p99_us": 146.8,
+              "latency_max_us": 271.8,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 11098.524,
+              "latency_p50_us": 85.1,
+              "latency_p99_us": 149.1,
+              "latency_max_us": 279.5,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 11154.838,
+              "latency_p50_us": 84.7,
+              "latency_p99_us": 148.5,
+              "latency_max_us": 252.1,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 11193.829,
+              "latency_p50_us": 84.6,
+              "latency_p99_us": 145.9,
+              "latency_max_us": 252.5,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 11121.238,
+              "latency_p50_us": 85.0,
+              "latency_p99_us": 147.2,
+              "latency_max_us": 262.8,
+              "accepted_auth_bytes": 1260000.0
+            }
+          ],
+          "summary": {
+            "reauths_per_sec": {
+              "median": 11121.238,
+              "relative_mad": 0.0020423985171435,
+              "relative_central_range": 0.004929397248759528,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 147.2,
+              "relative_mad": 0.00883152173913032,
+              "relative_central_range": 0.011548913043478184,
+              "noise_qualified": true
+            }
+          },
+          "binary_sha256": "5481aa2ef6ae42051cc0eb91eaf3ac2f6deba16bd602d98ac308f5120b01cc4c"
+        },
+        "qualified_long_ordinary_comparisons": {
+          "base": {
+            "publishes_per_sec": {
+              "relative_change": -0.00285627087457907,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": 0.019794721407624616,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          },
+          "auth-enabled": {
+            "publishes_per_sec": {
+              "relative_change": 0.001986151912684253,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": 0.027126099706744844,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+        "source_dirty": true,
+        "source_fingerprint": "1a72a302be665d14080365497a2ab4d94cab25c8b32707b4cae0235024034561",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xmqtt_client": {
+            "suite": "xmqtt_client",
+            "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately",
+            "forbid_symbols": [
+              "xmqttClientConnectAuth",
+              "xmqttClientReauthenticate",
+              "xmqttAuthRespond"
+            ],
+            "kinds": {
+              "single": {
+                "text": 420400,
+                "data": 2384,
+                "bss": 11136,
+                "members": 1,
+                "load": 422784,
+                "file": 594894,
+                "path": "out/size/gnu/native/xmqtt_client/single/xmqtt_single.o",
+                "compile_seconds": 9.90224290000333,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 99248,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 99248,
+                "file": 138806,
+                "path": "release/gnu/native/xmqtt_client/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 112889,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 113033,
+                "file": 164031,
+                "path": "release/gnu/native/xmqtt_client/shared/xmqtt.dll"
+              }
+            }
+          },
+          "xmqtt_client_auth": {
+            "suite": "xmqtt_client_auth",
+            "description": "Optional enhanced AUTH ticket/state/wire/reauth support plus the existing bounded MQTT TCP client and public Core closure",
+            "forbid_symbols": [],
+            "kinds": {
+              "single": {
+                "text": 433892,
+                "data": 2384,
+                "bss": 11136,
+                "members": 1,
+                "load": 436276,
+                "file": 611477,
+                "path": "out/size/gnu/native/xmqtt_client_auth/single/xmqtt_single.o",
+                "compile_seconds": 10.907217500003753
+              },
+              "static": {
+                "text": 110544,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 110544,
+                "file": 155078,
+                "path": "release/gnu/native/xmqtt_client_auth/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 124481,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 124625,
+                "file": 177911,
+                "path": "release/gnu/native/xmqtt_client_auth/shared/xmqtt.dll"
+              }
+            }
+          }
+        }
+      },
+      "retained_artifacts": {
+        "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+        "artifacts": {
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/single/xmqtt_single.o": {
+            "bytes": 594894,
+            "sha256": "0d6606760458e303ceaa36d3cbcb2d5b1fd4d92c54c4f2c6a8d047b733328f1c"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/static/libxmqtt.a": {
+            "bytes": 138806,
+            "sha256": "40767a01ba8e32988d2fdca940edaf47b583abacfc2553b4f31adbac2aae7afc"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/static/libxrt.a": {
+            "bytes": 479352,
+            "sha256": "e4b788d3e6d603482a6b79b515cf1a3a855a0365baa83224ca623571356045c3"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/static/packages.json": {
+            "bytes": 1815,
+            "sha256": "0869a8175477ad7baa68220f492471b8470fdafb059db52f3624b8c400b6b68d"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/static/test_package_xmqtt.exe": {
+            "bytes": 555120,
+            "sha256": "28762b43c779815afe377d71764fa32aaae184e89bebcdc4403ab09c109f5e5c"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/xmqtt.dll": {
+            "bytes": 164031,
+            "sha256": "4c182e825f613e84c675d41989ad8441dd6427930c051577c18a1ebf5d9a56a7"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/libxmqtt.dll.a": {
+            "bytes": 30432,
+            "sha256": "6819e98ee8b5ed815afdf7f3c660de6f8992c0fb4c975c665a5764b55c2d1b03"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/libxrt.dll.a": {
+            "bytes": 344756,
+            "sha256": "74cc0ed606f0d6fa452e7078cab4a2fdc997d50887b182a0baed2041a75c9486"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/packages.json": {
+            "bytes": 1839,
+            "sha256": "c4799ec79b4b70adab9d8626402dd07991ccd66f1d389ef75d5c700d55cdb82e"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/test_package_xmqtt.exe": {
+            "bytes": 57855,
+            "sha256": "613a2a183a9c6f3784af4b44b9c616b2d0ffda095ba508387ca2caa23f26cb3c"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client/shared/xrt.dll": {
+            "bytes": 448547,
+            "sha256": "a52ac3225a98a2ee0d5bde5861b5b4807b5dc58b54ad0b489eb14c7cfe6c0ddb"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/single/xmqtt_single.o": {
+            "bytes": 611477,
+            "sha256": "1c5fd934380292569956889ea5928b1150acd8113eb20f26bdaf8c1525e6a636"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/static/libxmqtt.a": {
+            "bytes": 155078,
+            "sha256": "507d5e0359c1c7ae2b87548f62c463ae2ac4976ae0e1aa1dd43789925ff8d3f3"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/static/libxrt.a": {
+            "bytes": 479352,
+            "sha256": "d3a100094195fc9025de7769520755cbe532713d4fbb5ec16588895e1b73c4be"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/static/packages.json": {
+            "bytes": 1820,
+            "sha256": "0e28c31cd3be70e55dbeb845b0685638fcc8e2de91d02aeea0d0f0bb8d5e5a07"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/static/test_package_xmqtt.exe": {
+            "bytes": 568488,
+            "sha256": "e192f6b0828f9bb854aaa76267de0c3e930c33055870f3095def3a6df405eca7"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/xmqtt.dll": {
+            "bytes": 177911,
+            "sha256": "d68ac599c30c4c013f7c3b431a4adad87b66111396843227d22b9d59b1876293"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/libxmqtt.dll.a": {
+            "bytes": 37018,
+            "sha256": "f979cc46725e0a8c74b7950583105f69e358a7b9e10972cfe5ba33c213393536"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/libxrt.dll.a": {
+            "bytes": 344756,
+            "sha256": "6633eb56b8da31fc0767b106a5003d70dfe0c7d2040fa261492a87f720e882f8"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/packages.json": {
+            "bytes": 1844,
+            "sha256": "6d1d0bb60fb407ae4d38c6932216c4595fc769e822d1d9c0fd1a8c245d6db069"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/test_package_xmqtt.exe": {
+            "bytes": 60435,
+            "sha256": "5228af7031be5ba47a1b54539952215d42d829a560e3ddc5f98e47410a023710"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/size/xmqtt_client_auth/shared/xrt.dll": {
+            "bytes": 448547,
+            "sha256": "92713b266e36e89cad9988d4edadb5c7d3d3127ca02f7302666289fac451e994"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/performance/xmqtt_client_auth.exe": {
+            "bytes": 576309,
+            "sha256": "5481aa2ef6ae42051cc0eb91eaf3ac2f6deba16bd602d98ac308f5120b01cc4c"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/ordinary/windows-qos1-before.exe": {
+            "bytes": 611454,
+            "sha256": "d98fdc1454153edc44d304a0fee7075f2c7a64dfc3acf53cb96adb8d43a54be6"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/ordinary/windows-qos1-base.exe": {
+            "bytes": 612035,
+            "sha256": "041272bf4368a248e69042fb6dd5a8be37882a8993ee739cc5e223f779cb466c"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/windows/ordinary/windows-qos1-auth-enabled.exe": {
+            "bytes": 628542,
+            "sha256": "77d3c40967556c41dcadfd0ebbaedbe29b7539f5ffda4faeae74cd903ac75105"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "validation": {
+        "mqtt_root_programs": 18,
+        "reused_other_root_programs": 94,
+        "combined_root_programs": 112,
+        "reused_receipts": [
+          {
+            "label": "xredis-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xredis/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xredis_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 263.021,
+            "log_sha256": "93255f4f40ca19dc56dc7d5c90b3b34e37c598f3eeae549aa109da57a789cf9d",
+            "programs": 30
+          },
+          {
+            "label": "xrpc-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xrpc/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xrpc_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 268.464,
+            "log_sha256": "1df47bb2e4d9241c0a63d556a44a0f122f59c0c808cf1e8f5308aa33aa07c32c",
+            "programs": 30
+          },
+          {
+            "label": "xcron-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xcron_tests,event_waiter",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 107.674,
+            "log_sha256": "40198080521b25fe7a81ab245739cf463b2354ba982bacaaf3d7d26de38648eb",
+            "programs": 34
+          }
+        ],
+        "current_receipts": [
+          {
+            "label": "xmqtt-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 92.603,
+            "log_sha256": "1d3dbd530d0916ad17d382b10a6a32db176a3e9b237b41b79cadeb2b2e30d5af",
+            "programs": 18
+          },
+          {
+            "label": "base-client",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 62.574,
+            "log_sha256": "99fd78d39a1934d0c2efdecf1a3c01fda08e1fee8e265cf0d39f20676f1cdbef",
+            "programs": 2
+          },
+          {
+            "label": "auth-example",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth",
+              "--no-single",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 9.894,
+            "log_sha256": "6ffe02e504ac1f44e9c589659a497ba549574c636740ded24b58c855c1d05904",
+            "programs": 2
+          },
+          {
+            "label": "probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_auth_probe.c",
+              "-pthread",
+              "-lm",
+              "-fsanitize=address,undefined",
+              "-fno-omit-frame-pointer",
+              "-o",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-auth-probe"
+            ],
+            "exit_code": 0,
+            "seconds": 22.585,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0
+          },
+          {
+            "label": "wire-peer",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-auth-probe",
+              "--output",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-keepalive-wire-peer.json"
+            ],
+            "exit_code": 0,
+            "seconds": 5.735,
+            "log_sha256": "1e1b5b1a3b5b1468e6200465ad1ced4326bdb7db58e700396c895fc9757366ad",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 3.426,
+            "log_sha256": "ff6b3434a4510791d33ff4e09e5912ded45d76709dd3d7a8945b9fa36167a369",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 4.245,
+            "log_sha256": "e59349c7f13e44c29ac5a1a488df033181e0e24be5ee5555920b3f4a062e0bc2",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 19.316,
+            "log_sha256": "1c669e7b8fac0c0db6dcab31da7c32e941567726f04218153013cb8da821df79",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 19.814,
+            "log_sha256": "9ceaa8999a8faa86d82c4cab734d04fa37fc4e4ff9ddbc32cb06ae9aede3afa3",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 18.613,
+            "log_sha256": "14c9e9db392401baac7025d8c36be227b79e84d332442eaa9061897b02601a54",
+            "programs": 0
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 21.289,
+            "log_sha256": "04df97e1e221ef4eca3c906309d8a5cc22d75ec8c076d2ff3ced4c31eb3627ee",
+            "programs": 0
+          },
+          {
+            "label": "tsan-modular",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth,memory_stats",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 7.2,
+            "log_sha256": "ce69a1175cee941baea2dc766f3d3734efed24999acdb20894f70fcb97bde731",
+            "programs": 3
+          },
+          {
+            "label": "tsan-single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth,memory_stats",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--single-test",
+              "test_single_xmqtt_client_auth"
+            ],
+            "exit_code": 0,
+            "seconds": 29.533,
+            "log_sha256": "5e2e5477ad0d12e09503531d83869a15a99bcb393d6e27d41c2b454a4ee738af",
+            "programs": 1
+          },
+          {
+            "label": "tsan-cancel-generation",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth,memory_stats",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--single-test",
+              "test_single_xmqtt_auth_cancel_retirement"
+            ],
+            "exit_code": 0,
+            "seconds": 27.627,
+            "log_sha256": "4a18c9511f4975aecd0ef03360af61a0f3896e2fdf8f2c7112f00d1593ac618f",
+            "programs": 1
+          },
+          {
+            "label": "tsan-completion-reservation",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_auth,memory_stats",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--single-test",
+              "test_single_xmqtt_auth_completion_reservation"
+            ],
+            "exit_code": 0,
+            "seconds": 26.973,
+            "log_sha256": "a6b21040c62f4aca6781587beabc3ea83bb3d89be48af7ad2a68df774559684e",
+            "programs": 1
+          }
+        ],
+        "independent_byte_peer": {
+          "probe_sha256": "7fc6a9c5f581c99479b8f10258e8932cb8e59824a702d004f20a9712789a0b12",
+          "cases": [
+            {
+              "case": "normal",
+              "exit_code": 0,
+              "stdout": "PASS auth normal\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "tiny",
+              "exit_code": 0,
+              "stdout": "PASS auth tiny\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "coalesced",
+              "exit_code": 0,
+              "stdout": "PASS auth coalesced\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "verify_keepalive",
+              "exit_code": 0,
+              "stdout": "PASS auth verify_keepalive\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_clean",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_clean\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "problem_reason",
+              "exit_code": 0,
+              "stdout": "PASS auth problem_reason\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_success",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_early_pong",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_early_pong\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_reject",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_reject\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_eof",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_eof\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "initial_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth initial_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_initial",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_initial\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_bad_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_bad_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_missing_method",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_missing_method\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_short_success",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_short_success\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_server_start",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_server_start\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_disconnect",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_disconnect\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "reauth_timeout",
+              "exit_code": 0,
+              "stdout": "PASS auth reauth_timeout\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            },
+            {
+              "case": "local_reject_reauth",
+              "exit_code": 0,
+              "stdout": "PASS auth local_reject_reauth\n",
+              "stderr": "",
+              "peer_errors": [],
+              "peer_finished": true
+            }
+          ]
+        },
+        "post_size_consumers": [
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "14c9e9db392401baac7025d8c36be227b79e84d332442eaa9061897b02601a54"
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "04df97e1e221ef4eca3c906309d8a5cc22d75ec8c076d2ff3ced4c31eb3627ee"
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "1c669e7b8fac0c0db6dcab31da7c32e941567726f04218153013cb8da821df79"
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "log_sha256": "9ceaa8999a8faa86d82c4cab734d04fa37fc4e4ff9ddbc32cb06ae9aede3afa3"
+          }
+        ]
+      },
+      "layouts": {
+        "before": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1376
+        },
+        "base": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1376
+        },
+        "auth-enabled": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1384
+        }
+      },
+      "auth_layouts": {
+        "auth_config": 32,
+        "auth_result": 32,
+        "state_base": 144,
+        "ticket": 48,
+        "wire_base": 32
+      },
+      "allocation": {
+        "metrics": {
+          "reauths_per_sec": 4360.935,
+          "latency_p50_us": 204.6,
+          "latency_p99_us": 388.4,
+          "latency_max_us": 563.1,
+          "accepted_auth_bytes": 31500.0,
+          "process_heap_blocks_per_reauth": 20.994,
+          "process_heap_bytes_per_reauth": 2309.664
+        },
+        "binary_sha256": "e958c5f7b020a9ce609fbb11688d846baf2b4e4f828677381282d5b4177320ec",
+        "scope": "Entire process, including the local peer, fixture decisions and Future observation."
+      },
+      "performance": {
+        "formal_2000_exchanges": {
+          "source": "extlibs/xmqtt/bench/bench_client_auth.c",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/auth_peer.h"
+          ],
+          "suite": "xmqtt_client_auth,time",
+          "args": [
+            "2000"
+          ],
+          "facts": {},
+          "metrics": {
+            "reauths_per_sec": {
+              "samples": [
+                4583.987,
+                4490.164,
+                4513.832,
+                4511.876,
+                4129.502
+              ],
+              "median": 4511.876,
+              "mean": 4445.8722,
+              "min": 4129.502,
+              "max": 4583.987,
+              "mad": 21.712000000000444,
+              "relative_mad": 0.004812188987463406,
+              "range": 454.4849999999997,
+              "relative_range": 0.10073082682236827,
+              "central_range": 23.668000000000575,
+              "relative_central_range": 0.005245711539944931,
+              "direction": "higher",
+              "unit": "reauth/s",
+              "limit": 0.05,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            },
+            "latency_p99_us": {
+              "samples": [
+                392.9,
+                397.5,
+                370.5,
+                369.2,
+                431.7
+              ],
+              "median": 392.9,
+              "mean": 392.36,
+              "min": 369.2,
+              "max": 431.7,
+              "mad": 22.399999999999977,
+              "relative_mad": 0.05701196233138198,
+              "range": 62.5,
+              "relative_range": 0.15907355561211506,
+              "central_range": 27.0,
+              "relative_central_range": 0.0687197760244337,
+              "direction": "lower",
+              "unit": "us",
+              "limit": 0.1,
+              "max_relative_mad": 0.03,
+              "max_relative_central_range": 0.06
+            }
+          }
+        },
+        "formal_policy": {
+          "repeats": 5,
+          "warmups": 1,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+          "source_fingerprint": "da3f9e82890abd962ca1299904b1137c90a993d8b3ed5913e917a6ddbe883b6a",
+          "benchmark_fingerprint": "df2c08269d20bb7b980e10550014dccb9b68db616fd740a0803238a3ef9b7b61",
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+        },
+        "short_ordinary": {
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 124362.126,
+                "latency_p50_us": 252.3,
+                "latency_p99_us": 375.0,
+                "latency_max_us": 452.1,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 116402.235,
+                "latency_p50_us": 256.1,
+                "latency_p99_us": 534.6,
+                "latency_max_us": 685.6,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 117327.284,
+                "latency_p50_us": 264.3,
+                "latency_p99_us": 440.4,
+                "latency_max_us": 591.0,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 122955.355,
+                "latency_p50_us": 247.7,
+                "latency_p99_us": 451.4,
+                "latency_max_us": 529.4,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 109302.359,
+                "latency_p50_us": 263.3,
+                "latency_p99_us": 517.3,
+                "latency_max_us": 742.6,
+                "checksum": 4501500.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 122487.476,
+                "latency_p50_us": 250.9,
+                "latency_p99_us": 406.1,
+                "latency_max_us": 501.4,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 114097.069,
+                "latency_p50_us": 253.6,
+                "latency_p99_us": 459.1,
+                "latency_max_us": 621.0,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 117944.0,
+                "latency_p50_us": 263.3,
+                "latency_p99_us": 422.5,
+                "latency_max_us": 473.1,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 124246.754,
+                "latency_p50_us": 242.2,
+                "latency_p99_us": 408.3,
+                "latency_max_us": 601.2,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 124809.67,
+                "latency_p50_us": 250.6,
+                "latency_p99_us": 383.0,
+                "latency_max_us": 438.4,
+                "checksum": 4501500.0
+              }
+            ],
+            "auth-enabled": [
+              {
+                "publishes_per_sec": 118951.325,
+                "latency_p50_us": 253.9,
+                "latency_p99_us": 433.5,
+                "latency_max_us": 573.1,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 107133.674,
+                "latency_p50_us": 285.1,
+                "latency_p99_us": 462.1,
+                "latency_max_us": 579.1,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 97170.398,
+                "latency_p50_us": 325.5,
+                "latency_p99_us": 517.9,
+                "latency_max_us": 624.0,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 107728.051,
+                "latency_p50_us": 277.7,
+                "latency_p99_us": 503.8,
+                "latency_max_us": 544.2,
+                "checksum": 4501500.0
+              },
+              {
+                "publishes_per_sec": 98586.273,
+                "latency_p50_us": 339.9,
+                "latency_p99_us": 505.3,
+                "latency_max_us": 687.2,
+                "checksum": 4501500.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 117327.284,
+                "relative_mad": 0.04796898733290371,
+                "relative_central_range": 0.05585333416564893,
+                "noise_qualified": false
+              },
+              "latency_p99_us": {
+                "median": 451.4,
+                "relative_mad": 0.14599025254762957,
+                "relative_central_range": 0.17035888347363753,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 122487.476,
+                "relative_mad": 0.01895862398209596,
+                "relative_central_range": 0.05145631378672544,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 408.3,
+                "relative_mad": 0.03477834925300022,
+                "relative_central_range": 0.04016654420769037,
+                "noise_qualified": false
+              }
+            },
+            "auth-enabled": {
+              "publishes_per_sec": {
+                "median": 107133.674,
+                "relative_mad": 0.07978258077847679,
+                "relative_central_range": 0.08533057496002616,
+                "noise_qualified": false
+              },
+              "latency_p99_us": {
+                "median": 503.8,
+                "relative_mad": 0.027987296546248444,
+                "relative_central_range": 0.0857483128225486,
+                "noise_qualified": false
+              }
+            }
+          },
+          "binaries": {
+            "before": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-qos1-before",
+              "sha256": "f87446e5a3fc1123419f8ea96b6445c7f82b4052bee5567e6cd20f76062cf362"
+            },
+            "base": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-qos1-base",
+              "sha256": "90a8f6fd45e5ffb6b43e938cbbb862b3617ffe2b9f18f2b0d94f85c070cc9593"
+            },
+            "auth-enabled": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-auth-20261109/wsl-qos1-auth-enabled",
+              "sha256": "a9bb11962fb627cc99a41545bd2eeb6a72fe925d29962f73f991a06c0192a540"
+            }
+          },
+          "same_current_core_for_all_variants": true,
+          "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+          "common_core_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+          "before_extension_header_sha256": "5c84032630958862276758bc39b6b4770532484f68ca277dbeb267dca2369b9f",
+          "workload_sha256": "dfbf48638b596a9c18620917f0025726a8c6109079edfeadd4029916fefd0a4b",
+          "policy": "Unpinned alternating samples; retain all values. Noise qualification is mandatory before claiming performance equivalence."
+        },
+        "long_ordinary": {
+          "scope": "Additional longer workload to resolve the unqualified 3000-operation samples; same binaries/common Core; binary hashes checked every sample and full source map checked before/after the series; 300000 QoS1 publications, window32, every sample retained.",
+          "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 119568.026,
+                "latency_p50_us": 252.3,
+                "latency_p99_us": 495.9,
+                "latency_max_us": 923.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121443.211,
+                "latency_p50_us": 251.6,
+                "latency_p99_us": 479.4,
+                "latency_max_us": 897.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121691.264,
+                "latency_p50_us": 250.6,
+                "latency_p99_us": 445.8,
+                "latency_max_us": 834.701,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121127.777,
+                "latency_p50_us": 251.6,
+                "latency_p99_us": 480.9,
+                "latency_max_us": 788.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122525.61,
+                "latency_p50_us": 251.8,
+                "latency_p99_us": 422.1,
+                "latency_max_us": 773.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 109423.437,
+                "latency_p50_us": 255.8,
+                "latency_p99_us": 559.1,
+                "latency_max_us": 29153.601,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 117907.527,
+                "latency_p50_us": 252.2,
+                "latency_p99_us": 490.1,
+                "latency_max_us": 1013.9,
+                "checksum": 9306512250.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 121451.419,
+                "latency_p50_us": 251.5,
+                "latency_p99_us": 460.1,
+                "latency_max_us": 854.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121438.236,
+                "latency_p50_us": 251.8,
+                "latency_p99_us": 477.7,
+                "latency_max_us": 901.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 115097.638,
+                "latency_p50_us": 254.4,
+                "latency_p99_us": 511.7,
+                "latency_max_us": 1904.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120201.072,
+                "latency_p50_us": 251.1,
+                "latency_p99_us": 489.8,
+                "latency_max_us": 828.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 118148.103,
+                "latency_p50_us": 252.6,
+                "latency_p99_us": 515.9,
+                "latency_max_us": 1800.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 106237.572,
+                "latency_p50_us": 263.6,
+                "latency_p99_us": 607.4,
+                "latency_max_us": 9434.701,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 118451.183,
+                "latency_p50_us": 254.8,
+                "latency_p99_us": 521.7,
+                "latency_max_us": 1419.7,
+                "checksum": 9306512250.0
+              }
+            ],
+            "auth-enabled": [
+              {
+                "publishes_per_sec": 121201.648,
+                "latency_p50_us": 251.6,
+                "latency_p99_us": 464.8,
+                "latency_max_us": 816.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121638.188,
+                "latency_p50_us": 250.9,
+                "latency_p99_us": 444.1,
+                "latency_max_us": 907.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 107390.681,
+                "latency_p50_us": 261.4,
+                "latency_p99_us": 629.8,
+                "latency_max_us": 5595.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121235.889,
+                "latency_p50_us": 251.6,
+                "latency_p99_us": 444.5,
+                "latency_max_us": 731.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120388.082,
+                "latency_p50_us": 252.3,
+                "latency_p99_us": 454.7,
+                "latency_max_us": 794.7,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122027.775,
+                "latency_p50_us": 252.8,
+                "latency_p99_us": 410.1,
+                "latency_max_us": 854.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120400.006,
+                "latency_p50_us": 252.3,
+                "latency_p99_us": 466.7,
+                "latency_max_us": 2640.2,
+                "checksum": 9306512250.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 121127.777,
+                "relative_mad": 0.011540152346723896,
+                "relative_central_range": 0.03123756659052691,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 480.9,
+                "relative_mad": 0.031191515907673113,
+                "relative_central_range": 0.10417966313162813,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 118451.183,
+                "relative_mad": 0.025217586894003413,
+                "relative_central_range": 0.05352920789317907,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 511.7,
+                "relative_mad": 0.04279851475473906,
+                "relative_central_range": 0.08598788352550334,
+                "noise_qualified": false
+              }
+            },
+            "auth-enabled": {
+              "publishes_per_sec": {
+                "median": 121201.648,
+                "relative_mad": 0.006614117986250542,
+                "relative_central_range": 0.010314265693813007,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 454.7,
+                "relative_mad": 0.02331207389487567,
+                "relative_central_range": 0.0497031009456784,
+                "noise_qualified": true
+              }
+            }
+          },
+          "binaries": {
+            "before": "f87446e5a3fc1123419f8ea96b6445c7f82b4052bee5567e6cd20f76062cf362",
+            "base": "90a8f6fd45e5ffb6b43e938cbbb862b3617ffe2b9f18f2b0d94f85c070cc9593",
+            "auth-enabled": "a9bb11962fb627cc99a41545bd2eeb6a72fe925d29962f73f991a06c0192a540"
+          }
+        },
+        "long_auth": {
+          "scope": "Additional 20000-exchange samples, same two-round fixture-token benchmark binary; original 2000-exchange noise report is preserved.",
+          "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+          "samples": [
+            {
+              "reauths_per_sec": 4669.894,
+              "latency_p50_us": 201.0,
+              "latency_p99_us": 342.2,
+              "latency_max_us": 632.2,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 4579.065,
+              "latency_p50_us": 203.0,
+              "latency_p99_us": 351.0,
+              "latency_max_us": 2100.8,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 4564.773,
+              "latency_p50_us": 202.2,
+              "latency_p99_us": 357.7,
+              "latency_max_us": 737.4,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 4646.485,
+              "latency_p50_us": 200.0,
+              "latency_p99_us": 350.0,
+              "latency_max_us": 598.1,
+              "accepted_auth_bytes": 1260000.0
+            },
+            {
+              "reauths_per_sec": 4588.724,
+              "latency_p50_us": 201.5,
+              "latency_p99_us": 358.5,
+              "latency_max_us": 1278.8,
+              "accepted_auth_bytes": 1260000.0
+            }
+          ],
+          "summary": {
+            "reauths_per_sec": {
+              "median": 4588.724,
+              "relative_mad": 0.00521953379632334,
+              "relative_central_range": 0.014692537620480131,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 351.0,
+              "relative_mad": 0.019088319088319056,
+              "relative_central_range": 0.021937321937321903,
+              "noise_qualified": true
+            }
+          },
+          "binary_sha256": "43622e9e4966932350bc9a7409f32ad2708a41cc49609538c9410df4c6186f95"
+        },
+        "qualified_long_ordinary_comparisons": {
+          "base": {
+            "publishes_per_sec": {
+              "relative_change": -0.022097276663469168,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": 0.06404657933042213,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          },
+          "auth-enabled": {
+            "publishes_per_sec": {
+              "relative_change": 0.0006098601149098215,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": -0.05448118111873568,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "4618fde3f6acf38bed3226498a5ce33b1d11415f",
+        "source_dirty": true,
+        "source_fingerprint": "1a72a302be665d14080365497a2ab4d94cab25c8b32707b4cae0235024034561",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xmqtt_client": {
+            "suite": "xmqtt_client",
+            "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately",
+            "forbid_symbols": [
+              "xmqttClientConnectAuth",
+              "xmqttClientReauthenticate",
+              "xmqttAuthRespond"
+            ],
+            "kinds": {
+              "single": {
+                "text": 428233,
+                "data": 4568,
+                "bss": 10908,
+                "members": 1,
+                "load": 432801,
+                "file": 759288,
+                "path": "out/size/gnu/x64/xmqtt_client/single/xmqtt_single.o",
+                "compile_seconds": 7.480509796005208,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 101758,
+                "data": 192,
+                "bss": 0,
+                "members": 8,
+                "load": 101950,
+                "file": 179664,
+                "path": "release/gnu/x64/xmqtt_client/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 112340,
+                "data": 1496,
+                "bss": 8,
+                "members": 1,
+                "load": 113836,
+                "file": 136272,
+                "path": "release/gnu/x64/xmqtt_client/shared/libxmqtt.so"
+              }
+            }
+          },
+          "xmqtt_client_auth": {
+            "suite": "xmqtt_client_auth",
+            "description": "Optional enhanced AUTH ticket/state/wire/reauth support plus the existing bounded MQTT TCP client and public Core closure",
+            "forbid_symbols": [],
+            "kinds": {
+              "single": {
+                "text": 441249,
+                "data": 4600,
+                "bss": 10908,
+                "members": 1,
+                "load": 445849,
+                "file": 780784,
+                "path": "out/size/gnu/x64/xmqtt_client_auth/single/xmqtt_single.o",
+                "compile_seconds": 7.463228954999067
+              },
+              "static": {
+                "text": 113078,
+                "data": 224,
+                "bss": 0,
+                "members": 8,
+                "load": 113302,
+                "file": 199516,
+                "path": "release/gnu/x64/xmqtt_client_auth/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 124836,
+                "data": 1568,
+                "bss": 8,
+                "members": 1,
+                "load": 126404,
+                "file": 145568,
+                "path": "release/gnu/x64/xmqtt_client_auth/shared/libxmqtt.so"
+              }
+            }
+          }
+        }
+      },
+      "retained_artifacts": {
+        "source_sha256": "f04e51b8ae15a141a3811ab3e85620994085152be08a728191a125fc14f32358",
+        "artifacts": {
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/single/xmqtt_single.o": {
+            "bytes": 759288,
+            "sha256": "463bad09281a00e7519668e159685c8afe6cb912a40a9ff9b33cffd206f61968"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/static/libxmqtt.a": {
+            "bytes": 179664,
+            "sha256": "214dc881a145924252ea9a705f3350f025b3c1fbd6986aea366b640fc2756eb9"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/static/libxrt.a": {
+            "bytes": 612062,
+            "sha256": "1606751a10526f69d887f1952f9f99158b86f18d4c5ffda4e010022906e14a26"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/static/packages.json": {
+            "bytes": 1749,
+            "sha256": "dfc21d564c4ff067e36ff79e6d5b1b249364d1fc3a9bfd8e9e52c17a99f735d2"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/static/test_package_xmqtt": {
+            "bytes": 483728,
+            "sha256": "75cabbe906b1913c94cc00f39c7cbc4b5f12ef60e6ade97840edf2f228da95c5"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/shared/libxmqtt.so": {
+            "bytes": 136272,
+            "sha256": "a38550ecce084fe4c734ae151e75ecfbfaa655e0712227b823627bc7b701c48a"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/shared/libxrt.so": {
+            "bytes": 409448,
+            "sha256": "5bbd18ad969d5fc4a3d5165df9638a115289cfed2b5ea34d9b7cf71e52e43f65"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/shared/packages.json": {
+            "bytes": 1777,
+            "sha256": "d87f07f92098ef6315d3081b1578850d084bc147635d86adc98c8d9fc59c4613"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client/shared/test_package_xmqtt": {
+            "bytes": 17024,
+            "sha256": "273efa89227d1d06b729337e3f123f3676958e38e299046045ceea11c4562291"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/single/xmqtt_single.o": {
+            "bytes": 780784,
+            "sha256": "84762d14e1d4c259d44842ea5d99568c07c897df2888e93d7c0b9c905e2d61bf"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/static/libxmqtt.a": {
+            "bytes": 199516,
+            "sha256": "b20e6deb73dd133e7eee4451b305f6abb137cade3bb07d2faaf457317dd1b88f"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/static/libxrt.a": {
+            "bytes": 612062,
+            "sha256": "1606751a10526f69d887f1952f9f99158b86f18d4c5ffda4e010022906e14a26"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/static/packages.json": {
+            "bytes": 1754,
+            "sha256": "c061762731c0c5194f9e552a14eefc17de074833cc45a25db5e504c1cf389893"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/static/test_package_xmqtt": {
+            "bytes": 497088,
+            "sha256": "3e8a9e3ba7421c699a98f5c71ce8c7d44c37315b1eff0359f89915b62a2c44f2"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/shared/libxmqtt.so": {
+            "bytes": 145568,
+            "sha256": "3494bcc9aa77b6d86992ffa126031de53a8cfca69e6fa32fdcad4be076587a09"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/shared/libxrt.so": {
+            "bytes": 409448,
+            "sha256": "5bbd18ad969d5fc4a3d5165df9638a115289cfed2b5ea34d9b7cf71e52e43f65"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/shared/packages.json": {
+            "bytes": 1782,
+            "sha256": "add812b1c56504463206176ff8466b90ecd1f282d2d5c203c5d519093fba9753"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/size/xmqtt_client_auth/shared/test_package_xmqtt": {
+            "bytes": 17424,
+            "sha256": "beee593f71cbf14f6b5ad297559225e0d0ce9b68285d6cbfb0fd3b339287c753"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/performance/xmqtt_client_auth": {
+            "bytes": 502088,
+            "sha256": "43622e9e4966932350bc9a7409f32ad2708a41cc49609538c9410df4c6186f95"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/ordinary/wsl-qos1-before": {
+            "bytes": 542216,
+            "sha256": "f87446e5a3fc1123419f8ea96b6445c7f82b4052bee5567e6cd20f76062cf362"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/ordinary/wsl-qos1-base": {
+            "bytes": 542272,
+            "sha256": "90a8f6fd45e5ffb6b43e938cbbb862b3617ffe2b9f18f2b0d94f85c070cc9593"
+          },
+          "out/service-extensions/xmqtt-auth-20261109/current-artifacts/wsl/ordinary/wsl-qos1-auth-enabled": {
+            "bytes": 555736,
+            "sha256": "a9bb11962fb627cc99a41545bd2eeb6a72fe925d29962f73f991a06c0192a540"
+          }
+        }
+      }
+    }
+  },
+  "red_green_regressions": {
+    "completion-before-red.log": {
+      "sha256": "72fb754a6958dcd72d66b828699ae54dc0ee18c4f975849eed3ca93791a4cc8e",
+      "output": "[FAIL] completion reservation lost: admission=0\n"
+    },
+    "completion-green.log": {
+      "sha256": "6300b210729337fb8f07cd850c6bcba9d855868cbb95008f6f75befb3c336f6c",
+      "output": "[PASS] MQTT auth completion keeps its reservation until producer/result detachment\n[build] E:\\software\\w64devkit\\bin\\gcc.EXE -std=c11 -Wall -Wextra -Werror -I D:\\GIT\\xrt\\include -O2 -I D:\\GIT\\xrt\\extlibs\\xmqtt\\include D:\\GIT\\xrt\\extlibs\\xmqtt\\tests\\single\\test_single_xmqtt_auth_completion_reservation.c -lws2_32 -o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_auth\\test_single_xmqtt_auth_completion_reservation.exe\n[test] out\\gcc\\native\\xmqtt_client_auth\\test_single_xmqtt_auth_completion_reservation.exe\n[pass] compiler=gcc arch=native platform=windows suite=xmqtt_client_auth\n"
+    },
+    "stale-cancel-before.log": {
+      "sha256": "a32dabfcbc171cfc4e2ad0761cfe73b28128f5a8c38ca8bd6db7627f0cecfd39",
+      "output": "stale_cancel_kept_open=0 state=3 status=3\n"
+    },
+    "stale-cancel-after.log": {
+      "sha256": "4ee805b99e136a8856e511cd71691d7bab5c5d5c36cb96fde6b8422d46518175",
+      "output": "stale_cancel_kept_open=1 state=1 status=0\n"
+    },
+    "late-decision-before.log": {
+      "sha256": "82a99d8d9d1aa268382385bc20933cb80492926d47b307c23a4b3a51b66c5241",
+      "output": "late_decision_final=0 admission=0 expected=-1\nlate_decision_final=1 admission=0 expected=-1\n"
+    },
+    "late-decision-after.log": {
+      "sha256": "8646f359fa9043cad5abb3eb6a004eccfa15309719aff396af55d3be1315bb00",
+      "output": "late_decision_final=0 admission=-1 expected=-1\nlate_decision_final=1 admission=-1 expected=-1\n"
+    }
+  },
+  "strict_release_audit": {
+    "passed": false,
+    "scope": "All-extension strict release-completeness audit, additional to the developing-mode structural checks.",
+    "observations": [
+      {
+        "platform": "windows",
+        "exit_code": 1,
+        "tests": 22,
+        "failed_product_subtests": [
+          "xcron",
+          "xmqtt",
+          "xredis",
+          "xrpc"
+        ],
+        "log_sha256": "0effa1abb18357383605a9c5b3451f89920da11a06f07ad468a88908e61f7573",
+        "open_non_state_gap": "xcron retained tzdb_file system lacks its formal performance profile"
+      },
+      {
+        "platform": "wsl",
+        "exit_code": 1,
+        "tests": 22,
+        "failed_product_subtests": [
+          "xcron",
+          "xmqtt",
+          "xredis",
+          "xrpc"
+        ],
+        "log_sha256": "ba9e0741d562ec9d34d6d95b6d4608bf8df5f59cc5efbf13d7f5ccec25dae82e",
+        "open_non_state_gap": "xcron retained tzdb_file system lacks its formal performance profile"
+      }
+    ],
+    "no_maturity_states_changed": true
+  },
+  "strict_audit_provenance": "Retained pre-keepalive audit; not newly rerun after heartbeat and completion-test changes. The four developing states and known tzdb_file profile gap remain open.",
+  "evidence_directory": "out/service-extensions/xmqtt-auth-20261109",
+  "artifact_index_sha256": "9065f2656c3247fa783f8e708e1d8a0635ce4a54b451ef2932622691f85ae526",
+  "cost_scope": "XRT heap block requests and requested bytes across the entire process including local peer; pool hits count, so these are not libc malloc calls, RSS or native/kernel allocation counts. Ordinary variants share current Core release-publication fix. Preserve every short/long sample and original noise thresholds; no forced baseline/noise acceptance.",
+  "limits": [
+    "unpinned closed-loop loopback fixture-token workloads exclude cryptographic cost, external enhanced-auth broker/algorithm interoperability, fixed-arrival overload and pinned comparator parity",
+    "WSL is not native Linux production acceptance; >=72h native mixed-load endurance remains pending",
+    "TLS/WebSocket, reconnect/session persistence and remaining agreed Redis/RPC/Cron/MQTT scope remain in the active full goal",
+    "strict release-completeness audit remains failed for developing xredis/xrpc/xmqtt/xcron; xcron tzdb_file lacks its formal performance profile",
+    "old pre-keepalive validation/measurement and failed probes are preserved separately; reused94 other-product executions are identified, not represented as newly rerun112"
+  ]
+}

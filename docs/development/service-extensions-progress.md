@@ -8660,3 +8660,61 @@ No performance/native Linux/endurance gate is declared complete. Residual scalar
 scaling/occurrence p95, durable recovery/compensation, complete Redis/RPC/MQTT5.0
 scope/interop and>=72h native mixed-load release gates remain in the full active
 goal. Default development continues directly on master.
+
+
+## 2026-11-09 - bounded MQTT5 enhanced authentication on master
+
+Developed directly in D:/GIT/xrt on master from4618fde3; no new branch/worktree.
+Added optional xmqtt_client_auth on the existing TCP client: initial AUTH rounds,
+application verification of final CONNACK before Ready/application sends/TakeMessage,
+bounded early-publication quarantine, and client-initiated reauthentication with
+an independently owned typed result. Ordinary traffic continues during reauth.
+Unique immutable quota-charged tickets pin Client until release; retained messages
+and results independently outlive Client/Engine. One mailbox/output/exchange,
+finite whole/local deadlines, round/byte/private/object bounds, rollback/OOM,
+partial-frame arbitration and physical wire erasure are explicit contracts.
+
+Initial Keep Alive continues across delayed offloaded challenges; pre-CONNACK
+PINGRESP is rejected, its response budget starts at successful CONNACK and the
+server override uses last control-output time. Final-proof work does not suspend
+heartbeats. Deterministic red/green cases preserve client-legal diagnostic80, stale
+reauth cancellation, late local decisions with a delayed timer owner, and the
+completion/admission race. Old result/producer detachment now reserves the old
+exchange so another admission cannot overwrite it. All failed prototypes remain.
+
+Windows and WSL root MQTT suites pass18 programs each, plus base-client/auth
+example executions and23 independent literal-byte peer cases each. Six root/auth/
+base static/shared consumers per OS pass; the four affected leaf consumers pass
+again after measured artifacts are archived. WSL ASan/UBSan/leak-halt and four
+TSan targets pass; Windows90 tooling and generated/features/API/docs checks pass.
+The earlier xredis30/xrpc30/xcron34 results are reused with6147 non-MQTT input
+hashes unchanged:112 combined root programs per OS, not112 newly rerun programs.
+The current6258-input source map is frozen across validation and measurement;
+pre-keepalive results and sources remain separately archived.
+
+Old public layouts and base Client sizes remain unchanged (Windows1168/WSL1376).
+Compiling auth adds one8-byte private pointer. Auth state144/ticket48/wire32;
+method storage and wire snapshots allocate only for auth instances. Whole-process
+XRT heap requests per fixture reauth are15/1766 requested bytes on Windows and
+20.994/2309.664 on WSL, including the peer; pool hits count, not libc calls/RSS/native
+allocation counts. Single/static/shared sizes and basic-leaf forbidden-symbol
+checks pass, with measured binaries, archives and build logs retained by hash.
+
+All short and long samples remain. Seven alternating300000-QoS1/window32 samples
+per variant qualify throughput on both platforms: before/base/auth-compiled
+medians396390.626/395258.427/397177.918 publishes/s on Windows and
+121127.777/118451.183/121201.648 on WSL, within the original5% regression limit.
+Ordinary P99 comparisons remain unqualified because baseline noise exceeds the
+original3% MAD/6% central-range limits. Formal2000-reauth medians are11228.518/s
+and132.4us P99 on Windows,4511.876/s and392.9us on WSL; the WSL P99 report retains
+two noise failures. Five additional20000-exchange samples qualify throughput/P99
+on both platforms:11121.238/s and147.2us,4588.724/s and351us. These unpinned
+closed-loop fixture-token workloads exclude cryptography, external enhanced-auth
+brokers and fixed-arrival overload; no zero-overhead or production-parity claim.
+
+Evidence: extlibs/xmqtt/tests/results/client-auth-20261109.json. Strict release
+completeness still fails for the four developing products; the retained audit
+also records the xcron tzdb_file performance-profile gap. TLS/WebSocket, reconnect/
+durable sessions, external auth algorithms/broker interop, remaining four-library
+scope and qualified native Linux/>=72h mixed-load acceptance remain in the active
+long-term goal. Future development defaults directly to master.

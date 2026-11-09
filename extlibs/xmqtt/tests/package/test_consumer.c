@@ -6,6 +6,16 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+    xmqttauthconfig Auth;xmqttclient* AuthClient=(xmqttclient*)(uintptr_t)1;
+    if(!xmqttAuthConfigInit(&Auth) || Auth.MaxRounds!=32 || Auth.ResponseTimeout!=5000 ||
+       xmqttClientConnectAuth(NULL,NULL,0,NULL,&Auth,NULL,&AuthClient) || AuthClient!=(xmqttclient*)(uintptr_t)1)return 21;
+    if(xmqttAuthRespond(NULL,NULL)!=XMQTT_ADMISSION_ERROR || xmqttAuthComplete(NULL,true)!=XMQTT_ADMISSION_ERROR ||
+       xmqttClientReauthenticateAsync(NULL,NULL,1,NULL)!=XMQTT_ADMISSION_ERROR || xmqttClientReauthenticate(NULL,NULL,1,NULL)!=XMQTT_ADMISSION_ERROR)return 22;
+    xmqttAuthRelease(NULL);if(xmqttAuthMessage(NULL) || xmqttAuthPhase(NULL)!=XMQTT_AUTH_CHALLENGE)return 23;
+    xrtClearError();
+#endif
+
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT)
     xmqttclientconfig ClientConfig;xmqttclient* Client=(xmqttclient*)(uintptr_t)1;
     if(!xmqttClientConfigInit(&ClientConfig) || ClientConfig.Version!=XMQTT_VERSION_5 ||
