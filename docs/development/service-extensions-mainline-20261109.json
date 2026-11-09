@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "scope": "Confirm all service-extension work is preserved on master and rerun all four current product root modular/single suites on the actual mainline.",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "tested_revision": "26688b14840f88c25662443b43db722125159826",
+  "prior_migration": "docs/development/service-extensions-mainline-20261108.json",
+  "workflow": "docs/development/parallel-branch-integration.md",
+  "old_branch": "codex/service-extensions",
+  "old_branch_is_ancestor_of_master": true,
+  "old_worktree_pending_paths": 26,
+  "old_pending_files_match_preserved_migration_hashes": true,
+  "all_mainline_source_paths_present": true,
+  "old_worktree_retained_as_backup": true,
+  "new_branches": 0,
+  "branch_switches": 0,
+  "production_source_changes": 0,
+  "remote_push": false,
+  "source_identity": {
+    "files": 6244,
+    "both_platform_maps_equal": true,
+    "canonical_sha256": "b66d77e75516cd4165afda6743970e414e18829abb6711cef889bd18dac651f3",
+    "all_inputs_unchanged_during_suites": true
+  },
+  "validation": {
+    "windows": {
+      "root_programs": 108,
+      "products": {
+        "xredis": 30,
+        "xrpc": 30,
+        "xmqtt": 14,
+        "xcron": 34
+      },
+      "all_commands_passed": true,
+      "receipt_file": "out/service-extensions/mainline-confirmation-20261109/windows-receipts.json",
+      "receipt_sha256": "8738a9f374a6eaba868438ee55c7eb92f97c3b4a62837d0c1bb2332a258dd17d",
+      "input_map_sha256": "e3896920e77c75d11a7c4131830329fbff7b11a155d2c52b75764c601b601150",
+      "tooling_tests": 90,
+      "feature_single_api_doc_checks": 16
+    },
+    "wsl": {
+      "root_programs": 108,
+      "products": {
+        "xredis": 30,
+        "xrpc": 30,
+        "xmqtt": 14,
+        "xcron": 34
+      },
+      "all_commands_passed": true,
+      "receipt_file": "out/service-extensions/mainline-confirmation-20261109/wsl-receipts.json",
+      "receipt_sha256": "0ec1f18f263be131d574edf25fac4620c192201b041a9eb186d54da0fd2c5ce1",
+      "input_map_sha256": "f003ae1febad1d872db1efa5bc50536eb235012200dbdebaa46f0e5aed41d1a1",
+      "compiler": "gcc 15",
+      "optimization": "O2",
+      "sanitizers": [
+        "address",
+        "undefined"
+      ],
+      "leak_detection": true,
+      "halt_on_sanitizer_error": true
+    }
+  },
+  "preflight": {
+    "initial_wsl_check_failed_before_tests": true,
+    "cause": "Windows Git defaults to core.autocrlf=true while WSL Git has no corresponding default; raw status initially reported CRLF differences.",
+    "correction": "Per-command core.autocrlf=true for identity/status reads; no repository/global configuration or production file changes.",
+    "evidence": "out/service-extensions/mainline-confirmation-20261109/wsl-initial-preflight-failure.json"
+  },
+  "evidence_directory": "out/service-extensions/mainline-confirmation-20261109/",
+  "validation_scope": "Root modular/single regression programs and Windows tooling/feature/single/API/docs checks. Examples, static/shared packages, performance and native long-duration production acceptance are not rerun in this confirmation; prior dated evidence retains its original scope.",
+  "overall_four_product_development_complete": false
+}
