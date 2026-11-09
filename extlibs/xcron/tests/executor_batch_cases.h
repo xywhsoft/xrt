@@ -13,8 +13,31 @@ static void execBatchReceipts(xcronexecutor* B,const xcronrun* Expected,size_t C
 }
 static int32 execBatchForeign(ptr Raw)
 {execcontext* C=Raw;xcronrun R=execLease(UINT64_MAX,1,C);xcronexecutorissue I;execError(xcronExecutorSubmitBatch(C->Adapter,&R,1,&I),&I,XCRON_EXECUTOR_THREAD,"foreign batch controller rejected before reservation");return 0;}
+/* A drained slot and the publisher's final adapter access are separate duties.
+ * Isolate older successful batches before asserting that rollback creates none. */
+static void execBatchWaitPublishers(xcronexecutor* B)
+{
+    xcronexecutorstats S;double End=xrtTimer()+10;
+    do{testRequire(xcronExecutorInspect(B,&S,NULL) && !S.Active,"previous batch receipts are drained");
+        if(S.Producers){testRequire(xrtTimer()<End,"previous batch publisher tails retire");xrtThreadYield();}
+    }while(S.Producers);
+}
+static void testExecBatchPriorPublisher(void)
+{
+    xexecutor* E=execPool(1,128);execcontext C={.BlockNotify=true};xcronexecutor* B=execAdapter(E,64,&C,true);
+    xcronrun First=execLease(1000,1,&C);testRequire(xcronExecutorSubmit(B,&First,NULL),"prior batch publisher fixture");
+    execUntil(&C.NotifyEntered,1,"prior batch notification holds publisher");execBatchReceipts(B,&First,1,false,false);
+    xcronrun Duplicate[2]={execLease(2000,1,&C),execLease(2000,1,&C)};xcronexecutorissue I;xcronexecutorstats S;
+    execError(xcronExecutorSubmitBatch(B,Duplicate,2,&I),&I,XCRON_EXECUTOR_DUPLICATE,"rollback with an older publisher");
+    testRequire(xcronExecutorInspect(B,&S,NULL) && !S.Active && S.Producers==1 && S.Submitted==1 && S.Drained==1 && S.Rejected==2,"rollback preserves the older real publisher duty");
+    xcronrun Runs[64];for(unsigned J=0;J<64;++J)Runs[J]=execLease(J+1,1,&C);
+    testRequire(xcronExecutorSubmitBatch(B,Runs,64,NULL),"all rollback slots reusable while old publisher lives");
+    testRequire(xcronExecutorInspect(B,&S,NULL) && S.Active==64 && S.Producers==65,"new receipts and old publisher have distinct duties");
+    xrtAtomic32Store(&C.NotifyGate,1,XMEMORY_RELEASE);execBatchReceipts(B,Runs,64,false,false);execAdapterEnd(B);execPoolEnd(E);
+}
 static void testExecBatches(void)
 {
+    testExecBatchPriorPublisher();
     xexecutor* E=execPool(4,128);execcontext C={.Block=true};xcronexecutor* B=execAdapter(E,4,&C,false);xcronexecutorissue I;xcronexecutorstats S;
     xcronrun R[4],Original[4];for(unsigned J=0;J<4;++J){R[J]=execLease(J+1,7,&C);R[J].ScheduledAt=1000+J;R[J].Through=2000+J;R[J].Observed=(xcronclock){3000+J,4000+J};R[J].Flags=J%2?XCRON_RUN_COALESCED:0;Original[J]=R[J];}
     xcronrun Bad[3]={R[0],R[1],R[0]};execError(xcronExecutorSubmitBatch(B,Bad,3,&I),&I,XCRON_EXECUTOR_DUPLICATE,"duplicate batch rolls back reserved prefix");
@@ -34,7 +57,7 @@ static void testExecBatches(void)
     testRequire(!xcronExecutorSubmitBatch(B,Runs,2,(xcronexecutorissue*)Runs) && !xcronExecutorSubmitBatch(B,(const xcronrun*)B,1,&I) && !memcmp(&I,&Prior,sizeof(I)),"batch input/output and owned-arena aliases rejected");xrtClearError();
     memcpy(Duplicates,Runs,sizeof(Runs));Duplicates[63].Id=0;testRequire(!xcronExecutorSubmitBatch(B,Duplicates,64,&I) && !memcmp(&I,&Prior,sizeof(I)),"invalid last run rejects before reservation");xrtClearError();
     xthread* Foreign=xrtThreadCreate(execBatchForeign,&C,0);testRequire(Foreign && xrtThreadWaitFor(Foreign,10000)==XWAIT_OK,"foreign batch controller joined");xrtThreadDestroy(Foreign);
-    for(unsigned Position=1;Position<64;++Position){memcpy(Duplicates,Runs,sizeof(Runs));Duplicates[Position]=Runs[0];execError(xcronExecutorSubmitBatch(B,Duplicates,64,&I),&I,XCRON_EXECUTOR_DUPLICATE,"every duplicate position rolls back its whole prefix");
+    for(unsigned Position=1;Position<64;++Position){execBatchWaitPublishers(B);memcpy(Duplicates,Runs,sizeof(Runs));Duplicates[Position]=Runs[0];execError(xcronExecutorSubmitBatch(B,Duplicates,64,&I),&I,XCRON_EXECUTOR_DUPLICATE,"every duplicate position rolls back its whole prefix");
         testRequire(xcronExecutorInspect(B,&S,NULL) && !S.Active && !S.Producers,"all prefix slots returned");testRequire(xcronExecutorSubmitBatch(B,Runs,64,NULL),"complete capacity reused after each prefix rollback");execBatchReceipts(B,Runs,64,false,false);}
     for(unsigned Position=0;Position<63;++Position){testRequire(xcronExecutorSubmit(B,&Runs[0],NULL),"older scalar lease survives failed batch");memcpy(Duplicates,Runs+1,63*sizeof(*Runs));Duplicates[Position]=Runs[0];execError(xcronExecutorSubmitBatch(B,Duplicates,63,&I),&I,XCRON_EXECUTOR_DUPLICATE,"every active duplicate position preserves existing lease");
         testRequire(xcronExecutorInspect(B,&S,NULL) && S.Active==1 && xcronExecutorSubmitBatch(B,Runs+1,63,NULL),"all remaining slots reusable around older lease");execBatchReceipts(B,Runs,64,false,false);}

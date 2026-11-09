@@ -8900,3 +8900,23 @@ developing and the original goal remains active. MQTT TLS/WebSocket/session/
 expiry/reconnect/durable state, remaining Redis/RPC/Cron scope, native Linux,
 >=72h soak and full release/performance acceptance (including the retained xcron
 tzdb_file formal-profile gap) remain outstanding.
+
+
+## 2026-11-09 - separate Cron batch rollback from older publication tails
+
+Fresh master Windows testing exposed a stale batch-test assertion: receiving
+all physical results returns their slots, while the previous native Drop/Notify
+may still hold a real producer duty. Controlled before/current Core probes hold
+Notify and deterministically observe Active0/Producers1 after duplicate-prefix
+rollback, then reuse all64 slots with Active64/Producers65. Production follows
+the existing documented separate-duty contract.
+
+The test now boundedly retires prior successful publishers before attributing
+zero producers to a newly rejected batch; the original strict rollback assertion
+remains. A controlled blocked-notification regression verifies retained old duties,
+complete capacity reuse and actual destruction/join. Production Cron is unchanged.
+Both actual-master full Cron/waiter suites pass34 programs, WSL with ASan/UBSan/
+leak-halt; two corrected WSL executor programs additionally pass TSan. The original
+Windows failure, prior inputs/binaries, controlled probes and corrected receipts
+are retained. Evidence: extlibs/xcron/tests/results/executor-publication-tail-20261109.json.
+The four-product production/performance goal remains active.
