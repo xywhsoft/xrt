@@ -34,6 +34,19 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_TLS
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#endif
+#endif
+
+/* xmqtt_client_tls_resume 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME
+#define XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS
+#endif
 #endif
 
 /* xmqtt_client_tls 及其直接依赖。 */

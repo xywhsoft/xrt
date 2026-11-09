@@ -2292,6 +2292,53 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_tls_resume",
+      "system": "client",
+      "description": "Local TLS1.3 full/resumed factory-to-CONNACK latency; native RSA/AES128-GCM/X25519 callback-trust fixture, fresh MQTT QoS1 and physical shutdown per setup, not broker/native production acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_tls_resume_setup",
+          "source": "extlibs/xmqtt/bench/bench_client_tls_resume.c",
+          "suite": "xmqtt_client_tls_resume_tests,time",
+          "args": [
+            "100"
+          ],
+          "smoke_args": [
+            "3"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/tests/test.h",
+            "tests/test.h",
+            "extlibs/xmqtt/tests/support/tls_resume_peer.h",
+            "extlibs/xmqtt/tests/support/tls_peer.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h"
+          ],
+          "metrics": {
+            "full_setup_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "full_setup_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "resumed_setup_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "resumed_setup_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -13,8 +13,10 @@ Optional [MQTT5 enhanced authentication](docs/client_auth.md) now provides
 bounded multi-round AUTH, explicit final-proof verification and reauthentication
 with concurrent ordinary traffic. Optional [verified TLS](docs/client_tls.md)
 provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
-numeric, hostname and prepared-address factories. Reconnect, durable sessions
-and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
+numeric, hostname and prepared-address factories. Optional
+[TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
+ticket for explicit subsequent connections. Reconnect, durable sessions,
+cross-connection cache management and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 No broker or production/performance acceptance is claimed.
 

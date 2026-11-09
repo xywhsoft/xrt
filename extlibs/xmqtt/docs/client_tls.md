@@ -50,8 +50,10 @@ Performance profiles select `xmqtt_client_tls`. Its closed-loop local QoS1
 benchmark includes native client/server record crypto and a callback trust fixture;
 handshake is outside the message timer. Report throughput and P50/P99 together.
 It does not establish broker parity, fixed-arrival performance or production
-acceptance. TLS resumption can consume the supplied native Session.Resume but
-ticket extraction/cache/reconnect integration is pending. Native signing backend
+acceptance. TLS resumption can consume the supplied native Session.Resume;
+optional [credential handoff](client_tls_resume.md) captures one latest TLS1.3
+ticket for a subsequent connection. Cross-connection cache management and
+reconnect integration remain pending. Native signing backend
 selection, certificate policy and trust-store lifetime remain explicit choices.
 The product stays developing; pinned brokers, native platform stress and the
 original production/performance release gates remain required.

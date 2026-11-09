@@ -6,6 +6,11 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    xmqttclienttlsresumeinfo ResumeInfo={0};xtlsresume* Resume=(xtlsresume*)(uintptr_t)1;
+    if(xmqttClientTlsResumeInfo(NULL,&ResumeInfo) || xmqttClientTlsTakeResume(NULL,&Resume) || Resume!=(xtlsresume*)(uintptr_t)1)return 27;
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
     xmqttclienttlsconfig TLS;xmqttclient* TLSClient=(xmqttclient*)(uintptr_t)1;
     if(!xmqttClientTlsConfigInit(&TLS) || TLS.MaxMetadataBytes!=65536 || !TLS.ServerNameFromHost || TLS.ClientAuth ||

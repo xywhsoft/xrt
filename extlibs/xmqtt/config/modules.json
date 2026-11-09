@@ -103,7 +103,8 @@
         "xmqtt_client",
         "xmqtt_client_auth",
         "xmqtt_client_dial",
-        "xmqtt_client_tls"
+        "xmqtt_client_tls",
+        "xmqtt_client_tls_resume"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -475,6 +476,28 @@
       ]
     },
     {
+      "name": "xmqtt_client_tls_resume",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME",
+      "depends": [
+        "xmqtt_client_tls"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_tls_resume.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xmqtt/examples/tls_resume/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_tls_resume.md"
+      ]
+    },
+    {
       "name": "xmqtt_client_tls_tests",
       "state": "implemented",
       "feature": null,
@@ -525,13 +548,62 @@
       "docs": []
     },
     {
+      "name": "xmqtt_client_tls_resume_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_tls_resume",
+        "xmqtt_client_tls_tests",
+        "tls_server_resume"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_tls_resume.c",
+        "extlibs/xmqtt/tests/test_client_tls_resume_select.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c"
+      ],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_tls_resume.c"
+      ],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_client_tls_resume_uring_tests",
+      "state": "implemented",
+      "feature": null,
+      "asset_platforms": [
+        "linux"
+      ],
+      "depends": [
+        "xmqtt_client_tls_resume_tests",
+        "net_port_uring"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_tls_resume_uring.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
       "name": "xmqtt_tests",
       "state": "implemented",
       "feature": null,
       "depends": [
         "xmqtt",
         "memory_stats",
-        "xmqtt_client_tls_tests"
+        "xmqtt_client_tls_tests",
+        "xmqtt_client_tls_resume_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -547,7 +619,9 @@
         "extlibs/xmqtt/tests/test_client_auth.c",
         "extlibs/xmqtt/tests/test_client_dial.c",
         "extlibs/xmqtt/tests/test_client_tls.c",
-        "extlibs/xmqtt/tests/test_client_tls_select.c"
+        "extlibs/xmqtt/tests/test_client_tls_select.c",
+        "extlibs/xmqtt/tests/test_client_tls_resume.c",
+        "extlibs/xmqtt/tests/test_client_tls_resume_select.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -565,7 +639,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -588,7 +664,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_retirement.c": "xmqtt_client_dial",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls.c": "xmqtt_client_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_auth.c": "xmqtt_client_tls_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c": "xmqtt_client_tls_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_stats_off.c": "xmqtt_client_tls_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume.c": "xmqtt_client_tls_resume_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c": "xmqtt_client_tls_resume_tests"
       }
     }
   ]

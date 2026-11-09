@@ -9041,3 +9041,56 @@ out/service-extensions/xmqtt-tls-client-20261109. All four products remain
 developing. MQTT ticket cache/reconnect/durable session recovery, WebSocket,
 pinned brokers, qualified deployment P99/native Linux and at least72h native
 production gates remain required by the original goal.
+
+## 2026-11-09: bounded TLS1.3 credential handoff on master
+
+Optional xmqtt_client_tls_resume closes the gap between accepting a supplied
+native Resume and exporting a newly issued credential. A latest-only native
+reference slot provides thread-safe Info/Take, authenticated TLS establishment/
+resumption observation and saturating capture/eviction/rejection counts.
+Cache data bytes (including saved chain DER) use MaxPrivateBytes. Optional
+retention refusal preserves connection health and an older credential; native
+opaque metadata/parsed-chain/queue storage keep separate Core bounds. Take
+transfers ownership/budget to the caller and allocates/copies/posts nothing.
+Native callbacks account/move immutable references and coalesce existing owner
+work; Notify uses that work and its existing entry gate. No Core/runtime change.
+
+Old public TLS config200, ClientConfig272/Info160 and request header104 remain
+fixed. New snapshot48 and selected TLS-private state160 versus88 (+72) are
+measured on Windows/WSL x64; the Client object itself and capture-disabled state
+do not grow. Normal data sends add no adapter allocation. This is not an RSS,
+exact native metadata-size or zero-overhead claim.
+
+3061 frozen actual-mainline inputs: each OS passes31 full MQTT,5 TLS capture-off
+and9 TLS-off programs. WSL uses ASan/UBSan/leak-halt, plus explicit io_uring and
+TSan. Real resumed rounds cover all factories and both MQTT versions, physical
+close/new CONNECT, byte charge/refund, replacement/refusal, disabled capture,
+concurrent takers, Notify take/Close reentry, bad/overlapping outputs, no-allocation
+Info/Take and credentials retained after actual Engine join. Failed example
+indentation and an abort-test assumption (FAILED versus authenticated CLOSED)
+remain recorded; normal authenticated reset assertions remain strict.
+
+Both root and isolated optional-leaf static/shared consumers pass on each OS.
+Each isolated package runs the prior72-case strict TLS/mTLS matrix and4 examples,
+plus36 independent SSL1.3 resume/fallback/name/ALPN/expiry cases and1 two-connection
+example:452 scenario/example executions. The independent server confirms real
+session_reused, literal fresh MQTT traffic and authenticated shutdown. Native
+ResumeOnly refusal exposes no second MQTT session. Credentials stay runtime-only.
+Generated/API/docs/maturity and89 focused tool tests, runnable setup benchmark
+smoke and static size profiles pass. Non-MQTT canonical inputs remain unchanged.
+
+All42 alternating300000-message/window32 TLS data outputs are retained. Original
+noise/regression limits remain3% MAD/6% central range and5% throughput/10% P99.
+All four throughput pairs qualify (Windows before/off -2.15%, off/compiled +2.28%;
+WSL +0.64%/+0.86%) and stay within5%. All P99 pairs remain noise-unqualified.
+Seven100-pair setup runs per OS measure actual full/resumed factory-to-CONNACK
+including caller wake and fresh MQTT readiness. Median run P50 is8.907/1.453ms
+on Windows and8.935/1.304ms on WSL. These callback-trust local peers, unpinned
+closed-loop data and setup samples do not certify broker/deployment performance.
+
+Evidence: extlibs/xmqtt/tests/results/client-tls-resume-20261109.json and
+out/service-extensions/xmqtt-tls-resume-20261109 (new test/evidence storage on C,
+canonical work remains D:/GIT/xrt master). Native mTLS resumption/TLS1.2 ticket
+resumption, cross-connection cache/reconnect, MQTT durable session recovery and
+WebSocket remain pending, alongside the original four-product qualified P99,
+pinned-broker, native Linux and at least72h native production gates.

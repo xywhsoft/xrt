@@ -87,6 +87,12 @@
       "system": "client",
       "suite": "xmqtt_client_tls",
       "description": "Verified TLS client/Dial/native prefix retirement with AES/ChaCha, SHA256/384 and X25519/P256/P384; private-key signing backends are separate"
+    },
+    {
+      "name": "xmqtt_client_tls_resume",
+      "system": "client",
+      "suite": "xmqtt_client_tls_resume",
+      "description": "Optional bounded TLS1.3 credential handoff and authenticated resumed-handshake observation; native private-key signing backends are separate"
     }
   ]
 }

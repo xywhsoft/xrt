@@ -91,6 +91,19 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_TLS
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#endif
+#endif
+
+/* xmqtt_client_tls_resume 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME
+#define XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS
+#endif
 #endif
 
 /* xmqtt_client_tls 及其直接依赖。 */
@@ -1299,6 +1312,53 @@ XMQTT_API bool xmqttClientTlsDialAuth(xnetengine* Engine,xnetresolver* Resolver,
 XMQTT_API bool xmqttClientTlsDialAddressesAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
     const xmqttclientconfig* Config,const xmqttclienttlsconfig* TLS,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Client);
 #endif
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_tls_resume.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_TLS_RESUME_H
+#define XMQTT_CLIENT_TLS_RESUME_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+#error "MQTT TLS resume handoff requires the TLS client"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+/* Thread-safe observation, independent of MQTT CONNACK/authentication readiness.
+ * Established/Resumed describe the authenticated TLS handshake and remain valid
+ * after close. Enabled requires native ResumeLimit>0 and no ClientAuth (the
+ * native mutual-authentication client currently disables ticket publication).
+ * One latest TLS1.3 credential is cached. Captured counts objects taken from
+ * the native queue; Evicted counts replaced cache entries and Rejected counts
+ * local byte-budget refusals. Native queue drops/OOM are outside these counters.
+ * CachedBytes counts ticket/secret/name/ALPN/identity bytes plus peer-chain DER;
+ * it is charged to MaxPrivateBytes while cached. Native opaque metadata and its
+ * bounded queue retain their separate Core limits. Counters saturate.
+ * No public layout depends on optional module selections. Size is output. */
+typedef struct xmqttclienttlsresumeinfo {
+    size_t Size,CachedBytes;uint64 Captured,Evicted,Rejected;
+    bool Enabled,Established,Resumed;
+} xmqttclienttlsresumeinfo;
+XRT_EXTERN_C_BEGIN
+XMQTT_API bool xmqttClientTlsResumeInfo(xmqttclient* Client,xmqttclienttlsresumeinfo* Info);
+/* Transfers the cached native reference to the caller without allocation/copy.
+ * Any thread may call with a stable borrowed Client, including Config.Notify
+ * on its Worker or after ClientWait. False/empty preserves Resume and ambient
+ * error; invalid arguments/non-TLS clients report an error without output change.
+ * Notify coalesces ticket changes in existing Client work, outside native TLS
+ * callbacks. Take refunds the local cached-byte charge; the caller now owns
+ * credential storage/budget and must xrtTlsResumeRelease it. It may outlive
+ * Client/Engine and be supplied as another factory's Session.Resume. That factory
+ * retains it before DNS. Keep Core code resident through its final release.
+ * This is a TLS credential, not MQTT session state or permission to replay any
+ * request. Each connection still performs CONNECT/CONNACK/authentication. There
+ * is no automatic reconnect, persistence or 0-RTT. Native ResumeOnly controls
+ * whether TLS may fall back to a full handshake; identity/ALPN/expiry validation
+ * and certificate policy remain native. Credentials/secrets must not be logged. */
+XMQTT_API bool xmqttClientTlsTakeResume(xmqttclient* Client,xtlsresume** Resume);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3296,9 +3356,19 @@ typedef struct xmqttsendaliasrequest {
 } xmqttsendaliasrequest;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
 typedef struct xmqtttlsfence {xmqttrequest *Previous,*Next;uint64 Cut;} xmqtttlsfence;
-typedef struct xmqtttlsplan {xtlssession* Session;xtlsstreamconfig Config;} xmqtttlsplan;
+typedef struct xmqtttlsplan {xtlssession* Session;xtlsstreamconfig Config;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    bool Capture;
+#endif
+} xmqtttlsplan;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+typedef struct xmqtttlsresumestate {xmqttclienttlsresumeinfo Info;xtlsresume* Value;bool Notify;} xmqtttlsresumestate;
+#endif
 typedef struct xmqtttlsstate {
     xmqtttlsplan Plan;xtlsstream* Stream;xmqttrequest *Head,*Tail;size_t Bytes,Calls;bool Open;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    xmqtttlsresumestate Resume;
+#endif
 } xmqtttlsstate;
 #endif
 struct xmqttmessage {xatomic32 Refs;xmqttbox Box;xmqttpacket Packet;xmqttmessage* Next;xmqttproperty Props[];};
@@ -4045,11 +4115,65 @@ static xmqttclientstatus xmqttDialFailure(xnetresult Result,const xerror* Cause)
     return Kind==XERR_MEMORY?XMQTT_STATUS_MEMORY:(Kind==XERR_RANGE || Kind==XERR_AGAIN)?XMQTT_STATUS_LIMIT:XMQTT_STATUS_TRANSPORT;
 }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+static void xmqttTlsResumeIncrement(uint64* Value)
+{if(*Value!=UINT64_MAX)++*Value;}
+static bool xmqttTlsResumeBytes(xtlsresume* R,size_t* Bytes)
+{
+    xtlsresumeinfo I;if(!xrtTlsResumeInfo(R,&I))return false;
+    const size_t Sizes[]={I.Ticket.Size,I.Secret.Size,I.ServerName.Size,I.Protocol.Size,I.PeerIdentity.Size};size_t N=0;
+    for(size_t At=0;At<sizeof(Sizes)/sizeof(*Sizes);++At){if(Sizes[At]>SIZE_MAX-N)return false;N+=Sizes[At];}
+    size_t Count=xrtTlsResumePeerCertificateCountV1(R);
+    for(size_t At=0;At<Count;++At){const xx509cert* Cert=xrtTlsResumePeerCertificateV1(R,At);if(!Cert || Cert->Raw.Size>SIZE_MAX-N)return false;N+=Cert->Raw.Size;}
+    *Bytes=N;return true;
+}
+/* Native already owns bounded immutable credentials. Move one reference; no
+ * new node, credential copy, Work item or cross-thread native Session call. */
+static void xmqttTlsTicket(xtlsstream* S,ptr Data)
+{
+    xmqttclient* C=Data;xmqtttlsresumestate* R=&C->TLS->Resume;xtlssession* Session=xrtTlsStreamSession(S);
+    for(size_t At=0;At<XTLS_CLIENT_RESUME_LIMIT_MAX;++At){xtlsresume* Next=xrtTlsClientTakeResume(Session);if(!Next)break;
+        size_t Bytes=0;bool Valid=xmqttTlsResumeBytes(Next,&Bytes);xtlsresume* Drop=Next;
+        xrtMutexLock(&C->Gate);xmqttTlsResumeIncrement(&R->Info.Captured);
+        if(Valid && R->Info.Enabled && Bytes<=C->Config.MaxPrivateBytes-C->Info.PrivateBytes+R->Info.CachedBytes){
+            Drop=R->Value;if(Drop)xmqttTlsResumeIncrement(&R->Info.Evicted);
+            C->Info.PrivateBytes-=R->Info.CachedBytes;C->Info.PrivateBytes+=Bytes;R->Value=Next;R->Info.CachedBytes=Bytes;
+        }else xmqttTlsResumeIncrement(&R->Info.Rejected);
+        R->Notify=true;xrtMutexUnlock(&C->Gate);xrtTlsResumeRelease(Drop);
+    }
+    xmqttClientWake(C);
+}
+static bool xmqttTlsResumeOutput(xmqttclient* C,ptr Out,size_t Bytes)
+{
+    if(!C || !Out || !xrtMemRangeValid(Out,Bytes) || !C->TLS ||
+       xrtMemRangesOverlap(Out,Bytes,C,sizeof(*C)) || xrtMemRangesOverlap(Out,Bytes,C->TLS,sizeof(*C->TLS)))
+        return xmqttClientError(XERR_ARGUMENT,"invalid TLS resume client/output or owner overlap");
+    size_t Scratch=(size_t)(C->Props-C->Scratch)+C->Config.Codec.MaxProperties;
+    if(xrtMemRangesOverlap(Out,Bytes,C->Scratch,Scratch*sizeof(*C->Scratch)))return xmqttClientError(XERR_ARGUMENT,"TLS resume output overlaps client scratch");
+    return true;
+}
+XMQTT_API bool xmqttClientTlsResumeInfo(xmqttclient* C,xmqttclienttlsresumeinfo* Out)
+{
+    if(!xmqttTlsResumeOutput(C,Out,sizeof(*Out)))return false;
+    xrtMutexLock(&C->Gate);xmqttclienttlsresumeinfo I=C->TLS->Resume.Info;xrtMutexUnlock(&C->Gate);*Out=I;return true;
+}
+XMQTT_API bool xmqttClientTlsTakeResume(xmqttclient* C,xtlsresume** Out)
+{
+    if(!xmqttTlsResumeOutput(C,Out,sizeof(*Out)))return false;
+    xrtMutexLock(&C->Gate);xmqtttlsresumestate* R=&C->TLS->Resume;xtlsresume* Value=R->Value;
+    if(Value){R->Value=NULL;C->Info.PrivateBytes-=R->Info.CachedBytes;R->Info.CachedBytes=0;}
+    xrtMutexUnlock(&C->Gate);if(!Value)return false;*Out=Value;return true;
+}
+#endif
 static void xmqttTlsWritten(xtlsstream* S,ptr Data)
 {(void)S;xmqttClientWake(Data);}
 static void xmqttTlsOpen(xtlsstream* S,ptr Data)
 {
     xmqttclient* C=Data;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    bool Resumed=xrtTlsClientResumed(xrtTlsStreamSession(S));
+    xrtMutexLock(&C->Gate);C->TLS->Resume.Info.Established=true;C->TLS->Resume.Info.Resumed=Resumed;xrtMutexUnlock(&C->Gate);
+#endif
     if(!xrtTlsStreamSetWriteProgress(S,xmqttTlsWritten))xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());
     else C->TLS->Open=true;
     xmqttClientWake(C);
@@ -4071,7 +4195,13 @@ static void xmqttTlsClosed(xtlsstream* S,xnetresult Result,const xerror* Cause,p
     xrtTlsStreamDestroy(S);
 }
 static const xtlsstreamownershipv1 xmqttTlsEvents={sizeof(xtlsstreamownershipv1),
-    {xmqttTlsOpen,xmqttTlsRead,xmqttTlsEnd,xmqttTlsWritten,xmqttTlsWritten,xmqttTlsClosed,NULL},xmqttClientDrop,&xmqttPrivateOps};
+    {xmqttTlsOpen,xmqttTlsRead,xmqttTlsEnd,xmqttTlsWritten,xmqttTlsWritten,xmqttTlsClosed,
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    xmqttTlsTicket
+#else
+    NULL
+#endif
+    },xmqttClientDrop,&xmqttPrivateOps};
 static bool xmqttTlsAttach(xmqttclient* C,xnetstream* S)
 {
     if(!xrtNetStreamRef(S))return false; /* Client's independent retirement handle. */
@@ -4743,10 +4873,17 @@ static void xmqttClientStop(xmqttclient* C)
 static void xmqttClientWork(xnetworker* Worker,ptr Data)
 {
     (void)Worker;xmqttclient* C=Data;
-    xrtMutexLock(&C->Gate);C->Posted=false;bool Started=C->Started;xmqttrequest* Disconnect=C->Disconnect;xrtMutexUnlock(&C->Gate);
+    xrtMutexLock(&C->Gate);C->Posted=false;bool Started=C->Started;xmqttrequest* Disconnect=C->Disconnect;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    bool ResumeNotify=Started && C->TLS && C->TLS->Resume.Notify;if(ResumeNotify)C->TLS->Resume.Notify=false;
+#endif
+    xrtMutexUnlock(&C->Gate);
     if(!Started){xmqttClientDrop(C);return;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
     if(C->TLS){C->TLS->Bytes=C->Config.WriteBytes;C->TLS->Calls=C->Config.WorkPackets;}
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    if(ResumeNotify)xmqttClientNotify(C);
 #endif
     xmqttClientCollect(C);
     if(Disconnect){
@@ -4821,7 +4958,11 @@ static void xmqttClientFree(xmqttclient* C)
     xrtNetDialDestroy(C->Dial);
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
-    if(C->TLS){if(C->TLS->Stream || C->TLS->Head)abort();xrtTlsSessionDestroy(C->TLS->Plan.Session);xrtFree(C->TLS);}
+    if(C->TLS){if(C->TLS->Stream || C->TLS->Head)abort();xrtTlsSessionDestroy(C->TLS->Plan.Session);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+        xrtTlsResumeRelease(C->TLS->Resume.Value);
+#endif
+        xrtFree(C->TLS);}
 #endif
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
     if(C->SendAliases){for(size_t Page=0;Page<256;++Page){xmqttsendaliasslot* Slots=C->SendAliases->Pages[Page];if(!Slots)continue;
@@ -4884,7 +5025,11 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     C->Peer.SendPacketBytes=XMQTT_PACKET_MAX_BYTES;C->Peer.KeepAlive=Connect->Body.Connect.KeepAlive;
     C->SetupDeadline=xmqttClientDeadline(Now,K.SetupTimeout);C->NextPing=C->PingDeadline=C->TimerAt=INFINITY;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
-    if(TLS){C->TLS=xrtCalloc(1,sizeof(*C->TLS));if(!C->TLS)goto Fail;C->TLS->Plan=*TLS;}
+    if(TLS){C->TLS=xrtCalloc(1,sizeof(*C->TLS));if(!C->TLS)goto Fail;C->TLS->Plan=*TLS;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+        C->TLS->Resume.Info.Size=sizeof(C->TLS->Resume.Info);C->TLS->Resume.Info.Enabled=TLS->Capture;
+#endif
+    }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(AuthConfig){C->Auth=xrtCalloc(1,AuthBytes);if(!C->Auth)goto Fail;C->Auth->Config=*(const xmqttauthconfig*)AuthConfig;
@@ -4985,7 +5130,11 @@ static bool xmqttTlsPlanCreate(const xmqttclienttlsconfig* K,xstrview Host,xmqtt
         return xmqttClientError(XERR_ARGUMENT,"invalid TLS client authentication descriptor");
     Plan->Session=K->ClientAuth?xrtTlsClientCreateAuthV1(&S,K->ClientAuth,NULL):xrtTlsClientCreate(&S,NULL);
     if(!Plan->Session)return false;
-    Plan->Config=K->Stream;return true;
+    Plan->Config=K->Stream;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
+    Plan->Capture=K->Session.ResumeLimit!=0 && !K->ClientAuth;
+#endif
+    return true;
 }
 #endif
 static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Host,uint16 Port,uint64 Affinity,
