@@ -104,3 +104,9 @@ Windows worker-start P99 is around1ms while the polling consumer's receipt P99
 is mostly16ms; WSL normal receipt P99 is1..4ms. The consumer wait mechanism needs
 isolated investigation. Reports retain79/62 failed noise checks. This does not
 establish production tails, native Linux endurance or complete cold-path costs.
+
+The shared [completion readiness](service_readable.md) API avoids mandatory
+consumer sleep-polling while preserving full selected metadata. Use
+WaitReadable followed by DrainSelected; another consumer can win a drain race.
+New matched polling/readiness workloads explicitly guard the first-arrival
+CPU/heap counter boundary while retaining the earlier polling driver unchanged.

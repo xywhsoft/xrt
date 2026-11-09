@@ -12,7 +12,9 @@ both actual instances of nominal 01:30. Each worker reads the immutable nominal
 label and complete candidate count from its execution token. The owner groups
 already-ready work up to two leases without waiting for a full group.
 
-The host owns the worker pool and business Data. Shutdown joins the owner,
+The consumer uses `xcronServiceWaitReadable` before draining each selected result;
+it does not sleep-poll or wait for a full batch. The host owns the worker pool
+and business Data. Shutdown joins the owner,
 consumes every accepted command and owned completion error, and reaps the full
 retirement before releasing Data or the pool. A successful Add reply means job
 admission; later calculation faults are reported by full job Info/retirement.

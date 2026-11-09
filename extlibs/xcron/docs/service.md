@@ -212,3 +212,8 @@ A later Reap and light ADD complete while it remains pending, calculation work
 continues without output reservations, and close returns original Data without
 a job ID. The same boundary witness fails on the archived old library. The test
 does not infer algorithmic progress from a timing threshold or a fake reply.
+
+Use [WaitReadable](service_readable.md) to block a consumer until completion
+metadata is available, then call Drain. It shares the existing condition and
+preserves the reserved output/lifetime model. Readiness is a hint under competing
+consumers, not a reservation. Ordinary and selected services use the same API.

@@ -82,5 +82,6 @@ static void testSSPolicies(void)
 #include "service_selected_control_cases.h"
 #include "service_selected_concurrency_cases.h"
 #include "service_selected_budget_cases.h"
+#include "service_readable_cases.h"
 int main(void)
-{testSSPolicies();testSSMissingAndWindows();testSSRetryMetadata();testSSPhysicalAndCredits();testSSCommandsAndModes();testSSSelfWaitAndClock();testSSBudgetsAndWarm();testSSFutureFault();testSSQueuedPoliciesAndStaleUnion();testSSConcurrency();testSSNativeQueuedCancel();testSSBudgetedTurns();testSSFactoryArguments();puts("[PASS] selected live service: full fold/missing/global-UNKNOWN, nominal retries/cancel/Data tails, tickets/self-waits/clock faults,512 concurrent queries, five-budget fairness, OOM and2048 zero-heap cycles");return 0;}
+{testServiceReadable(true);testSSPolicies();testSSMissingAndWindows();testSSRetryMetadata();testSSPhysicalAndCredits();testSSCommandsAndModes();testSSSelfWaitAndClock();testSSBudgetsAndWarm();testSSFutureFault();testSSQueuedPoliciesAndStaleUnion();testSSConcurrency();testSSNativeQueuedCancel();testSSBudgetedTurns();testSSFactoryArguments();puts("[PASS] selected live service: full fold/missing/global-UNKNOWN, nominal retries/cancel/Data tails, tickets/self-waits/clock faults,512 concurrent queries, five-budget fairness, OOM and2048 zero-heap cycles");return 0;}

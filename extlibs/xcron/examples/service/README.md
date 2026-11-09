@@ -10,7 +10,8 @@ python tools/build.py --compiler gcc --manifest extlibs/xcron/config/modules.jso
 The `examples_service_main` program schedules the next whole UTC second on a
 dedicated owner and a borrowed two-worker executor. Expected output is `[PASS]`
 with one actual callback and one success result. It usually takes under a second.
-It joins before consuming output, reclaims original business data through a
+It waits on `xcronServiceWaitReadable` for physical completion metadata, joins
+before consuming that output, reclaims original business data through a
 retirement receipt, drains metadata, destroys the service, then closes/joins the
 host pool. No files or background threads remain. Every owned optional error in a
 general consumer must be released with `xrtErrorFree`; this success example asserts

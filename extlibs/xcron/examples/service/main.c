@@ -15,7 +15,7 @@ int main(void)
     if(!xcronServiceAddAsync(S,&J,&Q,NULL))return 3;
     xcronZoneRelease(Z);xcronreply Reply;
     if(xcronServiceCollect(S,Q,10000,&Reply,NULL)!=XWAIT_OK || Reply.Code || Reply.Error)return 4;
-    double End=xrtTimer()+10;while(!xrtAtomic32Load(&Calls,XMEMORY_ACQUIRE)){if(xrtTimer()>End)return 5;xrtSleep(1);}
+    if(xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK || !xrtAtomic32Load(&Calls,XMEMORY_ACQUIRE))return 5;
     /* Join does not require consuming reserved outputs. No user Data is freed here. */
     if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return 6;
     xcronservicestats Stats;if(!xcronServiceInspect(S,&Stats,NULL) || Stats.ActiveNativeTimers)return 10;

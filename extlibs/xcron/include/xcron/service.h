@@ -142,6 +142,21 @@ XCRON_API xwaitresult xcronServiceCollect(xcronservice* Service,xcronrequestid R
  * RetryAttempts includes the initial attempt. AdmissionMilliseconds=0 disables
  * retries; elapsed/attempt bounds produce EXPIRED, never silent replay. */
 XCRON_API bool xcronServiceDrain(xcronservice* Service,xcronservicecompletion* Completed,size_t Capacity,size_t* Count,xcronserviceissue* Issue);
+/* Both service modes: waits until completion metadata can be drained, without
+ * consuming a record, credit, Error or Data duty. Timeout>=0 is one total
+ * monotonic budget, including contention/unrelated/spurious wakeups;0 polls.
+ * Ready wins over timeout and terminal failure. Stopped+empty returns XWAIT_ERROR
+ * with sticky Failure.Code/Cause, or CLOSED after an ordinary stop. A failed
+ * terminal wait installs the original owned diagnostic reference (possibly NULL
+ * after diagnostic OOM), never a wrapper around caller ambient error. Closing
+ * alone is not EOF while physical/unsent outcomes can still arrive. Pending
+ * positive waits reject the owner and ANY borrowed-executor callback. Success
+ * and normal timeout preserve ambient error. Concurrent consumers can drain a
+ * readiness indication before this caller: recheck/drain and wait again as needed.
+ * No allocation/new waiter object; existing condition state is reused. Join all
+ * callers before caller-exclusive Destroy; readiness grants no concurrent-Destroy
+ * safety or ownership of the next result. */
+XCRON_API xwaitresult xcronServiceWaitReadable(xcronservice* Service,int64 Timeout,xcronserviceissue* Issue);
 /* Asynchronously stops future dispatch/admission. Always cancels unsent leases;
  * CancelRuns=true also requests accepted tokens, and can upgrade an earlier close.
  * No forced termination and no close of a borrowed shared Executor. A current

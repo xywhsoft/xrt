@@ -23,7 +23,7 @@ int main(void)
     xcronZoneRelease(Z);Z=NULL;xcronselectedreply R;if(xcronServiceCollectSelected(S,Pending,10000,&R,NULL)!=XWAIT_OK)goto Done;
     Pending=0;bool Admitted=R.Code==XCRON_SERVICE_OK && R.Job && !R.Data && !R.Error;Job=R.Job;xrtErrorFree(R.Error);if(!Admitted)goto Done;
     {unsigned Seen=0;double Deadline=xrtTimer()+10;
-        while(Seen!=3){xcronselectedservicecompletion D;size_t N;if(!xcronServiceDrainSelected(S,&D,1,&N,NULL) || xrtTimer()>Deadline)goto Done;if(!N){xrtThreadYield();continue;}
+        while(Seen!=3){if(xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK)goto Done;xcronselectedservicecompletion D;size_t N;if(!xcronServiceDrainSelected(S,&D,1,&N,NULL) || xrtTimer()>Deadline)goto Done;if(!N){xrtThreadYield();continue;}
             unsigned K=D.Completion.ScheduledAt==C.First?0:1;bool OK=D.Completion.Job==Job && D.Completion.ScheduledAt==(K?C.Last:C.First) && !(Seen&(1u<<K)) && D.Completion.Result==XCRON_RUN_SUCCEEDED && !D.Completion.Error && D.Candidates==2 && D.Local.Hour==1 && D.Local.Minute==30;xrtErrorFree(D.Completion.Error);if(!OK)goto Done;Seen|=1u<<K;
         }
     }

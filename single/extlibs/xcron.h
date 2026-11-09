@@ -1121,6 +1121,21 @@ XCRON_API xwaitresult xcronServiceCollect(xcronservice* Service,xcronrequestid R
  * RetryAttempts includes the initial attempt. AdmissionMilliseconds=0 disables
  * retries; elapsed/attempt bounds produce EXPIRED, never silent replay. */
 XCRON_API bool xcronServiceDrain(xcronservice* Service,xcronservicecompletion* Completed,size_t Capacity,size_t* Count,xcronserviceissue* Issue);
+/* Both service modes: waits until completion metadata can be drained, without
+ * consuming a record, credit, Error or Data duty. Timeout>=0 is one total
+ * monotonic budget, including contention/unrelated/spurious wakeups;0 polls.
+ * Ready wins over timeout and terminal failure. Stopped+empty returns XWAIT_ERROR
+ * with sticky Failure.Code/Cause, or CLOSED after an ordinary stop. A failed
+ * terminal wait installs the original owned diagnostic reference (possibly NULL
+ * after diagnostic OOM), never a wrapper around caller ambient error. Closing
+ * alone is not EOF while physical/unsent outcomes can still arrive. Pending
+ * positive waits reject the owner and ANY borrowed-executor callback. Success
+ * and normal timeout preserve ambient error. Concurrent consumers can drain a
+ * readiness indication before this caller: recheck/drain and wait again as needed.
+ * No allocation/new waiter object; existing condition state is reused. Join all
+ * callers before caller-exclusive Destroy; readiness grants no concurrent-Destroy
+ * safety or ownership of the next result. */
+XCRON_API xwaitresult xcronServiceWaitReadable(xcronservice* Service,int64 Timeout,xcronserviceissue* Issue);
 /* Asynchronously stops future dispatch/admission. Always cancels unsent leases;
  * CancelRuns=true also requests accepted tokens, and can upgrade an earlier close.
  * No forced termination and no close of a borrowed shared Executor. A current
@@ -4501,6 +4516,7 @@ struct xcronservice {
     uint32 RetryCount;
     uint32 AdmissionHead,AdmissionTail,AdmissionCount;
     uint8 CommandBits,RunBits;
+    uint32 ReadWaiters;
     xcronclock Now;
     bool HasClock;
     uint64 SubmitAttempts,RejectedSubmissions,Retries,AdmissionExpired;
@@ -4622,8 +4638,12 @@ static bool xcronServiceFinish(xcronservice* S,uint32 I,xcronrunresult Result,xc
     R->Done=(xcronservicecompletion){.Id=R->Run.Id,.Job=R->Run.Job,.ScheduledAt=R->Run.ScheduledAt,.Through=R->Run.Through,.Observed=R->Run.Observed,.Flags=R->Run.Flags,.Result=Result,.Code=Code,.Executor=Executor,.Attempts=R->Attempts,.Error=Error};
     /* No borrowed Run.Data escapes in the ready metadata record. */
     R->Run.Data=NULL;R->Next=XCRON_SERVICE_NONE;xrtMutexLock(&S->Mutex);
+    bool Notify=S->DoneHead==XCRON_SERVICE_NONE && S->ReadWaiters;
     if(S->DoneTail==XCRON_SERVICE_NONE)S->DoneHead=I;else S->Reservations[S->DoneTail].Next=I;S->DoneTail=I;
-    ++S->Stats.ReadyCompletions;xcronServiceIncrement(&S->Stats.Published);xrtMutexUnlock(&S->Mutex);return true;
+    ++S->Stats.ReadyCompletions;xcronServiceIncrement(&S->Stats.Published);
+    bool Signalled=!Notify || xrtCondBroadcast(&S->Changed);xrtMutexUnlock(&S->Mutex);
+    if(!Signalled)xcronServiceFault(S,XCRON_SERVICE_SYSTEM);
+    return true;
 }
 static void xcronServiceCancelUnsent(xcronservice* S,xcronjobid Job)
 {
@@ -5037,6 +5057,24 @@ XCRON_API bool xcronServiceReapAsync(xcronservice* S,xcronrequestid* Request,xcr
 }
 static bool xcronServiceCurrent(const xcronservice* S)
 {return xrtThreadCurrentId()==S->Owner || xrtExecutorIsCurrent(S->Config.Executor);}
+XCRON_API xwaitresult xcronServiceWaitReadable(xcronservice* S,int64 Timeout,xcronserviceissue* Issue)
+{
+    if(Timeout<0 || !xcronServiceArgs(S,NULL,0,Issue)){xcronServiceFail(XCRON_SERVICE_ARGUMENT,XERR_NONE,NULL);return XWAIT_ERROR;}
+    double Start=xrtTimer();if(!xrtMutexLock(&S->Mutex)){xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);return XWAIT_ERROR;}
+    for(;;){
+        if(S->DoneHead!=XCRON_SERVICE_NONE){xrtMutexUnlock(&S->Mutex);xcronServiceOK(Issue);return XWAIT_OK;}
+        if(S->Stopped){xcronserviceissue Failure=S->Stats.Failure;xerror* Error=xrtErrorRef(S->FatalError);xrtMutexUnlock(&S->Mutex);xrtSetErrorTake(Error);
+            if(Failure.Code){if(Issue)*Issue=Failure;return XWAIT_ERROR;}
+            xcronServiceFail(XCRON_SERVICE_CLOSED,XERR_NONE,Issue);return XWAIT_ERROR;}
+        if(!Timeout){xrtMutexUnlock(&S->Mutex);xcronServiceOK(Issue);return XWAIT_TIMEOUT;}
+        if(xcronServiceCurrent(S)){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_THREAD,XERR_NONE,Issue);return XWAIT_ERROR;}
+        double Used=(xrtTimer()-Start)*1000.0;if(Used>=(double)Timeout){xrtMutexUnlock(&S->Mutex);xcronServiceOK(Issue);return XWAIT_TIMEOUT;}
+        if(S->ReadWaiters==UINT32_MAX){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_LIMIT,XERR_NONE,Issue);return XWAIT_ERROR;}
+        double Remaining=(double)Timeout-Used;int64 Wait=Remaining>1000.0?1000:(int64)ceil(Remaining);if(Wait<1)Wait=1;
+        ++S->ReadWaiters;xwaitresult Result=xrtCondWaitFor(&S->Changed,&S->Mutex,Wait);--S->ReadWaiters;
+        if(Result==XWAIT_ERROR){xrtMutexUnlock(&S->Mutex);xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);return XWAIT_ERROR;}
+    }
+}
 static xwaitresult xcronServiceCollectValue(xcronservice* S,xcronrequestid Id,int64 Timeout,void* Reply,xcronserviceissue* Issue)
 {
     double Start=xrtTimer();if(!xrtMutexLock(&S->Mutex)){xcronServiceFail(XCRON_SERVICE_SYSTEM,xrtErrorKind(xrtGetError()),Issue);return XWAIT_ERROR;}

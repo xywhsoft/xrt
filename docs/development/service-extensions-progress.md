@@ -8582,3 +8582,81 @@ Next: bounded efficient completion-readiness wait/isolation of polling delay and
 strict initial counter-window alignment, then remaining compensation/recovery,
 Redis/RPC/MQTT5.0 scope/interop and qualified native performance/>=72h gates.
 The full goal remains active; default development stays on master.
+
+
+## 2026-11-09 - bounded completion readiness and matched consumer latency
+
+Developed directly on master from62d41646. Added xcronServiceWaitReadable for
+ordinary/selected modes using the existing mutex/condition. It is nonconsuming:
+no record, reserved credit, owned Error or Data duty transfers. One finite total
+monotonic timeout survives unrelated/spurious wakeups; ready wins over timeout
+or terminal failure. Stopped-empty reports CLOSED or exact sticky Code/Cause and
+an owned original diagnostic reference (possibly NULL), never caller ambient as
+another task's cause. Pending positive owner/ANY borrowed-pool waits reject
+THREAD; poll/already-ready observations are allowed. Closing alone is not EOF.
+All callers finish before caller-exclusive Destroy.
+
+The existing owner only broadcasts on empty->nonempty publication when actual
+readers register. Native notification failure preserves the physical record and
+starts controlled sticky SYSTEM shutdown. Wait errors unregister, counters reject
+saturation, bounded condition chunks preserve total timeout. No runtime/queue/
+per-wait allocation or new retained bytes. The4-byte counter uses existing private
+padding at Windows820/Linux1100, immediately before Now824/1104. Old public sizes,
+owner880/1160 or extended888/1168, command440, reservation184 and checked offsets
+remain. Normalized source checks prove only the counter, new API and Finish
+publication changed in the old service owner. Core/other runtime sources and all
+prior benchmark drivers/profiles remain unchanged.
+
+Both full xcron/event-waiter suites pass34 programs; plain/selected modular/single
+ASAN/UBSAN/leak-halt and TSan checks pass. New deterministic single diagnostics
+observe actual blocked registrations, prove one broadcast wakes both and no
+nonempty/no-reader broadcast, inject notification/wait failure, saturate the
+counter, exercise diagnostic OOM and a missing fatal diagnostic. Shared tests
+cover physical/unsent cancellation, Error/Data/credit ownership, EOF/fatal,
+ready-before-self-wait,512 competing receipts, total timeout under unrelated and
+spurious wakes and512 warmed cycles with flat requested heap counts. Ordinary/
+selected examples and root plus isolated static/shared consumers exercise the
+new export. Both oracle results exactly match the prior422-zone2026e evidence;
+Windows90 tool and generated/docs checks pass. Both leaf single/static/shared
+size/forbidden-symbol checks pass.
+
+An error-identity regression first reproduced stale caller error wrapping. The
+fix installs the service's owned original diagnostic reference; the red/fixed
+preserved-source replay is retained on both OSes. Earlier interrupted validation
+is preserved, not accepted. A final test-only refinement retains caller Error
+references through comparison; original/new test snapshots and source maps are
+retained and all five affected programs rerun (native, ASAN/UBSAN/leak, TSan).
+All production/config/generated inputs remain identical across full validation,
+refined checks and final measurements; final2562-input maps match. Original and
+controlled replay artifacts are distinguished. A replay helper initially checked
+stdout rather than testRequire's stderr; helper log/source/binary retained and
+only that helper was rerun after correction, without masking the expected red.
+
+Six new matched-source fixed-arrival profiles preserve1024 expected callback/
+nominal/physical-receipt pairs and checksum524800 per process. They add an explicit
+poll/readiness policy and final positive first-arrival margin after CPU/heap
+snapshots, preserving the earlier polling driver unchanged. Both platforms retain
+all36 actual warmup/formal outputs and six executable hashes. Windows four-worker
+poll/readiness receipt P99 medians15/1ms; WSL2/1ms. Readiness1/2/4/8-worker receipt
+P99 medians are1ms in both reports. Slow-consumer start/receipt P99 medians are
+1221/2221ms and1201/2201ms; no delayed arrivals are omitted. Original5 repeats,
+1 warmup, MAD3%/central6% and5%/10% regression settings remain; reports retain39/31
+failed latency noise checks. Zero latency samples are sub-resolution observations,
+not zero time. CPU/native/borrowed/bootstrap/copy/synchronization costs retain
+their explicit windows and limits; no zero-overhead claim.
+
+Existing no-readiness throughput driver/profiles were also rerun unchanged:
+Windows scalar1/4 952210.915/588446.226 and batch1/4 1036442.282/988661.291 exec/s;
+WSL787753.360/164600.964 and830591.710/591651.423. Each platform retains24 native
+outputs/four binaries, including6/14 failed noise checks. WSL scalar4 remains
+unstable, so separately compiled immutable before/current service objects use the
+same unchanged driver in one warmup plus five ABBA cycles (24 native outputs).
+Medians193144.472/188165.5225 exec/s differ-2.6%; relative MAD7.08%/3.61%, central
+range13.75%/7.22%, both above original thresholds. This is insufficient for a
+qualified regression or no-overhead conclusion; all samples/both binaries remain.
+
+Evidence: extlibs/xcron/tests/results/service-readable-20261109.json.
+No performance/native Linux/endurance gate is declared complete. Residual scalar
+scaling/occurrence p95, durable recovery/compensation, complete Redis/RPC/MQTT5.0
+scope/interop and>=72h native mixed-load release gates remain in the full active
+goal. Default development continues directly on master.

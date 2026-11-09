@@ -34,7 +34,7 @@ static bool consumerService(void)
     if(!xcronServiceAddAsync(S,&J,&Q,NULL) || xcronServiceCollect(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || R.Error)return false;
     xcronservicestats Backend;if(!xcronServiceInspect(S,&Backend,NULL) || Backend.Waiter.StorageBytes!=sizeof(xeventwaiter) || Backend.ActiveNativeTimers!=Backend.Waiter.NativeTimers)return false;
     xcronZoneRelease(Z);size_t N=0;xcronservicecompletion D;double Limit=xrtTimer()+10;
-    while(!N){if(!xcronServiceDrain(S,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
+    while(!N){if(xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK || !xcronServiceDrain(S,&D,1,&N,NULL) || xrtTimer()>Limit)return false;if(!N)xrtThreadYield();}
     if(D.Result!=XCRON_RUN_SUCCEEDED || D.Error || D.Job!=R.Job || !xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;
     xcronretired Retired;bool Found=false;
     return xcronServiceReapStopped(S,&Retired,&Found,NULL) && Found && Retired.Id==R.Job && xcronServiceDestroy(S,NULL) && xrtExecutorClose(Pool) && xrtExecutorWaitFor(Pool,10000)==XWAIT_OK && xrtExecutorDestroy(Pool);
@@ -47,7 +47,7 @@ static bool consumerSelectedService(void)
     xcronservice* S=NULL;xcronzone* Z=NULL;xcronjobconfig J={.RunningLimit=1};xcronrequestid Q;xcronselectedreply R;
     if(!xcronServiceCreateSelected(&C,&S,NULL) || !xcronZoneCreatePosix(XRT_STR_LITERAL("UTC0"),XCRON_ZONE_TZIF3,&Z,NULL) || !xcronExpressionCompile(XRT_STR_LITERAL("* * * * * *"),XCRON_SECONDS6,&J.Expression,NULL))return false;
     J.Zone=Z;if(!xcronServiceAddSelectedAsync(S,&J,(xcrondeliverypolicy){XCRON_FOLD_LAST,XCRON_MISSING_REJECT},&Q,NULL) || xcronServiceCollectSelected(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || !R.Job || R.Error)return false;
-    xcronZoneRelease(Z);xcronjobid Job=R.Job;xcronselectedservicecompletion D;size_t N=0;double End=xrtTimer()+10;while(!N){if(!xcronServiceDrainSelected(S,&D,1,&N,NULL) || xrtTimer()>End)return false;if(!N)xrtThreadYield();}
+    xcronZoneRelease(Z);xcronjobid Job=R.Job;xcronselectedservicecompletion D;size_t N=0;double End=xrtTimer()+10;while(!N){if(xcronServiceWaitReadable(S,10000,NULL)!=XWAIT_OK || !xcronServiceDrainSelected(S,&D,1,&N,NULL) || xrtTimer()>End)return false;if(!N)xrtThreadYield();}
     if(D.Completion.Job!=Job || D.Completion.ScheduledAt || D.Completion.Result!=XCRON_RUN_SUCCEEDED || D.Completion.Error || D.Candidates!=1 || D.Local.Year!=1 || !xcronServiceInfoAsync(S,Job,&Q,NULL) || xcronServiceCollectSelected(S,Q,10000,&R,NULL)!=XWAIT_OK || R.Code || R.Error || R.Info.Policy.Fold!=XCRON_FOLD_LAST)return false;
     if(!xcronServiceClose(S,false,NULL) || xcronServiceWaitFor(S,10000,NULL)!=XWAIT_OK)return false;
     xcronselectedretired Retired;bool Found;xcronselectedservicestats T;

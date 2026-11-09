@@ -603,7 +603,8 @@
       ],
       "single_tests": [
         "extlibs/xcron/tests/single/test_single_xcron_service.c",
-        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c"
+        "extlibs/xcron/tests/single/test_single_xcron_service_waiter.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service_readable.c"
       ],
       "examples": [
         "extlibs/xcron/examples/service/main.c"
@@ -615,7 +616,8 @@
         "extlibs/xcron/docs/service.md",
         "extlibs/xcron/docs/coverage.md",
         "extlibs/xcron/docs/api/reference.md",
-        "extlibs/xcron/examples/service/README.md"
+        "extlibs/xcron/examples/service/README.md",
+        "extlibs/xcron/docs/service_readable.md"
       ]
     },
     {
@@ -642,7 +644,8 @@
       ],
       "benchmarks": [
         "extlibs/xcron/bench/bench_service_selected.c",
-        "extlibs/xcron/bench/bench_service_arrivals.c"
+        "extlibs/xcron/bench/bench_service_arrivals.c",
+        "extlibs/xcron/bench/bench_service_readable.c"
       ],
       "docs": [
         "extlibs/xcron/docs/service_selected.md",
@@ -697,7 +700,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_occurrence.c",
         "extlibs/xcron/tests/single/test_single_xcron_scheduler_selected.c",
         "extlibs/xcron/tests/single/test_single_xcron_executor_selected.c",
-        "extlibs/xcron/tests/single/test_single_xcron_service_selected.c"
+        "extlibs/xcron/tests/single/test_single_xcron_service_selected.c",
+        "extlibs/xcron/tests/single/test_single_xcron_service_readable.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -718,7 +722,8 @@
         "extlibs/xcron/tests/single/test_single_xcron_tzdb_file.c": "xcron_tzdb_file",
         "extlibs/xcron/tests/single/test_single_xcron_delivery.c": "xcron_delivery",
         "extlibs/xcron/tests/single/test_single_xcron_occurrence.c": "xcron_occurrence",
-        "extlibs/xcron/tests/single/test_single_xcron_service_selected.c": "xcron_service_selected"
+        "extlibs/xcron/tests/single/test_single_xcron_service_selected.c": "xcron_service_selected",
+        "extlibs/xcron/tests/single/test_single_xcron_service_readable.c": "xcron_service"
       }
     }
   ]

@@ -137,6 +137,11 @@ while verifying every expected callback, nominal receipt and Data retirement.
 They complement the synthetic throughput fixture; production qualification is
 still open.
 
+Both live service modes support [completion readiness](docs/service_readable.md)
+through `xcronServiceWaitReadable`, sharing the existing condition without
+consuming metadata or Data duties. The matched polling/readiness profiles retain
+complete event accounting and an explicit first-arrival counter-window guard.
+
 The optional `xcron_executor_selected` adapter copies selected nominal metadata
 into bounded per-slot storage, exposes it through an immutable callback token
 view and returns complete physical receipts. Read its

@@ -247,9 +247,10 @@ static void testServiceFold(void)
     testRequire(xcronZoneResolve(Z,&Civil,At,2,&Count,NULL)==XCRON_ZONE_FOUND && Count==2,"two actual fold occurrences");xrtAtomic64Store(&F.Wall,(uint64)At[1],XMEMORY_RELAXED);xcronserviceconfig C=serviceConfig(E,&F);serviceStart(&F,&C);xcronjobconfig J=serviceJob(Z,&F,At[0],At[1]);testRequire(xcronExpressionCompile(XRT_STR_LITERAL("30 1 * * *"),XCRON_UNIX5,&J.Expression,NULL),"fold expression");serviceAdd(F.Service,&J);xcronZoneRelease(Z);
     xcronservicecompletion A=serviceDone(F.Service),B=serviceDone(F.Service);testRequire(A.ScheduledAt==At[0] && B.ScheduledAt==At[1] && A.Result==XCRON_RUN_SUCCEEDED && B.Result==XCRON_RUN_SUCCEEDED,"live owner delivers every actual fold instance once");serviceStop(&F);serviceClear(&F);servicePoolEnd(E);
 }
+#include "service_readable_cases.h"
 int main(void)
 {
-    testServiceBudgetedTurns();testServiceDeferredFailure();
+    testServiceReadable(false);testServiceBudgetedTurns();testServiceDeferredFailure();
     testServiceResourceBytes();testServiceCredits();testServiceCommands();testServiceRetries();testServiceReentryAndClock();testServicePhysicalResults();testServiceConcurrency();testServiceBudgetAndWarm();testServiceRealClock();testServiceWallJumps();testServiceArguments();testServiceCloseRace();testServiceFold();
     puts("[PASS] live cron service: reserved outputs/commands/data duties/retry bounds/self-wait/clock failure/physical cancellation/512 concurrent commands/OOM/2048 zero-heap cycles/real clock");return 0;
 }
