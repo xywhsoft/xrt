@@ -6,6 +6,11 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    xmqttclientinbox* Inbox=NULL;xmqttclientinboxinfo InboxInfo;xmqttclientinboxconfig InboxConfig;
+    if(!xmqttClientInboxConfigInit(&InboxConfig) || !xmqttClientInboxCreate(&InboxConfig,&Inbox) ||
+       !xmqttClientInboxInfo(Inbox,&InboxInfo) || InboxInfo.Attached || InboxInfo.Objects || InboxInfo.Messages || !xmqttClientInboxDestroy(Inbox))return 30;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_SESSION)
     xmqttsessionconfig SessionConfig;xmqttsession* Session=NULL;xmqttsessioninfo SessionInfo;
     if(!xmqttSessionConfigInit(&SessionConfig))return 28;

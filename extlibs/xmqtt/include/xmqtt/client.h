@@ -205,6 +205,8 @@ XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* Client,
 /* Transfer one queued message reference, false/unchanged on empty. Overfull
  * receive/object budgets close rather than silently dropping a packet. Already
  * queued messages remain available after Close; Destroy releases untaken ones.
+ * Optional Client Inbox factories instead preserve their shared queue through
+ * Client/Engine destruction; Take then consumes that same cross-Client queue.
  * Server DISCONNECT's reason is in Info, not added to the PUBLISH queue. */
 XMQTT_API bool xmqttClientTakeMessage(xmqttclient* Client,xmqttmessage** Message);
 XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* Message);

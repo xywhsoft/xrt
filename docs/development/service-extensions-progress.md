@@ -9326,3 +9326,55 @@ Continue with Client attachment and pending payload/Future ownership. Full goal
 stays active, all products developing. Evidence: extlibs/xmqtt/tests/results/
 frame-refs-20261110.json and out/service-extensions/xmqtt-frame-refs-20261110.
 No branch operation or remote push.
+
+## 2026-11-10: passive MQTT Inbox attached to real Client
+
+Six optional APIs preserve accepted PUBLISH FIFO and one physical result/message
+box quota across sequential Clients and Engines. Attach remains exclusive through
+actual Client Destroy; failed constructors refund it. Old queued/taken messages,
+CONNACK/ACK metadata and result boxes continue consuming shared bounds. Destroying
+Inbox releases untaken messages; retained outputs outlive Inbox and all Engines.
+No new worker/Future/timer/runtime or per-message allocation/copy. Enabled enqueue
+adds an Inbox gate beside the existing Client gate; Take uses one Inbox gate.
+The opt-in Client field is one pointer; ordinary Client-only builds omit Inbox
+code/field. Public x64 Client config272/Info160/SessionFrame72 are unchanged;
+Inbox config48/Info48. Fixed Inbox+quota metadata: two managed allocations,
+Win184 / WSL328 requested bytes, fully refunded. Native/allocator/Future/error
+storage remains outside box accounting; these gauges are not process memory.
+
+Final Windows and WSL each pass35 MQTT root programs,2 minimal Inbox programs,
+the two-Engine example,4 root/leaf static/shared consumers and4 actual packaged
+Client suites. WSL includes ASan/UBSan/leak,2 TSan forms and5 repeated sanitized
+lifecycle runs. Both MQTT versions cover incoming QoS0/1/2, FIFO across3 Engines,
+held old results, count/byte limits, exact byte refunds, exclusive lease, failed
+constructor reuse, OOM cleanup, concurrent consumers and notification reentry.
+Generated/features/API/docs/maturity and89 focused tools pass. Only Client changes
+among9 MQTT archive members; all139 Core members/OS and8 other MQTT members agree.
+
+Initial suites pass33 root programs/OS before explicit Inbox root registration.
+Windows leaf single compilation warns about an uninitialized test local; its
+zero initialization and explicit root test/owner assets are the only final
+source-map delta. Both final35-program suites are rerun. An example selector
+initially targets an unregistered inherited test; removing it runs the example.
+A performance helper name and metadata probe include are corrected before useful
+runs. Earlier logs, binary snapshots and corrected recipes remain preserved.
+
+Seven matched samples/one warmup compare parent/current ordinary Client and
+current Inbox/ordinary using the same current driver source and one common
+parent Core archive. For each comparison, qualified throughput pairs are Win0/4;
+WSL2/4. Qualified P99 pairs are Win0/4; WSL ordinary0/4, Inbox1/4. Qualified pairs
+meet unchanged5% throughput/10% P99 bounds. All raw throughput/P99 medians also
+meet these bounds; raw maximum latency sometimes grows substantially. Matrices
+remain noise-unqualified under3% MAD/6% central-range bounds. Eight registered
+profile smoke cases/OS are execution checks, not performance qualification.
+This closed-loop local QoS1 echo includes peer/observer/final PUBACKs, not fixed-
+arrival network tails, independent broker parity or native/72h release acceptance.
+
+Inbox currently attaches to numeric raw TCP. It preserves application payloads,
+not MQTT protocol session state: full Session attachment/reconnect, TLS/Dial/Auth
+composition and durable recovery remain required. The four-product goal stays
+active and all products developing. Development continues on D:/GIT/xrt master.
+Old26-file worktree backup is unchanged, archived and already integrated; no
+new pending backup paths. No branch operation or push. Evidence:
+extlibs/xmqtt/tests/results/client-inbox-20261110.json and
+out/service-extensions/xmqtt-inbox-20261110 (C-backed artifacts).

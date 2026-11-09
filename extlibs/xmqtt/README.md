@@ -22,6 +22,9 @@ numeric, hostname and prepared-address factories. Optional
 ticket for explicit subsequent connections. Reconnect, durable sessions,
 cross-connection cache management and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
+Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages
+and one shared physical object quota through sequential Client/Engine destruction.
+It currently composes with numeric TCP and does not restore MQTT protocol state.
 No broker or production/performance acceptance is claimed.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt

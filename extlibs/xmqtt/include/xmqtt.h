@@ -31,4 +31,5 @@
 #include <xmqtt/client_dial.h>
 #include <xmqtt/client_tls.h>
 #include <xmqtt/client_tls_resume.h>
+#include <xmqtt/client_inbox.h>
 #endif

@@ -97,6 +97,19 @@
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#endif
+#endif
+
+/* xmqtt_client_inbox 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
+#define XMQTT_FEATURE_XMQTT_CLIENT_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
 #endif
 
 /* xmqtt_session 及其直接依赖。 */
@@ -1108,6 +1121,8 @@ XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* Client,
 /* Transfer one queued message reference, false/unchanged on empty. Overfull
  * receive/object budgets close rather than silently dropping a packet. Already
  * queued messages remain available after Close; Destroy releases untaken ones.
+ * Optional Client Inbox factories instead preserve their shared queue through
+ * Client/Engine destruction; Take then consumes that same cross-Client queue.
  * Server DISCONNECT's reason is in Info, not added to the PUBLISH queue. */
 XMQTT_API bool xmqttClientTakeMessage(xmqttclient* Client,xmqttmessage** Message);
 XMQTT_API const xmqttpacket* xmqttMessagePacket(const xmqttmessage* Message);
@@ -1528,6 +1543,59 @@ XMQTT_API void xmqttSessionPacketRelease(const xmqttsessionpacket* Packet);
  * Retained packets may outlive it; they keep only bounded state/allocator code.
  * A connected session must first End, so destruction cannot hide live state loss. */
 XMQTT_API bool xmqttSessionDestroy(xmqttsession* Session);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_inbox.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_INBOX_H
+#define XMQTT_CLIENT_INBOX_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) && !defined(XMQTT_FEATURE_XMQTT_CLIENT)
+#error "MQTT Client Inbox requires Client"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+typedef struct xmqttclientinbox xmqttclientinbox;
+typedef struct xmqttclientinboxconfig {
+    size_t Size;xmqttversion Version;
+    size_t MaxObjects,MaxObjectBytes,MaxMessages,MaxMessageBytes;
+} xmqttclientinboxconfig;
+typedef struct xmqttclientinboxinfo {
+    size_t Size;bool Attached;
+    size_t Messages,MessageBytes,Objects,ObjectBytes;
+} xmqttclientinboxinfo;
+XRT_EXTERN_C_BEGIN
+/* Passive, Engine-independent receive queue and shared result/message quota.
+ * Defaults match Client: MQTT5, 512 objects/16 MiB, 64 queued/8 MiB.
+ * Config is copied; fixed object/mutex/quota metadata is outside these budgets. */
+XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* Config);
+XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Inbox);
+/* One numeric TCP Client at a time. Version and the four Client object/message
+ * caps must exactly match Inbox. The exclusive attachment lasts through actual
+ * Client Destroy, including failed/closed connections; failure changes no output.
+ * Only accepted PUBLISH messages enter Inbox. Ready/ACK/result objects share its
+ * quota, including retained objects from earlier Clients and Engines.
+ * This preserves application messages, not MQTT session protocol state: CONNACK
+ * SessionPresent without local state still fails. No automatic reconnect/replay.
+ * TLS/Dial/Auth composition and session attachment remain separate work. */
+XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+/* Thread-safe with stable owner. Transfer one reference, false/unchanged when
+ * empty. ClientTakeMessage consumes this same queue, including earlier messages.
+ * No callback runs under Inbox locks. Take works while offline; neither Take
+ * returns MQTT protocol credit. Message bytes are the existing owned allocation. */
+XMQTT_API bool xmqttClientInboxTake(xmqttclientinbox* Inbox,xmqttmessage** Message);
+/* Queue and object gauges are separately sampled; objects include retained
+ * taken messages/results, while Messages counts only queued PUBLISH messages.
+ * ClientInfo reports these shared gauges and per-connection Received/counters. */
+XMQTT_API bool xmqttClientInboxInfo(xmqttclientinbox* Inbox,xmqttclientinboxinfo* Info);
+/* Reject while attached, preserving Inbox. Stop all concurrent Inbox API entries
+ * before Destroy. Releases untaken messages; taken messages/results may outlive
+ * Inbox and every Client/Engine. NULL is accepted. */
+XMQTT_API bool xmqttClientInboxDestroy(xmqttclientinbox* Inbox);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3541,6 +3609,12 @@ typedef struct xmqtttlsstate {
 } xmqtttlsstate;
 #endif
 struct xmqttmessage {xatomic32 Refs;xmqttbox Box;xmqttpacket Packet;xmqttmessage* Next;xmqttproperty Props[];};
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+struct xmqttclientinbox {
+    xmutex Gate;xmqttclientinboxconfig Config;xmqttquota* Quota;
+    xmqttclient* Client;xmqttmessage *Head,*Tail;size_t Count,Bytes;
+};
+#endif
 struct xmqttrequest {
     xatomic32 Refs,NativeRefs;
     xmqttclient* Client;xmqttrequest *Next,*Previous,*HashNext;
@@ -3586,6 +3660,9 @@ struct xmqttclient {
     uint64 Timer;unsigned PingOffset;bool PingOutstanding;
     xmqttrequest* Disconnect;bool DisconnectReserved,ApplicationClose,ApplicationFinal,ApplicationNativeClosing;
     xmutex RetirementLock;xcond RetirementReady;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    xmqttclientinbox* Inbox;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     xmqttauthstate* Auth;
 #endif
@@ -3715,6 +3792,12 @@ static void xmqttQuotaDrop(xmqttquota* Q)
 {
     if(Q && xrtAtomic32FetchSub(&Q->Refs,1,XMEMORY_ACQ_REL)==1){xrtMutexUnit(&Q->Gate);xrtFree(Q);}
 }
+static xmqttquota* xmqttQuotaCreate(size_t Count,size_t Bytes)
+{
+    xmqttquota* Q=xrtCalloc(1,sizeof(*Q));if(!Q)return NULL;
+    if(!xrtMutexInit(&Q->Gate)){xrtFree(Q);return NULL;}
+    xrtAtomic32Init(&Q->Refs,1);Q->MaxCount=Count;Q->MaxBytes=Bytes;return Q;
+}
 static void* xmqttBoxAllocate(xmqttquota* Q,size_t Bytes,xmqttclientstatus* Failure)
 {
     xrtMutexLock(&Q->Gate);
@@ -3770,6 +3853,53 @@ XMQTT_API void xmqttMessageRelease(const xmqttmessage* Message)
     if(M->Packet.Type==XMQTT_PACKET_AUTH || M->Packet.Type==XMQTT_PACKET_CONNACK)xrtSecureZero((ptr)M->Packet.Wire.Data,M->Packet.Wire.Size);
 #endif
     xmqttBoxFree(M,M->Box);}}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+XMQTT_API bool xmqttClientInboxConfigInit(xmqttclientinboxconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox config output");
+    *K=(xmqttclientinboxconfig){sizeof(*K),XMQTT_VERSION_5,512,16u*1024u*1024u,64,8u*1024u*1024u};return true;
+}
+XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqttclientinbox** Out)
+{
+    xmqttclientinboxconfig K;
+    if(Config){if(!xrtMemRangeValid(Config,sizeof(*Config)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox config");K=*Config;}else xmqttClientInboxConfigInit(&K);
+    if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || K.Size!=sizeof(K) ||
+       (K.Version!=XMQTT_VERSION_5 && K.Version!=XMQTT_VERSION_311) || K.MaxObjects<2 || K.MaxObjects>UINT32_MAX/8u ||
+       !K.MaxObjectBytes || !K.MaxMessages || !K.MaxMessageBytes)return xmqttClientError(XERR_ARGUMENT,"invalid Inbox limits");
+    xmqttclientinbox* I=xrtCalloc(1,sizeof(*I));if(!I)return false;
+    if(!xrtMutexInit(&I->Gate)){xrtFree(I);return false;}
+    I->Config=K;I->Quota=xmqttQuotaCreate(K.MaxObjects,K.MaxObjectBytes);
+    if(!I->Quota){xrtMutexUnit(&I->Gate);xrtFree(I);return false;}*Out=I;return true;
+}
+static bool xmqttInboxPut(xmqttclientinbox* I,xmqttmessage* M)
+{
+    xrtMutexLock(&I->Gate);bool Full=I->Count==I->Config.MaxMessages || M->Box.Bytes>I->Config.MaxMessageBytes-I->Bytes;
+    if(!Full){if(I->Tail)I->Tail->Next=M;else I->Head=M;I->Tail=M;++I->Count;I->Bytes+=M->Box.Bytes;}
+    xrtMutexUnlock(&I->Gate);return !Full;
+}
+XMQTT_API bool xmqttClientInboxTake(xmqttclientinbox* I,xmqttmessage** Out)
+{
+    if(!I || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox message output");
+    xrtMutexLock(&I->Gate);xmqttmessage* M=I->Head;
+    if(M){I->Head=M->Next;if(!I->Head)I->Tail=NULL;--I->Count;I->Bytes-=M->Box.Bytes;M->Next=NULL;}
+    xrtMutexUnlock(&I->Gate);if(!M)return false;*Out=M;return true;
+}
+XMQTT_API bool xmqttClientInboxInfo(xmqttclientinbox* I,xmqttclientinboxinfo* Out)
+{
+    if(!I || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid Inbox info output");
+    xrtMutexLock(&I->Gate);xmqttclientinboxinfo V={sizeof(V),I->Client!=NULL,I->Count,I->Bytes,0,0};xrtMutexUnlock(&I->Gate);
+    xrtMutexLock(&I->Quota->Gate);V.Objects=I->Quota->Count;V.ObjectBytes=I->Quota->Bytes;xrtMutexUnlock(&I->Quota->Gate);*Out=V;return true;
+}
+XMQTT_API bool xmqttClientInboxDestroy(xmqttclientinbox* I)
+{
+    if(!I)return true;
+    xrtMutexLock(&I->Gate);
+    if(I->Client){xrtMutexUnlock(&I->Gate);return xmqttClientError(XERR_STATE,"Inbox still attached to Client");}
+    xmqttmessage* M=I->Head;xrtMutexUnlock(&I->Gate);
+    while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
+    xmqttQuotaDrop(I->Quota);xrtMutexUnit(&I->Gate);xrtFree(I);return true;
+}
+#endif
 static void xmqttReadyFree(ptr Value,ptr Context)
 {(void)Context;xmqttreadybox* B=Value;xmqttMessageRelease(B->Value.Connack);xrtErrorFree((xerror*)B->Value.Cause);xmqttBoxFree(B,B->Box);}
 static void xmqttWriteFree(ptr Value,ptr Context)
@@ -4663,8 +4793,12 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
     if(Qos==1 && !xmqttReceivePrepare(C))return false;
     xmqttmessage* M=xmqttMessageCopy(C,P,&Failure,Resolved.Size?&Resolved:NULL);if(!M){xmqttClientFail(C,Failure,Failure==XMQTT_STATUS_MEMORY?xrtGetError():NULL);return false;}
     xrtMutexLock(&C->Gate);
-    bool Full=C->Info.Messages==C->Config.MaxMessages || M->Box.Bytes>C->Config.MaxMessageBytes-C->Info.MessageBytes;
-    if(!Full){if(C->MessageTail)C->MessageTail->Next=M;else C->MessageHead=M;C->MessageTail=M;++C->Info.Messages;C->Info.MessageBytes+=M->Box.Bytes;++C->Info.Received;}
+    bool Full;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    if(C->Inbox){Full=!xmqttInboxPut(C->Inbox,M);if(!Full)++C->Info.Received;}else
+#endif
+    {Full=C->Info.Messages==C->Config.MaxMessages || M->Box.Bytes>C->Config.MaxMessageBytes-C->Info.MessageBytes;
+    if(!Full){if(C->MessageTail)C->MessageTail->Next=M;else C->MessageHead=M;C->MessageTail=M;++C->Info.Messages;C->Info.MessageBytes+=M->Box.Bytes;++C->Info.Received;}}
     xrtMutexUnlock(&C->Gate);
     if(Full){xmqttMessageRelease(M);xmqttClientFail(C,XMQTT_STATUS_LIMIT,NULL);return false;}
     if(Qos==1){xmqttreceiveflow* F=C->ReceiveFlow;F->Identifiers[(F->Head+F->Count)%F->Capacity]=P->Identifier;++F->Count;}
@@ -5140,9 +5274,13 @@ static void xmqttClientFree(xmqttclient* C)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(C->Auth){xrtSecureZero(C->Input,C->InputCapacity);xrtSecureZero(C->Auth->MethodBytes,C->Auth->Method.Size);xrtFree(C->Auth);}
 #endif
-    xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
+    xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    if(C->Inbox){xmqttclientinbox* I=C->Inbox;xrtMutexLock(&I->Gate);if(I->Client!=C)abort();I->Client=NULL;xrtMutexUnlock(&I->Gate);}
+#endif
+    (void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
-static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan)
+static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan,const void* TlsPlan,void* InboxPlan)
 {
     bool Planned=false;size_t HostBytes=0,TlsBytes=0;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
@@ -5163,6 +5301,13 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
        !K.MaxMessages || !K.MaxMessageBytes || !K.MaxSetupBytes || K.InitialInputBytes<5 || K.InitialInputBytes>K.Codec.MaxPacketBytes ||
        !K.ReadBytes || !K.WriteBytes || !K.WriteChunkBytes || !K.WorkPackets || K.SetupTimeout<0 || K.PingTimeout<=0 || K.CloseTimeout<=0)
         return xmqttClientError(XERR_ARGUMENT,"invalid MQTT client configuration");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    xmqttclientinbox* Inbox=InboxPlan;
+    if(Inbox && (K.Version!=Inbox->Config.Version || K.MaxObjects!=Inbox->Config.MaxObjects || K.MaxObjectBytes!=Inbox->Config.MaxObjectBytes ||
+       K.MaxMessages!=Inbox->Config.MaxMessages || K.MaxMessageBytes!=Inbox->Config.MaxMessageBytes))return xmqttClientError(XERR_ARGUMENT,"Client and Inbox limits differ");
+#else
+    (void)InboxPlan;
+#endif
     if(!xrtNetStreamConfigValid(&K.Stream))return false;
     size_t WireBytes=0;bool Valid=K.Version==XMQTT_VERSION_5?xmqttPacketSize5(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes):xmqttPacketSize311(Connect,XMQTT_CLIENT_TO_SERVER,&K.Codec,&WireBytes);
     if(!Valid)return false;
@@ -5205,9 +5350,13 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
         C->Auth->Method=(xstrview){C->Auth->MethodBytes,Method.Size};if(Method.Size)memcpy(C->Auth->MethodBytes,Method.Data,Method.Size);
         C->Auth->Active=C->Auth->AwaitServer=true;C->Auth->Deadline=C->SetupDeadline;C->Auth->StepDeadline=INFINITY;}
 #endif
-    C->Quota=xrtMalloc(sizeof(*C->Quota));if(!C->Quota)goto Fail;memset(C->Quota,0,sizeof(*C->Quota));
-    if(!xrtMutexInit(&C->Quota->Gate)){xrtFree(C->Quota);C->Quota=NULL;goto Fail;}
-    xrtAtomic32Init(&C->Quota->Refs,1);C->Quota->MaxCount=K.MaxObjects;C->Quota->MaxBytes=K.MaxObjectBytes;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    if(Inbox){xrtMutexLock(&Inbox->Gate);
+        if(Inbox->Client){xrtMutexUnlock(&Inbox->Gate);xmqttClientError(XERR_STATE,"Inbox already attached");goto Fail;}
+        Inbox->Client=C;C->Inbox=Inbox;C->Quota=Inbox->Quota;(void)xrtAtomic32FetchAdd(&C->Quota->Refs,1,XMEMORY_RELAXED);xrtMutexUnlock(&Inbox->Gate);
+    }else
+#endif
+    {C->Quota=xmqttQuotaCreate(K.MaxObjects,K.MaxObjectBytes);if(!C->Quota)goto Fail;}
     C->Input=xrtMalloc(K.InitialInputBytes);if(!C->Input)goto Fail;C->InputCapacity=K.InitialInputBytes;
     xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
     C->ReadyBox=xmqttBoxAllocate(C->Quota,sizeof(xmqttreadybox)+Connect->Body.Connect.ClientId.Size,&Failure);if(!C->ReadyBox){if(Failure==XMQTT_STATUS_LIMIT)xmqttClientError(XERR_RANGE,"ready result budget");goto Fail;}
@@ -5246,7 +5395,11 @@ Fail:
     xrtPromiseDestroy(C->ReadyPromise);C->ReadyPromise=NULL;if(C->ReadyBox)xmqttReadyFree(C->ReadyBox,NULL);xmqttStartupRetire(C);xmqttClientFree(C);return false;
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL);}
+{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,NULL);}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Out)
+{double Now=xrtTimer();if(!Inbox)return xmqttClientError(XERR_ARGUMENT,"Inbox is NULL");return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL,NULL,Inbox);}
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
 static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 {
@@ -5257,7 +5410,7 @@ static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
 XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Out)
 {
     double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
-    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL);
+    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL);
 }
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
@@ -5329,11 +5482,11 @@ static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnet
     P.Config.Family=K.Family;P.Config.Timeout=K.Timeout;P.Config.FallbackDelay=K.FallbackDelay;P.Config.MaxAttempts=K.MaxAttempts;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
     xmqtttlsplan T={0};if(TLS && !xmqttTlsPlanCreate(TLS,Host,Out,&T))return false;
-    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL);
+    bool OK=xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS?&T:NULL,NULL);
     if(!OK)xrtTlsSessionDestroy(T.Session);
     return OK;
 #else
-    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS);
+    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P,TLS,NULL);
 #endif
 }
 XMQTT_API bool xmqttClientDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
@@ -5544,6 +5697,9 @@ XMQTT_API xmqttclientadmission xmqttClientDisconnect(xmqttclient* C,const xmqttp
 XMQTT_API bool xmqttClientTakeMessage(xmqttclient* C,xmqttmessage** Out)
 {
     if(!C || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid message output");
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    if(C->Inbox)return xmqttClientInboxTake(C->Inbox,Out);
+#endif
     xrtMutexLock(&C->Gate);xmqttmessage* M=C->MessageHead;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     if(C->Auth && !C->Auth->Verified)M=NULL;
@@ -5555,6 +5711,9 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* C,xmqttclientinfo* Out)
 {
     if(!C || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"invalid client info output");
     xrtMutexLock(&C->Gate);xmqttclientinfo I=C->Info;xrtMutexUnlock(&C->Gate);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
+    if(C->Inbox){xrtMutexLock(&C->Inbox->Gate);I.Messages=C->Inbox->Count;I.MessageBytes=C->Inbox->Bytes;xrtMutexUnlock(&C->Inbox->Gate);}
+#endif
     xrtMutexLock(&C->Quota->Gate);I.Objects=C->Quota->Count;I.ObjectBytes=C->Quota->Bytes;xrtMutexUnlock(&C->Quota->Gate);*Out=I;return true;
 }
 XMQTT_API bool xmqttClientClose(xmqttclient* C)

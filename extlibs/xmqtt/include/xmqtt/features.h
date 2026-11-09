@@ -40,6 +40,19 @@
 #ifndef XMQTT_MODULE_XMQTT_SESSION
 #define XMQTT_MODULE_XMQTT_SESSION
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#define XMQTT_MODULE_XMQTT_CLIENT_INBOX
+#endif
+#endif
+
+/* xmqtt_client_inbox 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_INBOX)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_INBOX
+#define XMQTT_FEATURE_XMQTT_CLIENT_INBOX
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
 #endif
 
 /* xmqtt_session 及其直接依赖。 */

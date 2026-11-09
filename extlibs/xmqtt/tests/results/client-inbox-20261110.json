@@ -1,0 +1,1292 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "passive-client-inbox",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "0a85ec4c818bc37645c39723264661a98f3055cb",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "source_identity": {
+    "inputs": 2644,
+    "source_map_sha256": "d9df14688e5d20c0da850a4e57eedf5d0fc94d2a4c3664c4c43b2556891ff7ea",
+    "initial_source_map_sha256": "6351e6f3ee0e51a13116692d71d5a973cf164e256d443451ff5f6e9bc3459e49",
+    "final_test_correction": [
+      "extlibs/xmqtt/config/modules.json",
+      "extlibs/xmqtt/tests/test_client_inbox.c"
+    ],
+    "publication_only_changes": [
+      "extlibs/xmqtt/docs/client_inbox.md",
+      "docs/development/service-extensions-progress.md",
+      "extlibs/xmqtt/tests/results/client-inbox-20261110.json"
+    ],
+    "inbox_doc_before": "8ec3c039c44dce63d65f45ff4e12b06f9d778439212708c585211cdf0cf61b9a",
+    "inbox_doc_after": "8cf43496cffa374e5890fce09b499a5d3354cb2ccf24051050404de6fc63c761"
+  },
+  "legacy_backup": {
+    "files": 26,
+    "all_old_hashes_match_previous_archive_proof": true,
+    "no_new_pending_paths": true,
+    "legacy_branch_is_ancestor": true,
+    "previous_proof_sha256": "84df887f437568d9a93f81039cb67f2b41ba0c728eb258401ec3474ce2072356"
+  },
+  "contract": {
+    "passive": true,
+    "exclusive_until_client_destroy": true,
+    "shared_box_quota": true,
+    "protocol_session_restoration": false,
+    "transport": "numeric TCP",
+    "new_per_message_allocations": 0,
+    "new_per_message_copies": 0,
+    "enabled_enqueue_additional_mutexes": 1,
+    "quota_excludes": [
+      "Core Future/error objects",
+      "allocator overhead",
+      "native queues",
+      "socket/kernel buffers"
+    ]
+  },
+  "platforms": {
+    "windows": {
+      "programs": {
+        "root": 35,
+        "leaf": 2,
+        "example": 1,
+        "package_consumers": 4,
+        "actual_packaged_clients": 4,
+        "tsan": 0,
+        "extra_asan_runs": 0
+      },
+      "asan_ubsan_leak": false,
+      "receipts": {
+        "root": [
+          {
+            "label": "root",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 222.95300000000861,
+            "log_sha256": "7a3d4edd6d4d16a3414f328a0692b3e905199a395c07deb83d0ca39dc463e67b",
+            "programs": 35,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_wire.exe": "e7b7f463783987d85586ad7ce414d1c4fdbb3f6375ff9aa878b278bdd5a77797",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_properties.exe": "ba01daa1491eaa587229e7f1cf67ac55e4881f6b3e94178e3cc3e23dd601ca5a",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_packet.exe": "b90e1e275b27892170e4bcd713855aabc5a93fa6913eb71996f5c7b998b99f08",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_codec5.exe": "a25be6a2a38f67c56a0aee12b9e2257e2711b27bc82b258f4073d8e9ed216d22",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_codec311.exe": "3d2e1de6957a5e8d244bc53b5fca990835534e8bb89322cfe904ac8d84abb60b",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_negotiation.exe": "3c2e0fb2a5c2bf11238466ae33e463fac30e8397a8bd988673c6bb54b166f3fa",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client.exe": "f60da0501424cf411bad58febd949ce83c0849b7b262f1d25599448511428c7e",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_auth.exe": "7ff15d67ac26fa8e41374fe93cafdfcbe0366142e54c8b3498db8933760b22f3",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_dial.exe": "70259a333e75ac26617ae56d91eedef48f39094cce8f4b74402469ac89b1d3c2",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_tls.exe": "4b415e209bb23355253f94461e4a398171359fd63610ce62ee15a27cc0632e9c",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_tls_select.exe": "9f07a283cdae27df8941783eb962d5d2d8fd323fe04dfef23d72c37e4df98bcc",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_tls_resume.exe": "a24e232c4197720cfb843d24c2f72d07944ba814896c7ea2f9c9c5c1abed97c7",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_tls_resume_select.exe": "867d0f15dee6fa6a5ce53e830f5439f8d0aed5ff66286993a063fc8dd8dc3756",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_session.exe": "85d399c742e04e04aaa2d2aae2d544cdedc1523ed1504fcacba0760fd642ab95",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_client_inbox.exe": "b7a8c78037482c4f1e7e51c56b51a376795a1fdf262ea0c211773628a1523ff3",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_wire.exe": "7b74494d6d6231d846c4ff73800e03729731db6040dfa3f79a5306b9f339cd23",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_properties.exe": "642f692bacd0553e4291a0d12b3c4b81f3d69fbac422c76891d49ac1249f5bd6",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_packet.exe": "f3763cf6bb571e841da9604fad8dbd2c341eb7275451c08b5fdb1e3d9c66b280",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_codec5.exe": "a559f803ad8d7dd32bed08b66ff90ce10e3b05c5473fd34ca4e74be6c65736ec",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_codec311.exe": "5b3c97d5c5d5b797e0ea5d42f0822baecbca1c24231301af986ead42fabd9821",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_negotiation.exe": "0f076b0f6ce7b01aaa185a879968c8a007df46555b4d2d10171e719c38849292",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client.exe": "374d7dc9785735c1e9e1701e1a72139bc1d9cb91dfb6c3a2dddd87e9d7a02ac4",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_auth.exe": "da6a4a797e20507a27f321aed5619509732b4f25e1a64435434e4551e3e59e95",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_auth_cancel_retirement.exe": "5cdd031e5305f8799f32e5668ce28042f9c7b8c03fe1d9475b9beddb21035432",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_auth_completion_reservation.exe": "547fdda846b8b745e0bb42eac42802253a809e15a7d36bfcf0346b9ee41c2cd7",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_dial.exe": "bacdc83289d84bbc49c85a83bf045ade5512a6b2338536f0b6c817cf5064a38c",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_dial_auth.exe": "2d3b5fed7777516b117299e9ea67c60b1e7b20bec34b5a46d89f85264b9464e6",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_dial_retirement.exe": "2e56d6a46c2887226c607bc981939159e6398176697e8718db8e65d2667587e9",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_tls.exe": "a53ab66c14b0d1b47680893d7bef8d90d0e4e5ae11c3e9b836f54aefa013a3d8",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_tls_auth.exe": "a2ebc0be1d9925f7d1ad640047b3ffaebf6c600214020c836491aba72ac21ce2",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_tls_stats_off.exe": "edbc42f123dd80151fd2093567de170f21301d8c8fe328e4080bf6a0e8cb82b9",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_tls_resume.exe": "b2e1f9446ee11ace158643f072e4413014866eaf6bb3cd9e0a1f4a9ab777f449",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_tls_resume_stats_off.exe": "4c5c6c31c1e76c4668d1afeedabd94fd9b232b8468ba532a0c4478ca33a088cb",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_session.exe": "ed05d2834a67f121a4ab759c6341ee5b69d41781b667835ef5aded2870ba3fca",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/root/test_single_xmqtt_client_inbox.exe": "6e37b711007590aadfd06f43b646f0c000c0eb8d6b35b8a41acd9e532ee0df14"
+            }
+          }
+        ],
+        "leaf": [
+          {
+            "label": "leaf",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 25.062999999994645,
+            "log_sha256": "eeef325597849893c1f02e166f971374ac3bf5c4ff36c459441f3ea5f5be1759",
+            "programs": 2,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/leaf/test_client_inbox.exe": "0c3acdc6e905b764374df4f371c963b0ca520526befdcac9c2cfd5986c2717ea",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/leaf/test_single_xmqtt_client_inbox.exe": "6e37b711007590aadfd06f43b646f0c000c0eb8d6b35b8a41acd9e532ee0df14"
+            }
+          },
+          {
+            "label": "example",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 41.921999999991385,
+            "log_sha256": "02da6f30e06b79b29361f986bd450e75b94ec2f0172f68b9aa16a092010ec099",
+            "programs": 1,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/windows/example/examples_inbox_main.exe": "651c4bb0c3fde300fa8dc88304130daeaff0fdca641951221a6ff7cb6282514e"
+            }
+          }
+        ],
+        "packages": [
+          {
+            "label": "package-root-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt,tls_identity_rsa",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 157.35899999999674,
+            "log_sha256": "3a225e226d50171a8f9c7dca6e4436d920a1456b0198d6c97454e825bb6bf797",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-root-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt,tls_identity_rsa",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 174.39100000000326,
+            "log_sha256": "868f52ad1a815abc619b84dab3b632ec9ef1b9bb912f6a74b7c2e541e394d421",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-leaf-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 38.187999999994645,
+            "log_sha256": "32e1c9baff9d8e4d9b89acb7ef4536da61cd8650aa8cf205a9bec04dcb0a4238",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-leaf-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 34.01600000000326,
+            "log_sha256": "2b653aeb5cb104eeed5634b512ed0010dcbd0375afa2759adc11147e5a10d025",
+            "programs": 0,
+            "binaries": {}
+          }
+        ],
+        "performance": [
+          {
+            "label": "performance-smoke",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xmqtt/config/performance_profiles.json",
+              "--profiles",
+              "xmqtt_client_receive,xmqtt_client_inbox",
+              "--smoke",
+              "--report",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-inbox-20261110\\windows-performance-smoke.json"
+            ],
+            "exit_code": 0,
+            "seconds": 234.90599999998813,
+            "log_sha256": "9db2bddecb592907504db7885b9825c802e38b3f683decd9fff77f5d5d376928",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "size",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--config",
+              "extlibs/xmqtt/config/size_profiles.json",
+              "--profiles",
+              "xmqtt_client,xmqtt_client_inbox",
+              "--kind",
+              "static",
+              "--report",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-inbox-20261110\\windows-size.json"
+            ],
+            "exit_code": 0,
+            "seconds": 58.828000000008615,
+            "log_sha256": "2e71f0f45de866be65b48b1936a3a9c14571382b1fa4986eb23c9fb60823d450",
+            "programs": 0,
+            "binaries": {}
+          }
+        ]
+      },
+      "package_clients_report_sha256": "6b03e3ab5dd436c2d6c4fdb68531ac1aa23dd1300b49ff7bacc528c82b273014",
+      "layout": {
+        "client_config": 272,
+        "client_info": 160,
+        "session_frame": 72,
+        "inbox_config": 48,
+        "inbox_info": 48
+      },
+      "fixed_inbox_managed_metadata": {
+        "live_count": 2,
+        "live_bytes": 184,
+        "retired_count": 0,
+        "retired_bytes": 0
+      },
+      "symbols": {
+        "xmqtt_client": {
+          "inbox_symbols": [],
+          "archive_sha256": "48bf99d4356d887ad9683b83536875e77ed390487bd172d73286047a40f6b177"
+        },
+        "xmqtt_client_inbox": {
+          "inbox_symbols": [
+            "xmqttClientConnectInbox",
+            "xmqttClientInboxConfigInit",
+            "xmqttClientInboxCreate",
+            "xmqttClientInboxDestroy",
+            "xmqttClientInboxInfo",
+            "xmqttClientInboxTake"
+          ],
+          "archive_sha256": "6c482e62e2c2a33d771022286e9c8b971fec3a2d2a35a7c8151747b442fd9450"
+        }
+      },
+      "size": {
+        "xmqtt_client": {
+          "text": 99256,
+          "data": 0,
+          "bss": 0,
+          "members": 8,
+          "load": 99256,
+          "file": 138814,
+          "path": "release/gnu/native/xmqtt_client/static/libxmqtt.a"
+        },
+        "xmqtt_client_inbox": {
+          "text": 101864,
+          "data": 0,
+          "bss": 0,
+          "members": 8,
+          "load": 101864,
+          "file": 143192,
+          "path": "release/gnu/native/xmqtt_client_inbox/static/libxmqtt.a"
+        }
+      },
+      "smoke": {
+        "benchmarks": 8,
+        "qualification": false,
+        "allocation_samples": {
+          "5": {
+            "ordinary": {
+              "heap_blocks_per_exchange": 7.070312,
+              "heap_bytes_per_exchange": 1133.0625
+            },
+            "inbox": {
+              "heap_blocks_per_exchange": 7.070312,
+              "heap_bytes_per_exchange": 1133.0625
+            }
+          },
+          "4": {
+            "ordinary": {
+              "heap_blocks_per_exchange": 7.070312,
+              "heap_bytes_per_exchange": 1131.0625
+            },
+            "inbox": {
+              "heap_blocks_per_exchange": 7.070312,
+              "heap_bytes_per_exchange": 1131.0625
+            }
+          }
+        },
+        "report_sha256": "974ce930cc5233949011952c7c0286edf4dc9d02f03694358568ced1a47f14ec"
+      },
+      "performance": {
+        "repeats": 7,
+        "warmups": 1,
+        "cases": [
+          {
+            "version": 5,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9724753011686216,
+                "latency_p50_us": 1.0076726342710998,
+                "latency_p99_us": 1.0299319727891156,
+                "latency_max_us": 1.2578073089700998
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.009830615034898,
+                "latency_p50_us": 0.9593908629441624,
+                "latency_p99_us": 1.046235138705416,
+                "latency_max_us": 1.5536185948230323
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 5,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.01005119958375,
+                "latency_p50_us": 0.9991158267020337,
+                "latency_p99_us": 1.0267765190525233,
+                "latency_max_us": 1.0434397163120568
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0668052225301892,
+                "latency_p50_us": 0.892920353982301,
+                "latency_p99_us": 0.9162487462387161,
+                "latency_max_us": 0.8806287170773153
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9787943727612632,
+                "latency_p50_us": 1.0,
+                "latency_p99_us": 1.0438356164383562,
+                "latency_max_us": 1.3085676037483265
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0450406425871248,
+                "latency_p50_us": 0.9564102564102563,
+                "latency_p99_us": 0.9527559055118109,
+                "latency_max_us": 0.8843989769820972
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.0658641632997956,
+                "latency_p50_us": 0.9902912621359223,
+                "latency_p99_us": 0.9087683730359858,
+                "latency_max_us": 0.8488278092158448
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0307422853613475,
+                "latency_p50_us": 0.9554367201426025,
+                "latency_p99_us": 1.003346346904629,
+                "latency_max_us": 1.0009523809523808
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          }
+        ],
+        "qualified_throughput_pairs": {
+          "after": 0,
+          "inbox": 0
+        },
+        "qualified_p99_pairs": {
+          "after": 0,
+          "inbox": 0
+        },
+        "raw_throughput_medians_within_five_percent": true,
+        "raw_p99_medians_within_ten_percent": true,
+        "full_matrix_qualified": false,
+        "report_sha256": "0ed3a0f5b42951dde7d65dc9ddb2496b3fb7d6826ec0bd9cb69727870c15f158",
+        "build_sha256": "b7827da52b34e748094eb76889923ec73a8383a7fad3808e7bc73dccaae93648"
+      }
+    },
+    "wsl": {
+      "programs": {
+        "root": 35,
+        "leaf": 2,
+        "example": 1,
+        "package_consumers": 4,
+        "actual_packaged_clients": 4,
+        "tsan": 2,
+        "extra_asan_runs": 5
+      },
+      "asan_ubsan_leak": true,
+      "receipts": {
+        "root": [
+          {
+            "label": "root",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 423.531196351003,
+            "log_sha256": "e98ce4dc3b44c7136b49acb404753949d5cb9d132a8f31af60ea194c889d13c4",
+            "programs": 35,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_wire": "d47a53946dbb6784bda0324a1a42eab719ee08c3c70fd45ca63b0058478535cf",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_properties": "926c18a409d669580d130afbb9c0ceb536262c0e542bed35c662054ec3098c9b",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_packet": "9fe35da1fe1035f637453afe8af1c878286897e0a348e3921b6e2ae7c1eac24a",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_codec5": "bb4ec1fb574be3036b17d2dd6c83ddf7f9b9618f38d68cf1fee24d2aab48e11c",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_codec311": "a457057571dbeae5954d50ac69840b2f4c4b571c473c354dc7e3ff8b5abce2b9",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_negotiation": "891d0fc69f37df1d16ac10f1454890c806f55f930946f23141f984a36bd95630",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client": "c6e8ba04ffde405a4a7a635b5e8d4752f8eb5cc24e8c884e35dc20a8ef73aef9",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_auth": "5abbde7c4a63b414af98d33953e26ae3989eec68551f4400702dc4c38d73ca17",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_dial": "7be8d5aeb3bd3ea982690d596776e46e2046610a525c5507b409596415f33c10",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_tls": "b836e4b94336eacb4fa7879152abbfbe420909817031a504081a85f05ad5b1f7",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_tls_select": "e1e7f150ac008697ac5eebbf9673b4d2ffb5f8c8d052b475f452588596a3b1dd",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_tls_resume": "5b6feaa48af2fefa2a080f01768dc139dd34cdef86602293a41c671c84a7978a",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_tls_resume_select": "614ca43385dcdf87a3f18473cec93265af9cc722cebab0ef02d5e8215eef856f",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_session": "37d7a0bea975bd98d596217674297e1795f62bddaea9398e0030aa6bb452c266",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_client_inbox": "73f3a75d54a368186378adc2be119ac84a57d1a2402bae6537b38651c8e56dfb",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_wire": "c7917db4b002a331e24cc18c2556fd23fa9eb9074c58625d7b477fb01507f513",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_properties": "bd988db618cb265085394151fe35cac13eafa62023574d70007617b2ab57879b",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_packet": "ce7dcc657cd472c42066b6fc62bb6341337b73a375b36a61e4d4618977dba065",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_codec5": "bfdf7d8ad123357344efd47ff5a82382c6c8c784f74237dd5a85c733c6b4a302",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_codec311": "6d8f900f666f01fdf47db5057da7d32671ed92e39db73f41325c20b2aa525e53",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_negotiation": "8427ab3987bf2b19348f38520a1079e2ea51ad27dae892293e3cf00757e0c726",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client": "a95351dbc722bce87f936a9657ca271057c1839f025b2924c4b7b3e48d556f29",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_auth": "1a70a3d954a6864906cb1185d84eeed91eb0585c50c7091780ca2c8b2026df3e",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_auth_cancel_retirement": "56cd3d136fe4d805be61e4ec6c3e17887921e03c03728cf1d0d41f42655232d4",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_auth_completion_reservation": "59e27a01f4dc3dc78c71163234269c12a25b6e744b2414f361123113b4cc0c0a",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_dial": "3938989d5775496830add9e8191e8908eafe87200657eb15ad58974f72c66038",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_dial_auth": "57b9862586b288090e69db33969770592ebb3fd146b4bc189979e3709deb8658",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_dial_retirement": "fae88f17d09eecbb65a8811dcd4597ecbe1b9911940c8a860dcf6a49701add4d",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_tls": "6bcb162aa19f9a990c75a9e9c41b46b4681855656d67f9bb37fb1a383dd1bd7c",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_tls_auth": "cd445f923718894d10591a359954f34b1aee8ddd1ebc57ca2f691613447a4051",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_tls_stats_off": "356bb28fdfdf67c110a16f723f2feb1ad486695d49d5e04c2f8dba5fcd8497f4",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_tls_resume": "62e501a41d84db753c692e0311bcc0dbe3d972583ea07b3969a32db06c5e6003",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_tls_resume_stats_off": "2dd0659ee528c967c928c6b1fd9324723dc37528626e8606058754050ef81430",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_session": "4cfca3d205ecd8dfdf965a187771e800ce1240cd820d299569481662f985a36b",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/root/test_single_xmqtt_client_inbox": "0c8726a85c965d832978c11ea98e01d2bf26d292b786d33761996d119fd6166e"
+            }
+          }
+        ],
+        "leaf": [
+          {
+            "label": "leaf",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 59.21993995200319,
+            "log_sha256": "832cd28da8241e3266c12b70c4732164249352eb95be57aa1388eeaa609232b7",
+            "programs": 2,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox": "942cbb8f3a35239e7218b3935ffe8267763889a0ecc73fd9a3da69d218bc3896",
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_single_xmqtt_client_inbox": "0c8726a85c965d832978c11ea98e01d2bf26d292b786d33761996d119fd6166e"
+            }
+          },
+          {
+            "label": "example",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 21.958150702994317,
+            "log_sha256": "3d09a86f3d500a009badeb87270fdb3d2522de5a24b59dbc65073bfe646c9cd7",
+            "programs": 1,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/example/examples_inbox_main": "f67ba66e77a573812cf0ea512a041281cb1e0a3a59196b3a0110a20942d3bc8b"
+            }
+          },
+          {
+            "label": "tsan-modular",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox_tests",
+              "--test",
+              "test_client_inbox.c",
+              "--no-examples",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread"
+            ],
+            "exit_code": 0,
+            "seconds": 49.90474818000803,
+            "log_sha256": "06f9a5f5b9bdd9a9a32d619a56b54ed6e4b88376d495d9ecb31aed1ad2b9825d",
+            "programs": 1,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/tsan-modular/test_client_inbox": "1349c87c933b1cbc6856d83f4a1a82d972d78c59bbfb67730636a815b7608835"
+            }
+          },
+          {
+            "label": "tsan-single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_client_inbox_tests",
+              "--single-test",
+              "test_single_xmqtt_client_inbox.c",
+              "--no-examples",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread"
+            ],
+            "exit_code": 0,
+            "seconds": 43.26291966100689,
+            "log_sha256": "c0492d7687d740339b6744d1cd500a590a05754caaa1f6432d37cc0ecb5fd3ba",
+            "programs": 1,
+            "binaries": {
+              "out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/tsan-single/test_single_xmqtt_client_inbox": "6fdadee59c916bc008ba3e3a54d10abc82146b5a4426516c440f30f055be98be"
+            }
+          },
+          {
+            "label": "asan-repeat-0",
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox"
+            ],
+            "exit_code": 0,
+            "seconds": 0.526675700006308,
+            "log_sha256": "0445d18bb1be970476f154b7e708611c22ed05a71e95f10179f1b0e25606eb1b",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "asan-repeat-1",
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox"
+            ],
+            "exit_code": 0,
+            "seconds": 0.524550096000894,
+            "log_sha256": "0445d18bb1be970476f154b7e708611c22ed05a71e95f10179f1b0e25606eb1b",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "asan-repeat-2",
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox"
+            ],
+            "exit_code": 0,
+            "seconds": 0.5284201840113383,
+            "log_sha256": "0445d18bb1be970476f154b7e708611c22ed05a71e95f10179f1b0e25606eb1b",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "asan-repeat-3",
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox"
+            ],
+            "exit_code": 0,
+            "seconds": 0.5363258979923557,
+            "log_sha256": "0445d18bb1be970476f154b7e708611c22ed05a71e95f10179f1b0e25606eb1b",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "asan-repeat-4",
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/binaries/wsl/leaf/test_client_inbox"
+            ],
+            "exit_code": 0,
+            "seconds": 0.5445380960009061,
+            "log_sha256": "0445d18bb1be970476f154b7e708611c22ed05a71e95f10179f1b0e25606eb1b",
+            "programs": 0,
+            "binaries": {}
+          }
+        ],
+        "packages": [
+          {
+            "label": "package-root-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt,tls_identity_rsa",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 75.93713293099427,
+            "log_sha256": "a5b60520fe93d60e651373d8cbfff349bb658f18b37185ac9a7bb27d794b6a00",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-root-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt,tls_identity_rsa",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 83.62946802200167,
+            "log_sha256": "f8d875ea1f4045c88691d99f42240e7807368723619347b9fefe323758a95266",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-leaf-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 20.872694609992323,
+            "log_sha256": "142515fdb1ed59379c161dbd7c89f0c1485409cf8ebede4b4a3836bef83c9393",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "package-leaf-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_inbox",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 22.726739882011316,
+            "log_sha256": "e2bd4b0ebafd063088bacef8e791595b8ee177ca4b399b568af477010e8daf1c",
+            "programs": 0,
+            "binaries": {}
+          }
+        ],
+        "performance": [
+          {
+            "label": "performance-smoke",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_performance.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xmqtt/config/performance_profiles.json",
+              "--profiles",
+              "xmqtt_client_receive,xmqtt_client_inbox",
+              "--smoke",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/wsl-performance-smoke.json"
+            ],
+            "exit_code": 0,
+            "seconds": 183.901290556998,
+            "log_sha256": "2c2a854cc45c86eb296226898a8d9d9272d77ada89084bcfb36931b09e885628",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "size",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/measure_size.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--config",
+              "extlibs/xmqtt/config/size_profiles.json",
+              "--profiles",
+              "xmqtt_client,xmqtt_client_inbox",
+              "--kind",
+              "static",
+              "--report",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-inbox-20261110/wsl-size.json"
+            ],
+            "exit_code": 0,
+            "seconds": 87.77666475399747,
+            "log_sha256": "c2915493e5f12a191c39ba2a08c317319ee13656b3fcf2ceaca1b372ec46e1c3",
+            "programs": 0,
+            "binaries": {}
+          }
+        ]
+      },
+      "package_clients_report_sha256": "09b266e687468a03382d8e38acf5d8c1936dc41ac3f9d56272e6ee91247f8196",
+      "layout": {
+        "client_config": 272,
+        "client_info": 160,
+        "session_frame": 72,
+        "inbox_config": 48,
+        "inbox_info": 48
+      },
+      "fixed_inbox_managed_metadata": {
+        "live_count": 2,
+        "live_bytes": 328,
+        "retired_count": 0,
+        "retired_bytes": 0
+      },
+      "symbols": {
+        "xmqtt_client": {
+          "inbox_symbols": [],
+          "archive_sha256": "329ac5e1f0339d20e7473033f089f620d09d44cb45b7c2dcf3297214b4c5db36"
+        },
+        "xmqtt_client_inbox": {
+          "inbox_symbols": [
+            "xmqttClientConnectInbox",
+            "xmqttClientInboxConfigInit",
+            "xmqttClientInboxCreate",
+            "xmqttClientInboxDestroy",
+            "xmqttClientInboxInfo",
+            "xmqttClientInboxTake"
+          ],
+          "archive_sha256": "774c0abd9dbd38f97ab902c10444c9248a2433f5b44de773e24b91afd9c59b5a"
+        }
+      },
+      "size": {
+        "xmqtt_client": {
+          "text": 102142,
+          "data": 192,
+          "bss": 0,
+          "members": 8,
+          "load": 102334,
+          "file": 180184,
+          "path": "release/gnu/x64/xmqtt_client/static/libxmqtt.a"
+        },
+        "xmqtt_client_inbox": {
+          "text": 105589,
+          "data": 192,
+          "bss": 0,
+          "members": 8,
+          "load": 105781,
+          "file": 186852,
+          "path": "release/gnu/x64/xmqtt_client_inbox/static/libxmqtt.a"
+        }
+      },
+      "smoke": {
+        "benchmarks": 8,
+        "qualification": false,
+        "allocation_samples": {
+          "5": {
+            "ordinary": {
+              "heap_blocks_per_exchange": 7.640625,
+              "heap_bytes_per_exchange": 1405.0
+            },
+            "inbox": {
+              "heap_blocks_per_exchange": 7.570312,
+              "heap_bytes_per_exchange": 1384.875
+            }
+          },
+          "4": {
+            "ordinary": {
+              "heap_blocks_per_exchange": 7.59375,
+              "heap_bytes_per_exchange": 1400.375
+            },
+            "inbox": {
+              "heap_blocks_per_exchange": 7.625,
+              "heap_bytes_per_exchange": 1402.125
+            }
+          }
+        },
+        "report_sha256": "5a90af45bc4c1143d34cb2d6ba2e1f0369f2e2a0614c726912f126ff01559757"
+      },
+      "performance": {
+        "repeats": 7,
+        "warmups": 1,
+        "cases": [
+          {
+            "version": 5,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.0156784772293126,
+                "latency_p50_us": 0.9756944444444443,
+                "latency_p99_us": 1.0166987797045601,
+                "latency_max_us": 3.280915389460424
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0324799282603199,
+                "latency_p50_us": 0.9881376037959668,
+                "latency_p99_us": 0.9065066329753632,
+                "latency_max_us": 1.5434184424393678
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 5,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9825507719830964,
+                "latency_p50_us": 1.0235439900867411,
+                "latency_p99_us": 0.9797695982017419,
+                "latency_max_us": 0.9782502614151272
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0314158170398644,
+                "latency_p50_us": 0.9347976478727084,
+                "latency_p99_us": 0.9839403498709492,
+                "latency_max_us": 0.9608066699921614
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9856057300075841,
+                "latency_p50_us": 1.016279069767442,
+                "latency_p99_us": 1.0235756385068764,
+                "latency_max_us": 1.2092696629213484
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0554442863591222,
+                "latency_p50_us": 0.9553775743707094,
+                "latency_p99_us": 0.9142674344209852,
+                "latency_max_us": 0.9523809523809523
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": false,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9795178125777882,
+                "latency_p50_us": 1.0090606508875741,
+                "latency_p99_us": 0.9981341451438672,
+                "latency_max_us": 1.0192881745120552
+              },
+              "inbox": {
+                "exchanges_per_sec": 1.0323569957789738,
+                "latency_p50_us": 0.9721458676928715,
+                "latency_p99_us": 1.007870916961826,
+                "latency_max_us": 0.9932417211083577
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "inbox": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            }
+          }
+        ],
+        "qualified_throughput_pairs": {
+          "after": 2,
+          "inbox": 2
+        },
+        "qualified_p99_pairs": {
+          "after": 0,
+          "inbox": 1
+        },
+        "raw_throughput_medians_within_five_percent": true,
+        "raw_p99_medians_within_ten_percent": true,
+        "full_matrix_qualified": false,
+        "report_sha256": "bb0572ea5f1b05c5f7f5fc44749145a796b337bf1bb34e83e7abb0728fd009d2",
+        "build_sha256": "2a006af0f924315f56a49f0275701ce45733adeddf04e49441e1476a830a3245"
+      }
+    }
+  },
+  "archive_comparison": {
+    "windows": {
+      "libxrt.a": {
+        "members": 139,
+        "byte_identical": 139,
+        "different": [],
+        "before_sha256": "d0ddf514acbefb827e71e5a5d5eee50e4951bc6e2cf2db8a09655d5146856186",
+        "after_sha256": "66567e42f166c673e1fe6ecb7404f7877696ab797e3a03b2e4956c8a6419dff4"
+      },
+      "libxmqtt.a": {
+        "members": 9,
+        "byte_identical": 8,
+        "different": [
+          "extlibs__xmqtt__src__client__client.o"
+        ],
+        "before_sha256": "0f294559963d556b671730018d06bf158214b60e7ac497f0d353d87ec909ecc6",
+        "after_sha256": "ba9d3df06e401c17e2b2ed111ecfa1859201ee8d1580dc29868ee826503615d5"
+      }
+    },
+    "wsl": {
+      "libxrt.a": {
+        "members": 139,
+        "byte_identical": 139,
+        "different": [],
+        "before_sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d",
+        "after_sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d"
+      },
+      "libxmqtt.a": {
+        "members": 9,
+        "byte_identical": 8,
+        "different": [
+          "extlibs__xmqtt__src__client__client.o"
+        ],
+        "before_sha256": "8b589afffc11ee6a3fc02148399e444a98260f5b82da76bdca58ddb85e2456e0",
+        "after_sha256": "25b14e0aef603ace3561683dfaf02075619d050aef833226133331460a16052b"
+      }
+    }
+  },
+  "checks": {
+    "focused_tools": 89,
+    "report_sha256": "9219af0832ab43fc43212977227787d3b42bb4c54b1ba7f5d209a39a2e8feff8"
+  },
+  "performance_limits": [
+    "Closed-loop local combined echo, not fixed-arrival tail latency",
+    "All full matrices noise-unqualified; raw maximum latency can grow substantially",
+    "No broker/native deployment or 72h qualification"
+  ],
+  "preparation_errors": [
+    "Windows single test-local initialization warning, fixed and all final root/leaf tests rerun",
+    "Root registration initially contains33 old programs; final explicit list contains35",
+    "Example inherited test selector rejected before compilation; corrected invocation runs example",
+    "Wrong performance helper name detected before useful timing; corrected to _metric_summary",
+    "Metadata probe initially omits xrt/memory.h; corrected before any probe run",
+    "Publisher default GBK decoding fails on UTF-8 progress text after evidence validation; explicit UTF-8 and idempotent quota-note publication correct the retry. No product source changes."
+  ],
+  "remaining": [
+    "Client protocol Session attachment and recovery",
+    "TLS/Dial/Auth Inbox composition",
+    "Durable recovery",
+    "Complete broker interoperability and fixed-arrival/native/72h production/performance gates"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-inbox-20261110",
+  "evidence_storage": "C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-inbox-20261110",
+  "evidence_files": 1014,
+  "evidence_index_sha256": "25405db7aaea9a597e3bceba5a26200c6e5827d548ff888b389970c794d42a57",
+  "publication_checks_sha256": "dd6849670caa43e93ab9b4252800bdbc73c0f7843f4c2184d995fb3dcb2f0db3"
+}

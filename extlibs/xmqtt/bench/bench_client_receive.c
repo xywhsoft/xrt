@@ -14,7 +14,13 @@ int main(int Argc,char** Argv)
     mqttExamplePeer P;mqttExampleStartMode(&P,(xmqttversion)Version,true,false);
     xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-receive");xmqttclient* C=NULL;
-    mqttExampleCheck(xmqttClientConnect(P.Engine,&P.Address,1,&K,&Connect,&C),"echo factory");xfuture* Ready=xmqttClientReady(C);
+#if defined(XMQTT_BENCH_INBOX)
+    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=K.Version;xmqttclientinbox* Inbox=NULL;
+    mqttExampleCheck(xmqttClientInboxCreate(&IK,&Inbox) && xmqttClientConnectInbox(P.Engine,&P.Address,1,&K,Inbox,&Connect,&C),"Inbox echo factory");
+#else
+    mqttExampleCheck(xmqttClientConnect(P.Engine,&P.Address,1,&K,&Connect,&C),"echo factory");
+#endif
+    xfuture* Ready=xmqttClientReady(C);
     mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"echo CONNACK");
     double* Latencies=malloc((size_t)Count*sizeof(*Latencies));mqttExampleCheck(Latencies!=NULL,"echo latency storage");mqttEchoSlot Slots[64]={{0}};
     xmqttpacket Pub;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Pub);Pub.Flags=2;Pub.Body.Publish.Topic=XRT_STR_LITERAL("bench/receive");
@@ -43,6 +49,9 @@ int main(int Argc,char** Argv)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
 #endif
     mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C),"echo physical close");mqttExampleStop(&P);xrtFutureDestroy(Ready);
+#if defined(XMQTT_BENCH_INBOX)
+    mqttExampleCheck(xmqttClientInboxDestroy(Inbox),"Inbox physical close");
+#endif
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttEchoCompare);
     printf("exchanges_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);
 #if defined(XRT_FEATURE_MEMORY_STATS)
