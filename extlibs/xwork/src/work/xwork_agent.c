@@ -1140,6 +1140,7 @@ retry_summary_request:
             goto cleanup;
         }
         xllmErrorInit(&tModelError);
+        uint64_t uRejectedRequestTokens=xwork__request_input_tokens(&tRequest);
         eModelResult = xwork__model_complete(pAgent, &tRequest, NULL, &pResponse, &tModelError);
         xllmRequestUnit(&tRequest);
         ++pRun->uModelCalls;
@@ -1172,8 +1173,9 @@ retry_summary_request:
             {
                 xllmCompactionDestroy(pCompaction); pCompaction=NULL;
                 free(sRejectedSummary); sRejectedSummary=NULL;
-                if (++uContextRecoveries<=pAgent->uCompactionQualityRetries && uSummaryBudget>uFixed*2u)
-                { uSummaryBudget=uSummaryBudget*3u/4u; goto retry_compaction_prepare; }
+                uint64_t uSmaller=uRejectedRequestTokens<uSummaryBudget?uRejectedRequestTokens:uSummaryBudget;
+                if (++uContextRecoveries<=pAgent->uCompactionQualityRetries && uSmaller>uFixed*2u)
+                { uSummaryBudget=uSmaller*3u/4u; goto retry_compaction_prepare; }
                 if (xwork__recover(pAgent,"context",pError,uContextRecoveries,true))
                 { uSummaryBudget=0u; uContextRecoveries=0u; goto retry_compaction_prepare; }
             }

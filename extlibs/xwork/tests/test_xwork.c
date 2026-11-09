@@ -2113,7 +2113,7 @@ static void test_host_recovery(void)
 
 typedef struct context_recovery_mock {
     unsigned normal, summaries, status;
-    uint64_t largest_summary, smallest_summary;
+    uint64_t largest_summary, smallest_summary, last_rejected;
     bool reject_normal, reject_summary;
 } context_recovery_mock;
 
@@ -2132,6 +2132,8 @@ static xllm_result context_recovery_complete(void *data, const xllm_request *req
         if(!mock->smallest_summary||tokens<mock->smallest_summary)mock->smallest_summary=tokens;
         CHECK(tokens<=13876u && !request->iToolCount,"complete summary respects input budget without tool definitions");
         if(tokens<=2500u && !mock->reject_summary) return style_summary_complete(NULL,request,callbacks,response,error);
+        CHECK(!mock->last_rejected || tokens<mock->last_rejected,"each rejected summary is rebuilt with a strictly smaller input");
+        mock->last_rejected=tokens;
     }
     else if(++mock->normal>1u && !mock->reject_normal)
     { *response=mock_response("Completed after safe context recovery.",0u);return *response?XLLM_RESULT_OK:XLLM_RESULT_ERROR; }
@@ -2182,6 +2184,13 @@ static void test_context_recovery_retry_budget(void)
         uint64_t turn=xllmSessionBeginTurn(s);
         CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,"completed old request",0u)&&
             xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,"completed old answer",0u),"retry-budget safe history exists");
+        if(mode)
+        {
+            char history[3001];memset(history,'x',3000);history[3000]=0;
+            for(int i=0;i<2;++i){turn=xllmSessionBeginTurn(s);
+                CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,history,0u)&&xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,history,0u),
+                    "summary retry has more than one safe budgeted prefix");}
+        }
         context_recovery_mock mock={0};mock.status=400u;mock.reject_normal=true;mock.reject_summary=mode!=0;
         unsigned attempt=0;xwork_agent_config a;xworkAgentConfigInit(&a);a.pSession=s;a.sModel="mock-model";a.sWorkspaceRoot=".";
         a.OnModelComplete=context_recovery_complete;a.pModelUserData=&mock;a.bAutoSaveSession=false;a.uCompactionQualityRetries=1u;
