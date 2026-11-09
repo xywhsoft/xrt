@@ -537,7 +537,7 @@ typedef enum xllm_tool_choice {
 /* ------------------------------------------------------------------ */
 
 typedef struct xllm_usage {
-    uint64_t uInputTokens;
+    uint64_t uInputTokens; /* inclusive input: cache reads/writes are subsets */
     uint64_t uOutputTokens;
     uint64_t uTotalTokens;
     uint64_t uCachedInputTokens;
@@ -6641,10 +6641,31 @@ static bool xllm__anthropic_usage_in(xllm_call *pCall, xvalue *pUsage)
         return true;
     }
     tUsage = pResponse->tUsage;
-    tUsage.uInputTokens = xllm__json_u64(pUsage, "input_tokens");
-    tUsage.uCachedInputTokens = xllm__json_u64(pUsage, "cache_read_input_tokens");
-    tUsage.uCacheWriteTokens = xllm__json_u64(pUsage, "cache_creation_input_tokens");
+    /* Public input usage includes cached tokens on every dialect. Anthropic
+     * reports disjoint categories; streaming updates are cumulative snapshots,
+     * so recover the uncached component before merging, never add twice. */
+    if (tUsage.uCachedInputTokens > tUsage.uInputTokens ||
+        tUsage.uCacheWriteTokens > tUsage.uInputTokens - tUsage.uCachedInputTokens)
+        goto overflow;
+    uint64_t uUncached = tUsage.uInputTokens - tUsage.uCachedInputTokens - tUsage.uCacheWriteTokens;
+    uint64_t uValue = xllm__json_u64(pUsage, "input_tokens");
+    if (uValue > uUncached) uUncached = uValue;
+    uValue = xllm__json_u64(pUsage, "cache_read_input_tokens");
+    if (uValue > tUsage.uCachedInputTokens) tUsage.uCachedInputTokens = uValue;
+    uValue = xllm__json_u64(pUsage, "cache_creation_input_tokens");
+    if (uValue > tUsage.uCacheWriteTokens) tUsage.uCacheWriteTokens = uValue;
+    uValue = xllm__json_u64(pUsage, "output_tokens");
+    if (uValue > tUsage.uOutputTokens) tUsage.uOutputTokens = uValue;
+    if (uUncached > UINT64_MAX - tUsage.uCachedInputTokens ||
+        uUncached + tUsage.uCachedInputTokens > UINT64_MAX - tUsage.uCacheWriteTokens)
+        goto overflow;
+    tUsage.uInputTokens = uUncached + tUsage.uCachedInputTokens + tUsage.uCacheWriteTokens;
+    if (tUsage.uInputTokens > UINT64_MAX - tUsage.uOutputTokens) goto overflow;
+    tUsage.uTotalTokens = tUsage.uInputTokens + tUsage.uOutputTokens;
     return xllm__assemble_usage(pCall, &tUsage);
+overflow:
+    xllm__error_set(&pCall->tError, XLLM_ERROR_PROTOCOL, "Anthropic token usage overflows");
+    return false;
 }
 
 static bool xllm__anthropic_decode_sse(xllm_call *pCall, const xllm_sse_fields *pFields)
@@ -6782,24 +6803,7 @@ static bool xllm__anthropic_decode_sse(xllm_call *pCall, const xllm_sse_fields *
         }
         if (pUsage)
         {
-            xllm_usage tUsage = pResponse->tUsage;
-            uint64_t uInput = xllm__json_u64(pUsage, "input_tokens");
-            /* Some gateways zero the message_start counters and only report
-             * the real input usage here. */
-            if (uInput > tUsage.uInputTokens)
-            {
-                tUsage.uInputTokens = uInput;
-            }
-            tUsage.uOutputTokens = xllm__json_u64(pUsage, "output_tokens");
-            {
-                uint64_t uCache = xllm__json_u64(pUsage, "cache_read_input_tokens");
-                if (uCache > tUsage.uCachedInputTokens)
-                {
-                    tUsage.uCachedInputTokens = uCache;
-                }
-            }
-            tUsage.uTotalTokens = tUsage.uInputTokens + tUsage.uOutputTokens;
-            if (!xllm__assemble_usage(pCall, &tUsage))
+            if (!xllm__anthropic_usage_in(pCall, pUsage))
             {
                 bOk = false;
                 goto done;
@@ -6833,7 +6837,6 @@ static bool xllm__anthropic_decode_json(xllm_call *pCall, xstrview tBody)
     xvalue *pRoot;
     xvalue *pContent;
     xllm_response *pResponse;
-    xllm_usage tUsage;
     size_t i;
     bool bOk = true;
     if (!pCall || !tBody.Data || !tBody.Size)
@@ -6955,15 +6958,7 @@ static bool xllm__anthropic_decode_json(xllm_call *pCall, xstrview tBody)
         {
             bOk = false;
         }
-        memset(&tUsage, 0, sizeof(tUsage));
-        tUsage.uInputTokens = xllm__json_u64(xllm__json_get(pRoot, "usage"), "input_tokens");
-        tUsage.uOutputTokens = xllm__json_u64(xllm__json_get(pRoot, "usage"), "output_tokens");
-        tUsage.uTotalTokens = tUsage.uInputTokens + tUsage.uOutputTokens;
-        tUsage.uCachedInputTokens =
-            xllm__json_u64(xllm__json_get(pRoot, "usage"), "cache_read_input_tokens");
-        tUsage.uCacheWriteTokens =
-            xllm__json_u64(xllm__json_get(pRoot, "usage"), "cache_creation_input_tokens");
-        if (!xllm__assemble_usage(pCall, &tUsage))
+        if (!xllm__anthropic_usage_in(pCall, xllm__json_get(pRoot, "usage")))
         {
             bOk = false;
         }

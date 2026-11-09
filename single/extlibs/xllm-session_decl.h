@@ -690,6 +690,9 @@
 #if !defined(XRT_FEATURE_NET_TCP_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SYNC 1
 #endif
+#if !defined(XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS 1
+#endif
 #if !defined(XRT_FEATURE_NET_UDP)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP 1
 #endif
@@ -1043,6 +1046,9 @@
 #endif
 #if !defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC 1
+#endif
+#if !defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS 1
 #endif
 #if !defined(XRT_FEATURE_TLS_VERIFY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_VERIFY 1
@@ -1905,6 +1911,9 @@
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SYNC)
 #define XRT_FEATURE_NET_TCP_SYNC 1
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#define XRT_FEATURE_NET_TCP_WRITE_PROGRESS 1
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP)
 #define XRT_FEATURE_NET_UDP 1
 #endif
@@ -2258,6 +2267,9 @@
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_FEATURE_TLS_STREAM_LISTENER_SYNC 1
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS 1
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_VERIFY)
 #define XRT_FEATURE_TLS_VERIFY 1
@@ -3037,6 +3049,10 @@ XRT_API bool xllmSessionSnapshotBuildRequest(const xllm_session_snapshot* pSnaps
  * valid summary was obtained. Destroying it without commit aborts safely.
  */
 XRT_API xllm_compaction* xllmSessionPrepareCompaction(xllm_session* pSession, bool bForce, xllm_error* pError);
+/* Select a smaller pair-complete prefix if the prompt cannot fit. Zero uses
+ * the session input budget; callers reserve their own system/correction
+ * messages first. Failure leaves history unchanged, including large inputs. */
+XRT_API xllm_compaction* xllmSessionPrepareCompactionWithBudget(xllm_session* pSession, bool bForce, uint64_t uPromptBudgetTokens, xllm_error* pError);
 /* Mark the externally executed summary call as started. Compatibility auto
  * compaction calls this internally. Destroying an uncommitted transaction
  * aborts it and restores the prior session state. */
@@ -4135,6 +4151,10 @@ XRT_API xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* 
 #undef XRT_FEATURE_NET_TCP_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_SYNC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS)
+#undef XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_TCP_WRITE_PROGRESS
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP)
 #undef XRT_FEATURE_NET_UDP
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_NET_UDP
@@ -4606,6 +4626,10 @@ XRT_API xllm_result xllmSessionRunWithTools(xllm_session* pSession, const char* 
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #undef XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
+#undef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_VERIFY)
 #undef XRT_FEATURE_TLS_VERIFY
