@@ -85,6 +85,22 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_AUTH
 #define XMQTT_MODULE_XMQTT_CLIENT_AUTH
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#endif
+#endif
+
+/* xmqtt_client_dial 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_DIAL)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_DIAL
+#define XMQTT_FEATURE_XMQTT_CLIENT_DIAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xmqtt_client_auth 及其直接依赖。 */
@@ -897,7 +913,8 @@ XRT_EXTERN_C_BEGIN
  * close timeout. CloseTimeout must be positive; all durations use milliseconds. */
 XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
 /* One numeric TCP connection on a running host Engine, no TLS/DNS/fallback or
- * implicit replay. CONNECT is fully encoded/copied before return; callbacks may
+ * implicit replay. Optional client_dial supplies hostname/prepared-address setup.
+ * CONNECT is fully encoded/copied before return; callbacks may
  * run before return. Setup timeout starts at factory entry. Caller owns one
  * unique Client; Close/Wait/Destroy it before destroying Engine. Output changes
  * only on success. Startup wire is wiped after handshake/stops AND its final
@@ -1108,6 +1125,64 @@ XMQTT_API xmqttclientadmission xmqttClientReauthenticateAsync(xmqttclient* Clien
 /* Same operation, rejects every worker of the host Engine before waiting. */
 XMQTT_API xmqttclientadmission xmqttClientReauthenticate(xmqttclient* Client,
     const xmqttpacket* Start,int64 Timeout,xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_dial.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_DIAL_H
+#define XMQTT_CLIENT_DIAL_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "MQTT Dial requires client and net_tcp_dial"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+#define XMQTT_DIAL_ADDRESSES_MAX 64u
+#define XMQTT_DIAL_HOST_MAX 65535u
+/* Network policy only. Config.Stream remains the only TCP buffer/timeout policy.
+ * Defaults: dual stack, 30000ms additional Dial timeout, 250ms fallback, eight
+ * candidates, 1024 host bytes. Timeout=0 disables the additional Dial timer;
+ * -1 is infinite. The finite original SetupTimeout still spans all setup. */
+typedef struct xmqttclientdialconfig {
+    size_t Size;xnetfamily Family;int64 Timeout,FallbackDelay;
+    uint32 MaxAttempts;size_t MaxHostBytes;
+} xmqttclientdialconfig;
+XRT_EXTERN_C_BEGIN
+XMQTT_API bool xmqttClientDialConfigInit(xmqttclientdialconfig* Config);
+/* Bounded copied nonempty host view, no embedded NUL, nonzero port. Resolver is
+ * borrowed through physical Client retirement. Engine/Resolver remain alive;
+ * Close/Wait/Destroy the unique Client before their destruction. Output changes
+ * only on success and must not overlap Dial or borrowed host/endpoint storage.
+ * CONNECT/config are copied before return. Ready reports typed DNS/connect/setup
+ * failures. Cancel/Close wakes the owner; physical Wait includes all client
+ * callbacks and losing candidates. A detached shared DNS job may continue under
+ * Resolver ownership; Resolver Destroy joins it. No request/session replay or reconnect.
+ * Initial host scratch uses MaxPrivateBytes and retires before return; native
+ * Dial/Resolver/Stream storage uses their own bounded Core configurations. */
+XMQTT_API bool xmqttClientDial(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,
+    uint16 Port,uint64 Affinity,const xmqttclientconfig* Config,
+    const xmqttclientdialconfig* Dial,const xmqttpacket* Connect,xmqttclient** Client);
+/* Immutable prepared endpoints, no Resolver/DNS. At most64, nonzero eligible
+ * ports; Family filters and MaxAttempts bounds selected attempts. The list is
+ * retained by Core during admission; caller may release it immediately. */
+XMQTT_API bool xmqttClientDialAddresses(xnetengine* Engine,xnetaddrlist* Addresses,
+    uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,
+    const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* Same Dial/setup deadline with the enhanced-auth ticket and final-proof gates. */
+XMQTT_API bool xmqttClientDialAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,
+    uint16 Port,uint64 Affinity,const xmqttclientconfig* Config,
+    const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
+    const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientDialAddressesAuth(xnetengine* Engine,xnetaddrlist* Addresses,
+    uint64 Affinity,const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,
+    const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -3124,6 +3199,12 @@ typedef struct xmqttauthstate {
     double Deadline,StepDeadline;char MethodBytes[];
 } xmqttauthstate;
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+typedef struct xmqttdialplan {
+    xnetresolver* Resolver;xnetaddrlist* Addresses;xstrview Host;uint16 Port;
+    xnetdialconfig Config;
+} xmqttdialplan;
+#endif
 struct xmqttclient {
     xatomic32 Refs;xmutex Gate;xnetengine* Engine;xnetworker* Worker;xnetstream* Stream;
     xmqttclientconfig Config;xmqttclientinfo Info;xmqttquota* Quota;
@@ -3145,6 +3226,9 @@ struct xmqttclient {
     xmutex RetirementLock;xcond RetirementReady;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     xmqttauthstate* Auth;
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xnetdial* Dial;
 #endif
     xmqttproperty Scratch[];
 };
@@ -3683,6 +3767,37 @@ static void xmqttClientClosed(xnetstream* S,xnetresult Result,const xerror* Caus
 }
 static const xnetstreameventsownershipv1 xmqttClientEvents={sizeof(xnetstreameventsownershipv1),
     {xmqttClientOpen,xmqttClientRead,xmqttClientEnd,NULL,xmqttClientLow,xmqttClientDrain,xmqttClientClosed},xmqttClientDrop,&xmqttPrivateOps};
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+static xmqttclientstatus xmqttDialFailure(xnetresult Result,const xerror* Cause)
+{
+    if(Result==XNET_RESULT_TIMEOUT)return XMQTT_STATUS_TIMEOUT;
+    if(Result==XNET_RESULT_CANCELLED)return XMQTT_STATUS_CANCELLED;
+    xerrkind Kind=Cause?xrtErrorKind(Cause):XERR_NONE;
+    return Kind==XERR_MEMORY?XMQTT_STATUS_MEMORY:(Kind==XERR_RANGE || Kind==XERR_AGAIN)?XMQTT_STATUS_LIMIT:XMQTT_STATUS_TRANSPORT;
+}
+static void xmqttClientDialDone(xnetdial* D,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
+{
+    (void)D;xmqttclient* C=Data;
+    /* Pair with factory publication before accessing its immutable setup. The
+     * owning Worker serializes all subsequent transport/state operations. */
+    xrtMutexLock(&C->Gate);C->Stream=Stream;xrtMutexUnlock(&C->Gate);
+    if(Stream){
+        if(xmqttClientClosing(C))(void)xrtNetStreamAbort(Stream);
+        else {xmqttClientRef(C);
+            if(!xrtNetStreamSetEventsOwnedV1(Stream,C,&xmqttClientEvents)){
+                xmqttClientDrop(C);const xerror* Error=xrtNetStreamError(Stream);if(!Error)Error=xrtGetError();
+                xmqttClientFail(C,xmqttDialFailure(XNET_RESULT_ERROR,Error),Error);(void)xrtNetStreamAbort(Stream);}
+            else {xnetstreamstats I;
+                if(!xrtNetStreamStats(Stream,&I))xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());
+                else if(I.ReadEnded){C->ReadEnded=true;xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,NULL);}}
+        }
+    }else {C->NativeClosed=true;xmqttClientFail(C,xmqttDialFailure(Result,Cause),Cause);}
+    /* A queued client turn also holds C through the physical Done/Drop tail.
+     * Initially callback-less winners retain buffered input; that turn reads it. */
+    xmqttClientWake(C);
+}
+static const xnetdialownershipv1 xmqttClientDialEvents={sizeof(xnetdialownershipv1),xmqttClientDialDone,xmqttClientDrop,&xmqttPrivateOps};
+#endif
 static void xmqttClientTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data)
 {
     (void)Worker;xmqttclient* C=Data;
@@ -4283,10 +4398,21 @@ static void xmqttClientStop(xmqttclient* C)
         /* Never append a diagnostic inside a partial MQTT packet. Already
          * fully accepted output frames may drain ahead of the final packet. */
         C->Draining=Diagnostic && !AuthPartial && !C->Partial && !C->PingOffset && !(C->ReceiveFlow && C->ReceiveFlow->Offset) && !(C->ReceiveTwo && C->ReceiveTwo->Offset) &&
-            !C->ReadEnded && !C->NativeClosed && C->Peer.SendPacketBytes>=3 && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
+            !C->ReadEnded && !C->NativeClosed &&
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+            C->Stream &&
+#endif
+            C->Peer.SendPacketBytes>=3 && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN;
         if(C->Draining){C->DrainDeadline=xmqttClientDeadline(xrtTimer(),C->Config.CloseTimeout);xmqttClientSchedule(C,C->DrainDeadline);
             if(!C->Timer)C->Draining=false;else {xrtMutexLock(&C->Gate);C->Info.DrainStarted=true;xrtMutexUnlock(&C->Gate);}}
-        if(!C->Draining)(void)xrtNetStreamAbort(C->Stream);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+        if(C->Dial && !C->Stream)(void)xrtNetDialCancel(C->Dial);
+#endif
+        if(!C->Draining
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+            && C->Stream
+#endif
+        )(void)xrtNetStreamAbort(C->Stream);
         xmqttClientNotify(C); /* CLOSING is observable; reentrant Close may abort. */
     }
     if(C->Draining)xmqttClientDrainError(C);
@@ -4324,7 +4450,11 @@ static void xmqttClientWork(xnetworker* Worker,ptr Data)
         }
         Link=&R->Next;
     }
-    if(!xmqttClientClosing(C) && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN){
+    if(!xmqttClientClosing(C)
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+       && C->Stream
+#endif
+       && xrtNetStreamState(C->Stream)==XNET_STREAM_OPEN){
         /* Startup must be queued before an immediate/coalesced CONNACK. */
         if(!C->Info.Ready){size_t Budget=C->Config.WriteBytes;(void)xmqttClientSendStartup(C,&Budget);}
         if(!xmqttClientClosing(C))xmqttClientReadPump(C);
@@ -4364,6 +4494,9 @@ XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* K)
 static void xmqttClientFree(xmqttclient* C)
 {
     xmqttmessage* M=C->MessageHead;while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xrtNetDialDestroy(C->Dial);
+#endif
     xrtNetStreamDestroy(C->Stream);xrtFutureDestroy(C->ReadyFuture);xrtCancelDestroy(C->ReadyCancel);xrtErrorFree(C->Cause);
     if(C->SendAliases){for(size_t Page=0;Page<256;++Page){xmqttsendaliasslot* Slots=C->SendAliases->Pages[Page];if(!Slots)continue;
         for(size_t I=0;I<256;++I){xmqttSendTopicDropLocked(C,Slots[I].Planned);xmqttSendTopicDropLocked(C,Slots[I].Actual);}xrtFree(Slots);}xrtFree(C->SendAliases);}
@@ -4373,10 +4506,17 @@ static void xmqttClientFree(xmqttclient* C)
 #endif
     xrtFree(C->Input);xrtFree(C->ReceiveFlow);xrtFree(C->ReceiveTwo);xrtFree(xrtAtomicPtrLoad(&C->SendFlow,XMEMORY_RELAXED));xmqttQuotaDrop(C->Quota);(void)xrtNetEngineUnpin(C->Engine);xrtCondUnit(&C->RetirementReady);xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);
 }
-static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now)
+static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out,const void* AuthConfig,double Now,const void* DialPlan)
 {
+    bool Planned=false;size_t HostBytes=0;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    const xmqttdialplan* D=DialPlan;char* HostCopy=NULL;Planned=D!=NULL;
+    if(D && !D->Addresses)HostBytes=D->Host.Size+1;
+#else
+    (void)DialPlan;
+#endif
     xmqttclientconfig K;if(Config){if(!xrtMemRangeValid(Config,sizeof(*Config)))return xmqttClientError(XERR_ARGUMENT,"invalid client config");K=*Config;}else xmqttClientConfigInit(&K);
-    if(!Engine || !Remote || !Out || !Connect || !xrtMemRangeValid(Out,sizeof(*Out)) || !xrtMemRangeValid(Connect,sizeof(*Connect)) ||
+    if(!Engine || (!Remote && !Planned) || !Out || !Connect || !xrtMemRangeValid(Out,sizeof(*Out)) || !xrtMemRangeValid(Connect,sizeof(*Connect)) ||
        K.Size!=sizeof(K) || (K.Version!=XMQTT_VERSION_5 && K.Version!=XMQTT_VERSION_311) || Connect->Type!=XMQTT_PACKET_CONNECT ||
        !K.MaxRequests || K.MaxRequests>65536 || !K.MaxOutgoingBytes || K.MaxObjects<2 || K.MaxObjects>UINT32_MAX/8u || !K.MaxObjectBytes ||
        !K.MaxMessages || !K.MaxMessageBytes || !K.MaxSetupBytes || K.InitialInputBytes<5 || K.InitialInputBytes>K.Codec.MaxPacketBytes ||
@@ -4400,7 +4540,7 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     size_t SetupCount=Connect->Properties.Count+Connect->Body.Connect.WillProperties.Count;
     if(SetupCount>(SIZE_MAX-sizeof(xmqttclient))/sizeof(xmqttproperty) || K.Codec.MaxProperties>(SIZE_MAX-sizeof(xmqttclient))/sizeof(xmqttproperty)-SetupCount || WireBytes>K.MaxSetupBytes || WireBytes>SIZE_MAX-sizeof(xmqttstartup))return xmqttClientError(XERR_RANGE,"MQTT client setup capacity");
     size_t ClientBytes=sizeof(xmqttclient)+(SetupCount+K.Codec.MaxProperties)*sizeof(xmqttproperty),StartupBytes=sizeof(xmqttstartup)+WireBytes;
-    if(ClientBytes>K.MaxPrivateBytes || K.InitialInputBytes>K.MaxPrivateBytes-ClientBytes || StartupBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes || AuthBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes)return xmqttClientError(XERR_RANGE,"MQTT private setup budget");
+    if(ClientBytes>K.MaxPrivateBytes || K.InitialInputBytes>K.MaxPrivateBytes-ClientBytes || StartupBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes || AuthBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes || HostBytes>K.MaxPrivateBytes-ClientBytes-K.InitialInputBytes-StartupBytes-AuthBytes)return xmqttClientError(XERR_RANGE,"MQTT private setup budget");
     if(!xrtNetEnginePin(Engine))return false;
     xmqttclient* C=xrtMalloc(ClientBytes);if(!C){xrtNetEngineUnpin(Engine);return false;}memset(C,0,ClientBytes);
     if(!xrtMutexInit(&C->Gate)){xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
@@ -4408,7 +4548,7 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     if(!xrtCondInit(&C->RetirementReady)){xrtMutexUnit(&C->RetirementLock);xrtMutexUnit(&C->Gate);xrtFree(C);xrtNetEngineUnpin(Engine);return false;}
     C->Engine=Engine;C->Config=K;C->ProblemInfo=ProblemInfo;C->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));xrtAtomic32Init(&C->Refs,1);
     xrtAtomicPtrInit(&C->SendFlow,NULL);
-    C->Info.Size=sizeof(C->Info);C->Info.State=XMQTT_CLIENT_CONNECTING;C->Info.PrivateBytes=ClientBytes+K.InitialInputBytes+StartupBytes+AuthBytes;C->Info.StartupBytes=WireBytes;
+    C->Info.Size=sizeof(C->Info);C->Info.State=XMQTT_CLIENT_CONNECTING;C->Info.PrivateBytes=ClientBytes+K.InitialInputBytes+StartupBytes+AuthBytes+HostBytes;C->Info.StartupBytes=WireBytes;
     C->SetupProps=C->Scratch;C->Props=C->Scratch+SetupCount;C->Peer.ReceivePacketBytes=ReceiveBytes;
     C->Peer.SendPacketBytes=XMQTT_PACKET_MAX_BYTES;C->Peer.KeepAlive=Connect->Body.Connect.KeepAlive;
     C->SetupDeadline=xmqttClientDeadline(Now,K.SetupTimeout);C->NextPing=C->PingDeadline=C->TimerAt=INFINITY;
@@ -4433,21 +4573,94 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     xmqttClientRef(C);if(!xrtPromiseProducerBindTakeV2(C->ReadyPromise,(xrtownershipref){C,&xmqttPrivateOps},&xmqttReadyProducer,&xmqttReadyCancellation)){xmqttClientDrop(C);goto Fail;}
     C->ReadyCancel=xrtPromiseCancelToken(C->ReadyPromise);if(!C->ReadyCancel || !xrtNetPostInit(&C->Post))goto Fail;
     /* Serialize startup publication against immediate native callbacks. */
-    xrtMutexLock(&C->Gate);xmqttClientRef(C);C->Stream=xrtNetStreamConnectOwnedV1(Engine,Remote,Affinity,&K.Stream,C,&xmqttClientEvents);
-    if(!C->Stream){xmqttClientDrop(C);xrtMutexUnlock(&C->Gate);goto Fail;}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(HostBytes){HostCopy=xrtMalloc(HostBytes);if(!HostCopy)goto Fail;memcpy(HostCopy,D->Host.Data,D->Host.Size);HostCopy[D->Host.Size]=0;}
+#endif
+    xrtMutexLock(&C->Gate);xmqttClientRef(C);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(D){xnetdialconfig Policy=D->Config;Policy.Stream=K.Stream;Policy.Affinity=Affinity;
+        C->Dial=D->Addresses?xrtNetDialAddressesOwnedV1(Engine,D->Addresses,&Policy,NULL,NULL,C,&xmqttClientDialEvents):
+            xrtNetDialOwnedV1(Engine,D->Resolver,HostCopy,D->Port,&Policy,NULL,NULL,C,&xmqttClientDialEvents);
+        if(!C->Dial){xmqttClientDrop(C);xrtMutexUnlock(&C->Gate);goto Fail;}
+        xrtFree(HostCopy);HostCopy=NULL;C->Info.PrivateBytes-=HostBytes;
+    }else
+#endif
+    {C->Stream=xrtNetStreamConnectOwnedV1(Engine,Remote,Affinity,&K.Stream,C,&xmqttClientEvents);
+        if(!C->Stream){xmqttClientDrop(C);xrtMutexUnlock(&C->Gate);goto Fail;}}
     C->Started=true;(void)xmqttClientWakeLocked(C);xrtMutexUnlock(&C->Gate);*Out=C;return true;
 Fail:
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xrtFree(HostCopy);
+#endif
     xrtPromiseDestroy(C->ReadyPromise);C->ReadyPromise=NULL;if(C->ReadyBox)xmqttReadyFree(C->ReadyBox,NULL);xmqttStartupRetire(C);xmqttClientFree(C);return false;
 }
 XMQTT_API bool xmqttClientConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttpacket* Connect,xmqttclient** Out)
-{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now);}
+{double Now=xrtTimer();return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,NULL,Now,NULL);}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+static bool xmqttAuthConfigCopy(const xmqttauthconfig* Auth,xmqttauthconfig* K)
+{
+    if(Auth){if(!xrtMemRangeValid(Auth,sizeof(*Auth)))return xmqttClientError(XERR_ARGUMENT,"invalid authentication config");*K=*Auth;}else xmqttAuthConfigInit(K);
+    if(K->Size!=sizeof(*K) || !K->MaxRounds || K->MaxRounds>65536 || !K->MaxExchangeBytes || K->ResponseTimeout<=0)return xmqttClientError(XERR_ARGUMENT,"invalid authentication limits");
+    return true;
+}
 XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,const xmqttclientconfig* Config,const xmqttauthconfig* Auth,const xmqttpacket* Connect,xmqttclient** Out)
 {
-    double Now=xrtTimer();xmqttauthconfig K;if(Auth){if(!xrtMemRangeValid(Auth,sizeof(*Auth)))return xmqttClientError(XERR_ARGUMENT,"invalid authentication config");K=*Auth;}else xmqttAuthConfigInit(&K);
-    if(K.Size!=sizeof(K) || !K.MaxRounds || K.MaxRounds>65536 || !K.MaxExchangeBytes || K.ResponseTimeout<=0)return xmqttClientError(XERR_ARGUMENT,"invalid authentication limits");
-    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now);
+    double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL);
 }
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+XMQTT_API bool xmqttClientDialConfigInit(xmqttclientdialconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttClientError(XERR_ARGUMENT,"invalid Dial config output");
+    *K=(xmqttclientdialconfig){sizeof(*K),XNET_FAMILY_UNSPEC,30000,250,8,1024};return true;
+}
+static bool xmqttClientDialCreate(xnetengine* Engine,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Host,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const void* Auth,const xmqttpacket* Connect,xmqttclient** Out,double Entered)
+{
+    if(!Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) || xrtMemRangesOverlap(Dial,sizeof(*Dial),Out,sizeof(*Out)))))
+        return xmqttClientError(XERR_ARGUMENT,"invalid Dial config/output");
+    xmqttclientdialconfig K;if(Dial)K=*Dial;else xmqttClientDialConfigInit(&K);
+    if(K.Size!=sizeof(K) || (K.Family!=XNET_FAMILY_UNSPEC && K.Family!=XNET_FAMILY_IPV4 && K.Family!=XNET_FAMILY_IPV6) ||
+       K.Timeout<XRT_WAIT_FOREVER || K.FallbackDelay<0 || !K.MaxAttempts || K.MaxAttempts>XMQTT_DIAL_ADDRESSES_MAX || !K.MaxHostBytes || K.MaxHostBytes>XMQTT_DIAL_HOST_MAX)
+        return xmqttClientError(XERR_ARGUMENT,"invalid Dial family, timeout or limits");
+    if(Addresses){size_t Count=xrtNetAddrListCount(Addresses),Eligible=0;
+        if(!Count || Count>XMQTT_DIAL_ADDRESSES_MAX)return xmqttClientError(XERR_ARGUMENT,"invalid Dial endpoint count");
+        for(size_t I=0;I<Count;++I){const xnetaddr* A=xrtNetAddrListGet(Addresses,I);if(!A)return false;
+            if(xrtMemRangesOverlap(A,sizeof(*A),Out,sizeof(*Out)))return xmqttClientError(XERR_ARGUMENT,"Dial output overlaps endpoint storage");
+            if(K.Family!=XNET_FAMILY_UNSPEC && A->Family!=K.Family)continue;
+            if(!A->Port)return xmqttClientError(XERR_ARGUMENT,"zero Dial endpoint port");
+            ++Eligible;}
+        if(!Eligible)return xmqttClientError(XERR_ARGUMENT,"no eligible Dial endpoint");
+    }else if(!Resolver || !Port || !Host.Size || Host.Size>K.MaxHostBytes || !xrtMemRangeValid(Host.Data,Host.Size) ||
+        xrtMemRangesOverlap(Host.Data,Host.Size,Out,sizeof(*Out)) || memchr(Host.Data,0,Host.Size))return xmqttClientError(XERR_ARGUMENT,"invalid Dial host, Resolver or port");
+    xmqttdialplan P={0};P.Resolver=Resolver;P.Addresses=Addresses;P.Host=Host;P.Port=Port;xrtNetDialConfigInit(&P.Config);
+    P.Config.Family=K.Family;P.Config.Timeout=K.Timeout;P.Config.FallbackDelay=K.FallbackDelay;P.Config.MaxAttempts=K.MaxAttempts;
+    return xmqttClientConnectImpl(Engine,NULL,Affinity,Config,Connect,Out,Auth,Entered,&P);
+}
+XMQTT_API bool xmqttClientDial(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
+{return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,xrtTimer());}
+XMQTT_API bool xmqttClientDialAddresses(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttpacket* Q,xmqttclient** O)
+{
+    double Entered=xrtTimer();if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,Entered);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+XMQTT_API bool xmqttClientDialAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
+{
+    double Entered=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,Entered);
+}
+XMQTT_API bool xmqttClientDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,const xmqttpacket* Q,xmqttclient** O)
+{
+    double Entered=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered);
+}
+#endif
 #endif
 XMQTT_API xfuture* xmqttClientReady(xmqttclient* C)
 {if(!C){xmqttClientError(XERR_ARGUMENT,"client is NULL");return NULL;}return xrtFutureRef(C->ReadyFuture);}
@@ -4633,6 +4846,9 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
     if(!Closed){xmqttClientError(XERR_STATE,"client retired before logical close");return XWAIT_ERROR;}
     /* Logical Client publication can precede the actual native callback tail.
      * Carry only the original budget, rounded to the public millisecond unit. */
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(!C->Stream)return XWAIT_OK;
+#endif
     return xrtNetStreamWaitRetired(C->Stream,(!Timeout || xrtTimer()>=Deadline)?0:xmqttClientRemaining(Deadline));
 }
 XMQTT_API bool xmqttClientDestroy(xmqttclient* C)

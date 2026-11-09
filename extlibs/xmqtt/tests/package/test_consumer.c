@@ -6,6 +6,17 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    xmqttclientdialconfig Dial;xmqttclient* DialClient=(xmqttclient*)(uintptr_t)1;
+    if(!xmqttClientDialConfigInit(&Dial) || Dial.MaxAttempts!=8 ||
+       xmqttClientDialAddresses(NULL,NULL,0,NULL,&Dial,NULL,&DialClient) || DialClient!=(xmqttclient*)(uintptr_t)1 ||
+       xmqttClientDial(NULL,NULL,(xstrview){0},0,0,NULL,&Dial,NULL,&DialClient))return 23;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+    if(xmqttClientDialAuth(NULL,NULL,(xstrview){0},0,0,NULL,&Dial,NULL,NULL,&DialClient) ||
+       xmqttClientDialAddressesAuth(NULL,NULL,0,NULL,&Dial,NULL,NULL,&DialClient))return 24;
+#endif
+    xrtClearError();
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
     xmqttauthconfig Auth;xmqttclient* AuthClient=(xmqttclient*)(uintptr_t)1;
     if(!xmqttAuthConfigInit(&Auth) || Auth.MaxRounds!=32 || Auth.ResponseTimeout!=5000 ||

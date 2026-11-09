@@ -1,0 +1,3832 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "stage": "bounded MQTT hostname and prepared-address Dial on existing Core",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "5cbf5aa88326afdaa2466302ead0c35aaa4489fc",
+  "state": "developing; full four-library goal remains active",
+  "source_identity": {
+    "inputs": 6267,
+    "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+    "changed_input_hashes": {
+      "extlibs/xmqtt/bench/bench_client_dial.c": "36acfb52595e5ec08cca861a017823ca53352ba749544471d91cdaab4c2acdf2",
+      "extlibs/xmqtt/config/modules.json": "934b0784e7fce95c2698e8b64b8f7698bfe66061b65a3ea8a2dbb47706a44872",
+      "extlibs/xmqtt/config/performance_profiles.json": "83802523168c808c45247732bf74d73c879fcb5583d0a57540d6a4431eea2234",
+      "extlibs/xmqtt/config/size_profiles.json": "2d347686dfb413ec3ee89ada3ecace0d37b5ac2e72a3f0abe420bb95ea9d03f8",
+      "extlibs/xmqtt/examples/common/dial_peer.h": "012c5a2cf9579355d5dd81b14eac4ff26c29768e804200cc684f86550208120d",
+      "extlibs/xmqtt/examples/dial/main.c": "2c7c6b775f665f9dece7d40ee435fdb2c9738bbe22ef36f67fdea9596890b556",
+      "extlibs/xmqtt/include/xmqtt.h": "f97cff21fdefdc27610bc65f05aaa48146c7918934443644626d8bd5aa6fb1ce",
+      "extlibs/xmqtt/include/xmqtt/client.h": "6883c8af58a981f057cb6c75fc2ea524e65a47a31dac5b2390088e34245e2295",
+      "extlibs/xmqtt/include/xmqtt/client_dial.h": "8f01b0beb3646347b2b94dae479f229a4bcb1d3881360cc4098c82e67d2bbfe1",
+      "extlibs/xmqtt/include/xmqtt/features.h": "ebc3aa859271b0479e9f89e6f361cc2d31f68cc4fa1873ebbbb7f73581ebd824",
+      "extlibs/xmqtt/src/client/client.c": "91a221b8a066d74779f22d28a30d945fd80c81b7b4244dcfde534b7955405407",
+      "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c": "de04a3ca152f2dfeef563e52d0ef18858a637ef745287162ec10f0bd9165d265",
+      "extlibs/xmqtt/tests/package/test_consumer.c": "7f1caa2cf8da65bd5afa3e51cf1e18823819beaa926c9feb01cfd62e9e3b11bd",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_client_dial.c": "b9927c96647c20e2bfa69e6f768c9ff06f98d9e99eba16c0bdf989f1268c0379",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_dial_auth.c": "d1b35a38f87ea7762a5e4c248f6d5eaff1c2c29ac9135ebbc6844906c0668a8b",
+      "extlibs/xmqtt/tests/test_client_dial.c": "69ea6aed45d4dd5b9eecaa706de65fa6f0b1f1f37c68856d9d34600e5fa0b5eb",
+      "single/extlibs/xmqtt.h": "99023877aceab16baa80265acd2cd2e16472b17336e34fc297addeb183b74136",
+      "single/extlibs/xmqtt_decl.h": "7bcd01bde9d848415947047fc24be197456a5c007d5de537deb8c03f947a1c44"
+    },
+    "unchanged_other_product_inputs": 6147,
+    "original_reused_suite_map_sha256": "f8d3f420126d10eb5cb6dfde3ddf7f0d2e95e0ff54e96626f01d6a38b906e0a0",
+    "core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27"
+  },
+  "implementation": [
+    "optional xmqtt_client_dial uses Core bounded Resolver/Dial candidate racing; no shared runtime or per-request transport vtable",
+    "five public functions: config initialization, hostname/prepared base and enhanced-auth composition; public old layouts unchanged; optional private pointer",
+    "finite API-entry SetupTimeout spans all DNS/candidates/handshake/proof; additional Dial timer, family/host/attempt/endpoint bounds and success-only outputs",
+    "one bounded temporary NUL host copy charged against MaxPrivateBytes before Core copy/canonicalization; native Dial/Resolver/Stream storage uses their own bounded policies; native callback owner moves to one winning event binding",
+    "client physical Wait includes actual owned callbacks, losing candidates and winning Stream tails; cancelled shared DNS queries remain independently owned by Resolver, not a fabricated client worker reference; tests destroy Client/Engine before releasing blocked lookup and join actual Resolver work",
+    "native EOF before event installation now fails promptly through public Stream stats; first Close/cancel/timeout reason wins and native binding failure preserves owned cause; queued application bytes stay unsent before readiness"
+  ],
+  "platforms": {
+    "windows": {
+      "validation": {
+        "mqtt_root_programs": 21,
+        "reused_other_root_programs": 94,
+        "combined_root_programs": 115,
+        "reused_other_root_receipts": [
+          {
+            "label": "xredis-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xredis/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xredis_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 119.906,
+            "log_sha256": "1738dde658c141dd3b3c6279fc43aa78130e6507d4659331ce3f9aeb3e2f8e21",
+            "programs": 30
+          },
+          {
+            "label": "xrpc-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xrpc/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xrpc_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 119.313,
+            "log_sha256": "ff226f79c529a5996865b2515ed8408fc94c23cfbc6debb5da4c8c161fe8f8d1",
+            "programs": 30
+          },
+          {
+            "label": "xcron-root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xcron_tests,event_waiter",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 36.047,
+            "log_sha256": "f255be41c734a0bba81f13a9f6fae216633d8afdd04d15de7777cdefcab98a09",
+            "programs": 34
+          }
+        ],
+        "current_receipts": [
+          {
+            "label": "root-suite",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 89.625,
+            "log_sha256": "9e354501fca547ae799c973f3ea71d40449275c3eb54dd2253f40cf803fd711f",
+            "programs": 21,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_wire.exe": "a1c48e169d22e9c65671b8b1125c3867047046c709fecc93a30727e18660a3e1",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_properties.exe": "3fbf75adf380eb518e9420856bd7268b17567e8d2d1672f673d2d807ed1575b9",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_packet.exe": "21c570ee1213cdec315a4b5c25ecf0d7135b70d8384b4df427ac2fc614cc1021",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_codec5.exe": "a4b72983efb57c9f55dd3495c55eaef9932263caabe332007343632c9b211f2b",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_codec311.exe": "9fa56b8d1aae964ced79c59cc2277f491335a98ec493e68c984ed7a19824311a",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_negotiation.exe": "0f31600a8ead511365204e2a76fef2688c09e7d6c90cb1c7f7b28b5150bff823",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_client.exe": "ef09160dd9f41e96c0630e3902b3c58c5decc656972ec94e734606f5450727d9",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_client_auth.exe": "27a8f445a4eb12cab11a7ecabeaecdd576bc3d193b433d4ebaf7e40a3768acde",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_client_dial.exe": "8318ca9d579b1bed1ab05cf49c9b1d7703098e16da3c70540ebd245925036e19",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_wire.exe": "7b74494d6d6231d846c4ff73800e03729731db6040dfa3f79a5306b9f339cd23",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_properties.exe": "642f692bacd0553e4291a0d12b3c4b81f3d69fbac422c76891d49ac1249f5bd6",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_packet.exe": "f3763cf6bb571e841da9604fad8dbd2c341eb7275451c08b5fdb1e3d9c66b280",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_codec5.exe": "a559f803ad8d7dd32bed08b66ff90ce10e3b05c5473fd34ca4e74be6c65736ec",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_codec311.exe": "5b3c97d5c5d5b797e0ea5d42f0822baecbca1c24231301af986ead42fabd9821",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_negotiation.exe": "0f076b0f6ce7b01aaa185a879968c8a007df46555b4d2d10171e719c38849292",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_client.exe": "25ffd6448fdef9aad192e99f0d9fa5b4c1c708aac8124dd25cb6303b761c7ca8",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_auth_cancel_retirement.exe": "8a6f82d09be0d254a2c4dc00d827a4eb6964ebf983e5250e83a2d7187a312450",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_auth_completion_reservation.exe": "fed46ee7f9bc054da476fe7855150f0c02e69ca5a02f6400d4c14355349250ce",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_client_dial.exe": "8e5a82793ead3abeeadbdf87a3b4e987f1d706b80890b15ab4322f0c5a5501b2",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/root-suite/test_single_xmqtt_dial_auth.exe": "aa76e53ef5ffb92e0ea945481d75ade5473a299ab496131477ee9d28b7e82962"
+            }
+          },
+          {
+            "label": "dial-example",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 12.672,
+            "log_sha256": "0b8ed85d7a0ab33bc4239e1932a601f9c22f00c5885868c51341a93e17b78fe1",
+            "programs": 2,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/dial-example/test_client_dial.exe": "432caf90ff23d70747274a048f378f8222b6ae05eafcc1654a65854f5b41ad73",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/windows/dial-example/examples_dial_main.exe": "d3e6555dbe523f734348dfc285d519230b18f5905540bf7849527daa76051113"
+            }
+          },
+          {
+            "label": "host-probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-lws2_32",
+              "-o",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-host-probe.exe"
+            ],
+            "exit_code": 0,
+            "seconds": 12.593,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "host-wire",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-host-probe.exe",
+              "--output",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-host-wire.json"
+            ],
+            "exit_code": 0,
+            "seconds": 4.125,
+            "log_sha256": "ac5f6d82322bfdacba029dd25a338d1f904fc7b6de789cae3213edfafd345fcb",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "prepared-probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "-DAP_DIAL_PREPARED",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-lws2_32",
+              "-o",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-prepared-probe.exe"
+            ],
+            "exit_code": 0,
+            "seconds": 11.703,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "prepared-wire",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-prepared-probe.exe",
+              "--output",
+              "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-prepared-wire.json"
+            ],
+            "exit_code": 0,
+            "seconds": 4.094,
+            "log_sha256": "ac5f6d82322bfdacba029dd25a338d1f904fc7b6de789cae3213edfafd345fcb",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.563,
+            "log_sha256": "f3b6c3d2d2d79153783544d6fcb8fed69d974006abb2289c1fef5cdecd83f3e2",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.718,
+            "log_sha256": "8d4b56731fcc235e27f951cc757402bdcfe2657627a20ec7b2fa86c2651b7e7c",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.25,
+            "log_sha256": "5244183215fe55c04ebaac50670ae974e7c6d9cef28d1dc8bde0d04d42a37892",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.36,
+            "log_sha256": "ee4ce87c1819adf6a34ec214fe4b3b746b2e28642715bb4de42882c1e4f4119a",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.469,
+            "log_sha256": "c9bc8ba9cc263e1e0281ef4968524a5bffce9f7b63bd4c9740fe83c7bad6b552",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.578,
+            "log_sha256": "635df453ea082c8f50704062bf6076720bb6f8ca943b0a9c2d4121d63bf6675d",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.312,
+            "log_sha256": "a6b42e600dba9ad31f904b80dbf5eb6b50a950609661947925bfaddd1883876c",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 1.469,
+            "log_sha256": "93e702e1ba7c72cff4b22db340c8d8db4bf8a6714b2862236f3082d27af40983",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "features",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_extension_features.py",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.062,
+            "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "single",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/amalgamate.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.219,
+            "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "api",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_api_reference.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.094,
+            "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "docs",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_api_docs.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 0.141,
+            "log_sha256": "32c4001d8cd33cd7acdf4d914b740645dea4dd96badde00a75df137332f27ddb",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "maturity",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_release_maturity.py"
+            ],
+            "exit_code": 0,
+            "seconds": 1.25,
+            "log_sha256": "796dc68574142d04e6914e5c044d74868f4cf76f82ff6fde2ddb67ed413658a2",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "tools",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "unittest",
+              "tools.test_extension_layout",
+              "tools.test_extension_single",
+              "tools.test_api_reference",
+              "tools.test_build",
+              "tools.test_scope",
+              "tools.test_measure_performance",
+              "tools.test_measure_size"
+            ],
+            "exit_code": 0,
+            "seconds": 48.625,
+            "log_sha256": "5d3568362178871d32a4cd7287b4bb0b0e0ce7692fe9c82d66ad991f9621e927",
+            "programs": 1,
+            "executed_test_binaries": {}
+          }
+        ],
+        "independent_wire": {
+          "host": {
+            "probe_sha256": "07b8c893e201f1e070d1b60c24cf724808cdbdb61b2c369c1ce02a5a302b054e",
+            "cases": [
+              {
+                "case": "normal",
+                "exit_code": 0,
+                "stdout": "PASS auth normal\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "tiny",
+                "exit_code": 0,
+                "stdout": "PASS auth tiny\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "coalesced",
+                "exit_code": 0,
+                "stdout": "PASS auth coalesced\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "verify_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth verify_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_clean",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_clean\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_reason",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_reason\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_success",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_early_pong",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_early_pong\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_reject",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_reject\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_eof",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_eof\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_initial",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_initial\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_short_success",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_short_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_disconnect",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_disconnect\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_reauth",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_reauth\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              }
+            ]
+          },
+          "prepared": {
+            "probe_sha256": "a59ef8c8fdf13e6c33283a4a197799819a7ef3f79da8ee5ef775c78ab07e9497",
+            "cases": [
+              {
+                "case": "normal",
+                "exit_code": 0,
+                "stdout": "PASS auth normal\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "tiny",
+                "exit_code": 0,
+                "stdout": "PASS auth tiny\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "coalesced",
+                "exit_code": 0,
+                "stdout": "PASS auth coalesced\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "verify_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth verify_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_clean",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_clean\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_reason",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_reason\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_success",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_early_pong",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_early_pong\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_reject",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_reject\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_eof",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_eof\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_initial",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_initial\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_short_success",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_short_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_disconnect",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_disconnect\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_reauth",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_reauth\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              }
+            ]
+          }
+        },
+        "post_size_consumers": [
+          {
+            "label": "xmqtt_client-static",
+            "exit_code": 0,
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "fb225d2723536c4c00b122ce71f9e64fca35eca8f2fe79db26751f8a2afa6b9b"
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "exit_code": 0,
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "2d810d20d1f9136ec10fd4c5dccdaacadde096c7d3e18b63123e87cafe8e6816"
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "exit_code": 0,
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "830da748c4b2458d43e6fc2276d75adfff39eecf4c24b97fd1dbd9483b0944b1"
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "exit_code": 0,
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "ed02f81347eb48b96797021625bf8d05c2999323dd5303a924c50ff754692ae0"
+          }
+        ]
+      },
+      "layouts": {
+        "before": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1168
+        },
+        "base": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1168
+        },
+        "dial-enabled": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1176
+        }
+      },
+      "allocation": {
+        "metrics": {
+          "0": {
+            "connections_per_sec": 3830.038,
+            "setup_p99_us": 270.8,
+            "cycle_p99_us": 442.4,
+            "mode": 0.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 22.165,
+            "process_heap_bytes_per_cycle": 26237.905
+          },
+          "1": {
+            "connections_per_sec": 3673.452,
+            "setup_p99_us": 246.5,
+            "cycle_p99_us": 365.1,
+            "mode": 1.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 24.17,
+            "process_heap_bytes_per_cycle": 26802.2
+          },
+          "2": {
+            "connections_per_sec": 3554.936,
+            "setup_p99_us": 294.0,
+            "cycle_p99_us": 398.9,
+            "mode": 2.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 26.175,
+            "process_heap_bytes_per_cycle": 26926.33
+          }
+        },
+        "binary_sha256": "5e141c6e524b2fb98d338587858944da5b088c8fa1d1b5f3ed9a3b80b4b4713d",
+        "scope": "Process-wide requested heap counts in connection-loop window including the peer. Pool hits count, not libc calls/RSS/kernel allocations; shared Engine/Resolver setup and final teardown excluded."
+      },
+      "performance": {
+        "cold_lifecycle": {
+          "schema": 2,
+          "product": "xmqtt",
+          "generated_at": "2026-11-09T05:07:47.149491+00:00",
+          "platform": "win32",
+          "machine": "amd64",
+          "platform_release": "10",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0xfff/0xfff",
+          "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+          "compiler_family": "gnu",
+          "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+          "compiler_version": "gcc.EXE (GCC) 16.2.0",
+          "arch": "native",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "5cbf5aa88326afdaa2466302ead0c35aaa4489fc",
+          "source_dirty": true,
+          "source_fingerprint": "303bc29c3b0407226650ad33bf4c03a7d39b0b909ecd1998bba7c022c73bfe51",
+          "benchmark_fingerprint": "0996512d82943f60fbd2261635c127ef183f0e2a446ca45db965f483f5f4d1e1",
+          "profiles": {
+            "xmqtt_client_dial": {
+              "description": "Numeric/prepared/cached-host lifecycle costs on one loopback Engine/Resolver; includes CONNECT, QoS1 and actual physical retirement, no external DNS/broker parity.",
+              "benchmarks": {
+                "xmqtt_client_dial_numeric": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "0"
+                  ],
+                  "facts": {
+                    "mode": "0",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        3685.101,
+                        3711.525,
+                        3793.173,
+                        3778.675,
+                        3585.675
+                      ],
+                      "median": 3711.525,
+                      "mean": 3710.8298000000004,
+                      "min": 3585.675,
+                      "max": 3793.173,
+                      "mad": 67.15000000000009,
+                      "relative_mad": 0.01809229359899235,
+                      "range": 207.4979999999996,
+                      "relative_range": 0.05590639966051679,
+                      "central_range": 93.57400000000007,
+                      "relative_central_range": 0.025211739109934614,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        346.4,
+                        266.7,
+                        257.0,
+                        266.6,
+                        271.7
+                      ],
+                      "median": 266.7,
+                      "mean": 281.68,
+                      "min": 257.0,
+                      "max": 346.4,
+                      "mad": 5.0,
+                      "relative_mad": 0.018747656542932135,
+                      "range": 89.39999999999998,
+                      "relative_range": 0.3352080989876265,
+                      "central_range": 5.099999999999966,
+                      "relative_central_range": 0.01912260967379065,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        458.0,
+                        384.2,
+                        449.8,
+                        425.6,
+                        421.0
+                      ],
+                      "median": 425.6,
+                      "mean": 427.71999999999997,
+                      "min": 384.2,
+                      "max": 458.0,
+                      "mad": 24.19999999999999,
+                      "relative_mad": 0.05686090225563907,
+                      "range": 73.80000000000001,
+                      "relative_range": 0.17340225563909775,
+                      "central_range": 28.80000000000001,
+                      "relative_central_range": 0.06766917293233085,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                },
+                "xmqtt_client_dial_prepared": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "1"
+                  ],
+                  "facts": {
+                    "mode": "1",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        3733.97,
+                        3703.676,
+                        3694.781,
+                        3619.674,
+                        3764.224
+                      ],
+                      "median": 3703.676,
+                      "mean": 3703.2650000000003,
+                      "min": 3619.674,
+                      "max": 3764.224,
+                      "mad": 30.29399999999987,
+                      "relative_mad": 0.008179441182220007,
+                      "range": 144.55000000000018,
+                      "relative_range": 0.039028791935363724,
+                      "central_range": 39.18899999999985,
+                      "relative_central_range": 0.010581109146696377,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        255.4,
+                        253.8,
+                        258.2,
+                        356.5,
+                        330.7
+                      ],
+                      "median": 258.2,
+                      "mean": 290.91999999999996,
+                      "min": 253.8,
+                      "max": 356.5,
+                      "mad": 4.399999999999977,
+                      "relative_mad": 0.01704105344694027,
+                      "range": 102.69999999999999,
+                      "relative_range": 0.3977536793183578,
+                      "central_range": 75.29999999999998,
+                      "relative_central_range": 0.29163439194422924,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        371.8,
+                        421.8,
+                        438.6,
+                        488.8,
+                        429.4
+                      ],
+                      "median": 429.4,
+                      "mean": 430.08000000000004,
+                      "min": 371.8,
+                      "max": 488.8,
+                      "mad": 9.200000000000045,
+                      "relative_mad": 0.02142524452724743,
+                      "range": 117.0,
+                      "relative_range": 0.27247321844434097,
+                      "central_range": 16.80000000000001,
+                      "relative_central_range": 0.03912435957149514,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                },
+                "xmqtt_client_dial_hostname": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "2"
+                  ],
+                  "facts": {
+                    "mode": "2",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        3424.622,
+                        3671.874,
+                        3732.875,
+                        3699.531,
+                        3405.629
+                      ],
+                      "median": 3671.874,
+                      "mean": 3586.9062,
+                      "min": 3405.629,
+                      "max": 3732.875,
+                      "mad": 61.001000000000204,
+                      "relative_mad": 0.016613042822275548,
+                      "range": 327.2460000000001,
+                      "relative_range": 0.08912233916523282,
+                      "central_range": 274.9090000000001,
+                      "relative_central_range": 0.0748688544323689,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        295.2,
+                        266.2,
+                        276.9,
+                        288.3,
+                        289.5
+                      ],
+                      "median": 288.3,
+                      "mean": 283.21999999999997,
+                      "min": 266.2,
+                      "max": 295.2,
+                      "mad": 6.899999999999977,
+                      "relative_mad": 0.023933402705515007,
+                      "range": 29.0,
+                      "relative_range": 0.10058966354491848,
+                      "central_range": 12.600000000000023,
+                      "relative_central_range": 0.04370447450572328,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        393.1,
+                        379.5,
+                        432.5,
+                        425.8,
+                        405.8
+                      ],
+                      "median": 405.8,
+                      "mean": 407.34000000000003,
+                      "min": 379.5,
+                      "max": 432.5,
+                      "mad": 20.0,
+                      "relative_mad": 0.04928536224741252,
+                      "range": 53.0,
+                      "relative_range": 0.13060620995564318,
+                      "central_range": 32.69999999999999,
+                      "relative_central_range": 0.08058156727451944,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ordinary": {
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 402508.649,
+                "latency_p50_us": 76.4,
+                "latency_p99_us": 122.7,
+                "latency_max_us": 581.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 394420.32,
+                "latency_p50_us": 76.8,
+                "latency_p99_us": 150.2,
+                "latency_max_us": 254.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 388560.167,
+                "latency_p50_us": 77.0,
+                "latency_p99_us": 148.5,
+                "latency_max_us": 3484.9,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 405591.539,
+                "latency_p50_us": 76.1,
+                "latency_p99_us": 129.3,
+                "latency_max_us": 1312.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 393475.339,
+                "latency_p50_us": 77.0,
+                "latency_p99_us": 132.1,
+                "latency_max_us": 5886.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 407970.548,
+                "latency_p50_us": 74.6,
+                "latency_p99_us": 146.6,
+                "latency_max_us": 211.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 386261.303,
+                "latency_p50_us": 77.8,
+                "latency_p99_us": 134.9,
+                "latency_max_us": 5714.6,
+                "checksum": 9306512250.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 373789.25,
+                "latency_p50_us": 83.0,
+                "latency_p99_us": 129.4,
+                "latency_max_us": 259.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 396412.101,
+                "latency_p50_us": 77.4,
+                "latency_p99_us": 147.7,
+                "latency_max_us": 258.7,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 405882.702,
+                "latency_p50_us": 74.7,
+                "latency_p99_us": 144.0,
+                "latency_max_us": 4936.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 398512.962,
+                "latency_p50_us": 76.8,
+                "latency_p99_us": 128.4,
+                "latency_max_us": 2083.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 389842.878,
+                "latency_p50_us": 78.5,
+                "latency_p99_us": 138.0,
+                "latency_max_us": 2351.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 388303.722,
+                "latency_p50_us": 78.3,
+                "latency_p99_us": 129.4,
+                "latency_max_us": 1760.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 403595.932,
+                "latency_p50_us": 75.4,
+                "latency_p99_us": 141.4,
+                "latency_max_us": 1902.2,
+                "checksum": 9306512250.0
+              }
+            ],
+            "dial-enabled": [
+              {
+                "publishes_per_sec": 402570.331,
+                "latency_p50_us": 74.7,
+                "latency_p99_us": 150.0,
+                "latency_max_us": 7784.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 394006.22,
+                "latency_p50_us": 76.4,
+                "latency_p99_us": 149.2,
+                "latency_max_us": 2005.1,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 403576.658,
+                "latency_p50_us": 75.9,
+                "latency_p99_us": 128.4,
+                "latency_max_us": 319.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 409961.91,
+                "latency_p50_us": 74.5,
+                "latency_p99_us": 133.7,
+                "latency_max_us": 332.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 381044.364,
+                "latency_p50_us": 80.3,
+                "latency_p99_us": 149.8,
+                "latency_max_us": 1965.5,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 396948.682,
+                "latency_p50_us": 76.8,
+                "latency_p99_us": 128.1,
+                "latency_max_us": 4673.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 404225.994,
+                "latency_p50_us": 75.7,
+                "latency_p99_us": 128.2,
+                "latency_max_us": 3972.9,
+                "checksum": 9306512250.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 394420.32,
+                "relative_mad": 0.020506877029053596,
+                "relative_central_range": 0.04318076715722956,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 134.9,
+                "relative_mad": 0.08673091178650844,
+                "relative_central_range": 0.1423276501111934,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 396412.101,
+                "relative_mad": 0.01812212841605445,
+                "relative_central_range": 0.038576546884980085,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 138.0,
+                "relative_mad": 0.06231884057971011,
+                "relative_central_range": 0.10579710144927532,
+                "noise_qualified": false
+              }
+            },
+            "dial-enabled": {
+              "publishes_per_sec": {
+                "median": 402570.331,
+                "relative_mad": 0.013964389740385597,
+                "relative_central_range": 0.02538630697054531,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 133.7,
+                "relative_mad": 0.04188481675392666,
+                "relative_central_range": 0.16155572176514604,
+                "noise_qualified": false
+              }
+            }
+          },
+          "binaries": {
+            "before": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-ordinary-before.exe",
+              "sha256": "afc97f32452f19ce625341a80ee0431aa1206bc08cdd73b2fc4efa9f6db07c6e"
+            },
+            "base": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-ordinary-base.exe",
+              "sha256": "4b1082aa35bdee1b59e0858047a5e5dfb301bb806bf5262c47e56ef194d22668"
+            },
+            "dial-enabled": {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-dial-20261109\\windows-ordinary-dial-enabled.exe",
+              "sha256": "5bff1f6fe2482e0ed104a71c0689a5f99b9eba82b5da7703224ca0641c0ba1cb"
+            }
+          },
+          "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+          "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+          "before_extension_sha256": "b423985569963362c8a753536c1079dd8af433a8471fcdc5bdc7a5608dc84151",
+          "scope": "Same current Core, immutable alternating binaries, seven 300000-QoS1/window32 samples per variant. Original MAD3%/central6% and throughput5%/P9910% limits; unpinned loopback, no broker parity."
+        },
+        "ordinary_comparisons": {
+          "base": {
+            "publishes_per_sec": {
+              "relative_change": 0.005049894488194706,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": 0.022979985174202966,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          },
+          "dial-enabled": {
+            "publishes_per_sec": {
+              "relative_change": 0.020663263495146467,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": -0.008895478131949686,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.EXE (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "5cbf5aa88326afdaa2466302ead0c35aaa4489fc",
+        "source_dirty": true,
+        "source_fingerprint": "cd147e731e9e96a82bad803d656c2ca9ffba2bff8b6fbae93b903a3787104773",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xmqtt_client": {
+            "suite": "xmqtt_client",
+            "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately",
+            "forbid_symbols": [
+              "xmqttClientConnectAuth",
+              "xmqttClientReauthenticate",
+              "xmqttAuthRespond",
+              "xmqttClientDial"
+            ],
+            "kinds": {
+              "single": {
+                "text": 420400,
+                "data": 2384,
+                "bss": 11136,
+                "members": 1,
+                "load": 422784,
+                "file": 594894,
+                "path": "out/size/gnu/native/xmqtt_client/single/xmqtt_single.o",
+                "compile_seconds": 9.77533059999405,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 99248,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 99248,
+                "file": 138806,
+                "path": "release/gnu/native/xmqtt_client/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 112889,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 113033,
+                "file": 164031,
+                "path": "release/gnu/native/xmqtt_client/shared/xmqtt.dll"
+              }
+            }
+          },
+          "xmqtt_client_dial": {
+            "suite": "xmqtt_client_dial",
+            "description": "Bounded DNS/prepared-address MQTT client and public Core Dial dependency closure",
+            "forbid_symbols": [],
+            "kinds": {
+              "single": {
+                "text": 472900,
+                "data": 2384,
+                "bss": 11136,
+                "members": 1,
+                "load": 475284,
+                "file": 673414,
+                "path": "out/size/gnu/native/xmqtt_client_dial/single/xmqtt_single.o",
+                "compile_seconds": 10.802595500004827
+              },
+              "static": {
+                "text": 102844,
+                "data": 0,
+                "bss": 0,
+                "members": 8,
+                "load": 102844,
+                "file": 144074,
+                "path": "release/gnu/native/xmqtt_client_dial/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 117258,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 117402,
+                "file": 171041,
+                "path": "release/gnu/native/xmqtt_client_dial/shared/xmqtt.dll"
+              }
+            }
+          }
+        }
+      },
+      "artifacts": {
+        "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+        "artifacts": {
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/single/xmqtt_single.o": {
+            "sha256": "0d959406504b27634f2d002aa769523c136f5c6c7fe70b8bbd28868495dea4ec",
+            "bytes": 594894
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/static/libxmqtt.a": {
+            "sha256": "085da653292bd8855df56fd21614810d717fee462df1b08cda05a75c5738541a",
+            "bytes": 138806
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/static/libxrt.a": {
+            "sha256": "ef77fca81cafa19ba155a1a212622a38c2107dd840e1148c7e56c90fed98e64f",
+            "bytes": 479352
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/static/packages.json": {
+            "sha256": "0869a8175477ad7baa68220f492471b8470fdafb059db52f3624b8c400b6b68d",
+            "bytes": 1815
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/static/test_package_xmqtt.exe": {
+            "sha256": "5d7fccc2f55233068fd686ceda0b88343b8e32100a8771860cd7d040cb3b4aa1",
+            "bytes": 555120
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/xmqtt.dll": {
+            "sha256": "d4ea9fbcd4f630f93902b167ce1ec122ffbae915a7121913f5ffe9db9a5811a5",
+            "bytes": 164031
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/libxmqtt.dll.a": {
+            "sha256": "d96644c1eb257a63239741fda58803d699e681fff47984b66d53b79c67205da4",
+            "bytes": 30432
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/libxrt.dll.a": {
+            "sha256": "37720a4606aa81b6ed46f538e35bfdd29759cc73d9c41df64d6f7b5538dc63b3",
+            "bytes": 344756
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/packages.json": {
+            "sha256": "c4799ec79b4b70adab9d8626402dd07991ccd66f1d389ef75d5c700d55cdb82e",
+            "bytes": 1839
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/test_package_xmqtt.exe": {
+            "sha256": "613a2a183a9c6f3784af4b44b9c616b2d0ffda095ba508387ca2caa23f26cb3c",
+            "bytes": 57855
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client/shared/xrt.dll": {
+            "sha256": "a52ac3225a98a2ee0d5bde5861b5b4807b5dc58b54ad0b489eb14c7cfe6c0ddb",
+            "bytes": 448547
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/single/xmqtt_single.o": {
+            "sha256": "ab1f427be4b307c47f7b0a76bc88af7ded43d5772e7ac6c8a0ce906f01f49539",
+            "bytes": 673414
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/static/libxmqtt.a": {
+            "sha256": "0beed5e1b72060a7efce7965a8387a3e2215e3323d874e7455e59762e4bf0b82",
+            "bytes": 144074
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/static/libxrt.a": {
+            "sha256": "7cacbce5b2a41e2772499573fda2d5d03fc88b71acb6e9fb1f514f13583bf525",
+            "bytes": 558792
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/static/packages.json": {
+            "sha256": "7c0622527d2e9185a48d260129ddc2668af1e28825855fd4a57a7ea07ba63820",
+            "bytes": 1953
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/static/test_package_xmqtt.exe": {
+            "sha256": "2ff3d8535364f1d6bebb68f862f1c3de4507543f2511feb20ce6322933338631",
+            "bytes": 615277
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/xmqtt.dll": {
+            "sha256": "29c6b709740117eb5e384fc5fbe95ebd637efbdb5d5c44db13f7e4518b522a05",
+            "bytes": 171041
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/libxmqtt.dll.a": {
+            "sha256": "04fb1600f0dc10cd5c1a95e31a4193501c0fe79775cd1074a0ee1d841538e0f5",
+            "bytes": 32434
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/libxrt.dll.a": {
+            "sha256": "006fb85367cd8450753d7f4bf34239f0772655e8cb57a67a83d6f0984796a4db",
+            "bytes": 379260
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/packages.json": {
+            "sha256": "411092c33160d6c99ec89b66b5f9011d8c62e1bfd240c810111c52fa5d214a5c",
+            "bytes": 1977
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/test_package_xmqtt.exe": {
+            "sha256": "f8097a993bee3216331a422d1826e37151c263f47abb33b8a9bed9f0d2bb4636",
+            "bytes": 59409
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/size/xmqtt_client_dial/shared/xrt.dll": {
+            "sha256": "1dcaf6b5bada232f3263fc2ac55fa58cd8155eade64c064fa5776fdbe5e6307c",
+            "bytes": 505291
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/performance/xmqtt_client_dial_numeric.exe": {
+            "sha256": "39af62db505d16b802b9630c327b983fec0167274dcb0ce955ba297091d0c31f",
+            "bytes": 620728
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/performance/xmqtt_client_dial_prepared.exe": {
+            "sha256": "39af62db505d16b802b9630c327b983fec0167274dcb0ce955ba297091d0c31f",
+            "bytes": 620728
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/performance/xmqtt_client_dial_hostname.exe": {
+            "sha256": "39af62db505d16b802b9630c327b983fec0167274dcb0ce955ba297091d0c31f",
+            "bytes": 620728
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/ordinary/windows-ordinary-before.exe": {
+            "sha256": "afc97f32452f19ce625341a80ee0431aa1206bc08cdd73b2fc4efa9f6db07c6e",
+            "bytes": 613495
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/ordinary/windows-ordinary-base.exe": {
+            "sha256": "4b1082aa35bdee1b59e0858047a5e5dfb301bb806bf5262c47e56ef194d22668",
+            "bytes": 613493
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/windows/ordinary/windows-ordinary-dial-enabled.exe": {
+            "sha256": "5bff1f6fe2482e0ed104a71c0689a5f99b9eba82b5da7703224ca0641c0ba1cb",
+            "bytes": 678164
+          }
+        }
+      }
+    },
+    "wsl": {
+      "validation": {
+        "mqtt_root_programs": 21,
+        "reused_other_root_programs": 94,
+        "combined_root_programs": 115,
+        "reused_other_root_receipts": [
+          {
+            "label": "xredis-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xredis/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xredis_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 263.021,
+            "log_sha256": "93255f4f40ca19dc56dc7d5c90b3b34e37c598f3eeae549aa109da57a789cf9d",
+            "programs": 30
+          },
+          {
+            "label": "xrpc-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xrpc/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xrpc_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 268.464,
+            "log_sha256": "1df47bb2e4d9241c0a63d556a44a0f122f59c0c808cf1e8f5308aa33aa07c32c",
+            "programs": 30
+          },
+          {
+            "label": "xcron-root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xcron/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xcron_tests,event_waiter",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 107.674,
+            "log_sha256": "40198080521b25fe7a81ab245739cf463b2354ba982bacaaf3d7d26de38648eb",
+            "programs": 34
+          }
+        ],
+        "current_receipts": [
+          {
+            "label": "root-suite",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_tests",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 114.337,
+            "log_sha256": "e5618d03b8a5c05b1b79ad00144888450aac4b84c57204405934325d378d5e6e",
+            "programs": 21,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_wire": "1e3ec29e8ef67b9d71794688e4d522e54bd29152fa11257b2ff6d6d49b0630b8",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_properties": "372f81648d505389973ea31f02ec70d56ca04478453f7f81ff4143ab38f8eb66",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_packet": "f6c73df0cebce76da1a2e667d0e2d6e66724530efa6930543decbd69eb8cfd89",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_codec5": "21a024e94c5961e3700b4ddfdba5af83d60f627b2cedd8b6c021a738e67a1f33",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_codec311": "0c1bf941db08046b4e83067c2222485e759b06b7b5eaed8d9f5b93957ab6f894",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_negotiation": "a577a27d086400cb6f76fef075569e6e68e2e0b5fa82b095a771539778b391f2",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_client": "7e1b3f45a4709382643b30bddaac62614647212341427b100c0d645329f19042",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_client_auth": "acc255f2d94e6efb2b4dc6f9b685d397fd0eced5477057b4fe88d2fd7a09b28e",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_client_dial": "b664a18782cb79ad7e48f94681981c5de0c47eb5874f6b20f5c982483f281c22",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_wire": "8564fa4c9a652fbaaf47241256ec0b38cf2cee66ff9437b155cea1ebdbc3cdb9",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_properties": "36d8686b4c748ceb29837e8df658073ca99502724812efec75ddccd29adf5d55",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_packet": "44bafdb6370df173fd7a2c25505dded8126aba902b49ba5233e700b66b88d802",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_codec5": "a92c5242fd659571b337760b562645a30910ad538035dc86fa37c1a1ed1f8f29",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_codec311": "e4a0e0d1c6eee00e32b9a2c276171ff41cfffb8fc57cc216b4197928abd2fad6",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_negotiation": "fc47325bfa325f5e2a8fdd89ce89fb47661c603cb16beb9116d78c80a410867e",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_client": "0d22b24c7508edb7efd87c17b6d2c9790de314292919b5439173e716ac1437e5",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_client_auth": "bc10c80fa32f58245e558278b5cdcef33884e401458db81d31a4f749c4cab2a6",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_auth_cancel_retirement": "1e43240e24dd4b8cf18acbe39cd40ef52fe2d5ad4e36577aacc97682ae6e9e26",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_auth_completion_reservation": "ff5e28e351c3913301ab0987abc9cb960acc2545361d677bf086bab9a014ea51",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_client_dial": "421c62ef3bc923957615d8401a2baa9194955928615c45d824f8ab60afc7e82c",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/root-suite/test_single_xmqtt_dial_auth": "c47c1956376827ffc8a2759592289c69a6cada5a8b4a421dfad97c006a2ea1db"
+            }
+          },
+          {
+            "label": "dial-example",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-single",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 34.03,
+            "log_sha256": "1a177a2494156a8aafaa9763b7e6c3fb3e3500caae4e1bb302b0c54057772ece",
+            "programs": 2,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/dial-example/test_client_dial": "89cc0aad65da5f180f46a6fe38a2c1c646f259967493fd98944a50ad3f9f0daa",
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/dial-example/examples_dial_main": "07a37fee9dd0f60a7668031646c93b9700734dccfd02fea38f2948ccf73f4fc8"
+            }
+          },
+          {
+            "label": "host-probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-pthread",
+              "-lm",
+              "-fsanitize=address,undefined",
+              "-fno-omit-frame-pointer",
+              "-o",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-host-probe"
+            ],
+            "exit_code": 0,
+            "seconds": 23.73,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "host-wire",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-host-probe",
+              "--output",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-host-wire.json"
+            ],
+            "exit_code": 0,
+            "seconds": 5.582,
+            "log_sha256": "1e1b5b1a3b5b1468e6200465ad1ced4326bdb7db58e700396c895fc9757366ad",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "prepared-probe-build",
+            "command": [
+              "gcc",
+              "-std=c11",
+              "-O2",
+              "-Wall",
+              "-Wextra",
+              "-Werror",
+              "-Iinclude",
+              "-Iextlibs/xmqtt/include",
+              "-DAP_DIAL_PREPARED",
+              "extlibs/xmqtt/tests/interop/single_dial_auth_probe.c",
+              "-pthread",
+              "-lm",
+              "-fsanitize=address,undefined",
+              "-fno-omit-frame-pointer",
+              "-o",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-prepared-probe"
+            ],
+            "exit_code": 0,
+            "seconds": 23.579,
+            "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "prepared-wire",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "extlibs/xmqtt/tests/interop/run_auth_wire.py",
+              "--probe",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-prepared-probe",
+              "--output",
+              "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-prepared-wire.json"
+            ],
+            "exit_code": 0,
+            "seconds": 5.532,
+            "log_sha256": "1e1b5b1a3b5b1468e6200465ad1ced4326bdb7db58e700396c895fc9757366ad",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 3.275,
+            "log_sha256": "bcd2156f9cd1a981f27312eac6df2c43ecb33d58f1eadf32d50ce84ca727ef5c",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 4.278,
+            "log_sha256": "b27564202353d6336d87e63d6b64c31b3c5a2ec2518f1f1fb0d4e8e28881cbfe",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 2.975,
+            "log_sha256": "36a2cd259329b189ad648f6499dfb5e3ee0d0122c58c67faaf287d9eab9b0e4c",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 3.876,
+            "log_sha256": "c3c4c2be2988c5891800b86481b79b1cf4470becd9719bcb401fa1db61bff0c0",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_auth-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 3.125,
+            "log_sha256": "c96dba170326bc3ffb135f4eb94d37faa4e2ab39d5fc9a1619db32e59456b994",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_auth-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_auth",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 4.077,
+            "log_sha256": "01d43b4bde4a8d4911ff048341ac06abb5056a496637345be1f6b94c8a1d9e0c",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 3.125,
+            "log_sha256": "4b89d03e429598fc25236cc0a6d6ad70408da687da9800b3bcf64a2eef0bd968",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "exit_code": 0,
+            "seconds": 4.127,
+            "log_sha256": "e99f337a97f7d467ea6389903e986cde2745484c0f756626abbd4324928f03af",
+            "programs": 0,
+            "executed_test_binaries": {}
+          },
+          {
+            "label": "tsan-dial-modular",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--suite",
+              "xmqtt_client_dial",
+              "--no-single"
+            ],
+            "exit_code": 0,
+            "seconds": 19.49,
+            "log_sha256": "869f0a1b6c05308ab4ff703b2b17651779fdb74d7fa0534de3316ee04523cd67",
+            "programs": 1,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/tsan-dial-modular/test_client_dial": "2add09c45b103c460560949898725116869b1cb3328037ac0949acc1fe58df10"
+            }
+          },
+          {
+            "label": "tsan-dial-single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--suite",
+              "xmqtt_client_dial",
+              "--single-test",
+              "test_single_xmqtt_client_dial"
+            ],
+            "exit_code": 0,
+            "seconds": 28.191,
+            "log_sha256": "f23dedd904b15e2f3ebc3fddfa36f140d68ab63577a786e4f684839e7181d0c1",
+            "programs": 1,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/tsan-dial-single/test_single_xmqtt_client_dial": "506b9e1f60a90a0b87995f0f9d74c6424388564d156b786af6a9fe039c528470"
+            }
+          },
+          {
+            "label": "tsan-dial-auth-single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--cflag=-O2",
+              "--jobs",
+              "4",
+              "--no-examples",
+              "--cflag=-O1",
+              "--cflag=-g",
+              "--cflag=-fsanitize=thread",
+              "--cflag=-fno-omit-frame-pointer",
+              "--cflag=-Wno-error=tsan",
+              "--ldflag=-fsanitize=thread",
+              "--suite",
+              "xmqtt",
+              "--single-test",
+              "test_single_xmqtt_dial_auth"
+            ],
+            "exit_code": 0,
+            "seconds": 28.235,
+            "log_sha256": "9c2d3ff92217b950caff674f20cff3419d9e12fb0e3e82d8c1ad7e9f27ec9921",
+            "programs": 1,
+            "executed_test_binaries": {
+              "out/service-extensions/xmqtt-dial-20261109/binaries/wsl/tsan-dial-auth-single/test_single_xmqtt_dial_auth": "b0302175173c5bd1e5f7b0fdc5e18aafe4825f450ae9b1f168f7aa7a429b355e"
+            }
+          }
+        ],
+        "independent_wire": {
+          "host": {
+            "probe_sha256": "2c1c72f3f9c788e87a69968b1ac89e4d159f81d233fae696e94c4199bf365446",
+            "cases": [
+              {
+                "case": "normal",
+                "exit_code": 0,
+                "stdout": "PASS auth normal\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "tiny",
+                "exit_code": 0,
+                "stdout": "PASS auth tiny\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "coalesced",
+                "exit_code": 0,
+                "stdout": "PASS auth coalesced\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "verify_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth verify_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_clean",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_clean\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_reason",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_reason\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_success",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_early_pong",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_early_pong\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_reject",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_reject\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_eof",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_eof\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_initial",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_initial\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_short_success",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_short_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_disconnect",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_disconnect\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_reauth",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_reauth\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              }
+            ]
+          },
+          "prepared": {
+            "probe_sha256": "1945d387202014dd369a8179868bf69ae8518064f014d3a5f9d7d02de4edd6e3",
+            "cases": [
+              {
+                "case": "normal",
+                "exit_code": 0,
+                "stdout": "PASS auth normal\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "tiny",
+                "exit_code": 0,
+                "stdout": "PASS auth tiny\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "coalesced",
+                "exit_code": 0,
+                "stdout": "PASS auth coalesced\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "verify_keepalive",
+                "exit_code": 0,
+                "stdout": "PASS auth verify_keepalive\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_clean",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_clean\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "problem_reason",
+                "exit_code": 0,
+                "stdout": "PASS auth problem_reason\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_success",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_early_pong",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_early_pong\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_reject",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_reject\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_eof",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_eof\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "initial_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth initial_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_initial",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_initial\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_bad_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_bad_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_missing_method",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_missing_method\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_short_success",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_short_success\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_server_start",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_server_start\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_disconnect",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_disconnect\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "reauth_timeout",
+                "exit_code": 0,
+                "stdout": "PASS auth reauth_timeout\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              },
+              {
+                "case": "local_reject_reauth",
+                "exit_code": 0,
+                "stdout": "PASS auth local_reject_reauth\n",
+                "stderr": "",
+                "peer_errors": [],
+                "peer_finished": true
+              }
+            ]
+          }
+        },
+        "post_size_consumers": [
+          {
+            "label": "xmqtt_client-static",
+            "exit_code": 0,
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "14c9e9db392401baac7025d8c36be227b79e84d332442eaa9061897b02601a54"
+          },
+          {
+            "label": "xmqtt_client-shared",
+            "exit_code": 0,
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "04df97e1e221ef4eca3c906309d8a5cc22d75ec8c076d2ff3ced4c31eb3627ee"
+          },
+          {
+            "label": "xmqtt_client_dial-static",
+            "exit_code": 0,
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "static",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "62226632e2ea1eeec1ee942cc0e603f1ed80b08cab221c7c49bd0c3c8064ead2"
+          },
+          {
+            "label": "xmqtt_client_dial-shared",
+            "exit_code": 0,
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/package.py",
+              "--compiler",
+              "gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--suite",
+              "xmqtt_client_dial",
+              "--kind",
+              "shared",
+              "--verify",
+              "--cflag=-O2"
+            ],
+            "log_sha256": "d2bc62b2028a458a0794d97e5d7af401f8de72cea1b357f3410ab47bd2c8673d"
+          }
+        ]
+      },
+      "layouts": {
+        "before": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1376
+        },
+        "base": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1376
+        },
+        "dial-enabled": {
+          "config": 272,
+          "info": 160,
+          "ready": 136,
+          "write": 64,
+          "subscription": 64,
+          "message": 200,
+          "request": 104,
+          "client": 1384
+        }
+      },
+      "allocation": {
+        "metrics": {
+          "0": {
+            "connections_per_sec": 3213.889,
+            "setup_p99_us": 287.9,
+            "cycle_p99_us": 442.8,
+            "mode": 0.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 29.04,
+            "process_heap_bytes_per_cycle": 27564.16
+          },
+          "1": {
+            "connections_per_sec": 3155.968,
+            "setup_p99_us": 243.6,
+            "cycle_p99_us": 477.4,
+            "mode": 1.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 31.065,
+            "process_heap_bytes_per_cycle": 28129.6
+          },
+          "2": {
+            "connections_per_sec": 3085.667,
+            "setup_p99_us": 318.0,
+            "cycle_p99_us": 502.8,
+            "mode": 2.0,
+            "measured_ops": 200.0,
+            "process_heap_blocks_per_cycle": 33.13,
+            "process_heap_bytes_per_cycle": 28259.37
+          }
+        },
+        "binary_sha256": "7b4b01c45cad0ab36e8daa08f168c4c9e26e77b1d1aa2f54720c02c457eb5d3f",
+        "scope": "Process-wide requested heap counts in connection-loop window including the peer. Pool hits count, not libc calls/RSS/kernel allocations; shared Engine/Resolver setup and final teardown excluded."
+      },
+      "performance": {
+        "cold_lifecycle": {
+          "schema": 2,
+          "product": "xmqtt",
+          "generated_at": "2026-11-09T05:13:45.892322+00:00",
+          "platform": "linux",
+          "machine": "x86_64",
+          "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+          "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+          "cpu_count": 12,
+          "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+          "power_policy": "unknown",
+          "compiler_family": "gnu",
+          "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+          "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+          "arch": "x64",
+          "optimization": "-O2",
+          "cflags": [
+            "-O2"
+          ],
+          "ldflags": [],
+          "policy": "baseline-unpinned",
+          "repeats": 5,
+          "warmups": 1,
+          "max_relative_mad": 0.03,
+          "max_relative_central_range": 0.06,
+          "source_revision": "5cbf5aa88326afdaa2466302ead0c35aaa4489fc",
+          "source_dirty": true,
+          "source_fingerprint": "303bc29c3b0407226650ad33bf4c03a7d39b0b909ecd1998bba7c022c73bfe51",
+          "benchmark_fingerprint": "0996512d82943f60fbd2261635c127ef183f0e2a446ca45db965f483f5f4d1e1",
+          "profiles": {
+            "xmqtt_client_dial": {
+              "description": "Numeric/prepared/cached-host lifecycle costs on one loopback Engine/Resolver; includes CONNECT, QoS1 and actual physical retirement, no external DNS/broker parity.",
+              "benchmarks": {
+                "xmqtt_client_dial_numeric": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "0"
+                  ],
+                  "facts": {
+                    "mode": "0",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        2770.398,
+                        2781.572,
+                        3129.558,
+                        3047.893,
+                        3135.45
+                      ],
+                      "median": 3047.893,
+                      "mean": 2972.9741999999997,
+                      "min": 2770.398,
+                      "max": 3135.45,
+                      "mad": 87.55699999999979,
+                      "relative_mad": 0.028727058331772075,
+                      "range": 365.0519999999997,
+                      "relative_range": 0.11977192112715232,
+                      "central_range": 347.9859999999999,
+                      "relative_central_range": 0.11417264319974484,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        261.4,
+                        274.0,
+                        274.1,
+                        312.8,
+                        257.2
+                      ],
+                      "median": 274.0,
+                      "mean": 275.9,
+                      "min": 257.2,
+                      "max": 312.8,
+                      "mad": 12.600000000000023,
+                      "relative_mad": 0.045985401459854094,
+                      "range": 55.60000000000002,
+                      "relative_range": 0.20291970802919718,
+                      "central_range": 12.700000000000045,
+                      "relative_central_range": 0.046350364963503816,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        528.9,
+                        529.7,
+                        536.2,
+                        535.0,
+                        453.2
+                      ],
+                      "median": 529.7,
+                      "mean": 516.6,
+                      "min": 453.2,
+                      "max": 536.2,
+                      "mad": 5.2999999999999545,
+                      "relative_mad": 0.010005663583160193,
+                      "range": 83.00000000000006,
+                      "relative_range": 0.1566924674343969,
+                      "central_range": 6.100000000000023,
+                      "relative_central_range": 0.011515952425901496,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                },
+                "xmqtt_client_dial_prepared": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "1"
+                  ],
+                  "facts": {
+                    "mode": "1",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        3297.218,
+                        3279.296,
+                        3258.852,
+                        3320.373,
+                        3209.459
+                      ],
+                      "median": 3279.296,
+                      "mean": 3273.0396,
+                      "min": 3209.459,
+                      "max": 3320.373,
+                      "mad": 20.44399999999996,
+                      "relative_mad": 0.006234264915396463,
+                      "range": 110.91400000000021,
+                      "relative_range": 0.03382250336657631,
+                      "central_range": 38.365999999999985,
+                      "relative_central_range": 0.011699462323620676,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        235.5,
+                        306.0,
+                        242.7,
+                        240.5,
+                        268.9
+                      ],
+                      "median": 242.7,
+                      "mean": 258.71999999999997,
+                      "min": 235.5,
+                      "max": 306.0,
+                      "mad": 7.199999999999989,
+                      "relative_mad": 0.029666254635352243,
+                      "range": 70.5,
+                      "relative_range": 0.2904820766378245,
+                      "central_range": 28.399999999999977,
+                      "relative_central_range": 0.11701689328388949,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        481.9,
+                        551.2,
+                        553.8,
+                        493.6,
+                        477.4
+                      ],
+                      "median": 493.6,
+                      "mean": 511.58000000000004,
+                      "min": 477.4,
+                      "max": 553.8,
+                      "mad": 16.200000000000045,
+                      "relative_mad": 0.032820097244732664,
+                      "range": 76.39999999999998,
+                      "relative_range": 0.15478119935170173,
+                      "central_range": 69.30000000000007,
+                      "relative_central_range": 0.1403970826580228,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                },
+                "xmqtt_client_dial_hostname": {
+                  "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+                  "inputs": [
+                    "extlibs/xmqtt/examples/common/dial_peer.h",
+                    "extlibs/xmqtt/examples/common/client_peer.h"
+                  ],
+                  "suite": "xmqtt_client_dial,time",
+                  "args": [
+                    "200",
+                    "2"
+                  ],
+                  "facts": {
+                    "mode": "2",
+                    "measured_ops": "200"
+                  },
+                  "metrics": {
+                    "connections_per_sec": {
+                      "samples": [
+                        3177.12,
+                        3148.669,
+                        3017.775,
+                        3222.973,
+                        3205.149
+                      ],
+                      "median": 3177.12,
+                      "mean": 3154.3372,
+                      "min": 3017.775,
+                      "max": 3222.973,
+                      "mad": 28.451000000000022,
+                      "relative_mad": 0.008954965503348952,
+                      "range": 205.19799999999987,
+                      "relative_range": 0.06458616608752576,
+                      "central_range": 56.48000000000002,
+                      "relative_central_range": 0.017777106310117346,
+                      "direction": "higher",
+                      "unit": "connections/s",
+                      "limit": 0.05,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "setup_p99_us": {
+                      "samples": [
+                        280.3,
+                        243.0,
+                        409.2,
+                        257.4,
+                        298.7
+                      ],
+                      "median": 280.3,
+                      "mean": 297.71999999999997,
+                      "min": 243.0,
+                      "max": 409.2,
+                      "mad": 22.900000000000034,
+                      "relative_mad": 0.08169818052087062,
+                      "range": 166.2,
+                      "relative_range": 0.5929361398501605,
+                      "central_range": 41.30000000000001,
+                      "relative_central_range": 0.14734213342846952,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    },
+                    "cycle_p99_us": {
+                      "samples": [
+                        522.2,
+                        480.4,
+                        707.2,
+                        449.5,
+                        477.4
+                      ],
+                      "median": 480.4,
+                      "mean": 527.3399999999999,
+                      "min": 449.5,
+                      "max": 707.2,
+                      "mad": 30.899999999999977,
+                      "relative_mad": 0.0643213988343047,
+                      "range": 257.70000000000005,
+                      "relative_range": 0.536427976686095,
+                      "central_range": 44.80000000000007,
+                      "relative_central_range": 0.09325562031640314,
+                      "direction": "lower",
+                      "unit": "us",
+                      "limit": 0.1,
+                      "max_relative_mad": 0.03,
+                      "max_relative_central_range": 0.06
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ordinary": {
+          "samples": {
+            "before": [
+              {
+                "publishes_per_sec": 123111.801,
+                "latency_p50_us": 250.9,
+                "latency_p99_us": 431.701,
+                "latency_max_us": 824.7,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122589.422,
+                "latency_p50_us": 251.4,
+                "latency_p99_us": 406.2,
+                "latency_max_us": 786.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120902.581,
+                "latency_p50_us": 252.5,
+                "latency_p99_us": 419.7,
+                "latency_max_us": 841.9,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121525.628,
+                "latency_p50_us": 251.7,
+                "latency_p99_us": 456.4,
+                "latency_max_us": 761.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121535.785,
+                "latency_p50_us": 253.0,
+                "latency_p99_us": 442.5,
+                "latency_max_us": 1236.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 118081.583,
+                "latency_p50_us": 257.2,
+                "latency_p99_us": 531.6,
+                "latency_max_us": 876.9,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120965.324,
+                "latency_p50_us": 252.4,
+                "latency_p99_us": 474.6,
+                "latency_max_us": 1119.6,
+                "checksum": 9306512250.0
+              }
+            ],
+            "base": [
+              {
+                "publishes_per_sec": 120815.251,
+                "latency_p50_us": 252.4,
+                "latency_p99_us": 469.7,
+                "latency_max_us": 837.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122345.506,
+                "latency_p50_us": 251.8,
+                "latency_p99_us": 427.0,
+                "latency_max_us": 1772.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121975.871,
+                "latency_p50_us": 252.0,
+                "latency_p99_us": 405.6,
+                "latency_max_us": 853.2,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120245.125,
+                "latency_p50_us": 255.1,
+                "latency_p99_us": 437.2,
+                "latency_max_us": 898.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121771.722,
+                "latency_p50_us": 252.6,
+                "latency_p99_us": 418.8,
+                "latency_max_us": 714.0,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 123356.985,
+                "latency_p50_us": 251.2,
+                "latency_p99_us": 412.8,
+                "latency_max_us": 738.4,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121827.754,
+                "latency_p50_us": 252.7,
+                "latency_p99_us": 416.8,
+                "latency_max_us": 743.6,
+                "checksum": 9306512250.0
+              }
+            ],
+            "dial-enabled": [
+              {
+                "publishes_per_sec": 121502.248,
+                "latency_p50_us": 252.4,
+                "latency_p99_us": 444.4,
+                "latency_max_us": 954.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122060.825,
+                "latency_p50_us": 251.2,
+                "latency_p99_us": 432.301,
+                "latency_max_us": 772.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 121205.695,
+                "latency_p50_us": 252.2,
+                "latency_p99_us": 464.6,
+                "latency_max_us": 2836.301,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122861.618,
+                "latency_p50_us": 250.6,
+                "latency_p99_us": 412.8,
+                "latency_max_us": 861.8,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122117.414,
+                "latency_p50_us": 251.1,
+                "latency_p99_us": 431.9,
+                "latency_max_us": 890.6,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 122310.371,
+                "latency_p50_us": 252.4,
+                "latency_p99_us": 427.3,
+                "latency_max_us": 722.3,
+                "checksum": 9306512250.0
+              },
+              {
+                "publishes_per_sec": 120893.083,
+                "latency_p50_us": 251.7,
+                "latency_p99_us": 452.7,
+                "latency_max_us": 669.1,
+                "checksum": 9306512250.0
+              }
+            ]
+          },
+          "summary": {
+            "before": {
+              "publishes_per_sec": {
+                "median": 121525.628,
+                "relative_mad": 0.005126877435268151,
+                "relative_central_range": 0.013880537198293684,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 442.5,
+                "relative_mad": 0.05152542372881359,
+                "relative_central_range": 0.12406779661016956,
+                "noise_qualified": false
+              }
+            },
+            "base": {
+              "publishes_per_sec": {
+                "median": 121827.754,
+                "relative_mad": 0.004249869040514308,
+                "relative_central_range": 0.012560807777840098,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 418.8,
+                "relative_mad": 0.01957975167144219,
+                "relative_central_range": 0.058261700095510925,
+                "noise_qualified": true
+              }
+            },
+            "dial-enabled": {
+              "publishes_per_sec": {
+                "median": 122060.825,
+                "relative_mad": 0.004576218455020193,
+                "relative_central_range": 0.009050209188738419,
+                "noise_qualified": true
+              },
+              "latency_p99_us": {
+                "median": 432.301,
+                "relative_mad": 0.02798744393374059,
+                "relative_central_range": 0.058755357956608883,
+                "noise_qualified": true
+              }
+            }
+          },
+          "binaries": {
+            "before": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-ordinary-before",
+              "sha256": "afd57bb1977958eb33151bb6b814279a16cf6f2f499a8e6f9554018f8a68e004"
+            },
+            "base": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-ordinary-base",
+              "sha256": "1597c0e3d8b6fe2150601802c86169a7cf2159cd511daab3c3084ee62ccd206b"
+            },
+            "dial-enabled": {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-dial-20261109/wsl-ordinary-dial-enabled",
+              "sha256": "d33eb8019f118ac6ca506fb2141e570ca8bb66715461bbeef2f59dcf63260566"
+            }
+          },
+          "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+          "common_core_sha256": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+          "before_extension_sha256": "b423985569963362c8a753536c1079dd8af433a8471fcdc5bdc7a5608dc84151",
+          "scope": "Same current Core, immutable alternating binaries, seven 300000-QoS1/window32 samples per variant. Original MAD3%/central6% and throughput5%/P9910% limits; unpinned loopback, no broker parity."
+        },
+        "ordinary_comparisons": {
+          "base": {
+            "publishes_per_sec": {
+              "relative_change": 0.0024861093497086095,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": -0.05355932203389824,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          },
+          "dial-enabled": {
+            "publishes_per_sec": {
+              "relative_change": 0.004403984647584069,
+              "noise_qualified": true,
+              "within_original_regression_limit": true
+            },
+            "latency_p99_us": {
+              "relative_change": -0.023048587570621448,
+              "noise_qualified": false,
+              "within_original_regression_limit": null
+            }
+          }
+        }
+      },
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "5cbf5aa88326afdaa2466302ead0c35aaa4489fc",
+        "source_dirty": true,
+        "source_fingerprint": "cd147e731e9e96a82bad803d656c2ca9ffba2bff8b6fbae93b903a3787104773",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xmqtt_client": {
+            "suite": "xmqtt_client",
+            "description": "MQTT TCP QoS0/1 send/receive and bounded diagnostic close, codecs/negotiation and public host TCP/Future closure; Core dependency files reported separately",
+            "forbid_symbols": [
+              "xmqttClientConnectAuth",
+              "xmqttClientReauthenticate",
+              "xmqttAuthRespond",
+              "xmqttClientDial"
+            ],
+            "kinds": {
+              "single": {
+                "text": 428233,
+                "data": 4568,
+                "bss": 10908,
+                "members": 1,
+                "load": 432801,
+                "file": 759288,
+                "path": "out/size/gnu/x64/xmqtt_client/single/xmqtt_single.o",
+                "compile_seconds": 7.198035146997427,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 101822,
+                "data": 192,
+                "bss": 0,
+                "members": 8,
+                "load": 102014,
+                "file": 179728,
+                "path": "release/gnu/x64/xmqtt_client/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 112340,
+                "data": 1496,
+                "bss": 8,
+                "members": 1,
+                "load": 113836,
+                "file": 136272,
+                "path": "release/gnu/x64/xmqtt_client/shared/libxmqtt.so"
+              }
+            }
+          },
+          "xmqtt_client_dial": {
+            "suite": "xmqtt_client_dial",
+            "description": "Bounded DNS/prepared-address MQTT client and public Core Dial dependency closure",
+            "forbid_symbols": [],
+            "kinds": {
+              "single": {
+                "text": 484041,
+                "data": 5296,
+                "bss": 10908,
+                "members": 1,
+                "load": 489337,
+                "file": 863960,
+                "path": "out/size/gnu/x64/xmqtt_client_dial/single/xmqtt_single.o",
+                "compile_seconds": 8.13579403499898
+              },
+              "static": {
+                "text": 105658,
+                "data": 224,
+                "bss": 0,
+                "members": 8,
+                "load": 105882,
+                "file": 186670,
+                "path": "release/gnu/x64/xmqtt_client_dial/static/libxmqtt.a"
+              },
+              "shared": {
+                "text": 117690,
+                "data": 1632,
+                "bss": 8,
+                "members": 1,
+                "load": 119322,
+                "file": 141280,
+                "path": "release/gnu/x64/xmqtt_client_dial/shared/libxmqtt.so"
+              }
+            }
+          }
+        }
+      },
+      "artifacts": {
+        "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+        "artifacts": {
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/single/xmqtt_single.o": {
+            "sha256": "0c74d91572b3602787613988f3472f27811b313910ab653535ee5a0ba8d42a24",
+            "bytes": 759288
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/static/libxmqtt.a": {
+            "sha256": "e12695cd840ec9b2aefa2fd0e4127b686404efba7c3928ad7b208e16f4275515",
+            "bytes": 179728
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/static/libxrt.a": {
+            "sha256": "1606751a10526f69d887f1952f9f99158b86f18d4c5ffda4e010022906e14a26",
+            "bytes": 612062
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/static/packages.json": {
+            "sha256": "dfc21d564c4ff067e36ff79e6d5b1b249364d1fc3a9bfd8e9e52c17a99f735d2",
+            "bytes": 1749
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/static/test_package_xmqtt": {
+            "sha256": "b3a4bd5d4550ab9d710eddf6eba6b7cf3d392409eedb0ed525765c4eb04673b5",
+            "bytes": 483728
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/shared/libxmqtt.so": {
+            "sha256": "699e2f7cb8cfdd101279504eacbbad3d19670676786d65a95804c098f014d5a6",
+            "bytes": 136272
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/shared/libxrt.so": {
+            "sha256": "5bbd18ad969d5fc4a3d5165df9638a115289cfed2b5ea34d9b7cf71e52e43f65",
+            "bytes": 409448
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/shared/packages.json": {
+            "sha256": "d87f07f92098ef6315d3081b1578850d084bc147635d86adc98c8d9fc59c4613",
+            "bytes": 1777
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client/shared/test_package_xmqtt": {
+            "sha256": "273efa89227d1d06b729337e3f123f3676958e38e299046045ceea11c4562291",
+            "bytes": 17024
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/single/xmqtt_single.o": {
+            "sha256": "2be52828b48ae76f46e403e623df634f4e01ad639cc5d823ed410ea9fe517a1e",
+            "bytes": 863960
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/static/libxmqtt.a": {
+            "sha256": "d5127d11c333420b5bca8c0706fc1483b513e7daab4ce77c303dfd65cf297b82",
+            "bytes": 186670
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/static/libxrt.a": {
+            "sha256": "96485d9d7601e5ac06fe76dcc5fedc2e2ecf6a83242acdfa5d6708cd84ded4e1",
+            "bytes": 715452
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/static/packages.json": {
+            "sha256": "07ec0eb90eca1a03271cba7e0e185cedb33b2130ce8766fa51176bb8e8727f1b",
+            "bytes": 1883
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/static/test_package_xmqtt": {
+            "sha256": "2edd8bee4c9d674911eff662a3b404fef863f33f9224982117ae55bfe09db1dc",
+            "bytes": 542600
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/shared/libxmqtt.so": {
+            "sha256": "53e11e63d5a6549c7eb4fbf2c6260edbfe7a3bcf09d57caaa183dc9c663355a7",
+            "bytes": 141280
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/shared/libxrt.so": {
+            "sha256": "3a30b64549ab617e4ac933963c03e9679f28c9de79e10e31256f4cf6beaced84",
+            "bytes": 472408
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/shared/packages.json": {
+            "sha256": "aa5bb7c18ddfa59d7cf3582e509fe0ffc3045953d820ca25119d5d5069d00fa7",
+            "bytes": 1911
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/size/xmqtt_client_dial/shared/test_package_xmqtt": {
+            "sha256": "03d604f1086f743c540e95e0962da5b861ec3ebe86398db0ff305ef3f70a97a6",
+            "bytes": 17160
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/performance/xmqtt_client_dial_numeric": {
+            "sha256": "3760e9f79905af38b52cad080e5475c15a750e908b653b3027dd71caf73df7bb",
+            "bytes": 551512
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/performance/xmqtt_client_dial_prepared": {
+            "sha256": "3760e9f79905af38b52cad080e5475c15a750e908b653b3027dd71caf73df7bb",
+            "bytes": 551512
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/performance/xmqtt_client_dial_hostname": {
+            "sha256": "3760e9f79905af38b52cad080e5475c15a750e908b653b3027dd71caf73df7bb",
+            "bytes": 551512
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/ordinary/wsl-ordinary-before": {
+            "sha256": "afd57bb1977958eb33151bb6b814279a16cf6f2f499a8e6f9554018f8a68e004",
+            "bytes": 542264
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/ordinary/wsl-ordinary-base": {
+            "sha256": "1597c0e3d8b6fe2150601802c86169a7cf2159cd511daab3c3084ee62ccd206b",
+            "bytes": 542264
+          },
+          "out/service-extensions/xmqtt-dial-20261109/artifacts/wsl/ordinary/wsl-ordinary-dial-enabled": {
+            "sha256": "d33eb8019f118ac6ca506fb2141e570ca8bb66715461bbeef2f59dcf63260566",
+            "bytes": 613760
+          }
+        }
+      }
+    }
+  },
+  "regressions": {
+    "early-eof-before.log": {
+      "sha256": "853faeaa030de6c583414eefbd74755ab9868e328e8bb8bbc5069dc3c5c289dd",
+      "output": "early EOF: wait=1 state=0 status=-1 expected-transport=0\n\nexit=1\n"
+    },
+    "early-eof-after.log": {
+      "sha256": "a50322457100f9f8bb8a1d4fb90961a57324839fa0ee4e8a859c4b112d884419",
+      "output": "early EOF: wait=0 state=1 status=5 expected-transport=1\n\nexit=0\n"
+    },
+    "early-eof-final.log": {
+      "sha256": "a50322457100f9f8bb8a1d4fb90961a57324839fa0ee4e8a859c4b112d884419",
+      "output": "early EOF: wait=0 state=1 status=5 expected-transport=1\n\nexit=0\n"
+    },
+    "prototype-final-replay.log": {
+      "sha256": "4b5f760c8a80a9715b33c91ead9314299067af068663301f8c01088236ad57bb",
+      "output": "[FAIL] endpoint count bound\n\nexit=1\n"
+    },
+    "windows-prototype-3.log": {
+      "sha256": "ba796bf0cbb4dcc1e73920496b31a6ae706f913cbe957e43ac78900a3cd6b5c4",
+      "output": "ial\\obj\\src__network__port.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__port_select.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__port_iocp.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__engine.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__tcp.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__tcp_ownership.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__tcp_retire.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\src__network__tcp_dial.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__wire__wire.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__properties__properties.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__packet__packet.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__codec5__decode.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__codec5__encode.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__codec311__codec311.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__negotiation__negotiation.o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\obj\\extlibs__xmqtt__src__client__client.o -lws2_32 -o D:\\GIT\\xrt\\out\\gcc\\native\\xmqtt_client_dial\\test_client_dial.exe\n[test] out\\gcc\\native\\xmqtt_client_dial\\test_client_dial.exe\nTraceback (most recent call last):\n  File \"D:\\GIT\\xrt\\tools\\build.py\", line 992, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\GIT\\xrt\\tools\\build.py\", line 928, in main\n    _run(output, args.runner)\n  File \"D:\\GIT\\xrt\\tools\\build.py\", line 613, in _run\n    subprocess.run(command, cwd=ROOT, check=True)\n  File \"C:\\Program Files\\Python312\\Lib\\subprocess.py\", line 571, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['D:\\\\GIT\\\\xrt\\\\out\\\\gcc\\\\native\\\\xmqtt_client_dial\\\\test_client_dial.exe']' returned non-zero exit status 1.\n"
+    }
+  },
+  "final_eof_replay_identity": {
+    "source_map_sha256": "93f9bddea1815bba3051c92b8d802aa1b44352961708a79afbebae30a5adbede",
+    "binary_sha256": "7284beb228942baeaa86d69c7a9e10e2b642b3593fadd7efd482f0305781eaef",
+    "replay_sha256": "faeafaa4b7a7c20cb46ca2501be6905c869424f7dbc9a581ab0b34fda0df9664",
+    "exit_code": 0
+  },
+  "completed_dial_handle_retained_until_client_destroy": true,
+  "prototype_provenance": [
+    "compiler misleading-indentation failure corrected without suppression; original source/log preserved",
+    "old test wrongly assumed a cancelled Client must wait for an independent shared DNS job; Core cancellation detaches the subscriber. Revised tests prove actual client callback retention and separate Resolver retirement, including Engine destruction before releasing the query",
+    "old endpoint-count test used65 identical endpoints; Core correctly deduplicated them. The corrected test uses65 unique ports and tests the actual public bound",
+    "pre-EOF functional run passed but lacked EOF handoff coverage; preserved separately under before-eof-fix. A deterministic native EndRead diagnostic reproduced250ms pending readiness; fix and formal Mode3 prove prompt TRANSPORT",
+    "pre-EOF as-found binaries are explicitly labelled; final validation copies each executed test binary immediately before later sanitizer/package outputs can overwrite it"
+  ],
+  "cost_scope": "Unpinned loopback workloads. Lifecycle variants include CONNECT, one QoS1 exchange, Client/peer physical retirement and Future disposal on one shared Engine/Resolver; service setup/final teardown excluded. Host variant includes one cold fixture lookup then cache. Process-wide requested XRT heap counters include peer and pool hits, not libc calls/RSS/kernel allocations. Every sample and original quality threshold retained.",
+  "limits": [
+    "ordinary tail comparisons require both baseline/current noise qualification; missing qualification is not a no-overhead or regression conclusion",
+    "external DNS/broker/crypto parity, fixed-arrival overload and pinned comparator/native>=72h production acceptance remain pending",
+    "remaining agreed four-library scope including MQTT TLS/WebSocket/sessions/expiry/reconnect/durable state remains active",
+    "strict release-completeness audit is not newly rerun here; prior four developing-product failures and xcron tzdb_file formal profile gap remain open"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-dial-20261109",
+  "artifact_index_sha256": "1932d2501085c1f2567b8e8d5405475225ee766e281fddaf961ff7850c44d434"
+}

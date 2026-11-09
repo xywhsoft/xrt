@@ -27,4 +27,5 @@
 #endif
 #include <xmqtt/client.h>
 #include <xmqtt/client_auth.h>
+#include <xmqtt/client_dial.h>
 #endif

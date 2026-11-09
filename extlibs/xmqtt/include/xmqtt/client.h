@@ -85,7 +85,8 @@ XRT_EXTERN_C_BEGIN
  * close timeout. CloseTimeout must be positive; all durations use milliseconds. */
 XMQTT_API bool xmqttClientConfigInit(xmqttclientconfig* Config);
 /* One numeric TCP connection on a running host Engine, no TLS/DNS/fallback or
- * implicit replay. CONNECT is fully encoded/copied before return; callbacks may
+ * implicit replay. Optional client_dial supplies hostname/prepared-address setup.
+ * CONNECT is fully encoded/copied before return; callbacks may
  * run before return. Setup timeout starts at factory entry. Caller owns one
  * unique Client; Close/Wait/Destroy it before destroying Engine. Output changes
  * only on success. Startup wire is wiped after handshake/stops AND its final

@@ -2099,6 +2099,118 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_dial",
+      "system": "client",
+      "description": "Numeric/prepared/cached-host lifecycle costs on one loopback Engine/Resolver; includes CONNECT, QoS1 and actual physical retirement, no external DNS/broker parity.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_dial_numeric",
+          "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+          "suite": "xmqtt_client_dial,time",
+          "args": [
+            "200",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "0"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/examples/common/dial_peer.h",
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "metrics": {
+            "connections_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "setup_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "mode",
+            "measured_ops"
+          ]
+        },
+        {
+          "name": "xmqtt_client_dial_prepared",
+          "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+          "suite": "xmqtt_client_dial,time",
+          "args": [
+            "200",
+            "1"
+          ],
+          "smoke_args": [
+            "5",
+            "1"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/examples/common/dial_peer.h",
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "metrics": {
+            "connections_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "setup_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "mode",
+            "measured_ops"
+          ]
+        },
+        {
+          "name": "xmqtt_client_dial_hostname",
+          "source": "extlibs/xmqtt/bench/bench_client_dial.c",
+          "suite": "xmqtt_client_dial,time",
+          "args": [
+            "200",
+            "2"
+          ],
+          "smoke_args": [
+            "5",
+            "2"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/examples/common/dial_peer.h",
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "metrics": {
+            "connections_per_sec": {
+              "direction": "higher",
+              "unit": "connections/s"
+            },
+            "setup_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "cycle_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "mode",
+            "measured_ops"
+          ]
+        }
+      ]
     }
   ]
 }

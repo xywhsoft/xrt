@@ -38,12 +38,14 @@ Target and rules: [development contract](service-extensions-plan.md).
 - xmqtt wire framing, variable integers, UTF-8 strings and binary fields are
   locally verified. All standard MQTT 5.0 property sections are also locally
   verified, along with all MQTT 5/3.1.1 packet body codecs and shared topic/filter
-  grammar and negotiated connection constraints. The developing numeric TCP
+  grammar and negotiated connection constraints. The developing TCP
   client supports CONNECT/CONNACK, keep-alive, QoS-0/1/2 send/receive,
   bounded identifiers/credit, retained ACK/message ownership, diagnostic and
-  application graceful DISCONNECT, and physical retirement. Subscriptions, session/auth/alias/reconnect/store, richer transports and full
-  performance/production qualification remain pending.
-- Primary checkout changes remain outside this branch.
+  application graceful DISCONNECT, subscriptions, send/receive aliases, enhanced
+  authentication and physical retirement. Hostname/prepared-address Dial is
+  locally verified. Sessions, expiry, reconnect/store, TLS/WebSocket
+  and full performance/production qualification remain pending.
+- Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
 ## Baseline checks
 
@@ -8718,3 +8720,72 @@ also records the xcron tzdb_file performance-profile gap. TLS/WebSocket, reconne
 durable sessions, external auth algorithms/broker interop, remaining four-library
 scope and qualified native Linux/>=72h mixed-load acceptance remain in the active
 long-term goal. Future development defaults directly to master.
+
+
+## 2026-11-09 - bounded MQTT hostname and prepared-address Dial
+
+Developed directly on master from5cbf5aa8 with unchanged Core and shared tools.
+Added optional xmqtt_client_dial: bounded counted hostname snapshots, explicit
+Resolver, immutable prepared endpoints with preserved ports, family filtering,
+at most64 endpoints/attempts and dual-stack Core candidate racing. The same
+finite API-entry SetupTimeout covers DNS, candidates, CONNECT/CONNACK and enhanced
+auth final proof; fallback never restarts it. Auth-composition factories retain
+the existing ticket/proof and reauth semantics. Queued ordinary traffic keeps its
+original deadlines and remains unsent before readiness. No new runtime or hot
+transport vtable; old public config/info/results remain unchanged.
+
+Cancellation/Close detaches this subscriber through Core while the Resolver may
+still own a blocked shared query. Tests retire Client and Engine before releasing
+that query, then join Resolver work. A separate blocked client notification proves
+logical Ready cannot bypass actual callback retirement. First terminal reason,
+late winner ownership, binding OOM, exact output preservation, endpoint/host/alias
+bounds, constructor allocation budgets and retained results/causes are covered.
+
+A deterministic EndRead-before-event-installation replay exposed a real gap: Ready
+remained pending until setup timeout. The winner handoff now snapshots public
+Stream stats and fails promptly with TRANSPORT; a final same-wrapper replay goes
+from250ms pending to resolved TRANSPORT, and the adversarial single test covers it
+on both OSes. An already-closed winner prefers its owned native cause over a
+setter-state error. Earlier compiler-format failures and two incorrect test
+assumptions (waiting for independent DNS work and65 deduplicated identical
+endpoints) remain preserved with the corrected unique-port/ownership cases.
+
+Final6267-input maps are frozen across validation and measurement. Each platform
+passes21 root MQTT programs, plus the Dial unit/example,46 independent literal-byte
+Auth scenarios across hostname/prepared factories, eight root/client/auth/Dial
+static/shared consumers and four leaf consumers repeated after size artifacts are
+archived. WSL ASan/UBSan/leak and three TSan targets pass; Windows90 shared-tool and
+generated/API/docs checks pass. Executed test binaries are copied per target
+before later sanitizer output can overwrite them. Pre-EOF validation/source maps
+and as-found binaries remain explicitly separate.6147 non-MQTT inputs match the
+original xredis30/xrpc30/xcron34 run, yielding115 combined root programs per OS;
+94 are reused identical-source executions, not newly rerun programs.
+
+Base Client sizes remain1168/1376 bytes on Windows/WSL; compiling Dial adds one
+8-byte private pointer. Numeric connections allocate no Dial/host snapshot.
+Hostname uses one bounded temporary NUL copy, then Core copy/canonicalization;
+MaxPrivateBytes accounts for that local peak. Native Dial/Resolver/Stream storage
+uses their own limits. Completed Dial control state remains retained to Destroy;
+zero extra steady retained bytes are not claimed. Process-wide XRT loop-window
+requested blocks/bytes for numeric/prepared/hostname are
+22.165/26237.905,24.17/26802.2,26.175/26926.33 on Windows and
+29.04/27564.16,31.065/28129.6,33.13/28259.37 on WSL. These include peer and pool
+hits, exclude service setup/final teardown, and are not libc calls/RSS/kernel
+allocations. Single/static/shared sizes and base forbidden-symbol checks pass.
+
+Seven alternating300000-QoS1/window32 samples qualify throughput: before/base/
+Dial-compiled medians394420.32/396412.101/402570.331 publishes/s on Windows and
+121525.628/121827.754/122060.825 on WSL, within the original5% regression limit.
+Ordinary P99 comparisons remain unqualified because baseline noise fails. Five
+200-connection lifecycle samples per mode retain all formal data and6/9 failed
+noise checks: numeric/prepared/hostname medians3711.525/3703.676/3671.874 cycles/s
+and425.6/429.4/405.8us cycle P99 on Windows;3047.893/3279.296/3177.12 and
+529.7/493.6/480.4us on WSL. Each cycle includes CONNECT, one QoS1, Client/peer
+physical retirement and Future disposal. These unpinned closed-loop fixture
+measurements do not establish external DNS/broker parity or fixed-arrival/native
+production performance. No baseline/noise thresholds were forced or relaxed.
+
+Evidence: extlibs/xmqtt/tests/results/client-dial-20261109.json. All four products
+remain developing. Native Linux/>=72h, strict release completeness (including
+the retained xcron tzdb_file profile gap), remaining Redis/RPC/Cron work and MQTT
+TLS/WebSocket/session/expiry/reconnect/durable state remain in the active goal.

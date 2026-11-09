@@ -196,3 +196,17 @@ Deterministic completion-reservation scheduling proves that a new reauth admissi
 cannot replace a producer whose final proof is being completed. Independent
 Keep Alive cases pause application work for multiple intervals before CONNACK,
 defer server PINGRESP until CONNACK and verify heartbeats during final proof.
+
+
+## Bounded hostname/prepared-address setup
+
+The optional [Dial leaf](client_dial.md) reuses Core Resolver/Dial without changing
+old public client layouts. MQTT5/3.1.1 byte writes, queued QoS1, family/fallback/
+attempt limits, counted-host lifetime, prepared-list release, cancelled shared
+lookup detachment, actual client callback barriers, OOM, retained outcomes and
+enhanced-auth composition are covered. Winner event installation preserves a
+native EOF snapshot; a deterministic red/green case prevents setup-timeout masking.
+Each platform passes23 literal-byte cases through each Auth Dial factory, with
+ASan/UBSan/leak and applicable TSan results in the
+[stage report](../tests/results/client-dial-20261109.json). External DNS/broker
+qualification, transport/session completeness and production acceptance remain.

@@ -28,6 +28,22 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_AUTH
 #define XMQTT_MODULE_XMQTT_CLIENT_AUTH
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#endif
+#endif
+
+/* xmqtt_client_dial 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_DIAL)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_DIAL
+#define XMQTT_FEATURE_XMQTT_CLIENT_DIAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT
+#define XMQTT_MODULE_XMQTT_CLIENT
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xmqtt_client_auth 及其直接依赖。 */

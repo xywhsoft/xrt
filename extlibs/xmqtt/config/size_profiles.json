@@ -66,7 +66,8 @@
       "forbid_symbols": [
         "xmqttClientConnectAuth",
         "xmqttClientReauthenticate",
-        "xmqttAuthRespond"
+        "xmqttAuthRespond",
+        "xmqttClientDial"
       ]
     },
     {
@@ -74,6 +75,12 @@
       "system": "client",
       "suite": "xmqtt_client_auth",
       "description": "Optional enhanced AUTH ticket/state/wire/reauth support plus the existing bounded MQTT TCP client and public Core closure"
+    },
+    {
+      "name": "xmqtt_client_dial",
+      "system": "client",
+      "suite": "xmqtt_client_dial",
+      "description": "Bounded DNS/prepared-address MQTT client and public Core Dial dependency closure"
     }
   ]
 }
