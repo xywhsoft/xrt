@@ -6,6 +6,13 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_SESSION)
+    xmqttsessionconfig SessionConfig;xmqttsession* Session=NULL;xmqttsessioninfo SessionInfo;
+    if(!xmqttSessionConfigInit(&SessionConfig))return 28;
+    SessionConfig.ClientId=XRT_STR_LITERAL("package-session");
+    if(!xmqttSessionCreate(&SessionConfig,&Session) || !xmqttSessionInfo(Session,&SessionInfo) ||
+       SessionInfo.Connected || SessionInfo.Objects || SessionInfo.LiveBytes!=SessionInfo.BaseBytes || !xmqttSessionDestroy(Session))return 29;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS_RESUME)
     xmqttclienttlsresumeinfo ResumeInfo={0};xtlsresume* Resume=(xtlsresume*)(uintptr_t)1;
     if(xmqttClientTlsResumeInfo(NULL,&ResumeInfo) || xmqttClientTlsTakeResume(NULL,&Resume) || Resume!=(xtlsresume*)(uintptr_t)1)return 27;

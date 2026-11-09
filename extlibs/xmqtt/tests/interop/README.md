@@ -86,6 +86,30 @@ P99 and native >=72h qualification remain release gates.
 
 ## Independent wire peers
 
+`session_probe.c` plus `run_session_wire.py` exercises the new caller-driven
+session state using a test-only public Core socket driver over two actual TCP
+connections. Twelve literal-peer cases cover both versions, QoS1 retry, QoS2
+PUBLISH/PUBREL partial cuts, original identifiers/DUP, post-PUBREC PUBREL-only
+replay, cross-connection incoming deduplication and missing-server-state policy.
+The peer emits fragmented literal ACKs and independently checks exact wire bytes.
+Held old frame views remain valid after new generations and session destruction.
+`single_session_probe.c` runs the same assertions through generated headers.
+
+For a static consumer, package `--suite xmqtt_session,net_socket,time` with the
+MQTT manifest. Compile the probe with `XMQTT_MODULE_XMQTT_SESSION`,
+`XRT_MODULE_NET_SOCKET` and `XRT_MODULE_TIME`, both include directories, that
+package's xmqtt/XRT libraries and the platform link dependencies. Shared consumers
+also use the shared macros/import libraries and DLL/rpath setup described above.
+Then run:
+
+```
+python extlibs/xmqtt/tests/interop/run_session_wire.py --probe PATH_TO_SESSION_PROBE --report out/session-wire.json
+```
+
+This does not attach the state to existing Client factories. Client reconnect/
+Future composition, store transactions, crash recovery, TLS composition and
+real-broker session replay require subsequent integration and separate tests.
+
 `run_client_wire.py` is an independent Python standard-library TCP peer. It
 does not use xmqtt codecs or third-party MQTT code. Prerequisites: Python 3,
 GCC, a local loopback socket and the built probe. It covers 31 scenarios across

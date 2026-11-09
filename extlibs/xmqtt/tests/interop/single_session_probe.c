@@ -1,0 +1,9 @@
+#define XMQTT_MODULE_XMQTT_SESSION
+#define XRT_MODULE_NET_SOCKET
+#define XRT_MODULE_TIME
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "session_probe.c"

@@ -37,6 +37,25 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
 #define XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
 #endif
+#ifndef XMQTT_MODULE_XMQTT_SESSION
+#define XMQTT_MODULE_XMQTT_SESSION
+#endif
+#endif
+
+/* xmqtt_session 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_SESSION)
+#ifndef XMQTT_FEATURE_XMQTT_SESSION
+#define XMQTT_FEATURE_XMQTT_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_NEGOTIATION
+#define XMQTT_MODULE_XMQTT_NEGOTIATION
+#endif
+#ifndef XRT_MODULE_ATOMIC
+#define XRT_MODULE_ATOMIC
+#endif
+#ifndef XRT_MODULE_MUTEX
+#define XRT_MODULE_MUTEX
+#endif
 #endif
 
 /* xmqtt_client_tls_resume 及其直接依赖。 */

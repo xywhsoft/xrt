@@ -1,0 +1,946 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Bounded in-memory MQTT session protocol state; Client attachment remains pending",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "b784c9ca8922db3b9b4cdf78a9745604b923ecd7",
+  "review_parent": "b784c9ca8922db3b9b4cdf78a9745604b923ecd7",
+  "previous_goal_turn": "progress: real-broker volatile-client qualification committed at b784c9ca",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "source_identity": {
+    "inputs": 3075,
+    "frozen": {
+      "path": "out/service-extensions/xmqtt-session-20261110/frozen-source.json",
+      "sha256": "b53652be6e2bfd147dba4810c85f98ba87018e457abc1a0f68676a1db4bedf16"
+    },
+    "before": {
+      "path": "out/service-extensions/xmqtt-session-20261110/before-source.json",
+      "sha256": "4e7cda59c073e72620b433f737f809bf0e8e993f78d75c2040b6019ed2a5ca26"
+    },
+    "changed_previous_inputs": [
+      "extlibs/xmqtt/config/modules.json",
+      "extlibs/xmqtt/config/performance_profiles.json",
+      "extlibs/xmqtt/config/size_profiles.json",
+      "extlibs/xmqtt/include/xmqtt.h",
+      "extlibs/xmqtt/include/xmqtt/features.h",
+      "extlibs/xmqtt/tests/package/test_consumer.c",
+      "single/extlibs/xmqtt.h",
+      "single/extlibs/xmqtt_decl.h"
+    ],
+    "new_inputs": [
+      "extlibs/xmqtt/bench/bench_session.c",
+      "extlibs/xmqtt/examples/session/main.c",
+      "extlibs/xmqtt/include/xmqtt/session.h",
+      "extlibs/xmqtt/src/session/session.c",
+      "extlibs/xmqtt/tests/interop/run_session_wire.py",
+      "extlibs/xmqtt/tests/interop/session_probe.c",
+      "extlibs/xmqtt/tests/interop/single_session_probe.c",
+      "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c",
+      "extlibs/xmqtt/tests/test_session.c"
+    ],
+    "non_mqtt_canonical_changes": [],
+    "legacy_archive_comparison": {
+      "path": "out/service-extensions/xmqtt-session-20261110/legacy-archive-comparison.json",
+      "sha256": "aa617f93702822ecf13691cfe8d70380be81a0797f85fc9d066b15d4000a4675"
+    },
+    "legacy_archive_results": {
+      "windows/libxmqtt.a": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-tls-resume-20261109/packages/windows/root-static/libxmqtt.a",
+          "sha256": "739252b62e57471d4c600e81af87a5b8d8698fa31fc334c27bf9ecdea61da1c7"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-20261110/packages/windows/root-static/libxmqtt.a",
+          "sha256": "c92fbd2f413c7474c4af42201261a13368b27fa8d39c2c5a04ab5ea93f2cfe7f"
+        },
+        "old_members": 8,
+        "new_members": 9,
+        "added": [
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "missing": [],
+        "changed": [],
+        "unchanged_client_members": {
+          "extlibs__xmqtt__src__client__client.o": "96592a126988e3fab03796a8c92976abfb5214a0bacc31e99fce02b3d0a25141"
+        }
+      },
+      "windows/libxrt.a": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-tls-resume-20261109/packages/windows/root-static/libxrt.a",
+          "sha256": "90edf6e4655a831c090e38b671d8b920415e23366e171df68aabf0bcdea4206f"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-20261110/packages/windows/root-static/libxrt.a",
+          "sha256": "d00372ca661601596af061e14eded914b2fe2845618be0597857033a1d12ec73"
+        },
+        "old_members": 139,
+        "new_members": 139,
+        "added": [],
+        "missing": [],
+        "changed": [],
+        "unchanged_client_members": {
+          "src__tls__client.o": "e6d58b05e3a6e611cb7db2b14540680208011920410697bb375362561feb5f1b",
+          "src__tls__client_handshake.o": "9e3d0547c1bbf58be5efb887b6743193b0fad2124e2ae87172cf564a560553f1",
+          "src__tls__client12.o": "88e981c8d2d388b5a36dde06643ba7a559aea08b17c9b2696b5917e4a9416e94",
+          "src__tls__client_resume.o": "fe27eb04e51a6afafbb8cd35c8341ff59c0099c10a22c06c675f09543c1cb3a8",
+          "src__tls__client_auth.o": "672acbf43006da69c4cb4cc6e65aa0bd7ca569ce86d49b9d8489de0afa97a3f5",
+          "src__tls__client_auth_select.o": "20ba491fbae73a6a4b0e8fea21b044834dbb38aec94fb9fc18a5fcff086ce2dc",
+          "src__tls__client_auth12.o": "1b79f47203b7b89a6452c60c5ea47dd096aa1a665d28840af83d7ddd613b1fcf"
+        }
+      },
+      "wsl/libxmqtt.a": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-tls-resume-20261109/packages/wsl/root-static/libxmqtt.a",
+          "sha256": "544cffcaf30a553fa15ecc3826ad8dcb2606d6875200760f07e649fa35dbe24b"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-20261110/packages/wsl/root-static/libxmqtt.a",
+          "sha256": "df8ce7d86d54809a55704e4a7f95755903f7315370e410cadc4a848bfe640e90"
+        },
+        "old_members": 8,
+        "new_members": 9,
+        "added": [
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "missing": [],
+        "changed": [],
+        "unchanged_client_members": {
+          "extlibs__xmqtt__src__client__client.o": "577a6722aa07522cf59160296a2177c7813a5285e3c644c1f91de8fcfe72b4bd"
+        }
+      },
+      "wsl/libxrt.a": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-tls-resume-20261109/packages/wsl/root-static/libxrt.a",
+          "sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-20261110/packages/wsl/root-static/libxrt.a",
+          "sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d"
+        },
+        "old_members": 139,
+        "new_members": 139,
+        "added": [],
+        "missing": [],
+        "changed": [],
+        "unchanged_client_members": {
+          "src__tls__client.o": "42c3581dea01949faa2e56accfe3199f803ac670b7342476ef73413b1406c85f",
+          "src__tls__client_handshake.o": "1143d358e07caa18e9c9f2c84ce58bea382192daecd19ea0f02a8a57fda70067",
+          "src__tls__client12.o": "8aca44d620889d3c3e4596a1cf2821a6b8662d781556d29191671c1279539a08",
+          "src__tls__client_resume.o": "cfaa551d236d39e1fd644512323936888c764d3b7e88d1fd03c20df8627f3277",
+          "src__tls__client_auth.o": "e7825e1a568dd425ebf4bfb46cacc508c810ea0ee676ebb673b0bb449cfd1796",
+          "src__tls__client_auth_select.o": "d330fe51000d60d37638cf815f1dbca79be382506b91d9d3c8da292e0cac7947",
+          "src__tls__client_auth12.o": "58084f71865eb48b3e1c14d3061ebb211b910de37d5b096b63dd375a60ac8150"
+        }
+      }
+    },
+    "documentation": {
+      "extlibs/xmqtt/docs/session.md": {
+        "path": "extlibs/xmqtt/docs/session.md",
+        "sha256": "e233db4c47a2f80753f77465ec178dad462c1ca0634e5e8f1499ece9b79ba757"
+      },
+      "extlibs/xmqtt/examples/session/README.md": {
+        "path": "extlibs/xmqtt/examples/session/README.md",
+        "sha256": "9c264ddfaf52ea05f298e9b3d972dcbb7a46b257e475659982dc10078f38e936"
+      },
+      "extlibs/xmqtt/docs/coverage.md": {
+        "path": "extlibs/xmqtt/docs/coverage.md",
+        "sha256": "bd5dadbfa149273290c7c0df6f9e3f5410a8c8af61ff34f1f009a6cd1d679bf0"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "path": "docs/development/service-extensions-progress.md",
+        "sha256": "34eac14efae051aa54a6b954d4e13bdaf19a82118815b90b6eb7ee8dc888012a"
+      }
+    },
+    "orchestration": {
+      "formal.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/formal.py",
+        "sha256": "7522b6db19609f5d80d2adbc64057c1bdf724c4017ead6fdaf4aa2c00cd385e8"
+      },
+      "profiles.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/profiles.py",
+        "sha256": "bddd7b63dbcc5c334e0a4ae7876b8a5cc8522e723bbf265fac21f220805aa307"
+      },
+      "long_profiles.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/long_profiles.py",
+        "sha256": "c92ba12d5938c1ac2b70805f978edbfa142b887460f28d4d0129b38a77205f52"
+      },
+      "pinned_profiles.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/pinned_profiles.py",
+        "sha256": "18def21e81560adeea42c1aa37fdce5eebaeb06586ac3679810ed3ed93a98d0a"
+      },
+      "compare_legacy.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/compare_legacy.py",
+        "sha256": "cf9b636320de59406b2e07268b426f8d749716f7baac37256b361c25cef7ed6f"
+      },
+      "publish.py": {
+        "path": "out/service-extensions/xmqtt-session-20261110/publish.py",
+        "sha256": "c62700554cf3a1f24b74c6cd13f98c5acb43a5305b819fc25f775ea9343523cc"
+      }
+    }
+  },
+  "scope": [
+    "Independent caller-driven MQTT5/311 in-memory session state using existing public Core allocation/atomic/mutex and MQTT codec/negotiation APIs. No Core change, new shared runtime, Engine pin, callback, credential ownership or background retry timer.",
+    "Owned canonical full-topic QoS1/2 snapshots, original/auto packet identifiers, bounded active/ready/hash/bitmap state, PUBACK/PUBREC/PUBREL/PUBCOMP transitions and typed negative decisions. Connection-only aliases are removed. A selected partial PUBLISH is conservatively DUP on reconnection; successful PUBREC means only PUBREL is retried.",
+    "Explicit authenticated Open/network End with generations, connection-only send-quota reset, resumed PUBREL progress, no same-connection timer retransmission, incoming QoS2 prepare/commit/rollback/dedup/release, finite elapsed-time expiry and explicit offline administrative reset.",
+    "Missing local state with peer SessionPresent fails closed. MQTT5 missing-server state resets old local obligations;311 mismatch requires explicit reset/clean connection. Fixed nonempty ClientId and caller-bound broker/principal namespace; assigned-id adoption is part of subsequent integration.",
+    "Immutable retained packet/frame data survive ACK, End, Reset and unique Session destruction. Logical object/byte/id reservations last through actual final references. The transport must finish/abandon selections and keep borrowed bytes alive; application delivery resources are separately owned.",
+    "This does not yet attach state to existing Client factories. They continue refusing an unowned retained broker session. A test-only synchronous public Core socket driver proves state behavior on real TCP; it is not a new product transport or automatic reconnect implementation."
+  ],
+  "resource_contract": [
+    "Create performs one fixed state allocation including copied identity, outgoing bitmap/hash and optional packed incoming map. Publish performs one xrt allocation for metadata/property slots/canonical wire and one payload copy. Codecs independently preflight Size/Write/Read; payload/text validation, metadata copying, mutexes, references and allocator internals remain real costs.",
+    "ACK/Next/Sent/replay selection and prepared incoming transitions allocate no adapter objects. Source-level uncontended benchmark cycles take five model gates for QoS1 and eight for QoS2, in addition to Core allocator/atomic/lock costs; these are not total hardware synchronization counts.",
+    "Default128 outgoing/64 incoming and16MiB count all logically owned bytes/objects, including physically held completed packets. MaxIncoming0/MaxOutgoing0 disable corresponding maps. Allocator headers/pools, external queues and native/caller buffers remain outside logical byte accounting.",
+    "Measured x64 public config112/info88/frame64/packet-info32 on both OSes. Default benchmark fixed block with13-byte identity is27077 bytes on Windows and27149 on WSL. Peak live bytes for every payload/version/QoS are retained in benchmark facts. No Client public/private layout changes.",
+    "All previous8 MQTT archive objects and139 Core archive objects per OS are byte-identical; only the new session object is added. This establishes no old compiled execution-path change in these artifacts, not zero overhead for selected state operations or production-performance acceptance."
+  ],
+  "tests": {
+    "validation": {
+      "windows": {
+        "receipt": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-validation.json",
+          "sha256": "c7777c3dbce37a0ab0394b59e1f8001e5a18d4b752cd93eae3ae08928218d8f9"
+        },
+        "compiled_program_executions": 36,
+        "asan_repeat_executions": 0
+      },
+      "wsl": {
+        "receipt": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-validation.json",
+          "sha256": "df2acb7da71ae5c0039808d5d59652646762ebd153450a25cdd1a1d3bb7bcfd8"
+        },
+        "compiled_program_executions": 38,
+        "asan_repeat_executions": 10
+      }
+    },
+    "unit_scope": [
+      "QoS1/2 phases/negative decisions/duplicate ACKs, six reconnection cuts per version, stale-generation tokens, partial immutable views and current/new quota caps",
+      "Incoming preparation rollback, cross-connection duplicate suppression, repeated/unknown PUBREL and complete emission boundary",
+      "Identity/rejection/output alias atomicity, peer packet/QoS restrictions, original-zero DISCONNECT expiry, exact/large-clock expiry and explicit reset policy",
+      "All65535 outgoing and incoming identifiers, wrap/collision/physical-ref reuse, exact object/byte caps, zero limits, malformed API spans and invalid times",
+      "Creation allocation-budget prefixes, publish OOM rollback/id cursor, allocation-free ACK/frame/incoming loops, eight concurrent retained readers and physical owner destruction"
+    ],
+    "wire_scenario_executions": 156,
+    "wire_matrices": [
+      {
+        "platform": "windows",
+        "kind": "root-static",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-root-static-wire.json",
+          "sha256": "e090d81519a1c69b44607dd3067c750bdd222cc42d1f8578cf8dbcb768e30c52"
+        },
+        "probe_sha256": "dd8ec176c06ac146b7e301d123f9d0b026cb07e31f4f81a707711ec8c5d9529e"
+      },
+      {
+        "platform": "windows",
+        "kind": "root-shared",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-root-shared-wire.json",
+          "sha256": "e703fc9a8df2d050cee56d18133b2968a738f414a6fcac8c98506af7485c7ae8"
+        },
+        "probe_sha256": "e62de34ff2e8a3a7edf4402fcdd58fbeb0137a9c8eda9a27c31d8833da0d6859"
+      },
+      {
+        "platform": "windows",
+        "kind": "leaf-static",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-leaf-static-wire.json",
+          "sha256": "e090d81519a1c69b44607dd3067c750bdd222cc42d1f8578cf8dbcb768e30c52"
+        },
+        "probe_sha256": "dd8ec176c06ac146b7e301d123f9d0b026cb07e31f4f81a707711ec8c5d9529e"
+      },
+      {
+        "platform": "windows",
+        "kind": "leaf-shared",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-leaf-shared-wire.json",
+          "sha256": "3b92ba859df6f8677fc5872f6544dc3e6f59224bdfeb6ff642c9fe6953983319"
+        },
+        "probe_sha256": "40c345ec55287aa88f7ef0c515e52fefcbd93a570ce3dedd5fd007cf13a679ff"
+      },
+      {
+        "platform": "windows",
+        "kind": "modular",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-modular-wire.json",
+          "sha256": "dc408c7af96c2821ef00ce91e971294d54c0fd7925879967b5fcc8d137f1c695"
+        },
+        "probe_sha256": "2431e64c167896d53f6288d20d25256505fda39c25d158293d8f34f91d79969c"
+      },
+      {
+        "platform": "windows",
+        "kind": "single",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-single-wire.json",
+          "sha256": "e7109af3bff1872694847b3d6433b9f6f62576f8cc9a6aeae5ac9d1d1463b094"
+        },
+        "probe_sha256": "9e7bf3e65d190b49a791215e4c1f8a4602dd87d9fd237f539f0c3417e27c293a"
+      },
+      {
+        "platform": "wsl",
+        "kind": "root-static",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-root-static-wire.json",
+          "sha256": "5b3f0556499dfd338f17b2720efb2c5517c4aaca7df1d0f8c76c5bfe0760d2c4"
+        },
+        "probe_sha256": "2b49d9feb2c139d7ddc6c0c2e51695e52167bb18d9ce12709c393e17d1e5c972"
+      },
+      {
+        "platform": "wsl",
+        "kind": "root-shared",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-root-shared-wire.json",
+          "sha256": "0aed245577fcc90bfb4ff068d73e67bdd8bdef4b26618bc0cb2254747dfb8e5a"
+        },
+        "probe_sha256": "69ce981707268f86dfe355e47bee21259406e69855146ec27147c47354ce1348"
+      },
+      {
+        "platform": "wsl",
+        "kind": "leaf-static",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-leaf-static-wire.json",
+          "sha256": "f7ff4c901293df0c01be0d100de5932ab9fb5373b5f13962caa5e8954705dff9"
+        },
+        "probe_sha256": "710c62f7a02fe318d853b6a79fb5abdba281a94485bde57003e9d807f4719e9c"
+      },
+      {
+        "platform": "wsl",
+        "kind": "leaf-shared",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-leaf-shared-wire.json",
+          "sha256": "148bb3d3b34fa4fe3cfe6ff54d534085fee6026f1dd137c8614169935d791566"
+        },
+        "probe_sha256": "47658dd6534b5b818ba2ff1e3aedbb4ffa9a24d019a78c06cdf0f248ec85bb20"
+      },
+      {
+        "platform": "wsl",
+        "kind": "modular",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-modular-wire.json",
+          "sha256": "b57b4eaed29ec6bf01fea5451df6cab3eb56b145ea2c1ae9407883e0a6c5a243"
+        },
+        "probe_sha256": "6b2c04933e048f27bd2b70f88467b22ec6f56b236c97f406321e55e99c7cfd51"
+      },
+      {
+        "platform": "wsl",
+        "kind": "single",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-single-wire.json",
+          "sha256": "5da5a934d57bed2b2a5d681f664407198ed2690e05e4c341e3d9c498535afb24"
+        },
+        "probe_sha256": "b1b298f2cec57d50a546d30dc309bedc77cbbab08876c894331730fd5fc82216"
+      },
+      {
+        "platform": "wsl",
+        "kind": "asan",
+        "cases": 12,
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-asan-wire.json",
+          "sha256": "a976a6ed96522b93213c5a08d4eeddc5f4a7cf187970fa453e05689252960dac"
+        },
+        "probe_sha256": "fc83a09df9fb79da71ecc760337cbd7baa5e12d22422f0638ec78111ce38e991"
+      }
+    ],
+    "package_consumers": 8,
+    "packages": [
+      {
+        "platform": "windows",
+        "scope": "root",
+        "kind": "static",
+        "files": {
+          "libxmqtt.a": "c92fbd2f413c7474c4af42201261a13368b27fa8d39c2c5a04ab5ea93f2cfe7f",
+          "libxrt.a": "d00372ca661601596af061e14eded914b2fe2845618be0597857033a1d12ec73",
+          "packages.json": "e6664729ca3a3b8691f167aacde5d81b419a27a2e3b157bbf048373f07985dca",
+          "session-probe.exe": "dd8ec176c06ac146b7e301d123f9d0b026cb07e31f4f81a707711ec8c5d9529e",
+          "test_package_xmqtt.exe": "8e129be8b3979d60e6862184e41669361ef48ab7eee3e684496e65489404c088"
+        }
+      },
+      {
+        "platform": "windows",
+        "scope": "root",
+        "kind": "shared",
+        "files": {
+          "libxmqtt.dll.a": "1be08eee7b7f564e55871fb626e250c1189473506870f1d308da11d0e8ee783d",
+          "libxrt.dll.a": "70605c3a56130b906390a85209d0ddc14abe5ddef3c0f85e828e04f21abc2482",
+          "packages.json": "5a58076fd39c8dd3870dbe0de45c00297749ce7765a8b2337d34df671673433d",
+          "session-probe.exe": "e62de34ff2e8a3a7edf4402fcdd58fbeb0137a9c8eda9a27c31d8833da0d6859",
+          "test_package_xmqtt.exe": "22f6894b01d4f8db44c31c394f89336a6ed79db7d430880a51d40b771a657253",
+          "xmqtt.dll": "9991b59e69f1454f97de7231c1d6f6532e7365692e5a2c6c6fd249bb85faa513",
+          "xrt.dll": "53e81bc89f3781dddfab0e0589275ed747f112ee84121c5280ac9e49c58a7ebe"
+        }
+      },
+      {
+        "platform": "windows",
+        "scope": "leaf",
+        "kind": "static",
+        "files": {
+          "libxmqtt.a": "b8385deb1e7b728e9066976f9c215e2cfed5a44b1577418cc455aa5887a7718a",
+          "libxrt.a": "698f16150e9439f8c1eb578d6f8a16f2dafb2aadea5168fcb3261cee58aa4a96",
+          "packages.json": "d2ada9097a6ddd396f7a9893a4a38f46d65d9c3a14cc560eb01675953d675872",
+          "session-probe.exe": "dd8ec176c06ac146b7e301d123f9d0b026cb07e31f4f81a707711ec8c5d9529e",
+          "test_package_xmqtt.exe": "3281478b6408d2b2be5f8e8eebc43088b3513f9654d26e9158b613d1293d39c4"
+        }
+      },
+      {
+        "platform": "windows",
+        "scope": "leaf",
+        "kind": "shared",
+        "files": {
+          "libxmqtt.dll.a": "fa8dacf27506caa5ce8b7aed4e0abb9bfff1e7963f7990be94ad1d02ef1262cd",
+          "libxrt.dll.a": "2526d75fde5558844fe72ca856c56c0a4cf7438a71a860e2e03381bddf8917da",
+          "packages.json": "ee52e3018459fd0b338674792c6504f596f0d57fb013b9bb2bba352ec7a9066d",
+          "session-probe.exe": "40c345ec55287aa88f7ef0c515e52fefcbd93a570ce3dedd5fd007cf13a679ff",
+          "test_package_xmqtt.exe": "e5f8dda3e1bc9e51e3bf3efac18ca963c5ba4649e49aebc6def0a56ff503cc25",
+          "xmqtt.dll": "85876e0ae2caf33f46b16a964aa587017773a68b4b9e93f01e95544df076afb4",
+          "xrt.dll": "d52999b5d922569b818b26a3b16b498853e1db1c2cf283487c810f1748997adc"
+        }
+      },
+      {
+        "platform": "wsl",
+        "scope": "root",
+        "kind": "static",
+        "files": {
+          "libxmqtt.a": "df8ce7d86d54809a55704e4a7f95755903f7315370e410cadc4a848bfe640e90",
+          "libxrt.a": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d",
+          "packages.json": "6434ba5b27ce329ba62530c063ff0236cfc0be98c44a632ba77fb46007583ea8",
+          "session-probe": "2b49d9feb2c139d7ddc6c0c2e51695e52167bb18d9ce12709c393e17d1e5c972",
+          "test_package_xmqtt": "31556db292854543cb35e228502f8477931c00c762f5a35504d633787e71b81f"
+        }
+      },
+      {
+        "platform": "wsl",
+        "scope": "root",
+        "kind": "shared",
+        "files": {
+          "libxmqtt.so": "29330bc0db02639dca1b983e3986cc3a8f541ee6eb7ef08f036b4d44f55850b8",
+          "libxrt.so": "d215f0f6a9b66ff3f7f5de6b5eb235f5bc14c12aee94ac5c871da98fd24959c3",
+          "packages.json": "36c22a14f7d96f67d57954adc5663f3952a9b3a63a7fe143328585d0612c0f5e",
+          "session-probe": "69ce981707268f86dfe355e47bee21259406e69855146ec27147c47354ce1348",
+          "test_package_xmqtt": "5adfa62542b886be9b66b35ec3ce2bc41b05fdec24b3d538a29bb1ca484c66d4"
+        }
+      },
+      {
+        "platform": "wsl",
+        "scope": "leaf",
+        "kind": "static",
+        "files": {
+          "libxmqtt.a": "92e28f9c684f93bf1da978fad324cef5f7c4ca1e703452357a3085c830698f7f",
+          "libxrt.a": "b08506203981598b6872720e7166afba3a6c8b6cc1240bea1719f39f519d02a7",
+          "packages.json": "c7f2bfc0a5ce184f46f4ee26e956e0e64d4b01038dd0669775607f620cf03337",
+          "session-probe": "710c62f7a02fe318d853b6a79fb5abdba281a94485bde57003e9d807f4719e9c",
+          "test_package_xmqtt": "f5623a2ee5b9cd0c19151ffb838e8c78183425d16b989c221ec78c94ab35ea30"
+        }
+      },
+      {
+        "platform": "wsl",
+        "scope": "leaf",
+        "kind": "shared",
+        "files": {
+          "libxmqtt.so": "3c1be1a91fd0cb9061a11cf82cbf1fa79c319218ad8b49d18d7d3f395e7f98c7",
+          "libxrt.so": "a61f7802e46240e8063858c8898c7101c240995113ce77b65b5cc8cc3ea0da07",
+          "packages.json": "70d94ffa29ea2577173a551329fdbdb0cad395c330803ce326360f5fc2a4faae",
+          "session-probe": "47658dd6534b5b818ba2ff1e3aedbb4ffa9a24d019a78c06cdf0f248ec85bb20",
+          "test_package_xmqtt": "cc354c6fbeec0518e429388f9e62d2b0d73bbb5cc32863221433752fa4faacc7"
+        }
+      }
+    ],
+    "checks": {
+      "path": "out/service-extensions/xmqtt-session-20261110/windows-checks.json",
+      "sha256": "66f44d54c6cffeec1f44c031e792b25b74116995b43bc8867456eff128648332"
+    },
+    "final_docs_check": {
+      "path": "out/service-extensions/xmqtt-session-20261110/final-docs.log",
+      "sha256": "4e0b627f0c5c4e86b519fb6fc29e61e8ff0fae46ec4f35c83a51d0a91b19551b"
+    },
+    "tool_unit_tests": 89,
+    "asan": "WSL full and minimal modular/single suites with ASan/UBSan/leak halt;10 extra actual lifecycle/id-space repetitions and12 socket cases",
+    "tsan": "WSL minimal modular/single suites with eight concurrent readers; GCC atomic_thread_fence instrumentation limitation remains recorded",
+    "example": "Runnable and documented simulated transport-boundary state example; actual I/O is separately checked by the literal TCP peer"
+  },
+  "performance": {
+    "scope": "New unpinned in-memory protocol-state cycles, not wire/broker messages per second; no comparator or prior feature baseline, fixed-arrival tails, TLS, store or deployment acceptance",
+    "original_noise_limits": {
+      "relative_mad": 0.03,
+      "relative_central_range": 0.06
+    },
+    "original_regression_limits": {
+      "throughput": 0.05,
+      "p99": 0.1
+    },
+    "measurements": {
+      "windows": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-performance.json",
+          "sha256": "225f95620ca52b433e40a0c3b5f98a1bc72caaa3633f784ba5d6854e48ec1e49"
+        },
+        "receipt": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-profiles.json",
+          "sha256": "f74ba2487ef661ccf6c35ab53bfa33d5962c70f50e5c2f5b6038a63acf551420"
+        },
+        "cycles_per_sample": 100000,
+        "repeats": 7,
+        "noise_qualified": 10,
+        "cases": {
+          "session_5_qos1_64": {
+            "median_cycles_per_sec": 2381485.38,
+            "relative_mad": 0.0014667618912697924,
+            "relative_central_range": 0.06466589477866118,
+            "noise_qualified": false,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "27433",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos1_1024": {
+            "median_cycles_per_sec": 2049503.713,
+            "relative_mad": 0.011904193608064965,
+            "relative_central_range": 0.04663942611749731,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "28394",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos1_65536": {
+            "median_cycles_per_sec": 588825.505,
+            "relative_mad": 0.0020243977033569437,
+            "relative_central_range": 0.006264771088677553,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "92907",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_64": {
+            "median_cycles_per_sec": 2024107.116,
+            "relative_mad": 0.0014754184580417374,
+            "relative_central_range": 0.005491115026543,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "27433",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_1024": {
+            "median_cycles_per_sec": 1758365.424,
+            "relative_mad": 0.013201495936603318,
+            "relative_central_range": 0.026792779451286556,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "28394",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_65536": {
+            "median_cycles_per_sec": 567272.892,
+            "relative_mad": 0.0050003411761829104,
+            "relative_central_range": 0.011840888388511281,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "92907",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_64": {
+            "median_cycles_per_sec": 2983053.274,
+            "relative_mad": 0.004816857655623608,
+            "relative_central_range": 0.011375060343625733,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "27432",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_1024": {
+            "median_cycles_per_sec": 2614447.436,
+            "relative_mad": 0.006004624068487006,
+            "relative_central_range": 0.01601743352089328,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "28393",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_65536": {
+            "median_cycles_per_sec": 635398.697,
+            "relative_mad": 0.0034762126684060157,
+            "relative_central_range": 0.008309782542723758,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "92906",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_64": {
+            "median_cycles_per_sec": 2524328.213,
+            "relative_mad": 0.0033305474924785537,
+            "relative_central_range": 0.009798681040213777,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "27432",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_1024": {
+            "median_cycles_per_sec": 2237501.874,
+            "relative_mad": 0.006857579954813377,
+            "relative_central_range": 0.014655804037999196,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "28393",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_65536": {
+            "median_cycles_per_sec": 576915.865,
+            "relative_mad": 0.04222021524750405,
+            "relative_central_range": 0.06961925895381636,
+            "noise_qualified": false,
+            "facts": {
+              "session_base_bytes": "27077",
+              "session_single_packet_peak_bytes": "92906",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          }
+        }
+      },
+      "wsl": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-performance.json",
+          "sha256": "a25742a647a69b5d875d25f08d26f1e7a83e69688254a991ded2cbeaa469b572"
+        },
+        "receipt": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-profiles.json",
+          "sha256": "d8917f8b1d58639de1212a2d38b8cc6bd2a6f200837fae41ba78cf571c52815b"
+        },
+        "cycles_per_sample": 100000,
+        "repeats": 7,
+        "noise_qualified": 12,
+        "cases": {
+          "session_5_qos1_64": {
+            "median_cycles_per_sec": 1979907.816,
+            "relative_mad": 0.004554726198424221,
+            "relative_central_range": 0.009569132384292784,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "27505",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos1_1024": {
+            "median_cycles_per_sec": 1883178.881,
+            "relative_mad": 0.00572951093964617,
+            "relative_central_range": 0.016983255453149868,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "28466",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos1_65536": {
+            "median_cycles_per_sec": 661246.631,
+            "relative_mad": 0.013836292800711344,
+            "relative_central_range": 0.03060965009287122,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "92979",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_64": {
+            "median_cycles_per_sec": 1639583.561,
+            "relative_mad": 0.009146518272513903,
+            "relative_central_range": 0.026715275172242335,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "27505",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_1024": {
+            "median_cycles_per_sec": 1529678.805,
+            "relative_mad": 0.007025063670147417,
+            "relative_central_range": 0.031448941335106034,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "28466",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_5_qos2_65536": {
+            "median_cycles_per_sec": 630375.15,
+            "relative_mad": 0.008263875884066726,
+            "relative_central_range": 0.020841030932136118,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "92979",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_64": {
+            "median_cycles_per_sec": 2553639.126,
+            "relative_mad": 0.006601033336454156,
+            "relative_central_range": 0.01322694332809179,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "27504",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_1024": {
+            "median_cycles_per_sec": 2359542.343,
+            "relative_mad": 0.009458388855028928,
+            "relative_central_range": 0.05750410303189881,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "28465",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos1_65536": {
+            "median_cycles_per_sec": 730364.661,
+            "relative_mad": 0.0010762829063001818,
+            "relative_central_range": 0.004801068818415845,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "92978",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_64": {
+            "median_cycles_per_sec": 2042325.146,
+            "relative_mad": 0.006716718945005797,
+            "relative_central_range": 0.012541966713854474,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "27504",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_1024": {
+            "median_cycles_per_sec": 1938645.777,
+            "relative_mad": 0.004167940371501873,
+            "relative_central_range": 0.0063281735867109145,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "28465",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          },
+          "session_4_qos2_65536": {
+            "median_cycles_per_sec": 678679.286,
+            "relative_mad": 0.007792452354292129,
+            "relative_central_range": 0.04876597928170739,
+            "noise_qualified": true,
+            "facts": {
+              "session_base_bytes": "27149",
+              "session_single_packet_peak_bytes": "92978",
+              "session_config_bytes": "112",
+              "session_info_bytes": "88",
+              "session_frame_bytes": "64",
+              "session_packet_info_bytes": "32"
+            }
+          }
+        }
+      },
+      "windows-long": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-long-performance.json",
+          "sha256": "d67ff33f4a82233b0d308e6450ca3ccab83c9fc8600078bd2d1fa706f84b8b86"
+        },
+        "cycles_per_sample": 1000000,
+        "repeats": 7,
+        "noise_qualified": 11,
+        "no_regression_or_release_acceptance": true
+      },
+      "windows-pinned": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-pinned-performance.json",
+          "sha256": "da211c102795976535520f332df02b87e0173974df1c73a6e758306fe0c35481"
+        },
+        "cycles_per_sample": 1000000,
+        "repeats": 7,
+        "noise_qualified": 11,
+        "no_regression_or_release_acceptance": true
+      }
+    },
+    "sizes": {
+      "windows": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/windows-size.json",
+          "sha256": "e631e43c2c0b6d5a7498f68630be1b7a5b3af210b387a974cf912c6e70e0e525"
+        },
+        "profile": {
+          "suite": "xmqtt_session",
+          "description": "Bounded in-memory QoS/expiry/immutable-packet state with no Client, Engine, Future or transport closure",
+          "forbid_symbols": [
+            "xmqttClient",
+            "xrtNetEngine",
+            "xrtFuture",
+            "xrtPromise"
+          ],
+          "kinds": {
+            "static": {
+              "text": 74036,
+              "data": 0,
+              "bss": 0,
+              "members": 8,
+              "load": 74036,
+              "file": 103546,
+              "path": "release/gnu/native/xmqtt_session/static/libxmqtt.a"
+            }
+          }
+        }
+      },
+      "wsl": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-20261110/wsl-size.json",
+          "sha256": "3ff11df6b95854763a01868eb5b428831561de72ae9f06247acaddf64d6a83c4"
+        },
+        "profile": {
+          "suite": "xmqtt_session",
+          "description": "Bounded in-memory QoS/expiry/immutable-packet state with no Client, Engine, Future or transport closure",
+          "forbid_symbols": [
+            "xmqttClient",
+            "xrtNetEngine",
+            "xrtFuture",
+            "xrtPromise"
+          ],
+          "kinds": {
+            "static": {
+              "text": 75594,
+              "data": 0,
+              "bss": 0,
+              "members": 8,
+              "load": 75594,
+              "file": 136190,
+              "path": "release/gnu/x64/xmqtt_session/static/libxmqtt.a"
+            }
+          }
+        }
+      }
+    },
+    "assessment": "Original100000-cycle seven-sample matrix: Windows10/12 and WSL12/12 noise-qualified. All12 native Windows cases repeated at1000000 cycles:11/12 qualify. Own-process logical-CPU10 experiment verifies child affinity0x400 and still11/12 qualify; no system power-policy change. All raw original/long/pinned samples remain retained. Windows is not fully noise-qualified, and no production/regression/P99 acceptance is inferred."
+  },
+  "failed_attempts": [
+    "Manifest-edit prototype used a nonexistent single_test_suites key and did not write the file; corrected to existing single_test_owners schema.",
+    "Initial single-header OOM test memcmp compared unspecified snapshot padding. Diagnostic identified byte68, between quota and generation; every semantic field was unchanged. Corrected to field comparisons and kept id-cursor retry assertion. Original/fault-diagnostic sources and binaries/logs remain archived; product code was not weakened.",
+    "Initial single test selector used --test instead of --single-test; documented example prototype used unsupported --example. Both failed commands are preserved, and the documented suite command is corrected and exercised.",
+    "Performance quality failures are preserved and not relabeled correctness passes or release acceptance. Longer and pinned-process experiments keep original thresholds and run all12 cases rather than dropping noisy rows."
+  ],
+  "evidence_index": {
+    "path": "out/service-extensions/xmqtt-session-20261110/evidence-files.json",
+    "sha256": "5beaee89c1eaaa06173fa501e5587dbd6c780dbc939eb2c3d12cc2d733e5fe55"
+  },
+  "evidence_storage": "Canonical sources remain D:/GIT/xrt master. Stage output junction uses C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-session-20261110; no unrelated artifacts removed.",
+  "remaining": [
+    "Attach state to Client TCP/Dial/TLS/auth lifecycles with request/Future/deadline/cancellation and queued receive-payload ownership; assigned-id adoption and safe broker/principal binding",
+    "Reconnect/backoff/offline admission, durable store transactions/snapshot/replay/crash recovery and MQTT WebSocket",
+    "Real-broker retained-session recovery, cross-connection full Client faults/OOM/native lifetime and independent comparator workloads",
+    "Four-product remaining scope, qualified deployment throughput/P99/P99.9, native Linux validation and >=72h native mixed-load/failure-injection release gates; all four products remain developing"
+  ]
+}

@@ -93,6 +93,18 @@
       "system": "client",
       "suite": "xmqtt_client_tls_resume",
       "description": "Optional bounded TLS1.3 credential handoff and authenticated resumed-handshake observation; native private-key signing backends are separate"
+    },
+    {
+      "name": "xmqtt_session",
+      "system": "session",
+      "suite": "xmqtt_session",
+      "description": "Bounded in-memory QoS/expiry/immutable-packet state with no Client, Engine, Future or transport closure",
+      "forbid_symbols": [
+        "xmqttClient",
+        "xrtNetEngine",
+        "xrtFuture",
+        "xrtPromise"
+      ]
     }
   ]
 }

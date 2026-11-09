@@ -238,3 +238,32 @@ The [stage report](../tests/results/broker-20261109.json) records actual build
 variants, sanitizer results, failed bootstrap attempts and topology. WSL broker
 tests, including native Windows clients via localhost forwarding, do not establish
 native deployment, independent comparator throughput/P99 or >=72h acceptance.
+
+## In-memory session protocol state
+
+The independent [session leaf](session.md) now owns bounded immutable outgoing
+QoS1/2 snapshots, original identifiers, cross-connection PUBLISH/PUBREL state,
+incoming QoS2 prepare/commit/deduplication and elapsed-time expiry. It uses no
+Engine, Future, background retry timer, credential store or new shared runtime.
+Existing Client factories do not yet attach it; automatic Client recovery and
+durable/application-payload composition remain required subsequent work.
+
+The [stage report](../tests/results/session-20261110.json) records both platforms'
+33-program full MQTT suites plus minimal session builds and the runnable example.
+WSL uses ASan/UBSan/leak halt, ten additional lifecycle/id-space repetitions and
+applicable TSan with eight concurrent retained readers. Tests exercise all65535
+ids in both directions, six reconnect cuts per version, physical reservations,
+large-clock expiry, byte/object bounds, peer restrictions and allocation failure.
+Thirteen modular/single/root/leaf/static/shared/sanitized TCP matrices execute
+156 independent literal-peer cases across two actual connections each. Package
+consumers run on both OSes. Old8 MQTT and139 Core archive members per OS remain
+byte-identical; the new session object is the only added member.
+
+Performance data are in-memory state cycles, not broker throughput. The original
+Windows100000-cycle matrix qualifies10/12 noise checks, WSL12/12. All12 Windows
+cases rerun at1000000 cycles qualify11/12; a separate own-process CPU-affinity
+experiment still qualifies11/12. Raw failures remain retained, original3% MAD/
+6% central-range gates stay fixed, and Windows is not fully noise-qualified.
+No new regression, comparator, P99, durable, native Linux or production acceptance
+is inferred. The pure state size profile checks absence of Client/Engine/Future
+symbols; measured public layouts and fixed/peak logical bytes are recorded.

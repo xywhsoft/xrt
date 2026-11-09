@@ -2339,6 +2339,385 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_session",
+      "system": "session",
+      "description": "Caller-driven in-memory QoS state admission/frame/ACK cycles; includes copies, gates, refs and allocation; no transport/Future/durable/performance qualification",
+      "benchmarks": [
+        {
+          "name": "session_5_qos1_64",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "1",
+            "64"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "1",
+            "64"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_5_qos1_1024",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "1",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "1",
+            "1024"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_5_qos1_65536",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "1",
+            "65536"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "1",
+            "65536"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_5_qos2_64",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "2",
+            "64"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "2",
+            "64"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_5_qos2_1024",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "2",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "2",
+            "1024"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_5_qos2_65536",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "5",
+            "2",
+            "65536"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "2",
+            "65536"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos1_64",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "1",
+            "64"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "1",
+            "64"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos1_1024",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "1",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "1",
+            "1024"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos1_65536",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "1",
+            "65536"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "1",
+            "65536"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos2_64",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "2",
+            "64"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "2",
+            "64"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos2_1024",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "2",
+            "1024"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "2",
+            "1024"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        },
+        {
+          "name": "session_4_qos2_65536",
+          "source": "extlibs/xmqtt/bench/bench_session.c",
+          "suite": "xmqtt_session,time",
+          "args": [
+            "100000",
+            "4",
+            "2",
+            "65536"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "2",
+            "65536"
+          ],
+          "metrics": {
+            "session_cycles_per_sec": {
+              "direction": "higher",
+              "unit": "cycles/s"
+            }
+          },
+          "facts": [
+            "session_base_bytes",
+            "session_single_packet_peak_bytes",
+            "session_config_bytes",
+            "session_info_bytes",
+            "session_frame_bytes",
+            "session_packet_info_bytes"
+          ]
+        }
+      ]
     }
   ]
 }

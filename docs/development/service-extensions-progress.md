@@ -9138,3 +9138,66 @@ broker/native Linux deployment, additional brokers/enhanced-auth algorithms,
 MQTT durable session/expiry/reconnect/replay and WebSocket remain pending.
 All four products remain developing under the unchanged scope and comparator/
 qualified P99/native >=72h release gates.
+
+## 2026-11-10: bounded in-memory MQTT session protocol state on master
+
+Adds optional xmqtt_session, a caller-driven state component for the next Client
+recovery/store integration. It owns no Engine, Future, credential, retry thread
+or shared runtime. Immutable canonical QoS1/2 snapshots, original/auto ids and
+separate ready queues implement PUBLISH/PUBREC/PUBREL/PUBCOMP state. Connection
+aliases are removed, an exposed partial PUBLISH retries with DUP, and successful
+PUBREC means only PUBREL replays. New connections reset send quota; duplicate/
+unmatched PUBCOMP cannot mint extra credit or complete an unsent new generation.
+
+Incoming QoS2 preparation is rollbackable before delivery; allocation-free commit
+precedes the owner's prepared queue publication and PUBREC. Committed identities
+survive reconnect through full PUBCOMP emission. Explicit Open/End/Expire/reset
+use monotonic elapsed time, including rounded very large clocks, and never erase
+live state. MQTT5 missing-server state resets old obligations;311 mismatch fails
+closed until an explicit clean reset. Data/id/object/byte duties survive logical
+completion through final physical references, including after unique Session
+destruction. Fixed nonempty client identity and caller-bound broker/principal
+namespace are explicit. Client attachment/assigned-id adoption remain pending.
+
+3075 frozen actual-master inputs identify validation. Windows and WSL each pass
+the33-program full MQTT suite,2 minimal session programs and1 runnable state
+example. WSL uses ASan/UBSan/leak halt, ten extra full lifecycle/id-space runs and
+2 applicable TSan programs with eight retained readers. All65535 outgoing and
+incoming ids, six reconnect cuts/version, stale/partial frames, negative ACKs,
+hash collisions, peer restrictions, exact byte/object limits, OOM rollback and
+incoming commit/duplicate rules execute. Root/leaf static/shared consumers run
+on both OSes. Thirteen literal TCP matrices pass156 cases (312 actual connections)
+through modular/single/root/leaf/static/shared/ASan forms; no broker recovery or
+Client integration is inferred from the test-only public Core socket driver.
+
+An initial OOM snapshot memcmp failed only at byte68 of unspecified C padding;
+diagnostics confirmed unchanged semantic fields. Tests now compare fields and
+still verify id-cursor rollback. Original failed/diagnostic sources, binaries and
+logs are preserved. Unsupported single/example CLI selector attempts are also
+recorded and the documented example command is corrected. Generated/API/docs,
+Core/extension maturity and89 focused tool tests pass. Non-MQTT canonical inputs
+are unchanged. Both OSes' prior8 MQTT and139 Core archive objects are byte-identical;
+only the session object is added. No old Client execution code/layout changes.
+
+The12-case primitive benchmark covers both versions, QoS1/2 and64/1024/65536-byte
+payloads with seven measured samples and one warmup. It includes one immutable
+packet allocation/copy, independent codec Size/Write/Read validation, gates and
+refs. Original100000-cycle noise checks qualify Windows10/12 and WSL12/12.
+All12 Windows cases rerun at1000000 cycles qualify11/12. A separate own-process
+logical-CPU10 experiment verifies inherited child affinity0x400 and also qualifies
+11/12. No system power-policy change, discarded rows or relaxed3% MAD/6% central
+range. All raw original/long/pinned outputs remain archived. Windows remains
+noise-unqualified as a full matrix; original5% throughput/10% P99 release gates,
+independent comparators and native deployment measurements remain pending.
+
+Measured public config112/info88/frame64/packet-info32 stay feature-independent.
+Default fixed state with13-byte benchmark identity is27077 bytes on Windows and
+27149 on WSL. Per-payload physical live peaks and static leaf size/symbol checks
+are recorded; logical quotas exclude allocator pools/native/caller queues.
+Evidence: extlibs/xmqtt/tests/results/session-20261110.json and
+out/service-extensions/xmqtt-session-20261110 (own stage on C; canonical source
+D:/GIT/xrt master). No branch operation or push. Existing Client factories still
+refuse unowned retained sessions. Future/deadline/cancel and pending receive-payload
+ownership, reconnect/offline queues, durable store/crash recovery, MQTT WebSocket
+and remaining Redis/RPC/Cron plus native>=72h acceptance remain under the full
+unchanged goal. All four products remain developing.

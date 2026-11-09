@@ -1,6 +1,10 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The independent [in-memory session state](docs/session.md) leaf now implements
+bounded QoS state, cross-connection replay decisions, incoming identity retention
+and expiry. Existing Client factories do not yet attach it; transport reconnect,
+request/Future composition and durable recovery remain required work.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
