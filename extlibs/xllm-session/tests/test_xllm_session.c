@@ -2419,6 +2419,17 @@ static void test_compaction_prompt_budget(void)
         q->uThroughSequence<xllmSessionLastSequence(s) && xllm_session__plan_pair_safe(s,q->uThroughSequence),
         "oversized history selects a smaller complete prefix within budget");
     xllmCompactionDestroy(q);
+    xllmSessionDestroy(s); s=xllmSessionCreate(&c,&e);
+    turn=xllmSessionBeginTurn(s);
+    SESSION_CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,"old request",0u) &&
+        xllmSessionAddText(s,turn,XLLM_ROLE_ASSISTANT,"old completed answer",0u),"short completed prefix exists");
+    turn=xllmSessionBeginTurn(s);
+    SESSION_CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,"new request must remain verbatim",0u),"current short request retained");
+    q=xllmSessionPrepareCompactionWithBudget(s,true,2000u,&e);
+    SESSION_CHECK(q && strstr(xllmCompactionPrompt(q),"old completed answer") &&
+        !strstr(xllmCompactionPrompt(q),"new request must remain verbatim"),
+        "forced rejection recovery can shrink a short prefix below keep-recent target");
+    xllmCompactionDestroy(q);
 done:
     free(original); free(reply); xllmSessionDestroy(s);
 }
