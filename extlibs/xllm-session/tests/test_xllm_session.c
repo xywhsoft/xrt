@@ -2434,6 +2434,37 @@ done:
     free(original); free(reply); xllmSessionDestroy(s);
 }
 
+static void test_anthropic_legacy_usage_anchor(void)
+{
+    const char *path="out/xllm-session-tests/anthropic-usage.json";
+    xllm_model_profile p;xllmModelProfileInit(&p);p.sId=p.sModel="anthropic-fixture";
+    p.eProvider=XLLM_PROVIDER_ANTHROPIC;p.uCapabilities=XLLM_CAP_TEXT_IN|XLLM_CAP_TEXT_OUT|XLLM_CAP_STREAM;
+    p.uContextWindowTokens=p.uMaxInputTokens=100000u;
+    p.uMaxOutputTokens=p.uRecommendedOutputReserveTokens=p.uRecommendedSummaryTokens=1024u;
+    xllm_session_config c;xllm_error e;
+    SESSION_CHECK(xllmSessionConfigInitFromProfile(&c,&p,&e),"Anthropic usage profile initializes");
+    xllm_session *s=xllmSessionCreateForProfile(&c,&p,&e),*loaded=NULL;
+    if(!s){SESSION_CHECK(false,"Anthropic usage session creates");return;}
+    uint64_t turn=xllmSessionBeginTurn(s);
+    xllm_usage usage={0};usage.uInputTokens=8100u;usage.uOutputTokens=100u;
+    usage.uCachedInputTokens=7000u;usage.uCacheWriteTokens=1000u;
+    SESSION_CHECK(xllmSessionAddText(s,turn,XLLM_ROLE_USER,"preserved history",0u)&&
+        xllmSessionRecordUsage(s,&usage),"inclusive Anthropic usage is recorded");
+    /* Exact fingerprint and undercount emitted by the pre-fix implementation. */
+    s->uProfileFingerprint=7693727401428158253ull;s->uFillExact=200u;s->bStatsDirty=true;
+    SESSION_CHECK(xllmSessionSave(s,path,&e),"legacy cached anchor checkpoint saved");
+    loaded=xllmSessionLoad(path,&e);xllm_session_stats stats;
+    SESSION_CHECK(loaded&&xllmSessionApplyProfile(loaded,&c,&p,&e)&&
+        xllmSessionGetStats(loaded,&stats)&&!stats.bFillExactValid,
+        "legacy Anthropic cached undercount is invalidated after checkpoint restore");
+    SESSION_CHECK(loaded&&xllmSessionRecordUsage(loaded,&usage)&&xllmSessionSave(loaded,path,&e),
+        "new inclusive checkpoint persists");
+    xllmSessionDestroy(loaded);loaded=xllmSessionLoad(path,&e);
+    SESSION_CHECK(loaded&&xllmSessionApplyProfile(loaded,&c,&p,&e)&&xllmSessionGetStats(loaded,&stats)&&
+        stats.bFillExactValid&&stats.uFillExact==8200u,"new inclusive anchor survives checkpoint/profile restore");
+    xllmSessionDestroy(loaded);xllmSessionDestroy(s);(void)xrtFileDelete(path);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
@@ -2441,6 +2472,7 @@ int main(void)
     test_tool_image_text();
     test_compaction_parts();
     test_compaction_prompt_budget();
+    test_anthropic_legacy_usage_anchor();
     test_default_profile();
     test_compaction_user_bridge();
     test_add_reference();
