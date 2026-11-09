@@ -2350,11 +2350,45 @@ static void test_tool_image_text(void)
     xllmSessionDestroy(session);
 }
 
+static void test_compaction_parts(void)
+{
+    xllm_session_config config; xllm_error error;
+    xllmSessionConfigInit(&config);
+    xllm_session *session = xllmSessionCreate(&config, &error);
+    SESSION_CHECK(session != NULL, "parts compaction creates session");
+    if (!session) return;
+    uint64_t turn = xllmSessionBeginTurn(session);
+    xllm_part parts[2] = {{0}, {0}};
+    parts[0].eKind = XLLM_PART_TEXT; parts[0].sText = "USER_REQUIREMENT_UTF8_中文";
+    parts[1].eKind = XLLM_PART_IMAGE; parts[1].sMediaType = "image/png";
+    parts[1].sSourceUrl = "https://example.invalid/reference.png";
+    xllm_message message = {0}; message.eRole = XLLM_ROLE_USER;
+    message.pParts = parts; message.iPartCount = 2u;
+    SESSION_CHECK(xllmSessionAddMessage(session, turn, &message, 0u), "parts user is retained");
+    message.eRole = XLLM_ROLE_ASSISTANT;
+    parts[0].sText = "ASSISTANT_STRUCTURED_ANSWER";
+    SESSION_CHECK(xllmSessionAddMessage(session, turn, &message, 0u), "parts assistant is retained");
+    xllm_response response = {0}; xllm_tool_call call = {0};
+    call.sId = "parts-call"; call.sName = "read"; call.sArgumentsJson = "{}";
+    response.sContent = ""; response.pToolCalls = &call; response.iToolCallCount = 1u;
+    static const unsigned char binary[] = "BINARY_CONTENT_MUST_NOT_APPEAR";
+    SESSION_CHECK(xllmSessionAddAssistantResponse(session, turn, &response) &&
+        xllmSessionAddToolResultWithImage(session, turn, call.sId, "TOOL_IMAGE_TEXT_PATH",
+            binary, sizeof(binary), "image/png"), "parts tool image keeps its text");
+    char *serialized = xllm_session__serialize_candidates(session, 0u, xllmSessionLastSequence(session));
+    SESSION_CHECK(serialized && strstr(serialized, "USER_REQUIREMENT_UTF8_中文") &&
+        strstr(serialized, "ASSISTANT_STRUCTURED_ANSWER") && strstr(serialized, "TOOL_IMAGE_TEXT_PATH") &&
+        strstr(serialized, "https://example.invalid/reference.png") && strstr(serialized, "image/png") &&
+        !strstr(serialized, "BINARY_CONTENT_MUST_NOT_APPEAR"), "compaction includes every role's parts without binary payloads");
+    free(serialized); xllmSessionDestroy(session);
+}
+
 int main(void)
 {
     if ( !xrtDirCreateAll("out/xllm-session-tests") ) { return 1; }
     printf("xllm-session v3 tests\n");
     test_tool_image_text();
+    test_compaction_parts();
     test_default_profile();
     test_compaction_user_bridge();
     test_add_reference();

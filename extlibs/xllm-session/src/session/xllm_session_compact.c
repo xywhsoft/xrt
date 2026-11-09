@@ -481,6 +481,37 @@ static bool xllm_session__append_truncated(xllm_session_buf *pBuf, const char *s
     return xllm_session__buf_cstr(pBuf, sText);
 }
 
+/* Parts are authoritative when present. Preserve their text and attachment
+ * identity, never inline binary bytes or provider-native replay blobs. */
+static bool xllm_session__serialize_body(xllm_session_buf *pBuf,
+                                          const xllm_message *pMessage, uint32_t uCap)
+{
+    if (!pMessage->iPartCount)
+        return xllm_session__append_truncated(pBuf, pMessage->sContent ? pMessage->sContent : "", uCap);
+    for (size_t i = 0u; i < pMessage->iPartCount; ++i)
+    {
+        const xllm_part *pPart = &pMessage->pParts[i];
+        if (i && !xllm_session__buf_cstr(pBuf, "\n")) return false;
+        if (pPart->eKind == XLLM_PART_TEXT || pPart->eKind == XLLM_PART_REASONING)
+        {
+            if (!xllm_session__append_truncated(pBuf, pPart->sText ? pPart->sText : "", uCap)) return false;
+        }
+        else
+        {
+            char sInfo[96];
+            (void)snprintf(sInfo, sizeof(sInfo), "[Attachment kind=%u bytes=%llu",
+                           (unsigned)pPart->eKind, (unsigned long long)pPart->iDataSize);
+            if (!xllm_session__buf_cstr(pBuf, sInfo) ||
+                (pPart->sMediaType && (!xllm_session__buf_cstr(pBuf, " media=") ||
+                                     !xllm_session__buf_cstr(pBuf, pPart->sMediaType))) ||
+                (pPart->sSourceUrl && (!xllm_session__buf_cstr(pBuf, " source=") ||
+                                     !xllm_session__buf_cstr(pBuf, pPart->sSourceUrl))) ||
+                !xllm_session__buf_cstr(pBuf, "]")) return false;
+        }
+    }
+    return true;
+}
+
 char *xllm_session__serialize_candidates(const xllm_session *pSession, uint64_t uFrom, uint64_t uTo)
 {
     xllm_session_buf tBuf = {0};
@@ -497,15 +528,13 @@ char *xllm_session__serialize_candidates(const xllm_session *pSession, uint64_t 
         {
         case XLLM_ROLE_USER:
             bOk = xllm_session__buf_cstr(&tBuf, "[User]: ") &&
-                  xllm_session__append_truncated(
-                      &tBuf, pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "",
-                      pSession->tConfig.uUserMessageCapBytes) &&
+                  xllm_session__serialize_body(&tBuf, &pEntry->tMessage,
+                                                pSession->tConfig.uUserMessageCapBytes) &&
                   xllm_session__buf_cstr(&tBuf, "\n");
             break;
         case XLLM_ROLE_SYSTEM:
             bOk = xllm_session__buf_cstr(&tBuf, "[System]: ") &&
-                  xllm_session__buf_cstr(
-                      &tBuf, pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "") &&
+                  xllm_session__serialize_body(&tBuf, &pEntry->tMessage, 0u) &&
                   xllm_session__buf_cstr(&tBuf, "\n");
             break;
         case XLLM_ROLE_ASSISTANT:
@@ -515,10 +544,11 @@ char *xllm_session__serialize_candidates(const xllm_session *pSession, uint64_t 
                       xllm_session__buf_cstr(&tBuf, pEntry->tMessage.sReasoningContent) &&
                       xllm_session__buf_cstr(&tBuf, "\n");
             }
-            if (bOk && pEntry->tMessage.sContent && pEntry->tMessage.sContent[0])
+            if (bOk && (pEntry->tMessage.iPartCount ||
+                        (pEntry->tMessage.sContent && pEntry->tMessage.sContent[0])))
             {
                 bOk = xllm_session__buf_cstr(&tBuf, "[Assistant]: ") &&
-                      xllm_session__buf_cstr(&tBuf, pEntry->tMessage.sContent) &&
+                      xllm_session__serialize_body(&tBuf, &pEntry->tMessage, 0u) &&
                       xllm_session__buf_cstr(&tBuf, "\n");
             }
             {
@@ -543,9 +573,8 @@ char *xllm_session__serialize_candidates(const xllm_session *pSession, uint64_t 
                              xllm_session__buf_cstr(&tBuf, pEntry->tMessage.sToolCallId)
                        : true) &&
                   xllm_session__buf_cstr(&tBuf, "]: ") &&
-                  xllm_session__append_truncated(
-                      &tBuf, pEntry->tMessage.sContent ? pEntry->tMessage.sContent : "",
-                      pSession->tConfig.uToolResultCapBytes) &&
+                  xllm_session__serialize_body(&tBuf, &pEntry->tMessage,
+                                                pSession->tConfig.uToolResultCapBytes) &&
                   xllm_session__buf_cstr(&tBuf, "\n");
             break;
         }
