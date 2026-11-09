@@ -5181,9 +5181,40 @@ xllm_compaction *xllmSessionPrepareCompactionWithBudget(xllm_session *pSession, 
     }
     if (!xllm_session__ops_plan(pSession, pSession->uCompactedThrough, &tPlan, pError))
     {
-        xllm_session__error(pError, XLLM_ERROR_PROTOCOL,
-                            "no completed prefix is safe to compact yet");
-        return NULL;
+        /* A provider rejection can arrive below our estimated threshold. In
+         * forced recovery the default keep-recent target is a preference, not
+         * a prohibition on compacting an otherwise complete safe prefix. */
+        bool bDefault = !pSession->pOps || !pSession->pOps->pPlan ||
+            pSession->pOps->pPlan == xllm_session__default_plan;
+        uint64_t uFloor = pSession->uCompactedThrough > pSession->uTailFloor ? pSession->uCompactedThrough : pSession->uTailFloor;
+        uint64_t uLastUser = 0u;
+        for (size_t i=0u; i<pSession->iEntryCount; ++i)
+            if (pSession->pEntries[i].tMessage.eRole==XLLM_ROLE_USER &&
+                pSession->pEntries[i].uSequence>uFloor) uLastUser=pSession->pEntries[i].uSequence;
+        if (bForce && bDefault)
+        {
+            tPlan.uThroughSequence=0u; tPlan.uPrefixThroughSequence=0u;
+            /* Prefer keeping the newest user request verbatim. If the entire
+             * task is one long turn, retain its newest complete tail instead. */
+            for (unsigned pass=0u; pass<2u && !tPlan.uThroughSequence; ++pass)
+            {
+                uint64_t uCeiling = pass ? xllmSessionLastSequence(pSession) : uLastUser;
+                for (size_t i=0u; i<pSession->iEntryCount; ++i)
+                {
+                    const xllm_session_entry *pEntry=&pSession->pEntries[i];
+                    if (pEntry->uSequence<=uFloor || pEntry->uSequence>=uCeiling ||
+                        (pEntry->uFlags&XLLM_SESSION_ENTRY_PINNED) ||
+                        (pEntry->tMessage.eRole!=XLLM_ROLE_ASSISTANT && pEntry->tMessage.eRole!=XLLM_ROLE_TOOL) ||
+                        !xllm_session__plan_pair_safe(pSession,pEntry->uSequence)) continue;
+                    tPlan.uThroughSequence=pEntry->uSequence;
+                }
+            }
+        }
+        if (tPlan.uThroughSequence<=pSession->uCompactedThrough)
+        {
+            xllm_session__error(pError, XLLM_ERROR_PROTOCOL, "no completed prefix is safe to compact yet");
+            return NULL;
+        }
     }
     uint64_t uBudget = xllm_session__input_budget(pSession);
     if (uPromptBudgetTokens && uPromptBudgetTokens < uBudget) uBudget = uPromptBudgetTokens;
