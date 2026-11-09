@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "branch": "master",
+  "base_revision": "28d16ca9dec7ea2273d18a734e5aa5ef984ce467",
+  "trigger": "MQTT enhanced-auth validation broadened to the core native-thread memory-statistics test; TSan reported unsequenced heap size-class publication.",
+  "cause": "GCC legacy __sync_lock_test_and_set is acquire-only. Publishing InitState=2 through it does not release preceding initialized size-class/table/lock stores to readers.",
+  "primary_reference": "https://gcc.gnu.org/onlinedocs/gcc/_005f_005fsync-Builtins.html",
+  "change": "Publish the completed heap with __atomic_store_n(..., __ATOMIC_RELEASE) on the GCC/Clang branch, pairing with existing acquire readers. Windows Interlocked and POSIX TinyCC pthread_once branches retain their prior implementation.",
+  "scope": "One cold initialization publication operation; no new public API, allocation, lock, dependency or runtime. Strengthen the native cold-start race barrier and register its single-header counterpart.",
+  "source_identity": {
+    "src/memory/heap.c": "10fb07be645ed177f798a00ac2d8fb25ba8131b9c7a4ed41a73cc058065991b4",
+    "single/xrt.h": "19037b60c9b8711cf94727fcd19b1d87a6a100f56467e3331f88ff03168bcc27",
+    "config/modules.json": "2d46602a8d8e553aa68e714fa42e1de687ed8bb6c93ae6d93e8c570c3a4c6fc2",
+    "tests/memory/test_memory_stats_threads.c": "e0f67da9aa1cf1098a650945cb7852b7c3c2f9afc26a8842dc6502510bac785d",
+    "tests/single/test_single_stats_threads.c": "fa3157a78d0322a15c4f8d07b3a1ab8766234a8588eebb36736ff6559798b769"
+  },
+  "validation": {
+    "windows": {
+      "core_memory_programs": 19,
+      "receipt_file": "out/service-extensions/heap-publication-20261109/windows-receipts.json",
+      "receipt_sha256": "cbd97f1651fc2735bbe7e707ad5f23a179488f71f8f9cdb8ceb27b49996abfa3"
+    },
+    "wsl": {
+      "core_memory_programs": 19,
+      "receipt_file": "out/service-extensions/heap-publication-20261109/wsl-receipts.json",
+      "receipt_sha256": "d01fc767dfb6fe2668a7911e5b0eccf5c4fd542fbc4a70c8d16d7eaa6b9545f5",
+      "asan_ubsan_leak_suite": true,
+      "old_cold_control_exit_codes": [
+        66,
+        66,
+        66,
+        66,
+        66,
+        0,
+        0,
+        66
+      ],
+      "tsan_suite_passed": true,
+      "additional_modular_cold_runs": 8,
+      "additional_single_cold_runs": 8
+    }
+  },
+  "evidence_directory": "out/service-extensions/heap-publication-20261109/",
+  "notes": [
+    "Original aggregate TSan report and exact failing binary preserved.",
+    "The initial strengthened old single-header control passed once; it is retained as an observation/preflight mismatch. Eight subsequent control processes retained every result, including six races and two passes.",
+    "These checks do not substitute for the pending combined four-product/full production acceptance."
+  ]
+}

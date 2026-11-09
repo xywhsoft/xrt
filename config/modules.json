@@ -1284,7 +1284,8 @@
 				"tests/memory/test_memory_stats_threads.c"
 			],
 			"single_tests": [
-				"tests/single/test_single_stats.c"
+				"tests/single/test_single_stats.c",
+				"tests/single/test_single_stats_threads.c"
 			],
 			"examples": [
 				"examples/memory/stats/main.c"

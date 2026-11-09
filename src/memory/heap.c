@@ -368,7 +368,8 @@ static void __xrtHeapEnsure(void)
 			#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 				(void)InterlockedExchange((volatile LONG*)&__xrtHeap.InitState, 2);
 			#else
-				(void)__sync_lock_test_and_set(&__xrtHeap.InitState, 2);
+				/* Publish every initialized class/table entry to acquire readers. */
+				__atomic_store_n(&__xrtHeap.InitState, 2, __ATOMIC_RELEASE);
 			#endif
 			return;
 		}

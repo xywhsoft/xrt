@@ -8,10 +8,29 @@
 
 
 
+/* Cold first allocations must race: do not warm the heap on the main thread.
+ * The native atomic barrier does not use XRT allocation or preinitialize it. */
+#if defined(_WIN32) || defined(_WIN64)
+static volatile LONG testMemColdEntered;
+#else
+static int testMemColdEntered;
+#endif
+static void testMemColdStart(void)
+{
+#if defined(_WIN32) || defined(_WIN64)
+    (void)InterlockedIncrement(&testMemColdEntered);
+    while(InterlockedCompareExchange(&testMemColdEntered,0,0)!=TEST_MEM_STATS_THREAD_COUNT)testThreadYield();
+#else
+    (void)__sync_fetch_and_add(&testMemColdEntered,1);
+    while(__sync_val_compare_and_swap(&testMemColdEntered,0,0)!=TEST_MEM_STATS_THREAD_COUNT)testThreadYield();
+#endif
+}
+
 /* 并发执行固定数量的公开内存 API 调用。 */
 static int testMemStatsThreadRun(ptr pData)
 {
 	(void)pData;
+	testMemColdStart();
 
 	for ( size_t i = 0; i < TEST_MEM_STATS_ITERATIONS; i++ ) {
 		size_t iSize = (i % 1536u) + 1u;
