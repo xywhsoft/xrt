@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "MQTT nonwaiting physical Client retirement query",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "a7ebd89dcac9e674e88b5ec58d56c1aa9f5b1968",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "public_apis": [
+    "xmqttClientPollRetired"
+  ],
+  "contract": {
+    "query_only": true,
+    "worker_allowed": true,
+    "ready": "logical CLOSED, no requests/startup bytes, last Client notification tail and native Stream retired",
+    "pending": "active ownership or immediately busy predicate mutex",
+    "error": "invalid Client or synchronization failure",
+    "stable_unique_caller_owner_required": true,
+    "concurrent_entry_exclusion_before_final_cleanup": true,
+    "legacy_wait_destroy_worker_prohibition_unchanged": true,
+    "normal_error_preserved_without_redelivery": true,
+    "normal_requested_heap_timer_waiter_allocations": 0,
+    "new_client_fields": 0
+  },
+  "source_identity": {
+    "files": 2734,
+    "map_sha256": "ac36a41f2a80b17c212af86d1d0e6da6b0a589fb06269827270d90eccf53d4b2",
+    "publication_deltas": {
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "b31f70e5e4da761eab4802a50ef38d42c8f88c0b9bbdce793f54ad7c8e1ed4d8",
+        "after_sha256": "0917c61d529c55e7297f214415a0b4a0979df89358e1b130f2cdc89cc6b26aad"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "4c037aa8bf02e92c649d4267488a16fc43926466673a2acd679a0e3a2827beb4",
+        "after_sha256": "06d73f87f640565e928bcaf99f78ed88cc2f2282df9798d6f8b23a786828c8cb"
+      }
+    },
+    "existing_client_code_byte_identical_except_new_function": true
+  },
+  "validation": {
+    "windows": {
+      "programs": 57,
+      "modular_tests": 22,
+      "single_tests": 29,
+      "core_examples": 6,
+      "packages": 2,
+      "packaged_consumer_runs": 4,
+      "controller_probe_runs": 2,
+      "controller_probe_lifecycles": 32,
+      "sanitizers": [],
+      "toolchain": "gcc.exe (GCC) 16.2.0"
+    },
+    "wsl": {
+      "programs": 57,
+      "modular_tests": 22,
+      "single_tests": 29,
+      "core_examples": 6,
+      "packages": 2,
+      "packaged_consumer_runs": 4,
+      "controller_probe_runs": 2,
+      "controller_probe_lifecycles": 32,
+      "sanitizers": [
+        "address",
+        "undefined",
+        "leak"
+      ],
+      "toolchain": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+    }
+  },
+  "tsan_modular_programs": 1,
+  "checks_per_platform": 5,
+  "minimal_declaration_scopes_per_platform": 1,
+  "notes": [
+    "Full builds have 22 modular tests, 29 single-header tests and six Core examples; the new MQTT example additionally runs against all four actual static/shared packages.",
+    "Private single tests hold each existing Client/native predicate mutex and query from self/other worker before releasing it; no ready refcount is fabricated.",
+    "A native Stream alias keeps an otherwise retired Client pending. Invalid real Client mutex storage produces ERROR even with an identical old static diagnostic.",
+    "Public tests hold logical CLOSED callbacks, run two waiters and exercise both workers; pending/ready budget loops preserve exact old errors with no requested allocation or redelivery.",
+    "The Dial single test observes pending asynchronous resolution and ready cancellation before any Stream exists. TLS helpers verify readiness after actual transport retirement.",
+    "Four separately compiled controller probes close and observe retirement only through PollRetired, then require WaitFor(Client,0)==OK and query on-worker before external cleanup: 64 total lifecycles.",
+    "No wire/protocol semantics changed and independent broker tests were not rerun for this lifecycle-only stage.",
+    "Source-level existing hot paths are unchanged. No end-to-end throughput, P99, CPU/RSS, native Linux, >=72h soak or production qualification is inferred."
+  ],
+  "open_work": [
+    "automatic reconnect/backoff/jitter/cancellation and bounded generation ownership",
+    "offline acceptance, automatic subscription recovery and durable/crash recovery",
+    "MQTT WebSocket transport and remaining full product scope",
+    "throughput/tail/contention/native Linux/soak gates for all four developing products"
+  ],
+  "artifacts": {
+    "root": "out/service-extensions/xmqtt-retirement-query-20261110",
+    "evidence_files": 219,
+    "evidence_index_sha256": "5ca4509c5fac087d4d0a6bab7d02f5c7b74d6b7fa15c18c99860de40661c9da4"
+  }
+}

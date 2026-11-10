@@ -117,6 +117,24 @@ that remainder to the public millisecond unit. Timeout preserves the caller
 owner. Multiple waiters borrow that same stable owner: stop all API entries and
 finish all borrowers before Destroy. Destroy requests Close and waits off-worker
 before releasing it. Repeated Close on CLOSED posts no additional work.
+
+`xmqttClientPollRetired` is the nonwaiting query for an IO-driven controller.
+It may run on either Engine worker. OK observes the same Client/reference/native
+completion boundary; TIMEOUT means active references, incomplete logical closure
+or an immediately busy predicate mutex. ERROR reports invalid input or a real
+synchronization failure. The query never closes or consumes its unique owner.
+It tries the existing Client retirement mutex, releases it before trying the
+admission gate, then queries the native Stream. A cancelled Dial that never
+created a Stream needs only the Client predicates. This includes the final
+reference notification tails, rather than inferring completion from CLOSED.
+
+Normal OK/TIMEOUT allocate no requested heap, timer or waiter and preserve the
+exact ambient error without redelivery. This is a query, not a lock-free or
+real-time destructor. Keep a stable owner throughout each call and exclude other
+API entries before treating OK as final. Wait and Destroy still reject all
+same-Engine workers; transfer cleanup to an external owner after readiness.
+No Client fields, send-path work or reference-drop operations are added.
+
 Notifications run on the IO worker, outside the admission gate; they may Take,
 submit or Close, and must not block. Notify code/User live through Destroy.
 

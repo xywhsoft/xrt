@@ -63,6 +63,11 @@ int main(void)
        xmqttClientConnect(NULL,NULL,0,&ClientConfig,NULL,&Client) || Client!=(xmqttclient*)(uintptr_t)1 || !xmqttClientDestroy(NULL))return 20;
     xrtClearError();
 #endif
+
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT)
+    if(xmqttClientPollRetired(NULL)!=XWAIT_ERROR || xrtErrorKind(xrtGetError())!=XERR_ARGUMENT)return 31;
+    xrtClearError();
+#endif
 	unsigned char Output[128]; size_t Written; xmqttframe Frame;
 	if (!xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) || Written != 2 ||
 		xmqttFrameRead((xbytesview){Output,Written},NULL,&Frame) != XMQTT_WIRE_DONE || Frame.Header.Type != XMQTT_PACKET_PINGREQ) return 1;

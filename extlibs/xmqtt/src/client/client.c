@@ -2773,6 +2773,26 @@ XMQTT_API bool xmqttClientClose(xmqttclient* C)
     if(C->Info.State<XMQTT_CLIENT_CLOSING){C->Info.State=XMQTT_CLIENT_CLOSING;C->Info.CloseStatus=XMQTT_STATUS_CLOSED;}
     bool OK=xmqttClientWakeLocked(C);xrtMutexUnlock(&C->Gate);return OK;
 }
+XMQTT_API xwaitresult xmqttClientPollRetired(xmqttclient* C)
+{
+    if(!C){xmqttClientError(XERR_ARGUMENT,"client is NULL");return XWAIT_ERROR;}
+    xmutextryresult Lock=xrtMutexTryLockResult(&C->RetirementLock);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    bool Retired=xrtAtomic32Load(&C->Refs,XMEMORY_ACQUIRE)==1;
+    if(!xrtMutexUnlock(&C->RetirementLock))return XWAIT_ERROR;
+    if(!Retired)return XWAIT_TIMEOUT;
+    /* The last Drop notification must finish before readiness. Never nest Gate
+     * under RetirementLock: failed admission may drop its reference under Gate. */
+    Lock=xrtMutexTryLockResult(&C->Gate);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    bool Closed=C->Info.State==XMQTT_CLIENT_CLOSED && !C->Info.Requests && !C->Info.StartupBytes;
+    if(!xrtMutexUnlock(&C->Gate))return XWAIT_ERROR;
+    if(!Closed)return XWAIT_TIMEOUT;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
+    if(!C->Stream)return XWAIT_OK;
+#endif
+    return xrtNetStreamPollRetired(C->Stream);
+}
 XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 {
     if(!C || Timeout<XRT_WAIT_FOREVER){xmqttClientError(XERR_ARGUMENT,"invalid client wait");return XWAIT_ERROR;}

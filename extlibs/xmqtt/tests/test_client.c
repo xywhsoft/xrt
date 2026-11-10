@@ -462,6 +462,7 @@ static void mqttWaitNotify(xmqttclient* C,ptr Data)
 {
     mqttWaitGate* G=Data;xmqttclientinfo I;xmqttClientInfo(C,&I);if(I.State!=XMQTT_CLIENT_CLOSED)return;
     testRequire(xmqttClientWaitFor(C,0)==XWAIT_ERROR,"CLOSED callback still rejects worker wait");xrtClearError();
+    testRequire(xmqttClientPollRetired(C)==XWAIT_TIMEOUT,"CLOSED callback is still physically owned");
     testRequire(xrtMutexLock(&G->Lock),"wait callback lock");G->Entered=true;xrtCondBroadcast(&G->Ready);
     while(!G->Release)testRequire(xrtCondWaitFor(&G->Ready,&G->Lock,5000)==XWAIT_OK,"held logical CLOSED callback");
     testRequire(xrtMutexUnlock(&G->Lock),"wait callback unlock");
@@ -479,6 +480,7 @@ static void mqttWaitCase(xmqttversion Version,bool Held)
     G.Client=mqttTestConnect(&P,&K);xfuture* Ready=xmqttClientReady(G.Client);(void)mqttTestResult(Ready);
     xrtSetErrorInfo(XERR_STATE,"mqtt.wait.ambient",7,"preserve");const xerror* Ambient=xrtGetError();
     testRequire(xmqttClientWaitFor(G.Client,0)==XWAIT_TIMEOUT && xrtGetError()==Ambient,"open poll preserves owner and ambient error");xrtClearError();
+    testRequire(xmqttClientPollRetired(G.Client)==XWAIT_TIMEOUT,"new query does not close an open Client");
     testRequire(xmqttClientWaitFor(G.Client,-2)==XWAIT_ERROR,"invalid MQTT wait timeout");xrtClearError();
     mqttWaitBorrower W[2]={{&G,XWAIT_ERROR},{&G,XWAIT_ERROR}};xthread* Threads[2];
     for(unsigned J=0;J<2;++J){Threads[J]=xrtThreadCreate(mqttWaitThread,W+J,0);testRequire(Threads[J]!=NULL,"MQTT retirement borrower thread");}
@@ -486,6 +488,7 @@ static void mqttWaitCase(xmqttversion Version,bool Held)
     testRequire(xmqttClientClose(G.Client),"close with existing waiters");
     if(Held){xrtMutexLock(&G.Lock);while(!G.Entered)testRequire(xrtCondWaitFor(&G.Ready,&G.Lock,5000)==XWAIT_OK,"logical CLOSED notification entered");xrtMutexUnlock(&G.Lock);
         xmqttclientinfo I;xmqttClientInfo(G.Client,&I);testRequire(I.State==XMQTT_CLIENT_CLOSED && xmqttClientWaitFor(G.Client,0)==XWAIT_TIMEOUT && xmqttClientWaitFor(G.Client,10)==XWAIT_TIMEOUT,"logical CLOSED does not consume a timed-out physical owner");
+        testRequire(xmqttClientPollRetired(G.Client)==XWAIT_TIMEOUT,"held notification prevents immediate retirement");
         xrtMutexLock(&G.Lock);testRequire(!G.Finished,"no borrower returns before physical callback release");G.Release=true;xrtCondBroadcast(&G.Ready);xrtMutexUnlock(&G.Lock);
     }
     for(unsigned J=0;J<2;++J){testRequire(xrtThreadWaitFor(Threads[J],5000)==XWAIT_OK && W[J].Result==XWAIT_OK,"all MQTT borrowers wake on real retirement");xrtThreadDestroy(Threads[J]);}
@@ -680,5 +683,6 @@ static void testMqttGracefulQueuedClose(void)
 #include "client_subscriptions.h"
 #include "client_aliases.h"
 #include "client_send_aliases.h"
+#include "client_retirement_poll.h"
 int main(void)
-{testMqttSendAliases();testMqttSendAliasAllocation();testMqttAliasOwnership();testMqttAliasQosTwo();testMqttAliasAllocation();testMqttSubscriptions();testMqttSubscriptionFailures();testMqttSubscriptionAllocation();testMqttSubscriptionUnsent();testMqttGracefulQueuedClose();testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();testMqttQosTwoSender();testMqttQosTwoWindowAndDuplicates();testMqttQosTwoTerminalAndDrain();testMqttReceiveTwoOwnership();testMqttReceiveTwoWindow();testMqttReceiveTwoGraceful();testMqttReceiveTwoAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}
+{testMqttRetirementPoll();testMqttSendAliases();testMqttSendAliasAllocation();testMqttAliasOwnership();testMqttAliasQosTwo();testMqttAliasAllocation();testMqttSubscriptions();testMqttSubscriptionFailures();testMqttSubscriptionAllocation();testMqttSubscriptionUnsent();testMqttGracefulQueuedClose();testMqttClientRoundtrip();testMqttClientTerminal();testMqttClientAdmissionCancel();testMqttClientKeepalive();testMqttClientReceiveBounds();testMqttClientObjectAdmission();testMqttClientReentrancy();testMqttClientAllocationFailure();testMqttQosOneCompletion();testMqttQosOneWindow();testMqttQosOneCancellationAndRestrictions();testMqttQosOneIdsAndMismatches();testMqttQosOneAllocationRollback();testMqttReceiveOneOwnership();testMqttReceiveOneLimits();testMqttReceiveOneAllocationFailure();testMqttErrorDisconnect();testMqttErrorDisconnectAllocationFailure();testMqttRetirementSignals();testMqttGraceful();testMqttGracefulDrain();testMqttGracefulAdmissionAndOom();testMqttGracefulCloseRace();testMqttQosTwoSender();testMqttQosTwoWindowAndDuplicates();testMqttQosTwoTerminalAndDrain();testMqttReceiveTwoOwnership();testMqttReceiveTwoWindow();testMqttReceiveTwoGraceful();testMqttReceiveTwoAllocationFailure();puts("[PASS] xmqtt TCP/QoS1 and diagnostic DISCONNECT: flow, boundaries, ownership, limits, original errors and OOM retirement");return 0;}

@@ -468,3 +468,24 @@ objects change. Seven of eight fixed-id pure Session throughput observations mee
 the noise gate and none breaches 5%; one remains unqualified. WSL5/QoS2 retains a
 qualified 4.17% loss. No new first-assignment/getter latency, end-to-end P99, native
 Linux, enhanced-auth algorithm/plugin or 72h production acceptance is inferred.
+
+## Nonwaiting physical Client retirement
+
+The [retirement-query stage](../tests/results/retirement-query-20261110.json) adds
+`xmqttClientPollRetired` for either IO worker. It observes Client and native
+notification tails; busy predicates return TIMEOUT without waiting. Invalid input
+or real synchronization failure returns ERROR, even with an identical old static
+diagnostic. The stable unique owner remains required and Wait/Destroy keep their
+worker prohibition. Existing Client production code outside this new function is
+byte-identical: no fields, send work or reference-drop operations are added.
+
+Each OS passes 22 modular tests, 29 single tests and six Core examples. WSL adds
+full ASan/UBSan/leak and a modular Client TSan run. Tests hold real notification
+and mutex tails, retain a native alias, cover both workers, pre-stream Dial
+cancellation and TLS, and check allocation-free pending/ready error preservation.
+Four verified static/shared packages run eight example/consumer executions; four
+extra packaged probes perform 64 poll-only retirement lifecycles. Declaration-only
+minimal scope, exports and generated/API/docs/maturity checks pass on both OSes.
+Automatic reconnect, durable recovery, WebSocket and complete performance/native
+Linux/soak production gates remain open. No broker or end-to-end performance result
+is inferred from this lifecycle stage.

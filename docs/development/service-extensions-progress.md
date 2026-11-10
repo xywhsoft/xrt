@@ -10007,3 +10007,39 @@ root validation jobs both completed; only final hash-matching receipts are used.
 No branch operation or push. Evidence:
 docs/development/results/net-retire-poll-20261110.json and
 out/service-extensions/net-retire-poll-20261110 (C-backed immutable stage).
+
+## 2026-11-10: MQTT nonwaiting physical Client retirement
+
+`xmqttClientPollRetired` integrates the previously prototype-proven Core queries
+without another feature, shared runtime, Client field or send/ref-drop operation.
+Existing Client production code is byte-identical after removing the new function.
+The query is permitted on both Engine workers and never closes or consumes the
+unique caller owner. It tries the existing Client retirement mutex, then releases
+it before trying the admission gate, then queries actual native Stream retirement.
+Active ownership or a busy predicate returns TIMEOUT; invalid input or real
+synchronization failure returns ERROR. A cancelled pre-stream Dial can return OK
+without a Stream. Normal paths preserve exact ambient errors without redelivery
+or requested heap/timer/waiter allocation. Final readiness still requires stable
+ownership and exclusion of competing API entries; worker Wait/Destroy stay forbidden.
+
+Both Windows and WSL pass 57 programs: 22 modular tests, 29 single-header tests
+and six Core examples. WSL fully instruments these with ASan/UBSan/leak checking
+and passes an additional modular Client TSan program. Tests include held logical
+CLOSED callbacks, two waiting borrowers, both Engine workers, pending/ready budget
+loops, actual Client/native mutex contention before owner release, native aliases,
+identical old static diagnostics on real synchronization failure, cancelled DNS
+before Stream creation and TLS physical retirement. No private refcount is changed
+to fabricate readiness. Four real static/shared packages, eight packaged example/
+consumer executions, minimal declaration-only headers, exports, generated/features/
+API/docs and normal maturity checks pass. Four independent packaged probes observe
+64 complete Client/Engine lifecycles using PollRetired instead of a blocking wait,
+then cross-check zero-wait readiness and the on-worker query before external cleanup.
+
+This is a lifecycle primitive, not an automatic reconnect controller. Wire/broker
+semantics are unchanged and broker tests were not rerun. Existing hot paths remain
+source-identical, but no new end-to-end throughput/P99, CPU/RSS, native Linux or
+>=72h production qualification is inferred. Automatic reconnect/backoff/cancellation,
+offline/subscription recovery, durable state, WebSocket and the remaining scope and
+performance gates of all four developing products stay open. No branch operation
+or remote push. Evidence: extlibs/xmqtt/tests/results/retirement-query-20261110.json
+and out/service-extensions/xmqtt-retirement-query-20261110 (C-backed stage).

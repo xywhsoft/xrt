@@ -3701,6 +3701,16 @@ XMQTT_API bool xmqttClientInfo(xmqttclient* Client,xmqttclientinfo* Info);
  * waiters borrow the same stable caller owner; stop all API entries before Destroy.
  * Wait/Destroy reject Engine workers. Repeated Close on CLOSED posts no new work. */
 XMQTT_API bool xmqttClientClose(xmqttclient* Client);
+/* Nonwaiting physical retirement query, allowed on every Engine worker. OK
+ * observes logical CLOSED, no request/startup ownership, all Client callback/
+ * producer references and the native Stream's final notification tail. TIMEOUT
+ * means still active or a predicate mutex is busy; ERROR means invalid input or
+ * synchronization failure. No close, retain, consume, timer or waiter allocation.
+ * Normal OK/TIMEOUT preserve the ambient error without redelivery. Caller keeps
+ * its unique owner live; stop other API entries before treating OK as final.
+ * Queued messages/retained results may remain. This does not authorize worker
+ * Destroy: hand cleanup to an external owner. Wait/Destroy keep their restriction. */
+XMQTT_API xwaitresult xmqttClientPollRetired(xmqttclient* Client);
 XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* Client,int64 Timeout);
 XMQTT_API bool xmqttClientDestroy(xmqttclient* Client);
 XRT_EXTERN_C_END

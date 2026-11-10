@@ -5,7 +5,7 @@ static xmqttpacket tlsConnect(void)
 static const void* tlsFuture(xfuture* F)
 {testRequire(F && xrtFutureWaitFor(F,15000)==XWAIT_OK && xrtFutureState(F)==XFUTURE_RESOLVED,"typed TLS outcome");return xrtFutureValue(F);}
 static void tlsClose(xmqttclient* C)
-{testRequire(xmqttClientClose(C) && xmqttClientWaitFor(C,15000)==XWAIT_OK && xmqttClientDestroy(C),"all actual TLS/client/native tails retire");}
+{testRequire(xmqttClientClose(C) && xmqttClientWaitFor(C,15000)==XWAIT_OK && xmqttClientPollRetired(C)==XWAIT_OK && xmqttClientDestroy(C),"all actual TLS/client/native tails retire");}
 static void tlsRoundtrip(void)
 {
     for(unsigned Mode=0;Mode<6;++Mode){mqttTlsPeer P;mqttTlsStart(&P,Mode&1?XMQTT_VERSION_311:XMQTT_VERSION_5,0);
