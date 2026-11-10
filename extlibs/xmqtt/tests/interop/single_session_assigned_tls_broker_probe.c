@@ -1,0 +1,9 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_TLS_RESUME
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "session_assigned_tls_broker_probe.c"

@@ -723,7 +723,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -756,7 +757,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c": "xmqtt_client_session_tls_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c": "xmqtt_client_session_dial_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c": "xmqtt_client_session_dial_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c": "xmqtt_client_session_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c": "xmqtt_client_session_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c": "xmqtt_client_session_tests"
       }
     },
     {
@@ -847,7 +849,8 @@
         "extlibs/xmqtt/tests/test_client_session.c"
       ],
       "single_tests": [
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c"
       ],
       "examples": [],
       "benchmarks": [],

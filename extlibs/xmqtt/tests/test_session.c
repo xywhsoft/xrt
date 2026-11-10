@@ -378,8 +378,10 @@ static void testSessionEarlyPubrec(xmqttversion V)
     sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_DONE,"PUBREL bypasses PUBLISH quota/ready list after early PUBREC");testRequire(F.Type==XMQTT_PACKET_PUBREL && F.Identifier==2,"transition moves old ready entry into PUBREL priority list");
     sessionStatus(xmqttSessionSent(S,&F),XMQTT_SESSION_DONE,"early PUBREL sent");xmqttSessionPacketRelease(F.Packet);sessionStatus(xmqttSessionEnd(S,NULL,4),XMQTT_SESSION_DONE,"early PUBREC cleanup end");testRequire(xmqttSessionDestroy(S),"early PUBREC destroy");xmqttSessionPacketRelease(One);xmqttSessionPacketRelease(Two);
 }
+#include "session_assigned_cases.h"
 int main(void)
 {
+    testSessionAssigned();
     testSessionEarlyPubrec(XMQTT_VERSION_5);testSessionEarlyPubrec(XMQTT_VERSION_311);
     testSessionConcurrentSelection(XMQTT_VERSION_5);testSessionConcurrentSelection(XMQTT_VERSION_311);
     testSessionRepeatedSelection(XMQTT_VERSION_5);testSessionRepeatedSelection(XMQTT_VERSION_311);

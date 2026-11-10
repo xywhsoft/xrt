@@ -1335,7 +1335,7 @@ static bool xmqttClientSessionAuthenticate(xmqttclient* C)
     if(xmqttClientClosing(C))return false;
     xmqttnegotiated N;xmqttsessionstatus S=xmqttInternalSessionOpen(C->Session->State,C,&C->SetupPacket,
         xmqttMessagePacket(C->ReadyBox->Value.Connack),xrtTimer(),&N);
-    if(S!=XMQTT_SESSION_DONE && S!=XMQTT_SESSION_RESET){xmqttClientFail(C,S==XMQTT_SESSION_STATE_ERROR?XMQTT_STATUS_SESSION:S==XMQTT_SESSION_ERROR?XMQTT_STATUS_INITIALIZATION:S==XMQTT_SESSION_REJECTED?XMQTT_STATUS_REJECTED:XMQTT_STATUS_PROTOCOL,xrtGetError());return false;}
+    if(S!=XMQTT_SESSION_DONE && S!=XMQTT_SESSION_RESET){xmqttClientFail(C,S==XMQTT_SESSION_RESTRICTED?XMQTT_STATUS_LIMIT:S==XMQTT_SESSION_STATE_ERROR?XMQTT_STATUS_SESSION:S==XMQTT_SESSION_ERROR?XMQTT_STATUS_INITIALIZATION:S==XMQTT_SESSION_REJECTED?XMQTT_STATUS_REJECTED:XMQTT_STATUS_PROTOCOL,xrtGetError());return false;}
     C->Session->Opened=true;if(S==XMQTT_SESSION_RESET)xmqttClientSessionUnreserve(C);
     if(!xmqttClientSessionRestore(C) || xmqttClientClosing(C))return false;
     if(xrtTimer()>=C->SetupDeadline){xmqttClientFail(C,XMQTT_STATUS_TIMEOUT,NULL);return false;}
@@ -1380,6 +1380,7 @@ static bool xmqttClientFrame(xmqttclient* C,const xmqttpacket* P)
            && !C->Auth
 #endif
         ){xmqttsessionstatus J=xmqttInternalSessionOpen(C->Session->State,C,&C->SetupPacket,&M->Packet,xrtTimer(),&N);
+            if(J==XMQTT_SESSION_RESTRICTED){xmqttMessageRelease(M);xmqttClientFail(C,XMQTT_STATUS_LIMIT,xrtGetError());return false;}
             S=J==XMQTT_SESSION_DONE || J==XMQTT_SESSION_RESET?XMQTT_NEGOTIATION_DONE:J==XMQTT_SESSION_REJECTED?XMQTT_NEGOTIATION_REJECTED:J==XMQTT_SESSION_STATE_ERROR?XMQTT_NEGOTIATION_STATE_ERROR:J==XMQTT_SESSION_ERROR?XMQTT_NEGOTIATION_LOCAL_ERROR:XMQTT_NEGOTIATION_PROTOCOL_ERROR;
             if(J==XMQTT_SESSION_DONE || J==XMQTT_SESSION_RESET){C->Session->Opened=true;if(J==XMQTT_SESSION_RESET)xmqttClientSessionUnreserve(C);}
         }else

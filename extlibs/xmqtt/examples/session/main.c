@@ -1,24 +1,30 @@
 #include <xmqtt.h>
 #include <stdio.h>
+#include <string.h>
 /* A caller-driven protocol-state example. A transport must actually authenticate,
  * frame/validate input, serialize complete output frames and report termination.
  * Sent below simulates that boundary; it is not a network-delivery assertion. */
 static bool completeFrame(xmqttsession* S,xmqttsessionframe* F)
 {bool OK=xmqttSessionSent(S,F)==XMQTT_SESSION_DONE;xmqttSessionPacketRelease(F->Packet);F->Packet=NULL;return OK;}
-int main(void)
+int main(int Argc,char** Argv)
 {
+    bool Assigned=Argc==2 && !strcmp(Argv[1],"--assigned");if(Argc>1 && !Assigned)return 2;
     int Code=1;xmqttsession* S=NULL;const xmqttsessionpacket* P=NULL;xmqttsessionframe Old={0},Next={0};
     xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.ClientId=XRT_STR_LITERAL("session-example");
-    if(!xmqttSessionCreate(&K,&S))goto Done;
+    if(Assigned)K.ClientId=(xstrview){0};
+    if(!(Assigned?xmqttSessionCreateUnassigned(&K,64,&S):xmqttSessionCreate(&K,&S)))goto Done;
     xmqttpacket Connect,Connack,Publish,Ack;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.ClientId=K.ClientId;
     xmqttproperty Expiry={0};Expiry.Id=XMQTT_PROPERTY_SESSION_EXPIRY;Expiry.Type=XMQTT_PROPERTY_UINT32;Expiry.Value.Number=60;Connect.Properties=(xmqttpropertylist){&Expiry,1};xmqttPacketInit(XMQTT_PACKET_CONNACK,&Connack);xmqttnegotiated N;
+    xmqttproperty Identity={0};if(Assigned){Identity.Id=XMQTT_PROPERTY_ASSIGNED_CLIENT_ID;Identity.Type=XMQTT_PROPERTY_STRING;Identity.Value.Text=XRT_STR_LITERAL("server-assigned-example");Connack.Properties=(xmqttpropertylist){&Identity,1};}
     if(xmqttSessionOpen(S,&Connect,&Connack,0,&N)!=XMQTT_SESSION_DONE)goto Done;
+    if(Assigned && (!N.ServerAssignedId || !xmqttSessionClientId(S,&Connect.Body.Connect.ClientId)))goto Done;
     xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Publish);Publish.Flags=4;Publish.Body.Publish.Topic=XRT_STR_LITERAL("example/session");Publish.Body.Publish.Payload=XRT_BYTES_LITERAL("hello");
     if(xmqttSessionPublish(S,&Publish,&P)!=XMQTT_SESSION_DONE || xmqttSessionNext(S,&Old)!=XMQTT_SESSION_DONE)goto Done;
     /* The old transport can retain any prefix. Abandon that generation without
      * claiming that all its bytes were sent. Its borrowed view stays valid. */
     if(xmqttSessionEnd(S,NULL,1)!=XMQTT_SESSION_DONE)goto Done;
     Connack.SessionPresent=true;
+    Connack.Properties=(xmqttpropertylist){0};
     if(xmqttSessionOpen(S,&Connect,&Connack,2,&N)!=XMQTT_SESSION_DONE || xmqttSessionNext(S,&Next)!=XMQTT_SESSION_DONE || Next.Type!=XMQTT_PACKET_PUBLISH || !(Next.Prefix.Data[0]&8u) || Next.Identifier!=Old.Identifier)goto Done;
     if(!completeFrame(S,&Next))goto Done;
     xmqttPacketInit(XMQTT_PACKET_PUBREC,&Ack);Ack.Identifier=Old.Identifier;

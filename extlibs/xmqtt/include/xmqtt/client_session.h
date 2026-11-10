@@ -13,6 +13,9 @@ XRT_EXTERN_C_BEGIN
 /* Explicit numeric TCP connection using caller-owned protocol Session and
  * application Inbox, both claimed exclusively through actual Client Destroy.
  * Version/ClientId must match Session; Inbox has the same four Client caps.
+ * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
+ * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
+ * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
  * Non-packet codec limits must fit Session, with the same UTF-8 policy. The
  * connection packet cap may grow to render an alias-expanded canonical replay;
  * Session borrows that codec only while claimed, never after Client destruction.

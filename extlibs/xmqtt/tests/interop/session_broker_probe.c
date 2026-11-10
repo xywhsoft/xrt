@@ -27,6 +27,9 @@ static xmqttclient* connectSession(xnetengine* E,uint16 Port,xmqttsession* S,xmq
     xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=Version;K.SetupTimeout=10000;
     if(Fragment){K.ReadBytes=37;K.WriteBytes=41;K.WriteChunkBytes=13;K.WorkPackets=4;}
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.CleanStart=false;Q.Body.Connect.KeepAlive=5;Q.Body.Connect.ClientId=XRT_STR_LITERAL("xrt-session-recovery");
+#if defined(XMQTT_SESSION_BROKER_ASSIGNED_ID)
+    check(xmqttSessionClientId(S,&Q.Body.Connect.ClientId),"explicit copied assigned identity for CONNECT");
+#endif
     xmqttproperty P[2]={{0}};
     if(Version==XMQTT_VERSION_5){P[0].Id=XMQTT_PROPERTY_SESSION_EXPIRY;P[0].Type=XMQTT_PROPERTY_UINT32;P[0].Value.Number=60;
         P[1].Id=XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM;P[1].Type=XMQTT_PROPERTY_UINT16;P[1].Value.Number=4;Q.Properties=(xmqttpropertylist){P,2};}
@@ -35,6 +38,9 @@ static xmqttclient* connectSession(xnetengine* E,uint16 Port,xmqttsession* S,xmq
     const xmqttreadyresult* R=outcome(*Ready);if(R->Status!=XMQTT_STATUS_OK)fprintf(stderr,"readiness status=%u cause=%s\n",(unsigned)R->Status,R->Cause?xrtErrorMessage(R->Cause):"none");check(R->Status==XMQTT_STATUS_OK && R->Negotiated.Accepted && R->Negotiated.SessionPresent==Present,"broker session continuity");
 #if defined(XMQTT_SESSION_BROKER_READY)
     XMQTT_SESSION_BROKER_READY(C,R);
+#endif
+#if defined(XMQTT_SESSION_BROKER_ASSIGNED_READY)
+    XMQTT_SESSION_BROKER_ASSIGNED_READY(S,R);
 #endif
     return C;
 }

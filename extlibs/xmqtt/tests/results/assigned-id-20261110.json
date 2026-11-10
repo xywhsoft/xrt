@@ -1,0 +1,3254 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Bounded immutable MQTT5 server-assigned Session identity",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "966a36ceae841581e38585daa04729823abf24b8",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "public_apis": [
+    "xmqttSessionCreateUnassigned",
+    "xmqttSessionClientId"
+  ],
+  "specification": {
+    "url": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html",
+    "version": "MQTT5.0 OASIS Standard 2019-03-07",
+    "sections": [
+      "3.1.3.1",
+      "3.2.2.3.7",
+      "4.1"
+    ]
+  },
+  "source_identity": {
+    "files": 1127,
+    "map_sha256": "93cbedac744d029b07151b7a4d967b9d9e66451c96fed96b2e4da168ff9a4778",
+    "publication_deltas": {
+      "extlibs/xmqtt/docs/client_session.md": {
+        "before_sha256": "41fab0bcd4a26a378815fa597125a926092af2f170e086061dd34de683c914b4",
+        "after_sha256": "b6d286340bcb5787687fb097e9d6f158b5401b1d408f9f8804340c7341a21ffc"
+      },
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "8142beae57ff6495524c48173a38ee6361db9a6ea049ac88b63bb5f8b549d6cc",
+        "after_sha256": "b31f70e5e4da761eab4802a50ef38d42c8f88c0b9bbdce793f54ad7c8e1ed4d8"
+      },
+      "extlibs/xmqtt/tests/interop/README.md": {
+        "before_sha256": "8c816d443ac8c81ff0eb6c17fb1ce09d0c6c2f75a5b1b4e1b76922ca97f531e2",
+        "after_sha256": "90b5bae4b1007b8d2a995bef2baf382935e88287b8eea7ef47861d4102da3303"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "7ae2f8bdceb5cda081aaa508f239dd3cbbfcf5906f8981575ce6ab6aba241a28",
+        "after_sha256": "6cda5e4cda95ecd1d3c6b9cecae131ead1306f973a2d500edf9952b226088c92"
+      }
+    },
+    "test_guard_equivalence": {
+      "changed": [
+        "extlibs/xmqtt/examples/session/README.md",
+        "extlibs/xmqtt/tests/client_session_assigned_cases.h"
+      ],
+      "scope": "Only test unused-variable marker and example executable name. Production/config/generated/library/benchmark inputs unchanged; initial22 module programs and already built actual packages/broker probes remain applicable.",
+      "before_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+      "after_sha256": "93cbedac744d029b07151b7a4d967b9d9e66451c96fed96b2e4da168ff9a4778"
+    }
+  },
+  "contracts": [
+    "MQTT5 only, empty first CONNECT with explicit1..65535 identity-byte capacity charged to BaseBytes/MaxBytes at Create",
+    "Full negotiation/local authentication proof precedes immutable identity copy; Open errors/rejection/over-cap preserve state and outputs",
+    "A later Ready close/deadline failure after accepted Open can retain the bound identity. Query for all subsequent CONNECT attempts, including failed Ready",
+    "Getter is canonical empty before bind and immutable owner-borrowed afterwards; stable-owner concurrent reads allowed while Client claims state, lifetime ends at Session Destroy",
+    "End/expiry/Reset preserve identity; empty/different later CONNECT cannot silently request a new server session",
+    "One bounded copy at first binding, no allocation during Open/getter, no new public/private fields or per-publication operations",
+    "Legacy fixed-id Create and MQTT311 contracts remain; no new Core runtime or credential persistence"
+  ],
+  "tests": {
+    "root": {
+      "windows": {
+        "total_individually_passing_programs": 51,
+        "module_programs_passed_before_compile_failure": 22,
+        "single_programs_after_test_fix": 29,
+        "initial_aggregate_exit_code": 1,
+        "initial_receipt": {
+          "label": "root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--no-examples"
+          ],
+          "exit_code": 1,
+          "seconds": 509.0309999999881,
+          "log_sha256": "b6f4ab4e8476670a284a25b93ed218a8e4decd4cac904bf1fd24bc19f9336a70",
+          "programs": 22,
+          "binaries": {
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_wire.exe": "7ea131a48bdbb641a88c22f89f53a6d991680ecf7a2faa5d976e4283d2aed3ed",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_properties.exe": "4b5b79054db0c18e68eff35b8a8909f6625d5b9c23b33b5b4e333c3a2e22b607",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_packet.exe": "a9424aa710ee8687b5d4b30893a627a1467af5d4d2b135c009b4eaab5d390584",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_codec5.exe": "a3d8495011d22db0c431223e54947c144d6172892411248bcaad283ce43606a2",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_codec311.exe": "5a3a4186dc8893f43c8876b54400fb793f0c27c35a41a150ebe2b7bb3f57abf4",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_negotiation.exe": "d77d153485acb009988299b9790af400fc821e8d395ed7143686ff7c5d6bcd8f",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client.exe": "86209ea713e692986c5e072fd8122c501de68faaf6d8936b371fad7166b77ae5",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_auth.exe": "e4fee19242ac59b2340888387bbb103e4bb09c842226d9e136ba25d4ae6fb91d",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_dial.exe": "75c05541c57c8b78b1e59a837d38aef86c141cf569bc21e2882ee8843a4f1294",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_tls.exe": "7eb7715542e5359943d4ab9e29afffffa201c7b1c66889055cbb163a8f85a1be",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_tls_select.exe": "5f4fb3ff88431c91b32990c77986965583134cac190a5e6fa5eeeac76dd7d7e5",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_tls_resume.exe": "5f58982a1efd3ab6e36a91c4e22cdb7996eeb9f8c7602ecc93d312ff87b52c41",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_tls_resume_select.exe": "ab5f911915298b1ca4a9ac99982864efcd92cb83d33433a56b21cb0bc3173163",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_session.exe": "c3602d6d60f1c6963a7c449dbcffa90a82e688ad048760a3ec59786fd448c4a0",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_inbox.exe": "bde4fa0e2bb34b3f8ca15713f9ef056d9518591f4d372e87948bec23a8012f7a",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_session.exe": "09632b692a7befe60b6b361e37553ce9e6536453486872b91b7f44a9dd635187",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_session_tls.exe": "cc6f3a370ad3fc9cd5d55aabab7fad4cc198d848c71141f66e81c1cec007781e",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_client_session_dial.exe": "8d33ff44116951da01a0139a64f08d4218c57e9c3175204a17a9bcc116e48ae2",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_time.exe": "6844cf19084c1c26533792bf04f9cdd5dab288e1183221c39bb925bff08a7532",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_time_property.exe": "4b32f6619234e3b019db2592c85f2f56bc6f76741dc4a1ac85e75626c2615179",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_atomic.exe": "ce06ff5604d8c98ad492e5ba299deb47c1d156bb2522712bbfe1ce361fa70626",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root/test_atomic_threads.exe": "a72253695d751fb883e763d0d077073a8d15be0921b3a98414975b781d4109fc"
+          }
+        },
+        "single_receipts": [
+          {
+            "label": "root-single",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "E:/software/w64devkit/bin/gcc.exe",
+              "--arch",
+              "native",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_tests,time,atomic",
+              "--start-single-test",
+              "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
+              "--no-examples"
+            ],
+            "exit_code": 0,
+            "seconds": 386.625,
+            "log_sha256": "e4c5e89e7a56d020dfb04d23dc4e3decd19268899e2d6d6017e4748b19601d5e",
+            "programs": 29,
+            "binaries": {
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_wire.exe": "7b74494d6d6231d846c4ff73800e03729731db6040dfa3f79a5306b9f339cd23",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_properties.exe": "642f692bacd0553e4291a0d12b3c4b81f3d69fbac422c76891d49ac1249f5bd6",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_packet.exe": "f3763cf6bb571e841da9604fad8dbd2c341eb7275451c08b5fdb1e3d9c66b280",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_codec5.exe": "a559f803ad8d7dd32bed08b66ff90ce10e3b05c5473fd34ca4e74be6c65736ec",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_codec311.exe": "5b3c97d5c5d5b797e0ea5d42f0822baecbca1c24231301af986ead42fabd9821",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_negotiation.exe": "0f076b0f6ce7b01aaa185a879968c8a007df46555b4d2d10171e719c38849292",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client.exe": "c6e7fa9dbfc2d86a91e239759a3867b665450c434f7b1aef45c0f49b4e249210",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_auth.exe": "03df2829cbc6ce2dba483ec5a145a3633125b06c1d252e46fbda9e2c7846c5ec",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_auth_cancel_retirement.exe": "bd69a8e986ec7362f37b38a391b013c493fd079529971123b79f4c112915d09f",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_auth_completion_reservation.exe": "a7515daf9a03d8ab9df9d8f1b597b5985b9100f008635f91fe63be063b23513a",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_dial.exe": "b955c38276f7bdc9782ab08d4213dec3d55ff54fb21eb0a692fea15a156f462c",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_dial_auth.exe": "b41e531d473002d9273acaeb86c985f3f79a57904b2a39061f1ddb20b7f19e22",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_dial_retirement.exe": "25238fd417846374dbeed15a1881f2538e0c61e1440121833ce258bd99aafa63",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_tls.exe": "c4e17d5d938fc6b0771c16f382369ade6a84d4b6bfc25eb83b38c048d86f84eb",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_tls_auth.exe": "b47989faea5bb2b8f2512c91e78b8d71daa42eea5698aedb60ea38ba0de38907",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_tls_stats_off.exe": "e3216dfac9149a5379efa9d3d70bd655b1485767901ad4b9b5d2ec1b1b9d148a",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_tls_resume.exe": "0604652325916dd04cb7b78edfb3cd75ac7f66103980f69282058280bfdfa6c7",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_tls_resume_stats_off.exe": "a1cfcde968d80bccae0fc44d9151c7404b6c85258629ea3eed9cada10d94e761",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_session.exe": "b8c9f5a7385c1be7b686c32f10469d60246992ed72f5c0233b923ba6f8aca998",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_inbox.exe": "74a616b49a6be3f68ce37cb431c9a9fdefec273dd1f4ba075ae0735b7665e93e",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session.exe": "28d31fab8dc5b5e062a2066fd3db7aa67903a6ec1c919ad6bba0218f662aab03",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_tls.exe": "2d6ed7ccb476494e04e08d7298e8b99cb8117fc4a7a4ec439c3dcc457011ab29",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_tls_auth.exe": "8178e405ab8e56774cdb076a2f9069fd45151fd1f8ed939226107c01dc9a62a0",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_dial.exe": "89d9da886b5838d1eba32b24d047e25000bb47f3aabd22ca2ac989d0858e2613",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_dial_auth.exe": "c443c2ecbeda060dbab6ba1248d3be026bca1d76efd0ca918ac74fc4ed9f5fdc",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_auth.exe": "132d2534806608b97d8e1242a088b1606bd48e69d021b8957e2eb3856d818de8",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_xmqtt_client_session_assigned_auth.exe": "200b109e8a542acd82f1ae977a77a6865e26339ea4b08c82b303652d9b74792a",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_time.exe": "2b6135805df75eaf186df2be2616f12068981f576fb90892603722f88ad1ae2d",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/windows/root-single/test_single_atomic.exe": "c821c78cee5bdea96ad3624c15797c1beee65b8d5c7808f2be0d9b4726fc283d"
+            }
+          }
+        ],
+        "scope": "Initial22 modules returned0 before the No-Auth single compilation failed; all29 singles complete after a test-only void marker. No failed aggregate invocation is relabelled successful."
+      },
+      "wsl": {
+        "total_individually_passing_programs": 51,
+        "module_programs_passed_before_compile_failure": 22,
+        "single_programs_after_test_fix": 29,
+        "initial_aggregate_exit_code": 1,
+        "initial_receipt": {
+          "label": "root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--no-examples",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 1,
+          "seconds": 696.0595498449984,
+          "log_sha256": "447c9ea302652368b5e95e4e41280c7f054b69b45624e1968c64f0178215c2a2",
+          "programs": 22,
+          "binaries": {
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_wire": "164a26f9ab661ae085fd1a44ce33910b4bb3e616b2b20df659a4f9f8a1ec6c91",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_properties": "1dde438544cad13e585ed3a142f1544fd06fa5ff027e1351cf137e5b2b74eb51",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_packet": "40ede97c5b1b0ea40a9eae3d2e0790813cf7c4308114f694f7aa1e4e595f8e07",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_codec5": "66093559d6138e936112514c13c8db2a759b774f9202d21832c8daf8584cbe7b",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_codec311": "0ba9ce8af195d9776ff650cb0cb4dbe7e12884e8d002a9546081c82eac7f93be",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_negotiation": "c845dcffc6922809ce30719d4767d57178f9bdc40945bb416cbdef8b3e3d21de",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client": "f5ef02b5eb6cb5c596cf8d09b81620016849430082087afd20d659aafea3291f",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_auth": "1b0646cbfade7124ab3b74c661cdd1bbf5f53d1783ab026c3cef11709e18145c",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_dial": "4a5ebaae1a6539caeb2259332787adbd55161f12628f32f4323e1d7361b08285",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_tls": "ea2f9247769994449380713eb8dbf85f4df8ee23a4a618b2a014426317ba67a0",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_tls_select": "4c9f62918b037ac15eeb4cbe0bad21d7fbf7846acc388770044eb93ff1db3786",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_tls_resume": "0a4aebfcdd3b0f368fad7853418e279f384c52f7a0e3cadda524f4c3869e2c5e",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_tls_resume_select": "c87f78200ba49e1f40251cd8176ec5c84e0b46f08501b2299b286243720c914a",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_session": "b8e94c13a3510d7565f860bc058726cb4d9b3b2a58016fd9c651d487ae5b58cc",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_inbox": "eab2168db48109b329796ce586184d7a22d2fdf3c2770b2a54afded9e94b9acf",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_session": "e44ba4588773821930557707fd025d7d6415c6c2ea5c0cbe9eb163b6597204a9",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_session_tls": "1ba409de009831db2b9ed21a0a23a98ac7b159cafaa72ebbffbbea9339a3a4fb",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_client_session_dial": "0932ede2895d0bba84d0c2c2cabfebad7c41662bfcf4e96c4abd3b8f56eb4324",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_time": "2e7276cfb54a99d6dc85b9a2c46688c673efdd8d336241cd2af8a48c48db46ba",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_time_property": "c6567c2b5cf8fc5d7fd810274d07fb2cb049dd1246d4eafd70ad17b57516ad2e",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_atomic": "15983d10677ca83638e7fa25439b130cdb335f3de83f2065233c9360977f4640",
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root/test_atomic_threads": "ccdd238b07a1e17c73b113fcd3f02aa50347b079dc625130a4a8d80304aef21e"
+          }
+        },
+        "single_receipts": [
+          {
+            "label": "root-single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/build.py",
+              "--compiler",
+              "/usr/bin/gcc",
+              "--arch",
+              "x64",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--jobs",
+              "3",
+              "--cflag=-O2",
+              "--suite",
+              "xmqtt_tests,time,atomic",
+              "--start-single-test",
+              "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
+              "--no-examples",
+              "--cflag=-fsanitize=address,undefined",
+              "--cflag=-fno-omit-frame-pointer",
+              "--ldflag=-fsanitize=address,undefined"
+            ],
+            "exit_code": 0,
+            "seconds": 360.9184722969949,
+            "log_sha256": "0ab285ef429e7ee639b903bec729c6865cc2154c5a7028d4aac790b2ee7fc441",
+            "programs": 29,
+            "binaries": {
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_wire": "990a7ef8f0d0038f593ec3884eb654120fdba8a71fc6d6deae0f2588e7e42db8",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_properties": "04b22557f7130b9a21c73dd0d5f1b13323ae79be9fbd3da8ddf67a287d009bfa",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_packet": "e56fd2d8e22d001af4a4a3dd746289d92b4f21faaf940867965971ad250c435b",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_codec5": "0912b0c8b90d19fc669e9d160882b5a700fe08906d54dc99225e6ebf9eae41cb",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_codec311": "5e869499187a7ed4e172d4774e0cb8b4ddfb4fcd0dd59f4c478d54fe7215ef34",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_negotiation": "255bf48bcd69d8027f101154094f9f86dff8666364cde7329e77a366faa16fae",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client": "d4bc9e8eed61d54b106284fa7b7bed2a2f2a923f7f9b4662ea6e360a3cadcd4b",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_auth": "d77c3bd73640d69f5bda8ecf4073b82e87144c31dad432a7c67b08e30127d155",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_auth_cancel_retirement": "ca1592aa817c1bbc3258244e450ec5480516d8151b2d1c37402f28100544c903",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_auth_completion_reservation": "f6afecb1c055a7ca7aa5d7e7a801e659d142dab53951fded85280113f48e290e",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_dial": "2637de72677d00e91870df5182d3212864f55ac7a82c655ab91ab53a660ba26e",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_dial_auth": "986fe9448316e24643d7cb619efee3bbed5bbf35dd76d268abc6726503e134ee",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_dial_retirement": "46a1968bdfe81e8c97e33bece0f65d279d14d354bee9e76564ae74bfaf8489fa",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_tls": "8381c5456a72cdc237958cdfa3fa007765fd80d3a62863ed71da849650b43b34",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_tls_auth": "0ff24f9714b1d6e14e3a59a85c98c01c6bacf20b3915324634a58ba135e380b5",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_tls_stats_off": "56b24d7fcfc47df17fccebf2c907ea88595fb2fa6f34702773b3a62c368a9d2d",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_tls_resume": "9828ecffe2d2caa74644393089ec743b7cc3320b9c276a6b14137a18a40678fb",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_tls_resume_stats_off": "983da3b76a3362ef035e29e0716fe8d21c131405ad21419bdd32e85551b5a248",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_session": "95c9d978161ddae05c41a7d07257ef2ba67969b34e489b5add5fc2dab56d196a",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_inbox": "085ecedab3c0563b4a7084e3fa7159d947e3a4ec1fb5cae246292cc6a9ca2a5a",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session": "9350ad6b3fe45fd26b6be8a2b7efaa8f2064db811496b678abc8d5828554c4b4",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_tls": "d63292b3a6a6c885e51dd19c40ecfd2c481d70dfd252be102bc9d4eeae2b43cd",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_tls_auth": "9d7b4a7380c8067a3ddfefc5928dbd13c4cfff6dc3c24861eaff4d3f4b09428e",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_dial": "d80bc6fb10d0975aaa1c10d23ab530857897eefc7c6ff6c7584975eafecc4705",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_dial_auth": "e3ef87dc7cf9cd2c4de16eaae941196c7d8fee0a9610730f98c7bb5ac83feb20",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_auth": "b90b866314bca6cd520aa74c3de107f75fdeae17f584ec5eaa891345bbd1aa5f",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_xmqtt_client_session_assigned_auth": "57b9e57fd11a2ae821a30f4629af74ad1473d4e60c9f28cdf90b6004ba022ad7",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_time": "c276c742ef193f86c85314f9ba86ff850c33dd802d7d985398d9be3b51d16e37",
+              "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/root-single/test_single_atomic": "a79660373ca8c7d3ec2379940a9cd83441a74acd4352630d68090f2615f2698c"
+            }
+          }
+        ],
+        "scope": "Initial22 modules returned0 before the No-Auth single compilation failed; all29 singles complete after a test-only void marker. No failed aggregate invocation is relabelled successful."
+      }
+    },
+    "wsl_full_address_undefined_leak_instrumentation": true,
+    "wsl_tsan": {
+      "complete": true,
+      "source_map_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+      "receipts": [
+        {
+          "label": "tsan-session",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--suite",
+            "xmqtt_session_tests,time,atomic",
+            "--test",
+            "test_session.c",
+            "--no-examples",
+            "--cflag=-g",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread"
+          ],
+          "exit_code": 0,
+          "seconds": 36.98863156398875,
+          "log_sha256": "1e58c283c204441b93666b2ec407e7820c38b9aa3a700a3e02a09abad552bd8a",
+          "programs": 1,
+          "binaries": {
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/tsan-session/test_session": "f02aeaab1b0376547176a7c5ed315ef80422678d613929a356bed03b94943d0b"
+          }
+        },
+        {
+          "label": "tsan-client",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--suite",
+            "xmqtt_client_session_tests,time,atomic,xmqtt_client_auth",
+            "--test",
+            "test_client_session.c",
+            "--no-examples",
+            "--cflag=-g",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-fno-omit-frame-pointer",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread"
+          ],
+          "exit_code": 0,
+          "seconds": 51.11560808197828,
+          "log_sha256": "75bde4a72bd002f49de17797f6b8f4e4cbb6ae029a2e414fc51a4819e6e39380",
+          "programs": 1,
+          "binaries": {
+            "out/service-extensions/xmqtt-assigned-id-20261110/binaries/wsl/tsan-client/test_client_session": "764dace43fb799f365f8b072aa72487ddf89a724990f17b9d758635b070a956f"
+          }
+        }
+      ]
+    },
+    "common_checks": {
+      "windows": {
+        "complete": true,
+        "source_map_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+        "receipts": [
+          {
+            "label": "single",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/amalgamate.py",
+              "--check",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 0.360000000015134,
+            "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "features",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_extension_features.py",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.125,
+            "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "api",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/generate_api_reference.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.1720000000204891,
+            "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "docs",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_api_docs.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--module-prefix",
+              "xmqtt",
+              "--function-prefix",
+              "xmqtt",
+              "--constant-prefix",
+              "XMQTT",
+              "--type-prefix",
+              "xmqtt"
+            ],
+            "exit_code": 0,
+            "seconds": 0.23399999999674037,
+            "log_sha256": "74bca466d1430c803be3b4af778a8f926933692ed62bbb5c61272794710416e7",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "maturity",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "tools/check_release_maturity.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 0.8280000000086147,
+            "log_sha256": "dac57fff25fc5bf9e2efabb623b6096e2370ceda2ea48606822fa570798ce291",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "tools",
+            "command": [
+              "C:\\Program Files\\Python312\\python.exe",
+              "-X",
+              "utf8",
+              "-m",
+              "unittest",
+              "tools.test_build",
+              "tools.test_api_reference",
+              "tools.test_declaration_features",
+              "tools.test_scope",
+              "tools.test_measure_performance",
+              "tools.test_measure_size"
+            ],
+            "exit_code": 0,
+            "seconds": 9.671000000002095,
+            "log_sha256": "451f66bc4cbe37e9625d06a7ec9d2ffa82e7439616b0378a3744ac5287289d69",
+            "programs": 0,
+            "binaries": {}
+          }
+        ]
+      },
+      "wsl": {
+        "complete": true,
+        "source_map_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+        "receipts": [
+          {
+            "label": "single",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/amalgamate.py",
+              "--check",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 3.9783467079978436,
+            "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "features",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/generate_extension_features.py",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.16872539999894798,
+            "log_sha256": "96e3fe9adb892eb8fe60c298dbd24d910417c3c736a29a1f48779276b62b61b0",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "api",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/generate_api_reference.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--check"
+            ],
+            "exit_code": 0,
+            "seconds": 0.3188716000004206,
+            "log_sha256": "a71e9c259e192c679cf23045e0b42f7b7d1e1b8145c4718d19c914143fc9fc67",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "docs",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/check_api_docs.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json",
+              "--module-prefix",
+              "xmqtt",
+              "--function-prefix",
+              "xmqtt",
+              "--constant-prefix",
+              "XMQTT",
+              "--type-prefix",
+              "xmqtt"
+            ],
+            "exit_code": 0,
+            "seconds": 0.470136297022691,
+            "log_sha256": "3059889a1de5d24e7bdbb781f8b7bb8b1cbb4691b9b6504cccf4e6fa31e20dbd",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "maturity",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "tools/check_release_maturity.py",
+              "--manifest",
+              "extlibs/xmqtt/config/modules.json"
+            ],
+            "exit_code": 0,
+            "seconds": 7.835830288007855,
+            "log_sha256": "7cafd6f902b871566a85ea541e2add40e3b69e6184d7513843a00ecca6504dfe",
+            "programs": 0,
+            "binaries": {}
+          },
+          {
+            "label": "tools",
+            "command": [
+              "/usr/bin/python3",
+              "-X",
+              "utf8",
+              "-m",
+              "unittest",
+              "tools.test_build",
+              "tools.test_api_reference",
+              "tools.test_declaration_features",
+              "tools.test_scope",
+              "tools.test_measure_performance",
+              "tools.test_measure_size"
+            ],
+            "exit_code": 0,
+            "seconds": 43.01358359999722,
+            "log_sha256": "c49341c4f440e148d323db70e135389cef98f6e92fe5f48b97eb6c1b569dca72",
+            "programs": 0,
+            "binaries": {}
+          }
+        ]
+      }
+    },
+    "standalone": [
+      "Maximum65535, reserved exact cap/base budget and minus-one, factory/output aliases, version/identity/time/rejection failures leave state/output unchanged",
+      "Allocation-prefix failures/success, one-byte-budget allocation-free bind and10000 reads preserve ambient error, three concurrent10000-read observers",
+      "Immutable copied identity through source poisoning, end/reset/expiry, forbidden re-assignment and proper same-id resume"
+    ],
+    "connection": [
+      "Pre-CONNACK snapshot reserved without identity/state, proof acceptance/rejection quarantine, missing id/protocol/refusal/close/over-cap typed LIMIT",
+      "Normal and one-byte IO, two Engine generations, canonical original-id/DUP payload replay and old Ready/outcomes beyond Session/Inbox retirement",
+      "New No-Dial/Resolver/TLS Auth single test explicitly checks trimming"
+    ]
+  },
+  "packages": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+      "receipts": [
+        {
+          "label": "package-root-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 151.98500000001513,
+          "log_sha256": "e04695fe016f464ce4d5931b97a3ce972da6b84484ef63de0c4b38e67a76b058",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-root-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 166.40600000001723,
+          "log_sha256": "75217e1ce5602f07d481e7fc2136ff956ee0bfdc30e100d10785c355d2cf0e01",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-session-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_session,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 17.171999999991385,
+          "log_sha256": "71d82463b6a996482ded9e4662ca01eb5fd4c91b4f2ace3f25ea4483e9b4fa68",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-session-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_session,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 17.15600000001723,
+          "log_sha256": "f61672172322183e4d16a00112d3587c7c8ac3a718d8dfa33f21733d3b28a718",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-numeric-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_client_session,xmqtt_client_auth,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 49.26500000001397,
+          "log_sha256": "4380924190314a6e4bc1f439175511f4bfa85a214f38eff8c08472f1e96196ee",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-numeric-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_client_session,xmqtt_client_auth,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 48.312000000005355,
+          "log_sha256": "9d43627133b4c3801e5a68c2280bb7a23c254ad87719a752debf391463413f63",
+          "programs": 0,
+          "binaries": {}
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "21d46f61ed5f2a401cff640d1a8a79294be94aa56188a895b3ea8d71a0f2107e",
+      "receipts": [
+        {
+          "label": "package-root-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 80.05232451000484,
+          "log_sha256": "22c8d886883237de542660835ff67fd94166783a56cfaaa446107bc3888ec715",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-root-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 88.76803230101359,
+          "log_sha256": "51719fb42f5a7b5659e17099a2ee54c0f80e8cf0d97bc761c5cf38a79e94ab88",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-session-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_session,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 9.641542543977266,
+          "log_sha256": "650e77c9f2833c2be83d14d1d54ff8b8661b3651850e46bceef060afc01328bc",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-session-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_session,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 10.093431047018385,
+          "log_sha256": "bc0802fc768b188160c3881fb90dd68708108c7df2985dd4720636208da9a4d9",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-numeric-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_client_session,xmqtt_client_auth,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 23.777686771994922,
+          "log_sha256": "4dd4556acc7a1cf2b9a393132f3ff1702304f7160d3c28a537434ea10328a39a",
+          "programs": 0,
+          "binaries": {}
+        },
+        {
+          "label": "package-numeric-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_client_session,xmqtt_client_auth,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 29.890534211997874,
+          "log_sha256": "d7548981863de6f0bba7357af5acefb5deb51d6b0e4d098895cc75296f41e182",
+          "programs": 0,
+          "binaries": {}
+        }
+      ]
+    }
+  },
+  "package_consumers": {
+    "windows": [
+      {
+        "scope": "root",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "a3e615e9dc575e0731ae1effe7a7bbf7ec9fa861070c2c411cd8e2ef65832750",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "root",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "a3e615e9dc575e0731ae1effe7a7bbf7ec9fa861070c2c411cd8e2ef65832750",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "root",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "4ce41c0c301f0125805a986b301cb7df2c1575b0fa401ec5f106f86ff9d6108d",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "root",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "4ce41c0c301f0125805a986b301cb7df2c1575b0fa401ec5f106f86ff9d6108d",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "session",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "f196e4b1da13c258d1ad4dd7d8a6cae65a1e9ca33ab965a9a2f01f0f920d79d8",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "session",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "f196e4b1da13c258d1ad4dd7d8a6cae65a1e9ca33ab965a9a2f01f0f920d79d8",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "session",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "b5b37fad23ad65f8afed5bb2e3cce318014116fce61a9073649592e8a71e7a94",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "session",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "b5b37fad23ad65f8afed5bb2e3cce318014116fce61a9073649592e8a71e7a94",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "numeric",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "a3e615e9dc575e0731ae1effe7a7bbf7ec9fa861070c2c411cd8e2ef65832750",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "numeric",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "a3e615e9dc575e0731ae1effe7a7bbf7ec9fa861070c2c411cd8e2ef65832750",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "numeric",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "bdb9c1459f8d3f1d6f7cf09ac80b1223ce7bdd75d0737140dae65c1c728e54e6",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      },
+      {
+        "scope": "numeric",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "bdb9c1459f8d3f1d6f7cf09ac80b1223ce7bdd75d0737140dae65c1c728e54e6",
+        "log_sha256": "80bbf51d1ab4d1112265a9d76e5554113c92fcd45e92a812891751b12ae8426b"
+      }
+    ],
+    "wsl": [
+      {
+        "scope": "root",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "614635f7a99963b554e51a6a4859d07f22634dde83d157f9b641e9ab68e1cf20",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "root",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "614635f7a99963b554e51a6a4859d07f22634dde83d157f9b641e9ab68e1cf20",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "root",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "e4b0c6071d07af2e63b22d9c17872af05652b7f2c2722e4486f313f0680d97a7",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "root",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "e4b0c6071d07af2e63b22d9c17872af05652b7f2c2722e4486f313f0680d97a7",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "session",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "203fc51255eebe4a84819930838b2ebb4067f5501e59b6eae43bde2d872c074b",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "session",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "203fc51255eebe4a84819930838b2ebb4067f5501e59b6eae43bde2d872c074b",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "session",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "392b1113e97877edc859b0d0712c0e7f508f7e8cf55e65facaf7cde0b075ba71",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "session",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "392b1113e97877edc859b0d0712c0e7f508f7e8cf55e65facaf7cde0b075ba71",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "numeric",
+        "kind": "static",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "614635f7a99963b554e51a6a4859d07f22634dde83d157f9b641e9ab68e1cf20",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "numeric",
+        "kind": "static",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "614635f7a99963b554e51a6a4859d07f22634dde83d157f9b641e9ab68e1cf20",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "numeric",
+        "kind": "shared",
+        "args": [],
+        "exit_code": 0,
+        "binary_sha256": "1ce28400eab846567e3045b7cf1d6b288440eb9463b88ffa92ae0aa38521d95f",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      },
+      {
+        "scope": "numeric",
+        "kind": "shared",
+        "args": [
+          "--assigned"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "1ce28400eab846567e3045b7cf1d6b288440eb9463b88ffa92ae0aa38521d95f",
+        "log_sha256": "28b3ffe663e20756487836d34d5985f5963ff2521e160435d300009e57984688"
+      }
+    ]
+  },
+  "archive_audits": {
+    "windows": {
+      "archives": {
+        "root": {
+          "xrt": {
+            "members": 139,
+            "changed": []
+          },
+          "xmqtt": {
+            "members": 9,
+            "changed": [
+              "extlibs__xmqtt__src__client__client.o",
+              "extlibs__xmqtt__src__session__session.o"
+            ]
+          }
+        },
+        "numeric": {
+          "xrt": {
+            "members": 30,
+            "changed": []
+          },
+          "xmqtt": {
+            "members": 9,
+            "changed": [
+              "extlibs__xmqtt__src__client__client.o",
+              "extlibs__xmqtt__src__session__session.o"
+            ]
+          }
+        }
+      },
+      "all_six_packages_export_both_apis": true,
+      "private_session_layout_declaration_identical": true
+    },
+    "wsl": {
+      "archives": {
+        "root": {
+          "xrt": {
+            "members": 139,
+            "changed": []
+          },
+          "xmqtt": {
+            "members": 9,
+            "changed": [
+              "extlibs__xmqtt__src__client__client.o",
+              "extlibs__xmqtt__src__session__session.o"
+            ]
+          }
+        },
+        "numeric": {
+          "xrt": {
+            "members": 30,
+            "changed": []
+          },
+          "xmqtt": {
+            "members": 9,
+            "changed": [
+              "extlibs__xmqtt__src__client__client.o",
+              "extlibs__xmqtt__src__session__session.o"
+            ]
+          }
+        }
+      },
+      "all_six_packages_export_both_apis": true,
+      "private_session_layout_declaration_identical": true
+    }
+  },
+  "broker_interoperability": {
+    "total_cases": 1808,
+    "tls_cases": 1728,
+    "plain_cases": 80,
+    "partial_prefix_cases": 288,
+    "ack_cut_cases": 1520,
+    "transport_connections": 3616,
+    "forms": 8,
+    "variants": [
+      {
+        "platform": "windows",
+        "variant": "static",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-plain-static.json",
+        "report_sha256": "b7b42f7b462816cff648faead155d721abe0e2af53403087b29b491eb67b4738",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "windows",
+        "variant": "static",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 72,
+          "maximum": 239
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-tls-static.json",
+        "report_sha256": "e15588d35bf8599811fe565fe699aca22895dfd9761f79fa66e4c11ce306aea5",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "windows",
+        "variant": "shared",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-plain-shared.json",
+        "report_sha256": "db209b6cdf46b9c0067ce16ab9e75001214cc32e73c68bbef0c267485793af5c",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "windows",
+        "variant": "shared",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 70,
+          "maximum": 160
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-tls-shared.json",
+        "report_sha256": "63fde738d2a2f21802372cc0602c3fd3b945c0c72506a5752717cc5a0fd4ad3d",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "windows",
+        "variant": "single",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-plain-single.json",
+        "report_sha256": "8c8258804d27917c2e232884063889a9f0a0626e0f275130423e714a54cbaf4d",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "windows",
+        "variant": "single",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 70,
+          "maximum": 98
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/windows-tls-single.json",
+        "report_sha256": "f54d1b3ffe307e2269ef990a7f9f0839b6700a754db06780b19db1a8a09b46e6",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "wsl",
+        "variant": "static",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-plain-static.json",
+        "report_sha256": "fe200cc61483d4fea6f6c2a4504119dc8fbab203ebe4be554665d005d8264387",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "wsl",
+        "variant": "static",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 74,
+          "maximum": 57829
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-tls-static.json",
+        "report_sha256": "205f7587f53f1a09de2750e3755cbf2e586197e38c29952433f456af2e3df378",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "wsl",
+        "variant": "shared",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-plain-shared.json",
+        "report_sha256": "06d294545721ee791157c1ef50dd399b5d5510dd5d5c2eb9ef02905066236db7",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "wsl",
+        "variant": "shared",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 73,
+          "maximum": 108
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-tls-shared.json",
+        "report_sha256": "54c7b590cf6a2d3371e099ed1b8cb2315ce26e3788c6f72457554c763e0a7fc6",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "wsl",
+        "variant": "single",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-plain-single.json",
+        "report_sha256": "397398c386335434d29259347c98196875b52cda716dc8702176567f96a1348d",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "wsl",
+        "variant": "single",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 68,
+          "maximum": 304
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-tls-single.json",
+        "report_sha256": "61a45ca1a9338f12031d2da652303ebca68c9e3f69b6be680768668cd5f61bb6",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "wsl",
+        "variant": "asan",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-plain-asan.json",
+        "report_sha256": "316d4a74a902e7c221dacd7f3f9b09ecb490baec56b7866cc174bdef7d1bc2c6",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "wsl",
+        "variant": "asan",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 68,
+          "maximum": 71
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-tls-asan.json",
+        "report_sha256": "9631416c61a2a4ac4be49ab8355efc343f1442b1ab30d2c9caa02d0856d25998",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      },
+      {
+        "platform": "wsl",
+        "variant": "tsan",
+        "transport": "plain",
+        "cases": 10,
+        "partial_prefixes": 0,
+        "accepted_prefix_bytes": null,
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-plain-tsan.json",
+        "report_sha256": "ad91b272965e26b036d0ae5a43b00747bdbe8da643535255b9d2ee323513edc2",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": null
+      },
+      {
+        "platform": "wsl",
+        "variant": "tsan",
+        "transport": "tls",
+        "cases": 216,
+        "partial_prefixes": 36,
+        "accepted_prefix_bytes": {
+          "minimum": 65,
+          "maximum": 67
+        },
+        "report": "out/service-extensions/xmqtt-assigned-id-20261110/broker-runs/wsl-tls-tsan.json",
+        "report_sha256": "91acfb139208228d31538722105a66032cceeb7f0ab5d594109cc5a6bd160180",
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true
+      }
+    ],
+    "topology": "Native client TCP or authenticated TLS1.2/1.3 to independent bounded Python/OpenSSL terminator; local TCP pinned Mosquitto2.1.2 backend. Numeric plain; numeric/custom async Resolver/prepared TLS. No broker TLS or enhanced-auth algorithm/plugin qualification."
+  },
+  "fixed_identity_regression": [
+    {
+      "mode": "windows",
+      "cases": 20,
+      "sha256": "f14fc6cb04c32873c1017fa6e2b0362cc130d8ca63fcd389eec8b4f469d99d27",
+      "report": "out/service-extensions/xmqtt-assigned-id-20261110/fixed-windows.json"
+    },
+    {
+      "mode": "wsl",
+      "cases": 20,
+      "sha256": "139d2cb7c5ca8b6c086d78dcfa09aadfe1f46a1e2a4b516a92331823692a4c87",
+      "report": "out/service-extensions/xmqtt-assigned-id-20261110/fixed-wsl.json"
+    }
+  ],
+  "performance": {
+    "summary": {
+      "windows": {
+        "noise_qualified": 3,
+        "raw_bound_failures": 0,
+        "qualified_bound_failures": 0,
+        "ratios": [
+          {
+            "mqtt": 5,
+            "qos": 1,
+            "ratio": 1.0254661234859448,
+            "noise_qualified": true
+          },
+          {
+            "mqtt": 5,
+            "qos": 2,
+            "ratio": 1.0269524740620402,
+            "noise_qualified": true
+          },
+          {
+            "mqtt": 4,
+            "qos": 1,
+            "ratio": 0.9993589093943753,
+            "noise_qualified": false
+          },
+          {
+            "mqtt": 4,
+            "qos": 2,
+            "ratio": 1.0025378534438383,
+            "noise_qualified": true
+          }
+        ]
+      },
+      "wsl": {
+        "noise_qualified": 4,
+        "raw_bound_failures": 0,
+        "qualified_bound_failures": 0,
+        "ratios": [
+          {
+            "mqtt": 5,
+            "qos": 1,
+            "ratio": 0.9866074768554526,
+            "noise_qualified": true
+          },
+          {
+            "mqtt": 5,
+            "qos": 2,
+            "ratio": 0.9583127315725838,
+            "noise_qualified": true
+          },
+          {
+            "mqtt": 4,
+            "qos": 1,
+            "ratio": 1.014285719291663,
+            "noise_qualified": true
+          },
+          {
+            "mqtt": 4,
+            "qos": 2,
+            "ratio": 1.0382497664578123,
+            "noise_qualified": true
+          }
+        ]
+      }
+    },
+    "measurements": {
+      "windows": {
+        "complete": true,
+        "mode": "windows",
+        "samples": 7,
+        "warmups": 1,
+        "count": 1000000,
+        "payload_bytes": 64,
+        "source_sha256": "04b6547b14d1aada1fbb27f08f70ea35ddb6c9893f162fb8ba8f408385aec4b7",
+        "scope": "Paired pure in-memory fixed-id Session warm cycles only. Identical benchmark source and unchanged actual Core; no first assignment, getter, TLS, queue or end-to-end P99 acceptance.",
+        "cases": [
+          {
+            "mqtt": 5,
+            "qos": 1,
+            "samples": {
+              "before": [
+                2176911.029,
+                2160776.462,
+                2062145.646,
+                2075702.532,
+                2059578.668,
+                2054117.787,
+                2166623.767
+              ],
+              "after": [
+                2197809.443,
+                2223718.043,
+                2068914.722,
+                2128562.629,
+                2070264.358,
+                2139265.774,
+                2125064.283
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 2180598.474,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2176911.029,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2160776.462,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2062145.646,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2075702.532,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2059578.668,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2054117.787,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2166623.767,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 2201415.422,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2197809.443,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2223718.043,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2068914.722,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2128562.629,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2070264.358,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2139265.774,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2125064.283,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 2075702.532,
+                "mad_ratio": 0.010398766040528142,
+                "central_span_ratio": 0.051570539299221674
+              },
+              "after": {
+                "median": 2128562.629,
+                "mad_ratio": 0.027388562688140747,
+                "central_span_ratio": 0.059920757445563494
+              }
+            },
+            "ratio": 1.0254661234859448,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 5,
+            "qos": 2,
+            "samples": {
+              "before": [
+                1787247.489,
+                1657751.006,
+                1828251.829,
+                1776926.117,
+                1832084.676,
+                1833823.331,
+                1847815.402
+              ],
+              "after": [
+                1869838.311,
+                1887473.368,
+                1793663.096,
+                1901335.156,
+                1877527.739,
+                1876383.129,
+                1917779.058
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 1794540.863,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1787247.489,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1657751.006,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1828251.829,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1776926.117,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1832084.676,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1833823.331,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1847815.402,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 1920075.697,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1869838.311,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1887473.368,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1793663.096,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1901335.156,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1877527.739,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1876383.129,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1917779.058,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27457.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 1828251.829,
+                "mad_ratio": 0.010700699263460216,
+                "central_span_ratio": 0.031121103284289357
+              },
+              "after": {
+                "median": 1877527.739,
+                "mad_ratio": 0.005297194173704806,
+                "central_span_ratio": 0.0167757015493021
+              }
+            },
+            "ratio": 1.0269524740620402,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 4,
+            "qos": 1,
+            "samples": {
+              "before": [
+                2857941.447,
+                2768329.316,
+                2897467.324,
+                2953899.088,
+                2904037.251,
+                2942814.06,
+                2932432.646
+              ],
+              "after": [
+                2982153.007,
+                2585546.022,
+                2992740.51,
+                2957411.792,
+                2754071.344,
+                2902175.5,
+                2823358.549
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 2916450.12,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2857941.447,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2768329.316,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2897467.324,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2953899.088,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2904037.251,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2942814.06,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2932432.646,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 3002152.844,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2982153.007,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2585546.022,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2992740.51,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2957411.792,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2754071.344,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2902175.5,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2823358.549,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 2904037.251,
+                "mad_ratio": 0.013352724379360893,
+                "central_span_ratio": 0.029225731512491502
+              },
+              "after": {
+                "median": 2902175.5,
+                "mad_ratio": 0.027557777605110446,
+                "central_span_ratio": 0.07858989334035801
+              }
+            },
+            "ratio": 0.9993589093943753,
+            "noise_qualified": false,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 4,
+            "qos": 2,
+            "samples": {
+              "before": [
+                2415392.426,
+                2440017.656,
+                2424275.923,
+                2439208.223,
+                2443109.746,
+                2348463.623,
+                2403198.561
+              ],
+              "after": [
+                2425932.638,
+                2495641.362,
+                2393654.136,
+                2430428.38,
+                2439608.706,
+                2470544.928,
+                2423557.365
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 2389079.803,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2415392.426,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2440017.656,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2424275.923,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2439208.223,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2443109.746,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2348463.623,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2403198.561,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 2443559.876,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2425932.638,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2495641.362,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2393654.136,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2430428.38,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2439608.706,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2470544.928,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2423557.365,
+                  "session_base_bytes": 27101.0,
+                  "session_single_packet_peak_bytes": 27456.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 2424275.923,
+                "mad_ratio": 0.006493375135500204,
+                "central_span_ratio": 0.015187666820712693
+              },
+              "after": {
+                "median": 2430428.38,
+                "mad_ratio": 0.003777246050755828,
+                "central_span_ratio": 0.019333037495225275
+              }
+            },
+            "ratio": 1.0025378534438383,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          }
+        ]
+      },
+      "wsl": {
+        "complete": true,
+        "mode": "wsl",
+        "samples": 7,
+        "warmups": 1,
+        "count": 1000000,
+        "payload_bytes": 64,
+        "source_sha256": "04b6547b14d1aada1fbb27f08f70ea35ddb6c9893f162fb8ba8f408385aec4b7",
+        "scope": "Paired pure in-memory fixed-id Session warm cycles only. Identical benchmark source and unchanged actual Core; no first assignment, getter, TLS, queue or end-to-end P99 acceptance.",
+        "cases": [
+          {
+            "mqtt": 5,
+            "qos": 1,
+            "samples": {
+              "before": [
+                1995532.848,
+                1988132.883,
+                1989250.536,
+                1902582.126,
+                1994610.18,
+                2033688.886,
+                2036105.045
+              ],
+              "after": [
+                1936816.071,
+                1950731.209,
+                1946575.125,
+                2012206.868,
+                1968613.621,
+                2020054.307,
+                1967897.317
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 1967222.191,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1995532.848,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1988132.883,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1989250.536,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1902582.126,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1994610.18,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2033688.886,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2036105.045,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 2030968.253,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1936816.071,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1950731.209,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1946575.125,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2012206.868,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1968613.621,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2020054.307,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1967897.317,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32439847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 1994610.18,
+                "mad_ratio": 0.0032473999506008842,
+                "central_span_ratio": 0.022839552037180532
+              },
+              "after": {
+                "median": 1967897.317,
+                "mad_ratio": 0.010835012485562548,
+                "central_span_ratio": 0.033351203049584735
+              }
+            },
+            "ratio": 0.9866074768554526,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 5,
+            "qos": 2,
+            "samples": {
+              "before": [
+                1618597.048,
+                1691194.926,
+                1650995.89,
+                1637568.365,
+                1594110.646,
+                1603583.745,
+                1659516.565
+              ],
+              "after": [
+                1616670.08,
+                1580772.01,
+                1633543.557,
+                1544501.659,
+                1569302.613,
+                1544970.311,
+                1543341.516
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 1701562.321,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1618597.048,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1691194.926,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1650995.89,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1637568.365,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1594110.646,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1603583.745,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1659516.565,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 1593710.596,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1616670.08,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1580772.01,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1633543.557,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1544501.659,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1569302.613,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1544970.311,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1543341.516,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27529.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32443847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 1637568.365,
+                "mad_ratio": 0.013402921349179796,
+                "central_span_ratio": 0.0341560213273904
+              },
+              "after": {
+                "median": 1569302.613,
+                "mad_ratio": 0.015803805967408983,
+                "central_span_ratio": 0.04598757460935936
+              }
+            },
+            "ratio": 0.9583127315725838,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 4,
+            "qos": 1,
+            "samples": {
+              "before": [
+                2370079.815,
+                2487890.677,
+                2372917.974,
+                2377171.727,
+                2458092.219,
+                2392466.605,
+                2320811.469
+              ],
+              "after": [
+                2370769.817,
+                2457192.862,
+                2324992.188,
+                2353659.63,
+                2411131.335,
+                2452705.931,
+                2474810.384
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 2448918.505,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2370079.815,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2487890.677,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2372917.974,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2377171.727,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2458092.219,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2392466.605,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2320811.469,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 2309085.295,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2370769.817,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2457192.862,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2324992.188,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2353659.63,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2411131.335,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2452705.931,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2474810.384,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32438847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 2377171.727,
+                "mad_ratio": 0.006434065249169955,
+                "central_span_ratio": 0.037023999150062284
+              },
+              "after": {
+                "median": 2411131.335,
+                "mad_ratio": 0.01910369888664743,
+                "central_span_ratio": 0.04293968996923194
+              }
+            },
+            "ratio": 1.014285719291663,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          },
+          {
+            "mqtt": 4,
+            "qos": 2,
+            "samples": {
+              "before": [
+                1940786.989,
+                1929124.368,
+                1939500.757,
+                1956587.996,
+                1929387.121,
+                1957773.937,
+                1905512.484
+              ],
+              "after": [
+                2039425.368,
+                1929874.531,
+                1987298.373,
+                2014140.057,
+                2011693.969,
+                2013686.208,
+                2028504.126
+              ]
+            },
+            "observations": {
+              "before": [
+                {
+                  "session_cycles_per_sec": 1993397.076,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1940786.989,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1929124.368,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1939500.757,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1956587.996,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1929387.121,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1957773.937,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1905512.484,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                }
+              ],
+              "after": [
+                {
+                  "session_cycles_per_sec": 1987853.353,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2039425.368,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1929874.531,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 1987298.373,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2014140.057,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2011693.969,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2013686.208,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                },
+                {
+                  "session_cycles_per_sec": 2028504.126,
+                  "session_base_bytes": 27173.0,
+                  "session_single_packet_peak_bytes": 27528.0,
+                  "session_config_bytes": 112.0,
+                  "session_info_bytes": 88.0,
+                  "session_frame_bytes": 72.0,
+                  "session_packet_info_bytes": 32.0,
+                  "checksum": 32442847000.0
+                }
+              ]
+            },
+            "noise": {
+              "before": {
+                "median": 1939500.757,
+                "mad_ratio": 0.005350030910042056,
+                "central_span_ratio": 0.0141601532770116
+              },
+              "after": {
+                "median": 2013686.208,
+                "mad_ratio": 0.0073586033122395155,
+                "central_span_ratio": 0.020462847109096367
+              }
+            },
+            "ratio": 1.0382497664578123,
+            "noise_qualified": true,
+            "raw_bound_failed": false,
+            "qualified_bound_failed": false
+          }
+        ]
+      }
+    },
+    "limits": {
+      "throughput_loss": 0.05,
+      "mad": 0.03,
+      "central_span": 0.06
+    },
+    "limitations": [
+      "Shared-host pure fixed-id Session cycles only, identical canonical benchmark source and actual parent/current packages with unchanged Core",
+      "Seven measured samples after one warmup; platform timing runs sequential and after own compilation/functional jobs terminated",
+      "Seven of eight throughput cases noise-qualified and no raw/qualified5% bound failures; WSL5/QoS2 retains qualified4.17% loss",
+      "Windows311/QoS1 remains noise-unqualified; no first-assignment/getter latency, end-to-end P99/CPU/RSS/fixed-arrival or production claim. Earlier performance failures stay open"
+    ]
+  },
+  "preparation_failures": [
+    "Initial malformed caller descriptor containing NUL expected PROTOCOL but the public Open correctly classified it LOCAL_ERROR; corrected test expectation to SESSION_ERROR, logs retained",
+    "Initial conditional test else indentation failed strict compilation on both OSes; test-only braces corrected, logs and old test header retained",
+    "Initial root invocations each completed22 modular programs then failed No-Auth single unused-variable compilation. A test-only void marker fixed it; all29 single programs completed on both OSes. Initial failed aggregates retained",
+    "A wildcard single selector is unsupported; both invocations failed before execution. Derived the actual first single from the manifest, then ran all29 via start-single-test; selector failure logs retained",
+    "Windows shared broker consumer linked before its active package build had copied libraries. Missing-package log retained; after confirmed package completion both shared probes built and all scenarios passed",
+    "Final documentation formatting initially used Windows default GBK and stopped at a UTF-8 progress file; retried with explicit UTF-8. This was publication preparation and not a test result"
+  ],
+  "remaining": [
+    "Automatic/durable reconnect, subscription recovery after missing server state, WebSocket and other broker/authentication-plugin interoperability",
+    "First-assignment/getter cold cost and complete fixed-arrival/contention, CPU/memory/latency/comparator acceptance",
+    "Native Linux and>=72h gates; all four products remain developing and the full user objective active"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-assigned-id-20261110",
+  "evidence_storage": "C-backed immutable stage; mutable compiler/package outputs are held separately under service-extensions-build",
+  "evidence_files": 4085,
+  "evidence_index_sha256": "9c0f568180476314c95f1b68572587592d8f2be4a7f5240d3872882c32eb0e01"
+}

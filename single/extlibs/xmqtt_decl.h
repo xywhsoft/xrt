@@ -4024,6 +4024,19 @@ XMQTT_API bool xmqttSessionConfigInit(xmqttsessionconfig* Config);
  * Config/descriptors/views borrow only during the call. Outputs are caller
  * storage, disjoint from all inputs and library-owned views. */
 XMQTT_API bool xmqttSessionCreate(const xmqttsessionconfig* Config,xmqttsession** Session);
+/* MQTT5 first-connect identity assignment. Config.ClientId must be empty and
+ * MaxClientIdBytes is 1..65535. Reserve that many bytes at Create, charged to
+ * BaseBytes/MaxBytes; an accepted authenticated Open copies the assigned id
+ * without allocating. Oversize assignment is RESTRICTED and leaves all state
+ * unchanged. Errors/rejection never bind it. Once bound, the identity survives
+ * End/Expire/Reset and only that nonempty id can reconnect. */
+XMQTT_API bool xmqttSessionCreateUnassigned(const xmqttsessionconfig* Config,
+    size_t MaxClientIdBytes,xmqttsession** Session);
+/* Stable-owner snapshot, allowed while a Client claims Session. Before binding
+ * publishes {NULL,0}; afterwards returns immutable Session-owned bytes borrowed
+ * until Session Destroy. Reading this snapshot does not transfer a reference.
+ * Output must be disjoint from the entire Session allocation. */
+XMQTT_API bool xmqttSessionClientId(xmqttsession* Session,xstrview* ClientId);
 /* Call only after authenticating the accepted connection. Uses independent
  * CONNECT/CONNACK negotiation; identity/version must match. DONE/RESET opens
  * a new generation, resets connection-only send quota and schedules only the
@@ -4181,6 +4194,9 @@ XRT_EXTERN_C_BEGIN
 /* Explicit numeric TCP connection using caller-owned protocol Session and
  * application Inbox, both claimed exclusively through actual Client Destroy.
  * Version/ClientId must match Session; Inbox has the same four Client caps.
+ * A bounded unassigned MQTT5 Session accepts an empty first CONNECT. Successful
+ * CONNACK/local Auth proof binds its id before Ready; use SessionClientId for
+ * later CONNECTs. Over-cap assignment is LIMIT with unchanged passive identity.
  * Non-packet codec limits must fit Session, with the same UTF-8 policy. The
  * connection packet cap may grow to render an alias-expanded canonical replay;
  * Session borrows that codec only while claimed, never after Client destruction.

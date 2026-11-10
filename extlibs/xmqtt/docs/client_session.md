@@ -13,7 +13,16 @@ contract with numeric/hostname/prepared TLS and MQTT5 enhanced authentication.
 
 ## Identity, ownership and reconnect
 
-Use one nonempty ClientId and MQTT version for all three objects. Bind them to
+Use one ClientId and MQTT version for all three objects. Fixed-id sessions use
+the same nonempty id from creation. For MQTT5 server assignment, create a bounded
+unassigned Session, use an empty first CONNECT, then use `xmqttSessionClientId`
+for each reconnect. Assignment is committed only after successful CONNACK and
+local Auth proof, before Ready. A local identity-cap refusal is LIMIT and leaves
+the Session unbound. Once accepted proof and Session Open commit the id, a
+later local close/deadline failure can still make Ready fail; the bound identity
+is retained. Query it after physical retirement for every retry, including a
+failed Ready, so the retry does not request a different server identity. Read the
+[identity contract](session.md). Bind them to
 one logical broker/security principal. Non-packet Client codec bounds must fit
 the Session bounds, with the same UTF-8 policy. The connection packet cap may
 increase to render an alias-expanded retained packet; Session's physical memory
@@ -114,7 +123,7 @@ bounded incoming identity storage, its existing gate and fixed driver metadata;
 the optional fields/code are absent from ordinary Client-only builds. Gauges
 cover requested objects, not allocator/native/kernel overhead or process RSS.
 
-Assigned-id adoption, automatic reconnect, durable
+Automatic reconnect, durable
 storage, cross-process recovery, complete broker recovery interoperability, elimination
 of remaining allocation/locking costs and production/performance acceptance remain
 required work. The local recovery tests cover both protocol versions, QoS

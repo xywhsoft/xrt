@@ -198,8 +198,10 @@ static void csRequestPhysicalRetirement(xmqttversion V)
 }
 #endif
 #include "client_session_cases.h"
+#include "client_session_assigned_cases.h"
 int main(void)
 {
+    csAssignedTests();
     csIdentifierPhysicalRace(XMQTT_VERSION_5);csIdentifierPhysicalRace(XMQTT_VERSION_311);
     for(unsigned V=0;V<2;++V)for(unsigned Phase=0;Phase<3;++Phase)csOutgoing(V?XMQTT_VERSION_311:XMQTT_VERSION_5,Phase,false);
     csOutgoing(XMQTT_VERSION_5,0,true);csAliasExpansion();

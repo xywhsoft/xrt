@@ -12,9 +12,10 @@ QoS-0/1/2 send/receive, current-connection SUBSCRIBE/UNSUBSCRIBE, bounded ACK fl
 DISCONNECT, bounded application graceful DISCONNECT and physical shutdown.
 Optional [enhanced authentication](client_auth.md) integrates initial AUTH/final
 CONNACK verification and reauthentication. Optional [TLS](client_tls.md) adds
-verified TLS 1.2/1.3 and mutual authentication. Session/expiry/subscription recovery
-state, reconnect, persistence and WebSocket remain pending.
-There is no pinned-broker or final performance/production acceptance yet.
+verified TLS 1.2/1.3 and mutual authentication. Volatile QoS/expiry state and
+explicit reconnect are covered by the optional Session leaves below.
+Automatic reconnect, persistence and WebSocket remain pending. Independent
+pinned-broker evidence exists; final performance/production acceptance is pending.
 
 | Contract | Verification |
 | --- | --- |
@@ -439,3 +440,31 @@ TLS terminates at the bounded Python/OpenSSL proxy; the pinned Mosquitto2.1.2
 backend is local TCP. This is not broker TLS, system DNS, enhanced-auth plugin,
 TLS corrupt-record, restart/durable/automatic recovery, performance or production
 qualification. Shared-host WSL does not establish native Linux or>=72h acceptance.
+
+
+## Bounded MQTT5 assigned ClientId
+
+The [assigned-id stage](../tests/results/assigned-id-20261110.json) reserves an
+explicit 1..65535-byte identity capacity at Create, copies an accepted server id
+only after authenticated Open, and exposes an immutable borrowed view for later
+CONNECTs. End/expiry/Reset preserve it. Failed Open/proof or over-cap assignment
+cannot bind it; after accepted Open a later Ready failure does not roll it back.
+No public/private state fields or per-publication logic are added. Fixed-id base
+sizes remain unchanged, with the reserved capacity charged on unassigned objects.
+
+Both OSes pass 22 modular and 29 single programs. WSL adds full ASan/UBSan/leak and
+two TSan programs. Standalone tests cover boundaries, unchanged outputs, invalid
+ids, limits, allocation prefixes, one-byte-budget allocation-free binding/reads,
+concurrent publication/readers and retained identity after reset/expiry. Connection
+tests cover pre-CONNACK snapshots, proof quarantine, refusal/close/over-cap rollback,
+canonical replay and outcomes beyond both Engines/passive owners. Twelve package
+verifications and 24 example modes pass. Independent Mosquitto tests pass 1808
+cases across eight build forms, including 288 TLS partial prefixes, full/mutual and
+accepted-ticket/full-fallback TLS with three factories. Forty fixed-id regressions
+also pass. Failed initial test compilation/selection and preparation logs remain.
+
+Core root 139/numeric 30 members match prior archives; only MQTT Client and Session
+objects change. Seven of eight fixed-id pure Session throughput observations meet
+the noise gate and none breaches 5%; one remains unqualified. WSL5/QoS2 retains a
+qualified 4.17% loss. No new first-assignment/getter latency, end-to-end P99, native
+Linux, enhanced-auth algorithm/plugin or 72h production acceptance is inferred.

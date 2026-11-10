@@ -9895,3 +9895,54 @@ fixed-arrival/contention, native Linux and>=72h gates. All four products remain
 developing and the long-term objective active. Evidence:
 extlibs/xmqtt/tests/results/tls-session-recovery-20261110.json and
 out/service-extensions/xmqtt-tls-recovery-final-20261110 (C-backed immutable stage).
+
+
+## 2026-11-10: bounded server-assigned MQTT5 identity
+
+On D:/GIT/xrt master, two Session APIs now support an empty first MQTT5 CONNECT:
+CreateUnassigned reserves 1..65535 identity bytes inside the existing allocation;
+ClientId returns a canonical empty or immutable owner-borrowed view. Accepted
+Open/local proof publishes it once without allocation. Missing/invalid/over-cap
+assignment, broker refusal and rejected proof preserve the unbound state. The
+reserved byte cap is charged to BaseBytes/MaxBytes. End/expiry/Reset retain the
+bound id; every reconnect must use it. A local error after accepted Open can leave
+it bound even if Ready fails, so applications query it when constructing retries.
+No public/private state fields, Core changes or per-publication operations added.
+
+Both OSes pass 51 root programs:22 module programs completed before an initial
+No-Auth single-test unused-variable compile failure, followed by all29 single
+programs after a test-only void marker. The original aggregate failures are kept;
+the22 and 29 individually successful programs form the final composite evidence.
+WSL implementations are fully ASan/UBSan/leak instrumented, with two further TSan
+programs. The test-only marker and corrected example executable name do not alter
+production/config/generated/library inputs or prior package/broker results.
+
+Actual root/session-only/numeric static/shared packages pass 12 verifications and
+24 fixed/assigned example runs. Core root 139 and numeric 30 objects match the
+preceding Dial/Auth archives; only Client and Session of nine MQTT objects change.
+Standalone gates exercise maximum 65535 id, exact cap/base allocation limits,
+argument/output alias errors, time/identity/rejection rollback, allocation quotas,
+one-byte-budget allocation-free bind/read, three concurrent readers and immutable
+identity across end/reset/expiry. Client tests cover pre-CONNACK pending snapshots,
+proof gating, over-cap LIMIT, local close/refusal, replay and retained ready/results
+beyond two Clients/Engines/passive owners.
+
+Eight independent broker consumers pass 1808 cases: 1728 TLS and 80 numeric TCP,
+including 288 authenticated locally partial prefixes. TLS1.2/1.3, full/mutual,
+TLS1.3 tickets/full fallback, three TLS factories and MQTT session continuity stay
+independent. Windows/WSL fixed-id TCP regressions pass 40 cases. All fixture owners
+are reaped and runtime key material removed. Earlier invalid-descriptor expectation,
+test indentation/unused-variable, unsupported selector and premature shared-package
+link attempts are recorded separately; no failed invocation is relabelled success.
+
+Sequential 7-sample/1-warmup pure fixed-id Session observations use identical
+benchmark source, actual parent/current root packages and unchanged Core. Seven
+of eight cases satisfy 3% MAD/6% central-span noise gates; none violates 5% throughput
+loss. WSL5/QoS2 retains a qualified 4.17% loss and Windows311/QoS1 is unqualified.
+Cold assignment/getter costs, end-to-end P99 and full production/performance gates
+are not measured here. Existing wider performance failures remain open. Next work
+includes automatic/durable reconnect, WebSocket, enhanced-auth broker plugins,
+fixed-arrival/contention, native Linux and>=72h gates for the four developing
+products. No branch operation or push. Evidence:
+extlibs/xmqtt/tests/results/assigned-id-20261110.json and
+out/service-extensions/xmqtt-assigned-id-20261110 (C-backed immutable stage).

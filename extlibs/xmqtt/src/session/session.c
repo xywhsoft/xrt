@@ -181,16 +181,17 @@ XMQTT_API bool xmqttSessionConfigInit(xmqttsessionconfig* C)
     if(!xmqttSessionSpan(C,sizeof(*C))){xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session config output");return false;}
     *C=(xmqttsessionconfig){0};C->Size=sizeof(*C);C->Version=XMQTT_VERSION_5;xmqttCodecConfigInit(&C->Codec);C->MaxOutgoing=128;C->MaxIncoming=64;C->MaxBytes=16u*1024u*1024u;return true;
 }
-XMQTT_API bool xmqttSessionCreate(const xmqttsessionconfig* Config,xmqttsession** Out)
+static bool xmqttSessionCreateIdentity(const xmqttsessionconfig* Config,size_t AssignedCapacity,xmqttsession** Out)
 {
     if(!xmqttSessionSpan(Config,sizeof(*Config)) || !xmqttSessionSpan(Out,sizeof(*Out)) || !xmqttSessionSeparate(Config,sizeof(*Config),Out,sizeof(*Out))){xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session config/output");return false;}
     xmqttsessionconfig C=*Config;xmqttcodecconfig Codec;
-    if(C.Size!=sizeof(C) || (C.Version!=XMQTT_VERSION_5 && C.Version!=XMQTT_VERSION_311) || C.MaxOutgoing>65535 || C.MaxIncoming>65535 || !C.ClientId.Size || C.ClientId.Size>65535 ||
+    if(C.Size!=sizeof(C) || (C.Version!=XMQTT_VERSION_5 && C.Version!=XMQTT_VERSION_311) || C.MaxOutgoing>65535 || C.MaxIncoming>65535 ||
+       (AssignedCapacity?(C.Version!=XMQTT_VERSION_5 || C.ClientId.Size):(!C.ClientId.Size || C.ClientId.Size>65535)) ||
        !xmqttSessionSpan(C.ClientId.Data,C.ClientId.Size) || !xmqttSessionSeparate(Out,sizeof(*Out),C.ClientId.Data,C.ClientId.Size) ||
        !xmqttInternalCodecSettings(XMQTT_CLIENT_TO_SERVER,&C.Codec,&Codec) || !xmqttUtf8StringCheck(C.ClientId,C.Codec.Utf8Flags,NULL)){
         xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session settings/identity");return false;}
     size_t Buckets=0;if(C.MaxOutgoing){Buckets=2;while(Buckets<C.MaxOutgoing*2u)Buckets*=2u;}
-    size_t Base=sizeof(xmqttsession)+Buckets*sizeof(xmqttsessionpacket*)+(C.MaxOutgoing?XMQTT_SESSION_ID_BYTES:0u)+(C.MaxIncoming?XMQTT_SESSION_RX_BYTES:0u)+C.ClientId.Size;
+    size_t Base=sizeof(xmqttsession)+Buckets*sizeof(xmqttsessionpacket*)+(C.MaxOutgoing?XMQTT_SESSION_ID_BYTES:0u)+(C.MaxIncoming?XMQTT_SESSION_RX_BYTES:0u)+(AssignedCapacity?AssignedCapacity:C.ClientId.Size);
     if(Base>C.MaxBytes){xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"session fixed maps exceed byte budget");return false;}
     xmqttsession* S=xrtCalloc(1,Base);if(!S)return false;
     if(!xrtMutexInit(&S->Gate)){xrtFree(S);return false;}
@@ -198,7 +199,20 @@ XMQTT_API bool xmqttSessionCreate(const xmqttsessionconfig* Config,xmqttsession*
     unsigned char* At=S->Data;
     if(Buckets){S->Hash=(xmqttsessionpacket**)At;At+=Buckets*sizeof(*S->Hash);S->Ids=At;At+=XMQTT_SESSION_ID_BYTES;}
     if(C.MaxIncoming){S->Receive=At;At+=XMQTT_SESSION_RX_BYTES;}
-    memcpy(At,C.ClientId.Data,C.ClientId.Size);S->Config.ClientId=(xstrview){(const char*)At,C.ClientId.Size};*Out=S;return true;
+    if(C.ClientId.Size)memcpy(At,C.ClientId.Data,C.ClientId.Size);
+    S->Config.ClientId=(xstrview){(const char*)At,C.ClientId.Size};*Out=S;return true;
+}
+XMQTT_API bool xmqttSessionCreate(const xmqttsessionconfig* Config,xmqttsession** Out)
+{return xmqttSessionCreateIdentity(Config,0,Out);}
+XMQTT_API bool xmqttSessionCreateUnassigned(const xmqttsessionconfig* Config,size_t Capacity,xmqttsession** Out)
+{
+    if(!Capacity || Capacity>65535){xmqttSessionFailure(XMQTT_SESSION_ERROR,"assigned ClientId capacity must be 1..65535 bytes");return false;}
+    return xmqttSessionCreateIdentity(Config,Capacity,Out);
+}
+XMQTT_API bool xmqttSessionClientId(xmqttsession* S,xstrview* Out)
+{
+    if(!S || !xmqttSessionOutput(S,Out,sizeof(*Out))){xmqttSessionFailure(XMQTT_SESSION_ERROR,"invalid session ClientId output");return false;}
+    xrtMutexLock(&S->Gate);*Out=S->Config.ClientId.Size?S->Config.ClientId:(xstrview){0};xrtMutexUnlock(&S->Gate);return true;
 }
 static xmqttsessionstatus xmqttSessionOpenOwned(xmqttsession* S,const void* Owner,const xmqttpacket* Connect,const xmqttpacket* Connack,double Now,xmqttnegotiated* Out)
 {
@@ -209,11 +223,18 @@ static xmqttsessionstatus xmqttSessionOpenOwned(xmqttsession* S,const void* Owne
     xmqttnegotiated N;xmqttnegotiationstatus Status=xmqttNegotiate(Connect,Connack,&C,&N,NULL);
     if(Status<0){xrtMutexUnlock(&S->Gate);return Status==XMQTT_NEGOTIATION_STATE_ERROR?XMQTT_SESSION_STATE_ERROR:Status==XMQTT_NEGOTIATION_LOCAL_ERROR?XMQTT_SESSION_ERROR:XMQTT_SESSION_PROTOCOL_ERROR;}
     if(!xmqttSessionPacketOutput(Out,sizeof(*Out),Connect) || !xmqttSessionPacketOutput(Out,sizeof(*Out),Connack)){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_ERROR,"overlapping negotiation output");}
-    if(Connect->Body.Connect.ClientId.Size!=S->Config.ClientId.Size || memcmp(Connect->Body.Connect.ClientId.Data,S->Config.ClientId.Data,S->Config.ClientId.Size)){
+    if(Connect->Body.Connect.ClientId.Size!=S->Config.ClientId.Size || (S->Config.ClientId.Size && memcmp(Connect->Body.Connect.ClientId.Data,S->Config.ClientId.Data,S->Config.ClientId.Size))){
         xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"session ClientId mismatch");}
     if(Status==XMQTT_NEGOTIATION_REJECTED){*Out=N;xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_REJECTED;}
     if(N.SessionPresent && !Available){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"server session without local state");}
     if(S->Config.Version==XMQTT_VERSION_311 && Available && !Connect->Body.Connect.CleanStart && !N.SessionPresent){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"311 server lost session; explicit reset required");}
+    if(!S->Config.ClientId.Size){
+        size_t Capacity=S->BaseBytes-(size_t)((const unsigned char*)S->Config.ClientId.Data-(const unsigned char*)S);
+        if(N.ClientId.Size>Capacity){xrtMutexUnlock(&S->Gate);return xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"assigned ClientId exceeds reserved capacity");}
+        /* All proof, protocol, identity, time and output checks precede this
+         * one-time immutable publication. No allocation or new state field. */
+        memcpy((void*)S->Config.ClientId.Data,N.ClientId.Data,N.ClientId.Size);S->Config.ClientId.Size=N.ClientId.Size;
+    }
     bool Reset=S->HasState && (!Available || Connect->Body.Connect.CleanStart || !N.SessionPresent);
     xmqttsessionpacket* Drop=Reset?xmqttSessionClearLocked(S):NULL;
     S->Connected=S->HasState=true;S->Persistent=!Connect->Body.Connect.CleanStart;S->Peer=N;
@@ -424,7 +445,7 @@ XMQTT_INTERNAL bool xmqttInternalSessionClaim(xmqttsession* S,const void* Owner,
     if(S->Driver || S->Connected || !xmqttSessionTime(S,Now)){xrtMutexUnlock(&S->Gate);xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"session driver is unavailable or clock differs");return false;}
     const xmqttcodecconfig* K=&S->Config.Codec;
     if(Version!=S->Config.Version || Connect->Body.Connect.ClientId.Size!=S->Config.ClientId.Size ||
-       memcmp(Connect->Body.Connect.ClientId.Data,S->Config.ClientId.Data,S->Config.ClientId.Size) ||
+       (S->Config.ClientId.Size && memcmp(Connect->Body.Connect.ClientId.Data,S->Config.ClientId.Data,S->Config.ClientId.Size)) ||
        Codec->MaxPayloadBytes>K->MaxPayloadBytes ||
        Codec->MaxProperties>K->MaxProperties || Codec->MaxPropertyBytes>K->MaxPropertyBytes || Codec->MaxTopics>K->MaxTopics || Codec->Utf8Flags!=K->Utf8Flags){
         xrtMutexUnlock(&S->Gate);xmqttSessionFailure(XMQTT_SESSION_STATE_ERROR,"session identity, version or codec capacity differs");return false;}

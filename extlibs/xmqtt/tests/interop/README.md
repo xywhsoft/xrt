@@ -261,3 +261,18 @@ TCP/TLS handshakes plus an intentionally early-exiting real probe. Limits are2Mi
 per frame/input/output side,32 queued frames and200 metadata rows. These are
 opt-in correctness/lifetime tests, not performance, system DNS, restart/durable/
 automatic recovery, authentication-plugin or native deployment qualification.
+
+
+## Server-assigned Session identity
+
+Build `--probe assigned-session` or `--probe assigned-tls-session` with the same
+four build kinds. Run the plain runner with `--versions 5`, or the TLS runner
+with `--mqtt 5`; MQTT3.1.1 cannot expose a resumable server-assigned ClientId.
+The shared adapter creates an unbound Session with 512 reserved identity bytes,
+uses an empty first CONNECT, compares Ready with the copied immutable Session id,
+and sends that exact id on reconnect. All existing ACK/prefix/replay assertions
+remain. The independent Mosquitto allocates the actual identity; the fixture does
+not invent it. TLS retains the same client-to-proxy/local-TCP-broker topology and
+scope limitations described above. Default valid matrices have 10 plain or 216 TLS
+cases per binary. Local enhanced-auth proof tests are separate from broker auth
+algorithm/plugin interoperability.

@@ -5,7 +5,8 @@ XRT codecs, allocation, atomics and mutexes. It owns no connection, Engine,
 background retry timer, credentials, application receive queue or disk store.
 The optional [Client Session factory](client_session.md) attaches it to numeric
 TCP with explicit reconnect and connection-scoped Futures. Automatic reconnect,
-TLS/Dial/Auth composition and durable/crash recovery remain required.
+durable/crash recovery remain required. TCP/TLS/Dial/Auth composition is available
+through the optional Client Session leaves.
 The [example](../examples/session/README.md) exercises the state boundary directly.
 
 When driven by the optional Client Session factory, Objects/LiveBytes also count
@@ -25,7 +26,25 @@ offline reset. This policy avoids treating an unrelated new session as recovery.
 
 ## Ownership and driving
 
-Create with a nonempty ClientId. The application binds that object to a logical
+Create with a nonempty ClientId, or use MQTT5 `xmqttSessionCreateUnassigned`
+with an empty config id and an explicit 1..65535-byte bound. The latter reserves
+that capacity in BaseBytes/MaxBytes at construction; it does not allocate during
+assignment. Only an accepted, authenticated Open binds the negotiated assigned
+id, after all validation. Over-cap assignment is RESTRICTED; malformed/refused/
+failed proof leaves the identity and protocol state unchanged.
+
+`xmqttSessionClientId` returns a canonical empty view before binding, then an
+immutable Session-owned view until Destroy. It is safe with a stable owner while
+a Client holds the claim. Copy it into the next CONNECT descriptor; the Client
+snapshots that descriptor during construction. End, expiry and explicit Reset
+preserve the identity. Reusing an empty or different CONNECT after binding fails
+closed; use a different Session object for a different identity. MQTT3.1.1 does
+not expose a server-assigned id and this factory rejects that protocol. Public
+configuration/info/frame layouts and private Session storage fields are unchanged.
+The only extra allocation size is the explicitly reserved identity capacity;
+fixed-id instances retain their existing base size and warm protocol paths.
+
+The application binds that object to a logical
 broker/security principal, serializes mutating calls, and authenticates its
 connection before Open. Open validates CONNECT/CONNACK and client identity. It
 returns DONE or RESET for accepted state, REJECTED for a broker rejection and
