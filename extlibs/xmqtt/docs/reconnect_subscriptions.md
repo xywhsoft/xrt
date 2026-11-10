@@ -84,8 +84,22 @@ filter for each request. Session transitions scan the bounded entry table; aggre
 maintained counters. Negotiated packet checks and the actual Client outgoing-byte cap split a group
 before Client admission. The cap is captured at lifecycle attachment, including
 per-attempt factory narrowing; a single filter that cannot fit is restricted.
-Candidate checks rescan the growing prefix within MaxBatch, so the default keeps
-that work bound at 32. Metadata/request quotas still use finite admission retry. Each accepted control request uses an ordinary Client Future and one
+Admission also caches the immutable group Remaining Length base and each filter's
+wildcard/shared requirements, plus any group Subscription ID requirement. Batch
+preflight adds each topic's encoded contribution once, accounts for the actual
+1..4-byte Remaining Length, and checks the current peer capabilities and outgoing
+cap in constant work per candidate. Full validation still occurs at snapshot
+admission and once per emitted subset in the ordinary Client API. A subset cannot
+exceed its already validated source's codec/property/topic bounds. Requested
+subscription QoS is preserved; the peer Maximum QoS limits outgoing PUBLISH.
+Capability checks apply to SUBSCRIBE and leave UNSUBSCRIBE available.
+
+The x64 layout adds eight payload bytes per live snapshot group and keeps the
+40-byte per-filter order record by narrowing its bounded original index to uint32.
+It adds no allocation, Core API, runtime thread or publication-path operation.
+Admission's existing encode/decode/hash and two heapsorts remain real costs; a
+whole intent update therefore includes more than the linear batch preflight.
+Metadata/request quotas still use finite admission retry. Each accepted control request uses an ordinary Client Future and one
 bounded heap watch node; its completion wakes the controller without polling the
 Future. Each registration is separately allocated and released; no live watch
 is reinitialized. Its actual controller reference includes the release tail.

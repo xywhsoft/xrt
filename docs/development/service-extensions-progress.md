@@ -10248,3 +10248,40 @@ contention/CPU/RSS, upstream comparison and >=72h acceptance remain required. No
 branch operation or push. [Portable evidence](../../extlibs/xmqtt/tests/results/reconnect-subscriptions-20261111.json).
 Raw stages: `out/service-extensions/xmqtt-subscriptions-20261111` and
 `out/service-extensions/xmqtt-subscriptions-final-20261111`.
+
+## 2026-11-11 — Linear MQTT subscription batch preflight
+
+Continued directly on `D:/GIT/xrt` `master`, based on af97e10e. Immutable
+subscription admission caches the Remaining Length base and capability requirements.
+Batch preflight adds each topic once and accounts for VBI width, the current peer
+and the actual Client outgoing cap. Full validation remains at admission and final
+Client submission. Admission encode/decode/hash/two heapsorts remain. No Core/public
+API or publication-path change. The x64 group grows by eight payload bytes; its
+40-byte topic order record and allocation count remain unchanged. No branch or push.
+
+Added 32 exact/below-cap cases across MQTT5/3.1.1, SUBSCRIBE/UNSUBSCRIBE and Remaining
+Length 127/128/16383/16384, with public codec wire bytes as oracle and property
+length width changes. Five capability cases cover wildcard/shared/Subscription ID
+restrictions, ordinary operation without an ID, requested subscription QoS above
+peer publish maximum, and removals despite disabled subscribe capabilities.
+Existing bounds/OOM/worker-watch/lifetime/concurrent-update cases remain.
+
+Windows and WSL each pass 63 root and 20 leaf/example programs. WSL fully instruments
+both with ASan/UBSan/leak and passes the TSan unit. Four static/shared packages,
+eight extra full-unit/example consumers, four isolated declaration consumers,
+export checks, six size runs and benchmark smokes pass. Eight independent
+Mosquitto/proxy build forms pass 128 cases; all broker/probe/proxy owners are reaped.
+2633 runtime/code/config inputs are frozen and hash-checked throughout.
+
+The batch profile supports 32/128/1024 full-filter updates. Controlled comparison
+compiles the exact baseline controller from Git against identical verified other
+runtime objects, benchmark and fixture. Both OSes run serially after validation,
+with a single-filter control plus the three batch sizes, 512 acknowledged updates
+per sample, seven samples and one warmup. Commands,
+source/object/binary hashes and every sample remain in raw evidence. Noise limits
+stay at 3% MAD/6% central span. The portable report labels qualifying metrics and
+retains failures. Fixed-arrival/native-Linux/upstream/CPU/RSS/soak acceptance and
+the complete four-library plan remain open.
+
+[Portable evidence](../../extlibs/xmqtt/tests/results/reconnect-subscriptions-linear-20261111.json).
+Raw stage: `out/service-extensions/xmqtt-subscriptions-linear-20261111`.

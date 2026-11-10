@@ -2,6 +2,10 @@
 #define XMQTT_EXAMPLE_CLIENT_PEER_H
 /* Healthy local fixture for examples/loopback workloads only. This is not a
  * broker, comparator, product runtime or interoperability oracle. */
+/* Benchmark callers may raise the control-vector bound; examples keep 32. */
+#ifndef MQTT_EXAMPLE_SUBSCRIPTION_TOPICS
+#define MQTT_EXAMPLE_SUBSCRIPTION_TOPICS 32
+#endif
 #include <xmqtt.h>
 #include <xrt.h>
 #include <stdio.h>
@@ -38,9 +42,9 @@ static inline void mqttExampleRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
         }
 #if defined(MQTT_EXAMPLE_SUBSCRIPTIONS)
         else if(F.Header.Type==XMQTT_PACKET_SUBSCRIBE || F.Header.Type==XMQTT_PACKET_UNSUBSCRIBE){
-            xmqttproperty Props[16];xmqttsubscription Topics[32];xmqttcodecbuffers B={Props,16,Topics,32};xmqttpacket Control;
+            xmqttproperty Props[16];xmqttsubscription Topics[MQTT_EXAMPLE_SUBSCRIPTION_TOPICS];xmqttcodecbuffers B={Props,16,Topics,MQTT_EXAMPLE_SUBSCRIPTION_TOPICS};xmqttpacket Control;
             mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Control,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Control,NULL))==XMQTT_CODEC_DONE,"subscription control");
-            unsigned char Reasons[32],Wire[64];bool Remove=Control.Type==XMQTT_PACKET_UNSUBSCRIBE;
+            unsigned char Reasons[MQTT_EXAMPLE_SUBSCRIPTION_TOPICS],Wire[MQTT_EXAMPLE_SUBSCRIPTION_TOPICS+8];bool Remove=Control.Type==XMQTT_PACKET_UNSUBSCRIBE;
             for(size_t I=0;I<Control.Body.Topics.Count;++I)Reasons[I]=Remove?0:Control.Body.Topics.Data[I].Options&3u;
             xmqttpacket Ack;xmqttPacketInit(Remove?XMQTT_PACKET_UNSUBACK:XMQTT_PACKET_SUBACK,&Ack);Ack.Identifier=Control.Identifier;
             if(!Remove || P->Version==XMQTT_VERSION_5)Ack.Body.Reasons=(xbytesview){Reasons,Control.Body.Topics.Count};

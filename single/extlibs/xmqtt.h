@@ -7528,9 +7528,10 @@ static int64 xmqttReconnectRemaining(double Deadline)
 /* Private optional subscription registry. */
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
 #define XMQTT_INTENT_NONE SIZE_MAX
-typedef struct xmqttintentorder {uint64 Hash;xstrview Filter;size_t Index,Entry;} xmqttintentorder;
+enum {XMQTT_INTENT_WILDCARD=1u,XMQTT_INTENT_SHARED=2u,XMQTT_INTENT_SUBID=4u};
+typedef struct xmqttintentorder {uint64 Hash;xstrview Filter;uint32 Index,Requirements;size_t Entry;} xmqttintentorder;
 typedef struct xmqttintentgroup {
-    size_t Refs,Allocation;uint64 Revision;xmqttpacket Packet;xmqttintentorder* Order;
+    size_t Refs,Allocation;uint64 Revision;xmqttpacket Packet;xmqttintentorder* Order;uint32 RemainingBase,Requirements;
 } xmqttintentgroup;
 typedef struct xmqttintententry {
     xmqttintentgroup* Group;size_t Topic,HashNext,Next,Previous;
@@ -7567,6 +7568,30 @@ static void xmqttIntentAccount(xmqttsubscriptions* S,unsigned Before,const xmqtt
 }
 static uint64 xmqttIntentHash(xstrview V)
 {uint64 H=UINT64_C(14695981039346656037);for(size_t I=0;I<V.Size;++I){H^=(unsigned char)V.Data[I];H*=UINT64_C(1099511628211);}return H;}
+/* Admission validates and owns the entire immutable packet. Cache the only
+ * per-filter negotiated capabilities; final Client admission still validates
+ * each emitted subset once. No growing-prefix codec scans under the Gate. */
+static uint32 xmqttIntentRequirements(xstrview Filter)
+{
+    uint32 Bits=Filter.Size>=7 && !memcmp(Filter.Data,"$share/",7)?XMQTT_INTENT_SHARED:0;
+    for(size_t I=0;I<Filter.Size;++I)if(Filter.Data[I]=='+' || Filter.Data[I]=='#'){Bits|=XMQTT_INTENT_WILDCARD;break;}
+    return Bits;
+}
+static bool xmqttIntentFits(xmqttsubscriptions* S,const xmqttintentgroup* G,size_t Topic,uint32* Remaining)
+{
+    const xmqttsubscription* T=G->Packet.Body.Topics.Data+Topic;
+    uint32 Extra=(uint32)T->Filter.Size+2u+(G->Packet.Type==XMQTT_PACKET_SUBSCRIBE);
+    if(Extra>XMQTT_VARIABLE_MAX-*Remaining)return false;
+    uint32 Next=*Remaining+Extra;size_t Width=Next<128u?1:Next<16384u?2:Next<2097152u?3:4;
+    size_t Bytes=1+Width+(size_t)Next;
+    if(Bytes>S->Peer.SendPacketBytes || Bytes>S->MaxOutgoingBytes)return false;
+    uint32 Bits=G->Requirements|G->Order[Topic].Requirements;
+    if(S->Peer.Version==XMQTT_VERSION_5 &&
+        (((Bits&XMQTT_INTENT_WILDCARD) && !S->Peer.WildcardAvailable) ||
+         ((Bits&XMQTT_INTENT_SHARED) && !S->Peer.SharedAvailable) ||
+         ((Bits&XMQTT_INTENT_SUBID) && !S->Peer.SubscriptionIdsAvailable)))return false;
+    *Remaining=Next;return true;
+}
 static bool xmqttIntentEqual(xstrview A,xstrview B)
 {return A.Size==B.Size && (!A.Size || !memcmp(A.Data,B.Data,A.Size));}
 static size_t xmqttIntentFind(xmqttsubscriptions* S,xstrview Filter,uint64 Hash)
@@ -7676,9 +7701,20 @@ static xmqttclientadmission xmqttSubscriptionsSubmit(xmqttreconnect* R,const xmq
         OK=R->Config.Client.Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,WireBytes,&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,NULL):xmqttPacketWrite311(Wire,WireBytes,&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,NULL);
         if(OK)OK=(R->Config.Client.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Wire,WireBytes},XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&B,&G->Packet,NULL):xmqttPacketRead311((xbytesview){Wire,WireBytes},XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&B,&G->Packet,NULL))==XMQTT_CODEC_DONE;
         if(OK){
-            for(size_t I=0;I<Count;++I)G->Order[I]=(xmqttintentorder){xmqttIntentHash(Topics[I].Filter),Topics[I].Filter,I,0};
-            xmqttIntentSort(G->Order,Count,false);
-            for(size_t I=1;I<Count;++I)if(xmqttIntentEqual(G->Order[I-1].Filter,G->Order[I].Filter)){OK=xmqttReconnectError(XERR_ARGUMENT,"duplicate filter in one intent");break;}
+            xmqttwireconfig W;xmqttWireConfigInit(&W);W.Version=R->Config.Client.Version;W.MaxPacketBytes=WireBytes;
+            xmqttfixedheader Header;OK=xmqttHeaderRead((xbytesview){Wire,WireBytes},&W,&Header)==XMQTT_WIRE_DONE;
+            if(OK){
+                G->RemainingBase=Header.RemainingLength;
+                for(size_t I=0;I<Count;++I){
+                    uint32 Bits=Type==XMQTT_PACKET_SUBSCRIBE && R->Config.Client.Version==XMQTT_VERSION_5?xmqttIntentRequirements(Topics[I].Filter):0;
+                    G->Order[I]=(xmqttintentorder){xmqttIntentHash(Topics[I].Filter),Topics[I].Filter,(uint32)I,Bits,0};
+                    G->RemainingBase-=(uint32)Topics[I].Filter.Size+2u+(Type==XMQTT_PACKET_SUBSCRIBE);
+                }
+                if(Type==XMQTT_PACKET_SUBSCRIBE)for(size_t I=0;I<Packet.Properties.Count;++I)
+                    if(Props[I].Id==XMQTT_PROPERTY_SUBSCRIPTION_ID)G->Requirements|=XMQTT_INTENT_SUBID;
+            }
+            if(OK)xmqttIntentSort(G->Order,Count,false);
+            for(size_t I=1;OK && I<Count;++I)if(xmqttIntentEqual(G->Order[I-1].Filter,G->Order[I].Filter)){OK=xmqttReconnectError(XERR_ARGUMENT,"duplicate filter in one intent");break;}
             if(OK)xmqttIntentSort(G->Order,Count,true);
         }
     }
@@ -7817,10 +7853,10 @@ static void xmqttSubscriptionsDrive(xmqttreconnect* R,xmqttclient* C,double Now,
     xmqttpacket Packet={0};xmqttintentwatch* Watch=NULL;
     if(Send){
         size_t N=S->Head;xmqttintentgroup* G=S->Entries[N].Group;Packet=G->Packet;Packet.Identifier=1;Packet.Body.Topics.Data=S->FlightTopics;Packet.Body.Topics.Count=0;
+        uint32 Remaining=G->RemainingBase;
         while(N!=XMQTT_INTENT_NONE && Packet.Body.Topics.Count<S->Config.MaxBatch && S->Entries[N].Group==G){
             xmqttintententry* E=S->Entries+N;size_t Count=Packet.Body.Topics.Count;S->FlightTopics[Count]=G->Packet.Body.Topics.Data[E->Topic];Packet.Body.Topics.Count=Count+1;
-            size_t Required=0;xmqttnegotiationstatus Status=xmqttNegotiatedPacketCheck(&S->Peer,&Packet,&R->Config.Client.Codec,&Required,NULL);
-            if(Status!=XMQTT_NEGOTIATION_DONE || Required>S->MaxOutgoingBytes){Packet.Body.Topics.Count=Count;
+            if(!xmqttIntentFits(S,G,E->Topic,&Remaining)){Packet.Body.Topics.Count=Count;
                 if(!Count){unsigned Before=xmqttIntentMetrics(S,E);xmqttIntentUnqueue(S,N);E->Attempted=E->Revision;E->Generation=S->Generation;E->Status=XMQTT_STATUS_RESTRICTED;E->Reason=0;
                     xmqttIntentAccount(S,Before,E);if(S->Config.FailOnRejected)Failure=XMQTT_STATUS_RESTRICTED;
                 }break;

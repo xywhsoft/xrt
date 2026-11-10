@@ -3546,6 +3546,175 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_subscription_batches",
+      "system": "client",
+      "description": "Loopback full subscription intent updates, 32/128/1024 filters per batch; latest immutable snapshot, Client validation, one ACK and settled notification per update; not broker throughput or fixed-arrival tail qualification",
+      "benchmarks": [
+        {
+          "name": "xmqtt_subscription_batch_32",
+          "source": "extlibs/xmqtt/bench/bench_subscriptions.c",
+          "suite": "xmqtt_reconnect_subscriptions,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "4",
+            "5",
+            "1024",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "updates_per_sec": {
+              "direction": "higher",
+              "unit": "update/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_update": {
+              "direction": "lower",
+              "unit": "blocks/update"
+            },
+            "heap_bytes_per_update": {
+              "direction": "lower",
+              "unit": "bytes/update"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_subscription_batch_128",
+          "source": "extlibs/xmqtt/bench/bench_subscriptions.c",
+          "suite": "xmqtt_reconnect_subscriptions,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "128",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "4",
+            "5",
+            "1024",
+            "128",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "updates_per_sec": {
+              "direction": "higher",
+              "unit": "update/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_update": {
+              "direction": "lower",
+              "unit": "blocks/update"
+            },
+            "heap_bytes_per_update": {
+              "direction": "lower",
+              "unit": "bytes/update"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_subscription_batch_1024",
+          "source": "extlibs/xmqtt/bench/bench_subscriptions.c",
+          "suite": "xmqtt_reconnect_subscriptions,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "1024",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "4",
+            "5",
+            "1024",
+            "1024",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "updates_per_sec": {
+              "direction": "higher",
+              "unit": "update/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_update": {
+              "direction": "lower",
+              "unit": "blocks/update"
+            },
+            "heap_bytes_per_update": {
+              "direction": "lower",
+              "unit": "bytes/update"
+            }
+          }
+        }
+      ]
     }
   ]
 }

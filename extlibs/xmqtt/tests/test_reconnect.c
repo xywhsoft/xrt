@@ -5,7 +5,10 @@
 #include <xrt/time.h>
 enum {RC_FAIL=1,RC_PERSIST=2,RC_CUT_PUBLISH=4,RC_ASSIGNED=8,RC_WRONG_FACTORY=16,RC_WORKER_BUDGET=32,RC_ALWAYS_CLEAN=64};
 typedef struct rcPeer rcPeer;
-typedef struct rcConnection {rcPeer* Peer;xnetstream* Stream;xatomic32 Closed;size_t Used;unsigned Index;unsigned char Input[4096];} rcConnection;
+#ifndef RC_INPUT_BYTES
+#define RC_INPUT_BYTES 4096
+#endif
+typedef struct rcConnection {rcPeer* Peer;xnetstream* Stream;xatomic32 Closed;size_t Used;unsigned Index;unsigned char Input[RC_INPUT_BYTES];} rcConnection;
 struct rcPeer {
     xnetengine* Engine;xtaskpool* Pool;xnetlistener* Listener;xnetaddr Address;xmqttversion Version;unsigned Mode;
     xatomic32 Accepted,Connects,Publishes,Replays,FactoryCalls,ListenerClosed,Notifications;

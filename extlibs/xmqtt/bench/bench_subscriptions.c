@@ -1,4 +1,5 @@
 #define MQTT_EXAMPLE_SUBSCRIPTIONS
+#define MQTT_EXAMPLE_SUBSCRIPTION_TOPICS 1024
 #include "../examples/common/client_peer.h"
 #include <xmqtt/reconnect_subscriptions.h>
 #include <inttypes.h>
@@ -22,7 +23,8 @@ int main(int Argc,char** Argv)
     unsigned Version=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):5;
     size_t Filters=Argc>3?(size_t)strtoull(Argv[3],NULL,10):1024,Batch=Argc>4?(size_t)strtoull(Argv[4],NULL,10):32;
     bool Instrument=Argc>5 && strtoul(Argv[5],NULL,10)!=0;
-    if(!Count || Count>200000 || !Filters || Filters>4096 || !Batch || Batch>32 || Batch>Filters || (Version!=4 && Version!=5) || Argc>6)return 1;
+    bool BatchUpdates=Argc>6 && strtoul(Argv[6],NULL,10)!=0;
+    if(!Count || Count>200000 || !Filters || Filters>4096 || !Batch || Batch>1024 || Batch>Filters || (BatchUpdates && Filters%Batch) || (Version!=4 && Version!=5) || Argc>7)return 1;
     mqttExamplePeer P;mqttExampleStart(&P,(xmqttversion)Version);xtaskpoolconfig PC={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&PC);mqttExampleCheck(Pool!=NULL,"benchmark Pool");
     intentBench B={0};mqttExampleCheck(xrtMutexInit(&B.Gate) && xrtCondInit(&B.Changed),"benchmark completion condition");
     xmqttsubscription* Topics=calloc(Filters,sizeof(*Topics));char (*Names)[32]=calloc(Filters,sizeof(*Names));double* Latency=malloc(Count*sizeof(*Latency));mqttExampleCheck(Topics && Names && Latency,"benchmark caller buffers");
@@ -39,7 +41,9 @@ int main(int Argc,char** Argv)
     if(Instrument)return 2;
 #endif
     Start=xrtTimer();uint64 Sum=0;
-    for(size_t N=0;N<Count;++N){xmqttsubscription Topic=Topics[N%Filters];Topic.Options=(uint8)(N%3);xmqttpacket Update=Initial;Update.Body.Topics=(xmqttsubscriptionlist){&Topic,1};uint64 Revision=0;double At=xrtTimer();
+    for(size_t N=0;N<Count;++N){size_t Width=BatchUpdates?Batch:1,Offset=(N*Width)%Filters;uint64 Revision=0;double At=xrtTimer();
+        for(size_t I=0;I<Width;++I)Topics[Offset+I].Options=(uint8)(N%3);
+        xmqttpacket Update=Initial;Update.Body.Topics=(xmqttsubscriptionlist){Topics+Offset,Width};
         mqttExampleCheck(xmqttReconnectSubscribeIntent(R,&Update,&Revision)==XMQTT_ADMISSION_ACCEPTED,"benchmark update admission");intentWait(&B,Revision);Latency[N]=(xrtTimer()-At)*1000000;Sum+=Revision;
     }
     double Seconds=xrtTimer()-Start;

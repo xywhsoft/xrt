@@ -209,3 +209,12 @@ control-result callbacks, and bounds snapshots, entries and actual watcher owner
 The [runnable loopback example](examples/reconnect_subscriptions/README.md) forces
 an outage and verifies restoration. This is volatile intent; publication offline
 queues, durable/crash state and WebSocket remain separate work.
+
+The `xmqtt_subscription_batches` performance profile measures acknowledged MQTT5
+intent updates with 32, 128 and 1024 filters per request against the loopback peer.
+Run `tools/measure_performance.py --config extlibs/xmqtt/config/performance_profiles.json --profiles xmqtt_subscription_batches --repeats 7 --warmups 1` with the selected compiler/architecture.
+`bench_subscriptions.c` accepts `updates version filters batch instrument [batch_updates]`;
+the final optional flag defaults to zero (single-filter updates). Setting it to
+one updates a full batch; filters must be divisible by batch. Heap measurements
+cover the entire loopback process. The existing 3% MAD/6% central-span gates apply;
+closed-loop observations do not qualify fixed-arrival production tails.

@@ -1,0 +1,1403 @@
+{
+  "schema": 1,
+  "date": "2026-11-11",
+  "stage": "linear negotiated subscription batch preflight",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "af97e10ec98e1e655c4caef7a8273ad1648ddd11",
+  "source_dirty_at_test_time": true,
+  "source_inputs": 2633,
+  "source_map_sha256": "e6e7a97d83020c9af99cc123ee5d44e5aa956528536349749cffb32922cadd6d",
+  "canonical_change_sha256": {
+    "docs/development/service-extensions-progress.md": "b6da8e841d3c5b1c1a298c63f910f68e003e52513f08832d506612828bc9fdc0",
+    "extlibs/xmqtt/README.md": "66ea74a4acf6cd7b90bea9bb02417b1beeb48690b267e4cc64724444d5900e43",
+    "extlibs/xmqtt/bench/bench_subscriptions.c": "f906d3d484bc8e12c5d8762f086c7b28bf776866142b4264bb54adef540508d3",
+    "extlibs/xmqtt/config/performance_profiles.json": "4cd5d541ff1e75320e6b0ad13d28f12330277ac39c480db8a4aa6d90d2ab5ebb",
+    "extlibs/xmqtt/docs/reconnect_subscriptions.md": "5976f8c57cd4d042971a8ce0017d4748091e7d50f929a9475ad04bd1e4715973",
+    "extlibs/xmqtt/examples/common/client_peer.h": "ec0801b0ae15b2d2e2f029f8279b396b37b849ec4d351d6aa59c0cb93b15e271",
+    "extlibs/xmqtt/src/client/reconnect.c": "f8265c2f9143986a949aeae7320269e5a8244a5d5980ae03d35ad40a67c68a27",
+    "extlibs/xmqtt/tests/test_reconnect.c": "444847c5b74b47c9ae339451cbf62b5460d8eb1808d30e318adcec29e0f1bbf4",
+    "extlibs/xmqtt/tests/test_reconnect_subscriptions.c": "3cadd76f4038a1240ad0d74eedcf03f0ea5ff5487c637ef62dc30190d98be015",
+    "single/extlibs/xmqtt.h": "a7f2bbcd0254c9c7b6665ee3c9e571d4188c0975f815ce3ba577bf0b6304d6e6"
+  },
+  "core_runtime_changes": false,
+  "public_api_changes": false,
+  "new_branches": 0,
+  "push": false,
+  "algorithm": {
+    "old_batch_preflight": "revalidate every growing prefix: quadratic topic visits within a batch",
+    "new_batch_preflight": "immutable admission metadata, constant work per candidate for encoded length and current capabilities",
+    "complete_intent_update": "encode/decode/hash and two heapsorts remain; final Client validation and snapshot remain",
+    "x64_group_payload_byte_delta": 8,
+    "x64_topic_order_record_bytes": 40,
+    "new_allocation_paths": 0
+  },
+  "new_cases": {
+    "wire_boundary_capacity": 32,
+    "capabilities_and_removal": 5
+  },
+  "platforms": {
+    "windows": {
+      "root_programs": 63,
+      "leaf_and_example_programs": 20,
+      "fully_instrumented_asan_ubsan_leak": false,
+      "tsan_unit_programs": 0,
+      "root_static_shared_packages": 2,
+      "additional_packaged_unit_example_programs": 4,
+      "standalone_declaration_consumers": 2,
+      "normal_checks": [
+        "features",
+        "single",
+        "reference",
+        "docs",
+        "maturity"
+      ],
+      "size_kinds": [
+        "single",
+        "static",
+        "shared"
+      ],
+      "validation_receipt_file": "windows-final-receipts.json"
+    },
+    "wsl": {
+      "root_programs": 63,
+      "leaf_and_example_programs": 20,
+      "fully_instrumented_asan_ubsan_leak": true,
+      "tsan_unit_programs": 1,
+      "root_static_shared_packages": 2,
+      "additional_packaged_unit_example_programs": 4,
+      "standalone_declaration_consumers": 2,
+      "normal_checks": [
+        "features",
+        "single",
+        "reference",
+        "docs",
+        "maturity"
+      ],
+      "size_kinds": [
+        "single",
+        "static",
+        "shared"
+      ],
+      "validation_receipt_file": "wsl-final-receipts.json"
+    }
+  },
+  "independent_broker": {
+    "broker": "Mosquitto 2.1.2",
+    "transport": "numeric TCP via independent byte proxy",
+    "cases": 128,
+    "matrix": "two protocols x persistent/clean x fragmented/unfragmented x first SUBACK loss/normal, eight build forms",
+    "builds": [
+      {
+        "build": "windows-static",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "windows-static-broker.json",
+        "sha256": "697e4b15a999b996c3cf23404122a563c5a9d1e5177cd87678366a58f1a8a77b"
+      },
+      {
+        "build": "windows-shared",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "windows-shared-broker.json",
+        "sha256": "8b02f9efe72b9c5c458d5e3ff873fc5a4c6afb1008d411187fa7972933051f22"
+      },
+      {
+        "build": "windows-single",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "windows-single-broker.json",
+        "sha256": "c236ad18c14967785a1db81ea0aca019f485a192567c0ce656edc4063c56eedc"
+      },
+      {
+        "build": "wsl-static",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "wsl-static-broker.json",
+        "sha256": "994e9bdda73d25377272fc76a2cb48be398e9d41bccc5b2ecaea535ab606453d"
+      },
+      {
+        "build": "wsl-shared",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "wsl-shared-broker.json",
+        "sha256": "2e7bce37711c0513efee050c86413f5ed11823576c59f31910dd651e005fbfe8"
+      },
+      {
+        "build": "wsl-single",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "wsl-single-broker.json",
+        "sha256": "c30bf468b2f0bc6aef93e95582b6046d03f2065b7f6efd9b77afc5eedf5ac6ee"
+      },
+      {
+        "build": "wsl-single-address-undefined",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "wsl-single-address-undefined-broker.json",
+        "sha256": "0354b20169feaf46056aae1288e2e4462f9a7d2143f5460f4dbb8007f67dcccc"
+      },
+      {
+        "build": "wsl-single-thread",
+        "cases": 16,
+        "all_passed": true,
+        "all_owned_processes_and_proxy_threads_reaped": true,
+        "report": "wsl-single-thread-broker.json",
+        "sha256": "9ff36580f9568fbc13a51b4dc737e541583d84619fdfd51902859deca58e7120"
+      }
+    ]
+  },
+  "controlled_performance": {
+    "same_remaining_runtime_objects_and_benchmark": true,
+    "samples": 7,
+    "warmups": 1,
+    "updates_per_sample": 512,
+    "noise_limits": {
+      "relative_mad": 0.03,
+      "relative_central_range": 0.06
+    },
+    "platforms_executed_serially_after_other_qualification": true,
+    "whole_loopback_allocation_scope": true,
+    "results": {
+      "windows": {
+        "report": "windows-batch-comparison.json",
+        "functional_workloads_passed": true,
+        "all_noise_gates_passed": false,
+        "comparisons": [
+          {
+            "batch": 1,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 32.25,
+                  "relative_mad": 0.012403100775193755,
+                  "relative_central_range": 0.03286821705426353,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 32.206,
+                  "relative_mad": 0.008321430789294051,
+                  "relative_central_range": 0.019623672607588693,
+                  "qualified": true
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 22414.85,
+                  "relative_mad": 0.01471332621007942,
+                  "relative_central_range": 0.03538065166619466,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 22547.517,
+                  "relative_mad": 0.009388173429473422,
+                  "relative_central_range": 0.030582791000889318,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 41.8,
+                  "relative_mad": 0.0023923444976075197,
+                  "relative_central_range": 0.007177033492822899,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 41.6,
+                  "relative_mad": 0.002403846153846188,
+                  "relative_central_range": 0.0072115384615383925,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 75.5,
+                  "relative_mad": 0.05033112582781453,
+                  "relative_central_range": 0.09801324503311247,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 74.8,
+                  "relative_mad": 0.037433155080213866,
+                  "relative_central_range": 0.141711229946524,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 131.0,
+                  "relative_mad": 0.06717557251908406,
+                  "relative_central_range": 0.19007633587786263,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 138.1,
+                  "relative_mad": 0.027516292541636372,
+                  "relative_central_range": 0.06372194062273702,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 371204.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 375308.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 1161.570312,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 1169.570312,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 1.0059187101408218,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 32,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 2.553,
+                  "relative_mad": 0.028202115158636923,
+                  "relative_central_range": 0.05170387779083436,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 2.149,
+                  "relative_mad": 0.05909725453699385,
+                  "relative_central_range": 0.15867845509539308,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 13480.637,
+                  "relative_mad": 0.015462622426521825,
+                  "relative_central_range": 0.04054778717059133,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 17690.798,
+                  "relative_mad": 0.01668884580559892,
+                  "relative_central_range": 0.04446645086332438,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 68.2,
+                  "relative_mad": 0.007331378299120234,
+                  "relative_central_range": 0.01612903225806464,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 52.2,
+                  "relative_mad": 0.0019157088122604274,
+                  "relative_central_range": 0.003831417624520991,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 121.5,
+                  "relative_mad": 0.02798353909465025,
+                  "relative_central_range": 0.08148148148148153,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 93.7,
+                  "relative_mad": 0.021344717182497332,
+                  "relative_central_range": 0.059765208110992465,
+                  "qualified": true
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 180.5,
+                  "relative_mad": 0.08144044321329634,
+                  "relative_central_range": 0.24432132963988917,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 169.6,
+                  "relative_mad": 0.04481132075471695,
+                  "relative_central_range": 0.11143867924528306,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 213082.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 213338.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 4103.625,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 4111.625,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 1.3123117253287064,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 128,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 3.297,
+                  "relative_mad": 0.0715802244464664,
+                  "relative_central_range": 0.20776463451622687,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 1.142,
+                  "relative_mad": 0.046409807355516586,
+                  "relative_central_range": 0.1654991243432573,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 2901.072,
+                  "relative_mad": 0.006057760717417585,
+                  "relative_central_range": 0.022131818858684007,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 11306.497,
+                  "relative_mad": 0.016469115058359858,
+                  "relative_central_range": 0.03279353454920643,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 322.2,
+                  "relative_mad": 0.011483550589695806,
+                  "relative_central_range": 0.04562383612662939,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 82.7,
+                  "relative_mad": 0.0036275695284159267,
+                  "relative_central_range": 0.008464328899637276,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 539.1,
+                  "relative_mad": 0.037469857169356205,
+                  "relative_central_range": 0.11018363939899828,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 141.6,
+                  "relative_mad": 0.03672316384180783,
+                  "relative_central_range": 0.08968926553672309,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 643.9,
+                  "relative_mad": 0.04861003261375983,
+                  "relative_central_range": 0.10684888957912712,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 208.4,
+                  "relative_mad": 0.019673704414587306,
+                  "relative_central_range": 0.13387715930902114,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 210202.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 210266.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 13208.5,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 13216.5,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 3.8973513928644303,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 1024,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 14.206,
+                  "relative_mad": 0.003308461213571772,
+                  "relative_central_range": 0.009221455722933989,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 0.994,
+                  "relative_mad": 0.05835010060362167,
+                  "relative_central_range": 0.15090543259557346,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 69.979,
+                  "relative_mad": 0.005358750482287543,
+                  "relative_central_range": 0.024107232169650862,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 2359.16,
+                  "relative_mad": 0.00659683955306111,
+                  "relative_central_range": 0.049443869851981105,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 13855.5,
+                  "relative_mad": 0.003240590379271743,
+                  "relative_central_range": 0.012673667496662001,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 425.8,
+                  "relative_mad": 0.009394081728511038,
+                  "relative_central_range": 0.09981211836542978,
+                  "qualified": false
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 20919.4,
+                  "relative_mad": 0.05841945753702315,
+                  "relative_central_range": 0.2276642733539202,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 563.3,
+                  "relative_mad": 0.0163323273566482,
+                  "relative_central_range": 0.07136516953665906,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 24871.9,
+                  "relative_mad": 0.08450500363864452,
+                  "relative_central_range": 0.19565051322978946,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 641.6,
+                  "relative_mad": 0.009819201995012575,
+                  "relative_central_range": 0.01433915211970064,
+                  "qualified": true
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 237138.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 237146.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 8.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 98178.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 98186.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 33.712399434115945,
+            "throughput_comparison_qualified": true
+          }
+        ]
+      },
+      "wsl": {
+        "report": "wsl-batch-comparison.json",
+        "functional_workloads_passed": true,
+        "all_noise_gates_passed": false,
+        "comparisons": [
+          {
+            "batch": 1,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 71.263,
+                  "relative_mad": 0.007675792486984988,
+                  "relative_central_range": 0.01777921221391179,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 70.336,
+                  "relative_mad": 0.015340650591446677,
+                  "relative_central_range": 0.06090764331210179,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 9479.849,
+                  "relative_mad": 0.00877819889325245,
+                  "relative_central_range": 0.011060619214504276,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 9438.989,
+                  "relative_mad": 0.017087635127024627,
+                  "relative_central_range": 0.03776336639443063,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 99.3,
+                  "relative_mad": 0.011077542799597266,
+                  "relative_central_range": 0.02416918429003027,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 98.3,
+                  "relative_mad": 0.01017293997965412,
+                  "relative_central_range": 0.022380467955239094,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 159.2,
+                  "relative_mad": 0.02575376884422107,
+                  "relative_central_range": 0.08793969849246232,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 172.6,
+                  "relative_mad": 0.01738122827346466,
+                  "relative_central_range": 0.06836616454229423,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 247.5,
+                  "relative_mad": 0.0654545454545454,
+                  "relative_central_range": 0.15595959595959605,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 265.1,
+                  "relative_mad": 0.1772915880799698,
+                  "relative_central_range": 0.41682384006035444,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 371204.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 375308.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 1481.570312,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 1489.570312,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 0.9956898047637678,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 32,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 4.202,
+                  "relative_mad": 0.04212279866730119,
+                  "relative_central_range": 0.09828653022370284,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 3.732,
+                  "relative_mad": 0.07395498392282965,
+                  "relative_central_range": 0.16345123258306535,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 7297.53,
+                  "relative_mad": 0.006411895531775843,
+                  "relative_central_range": 0.026762891005586806,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 8392.6,
+                  "relative_mad": 0.010434787789242991,
+                  "relative_central_range": 0.029546505254629263,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 128.0,
+                  "relative_mad": 0.004687499999999956,
+                  "relative_central_range": 0.013281249999999911,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 110.9,
+                  "relative_mad": 0.004508566275924256,
+                  "relative_central_range": 0.012623985572587967,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 213.0,
+                  "relative_mad": 0.048826291079812234,
+                  "relative_central_range": 0.13380281690140844,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 190.5,
+                  "relative_mad": 0.050393700787401546,
+                  "relative_central_range": 0.10761154855643044,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 290.0,
+                  "relative_mad": 0.09655172413793103,
+                  "relative_central_range": 0.2899965517241379,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 285.2,
+                  "relative_mad": 0.06872370266479672,
+                  "relative_central_range": 0.19074333800841517,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 213082.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 213338.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 4423.625,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 4431.625,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 1.1500603628899093,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 128,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 3.965,
+                  "relative_mad": 0.03883984867591423,
+                  "relative_central_range": 0.10416141235813374,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 1.867,
+                  "relative_mad": 0.033743974290305276,
+                  "relative_central_range": 0.07605784681306904,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 2338.034,
+                  "relative_mad": 0.004685988313257923,
+                  "relative_central_range": 0.022097625611945747,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 6601.886,
+                  "relative_mad": 0.006887425805292509,
+                  "relative_central_range": 0.016015120527679446,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 407.7,
+                  "relative_mad": 0.004415011037527622,
+                  "relative_central_range": 0.012999754721609054,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 141.9,
+                  "relative_mad": 0.004228329809725118,
+                  "relative_central_range": 0.016913319238900673,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 571.3,
+                  "relative_mad": 0.018904253457027752,
+                  "relative_central_range": 0.04323472781375818,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 238.9,
+                  "relative_mad": 0.025952281289242433,
+                  "relative_central_range": 0.06613645876935961,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 759.9,
+                  "relative_mad": 0.10646137649690746,
+                  "relative_central_range": 0.21752862218712984,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 304.3,
+                  "relative_mad": 0.14327965823200794,
+                  "relative_central_range": 0.2987183700295762,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 210202.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 210266.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 13528.5,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 13536.5,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 2.823691186697884,
+            "throughput_comparison_qualified": true
+          },
+          {
+            "batch": 1024,
+            "metrics": {
+              "initial_restore_ms": {
+                "baseline": {
+                  "median": 16.615,
+                  "relative_mad": 0.009268733072524822,
+                  "relative_central_range": 0.034306349684020486,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 1.441,
+                  "relative_mad": 0.03886190145732134,
+                  "relative_central_range": 0.12283136710617629,
+                  "qualified": false
+                }
+              },
+              "updates_per_sec": {
+                "baseline": {
+                  "median": 61.981,
+                  "relative_mad": 0.019199432084025712,
+                  "relative_central_range": 0.03770510317677992,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 1974.296,
+                  "relative_mad": 0.005821315547415351,
+                  "relative_central_range": 0.010644300550677355,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 15746.6,
+                  "relative_mad": 0.004051668296648234,
+                  "relative_central_range": 0.006585485120597496,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 484.6,
+                  "relative_mad": 0.005777961205117529,
+                  "relative_central_range": 0.010524143623607029,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 21654.501,
+                  "relative_mad": 0.11868202365873035,
+                  "relative_central_range": 0.3609826890030852,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 674.0,
+                  "relative_mad": 0.017062314540059347,
+                  "relative_central_range": 0.04406528189910986,
+                  "qualified": true
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 30182.402,
+                  "relative_mad": 0.11637914040108535,
+                  "relative_central_range": 0.27416307025530967,
+                  "qualified": false
+                },
+                "linear": {
+                  "median": 820.9,
+                  "relative_mad": 0.10951394810573759,
+                  "relative_central_range": 0.20453161164575479,
+                  "qualified": false
+                }
+              },
+              "registry_bytes": {
+                "baseline": {
+                  "median": 237138.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 237146.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 131840.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_update": {
+                "baseline": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 10.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_update": {
+                "baseline": {
+                  "median": 98498.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "linear": {
+                  "median": 98506.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              }
+            },
+            "observed_throughput_ratio": 31.85324534938126,
+            "throughput_comparison_qualified": true
+          }
+        ]
+      }
+    }
+  },
+  "remaining": [
+    "all four products remain developing and the complete plan remains active",
+    "managed subscriptions over TLS/DNS/enhanced Auth and wider shared/NoLocal/retained/expiry broker composition remain open",
+    "native Linux, fixed-arrival/contention tails, CPU/RSS, pinned upstream/manual comparison and >=72h soak remain required",
+    "offline publication queues, durable/crash recovery and WebSocket remain required"
+  ],
+  "production_or_global_performance_acceptance": false,
+  "references": [
+    "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html",
+    "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/errata01/os/mqtt-v3.1.1-errata01-os-complete.html"
+  ],
+  "size_deltas_vs_baseline": {
+    "windows": {
+      "single": {
+        "text": {
+          "baseline": 524852,
+          "linear": 525684,
+          "delta": 832
+        },
+        "data": {
+          "baseline": 2384,
+          "linear": 2384,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 11168,
+          "linear": 11168,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 732604,
+          "linear": 733476,
+          "delta": 872
+        }
+      },
+      "static": {
+        "text": {
+          "baseline": 162604,
+          "linear": 163084,
+          "delta": 480
+        },
+        "data": {
+          "baseline": 0,
+          "linear": 0,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 0,
+          "linear": 0,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 231924,
+          "linear": 232470,
+          "delta": 546
+        }
+      },
+      "shared": {
+        "text": {
+          "baseline": 179941,
+          "linear": 180485,
+          "delta": 544
+        },
+        "data": {
+          "baseline": 144,
+          "linear": 144,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 272,
+          "linear": 272,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 242452,
+          "linear": 242964,
+          "delta": 512
+        }
+      }
+    },
+    "wsl": {
+      "single": {
+        "text": {
+          "baseline": 536548,
+          "linear": 537564,
+          "delta": 1016
+        },
+        "data": {
+          "baseline": 4856,
+          "linear": 4856,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 10940,
+          "linear": 10940,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 939392,
+          "linear": 940608,
+          "delta": 1216
+        }
+      },
+      "static": {
+        "text": {
+          "baseline": 166235,
+          "linear": 166939,
+          "delta": 704
+        },
+        "data": {
+          "baseline": 192,
+          "linear": 192,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 0,
+          "linear": 0,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 293408,
+          "linear": 294264,
+          "delta": 856
+        }
+      },
+      "shared": {
+        "text": {
+          "baseline": 182569,
+          "linear": 183265,
+          "delta": 696
+        },
+        "data": {
+          "baseline": 1776,
+          "linear": 1776,
+          "delta": 0
+        },
+        "bss": {
+          "baseline": 8,
+          "linear": 8,
+          "delta": 0
+        },
+        "file": {
+          "baseline": 212704,
+          "linear": 212704,
+          "delta": 0
+        }
+      }
+    }
+  },
+  "evidence": {
+    "directory": "out/service-extensions/xmqtt-subscriptions-linear-20261111",
+    "files": 3397,
+    "inventory_sha256": "4cc3916bec36b98c3ff4f58656b5eab7878704fde55bf2fbaaf10799039b98ea"
+  }
+}

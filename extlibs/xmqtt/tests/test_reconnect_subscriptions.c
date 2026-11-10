@@ -3,6 +3,7 @@
 struct rcConnection;
 static bool subControl(struct rcConnection* C,const xmqttpacket* Packet);
 static void subConnack(struct rcConnection* C,xmqttpacket* Packet);
+#define RC_INPUT_BYTES 20000
 #define RC_CONTROL subControl
 #define RC_CONNACK subConnack
 #define main xmqttReconnectSubscriptionBaseTests
@@ -10,16 +11,24 @@ static void subConnack(struct rcConnection* C,xmqttpacket* Packet);
 #undef main
 #undef RC_CONTROL
 #undef RC_CONNACK
+#undef RC_INPUT_BYTES
 
-typedef struct subRecord {unsigned Generation;bool Remove;uint16 Identifier;uint32 SubscriptionId;size_t Count,WireBytes,UserProperties;uint8 Options[8];char Filters[8][64];} subRecord;
+typedef struct subRecord {unsigned Generation;bool Remove;uint16 Identifier;uint32 SubscriptionId;size_t Count,WireBytes,UserProperties;uint8 Options[8];size_t Lengths[8];char Filters[8][64];} subRecord;
 typedef struct subPeer {
-    rcPeer Base;xatomic32 Controls,Hold,Events;subRecord Records[256];xatomic32 PacketLimit;const xmqttmessage* HeldAck;xallocationbudget* WorkerBudget;xallocationscope WorkerScope;bool ScopeActive,BudgetEntered;uint64 EventRevision[256];uint8 EventOption[256];size_t NarrowOutgoing;
+    rcPeer Base;xatomic32 Controls,Hold,Events;subRecord Records[256];xatomic32 PacketLimit,Blocked;xmqttproperty PeerProperties[5];const xmqttmessage* HeldAck;xallocationbudget* WorkerBudget;xallocationscope WorkerScope;bool ScopeActive,BudgetEntered;uint64 EventRevision[256];uint8 EventOption[256];size_t NarrowOutgoing;
 } subPeer;
 static void subConnack(rcConnection* C,xmqttpacket* Packet)
 {
     subPeer* P=(subPeer*)C->Peer;
-    static const xmqttproperty Limit={XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE,XMQTT_PROPERTY_UINT32,{.Number=48}};
-    if(xrtAtomic32Load(&P->PacketLimit,XMEMORY_ACQUIRE) && P->Base.Version==XMQTT_VERSION_5)Packet->Properties=(xmqttpropertylist){&Limit,1};
+    /* Peer-owned descriptors remain valid through immediate rcSend encoding. */
+    xmqttproperty* Props=P->PeerProperties;size_t Count=0;
+    uint32 Limit=xrtAtomic32Load(&P->PacketLimit,XMEMORY_ACQUIRE),Blocked=xrtAtomic32Load(&P->Blocked,XMEMORY_ACQUIRE);
+    if(P->Base.Version==XMQTT_VERSION_5){
+        if(Limit)Props[Count++]=(xmqttproperty){XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE,XMQTT_PROPERTY_UINT32,{.Number=Limit==1?48:Limit}};
+        const uint32 Ids[]={XMQTT_PROPERTY_WILDCARD_AVAILABLE,XMQTT_PROPERTY_SHARED_AVAILABLE,XMQTT_PROPERTY_SUBSCRIPTION_ID_AVAILABLE,XMQTT_PROPERTY_MAXIMUM_QOS};
+        for(unsigned I=0;I<4;++I)if(Blocked&(1u<<I))Props[Count++]=(xmqttproperty){Ids[I],XMQTT_PROPERTY_BYTE,{.Number=0}};
+        if(Count)Packet->Properties=(xmqttpropertylist){Props,Count};
+    }
 }
 static void subAck(subPeer* P,unsigned Index)
 {
@@ -35,14 +44,14 @@ static bool subControl(rcConnection* C,const xmqttpacket* Packet)
     if(Packet->Type!=XMQTT_PACKET_SUBSCRIBE && Packet->Type!=XMQTT_PACKET_UNSUBSCRIBE)return false;
     subPeer* P=(subPeer*)C->Peer;unsigned N=xrtAtomic32Load(&P->Controls,XMEMORY_RELAXED);testRequire(N<256 && Packet->Body.Topics.Count<=8,"bounded subscription fixture");
     subRecord* R=P->Records+N;R->Generation=C->Index;R->Remove=Packet->Type==XMQTT_PACKET_UNSUBSCRIBE;R->Identifier=Packet->Identifier;R->Count=Packet->Body.Topics.Count;R->WireBytes=Packet->Wire.Size;
-    for(size_t I=0;I<R->Count;++I){xmqttsubscription T=Packet->Body.Topics.Data[I];testRequire(T.Filter.Size<sizeof(R->Filters[I]),"fixture filter size");memcpy(R->Filters[I],T.Filter.Data,T.Filter.Size);R->Filters[I][T.Filter.Size]=0;R->Options[I]=T.Options;}
+    for(size_t I=0;I<R->Count;++I){xmqttsubscription T=Packet->Body.Topics.Data[I];size_t Copy=T.Filter.Size<sizeof(R->Filters[I])-1?T.Filter.Size:sizeof(R->Filters[I])-1;memcpy(R->Filters[I],T.Filter.Data,Copy);R->Filters[I][Copy]=0;R->Lengths[I]=T.Filter.Size;R->Options[I]=T.Options;}
     for(size_t I=0;I<Packet->Properties.Count;++I){const xmqttproperty* Q=Packet->Properties.Data+I;if(Q->Id==XMQTT_PROPERTY_SUBSCRIPTION_ID)R->SubscriptionId=Q->Value.Number;
         if(Q->Id==XMQTT_PROPERTY_USER){testRequire(Q->Value.Pair.Name.Size==6 && !memcmp(Q->Value.Pair.Name.Data,"source",6) && Q->Value.Pair.Value.Size==8 && !memcmp(Q->Value.Pair.Value.Data,"snapshot",8),"copied user property bytes");++R->UserProperties;}}
     if(!xrtAtomic32Load(&P->Hold,XMEMORY_ACQUIRE))subAck(P,N);
     xrtAtomic32Store(&P->Controls,N+1,XMEMORY_RELEASE);return true;
 }
 static void subStart(subPeer* P,xmqttversion Version,unsigned Mode)
-{memset(P,0,sizeof(*P));xrtAtomic32Init(&P->Controls,0);xrtAtomic32Init(&P->Hold,0);xrtAtomic32Init(&P->Events,0);xrtAtomic32Init(&P->PacketLimit,0);rcStart(&P->Base,Version,Mode);}
+{memset(P,0,sizeof(*P));xrtAtomic32Init(&P->Controls,0);xrtAtomic32Init(&P->Hold,0);xrtAtomic32Init(&P->Events,0);xrtAtomic32Init(&P->PacketLimit,0);xrtAtomic32Init(&P->Blocked,0);rcStart(&P->Base,Version,Mode);}
 static xmqttpacket subPacket(xmqttsubscription* Topics,size_t Count,bool Remove)
 {xmqttpacket P;xmqttPacketInit(Remove?XMQTT_PACKET_UNSUBSCRIBE:XMQTT_PACKET_SUBSCRIBE,&P);P.Body.Topics=(xmqttsubscriptionlist){Topics,Count};return P;}
 static void subResult(xmqttreconnect* R,uint64 Revision,const xmqttpacket* Request,const xmqttsubscriptionresult* Result,ptr Data)
@@ -175,6 +184,52 @@ static void subPacketLimits(void)
     testRequire(xmqttReconnectSubscribeIntent(R,&Packet,&V)==XMQTT_ADMISSION_ACCEPTED,"locally valid but peer-restricted intent");S=subSynchronized(R,V);xmqttsubscriptionintentinfo I;
     testRequire(S.Requests==3 && S.Rejected==1 && xmqttReconnectSubscriptionInfo(R,Long.Filter,&I) && I.Status==XMQTT_STATUS_RESTRICTED && !I.Confirmed,"explicit local peer restriction without a wire request");rcClose(R);subStop(&P);
 }
+/* Public codec bytes are the oracle: an exact cap admits the long filter,
+ * one byte less rejects it locally, and the short following filter survives.
+ * Exercise Remaining Length and Property Length encoding width transitions. */
+static void subSizingBoundaries(void)
+{
+    const uint32 Boundaries[]={127,128,16383,16384};
+    for(unsigned Version=0;Version<2;++Version)for(unsigned Remove=0;Remove<2;++Remove)for(size_t B=0;B<4;++B)for(unsigned Below=0;Below<2;++Below){
+        subPeer* P=calloc(1,sizeof(*P));testRequire(P!=NULL,"large boundary fixture");subStart(P,Version?XMQTT_VERSION_311:XMQTT_VERSION_5,0);
+        xmqttreconnectconfig K;xmqttpacket Connect;xmqttproperty Expiry;rcConfig(&P->Base,&K,&Connect,&Expiry);
+        xmqttproperty Props[8];for(size_t I=0;I<8;++I)Props[I]=(xmqttproperty){XMQTT_PROPERTY_USER,XMQTT_PROPERTY_STRING_PAIR,{.Pair={XRT_STR_LITERAL("source"),XRT_STR_LITERAL("snapshot")}}};
+        char* Filter=malloc(16384);testRequire(Filter!=NULL,"boundary filter");memset(Filter,'a',16384);
+        xmqttsubscription Topics[]={{{Filter,1},Remove?0:2},{XRT_STR_LITERAL("tail"),Remove?0:1}};
+        xmqttpacket Packet=subPacket(Topics,1,Remove!=0);Packet.Identifier=1;
+        if(!Version && B>=2)Packet.Properties=(xmqttpropertylist){Props,8};
+        unsigned char Wire[20000];size_t Bytes=0;xmqttfixedheader Header;xmqttwireconfig W;xmqttWireConfigInit(&W);W.Version=P->Base.Version;
+        testRequire((Version?xmqttPacketWrite311(Wire,sizeof(Wire),&Packet,XMQTT_CLIENT_TO_SERVER,NULL,&Bytes):xmqttPacketWrite5(Wire,sizeof(Wire),&Packet,XMQTT_CLIENT_TO_SERVER,NULL,&Bytes)) && xmqttHeaderRead((xbytesview){Wire,Bytes},&W,&Header)==XMQTT_WIRE_DONE,"public codec boundary base");
+        Topics[0].Filter.Size+=Boundaries[B]-Header.RemainingLength;
+        testRequire((Version?xmqttPacketWrite311(Wire,sizeof(Wire),&Packet,XMQTT_CLIENT_TO_SERVER,NULL,&Bytes):xmqttPacketWrite5(Wire,sizeof(Wire),&Packet,XMQTT_CLIENT_TO_SERVER,NULL,&Bytes)) && xmqttHeaderRead((xbytesview){Wire,Bytes},&W,&Header)==XMQTT_WIRE_DONE && Header.RemainingLength==Boundaries[B],"independent exact encoded length oracle");
+        K.Client.MaxOutgoingBytes=Bytes-Below;
+        /* MQTT5 also exercises the peer cap independently of local capacity. */
+        if(!Version){xrtAtomic32Store(&P->PacketLimit,(uint32)(Bytes-Below),XMEMORY_RELEASE);K.Client.MaxOutgoingBytes=65536;}
+        xmqttsubscriptionsconfig S;xmqttSubscriptionsConfigInit(&S);S.MaxFilters=2;S.MaxBatch=2;S.FailOnRejected=false;
+        xmqttreconnect* R=NULL;testRequire(xmqttReconnectCreateSubscribed(P->Base.Engine,P->Base.Pool,1,&K,&S,&Connect,NULL,0,&R),"boundary controller");(void)rcOnline(R,1);
+        Packet.Identifier=0;Packet.Body.Topics.Count=2;uint64 Revision=0;
+        testRequire((Remove?xmqttReconnectUnsubscribeIntent(R,&Packet,&Revision):xmqttReconnectSubscribeIntent(R,&Packet,&Revision))==XMQTT_ADMISSION_ACCEPTED,"boundary intent admission");
+        xmqttsubscriptionsinfo Info=subSynchronized(R,Revision);rcWait(&P->Controls,Below?1:2);
+        testRequire(Info.Requests==(Below?1u:2u) && Info.Rejected==Below && !Info.AdmissionRetries,"exact boundary split/restriction without admission retries");
+        if(!Below)testRequire(P->Records[0].Count==1 && P->Records[0].Lengths[0]==Topics[0].Filter.Size && P->Records[0].WireBytes==Bytes,"wire bytes equal public codec at width boundary");
+        testRequire(P->Records[Below?0:1].Count==1 && !strcmp(P->Records[Below?0:1].Filters[0],"tail"),"later filter remains ordered after split/restriction");
+        rcClose(R);subStop(P);free(Filter);free(P);
+    }
+}
+static void subCapabilities(void)
+{
+    for(unsigned Mode=0;Mode<5;++Mode){subPeer P;subStart(&P,XMQTT_VERSION_5,0);
+        xrtAtomic32Store(&P.Blocked,Mode==3?4u:Mode==4?8u:1u<<Mode,XMEMORY_RELEASE);
+        xmqttsubscription Topics[]={{XRT_STR_LITERAL("allowed"),2},{Mode==1?XRT_STR_LITERAL("$share/g/topic"):XRT_STR_LITERAL("wild/+"),1},{XRT_STR_LITERAL("later"),1}};
+        xmqttproperty Id={XMQTT_PROPERTY_SUBSCRIPTION_ID,XMQTT_PROPERTY_VARIABLE,{.Number=42}};xmqttpacket Packet=subPacket(Topics,3,false);if(Mode==2)Packet.Properties=(xmqttpropertylist){&Id,1};
+        xmqttreconnect* R=subCreate(&P,&Packet,1,8,false);(void)rcOnline(R,1);xmqttsubscriptionsinfo I=subSynchronized(R,1);
+        unsigned Rejected=Mode==2?3:Mode<2?1:0,Requests=Mode==2?0:Mode<2?2:1;
+        testRequire(I.Rejected==Rejected && I.Requests==Requests && !I.AdmissionRetries,"cached capabilities preserve per-filter restrictions and requested QoS above peer publish maximum");
+        Packet=subPacket(Topics,3,true);for(unsigned N=0;N<3;++N)Topics[N].Options=0;uint64 Revision=0;
+        testRequire(xmqttReconnectUnsubscribeIntent(R,&Packet,&Revision)==XMQTT_ADMISSION_ACCEPTED,"removal ignores subscription-only capabilities");I=subSynchronized(R,Revision);
+        testRequire(!I.Filters && !I.Rejected && I.Requests==Requests+1,"all removals allowed and reclaimed");rcClose(R);subStop(&P);
+    }
+}
 static void subDeadlines(void)
 {
     for(unsigned Mode=0;Mode<3;++Mode){subPeer P;subStart(&P,XMQTT_VERSION_5,0);xrtAtomic32Store(&P.Hold,1,XMEMORY_RELEASE);
@@ -259,6 +314,6 @@ int main(void)
 {
     subHappy(XMQTT_VERSION_5,false);subHappy(XMQTT_VERSION_5,true);subHappy(XMQTT_VERSION_311,false);subHappy(XMQTT_VERSION_311,true);
     subSuperseded();subRejected(true,XMQTT_VERSION_5);subRejected(false,XMQTT_VERSION_5);subRejected(true,XMQTT_VERSION_311);subRejected(false,XMQTT_VERSION_311);subOffline();
-    subLocalPacketLimit();subLargeSnapshot();subLimits();subPacketLimits();subDeadlines();subOOM();subWorkerOOM();subConcurrent();
+    subLocalPacketLimit();subLargeSnapshot();subLimits();subPacketLimits();subSizingBoundaries();subCapabilities();subDeadlines();subOOM();subWorkerOOM();subConcurrent();
     puts("[PASS] automatic subscription intent recovery: bounded snapshots, split properties, session loss/resumption, supersession, per-filter rejection and offline tombstones");return 0;
 }
