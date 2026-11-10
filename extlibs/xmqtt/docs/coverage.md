@@ -391,3 +391,30 @@ parent raw and qualified bounds pass, while wide-window noise and Session/ordina
 raw overhead failures remain. This is not full performance/production acceptance.
 The linked result preserves measurements, failed preparations, rejected variants,
 source identities and remaining release gates.
+
+## Explicit TCP Session Dial/Auth composition
+
+The [Dial/Auth stage](../tests/results/session-dial-20261110.json) adds numeric
+Session Auth plus hostname/prepared Session factories and their MQTT5 Auth variants.
+Numeric Auth stays independently selectable without Dial/Resolver/TLS. Existing
+entry deadline, passive claims, native retirement and proof-gated Session open/
+reset/replay are reused. Reauthentication does not reopen Session; algorithms/
+credentials remain application-owned. No new per-publication logic/data or Core
+runtime is introduced.
+
+Both OSes pass50 full,10 trimmed and8 minimal programs; WSL adds full ASan/UBSan/
+leak, three strict runs and Auth-enabled TSan. Two-Engine short-read/write cases
+cover three outgoing QoS stages, incoming deduplication, proof failures, DNS/
+refusal/cancel/timeout, allocation prefixes and exclusive claim rollback. Twelve
+package verifications,12 packaged public-API tests and16 runnable example modes
+pass across both OSes. Actual packages also pass80 independent broker ACK-cut
+cases using both new Dial constructors and both protocol versions. Authentication
+algorithm/plugin, TLS cuts and native production scope are not inferred.
+
+Core139 and8/9 MQTT members match parent packages; only Client changes. Public/
+private layouts remain unchanged. Four registered prepared-Dial benchmark profiles
+pass smoke. Matched observations retain raw failures and noise gates: Windows
+wide raw throughput/P99 and WSL311 wide raw P99 failures are unqualified; no full
+performance/production acceptance is claimed. The linked report records exact
+source identities, initial single-entry compiler failure/correction, package input
+equivalence, measurements and remaining release work.

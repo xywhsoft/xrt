@@ -48,6 +48,9 @@
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION 1
 #endif
+#if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL 1
+#endif
 #if !defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS 1
 #endif
@@ -98,6 +101,9 @@
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION 1
+#endif
+#if !defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL)
+#define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL 1
 #endif
 #if !defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS)
 #define XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS 1
@@ -2614,6 +2620,22 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
 #endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
+#endif
+#endif
+
+/* xmqtt_client_session_dial 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
+#define XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#endif
 #endif
 
 /* xmqtt_client_session_tls 及其直接依赖。 */
@@ -4149,6 +4171,8 @@ XRT_EXTERN_C_END
 
 #ifndef XMQTT_CLIENT_SESSION_H
 #define XMQTT_CLIENT_SESSION_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
 #error "MQTT Client Session requires Client Inbox and Session"
 #endif
@@ -4190,12 +4214,25 @@ XRT_EXTERN_C_BEGIN
  * under host queue pressure. Native loans retain both request and packet data.
  * Replay adds no payload copy. Independent request/packet headers remain separate
  * allocations; alias locking, small header copies and native leases have costs.
- * Optional client_session_tls composes TLS/Dial/Auth. Plain Dial/Auth composition,
- * assigned-id adoption, automatic reconnect and durable recovery remain separate
+ * Optional client_session_dial and client_session_tls compose Dial/TLS. Enhanced
+ * authentication is selected independently. Assigned-id adoption, automatic
+ * reconnect and durable recovery remain separate
  * work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
     const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* MQTT5 enhanced authentication on numeric TCP. Auth tickets, challenge rounds,
+ * finite decision/setup deadlines and final proof follow Client Auth. Session
+ * opening/reset/replay waits for local initial proof acceptance. Pre-acceptance
+ * failure preserves offline state and expiry; after acceptance a local replay
+ * failure can follow an authenticated reset/resume before Ready succeeds.
+ * Auth/CONNECT are copied; credentials are not stored in the passive Session.
+ * Reauthentication uses the existing connection and does not reopen Session. */
+XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -4253,6 +4290,49 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/client_session_dial.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_CLIENT_SESSION_DIAL_H
+#define XMQTT_CLIENT_SESSION_DIAL_H
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) || !defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL))
+#error "MQTT Dial Session requires Client Session and Dial"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+XRT_EXTERN_C_BEGIN
+/* Explicit TCP Session/Inbox with hostname or prepared endpoints. All passive
+ * ownership, identity, replay and physical-retirement rules follow Client Session.
+ * Dial copies host/config/CONNECT and retains prepared endpoints before return.
+ * Resolver stays alive through physical Client retirement; detached shared DNS
+ * jobs remain Resolver-owned. One entry setup deadline spans DNS, TCP and MQTT,
+ * including application proof when Auth is selected. Failed setup/denied proof
+ * preserves offline state/expiry. Caller binds all endpoints to the same broker/
+ * security principal; fallback is connection setup, not automatic reconnect.
+ * Native Dial/Resolver bounds remain separate from MQTT private/request bounds.
+ * Output changes only on success. Neither passive owner stores credentials.
+ * TCP has no transport encryption; select client_session_tls for TLS. */
+XMQTT_API bool xmqttClientDialSession(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientDialAddressesSession(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* MQTT5 challenge/final-proof/reauthentication follow Client Auth. Application
+ * final proof gates Session opening and replay; all deadlines share factory entry. */
+XMQTT_API bool xmqttClientDialSessionAuth(xnetengine* Engine,xnetresolver* Resolver,xstrview Host,uint16 Port,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+XMQTT_API bool xmqttClientDialAddressesSessionAuth(xnetengine* Engine,xnetaddrlist* Addresses,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttclientdialconfig* Dial,const xmqttauthconfig* Auth,
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
+#endif
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -4300,6 +4380,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 #undef XMQTT_FEATURE_XMQTT_CLIENT_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+#undef XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS)
 #undef XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS
@@ -4368,6 +4452,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION)
 #undef XMQTT_MODULE_XMQTT_CLIENT_SESSION
 #undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL)
+#undef XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
+#undef XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS)
 #undef XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
@@ -6118,6 +6206,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION_TLS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
+#endif
+#endif
+
+/* xmqtt_client_session_dial 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL)
+#ifndef XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
+#define XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_DIAL
+#define XMQTT_MODULE_XMQTT_CLIENT_DIAL
 #endif
 #endif
 

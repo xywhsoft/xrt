@@ -7,7 +7,9 @@ and expiry. The optional [Client Session factory](docs/client_session.md) now at
 to numeric TCP with explicit reconnect and a shared Inbox. Optional
 [TLS Client Session](docs/client_session_tls.md) composes numeric, hostname and
 prepared-address TLS, including MQTT5 challenge/final-proof authentication.
-Plain Dial/Auth composition, automatic reconnect and durable recovery remain required work.
+[TCP Dial/Auth Session](docs/client_session_dial.md) adds hostname/prepared TCP
+recovery and numeric/hostname/prepared enhanced-auth factories. Automatic reconnect
+and durable recovery remain required work.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
@@ -28,7 +30,7 @@ uses bounded Core DNS and candidate racing with the original setup deadline.
 Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages
 and one shared physical object quota through sequential Client/Engine destruction.
 Its ordinary factory preserves application payloads; the optional Client Session
-factories additionally restore protocol state over numeric TCP or verified TLS.
+factories additionally restore protocol state over numeric/hostname/prepared TCP or verified TLS.
 No broker or production/performance acceptance is claimed.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt

@@ -9765,3 +9765,95 @@ out/service-extensions/xmqtt-session-id-fast-20261110. Predecessor session-ids,
 session-ids-zero and session-id-scan artifact directories retain rejected sources,
 receipts and observations. A failed wildcard build selector ran no test; exact
 selectors replaced it, and its failed logs remain.
+
+## 2026-11-10: plain TCP Session Dial and enhanced authentication
+
+Five constructors complete explicit TCP Session/Inbox composition: numeric
+ConnectSessionAuth, hostname/prepared DialSession, and their two SessionAuth
+variants. The new client_session_dial leaf depends only on existing Session and
+Dial. Numeric Session Auth requires Session+Auth without Dial/Resolver/TLS, proven
+by a guarded single entry and actual minimal static/shared packages. Constructors
+reuse existing validation, native bounds, ownership and one captured entry deadline.
+No new Core/runtime or per-publication logic/data is introduced.
+
+Local initial proof gates Session open/reset/replay. Denied proof, DNS/refusal,
+setup timeout/cancellation and failed constructors preserve old offline obligations
+and expiry. After accepted gates, replay construction may follow a reset/resume
+before Ready succeeds. Reauthentication uses the existing verified connection
+without reopening Session. Credentials stay outside passive state; Auth algorithms
+remain application-owned. TCP does not acquire TLS protection implicitly.
+
+Windows and WSL each pass50 full programs (44 MQTT+3 Time+3 Atomic),10 trimmed
+Dial Session programs and8 existing minimal Session programs. WSL includes full
+ASan/UBSan/leak, three direct strict binary runs and an Auth-enabled TSan target.
+Each root modular new test covers24 normal/tiny DNS/prepared two-Engine recoveries
+and18 authenticated numeric/DNS/prepared recoveries, spanning three outgoing QoS
+cut stages plus incoming QoS2 deduplication, immutable input and retained outcomes.
+It also checks12 proof reject/timeout/cancel/close cases,10 DNS/connect failures,
+35 constructor allocation prefixes, invalid inputs and five exclusive-claim pairs.
+Held proof tickets retain physical claims; failed Inbox claim refunds a newly
+claimed Session; passive state can retire before detached DNS lookup completes.
+
+Both platforms pass six root/Dial+Auth/numeric-Auth static/shared package commands
+with generic verification. Twelve additional packaged public-API test runs and
+16 hostname/prepared example runs pass across both OSes. The new runnable example
+uses copied DNS host or refused/live prepared endpoints, two Engines and PUBREL-
+only QoS2 recovery. All five new symbols exist in root/Dial packages; only numeric
+Session Auth exists in the minimal package. All139 Core and8/9 MQTT archive members
+match parent packages; only Client changes. Public config/info remain272/160,
+Session config/info112/88, Auth config32 and Dial config48 bytes. Private Client
+stays1208/1416 and Session driver144/216 (Windows/WSL); request header104 bytes.
+Both OSes pass generated/features/API/docs/maturity and89 focused tool tests.
+
+Actual root-static packages pass80 independent Mosquitto2.1.2 recovery cases:
+20 per constructor/platform across hostname asynchronous custom Resolver and
+prepared endpoints, MQTT5/311, five ACK cuts and normal65537/fragmented257 binary
+payloads. Original probe/proxy protocol assertions remain, including canonical
+id/DUP/alias-free replay, PUBREL-only recovery, incoming deduplication and physical
+closure. Custom Resolver forces a real asynchronous named lookup; this is not
+system DNS/internet resolution or authentication-plugin interoperability. All
+processes/threads are joined by the existing bounded runner. Broker restart,
+durable/automatic recovery and TLS cuts remain separate gates.
+
+The new prepared-Dial steady-state benchmark and four registered timing/allocation
+profiles pass checksum smoke on both OSes. Matched7-sample/1-warmup observations
+use actual MQTT packages and the same140-object diagnostic/TLS-fixture Core from
+unchanged sources. Numeric before/after and prepared/numeric comparisons keep
+3% MAD/6% central-range,5% throughput and10% P99 limits. No own compilation overlaps
+timed samples. Shared-host noise, closed-loop observation and excluded cold
+DNS/Auth/setup/retirement costs prevent full acceptance.
+
+| OS | Comparison | Qualified throughput/P99 | Qualified failures T/P99 | Raw failures T/P99 |
+| --- | --- | --- | --- | --- |
+| windows | numeric after/before | 0/0 | 0/0 | 1/1 |
+| windows | prepared/numeric | 1/0 | 0/0 | 0/0 |
+| wsl | numeric after/before | 3/2 | 0/0 | 0/1 |
+| wsl | prepared/numeric | 2/2 | 0/0 | 0/0 |
+
+Windows5/window32 raw numeric throughput loses7.60%, P99 grows13.76%; WSL311/
+window32 raw P99 grows40.01%. All are unqualified and retained. No qualified bound
+failure is observed, but qualification coverage is incomplete. Window1 Windows
+heap counters are identical for all three binaries (8.0003 blocks and1325.1016/
+1323.1016 bytes per MQTT5/311 exchange). WSL variation includes sampled native
+client/server activity. These are requested-block windows, not RSS/cold setup or
+proof of zero overhead. Earlier Session/ordinary TLS overhead failures stay open.
+
+Preparatory failures are preserved: test budget API/type and conditional-indentation
+compiler errors; unquoted PowerShell comma paths created three task-owned junctions
+whose targets were verified before removing only the links and preserving caches
+on C; initial complete runs passed22 modular programs then hit Auth single macro
+redefinition. Guarded test entry definitions fix it and both50-program full suites
+were rerun. Packages preceded only that test-wrapper edit: all production/config/
+generated/package inputs remain byte-identical, explicitly recorded. A checksum
+capture initially assumed1-based TLS sequences; the plain echo workload is0-based.
+The benchmark itself passed its own checksum; capture was corrected, failed log
+retained and matched observations rerun.
+
+Performance/production acceptance remains false and all four products developing.
+Continue with TLS partial-prefix/ACK-cut and mutual-auth/resumption composition,
+assigned ids, automatic/durable recovery, WebSocket, further broker/auth-plugin
+interop, fixed-arrival/contention, native Linux and>=72h gates. The full objective
+stays active. Development remains on D:/GIT/xrt master without a branch operation
+or push. Evidence: extlibs/xmqtt/tests/results/session-dial-20261110.json and
+out/service-extensions/xmqtt-session-dial-20261110 (C-backed immutable evidence;
+mutable caches live under a separate service-extensions-build root).

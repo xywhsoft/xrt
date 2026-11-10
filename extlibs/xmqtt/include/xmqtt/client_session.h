@@ -2,6 +2,9 @@
 #define XMQTT_CLIENT_SESSION_H
 #include <xmqtt/client_inbox.h>
 #include <xmqtt/session.h>
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+#include <xmqtt/client_auth.h>
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION) && (!defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX) || !defined(XMQTT_FEATURE_XMQTT_SESSION))
 #error "MQTT Client Session requires Client Inbox and Session"
 #endif
@@ -43,12 +46,25 @@ XRT_EXTERN_C_BEGIN
  * under host queue pressure. Native loans retain both request and packet data.
  * Replay adds no payload copy. Independent request/packet headers remain separate
  * allocations; alias locking, small header copies and native leases have costs.
- * Optional client_session_tls composes TLS/Dial/Auth. Plain Dial/Auth composition,
- * assigned-id adoption, automatic reconnect and durable recovery remain separate
+ * Optional client_session_dial and client_session_tls compose Dial/TLS. Enhanced
+ * authentication is selected independently. Assigned-id adoption, automatic
+ * reconnect and durable recovery remain separate
  * work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
     const xmqttpacket* Connect,xmqttclient** Client);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+/* MQTT5 enhanced authentication on numeric TCP. Auth tickets, challenge rounds,
+ * finite decision/setup deadlines and final proof follow Client Auth. Session
+ * opening/reset/replay waits for local initial proof acceptance. Pre-acceptance
+ * failure preserves offline state and expiry; after acceptance a local replay
+ * failure can follow an authenticated reset/resume before Ready succeeds.
+ * Auth/CONNECT are copied; credentials are not stored in the passive Session.
+ * Reauthentication uses the existing connection and does not reopen Session. */
+XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xmqttclientconfig* Config,const xmqttauthconfig* Auth,xmqttsession* Session,xmqttclientinbox* Inbox,
+    const xmqttpacket* Connect,xmqttclient** Client);
+#endif
 XRT_EXTERN_C_END
 #endif
 #endif

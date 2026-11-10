@@ -1,0 +1,2 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#include "test_single_xmqtt_client_session_dial.c"

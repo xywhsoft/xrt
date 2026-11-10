@@ -5,12 +5,14 @@
  * implementation used by the product. Each instance accepts one connection. */
 enum {MQTT_RESUME_HOLD_READY=1,MQTT_RESUME_HOLD_ACK=2,MQTT_RESUME_HOLD_REC=4,MQTT_RESUME_HOLD_COMP=8,MQTT_RESUME_EARLY_ACK=16};
 typedef struct mqttResumeCaps {uint16 ReceiveMaximum,AliasMaximum;uint32 PacketMaximum;uint8 MaximumQos,Reason;uint16 EarlyId;} mqttResumeCaps;
+struct mqttResumePeer;
+typedef void (*mqttResumeFrameHandler)(struct mqttResumePeer*,xnetstream*,xmqttframe);
 typedef struct mqttResumePeer {
     xnetengine* Engine;xnetlistener* Listener;xnetaddr Address;xmqttversion Version;unsigned Mode;bool Present;
     uint16 ReceiveMaximum,AliasMaximum;uint32 PacketMaximum;uint8 MaximumQos,Reason;
     xatomicptr Stream;xatomic32 Closed,ListenerClosed,Connects,Publishes,Releases,Pubacks,Pubrecs,Pubcomps,Disconnects,LogCount;
     struct {uint16 Id,Alias;uint8 Qos,Flags,Users;size_t Topic,Payload;unsigned char First,TopicFirst,LogicalFirst;uint64 UserHash;} Log[32];
-    unsigned char AliasFirst;
+    unsigned char AliasFirst;mqttResumeFrameHandler Frame;void* FrameData;
     unsigned char Input[65536];size_t Used;uint16 EarlyId;
 } mqttResumePeer;
 static inline void mqttResumeWait(xatomic32* A,uint32 N)
@@ -32,12 +34,8 @@ static inline void mqttResumeConnack(mqttResumePeer* P)
     if(P->Version==XMQTT_VERSION_5){if(P->ReceiveMaximum)Props[N++]=mqttResumeNumber(XMQTT_PROPERTY_RECEIVE_MAXIMUM,P->ReceiveMaximum);if(P->AliasMaximum)Props[N++]=mqttResumeNumber(XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM,P->AliasMaximum);if(P->PacketMaximum)Props[N++]=mqttResumeNumber(XMQTT_PROPERTY_MAXIMUM_PACKET_SIZE,P->PacketMaximum);if(P->MaximumQos<2)Props[N++]=mqttResumeNumber(XMQTT_PROPERTY_MAXIMUM_QOS,P->MaximumQos);}
     Q.Properties=(xmqttpropertylist){Props,N};mqttResumePacket(P,&Q);
 }
-static inline void mqttResumeRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
+static inline void mqttResumeFrame(mqttResumePeer* P,xnetstream* S,xmqttframe F)
 {
-    (void)S;mqttResumePeer* P=Data;size_t N=xrtNetBufSize(Buffer);mqttExampleCheck(N<=sizeof(P->Input)-P->Used,"Session peer input capacity");P->Used+=xrtNetBufRead(Buffer,P->Input+P->Used,N);
-    if((P->Mode&MQTT_RESUME_EARLY_ACK) && P->EarlyId && P->Used && (P->Input[0]>>4)==3){uint16 Id=P->EarlyId;P->EarlyId=0;mqttResumeAck(P,XMQTT_PACKET_PUBACK,Id);}
-    while(P->Used){xmqttwireconfig K;xmqttWireConfigInit(&K);K.Version=P->Version;xmqttframe F;xmqttwirestatus T=xmqttFrameRead((xbytesview){P->Input,P->Used},&K,&F);
-        mqttExampleCheck(T!=XMQTT_WIRE_ERROR,"Session peer framing");if(T==XMQTT_WIRE_MORE)break;
         if(F.Header.Type==XMQTT_PACKET_CONNECT){xrtAtomic32FetchAdd(&P->Connects,1,XMEMORY_RELEASE);if(!(P->Mode&MQTT_RESUME_HOLD_READY))mqttResumeConnack(P);}
         else if(F.Header.Type==XMQTT_PACKET_PUBLISH){xmqttpacket Q;xmqttproperty Props[16];xmqttcodecbuffers B={Props,16,NULL,0};
             mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL))==XMQTT_CODEC_DONE,"Session peer publication");
@@ -59,6 +57,14 @@ static inline void mqttResumeRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
         else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);mqttExampleCheck(xrtNetStreamClose(S),"Session peer disconnect close");}
         else if(F.Header.Type==XMQTT_PACKET_PINGREQ){const unsigned char Pong[]={0xd0,0};mqttResumeSend(P,Pong,sizeof(Pong));}
         else mqttExampleCheck(false,"Session peer packet type");
+}
+static inline void mqttResumeRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
+{
+    (void)S;mqttResumePeer* P=Data;size_t N=xrtNetBufSize(Buffer);mqttExampleCheck(N<=sizeof(P->Input)-P->Used,"Session peer input capacity");P->Used+=xrtNetBufRead(Buffer,P->Input+P->Used,N);
+    if((P->Mode&MQTT_RESUME_EARLY_ACK) && P->EarlyId && P->Used && (P->Input[0]>>4)==3){uint16 Id=P->EarlyId;P->EarlyId=0;mqttResumeAck(P,XMQTT_PACKET_PUBACK,Id);}
+    while(P->Used){xmqttwireconfig K;xmqttWireConfigInit(&K);K.Version=P->Version;xmqttframe F;xmqttwirestatus T=xmqttFrameRead((xbytesview){P->Input,P->Used},&K,&F);
+        mqttExampleCheck(T!=XMQTT_WIRE_ERROR,"Session peer framing");if(T==XMQTT_WIRE_MORE)break;
+        if(P->Frame)P->Frame(P,S,F);else mqttResumeFrame(P,S,F);
         P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
     }
 }
@@ -71,14 +77,16 @@ static inline bool mqttResumeAccept(xnetlistener* L,xnetstream* S,ptr Data)
     mqttExampleCheck(!xrtAtomicPtrLoad(&P->Stream,XMEMORY_ACQUIRE) && xrtNetStreamSetEvents(S,&E,P),"Session peer one connection");xrtAtomicPtrStore(&P->Stream,S,XMEMORY_RELEASE);return true;
 }
 static inline void mqttResumeListenerClosed(xnetlistener* L,ptr Data){(void)L;xrtAtomic32Store(&((mqttResumePeer*)Data)->ListenerClosed,1,XMEMORY_RELEASE);}
-static inline void mqttResumeStartWith(mqttResumePeer* P,xmqttversion Version,unsigned Mode,bool Present,const mqttResumeCaps* Caps)
+static inline void mqttResumeStartHook(mqttResumePeer* P,xmqttversion Version,unsigned Mode,bool Present,const mqttResumeCaps* Caps,mqttResumeFrameHandler Frame,void* Extra)
 {
-    memset(P,0,sizeof(*P));P->Version=Version;P->Mode=Mode;P->Present=Present;P->MaximumQos=2;xrtAtomicPtrInit(&P->Stream,NULL);
+    memset(P,0,sizeof(*P));P->Version=Version;P->Mode=Mode;P->Present=Present;P->MaximumQos=2;P->Frame=Frame;P->FrameData=Extra;xrtAtomicPtrInit(&P->Stream,NULL);
     if(Caps){P->ReceiveMaximum=Caps->ReceiveMaximum;P->AliasMaximum=Caps->AliasMaximum;P->PacketMaximum=Caps->PacketMaximum;P->MaximumQos=Caps->MaximumQos;P->Reason=Caps->Reason;P->EarlyId=Caps->EarlyId;}
     xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Connects,0);xrtAtomic32Init(&P->Publishes,0);xrtAtomic32Init(&P->Releases,0);xrtAtomic32Init(&P->Pubacks,0);xrtAtomic32Init(&P->Pubrecs,0);xrtAtomic32Init(&P->Pubcomps,0);xrtAtomic32Init(&P->Disconnects,0);xrtAtomic32Init(&P->LogCount,0);
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);mqttExampleCheck(P->Engine && xrtNetEngineStart(P->Engine),"Session peer Engine");
     xnetlistenconfig K;xrtNetListenConfigInit(&K);xrtNetAddrParse(&K.Address,"127.0.0.1",0);K.Distribution=XNET_ACCEPT_LOCAL;static const xnetlistenerevents L={mqttResumeAccept,NULL,mqttResumeListenerClosed};P->Listener=xrtNetListen(P->Engine,&K,&L,NULL,P);mqttExampleCheck(P->Listener && xrtNetListenerLocal(P->Listener,&P->Address),"Session peer listener");
 }
+static inline void mqttResumeStartWith(mqttResumePeer* P,xmqttversion Version,unsigned Mode,bool Present,const mqttResumeCaps* Caps)
+{mqttResumeStartHook(P,Version,Mode,Present,Caps,NULL,NULL);}
 static inline void mqttResumeStart(mqttResumePeer* P,xmqttversion Version,unsigned Mode,bool Present)
 {mqttResumeStartWith(P,Version,Mode,Present,NULL);}
 static inline void mqttResumeStop(mqttResumePeer* P)

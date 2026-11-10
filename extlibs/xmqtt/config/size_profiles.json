@@ -117,6 +117,12 @@
       "system": "client",
       "suite": "xmqtt_client_session",
       "description": "Explicit numeric TCP protocol Session and Inbox recovery with connection-scoped Futures"
+    },
+    {
+      "name": "xmqtt_client_session_dial",
+      "system": "client",
+      "suite": "xmqtt_client_session_dial",
+      "description": "Explicit hostname/prepared Session Dial without TLS/Auth; numeric Auth composition remains independently selectable"
     }
   ]
 }

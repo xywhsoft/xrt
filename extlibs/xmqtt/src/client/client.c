@@ -5,6 +5,7 @@
 #include <xmqtt/client_tls_resume.h>
 #include <xmqtt/client_inbox.h>
 #include <xmqtt/client_session.h>
+#include <xmqtt/client_session_dial.h>
 #include <xmqtt/client_session_tls.h>
 #include "../internal/xmqtt_session_client.h"
 #include <xrt/atomic.h>
@@ -2336,6 +2337,15 @@ XMQTT_API bool xmqttClientConnectAuth(xnetengine* Engine,const xnetaddr* Remote,
     double Now=xrtTimer();xmqttauthconfig K;if(!xmqttAuthConfigCopy(Auth,&K))return false;
     return xmqttClientConnectImpl(Engine,Remote,Affinity,Config,Connect,Out,&K,Now,NULL,NULL,NULL,NULL);
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+XMQTT_API bool xmqttClientConnectSessionAuth(xnetengine* E,const xnetaddr* R,uint64 A,const xmqttclientconfig* C,const xmqttauthconfig* Auth,
+    xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");
+    if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientConnectImpl(E,R,A,C,Q,O,&K,At,NULL,NULL,I,S);
+}
+#endif
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
 XMQTT_API bool xmqttClientDialConfigInit(xmqttclientdialconfig* K)
@@ -2435,6 +2445,36 @@ XMQTT_API bool xmqttClientDialAddressesAuth(xnetengine* E,xnetaddrlist* L,uint64
     double Entered=xrtTimer();xmqttauthconfig K;if(!L)return xmqttClientError(XERR_ARGUMENT,"Dial addresses are NULL");if(!xmqttAuthConfigCopy(Auth,&K))return false;
     return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,Entered,NULL,NULL,NULL);
 }
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION_DIAL)
+XMQTT_API bool xmqttClientDialSession(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,NULL,Q,O,At,NULL,I,S);
+}
+XMQTT_API bool xmqttClientDialAddressesSession(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();if(!S || !I || !L)return xmqttClientError(XERR_ARGUMENT,"Session, Inbox and endpoints are required");
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,NULL,Q,O,At,NULL,I,S);
+}
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_AUTH)
+XMQTT_API bool xmqttClientDialSessionAuth(xnetengine* E,xnetresolver* R,xstrview H,uint16 P,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!S || !I)return xmqttClientError(XERR_ARGUMENT,"Session and Inbox are required");
+    if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientDialCreate(E,R,NULL,H,P,A,C,D,&K,Q,O,At,NULL,I,S);
+}
+XMQTT_API bool xmqttClientDialAddressesSessionAuth(xnetengine* E,xnetaddrlist* L,uint64 A,const xmqttclientconfig* C,
+    const xmqttclientdialconfig* D,const xmqttauthconfig* Auth,xmqttsession* S,xmqttclientinbox* I,const xmqttpacket* Q,xmqttclient** O)
+{
+    double At=xrtTimer();xmqttauthconfig K;if(!S || !I || !L)return xmqttClientError(XERR_ARGUMENT,"Session, Inbox and endpoints are required");
+    if(!xmqttAuthConfigCopy(Auth,&K))return false;
+    return xmqttClientDialCreate(E,NULL,L,(xstrview){0},0,A,C,D,&K,Q,O,At,NULL,I,S);
+}
+#endif
 #endif
 #endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)

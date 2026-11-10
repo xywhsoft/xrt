@@ -3252,6 +3252,189 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_session_dial",
+      "system": "client",
+      "description": "Same closed-loop Session QoS1 workload with actual prepared-address Dial setup outside timing. Includes existing packet/Client/peer costs; no DNS cold setup, broker, fixed arrival or production acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_session_dial_5",
+          "source": "extlibs/xmqtt/bench/bench_client_session_dial.c",
+          "suite": "xmqtt_client_session_dial,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c",
+            "extlibs/xmqtt/bench/bench_client_session.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_dial_4",
+          "source": "extlibs/xmqtt/bench/bench_client_session_dial.c",
+          "suite": "xmqtt_client_session_dial,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c",
+            "extlibs/xmqtt/bench/bench_client_session.c"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_dial_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_session_dial.c",
+          "suite": "xmqtt_client_session_dial,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c",
+            "extlibs/xmqtt/bench/bench_client_session.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_dial_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_session_dial.c",
+          "suite": "xmqtt_client_session_dial,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c",
+            "extlibs/xmqtt/bench/bench_client_session.c"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

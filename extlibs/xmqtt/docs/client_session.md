@@ -6,7 +6,9 @@ the existing protocol state and accepted application queue to the existing
 Client sender/receiver. It creates no Engine, worker, background reconnect timer
 or disk store. [Runnable example](../examples/client_session/README.md).
 
-The optional [client_session_tls](client_session_tls.md) leaf composes this
+The optional [client_session_dial](client_session_dial.md) leaf adds hostname and
+prepared TCP. Selecting Client Auth also enables numeric Session Auth without
+Dial/TLS dependencies. The optional [client_session_tls](client_session_tls.md) leaf composes this
 contract with numeric/hostname/prepared TLS and MQTT5 enhanced authentication.
 
 ## Identity, ownership and reconnect
@@ -112,7 +114,7 @@ bounded incoming identity storage, its existing gate and fixed driver metadata;
 the optional fields/code are absent from ordinary Client-only builds. Gauges
 cover requested objects, not allocator/native/kernel overhead or process RSS.
 
-Plain Dial/Auth composition, assigned-id adoption, automatic reconnect, durable
+Assigned-id adoption, automatic reconnect, durable
 storage, cross-process recovery, complete broker recovery interoperability, elimination
 of remaining allocation/locking costs and production/performance acceptance remain
 required work. The local recovery tests cover both protocol versions, QoS
