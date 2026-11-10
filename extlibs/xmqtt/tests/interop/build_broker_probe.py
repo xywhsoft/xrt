@@ -18,10 +18,11 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--compiler', default='gcc')
     parser.add_argument('--sanitize', help='GCC sanitizer list, for example address,undefined')
+    parser.add_argument('--probe', choices=['ordinary', 'session'], default='ordinary')
     args = parser.parse_args()
     if args.kind in ['static', 'shared'] and not args.package_dir:
         parser.error('--package-dir is required for a library consumer')
-    suite = 'xmqtt_client_tls_resume,tls_identity_rsa'
+    suite = 'xmqtt_client_session,time' if args.probe == 'session' else 'xmqtt_client_tls_resume,tls_identity_rsa'
     modules = _load_modules(suite, [root / 'extlibs/xmqtt/config/modules.json'],
                             platform='windows' if os.name == 'nt' else 'linux')
     command = [args.compiler, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror',
@@ -36,10 +37,11 @@ def main():
         if args.sanitize == 'thread':
             command += ['-Wno-error=tsan']
     here = Path(__file__).resolve().parent
+    source = 'session_broker_probe.c' if args.probe == 'session' else 'broker_probe.c'
     if args.kind == 'single':
-        command += [str(here / 'single_broker_probe.c')]
+        command += [str(here / ('single_' + source))]
     else:
-        command += [str(here / 'broker_probe.c')]
+        command += [str(here / source)]
         if args.kind == 'modular':
             command += [str(root / source) for source in modules[0]]
         else:

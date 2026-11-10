@@ -1,5 +1,47 @@
 # MQTT client interoperability
 
+## Explicit Session recovery with a real broker
+
+`session_broker_probe.c` reuses one passive Session/Inbox across two fresh Clients
+and Engines. `run_session_broker.py` starts a private pinned Mosquitto 2.1.2 for
+each case and interposes an independent bounded TCP frame proxy. It drops exactly
+one outgoing-flow PUBACK/PUBREC/PUBCOMP or incoming-flow PUBREC/PUBCOMP, then
+uses stdin barriers driven by observed wire progress to interrupt/reconnect.
+No MQTT connection retry or timer-based live retransmission is introduced.
+
+The 20-case matrix is MQTT5/311 times five cuts times normal/fragmented IO.
+Normal cases carry 65,537 binary bytes; fragmented cases use 257 bytes with
+37-byte read work, 41-byte write work and 13-byte write chunks. MQTT5 first sends
+an aliased full topic. Replay must restore the full topic, remove Topic Alias,
+preserve id/DUP or PUBREL progress, and observe SessionPresent. Incoming QoS2
+replay must not enqueue a second application delivery; QoS1 permits duplicates.
+The probe checks original Future outcomes, empty protocol/native obligations,
+and held results/messages after both Clients/Engines and passive owners die.
+
+```
+python3 extlibs/xmqtt/tests/interop/build_broker_probe.py --probe session --kind modular --output out/broker/session-probe
+python3 extlibs/xmqtt/tests/interop/run_session_broker.py --broker /absolute/path/to/mosquitto --client out/broker/session-probe --report out/broker/session-result.json
+```
+
+Build `--probe session --kind single` for generated-header coverage. Static/shared
+consumers use packages of `xmqtt_client_session,time` or a superset, via
+`--kind static|shared --package-dir PATH`. The ordinary probe remains the default.
+For Windows executables launched from WSL, the runner requires native Windows
+Python (`--windows-python`, or `python.exe` on PATH) to verify localhost forwarding
+before MQTT starts. Prefer `--proxy-host WSL_PRIVATE_IPV4` to connect directly
+without localhost forwarding; obtain that address with `hostname -I` in WSL.
+The listener binds only that specific address. Empty readiness connections do not reach the broker or consume
+a generation. A forwarding failure is recorded separately from protocol failure.
+
+Each trace is capped at 200 frame metadata records; frames at 2 MiB. Reports
+include client/broker/runner hashes, every cut, canonical replay metadata and
+process/thread cleanup results. Full payloads and broker sources are not logged.
+Processes/listeners/readers are reaped on failure as well as success; the fixture
+never installs a service. Logs/configs remain under the report directory.
+This verifies explicit volatile numeric TCP recovery against a continuously
+running broker, without broker restart, durable storage, automatic reconnect,
+TLS/WebSocket recovery or production/performance acceptance.
+
 ## Pinned real broker
 
 `broker.lock.json` pins the optional Eclipse Mosquitto 2.1.2 test dependency,

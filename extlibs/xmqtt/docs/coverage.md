@@ -304,10 +304,32 @@ handles gather pressure for shared publications. The immutable canonical packet
 continues to support alias-free recovery. Request/packet lifetimes remain separate.
 
 Tests cover property-length boundaries, ordered User Properties, one-byte writes,
-one-lease pressure, cancellation, eight budget prefixes, four concurrent alias
+synthetic one-lease refusal, cancellation, eight budget prefixes, four concurrent alias
 producers, close with a holder/waiter and ordinary-producer progress. Both QoS
 levels measure parent two-copy/current one-copy alias output; both protocols'
 unaliased controls remain one-copy. Root/leaf/static/shared/sanitized evidence
-and matched alias/ordinary observations are retained. Mutex/native/header costs,
-legacy non-shared gather pressure, contended performance and full production
+and matched alias/ordinary observations are retained. Core queues limit total
+bytes, not span count; the synthetic refusal does not establish a production
+stall in legacy/QoS0 alias writes. Mutex/native/header costs,
+contended performance and full production
 qualification remain open; no zero-overhead or broker/native acceptance is claimed.
+
+## Real broker Session recovery
+
+The [broker recovery stage](../tests/results/broker-session-20261110.json) uses
+the pinned unchanged Mosquitto 2.1.2 fixture through an independent frame proxy.
+It cuts outgoing-flow PUBACK/PUBREC/PUBCOMP and incoming-flow PUBREC/PUBCOMP,
+across MQTT5/311 and normal/fragmented IO. Each case reuses Session/Inbox across
+two fresh Clients/Engines, verifies SessionPresent, preserved ids and DUP/PUBREL
+progress, alias-free full-topic replay, original Future outcomes and retained
+messages/results after physical destruction. QoS2 delivers once locally; QoS1
+allows protocol-permitted duplicates. Wire-driven barriers and a broker round
+trip precede final zero-obligation checks; timers alone never indicate recovery.
+
+Windows native clients and WSL clients exercise modular/single/root/leaf static
+and shared consumers. WSL also instruments the complete implementation closure
+with ASan/UBSan/leak and TSan. Windows reaches the proxy by WSL private IPv4;
+the broker remains loopback-only inside WSL. This is continuously running broker,
+explicit volatile TCP recovery evidence. Broker restart/durable/automatic recovery,
+TLS/Dial/Auth Session composition, assigned ids, WebSocket, other brokers,
+native Linux deployment, performance and >=72h production gates remain open.

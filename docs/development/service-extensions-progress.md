@@ -9574,3 +9574,44 @@ The complete four-product goal remains active and all products developing.
 Development remains on D:/GIT/xrt master; no branch operation or push. Evidence:
 extlibs/xmqtt/tests/results/shared-alias-20261110.json and
 out/service-extensions/xmqtt-shared-alias-20261110 (C-backed artifacts).
+
+## 2026-11-10: real-broker explicit Client Session recovery
+
+The unchanged pinned Mosquitto2.1.2 fixture now verifies recovery through an
+independent bounded TCP frame proxy. Twenty cases per variant cover MQTT5/311,
+five ACK cuts (outgoing PUBACK/PUBREC/PUBCOMP and incoming PUBREC/PUBCOMP), and
+normal65537-byte binary/fragmented257-byte work. Two fresh Clients and Engines
+reuse one Session/Inbox. Wire-driven barriers verify retained SessionPresent,
+ids/DUP, PUBREL-only progress, canonical full-topic/alias-free replay, incoming
+QoS2 deduplication, original Future outcomes and retained message/result lifetime.
+Final broker round trips and zero protocol/native gauges precede physical join.
+
+All280 final cases pass:120 native Windows across modular/single/root/leaf
+static/shared consumers;160 WSL including those six variants plus fully
+instrumented ASan/UBSan/leak and TSan. All client/broker processes and proxy/reader
+threads are reaped. A deliberately early-exiting probe validates failure cleanup;
+independent oversized-frame/overlong-length controls validate proxy limits.
+Generated/features/API/docs/maturity and89 focused tool tests pass on both OSes.
+All740 production/config/generated inputs match the previous packaged stage;
+no Core or product runtime implementation changes are made here.
+
+Preparatory failures are retained. WSL localhost forwarding caused a zero-MQTT
+connection failure and a readiness timeout; the final Windows matrix uses the
+specific WSL private IPv4 and native TCP readiness checks. An initial test wrongly
+limited self-subscribing QoS1 to two deliveries. Independent wire/broker logs show
+three legal deliveries (original, old delivery replay, new routing after producer
+replay). The test now requires at least once; QoS2 still requires exactly once.
+No failed MQTT connection is retried or counted as passing.
+
+The earlier single-lease refusal is synthetic fault injection. Core SendRefs
+reserves total queued bytes and allocates a whole batch; it does not impose a
+one-span queue limit. This does not demonstrate a legacy/QoS0 alias stall, so no
+runtime workaround is added for that assumption. Contended performance and
+native/header costs still need measurement.
+
+Continue with TLS/Dial/Auth Session composition, assigned ids, automatic/durable
+recovery, WebSocket, other-broker and native deployment/72h/performance gates.
+The full four-product goal stays active and all products developing. Work is on
+D:/GIT/xrt master with no branch operation or push. Evidence:
+extlibs/xmqtt/tests/results/broker-session-20261110.json and
+out/service-extensions/xmqtt-broker-session-20261110 (C-backed artifacts).

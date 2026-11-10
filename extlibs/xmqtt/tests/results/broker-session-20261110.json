@@ -1,0 +1,314 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Real-broker explicit volatile Client Session recovery",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "65bb0a05ac9aa007fdd3e8d530f287606e8f1512",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "scope": [
+    "Public-API test probes and independent bounded frame proxy; no Core or product runtime/config/generated implementation changes",
+    "MQTT5/311, outgoing PUBACK/PUBREC/PUBCOMP and incoming PUBREC/PUBCOMP cuts, normal65537-byte binary or257-byte fragmented IO",
+    "Two fresh Clients/Engines share Session/Inbox: SessionPresent, stable id/DUP, PUBREL-only replay, canonical full topic without alias, local QoS2 deduplication, original typed Future outcomes and held data after physical owners die",
+    "Wire-driven cut/recovery barriers plus a broker SUBACK roundtrip; final Session ActiveOutgoing/Objects/Incoming/Prepared and Client Requests zero before physical close",
+    "Windows native clients connect directly to specific WSL private IPv4 after native TCP readiness; broker backend listens only on127.0.0.1. WSL is not native Linux deployment qualification"
+  ],
+  "source_identity": {
+    "frozen": {
+      "path": "out/service-extensions/xmqtt-broker-session-20261110/source.json",
+      "sha256": "57249194652e245ce93110057052f8cb62cfa68d025b001e199afc3bb862b0e7"
+    },
+    "production_inputs": 740,
+    "production_map": {
+      "path": "out/service-extensions/xmqtt-broker-session-20261110/production-inputs.json",
+      "sha256": "d4f017ad8fa8133940341615286f8494b72a4e8895207b46a279d6adfd0d077f"
+    },
+    "all_production_inputs_match_previous_packaged_stage": true,
+    "package_libraries": {
+      "path": "out/service-extensions/xmqtt-broker-session-20261110/package-inputs.json",
+      "sha256": "d12c8125ffb65124da5571a06371ee730d4337e38d7b98bc80d323af68ca16f3"
+    }
+  },
+  "broker": {
+    "name": "Eclipse Mosquitto",
+    "version": "2.1.2",
+    "binary_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+    "same_binary_as_pinned_20261109_fixture": true,
+    "pin": {
+      "path": "extlibs/xmqtt/tests/interop/broker.lock.json",
+      "sha256": "ca369cc12275dcb6895f7a09b93517d79a2d5f3e4026ecc3cdbe106a69f7d4e4"
+    },
+    "sources_unmodified": true,
+    "product_dependency": false
+  },
+  "tests": {
+    "final_cases": 280,
+    "distinct_cases_per_variant": 20,
+    "windows_cases": 120,
+    "wsl_cases": 160,
+    "matrices": [
+      {
+        "platform": "windows",
+        "kind": "modular",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-modular.json",
+          "sha256": "b6262265723cf559b9e0295ae178b1b8ce0b1849ecfec27ed01ceaf93c2ad3ed"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/modular/probe.exe",
+          "sha256": "361a1b940c5c0f96a2c26e118f65fc6e00eca790e039ca49850e2a39f58f758d"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "windows",
+        "kind": "single",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-single.json",
+          "sha256": "646b873a67228fe396be459da5ed704509ebe151ad220e67bc0a751c4693f9eb"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/single/probe.exe",
+          "sha256": "abf26828d666c9a1acfe8041f0c0c0a0743f9dc9654964fc99445ee83eb1acaa"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "windows",
+        "kind": "root-static",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-root-static.json",
+          "sha256": "235d2384dad42fd348b11f41eb0303e078828eb922d58144c980ab3dfc25da7d"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/root-static/probe.exe",
+          "sha256": "3c5d020f8207d475860399d61b957b170199515a665508f74617f944fa634415"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "windows",
+        "kind": "root-shared",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-root-shared.json",
+          "sha256": "a462b56511fa353e735bb64b5df46ce924bb7fa27d2459a3141dab7276c50782"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/root-shared/probe.exe",
+          "sha256": "16f374e3206ec440ed4e8f705e20551a675af4ce67011ac473c0993b4764ad0b"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "windows",
+        "kind": "leaf-static",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-leaf-static.json",
+          "sha256": "6a3f5ce7a1262100c90952a6a76dffac7e8a492f6c6155e2b0154b6d78fe96e7"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/leaf-static/probe.exe",
+          "sha256": "ddc5c36f7e0c690224832751a42509db7feaa3b51d0fa35857028f65520b05c8"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "windows",
+        "kind": "leaf-shared",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/windows-leaf-shared.json",
+          "sha256": "280b2a032f4f4b52a1dc4e1dc57b84f103eb8d8fc782be41160f6bfa988357bd"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/windows/leaf-shared/probe.exe",
+          "sha256": "44015b1208bc9bae8bba8d44e4cfd0295b91062a5cf92691d154807afec6f4fa"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "modular",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-modular.json",
+          "sha256": "84848953907ff618541627152077a2beee0364bcf686442547da9c949e392565"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/modular/probe",
+          "sha256": "87c443aae5c5258058bfdc034cb8df3b1710cc13a28b1620519a1c74665285d1"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "single",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-single.json",
+          "sha256": "556089b404c8d9b64fd771aa7daaa9a69ad1e16ee6c39f0d15f0cb60bb22a6e0"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/single/probe",
+          "sha256": "eea62e0b372e201e04ddf2fa0fb1bdb6d9ad6136e817b380ba30f4cb66c04737"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "root-static",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-root-static.json",
+          "sha256": "31faa97ef6ea46ad0fa80e40b3141e33b81345e770d87163672f0f22fde0b989"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/root-static/probe",
+          "sha256": "30d5bde9b28ebe4a43661ba50030488559a1c5de970e457666e820c5416f0661"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "root-shared",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-root-shared.json",
+          "sha256": "e432f91526748e585171a2f4d383ff90465380ae647911ec96a6223404d83c49"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/root-shared/probe",
+          "sha256": "c35ee008dd4daa0497f5d1cb1e80102d9acfd5844567bbb75286317eb79245c4"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "leaf-static",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-leaf-static.json",
+          "sha256": "cea32408a061013bd243222904ef1fbd735e327f575cd639a0b5f909c518ec29"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/leaf-static/probe",
+          "sha256": "962cf3e581212f29a2f91e0a68984adba97038287f47c9d3933c7e29e5bac305"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "leaf-shared",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-leaf-shared.json",
+          "sha256": "5e43a37baf32d3386c24eb2fae65356796bfa99dc3f65a5ed0858c6ffe810d04"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/leaf-shared/probe",
+          "sha256": "98dbe206cdddf22cc62ec33b71748ad830e578c52dddbac8178a68dcaa9214e3"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "asan",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-asan.json",
+          "sha256": "5a50e0dd257e66844d956b3c10e38bc1ae98da0c23e49248f9282a8c86fc89cb"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/asan/probe",
+          "sha256": "dd9385575a9e199b4e07f65899665698a5d18b7096d4c9ed1b79867e32efbe58"
+        },
+        "all_processes_threads_reaped": true
+      },
+      {
+        "platform": "wsl",
+        "kind": "tsan",
+        "cases": 20,
+        "report": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/runs-v3/wsl-tsan.json",
+          "sha256": "edace2a1c8c34f8fb2a788cfd14ba8e483a9e30b044913cbcb7898f3c732b8da"
+        },
+        "client": {
+          "path": "out/service-extensions/xmqtt-broker-session-20261110/binaries-v3/wsl/tsan/probe",
+          "sha256": "56e856bd593d1b9cc7f31e4260f0884a9f87dd1809284dc6ce15caa770afbad0"
+        },
+        "all_processes_threads_reaped": true
+      }
+    ],
+    "application_message_count_histogram": {
+      "2": 51,
+      "1": 224,
+      "3": 5
+    },
+    "failure_and_proxy_limits": {
+      "path": "out/service-extensions/xmqtt-broker-session-20261110/final-failure-control.json",
+      "sha256": "a34d209ba93e6f0ef4525ecbb5941a4635624ec9da4216ef1c46c3fd54d63fb8"
+    },
+    "checks": {
+      "windows": {
+        "path": "out/service-extensions/xmqtt-broker-session-20261110/windows-v3-checks.json",
+        "sha256": "87f15dde9739391db9c97310cac16746652e18cd3026b042645352f8fc058bac"
+      },
+      "wsl": {
+        "path": "out/service-extensions/xmqtt-broker-session-20261110/wsl-v3-checks.json",
+        "sha256": "a5f53539426398ae67a32e677079eb69d32e736929c47eaaad05d130b91afe03"
+      }
+    },
+    "tools_tests_per_platform": 89,
+    "sanitizers": "Complete modular implementation closure: ASan+UBSan with leak detection, and TSan;20 cases each"
+  },
+  "preparation_failures": [
+    {
+      "kind": "WSL localhost forwarding",
+      "evidence": {
+        "path": "out/service-extensions/xmqtt-broker-session-20261110/prototype/windows.json",
+        "sha256": "c960d04ccf0d928d4b5eae4c0b11ccbb757a2f85ab6b4a100220f8d469701d9a"
+      },
+      "detail": "MQTT311 fragmented connection failed before any proxy frame; final uses private IPv4"
+    },
+    {
+      "kind": "WSL forwarding readiness timeout",
+      "evidence": {
+        "path": "out/service-extensions/xmqtt-broker-session-20261110/runs/windows-root-shared.json",
+        "sha256": "8d2294a5abb57a108c91368fb207cb4f8d86242a0072e4fe62b3e629723c243b"
+      },
+      "detail": "Native TCP readiness failed; no MQTT connection started. Final uses private IPv4"
+    },
+    {
+      "kind": "Overstrict QoS1 delivery-count assertion",
+      "evidence": {
+        "path": "out/service-extensions/xmqtt-broker-session-20261110/runs/wsl-asan.json",
+        "sha256": "2d35f7748de4e75f6c786186af161bac7de8f88c7c25ffb90712a15aaa3c2bc1"
+      },
+      "detail": "Independent wire/broker logs show original delivery plus old delivery replay plus routing from outgoing DUP; require at least once, QoS2 still exactly once"
+    }
+  ],
+  "audit_correction": {
+    "previous": "Synthetic one-lease refusal was listed as a possible legacy/QoS0 progress issue",
+    "finding": "Core ReserveSend bounds total bytes; CreateRefs allocates one flexible batch, with no one-span queue limit. Synthetic Count refusal alone is not a reproduced production defect.",
+    "runtime_workaround_added": false
+  },
+  "remaining": [
+    "TLS/Dial/Auth Session composition and assigned-id adoption",
+    "Automatic reconnect and durable store/recovery including broker restart",
+    "WebSocket, other brokers and complete protocol matrix",
+    "Contended producer/native/header costs, comparator/fixed-arrival performance",
+    "Native Windows/Linux deployment and >=72h production gates; full four-product scope"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-broker-session-20261110",
+  "evidence_storage": "C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-broker-session-20261110",
+  "evidence_files": 1257,
+  "evidence_index_sha256": "93fd0e8ca6a98d312393e8ef36a52a4acc94a754fd79cf3f860e0094fa392d0b"
+}
