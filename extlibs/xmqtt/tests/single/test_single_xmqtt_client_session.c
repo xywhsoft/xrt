@@ -10,5 +10,6 @@
 #undef xrtNetStreamSendRefs
 #undef xrtFree
 #undef xrtCalloc
+#undef memcpy
 #define XMQTT_CLIENT_SESSION_SINGLE_TEST
 #include "../test_client_session.c"

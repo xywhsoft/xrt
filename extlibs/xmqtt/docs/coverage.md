@@ -276,7 +276,19 @@ MQTT root programs per OS, two minimal Client Session and two pure Session
 programs, a runnable two-Engine recovery example, static/shared package suites,
 ASan/UBSan/leak and two TSan forms. It covers QoS1/2 reconnect stages, incoming
 deduplication, expiry/reset, alias expansion, native zero/partial output, early
-ACKs, physical quota retirement and controlled replay allocation failure. New
-QoS1/2 still incurs an extra canonical snapshot allocation/copy; replay borrows
+ACKs, physical quota retirement and controlled replay allocation failure. That stage
+uses two snapshots for new QoS1/2; replay borrows
 retained payload. Local echo observations do not establish performance, real
 broker recovery, native deployment or >=72h production acceptance.
+
+## Shared unaliased publication snapshot
+
+The [sharing stage](../tests/results/shared-publish-20261110.json) retains one
+canonical payload copy for unaliased QoS1/2, with separate request/packet headers.
+Both protocol versions and QoS levels have measured parent two-copy/current
+one-copy tests; the outgoing-alias control remains two copies. Pending snapshots
+consume physical Session bounds at admission without becoming recoverable state.
+Tests cover early overload, cancellation, OOM rollback, concurrent producers and
+closing while a copy is held outside both gates. Full root/trimmed/package and
+sanitizer results are recorded. Aliased publication sharing, allocation/counter
+profiling and complete performance/production qualification remain required.

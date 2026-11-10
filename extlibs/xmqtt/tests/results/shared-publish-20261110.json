@@ -1,0 +1,1201 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "shared-unaliased-publication-snapshot",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "d6b793730a4e2c7a29698fc07693664cffdaa80b",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "source_identity": {
+    "inputs": 2668,
+    "map_sha256": "b73dd689d75893dc0ebef38d3d0908c21908aa15f5213b3df937702ddd102ed3"
+  },
+  "contract": {
+    "shared_case": "unaliased QoS1/2, MQTT5 and311",
+    "payload_copies": 1,
+    "alias_fallback_payload_copies": 2,
+    "request_and_packet_allocations": 2,
+    "admission_physical_budget": "Session count/id/bytes before readiness",
+    "protocol_activation": "first output selection",
+    "pending_snapshot_is_recoverable": false,
+    "encoding_holds_client_or_session_gate": false,
+    "initial_native_spans_per_write": 1,
+    "allocation_scope": "caller at PublishAsync, retained until actual packet free",
+    "request_wire_storage": 0,
+    "driver_bytes": 120,
+    "request_pointer_bytes": 8
+  },
+  "platforms": {
+    "windows": {
+      "phases": {
+        "root": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-root.json",
+          "sha256": "42ce3bd4f5518a2e61be53fdef275f28321a9e34175699f0140306ddeae806a2",
+          "runs": [
+            {
+              "label": "root",
+              "programs": 40,
+              "exit_code": 0,
+              "seconds": 356.2029999999795,
+              "log_sha256": "5486499f45aa4f7583588e8c8a6ab27925cc4f67c1d8798950f3687e8e0b0e8e"
+            }
+          ]
+        },
+        "leaf": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-leaf.json",
+          "sha256": "73484c047a94eb79bf1e9b7400e4f8cc07cfe13491ca6c777924f15080426704",
+          "runs": [
+            {
+              "label": "leaf",
+              "programs": 5,
+              "exit_code": 0,
+              "seconds": 77.67199999999139,
+              "log_sha256": "e3482a59e55c50f1f785695649f8facf81f9441337300cdb2012d3e7421fb07e"
+            },
+            {
+              "label": "example",
+              "programs": 1,
+              "exit_code": 0,
+              "seconds": 43.75,
+              "log_sha256": "38e4667feb341c521b230ef84ce5cc119c0adb54b57152515bb1705e72f39166"
+            }
+          ]
+        },
+        "session": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-session.json",
+          "sha256": "41ce257d3d43a84abebdccfefbad19c3a575b38b2be5da627f30404b89090c19",
+          "runs": [
+            {
+              "label": "session",
+              "programs": 5,
+              "exit_code": 0,
+              "seconds": 30.96799999999348,
+              "log_sha256": "acb583d9ed8bd2a788c741589ffb467d0a3c303d5535d8b25d676bf90abf62c3"
+            }
+          ]
+        },
+        "packages": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-packages.json",
+          "sha256": "d7fcb09329b604f45f84ba5812e25e3ee9e8f84a75e0e7393841f3fa1813a30e",
+          "runs": [
+            {
+              "label": "package-root-static",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 175.06200000000536,
+              "log_sha256": "1dc41de5ff5e8ed32aedb5984c6a5bbfaa53d21c758935e53b37ed5412d75ec0"
+            },
+            {
+              "label": "package-root-shared",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 163.75,
+              "log_sha256": "d4a3d8522542cf0d869e94e35f6a20eaa2fb4a8ee9995b35410ffeb5491de72f"
+            },
+            {
+              "label": "package-leaf-static",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 31.14000000001397,
+              "log_sha256": "a24a997ef9743647021a56391553907d2de8e661f08c3d9692e49c9c468e8acd"
+            },
+            {
+              "label": "package-leaf-shared",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 29.98399999999674,
+              "log_sha256": "cf51705843889a99c9fdae3cb0b27bb6e2a8b8dedba6df8982dbd3be7a3d97f6"
+            }
+          ]
+        },
+        "checks": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-checks.json",
+          "sha256": "e2d10638e50b2f64365947277d206ac24d76aed63ed5f74e6df0072d7c53cb56",
+          "runs": [
+            {
+              "label": "single",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.2659999999741558,
+              "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+            },
+            {
+              "label": "features",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.07800000000861473,
+              "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+            },
+            {
+              "label": "api",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.10999999998603016,
+              "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+            },
+            {
+              "label": "docs",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.15599999998812564,
+              "log_sha256": "148ff0109cb26c71cfa4882aa63b8189c7f0b1f91d1d681f03c70f436b1eec6a"
+            },
+            {
+              "label": "maturity",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.5629999999946449,
+              "log_sha256": "321e4a5e12a7372e30f90de996b6c60ce44d0ba803eca91791cf94ce90a63694"
+            },
+            {
+              "label": "tools",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 7.75,
+              "log_sha256": "aa5a2dcbcb336f35badb423f642008f422ca1b51b46a91a8d79c0f8822d2ed17"
+            }
+          ]
+        },
+        "performance": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/windows-performance.json",
+          "sha256": "78ba6062270173c87fb0e783387634d63ed30586a36d68373f222120dbedcaaf",
+          "runs": [
+            {
+              "label": "performance-smoke",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 260.76500000001397,
+              "log_sha256": "c08ac6cd51136bb52cc317ee707a708e53f43b4d8f50b7b2a7118e7fb4fd7148"
+            },
+            {
+              "label": "size",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 64.95299999997951,
+              "log_sha256": "b7c9527e011f7b75bc04957789a87f38b35984e24f9b62b36c26b4b32ee5f3ce"
+            }
+          ]
+        }
+      },
+      "copy_proof_sha256": "f27a833ed0b5b912ae2024f8f57abde3b837c99c074e386ac006a0bcf24eee33",
+      "package_clients_sha256": "a99ee2132ae15708f3fc7f336744afc8d8ef43a880ac30cbfb3d2950ac68061f",
+      "layout": {
+        "client_config": 272,
+        "client_info": 160,
+        "session_config": 112,
+        "session_info": 88,
+        "session_frame": 72,
+        "request": 104,
+        "driver": 120,
+        "driver_request_tail": 8,
+        "session_private": 464,
+        "client_private": 1184
+      },
+      "workload_smoke_sha256": "610f106564eefd595c6f228d36ca2b2e6da58f1fbd91d645cdf7a8ce635c955d",
+      "size_sha256": "1152f8f105ed6c46b15a4d52a5da627ae83c7b15cdfe8dea7fee97fe4d6b226e",
+      "paired_performance": {
+        "report_sha256": "f26594765d585cc330a7e14c8b34fc4b4a35076d0de386df46ef9ea4c5499fa2",
+        "repeats": 7,
+        "warmups": 1,
+        "scope": "Closed-loop local combined QoS1 echo with peer/observer/final receiver PUBACKs; not fixed-arrival, broker, native or >=72h acceptance",
+        "comparisons": {
+          "after": [
+            "after",
+            "before"
+          ],
+          "optimized": [
+            "session",
+            "session_before"
+          ],
+          "session": [
+            "session",
+            "after"
+          ]
+        },
+        "thresholds": {
+          "relative_mad": 0.03,
+          "relative_central_range": 0.06,
+          "throughput_loss": 0.05,
+          "p99_increase": 0.1
+        },
+        "gate_summary": {
+          "after": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 1,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            }
+          },
+          "optimized": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            }
+          },
+          "session": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 1,
+              "qualified_failures": 0,
+              "raw_median_failures": 1
+            }
+          }
+        },
+        "cases": [
+          {
+            "version": 5,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.995798746779492,
+                "latency_p50_us": 1.0051546391752577,
+                "latency_p99_us": 1.0201005025125627,
+                "latency_max_us": 1.2446808510638299
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.0282783661139192,
+                "latency_p50_us": 0.9770992366412214,
+                "latency_p99_us": 0.955810147299509,
+                "latency_max_us": 0.9883843717001055
+              },
+              "session": {
+                "exchanges_per_sec": 1.0196276569463363,
+                "latency_p50_us": 0.9846153846153846,
+                "latency_p99_us": 0.9589490968801314,
+                "latency_max_us": 0.8
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 24918.041,
+                "latency_p50_us": 38.8,
+                "latency_p99_us": 59.7,
+                "latency_max_us": 282.0
+              },
+              "after": {
+                "exchanges_per_sec": 24813.354,
+                "latency_p50_us": 39.0,
+                "latency_p99_us": 60.9,
+                "latency_max_us": 351.0
+              },
+              "session_before": {
+                "exchanges_per_sec": 24604.604,
+                "latency_p50_us": 39.3,
+                "latency_p99_us": 61.1,
+                "latency_max_us": 284.1
+              },
+              "session": {
+                "exchanges_per_sec": 25300.382,
+                "latency_p50_us": 38.4,
+                "latency_p99_us": 58.4,
+                "latency_max_us": 280.8
+              }
+            }
+          },
+          {
+            "version": 5,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9657788453371994,
+                "latency_p50_us": 1.051803885291397,
+                "latency_p99_us": 0.967741935483871,
+                "latency_max_us": 1.06823883592574
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.214806482072464,
+                "latency_p50_us": 0.7905109489051094,
+                "latency_p99_us": 0.8189608998393145,
+                "latency_max_us": 0.7686539182602175
+              },
+              "session": {
+                "exchanges_per_sec": 1.0075705527472938,
+                "latency_p50_us": 0.9525065963060686,
+                "latency_p99_us": 0.9993464052287582,
+                "latency_max_us": 0.9628933771723813
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 284665.497,
+                "latency_p50_us": 108.1,
+                "latency_p99_us": 158.1,
+                "latency_max_us": 199.3
+              },
+              "after": {
+                "exchanges_per_sec": 274923.915,
+                "latency_p50_us": 113.7,
+                "latency_p99_us": 153.0,
+                "latency_max_us": 212.9
+              },
+              "session_before": {
+                "exchanges_per_sec": 228024.171,
+                "latency_p50_us": 137.0,
+                "latency_p99_us": 186.7,
+                "latency_max_us": 266.7
+              },
+              "session": {
+                "exchanges_per_sec": 277005.241,
+                "latency_p50_us": 108.3,
+                "latency_p99_us": 152.9,
+                "latency_max_us": 205.0
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9864197253070249,
+                "latency_p50_us": 1.0104166666666667,
+                "latency_p99_us": 1.075885328836425,
+                "latency_max_us": 0.9786422578184594
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.0123427184873326,
+                "latency_p50_us": 0.9870466321243523,
+                "latency_p99_us": 1.005084745762712,
+                "latency_max_us": 0.977403293757181
+              },
+              "session": {
+                "exchanges_per_sec": 1.0222594807841703,
+                "latency_p50_us": 0.981958762886598,
+                "latency_p99_us": 0.9294670846394985,
+                "latency_max_us": 0.9945440374123148
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 25198.533,
+                "latency_p50_us": 38.4,
+                "latency_p99_us": 59.3,
+                "latency_max_us": 262.2
+              },
+              "after": {
+                "exchanges_per_sec": 24856.33,
+                "latency_p50_us": 38.8,
+                "latency_p99_us": 63.8,
+                "latency_max_us": 256.6
+              },
+              "session_before": {
+                "exchanges_per_sec": 25099.819,
+                "latency_p50_us": 38.6,
+                "latency_p99_us": 59.0,
+                "latency_max_us": 261.1
+              },
+              "session": {
+                "exchanges_per_sec": 25409.619,
+                "latency_p50_us": 38.1,
+                "latency_p99_us": 59.3,
+                "latency_max_us": 255.2
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9950539173804109,
+                "latency_p50_us": 1.0052910052910053,
+                "latency_p99_us": 0.9343246592317225,
+                "latency_max_us": 1.1075525812619502
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.127087635542395,
+                "latency_p50_us": 0.82265625,
+                "latency_p99_us": 1.0582695703354914,
+                "latency_max_us": 0.671476819158735
+              },
+              "session": {
+                "exchanges_per_sec": 1.0066986053633706,
+                "latency_p50_us": 0.9236842105263158,
+                "latency_p99_us": 1.1923076923076923,
+                "latency_max_us": 0.9438929650410013
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": false,
+                "latency_p50_us": false,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 274850.241,
+                "latency_p50_us": 113.4,
+                "latency_p99_us": 161.4,
+                "latency_max_us": 209.2
+              },
+              "after": {
+                "exchanges_per_sec": 273490.809,
+                "latency_p50_us": 114.0,
+                "latency_p99_us": 150.8,
+                "latency_max_us": 231.7
+              },
+              "session_before": {
+                "exchanges_per_sec": 244278.091,
+                "latency_p50_us": 128.0,
+                "latency_p99_us": 169.9,
+                "latency_max_us": 325.7
+              },
+              "session": {
+                "exchanges_per_sec": 275322.816,
+                "latency_p50_us": 105.3,
+                "latency_p99_us": 179.8,
+                "latency_max_us": 218.7
+              }
+            }
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "phases": {
+        "root": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-root.json",
+          "sha256": "af3c8ed79d4641ed20e35189e4cd68957924887cb58b7ac9f665c91520e78150",
+          "runs": [
+            {
+              "label": "root",
+              "programs": 40,
+              "exit_code": 0,
+              "seconds": 532.0731891980104,
+              "log_sha256": "e1f1e5c484f63f2d7c7f1b7a328e80cd7a8c34b47b07d29fe31ad428917362bd"
+            }
+          ]
+        },
+        "leaf": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-leaf.json",
+          "sha256": "7959f5f662d3b86e08b3b06f8522a0cafd7792fa3a51e6ef74c526868fe78291",
+          "runs": [
+            {
+              "label": "leaf",
+              "programs": 5,
+              "exit_code": 0,
+              "seconds": 114.40268396399915,
+              "log_sha256": "83aa1a3199775aaa9841236fab2ecf859546ccc242d3eb01dbb40df7fd447695"
+            },
+            {
+              "label": "example",
+              "programs": 1,
+              "exit_code": 0,
+              "seconds": 21.725411951978458,
+              "log_sha256": "a63d2c50527c5c98f2b6aeac136b235c77909e3f0cfa68e6c7501e7213e7be51"
+            },
+            {
+              "label": "tsan-modular",
+              "programs": 1,
+              "exit_code": 0,
+              "seconds": 51.22590619898983,
+              "log_sha256": "31438b6854cedba362f9201c77fbad579edea1bed3d250783dcd901a8dfd42b6"
+            },
+            {
+              "label": "tsan-single",
+              "programs": 1,
+              "exit_code": 0,
+              "seconds": 38.64907588000642,
+              "log_sha256": "d8daa84340f60a6fe21852e4e210b9ac6c8bb6c2ab3074f282fb4396ccdfe17d"
+            },
+            {
+              "label": "asan-repeat-0",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 1.2777875209867489,
+              "log_sha256": "24eeeb130e463351d49ced76665b84eca191bb54ea459f9ac1fa368a5b9468be"
+            },
+            {
+              "label": "asan-repeat-1",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 1.2760403330030385,
+              "log_sha256": "24eeeb130e463351d49ced76665b84eca191bb54ea459f9ac1fa368a5b9468be"
+            },
+            {
+              "label": "asan-repeat-2",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 1.2774779440078419,
+              "log_sha256": "24eeeb130e463351d49ced76665b84eca191bb54ea459f9ac1fa368a5b9468be"
+            },
+            {
+              "label": "asan-repeat-3",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 1.2770595379988663,
+              "log_sha256": "24eeeb130e463351d49ced76665b84eca191bb54ea459f9ac1fa368a5b9468be"
+            },
+            {
+              "label": "asan-repeat-4",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 1.2773714349896181,
+              "log_sha256": "24eeeb130e463351d49ced76665b84eca191bb54ea459f9ac1fa368a5b9468be"
+            }
+          ]
+        },
+        "session": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-session.json",
+          "sha256": "88b73348b6307bc0aee0ec10a6c011e406889320555cbd77a503a581434541d8",
+          "runs": [
+            {
+              "label": "session",
+              "programs": 5,
+              "exit_code": 0,
+              "seconds": 49.401441127993166,
+              "log_sha256": "21324dfb69526e831f4df4f7ca62d794820c2bdc4d6352e832f2781b81c77274"
+            }
+          ]
+        },
+        "packages": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-packages.json",
+          "sha256": "21d724c8f3d3590117165aa10fb69220ccebdf8c864d41620bd77c09ed55722b",
+          "runs": [
+            {
+              "label": "package-root-static",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 84.17361193199758,
+              "log_sha256": "32cb3b6d62e0d5087b7f23887fd0b3baa0ceda61cfa7af713f722061330466f1"
+            },
+            {
+              "label": "package-root-shared",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 79.02107023299322,
+              "log_sha256": "4ce1ee9f423dbdc3213b3fc60f2827a6a8243d20ee05986110f48f101b4bc159"
+            },
+            {
+              "label": "package-leaf-static",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 23.12256288199569,
+              "log_sha256": "875b1dc64c5f6de6c1762b38e2762aeb4939b4e792f8eec9d019fa3163e2d13b"
+            },
+            {
+              "label": "package-leaf-shared",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 24.83365443701041,
+              "log_sha256": "d18d829c1d01ae903bd0a786edd33c8c92d5a863f3513fbb8d9ad5d09e6557c1"
+            }
+          ]
+        },
+        "checks": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-checks.json",
+          "sha256": "d7161dffa8967038b49adbfb6f6dd35657878d6af1cdd062bc9900621c726e7a",
+          "runs": [
+            {
+              "label": "single",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 3.027780061995145,
+              "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15"
+            },
+            {
+              "label": "features",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.12201329998788424,
+              "log_sha256": "96e3fe9adb892eb8fe60c298dbd24d910417c3c736a29a1f48779276b62b61b0"
+            },
+            {
+              "label": "api",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.22142620000522584,
+              "log_sha256": "a71e9c259e192c679cf23045e0b42f7b7d1e1b8145c4718d19c914143fc9fc67"
+            },
+            {
+              "label": "docs",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 0.3719553080154583,
+              "log_sha256": "b59851ddf8157ac9cf7054ebad40f416f6560a5201b8a819462becf65a2693ff"
+            },
+            {
+              "label": "maturity",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 6.434555915999226,
+              "log_sha256": "8fbb85d58781fdd5c7d7369dc6b9d1c38423ed8495ec2053dbaf11442d1c5958"
+            },
+            {
+              "label": "tools",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 38.33987224500743,
+              "log_sha256": "3d45378f2841d69613141d0e5a7bdeae726ecdfea746529c7f521d0bc7dcd042"
+            }
+          ]
+        },
+        "performance": {
+          "report": "out/service-extensions/xmqtt-shared-publish-20261110/wsl-performance.json",
+          "sha256": "0e3b72cac1c7e853f4dc8230b525eb970d3d3d0912948ec9b29acdc984f92640",
+          "runs": [
+            {
+              "label": "performance-smoke",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 203.14910651001264,
+              "log_sha256": "04181442db7157e15641bc4e6263e87af75fb4a7cfc86de9ef193ccde57063da"
+            },
+            {
+              "label": "size",
+              "programs": 0,
+              "exit_code": 0,
+              "seconds": 86.92285561899189,
+              "log_sha256": "2341f0767988bc91df27df985ce1ef225d694bb1983c54b32add6f74ed2601d6"
+            }
+          ]
+        }
+      },
+      "copy_proof_sha256": "dc977fcb07fc16484f640d762c8673192b1e9e2c29cad47f2bb4c779bdfe2e03",
+      "package_clients_sha256": "544c8ee0b47cca7af2dfe3395c44fdfc28ec606b984215c41065a46b003add20",
+      "layout": {
+        "client_config": 272,
+        "client_info": 160,
+        "session_config": 112,
+        "session_info": 88,
+        "session_frame": 72,
+        "request": 104,
+        "driver": 120,
+        "driver_request_tail": 8,
+        "session_private": 536,
+        "client_private": 1392
+      },
+      "workload_smoke_sha256": "2a17cf978259bec1c4905b99d1745a6dd8752e9a60fab9d94978db0b80003d00",
+      "size_sha256": "b78b826a30742184be2ed76b5f8561382ec0dd58e85e614dbdcdde323315f172",
+      "paired_performance": {
+        "report_sha256": "28197a2fd74a6d04983ebb4436b8a1eac01334a087533be5026cb0fe8cb8237c",
+        "repeats": 7,
+        "warmups": 1,
+        "scope": "Closed-loop local combined QoS1 echo with peer/observer/final receiver PUBACKs; not fixed-arrival, broker, native or >=72h acceptance",
+        "comparisons": {
+          "after": [
+            "after",
+            "before"
+          ],
+          "optimized": [
+            "session",
+            "session_before"
+          ],
+          "session": [
+            "session",
+            "after"
+          ]
+        },
+        "thresholds": {
+          "relative_mad": 0.03,
+          "relative_central_range": 0.06,
+          "throughput_loss": 0.05,
+          "p99_increase": 0.1
+        },
+        "gate_summary": {
+          "after": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 4,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 1,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            }
+          },
+          "optimized": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 4,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            }
+          },
+          "session": {
+            "exchanges_per_sec": {
+              "cases": 4,
+              "noise_qualified": 4,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            },
+            "latency_p99_us": {
+              "cases": 4,
+              "noise_qualified": 2,
+              "qualified_failures": 0,
+              "raw_median_failures": 0
+            }
+          }
+        },
+        "cases": [
+          {
+            "version": 5,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.0069304614201533,
+                "latency_p50_us": 1.0014450867052023,
+                "latency_p99_us": 0.9982698961937717,
+                "latency_max_us": 1.0784410458806117
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.117039322358988,
+                "latency_p50_us": 0.9071332436069988,
+                "latency_p99_us": 0.9546247818499128,
+                "latency_max_us": 1.2068241469816274
+              },
+              "session": {
+                "exchanges_per_sec": 1.0246644627134562,
+                "latency_p50_us": 0.9725829725829727,
+                "latency_p99_us": 0.9480069324090121,
+                "latency_max_us": 1.0516925892040256
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 13784.075,
+                "latency_p50_us": 69.2,
+                "latency_p99_us": 115.6,
+                "latency_max_us": 202.7
+              },
+              "after": {
+                "exchanges_per_sec": 13879.605,
+                "latency_p50_us": 69.3,
+                "latency_p99_us": 115.4,
+                "latency_max_us": 218.6
+              },
+              "session_before": {
+                "exchanges_per_sec": 12731.815,
+                "latency_p50_us": 74.3,
+                "latency_p99_us": 114.6,
+                "latency_max_us": 190.5
+              },
+              "session": {
+                "exchanges_per_sec": 14221.938,
+                "latency_p50_us": 67.4,
+                "latency_p99_us": 109.4,
+                "latency_max_us": 229.9
+              }
+            }
+          },
+          {
+            "version": 5,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 0.9867957820549985,
+                "latency_p50_us": 1.0023080151070078,
+                "latency_p99_us": 1.0299459309579926,
+                "latency_max_us": 1.104533118906423
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.022826220214873,
+                "latency_p50_us": 0.9794840544383505,
+                "latency_p99_us": 0.9376363403054024,
+                "latency_max_us": 0.8315771727219085
+              },
+              "session": {
+                "exchanges_per_sec": 0.9932934180739038,
+                "latency_p50_us": 1.0094201381620265,
+                "latency_p99_us": 0.9835778705074708,
+                "latency_max_us": 0.8977158977158977
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 63105.517,
+                "latency_p50_us": 476.6,
+                "latency_p99_us": 721.3,
+                "latency_max_us": 994.9
+              },
+              "after": {
+                "exchanges_per_sec": 62272.258,
+                "latency_p50_us": 477.7,
+                "latency_p99_us": 742.9,
+                "latency_max_us": 1098.9
+              },
+              "session_before": {
+                "exchanges_per_sec": 60474.226,
+                "latency_p50_us": 492.3,
+                "latency_p99_us": 779.3,
+                "latency_max_us": 1186.3
+              },
+              "session": {
+                "exchanges_per_sec": 61854.624,
+                "latency_p50_us": 482.2,
+                "latency_p99_us": 730.7,
+                "latency_max_us": 986.5
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 1,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.01231011274312,
+                "latency_p50_us": 0.9956140350877192,
+                "latency_p99_us": 0.9827437446074202,
+                "latency_max_us": 1.0227906976744185
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.0741714758095475,
+                "latency_p50_us": 0.9475177304964538,
+                "latency_p99_us": 0.9808743169398908,
+                "latency_max_us": 0.8352941176470589
+              },
+              "session": {
+                "exchanges_per_sec": 1.0114784685973253,
+                "latency_p50_us": 0.9809104258443466,
+                "latency_p99_us": 0.9455662862159789,
+                "latency_max_us": 0.9040472942246476
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": false,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": true,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 13966.972,
+                "latency_p50_us": 68.4,
+                "latency_p99_us": 115.9,
+                "latency_max_us": 215.0
+              },
+              "after": {
+                "exchanges_per_sec": 14138.907,
+                "latency_p50_us": 68.1,
+                "latency_p99_us": 113.9,
+                "latency_max_us": 219.9
+              },
+              "session_before": {
+                "exchanges_per_sec": 13313.703,
+                "latency_p50_us": 70.5,
+                "latency_p99_us": 109.8,
+                "latency_max_us": 238.0
+              },
+              "session": {
+                "exchanges_per_sec": 14301.2,
+                "latency_p50_us": 66.8,
+                "latency_p99_us": 107.7,
+                "latency_max_us": 198.8
+              }
+            }
+          },
+          {
+            "version": 4,
+            "window": 32,
+            "ratios": {
+              "after": {
+                "exchanges_per_sec": 1.0063085184603593,
+                "latency_p50_us": 1.0018757815756565,
+                "latency_p99_us": 0.9459795867562858,
+                "latency_max_us": 0.9680743398656729
+              },
+              "optimized": {
+                "exchanges_per_sec": 1.0036904435444716,
+                "latency_p50_us": 0.9809309001435308,
+                "latency_p99_us": 0.9587561800676554,
+                "latency_max_us": 0.911068189452469
+              },
+              "session": {
+                "exchanges_per_sec": 0.9906940483815392,
+                "latency_p50_us": 0.9952153110047847,
+                "latency_p99_us": 0.9696052631578947,
+                "latency_max_us": 1.0310777418741683
+              }
+            },
+            "noise_qualified": {
+              "after": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "optimized": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              },
+              "session": {
+                "exchanges_per_sec": true,
+                "latency_p50_us": true,
+                "latency_p99_us": false,
+                "latency_max_us": false
+              }
+            },
+            "medians": {
+              "before": {
+                "exchanges_per_sec": 61593.384,
+                "latency_p50_us": 479.8,
+                "latency_p99_us": 803.4,
+                "latency_max_us": 1086.9
+              },
+              "after": {
+                "exchanges_per_sec": 61981.947,
+                "latency_p50_us": 480.7,
+                "latency_p99_us": 760.0,
+                "latency_max_us": 1052.2
+              },
+              "session_before": {
+                "exchanges_per_sec": 61179.367,
+                "latency_p50_us": 487.7,
+                "latency_p99_us": 768.6,
+                "latency_max_us": 1190.8
+              },
+              "session": {
+                "exchanges_per_sec": 61405.146,
+                "latency_p50_us": 478.4,
+                "latency_p99_us": 736.9,
+                "latency_max_us": 1084.9
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "archive_comparison": {
+    "windows": {
+      "libxrt.a": {
+        "members": 139,
+        "byte_identical": 139,
+        "different": [],
+        "before_sha256": "5827caa4705acffe29a9e8f84a291cd177b9f90a8f44efe9cbcf88b2b5a7d1d1",
+        "after_sha256": "02881691eb4544eac3af01798771836f0e203c7fb709def217190e8f3942d858"
+      },
+      "libxmqtt.a": {
+        "members": 9,
+        "byte_identical": 7,
+        "different": [
+          "extlibs__xmqtt__src__client__client.o",
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "before_sha256": "c81a938de4ae6bf397ab88b1e05a114749ba5ffa4a4d84bcd533d9b6eb35e074",
+        "after_sha256": "44bd3aa9ba574ec613f497150f9545f0aebeb3ad7f34fb64d7a839eaf6b598de"
+      }
+    },
+    "wsl": {
+      "libxrt.a": {
+        "members": 139,
+        "byte_identical": 139,
+        "different": [],
+        "before_sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d",
+        "after_sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d"
+      },
+      "libxmqtt.a": {
+        "members": 9,
+        "byte_identical": 7,
+        "different": [
+          "extlibs__xmqtt__src__client__client.o",
+          "extlibs__xmqtt__src__session__session.o"
+        ],
+        "before_sha256": "e6d81d641365c2c7d6825898713bc2e7edff94efbdab70e0765df867af473e25",
+        "after_sha256": "136d819e604a168e292e79e85f33e2f0f6b1e3002c3463eed784b167ff90f7f3"
+      }
+    }
+  },
+  "preparation_errors": {
+    "errors": [
+      {
+        "action": "Create comma-named output junction via Python subprocess cmd mklink",
+        "exit_code": 1,
+        "effect": "No source map was written; three validation starters exited FileNotFound before building or testing",
+        "correction": "Native PowerShell New-Item Junction, verified source map before starting dependent validation"
+      },
+      {
+        "action": "Temporary extra test-header endif during editing",
+        "effect": "Removed immediately before final adversarial build; final generated/header checks pass"
+      }
+    ]
+  },
+  "observation_correction": "Generic example basename recovery after test-only parser omitted main; same completed successful execution, no rerun",
+  "publication_documentation_deltas": {
+    "extlibs/xmqtt/docs/client_session.md": {
+      "before_sha256": "77f52330dd01f981f1f11ba188734d0db2ae6a4cbb838d091349a05126e91a3f",
+      "after_sha256": "ba52e7b19c394f2bf0d52ef7f0a544015d977a216a9f400b5c37c337795aad2a",
+      "reason": "Publication-only allocation-scope/coverage prose; no compiled input changes"
+    },
+    "extlibs/xmqtt/docs/coverage.md": {
+      "before_sha256": "3e104badcf149b0e69e7dd141645ab5fecc9755b033fbb73c5bc04f075b3b2de",
+      "after_sha256": "ceeb22ebb4bb5d3931de6ebcd4989d2cd13497911691381298555ed6b0a1c81a",
+      "reason": "Publication-only allocation-scope/coverage prose; no compiled input changes"
+    }
+  },
+  "remaining": [
+    "Outgoing alias single-snapshot path preserving binding/FIFO semantics",
+    "Extra independent packet/header allocation and full synchronization/copy/syscall profiling",
+    "TLS/Dial/Auth Session composition",
+    "Assigned-id adoption, automatic reconnect, durable recovery",
+    "Broker recovery interoperability, fixed-arrival/native Linux/>=72h production/performance gates"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-shared-publish-20261110",
+  "evidence_storage": "C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-shared-publish-20261110",
+  "evidence_files": 1538,
+  "evidence_index_sha256": "ee227e905e465d3b025bfbb836095486c3ad51b0e8d425c9c6e5df9a06d10a4b",
+  "publication_checks_sha256": "79453a9f943cfeaf64af2fb7b89dd318d21709cfd1f33fb3326e75043d7799d2"
+}

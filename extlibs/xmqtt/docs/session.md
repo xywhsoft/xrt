@@ -8,6 +8,13 @@ TCP with explicit reconnect and connection-scoped Futures. Automatic reconnect,
 TLS/Dial/Auth composition and durable/crash recovery remain required.
 The [example](../examples/session/README.md) exercises the state boundary directly.
 
+When driven by the optional Client Session factory, Objects/LiveBytes also count
+unaliased publication snapshots reserved before CONNACK/output. Those snapshots
+do not enter ActiveOutgoing or survive as protocol state until first selection.
+Pending encoding runs outside the gate; physical count/bytes/id reservation stays
+charged through allocation failure cleanup or actual last-reference retirement.
+The standalone public Publish/Open/Next contract is unchanged.
+
 The implementation follows OASIS [MQTT5 sections4.1/4.3/4.4/4.9](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)
 and [MQTT3.1.1 plus Errata01 sections3.2.2/4.1/4.4](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/errata01/os/mqtt-v3.1.1-errata01-os-complete.html).
 Only unacknowledged outgoing QoS1/2 and incoming QoS2 identities survive a resumed

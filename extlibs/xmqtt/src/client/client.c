@@ -44,7 +44,7 @@ typedef struct xmqttreceivetwo {
 } xmqttreceivetwo;
 typedef struct xmqttstartup {xatomic32 Refs;xmqttclient* Client;size_t Bytes;unsigned char Data[];} xmqttstartup;
 typedef struct xmqttalias {size_t Size,Capacity;char Topic[];} xmqttalias;
-enum {XMQTT_TX_ALIAS=8,XMQTT_TX_TLS=16,XMQTT_TX_SESSION=32,XMQTT_TX_BORROW=64};
+enum {XMQTT_TX_ALIAS=8,XMQTT_TX_TLS=16,XMQTT_TX_SESSION=32,XMQTT_TX_BORROW=64,XMQTT_TX_SHARED=128};
 typedef struct xmqttsendtopic {uint32 Refs;size_t Size;char Data[];} xmqttsendtopic;
 typedef struct xmqttsendaliasslot {xmqttsendtopic *Planned,*Actual;} xmqttsendaliasslot;
 typedef struct xmqttsendaliases {xmqttsendaliasslot* Pages[256];} xmqttsendaliases;
@@ -476,6 +476,13 @@ static void xmqttReadyFinish(xmqttclient* C,xmqttclientstatus Status)
 }
 static size_t xmqttSendAliasPadding(size_t Bytes)
 {return (0u-Bytes)&(_Alignof(xmqttsendaliasrequest)-1u);}
+static size_t xmqttRequestStorageBytes(const xmqttrequest* R)
+{
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(R->Capabilities&(XMQTT_TX_BORROW|XMQTT_TX_SHARED))return 0;
+#endif
+    return R->Bytes;
+}
 static xmqttsendaliasrequest* xmqttSendAliasRequest(const xmqttrequest* R)
 {return (xmqttsendaliasrequest*)(R->Wire+R->Bytes+xmqttSendAliasPadding(R->Bytes));}
 static size_t xmqttRequestExtra(size_t Bytes,bool Alias,bool TLS)
@@ -496,7 +503,7 @@ static size_t xmqttSessionRequestExtra(size_t Bytes,bool Alias,bool TLS,bool Bor
 }
 static xmqttsessionrequest* xmqttSessionRequest(const xmqttrequest* R)
 {
-    size_t Bytes=(R->Capabilities&XMQTT_TX_BORROW)?0:R->Bytes;
+    size_t Bytes=xmqttRequestStorageBytes(R);
     size_t Before=Bytes+xmqttRequestExtra(Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,(R->Capabilities&XMQTT_TX_TLS)!=0);
     return (xmqttsessionrequest*)(R->Wire+Before+((0u-Before)&(_Alignof(xmqttsessionrequest)-1u)));
 }
@@ -548,10 +555,10 @@ static void xmqttRequestDrop(const void* Data)
     xmqttrequest* R=(xmqttrequest*)Data;if(xrtAtomic32FetchSub(&R->Refs,1,XMEMORY_ACQ_REL)!=1)return;
     xmqttclient* C=R->Client;size_t Bytes=R->Bytes;uint16 Id=R->Identifier;uint8 Capabilities=R->Capabilities;
     bool Alias=(Capabilities&XMQTT_TX_ALIAS)!=0,TLS=(Capabilities&XMQTT_TX_TLS)!=0;
-    xmqttsendtopic* Topic=Alias?xmqttSendAliasRequest(R)->Topic:NULL;size_t Extra=xmqttRequestExtra(Bytes,Alias,TLS);xrtCancelDestroy(R->Cancel);
+    xmqttsendtopic* Topic=Alias?xmqttSendAliasRequest(R)->Topic:NULL;size_t Storage=xmqttRequestStorageBytes(R),Extra=xmqttRequestExtra(Storage,Alias,TLS);xrtCancelDestroy(R->Cancel);
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     const xmqttsessionpacket* Packet=(Capabilities&XMQTT_TX_SESSION)?xmqttSessionRequest(R)->Packet:NULL;
-    if(Capabilities&XMQTT_TX_SESSION)Extra+=xmqttSessionRequestExtra(Bytes,Alias,TLS,(Capabilities&XMQTT_TX_BORROW)!=0);
+    if(Capabilities&XMQTT_TX_SESSION)Extra+=xmqttSessionRequestExtra(Storage,Alias,TLS,(Capabilities&XMQTT_TX_BORROW)!=0);
 #endif
     /* The final reference is gone; capture immutable bookkeeping first, free
      * real storage, then publish capacity. C's request reference remains held
@@ -582,7 +589,7 @@ static void xmqttRequestNativeDrop(ptr Data,cbytes Bytes,size_t Size)
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_TLS)
 static xmqtttlsfence* xmqttTlsFence(const xmqttrequest* R)
 {
-    size_t At=R->Bytes+xmqttRequestExtra(R->Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,true)-sizeof(xmqtttlsfence);
+    size_t Bytes=xmqttRequestStorageBytes(R),At=Bytes+xmqttRequestExtra(Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,true)-sizeof(xmqtttlsfence);
     return (xmqtttlsfence*)(R->Wire+At);
 }
 static void xmqttTlsUnlink(xmqttclient* C,xmqttrequest* R)
@@ -1720,6 +1727,7 @@ static bool xmqttClientSendRequest(xmqttclient* C,xmqttrequest* R,size_t* Budget
         xnetref Refs[2];size_t Count;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
         if(R->Capabilities&XMQTT_TX_BORROW)Count=xmqttClientSessionRefs(C,R->Offset,N,R,Refs);
+        else if(R->Capabilities&XMQTT_TX_SHARED){const xmqttpacket* P=xmqttSessionPacket(xmqttSessionRequest(R)->Packet);Refs[0]=(xnetref){P->Wire.Data+R->Offset,N,xmqttRequestNativeDrop,R};Count=1;}
         else
 #endif
         {Refs[0]=(xnetref){R->Wire+R->Offset,N,xmqttRequestNativeDrop,R};Count=1;}
@@ -2380,9 +2388,13 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     if(Alias){Encoding=*Codec;Encoding.MaxPacketBytes=XMQTT_PACKET_MAX_BYTES;Codec=&Encoding;}
     size_t Bytes;bool Valid=C->Config.Version==XMQTT_VERSION_5?xmqttPacketSize5(Packet,XMQTT_CLIENT_TO_SERVER,Codec,&Bytes):xmqttPacketSize311(Packet,XMQTT_CLIENT_TO_SERVER,Codec,&Bytes);
     if(!Valid){if(!Subscription && !P->Body.Publish.Topic.Size)xmqttClientError(XERR_ARGUMENT,"empty publish topic requires a valid outgoing alias");return XMQTT_ADMISSION_ERROR;}
-    size_t Extra=xmqttRequestExtra(Bytes,Alias,xmqttClientUsesTls(C));
+    size_t Storage=Bytes;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    bool Session=C->Session && Qos;if(Session)Extra+=xmqttSessionRequestExtra(Bytes,Alias,xmqttClientUsesTls(C),false);
+    bool Session=C->Session && Qos,Shared=Session && !Alias;if(Shared)Storage=0;
+#endif
+    size_t Extra=xmqttRequestExtra(Storage,Alias,xmqttClientUsesTls(C));
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(Session)Extra+=xmqttSessionRequestExtra(Storage,Alias,xmqttClientUsesTls(C),false);
 #endif
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XMQTT_CLIENT_CLOSING){++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_CLOSED;}
@@ -2394,12 +2406,13 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     }
     if(Extra>C->Config.MaxPrivateBytes-C->Info.PrivateBytes){xmqttIdentifierReleaseLocked(C,Identifier);++C->Info.Rejected;xrtMutexUnlock(&C->Gate);return XMQTT_ADMISSION_OVERLOADED;}
     ++C->Info.Requests;C->Info.OutgoingBytes+=Bytes;C->Info.PrivateBytes+=Extra;xmqttClientRef(C);xrtMutexUnlock(&C->Gate);
-    xmqttrequest* R=xrtMalloc(sizeof(*R)+Bytes+Extra);xfuture* F=NULL;xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
+    xmqttrequest* R=xrtMalloc(sizeof(*R)+Storage+Extra);xfuture* F=NULL;xmqttclientstatus Failure=XMQTT_STATUS_LIMIT;
     if(!R)goto UndoReservation;
     memset(R,0,sizeof(*R));R->Client=C;R->Bytes=Bytes;R->Deadline=Deadline;R->Type=Type;R->Retain=!Subscription && (P->Flags&1u)!=0;R->Qos=Qos;R->Identifier=Identifier;R->State.Release.Wire[0]=0x62;R->State.Release.Wire[1]=2;R->State.Release.Wire[2]=(unsigned char)(Identifier>>8);R->State.Release.Wire[3]=(unsigned char)Identifier;xrtAtomic32Init(&R->Refs,1);xrtAtomic32Init(&R->NativeRefs,0);
     if(xmqttClientUsesTls(C))R->Capabilities|=XMQTT_TX_TLS;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
     if(Session)R->Capabilities|=XMQTT_TX_SESSION;
+    if(Shared)R->Capabilities|=XMQTT_TX_SHARED;
 #endif
     if(Alias){R->Capabilities|=XMQTT_TX_ALIAS;xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);memset(A,0,sizeof(*A));A->Alias=AliasId;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
@@ -2421,6 +2434,11 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
         R->Result.Write=xmqttBoxAllocate(C->Quota,sizeof(*R->Result.Write),&Failure);if(!R->Result.Write){if(Failure==XMQTT_STATUS_LIMIT)goto Overload;goto Failed;}
         R->Result.Write->Box=(xmqttbox){C->Quota,sizeof(*R->Result.Write)};
     }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(Shared){xmqttsessionstatus S=xmqttInternalSessionSnapshot(C->Session->State,C,Packet,&xmqttSessionRequest(R)->Packet);
+        if(S!=XMQTT_SESSION_DONE){if(S==XMQTT_SESSION_LIMIT)goto Overload;goto Failed;}}
+    else
+#endif
     if(!(C->Config.Version==XMQTT_VERSION_5?xmqttPacketWrite5(R->Wire,Bytes,Packet,XMQTT_CLIENT_TO_SERVER,Codec,NULL):xmqttPacketWrite311(R->Wire,Bytes,Packet,XMQTT_CLIENT_TO_SERVER,Codec,NULL)))goto Failed;
     R->Promise=xrtPromiseCreate(&F,NULL);if(!R->Promise)goto Failed;
     xmqttRequestRef(R);if(!xrtPromiseProducerBindTakeV2(R->Promise,(xrtownershipref){R,&xmqttPrivateOps},&xmqttRequestProducer,&xmqttRequestCancellation)){xmqttRequestDrop(R);goto Failed;}

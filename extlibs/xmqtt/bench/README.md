@@ -99,8 +99,9 @@ after inspection. All sockets/threads/client/stream/listener/engine and retained
 message/Future owners are released on successful completion.
 
 `xmqtt_client_session` uses the same combined QoS1 echo workload as ordinary
-Client/Inbox, with explicit protocol Session attachment. It includes the current
-extra canonical snapshot allocation/copy for each new QoS1 publication. Compare
+Client/Inbox, with explicit protocol Session attachment. Unaliased QoS1 shares one
+snapshot; independent request/packet headers still require two allocations. The
+benchmark does not exercise the remaining outgoing-alias extra copy. Compare
 uninstrumented timing separately from instrumented heap counts; recovery itself
 is covered by fault tests rather than this steady-connection echo workload.
 

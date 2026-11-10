@@ -10,6 +10,17 @@ static xatomicptr csProbeFreeTarget;
 static xatomic32 csProbeFreeEntered,csProbeFreeRelease;
 static xatomic64 csProbeAllocBytes;
 static xatomic32 csProbeAllocCountdown,csProbeAllocFailures;
+static xatomic64 csProbeCopySize;
+static xatomic32 csProbeCopies;
+static xatomic32 csProbeCopyBlock,csProbeCopyEntered,csProbeCopyRelease;
+static void* csProbeMemcpy(void* To,const void* From,size_t Bytes)
+{
+    if(Bytes && Bytes==xrtAtomic64Load(&csProbeCopySize,XMEMORY_ACQUIRE)){
+        xrtAtomic32FetchAdd(&csProbeCopies,1,XMEMORY_RELAXED);
+        if(xrtAtomic32Load(&csProbeCopyBlock,XMEMORY_ACQUIRE)){xrtAtomic32Store(&csProbeCopyEntered,1,XMEMORY_RELEASE);double End=xrtTimer()+8;
+            while(!xrtAtomic32Load(&csProbeCopyRelease,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<End,"controlled snapshot copy release");xrtThreadYield();}}
+    }return memcpy(To,From,Bytes);
+}
 static void csProbeFailAllocation(size_t Bytes,unsigned Successful)
 {xrtAtomic32Store(&csProbeAllocCountdown,Successful,XMEMORY_RELAXED);xrtAtomic32Store(&csProbeAllocFailures,0,XMEMORY_RELAXED);xrtAtomic64Store(&csProbeAllocBytes,(uint64)Bytes,XMEMORY_RELEASE);}
 static ptr csProbeCalloc(size_t Count,size_t Bytes)
@@ -54,4 +65,5 @@ static xnetresult csProbeSendRefs(xnetstream* S,const xnetref* Refs,size_t Count
 #define xrtNetStreamSendRefs csProbeSendRefs
 #define xrtFree csProbeFree
 #define xrtCalloc csProbeCalloc
+#define memcpy csProbeMemcpy
 #endif

@@ -9450,3 +9450,63 @@ Session throughput is12-14% lower and P99 is13-21% higher. Those series are not
 noise-qualified; the extra snapshot and unresolved regression risk remain open.
 The after comparison means current ordinary/parent ordinary; session means
 current Session/current ordinary. This table does not grant performance acceptance.
+
+## 2026-11-10: share unaliased Client Session publication snapshots
+
+Unaliased QoS1/2 now uses one immutable Session snapshot from public admission
+through output and recovery. The request has no private wire buffer; first output
+uses one native reference and does not reparse/re-encode or allocate another
+packet. Independent request and protocol packet headers remain two allocations.
+Initial packet reference1 gains an active model reference on first selection;
+the existing frame/selection/native ownership continues through physical free.
+Outgoing aliases retain their original binding/queue linearization and two-copy
+path; they remain required optimization work rather than a removed capability.
+
+Object/id/byte capacity is physically reserved under the Session gate before
+allocation/encoding, then encoded outside both gates. It is not in the active
+protocol lists and does not set HasState before first selection. Early Session
+pressure returns OVERLOADED with an unchanged Future output. Unsent cancellation,
+failed setup/allocation and close during encoding refund Client/Session resources
+without creating a recoverable obligation. Caller allocation scopes retain charges
+for genuinely retained protocol packets across connection destruction.
+
+The exact257-byte MQTT memcpy probe counts two payload copies on parent d6b79373
+and one on current code, in four MQTT-version/QoS combinations per OS. The alias
+control remains two on both. Hooks are absent from generated/packaged SDKs and
+exclude Core/native/kernel copies; no end-to-end zero-copy claim is made.
+Constructor plus eight operation-budget prefixes, physical-capacity pre-CONNACK
+pressure, four concurrent producers, cancellation and controlled close-during-copy
+tests pass. The copy barrier proves both gates remain accessible while encoding.
+
+Windows/WSL each pass37 MQTT programs plus3 Core Time programs, two Client Session
+programs plus3 Time programs, two pure Session programs plus3 Time programs, the
+runnable recovery example,4 generic root/leaf static/shared consumers and4 actual
+packaged recovery suites. The explicit Time suite suffix isolates ignored build
+output from archived evidence without changing MQTT's dependency closure. WSL
+uses ASan/UBSan/leak, two TSan forms and five sanitized lifecycle repetitions.
+Generated/features/API/docs/maturity and89 tooling tests pass per OS. Only Client
+and Session change among9 MQTT members; all139 Core members agree with the parent.
+Public/private measured layouts and fixed driver120/request-tail8 bytes agree.
+
+Seven matched samples/one warmup compare current/parent ordinary Client, current/
+parent Session and current Session/ordinary using identical benchmark sources and
+one common parent Core. Original3% MAD/6% central-range,5% throughput and10% P99
+bounds are retained, with every raw/noise-qualified failure recorded. Eight smoke
+cases and two size profiles per OS are execution checks. External compiler load
+is captured; these are local closed-loop observations, not broker/fixed-arrival/
+native/72h production acceptance. Full performance acceptance remains false.
+
+| OS | Comparison | Qualified throughput | Qualified P99 | Qualified bound failures T/P99 | Raw median failures T/P99 |
+| --- | --- | --- | --- | --- | --- |
+| windows | after | 2/4 | 1/4 | 0/0 | 0/0 |
+| windows | optimized | 2/4 | 2/4 | 0/0 | 0/0 |
+| windows | session | 2/4 | 1/4 | 0/0 | 0/1 |
+| wsl | after | 4/4 | 1/4 | 0/0 | 0/0 |
+| wsl | optimized | 4/4 | 2/4 | 0/0 | 0/0 |
+| wsl | session | 4/4 | 2/4 | 0/0 | 0/0 |
+
+The four-product goal remains active and all products developing. Continue with
+alias sharing, TLS/Dial/Auth Session composition, durable/automatic recovery and
+full performance/production gates. Development remains on D:/GIT/xrt master; no
+branch operation or push. Evidence: extlibs/xmqtt/tests/results/shared-publish-20261110.json
+and out/service-extensions/xmqtt-shared-publish-20261110 (C-backed artifacts).

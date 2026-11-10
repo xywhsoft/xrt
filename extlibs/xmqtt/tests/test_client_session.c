@@ -88,7 +88,8 @@ static void csQueuedCancel(xmqttversion V)
     xmqttsession* S;xmqttclientinbox* I;csPair(V,&S,&I);mqttResumePeer P;mqttResumeStart(&P,V,MQTT_RESUME_HOLD_READY,false);xfuture* Ready;xmqttclient* C=csConnect(&P,S,I,&Ready,NULL);mqttResumeWait(&P.Connects,1);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Body.Publish.Topic=XRT_STR_LITERAL("queued");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("cancelled");xfuture* F=NULL;
     testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED && xrtFutureCancel(F),"cancel accepted pre-CONNACK request");const xmqttwriteresult* W=csResult(F);
-    testRequire(W->Status==XMQTT_STATUS_CANCELLED && W->Delivery==XMQTT_NOT_SENT && !W->AcceptedBytes && !csInfo(S).Objects,"unsent cancellation creates no retained obligation");mqttResumeConnack(&P);csReady(Ready);
+    testRequire(W->Status==XMQTT_STATUS_CANCELLED && W->Delivery==XMQTT_NOT_SENT && !W->AcceptedBytes && !csInfo(S).ActiveOutgoing,"unsent cancellation creates no retained obligation");
+    double End=xrtTimer()+8;while(csInfo(S).Objects){testRequire(xrtTimer()<End,"cancelled snapshot physical retirement");xrtSleep(1);}mqttResumeConnack(&P);csReady(Ready);
     testRequire(!csInfo(S).ActiveOutgoing && !xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE),"cancelled payload is never replayed");
     xrtFutureDestroy(F);F=NULL;
     testRequire(xmqttClientPublish(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED && ((const xmqttwriteresult*)csResult(F))->Status==XMQTT_STATUS_OK,"new publish still works after cancellation");
@@ -175,8 +176,10 @@ int main(void)
     for(unsigned V=0;V<2;++V)for(unsigned Phase=0;Phase<3;++Phase)csOutgoing(V?XMQTT_VERSION_311:XMQTT_VERSION_5,Phase,false);
     csOutgoing(XMQTT_VERSION_5,0,true);csAliasExpansion();
     for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csIncoming(Version,false);csIncoming(Version,true);csMissingState(Version);csCancellationBudget(Version);csAdmissionAndWindow(Version);}
-    csFactoryOom();csExpiry();
+    csFactoryOom();csExpiry();csPendingPhysical(XMQTT_VERSION_5);csPendingPhysical(XMQTT_VERSION_311);csSnapshotOom(XMQTT_VERSION_5);csSnapshotOom(XMQTT_VERSION_311);csConcurrentSnapshots(XMQTT_VERSION_5);csConcurrentSnapshots(XMQTT_VERSION_311);
 #if defined(XMQTT_CLIENT_SESSION_SINGLE_TEST)
+    csSharedCopy(XMQTT_VERSION_5,1,false);csSharedCopy(XMQTT_VERSION_5,2,false);csSharedCopy(XMQTT_VERSION_311,1,false);csSharedCopy(XMQTT_VERSION_311,2,false);csSharedCopy(XMQTT_VERSION_5,1,true);
+    csSnapshotCloseRace(XMQTT_VERSION_5);csSnapshotCloseRace(XMQTT_VERSION_311);
     for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csNativeBoundary(Version,false);csNativeBoundary(Version,true);csEarlyAckPartial(Version);csPacketPhysicalRetirement(Version);csRequestPhysicalRetirement(Version);for(unsigned N=0;N<4;++N)csReplayAllocation(Version,N==3?4:N);}
 #endif
     puts("Client Session outgoing/incoming/reset/cancel recovery tests passed");return 0;

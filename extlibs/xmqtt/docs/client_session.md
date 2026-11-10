@@ -18,6 +18,15 @@ after graceful native close. Stable-owner Info/Take and retained packet access
 remain available; public Session mutations and owner destruction are refused.
 Constructor failure leaves the output unchanged and releases both claims.
 
+Unaliased QoS1/2 publication reserves Session object/id/byte capacity at public
+admission, including before CONNACK. SessionInfo.Objects/LiveBytes include that
+pending immutable snapshot. It is absent from protocol lists and does not set
+ActiveOutgoing/HasState. A physical limit returns OVERLOADED without publishing
+a Future; cancellation or failed setup releases the pending snapshot after the
+actual last request reference. It is never recovered as an unsent obligation.
+The sender activates it only when selecting its first output. Reservation and
+encoding rollback are separate, and payload encoding holds neither gate.
+
 Reconnect is explicit: close and destroy the old Client, then invoke the factory
 again with the same passive owners. The old Engine may be destroyed first.
 Existing obligations reserve request slots and logical outgoing bytes during
@@ -61,9 +70,15 @@ replay construction releases temporary wrappers and preserves old obligations.
 
 ## Cost and remaining work
 
-New outgoing QoS1/2 currently creates a canonical Session snapshot in addition
-to the existing Client wire snapshot: one extra packet allocation and payload
-copy. This is explicit performance debt. Replay allocates one request header
+Unaliased outgoing QoS1/2 now takes one canonical snapshot at admission. Client
+and Session share its immutable wire; the initial send uses one native reference
+and retains the existing request for the native lease. The request has no private
+wire buffer. Request and packet headers remain separate allocations because their
+connection/Future and protocol lifetimes differ. Relative to ordinary Client,
+that extra packet/header allocation and Session synchronization still have costs.
+Outgoing aliases retain the original two-snapshot path and extra payload copy,
+preserving binding/queue linearization; that cost remains performance debt.
+Replay allocates one request header
 per retained flow, borrows immutable packet data and gathers a DUP prefix plus
 tail without copying payload or creating a Future/result allocation. Native
 reference leases and reference-count operations still have costs. Session adds
@@ -73,9 +88,18 @@ cover requested objects, not allocator/native/kernel overhead or process RSS.
 
 TLS/Dial/Auth composition, assigned-id adoption, automatic reconnect, durable
 storage, cross-process recovery, broker recovery interoperability, elimination
-of the extra new-publication copy and production/performance acceptance remain
+of the extra alias-publication copy/allocation costs and production/performance acceptance remain
 required work. The local recovery tests cover both protocol versions, QoS
 stages, deduplication, resets, expiry, aliases, early ACKs, zero/partial native
 output, physical retirement and controlled constructor/replay allocation failure.
 The closed-loop Session benchmark uses the same echo fixture and observer as
 ordinary Client/Inbox; it is not an independent broker or one-way receiver test.
+
+Snapshots allocate in the scope active in PublishAsync. A sent packet retained
+by Session keeps that scope charged across Client/Engine destruction until actual
+packet retirement; closing the original connection does not release its budget.
+A pending unsent snapshot refunds after its last request reference, independently
+of the earlier logical Future settlement. This is requested-allocation accounting,
+not allocator/native/kernel overhead or process RSS. The one-span/reference statement
+is per native write: chunk/budget limits can split a frame across several calls
+and loans. Replay may gather a DUP prefix and tail as two spans.

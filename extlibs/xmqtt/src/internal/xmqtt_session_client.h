@@ -19,6 +19,10 @@ XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionOpen(xmqttsession* S,const
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionEnd(xmqttsession* S,const void* Owner,const xmqttpacket* Disconnect,double Now);
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionPublish(xmqttsession* S,const void* Owner,
     const xmqttpacket* Publish,const xmqttsessionpacket** Packet);
+/* One immutable copy, physically reserved but not linked to protocol state.
+ * The exclusive driver activates it only when selecting its first output. */
+XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSnapshot(xmqttsession* S,const void* Owner,
+    const xmqttpacket* Publish,const xmqttsessionpacket** Packet);
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSelect(xmqttsession* S,const void* Owner,
     const xmqttsessionpacket* Packet,xmqttsessionframe* Frame);
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionSent(xmqttsession* S,const void* Owner,const xmqttsessionframe* Frame);
