@@ -246,8 +246,9 @@ QoS1/2 snapshots, original identifiers, cross-connection PUBLISH/PUBREL state,
 incoming QoS2 prepare/commit/deduplication and elapsed-time expiry. It uses no
 Engine, Future, background retry timer, credential store or new shared runtime.
 The optional [Client Session factory](client_session.md) now attaches it to
-numeric TCP with a shared Inbox and connection-scoped Futures. Automatic
-reconnect, TLS/Dial/Auth composition and durable recovery remain required.
+numeric TCP with a shared Inbox and connection-scoped Futures. The optional
+[TLS Session leaf](client_session_tls.md) now composes TLS/Dial/Auth. Automatic
+reconnect, plain Dial/Auth composition and durable recovery remain required.
 
 The [stage report](../tests/results/session-20261110.json) records both platforms'
 33-program full MQTT suites plus minimal session builds and the runnable example.
@@ -331,5 +332,37 @@ and shared consumers. WSL also instruments the complete implementation closure
 with ASan/UBSan/leak and TSan. Windows reaches the proxy by WSL private IPv4;
 the broker remains loopback-only inside WSL. This is continuously running broker,
 explicit volatile TCP recovery evidence. Broker restart/durable/automatic recovery,
-TLS/Dial/Auth Session composition, assigned ids, WebSocket, other brokers,
+Plain Dial/Auth Session composition, assigned ids, WebSocket, other brokers,
 native Linux deployment, performance and >=72h production gates remain open.
+
+## Explicit TLS Session composition
+
+The [TLS Session stage](../tests/results/session-tls-20261110.json) adds numeric,
+hostname and prepared-address TLS Session/Inbox factories and their MQTT5
+enhanced-auth variants. Session opening/reset/replay waits for local final proof.
+Denied proof and failed TLS/DNS preserve old offline state and expiry. Ordinary
+Auth retains its bounded receive quarantine; QoS2 preflight now reserves storage
+in that protocol-ready/pre-application-ready phase. TLS closure records actual
+Session end time, gathers up to four shared alias spans and reserves native fence
+storage on recovery wrappers.
+
+Both platforms pass43 full programs (40 MQTT plus3 Time), six minimal programs,
+root/leaf static/shared generic consumers and eight direct real-broker TLS example
+runs across both OSes. WSL includes full ASan/UBSan/leak, three direct strict
+sanitizer binaries and applicable TSan. Tests cover36 two-connection recovery
+cases plus9 authenticated cases when selected, seven denied/missing-state proof
+cases, three ordinary coalesced-auth QoS2 regressions, eight failed secure setups,
+invalid claims/configs and seven allocator-budget prefixes. Single tests measure
+one MQTT payload snapshot for new TLS QoS1/2; native TLS record copying is separate.
+
+Matched seven-sample TLS observations use identical current peers and one common
+Core with native TLS server fixture/MemoryStats from unchanged Core sources.
+Ordinary before/after has no qualified5% throughput/10% P99 failures. Session
+overhead at WSL MQTT311/window32 is a qualified7.4% throughput loss; wider Windows
+raw throughput/P99 failures and unqualified noise remain recorded. Each publish
+adds about one XRT block allocation and273/280 measured bytes (MQTT5/311) at
+window1, across the sampled client/server/cipher window. Public layouts stay
+fixed; recovery adds the existing24-byte TLS fence. No zero-overhead or full
+performance/production qualification is claimed. Partial TLS-prefix/ACK-cut
+interop, mutual-auth/resumption composition matrices, automatic/durable recovery,
+WebSocket, native deployment and >=72h gates remain required.

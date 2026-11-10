@@ -27,7 +27,8 @@ XMQTT_API bool xmqttClientInboxCreate(const xmqttclientinboxconfig* Config,xmqtt
  * quota, including retained objects from earlier Clients and Engines.
  * This preserves application messages, not MQTT session protocol state: CONNACK
  * SessionPresent without local state still fails. No automatic reconnect/replay.
- * TLS/Dial/Auth composition and session attachment remain separate work. */
+ * Optional client_session and client_session_tls factories add protocol recovery
+ * and TLS/Dial/Auth composition while retaining these passive Inbox bounds. */
 XMQTT_API bool xmqttClientConnectInbox(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,xmqttclientinbox* Inbox,const xmqttpacket* Connect,xmqttclient** Client);
 /* Thread-safe with stable owner. Transfer one reference, false/unchanged when

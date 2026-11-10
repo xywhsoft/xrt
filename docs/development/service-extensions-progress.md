@@ -45,7 +45,9 @@ Target and rules: [development contract](service-extensions-plan.md).
   authentication and physical retirement. Hostname/prepared-address Dial is
   locally verified, along with verified TLS and TLS1.3 credential handoff.
   In-memory Session/expiry and explicit numeric TCP recovery are locally verified.
-  TLS/Dial/Auth recovery composition, automatic reconnect, durable storage,
+  Optional numeric/hostname/prepared TLS Session factories and MQTT5 proof-gated
+  authentication composition are locally verified. Plain Dial/Auth composition,
+  automatic reconnect, durable storage,
   WebSocket and full performance/production qualification remain pending.
 - Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
@@ -9615,3 +9617,68 @@ The full four-product goal stays active and all products developing. Work is on
 D:/GIT/xrt master with no branch operation or push. Evidence:
 extlibs/xmqtt/tests/results/broker-session-20261110.json and
 out/service-extensions/xmqtt-broker-session-20261110 (C-backed artifacts).
+
+## 2026-11-10: compose explicit Client Session with TLS/Dial/Auth
+
+The optional xmqtt_client_session_tls leaf adds three TLS factories for numeric,
+hostname and prepared endpoints, plus their MQTT5 enhanced-auth variants. It
+reuses existing bounded constructors, deadlines, driver/Inbox claims, TLS native
+retirement and caller-driven reconnect. No Core/shared-runtime implementation
+changes. Session opening/reset/replay waits until local final proof is accepted;
+the existing bounded CONNECT snapshot remains charged until that decision.
+Post-CONNACK data is backpressured for attached Session; ordinary Auth keeps its
+existing hidden receive quarantine and protocol ACK progress. QoS2 preflight now
+allocates its bounded receive state while protocol-ready before application Ready.
+
+Composition exposed and fixes TLS end-time initialization, four-span shared-alias
+output and TLS fence storage on recovery wrappers. Reproduction logs retain the
+original bounds diagnostic/native-close abort, early Session/proof error, and
+initial ordinary-quarantine compatibility failure. Constructor, timeout, cancel,
+DNS/verification failure and denied proof preserve old offline obligations and
+expiry. Public output changes only on successful admission. Physical claims stay
+through Destroy. New publication still has one product payload snapshot; native
+TLS encryption/copying, request and packet allocations and gates remain costs.
+
+Windows and WSL each pass43 full programs (40 MQTT+3 Time), six trimmed programs,
+four root/leaf static/shared generic consumers and four real TLS broker example
+consumers. WSL also passes complete ASan/UBSan/leak, three directly run strict
+sanitizer binaries and TSan. Modular tests cover36 normal/tiny two-Engine recovery
+combinations; selected Auth adds9 recovery,7 proof-negative/missing-state and3
+ordinary coalesced-auth QoS2 cases. Eight setup-failure recoveries, constructor
+validation and seven allocator prefixes pass. Single tests count one payload copy.
+The direct Mosquitto2.1.2 example checks trusted TLS and SessionPresent with
+completed QoS1/2, without injecting ACK cuts. Runtime keys are removed. Both
+platforms' generated/features/API/docs/maturity and89 tool checks pass.
+
+All139 Core archive members and8/9 MQTT members per OS match the prior packaged
+stage; only Client changes. Public config/info sizes remain272/160 and Session
+112/88; request header104 and driver144/216 (Windows/WSL) are unchanged. Recovery
+wrappers reserve112 extra bytes with TLS versus88 for TCP, including the existing
+24-byte fence. The declared span buffer grows from3 to4 spans; this is not a
+measurement of total compiler stack use. Window1 allocation counters show one
+extra allocation and273/280 extra bytes per MQTT5/311 publication, including the
+sampled native client/server/cipher work. Cold setup, libc observer/OS/RSS costs
+are outside those window counters and remain separately required measurements.
+
+Seven samples/one warmup use three matched binaries, identical current TLS peers
+and one common140-object diagnostic/fixture Core from unchanged sources. Original
+3% MAD/6% central-range noise gates,5% throughput and10% P99 bounds are unchanged.
+Raw and qualified failures stay in the evidence. Existing ordinary TLS has no
+qualified regression failures; Session overhead still requires optimization.
+
+| OS | Comparison | Qualified throughput | Qualified P99 | Qualified bound failures T/P99 | Raw median failures T/P99 |
+| --- | --- | --- | --- | --- | --- |
+| windows | ordinary after/before | 2/4 | 0/4 | 0/0 | 0/0 |
+| windows | Session/ordinary | 2/4 | 1/4 | 0/0 | 2/1 |
+| wsl | ordinary after/before | 4/4 | 2/4 | 0/0 | 0/0 |
+| wsl | Session/ordinary | 4/4 | 1/4 | 1/0 | 1/1 |
+
+WSL311/window32 Session throughput is a qualified7.4% below ordinary TLS; its
+12.7% P99 increase is unqualified. Windows5/window32 raw P99 overhead31.6% and
+wide raw throughput failures are retained. Full performance acceptance is false.
+Continue with those allocation/locking costs, partial-prefix/ACK-cut TLS interop,
+mutual-auth/resumption matrices, plain Dial/Auth, assigned ids, automatic/durable
+recovery, WebSocket and full native/72h gates. All four products stay developing
+and the full goal remains active. Development stays on D:/GIT/xrt master, with
+no branch operation or push. Evidence: extlibs/xmqtt/tests/results/session-tls-20261110.json
+and out/service-extensions/xmqtt-session-tls-20261110 (C-backed artifacts).

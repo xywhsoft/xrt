@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `97` 个函数、`199` 个常量或宏、
+当前登记 `103` 个函数、`200` 个常量或宏、
 `65` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -177,6 +177,28 @@
 
 - `xmqttsession`
 
+## `extlibs/xmqtt/include/xmqtt/client_session_tls.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_session_tls.h)
+
+### 函数 (6)
+
+- `xmqttClientTlsConnectSession`
+- `xmqttClientTlsConnectSessionAuth`
+- `xmqttClientTlsDialAddressesSession`
+- `xmqttClientTlsDialAddressesSessionAuth`
+- `xmqttClientTlsDialSession`
+- `xmqttClientTlsDialSessionAuth`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS`
+- `XMQTT_FEATURE_XMQTT_CLIENT_TLS`
+
+### 类型 (1)
+
+- `xmqttclienttlsconfig`
+
 ## `extlibs/xmqtt/include/xmqtt/client_tls.h`
 
 [查看带契约注释的公共头](../../include/xmqtt/client_tls.h)
@@ -190,14 +212,6 @@
 - `xmqttClientTlsDialAddresses`
 - `xmqttClientTlsDialAddressesAuth`
 - `xmqttClientTlsDialAuth`
-
-### 常量与宏 (1)
-
-- `XMQTT_FEATURE_XMQTT_CLIENT_TLS`
-
-### 类型 (1)
-
-- `xmqttclienttlsconfig`
 
 ## `extlibs/xmqtt/include/xmqtt/client_tls_resume.h`
 

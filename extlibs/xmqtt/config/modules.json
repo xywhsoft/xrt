@@ -114,7 +114,8 @@
         "xmqtt_client_tls_resume",
         "xmqtt_session",
         "xmqtt_client_inbox",
-        "xmqtt_client_session"
+        "xmqtt_client_session",
+        "xmqtt_client_session_tls"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -668,7 +669,8 @@
         "xmqtt_client_tls_resume_tests",
         "xmqtt_session_tests",
         "xmqtt_client_inbox_tests",
-        "xmqtt_client_session_tests"
+        "xmqtt_client_session_tests",
+        "xmqtt_client_session_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -689,7 +691,8 @@
         "extlibs/xmqtt/tests/test_client_tls_resume_select.c",
         "extlibs/xmqtt/tests/test_session.c",
         "extlibs/xmqtt/tests/test_client_inbox.c",
-        "extlibs/xmqtt/tests/test_client_session.c"
+        "extlibs/xmqtt/tests/test_client_session.c",
+        "extlibs/xmqtt/tests/test_client_session_tls.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -712,7 +715,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -740,7 +745,9 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_tls_resume_stats_off.c": "xmqtt_client_tls_resume_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_session.c": "xmqtt_session_tests",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_inbox.c": "xmqtt_client_inbox_tests",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c": "xmqtt_client_session_tests"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session.c": "xmqtt_client_session_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c": "xmqtt_client_session_tls_tests",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c": "xmqtt_client_session_tls_tests"
       }
     },
     {
@@ -835,6 +842,55 @@
       ],
       "examples": [],
       "benchmarks": [],
+      "docs": []
+    },
+    {
+      "state": "developing",
+      "depends": [
+        "xmqtt_client_session",
+        "xmqtt_client_tls"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/client_session_tls.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [],
+      "single_tests": [],
+      "examples": [
+        "extlibs/xmqtt/examples/client_session_tls/main.c"
+      ],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xmqtt/docs/client_session_tls.md"
+      ],
+      "name": "xmqtt_client_session_tls",
+      "feature": "XMQTT_FEATURE_XMQTT_CLIENT_SESSION_TLS"
+    },
+    {
+      "name": "xmqtt_client_session_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_client_session_tls",
+        "tls_server",
+        "tls_identity_rsa",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_client_session_tls.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_tls_auth.c"
+      ],
+      "examples": [],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_client_session_tls.c"
+      ],
       "docs": []
     }
   ]

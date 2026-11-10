@@ -11,6 +11,7 @@ typedef struct mqttTlsPeer {
     xtlscontext* Context;xtlsidentity* Identity;xtlsserverconfig Config;xmqttversion Version;
     xatomicptr Server,Raw;xatomic32 Closed,ListenerClosed,Publishes,Lookups,VerifierDrops,ReceivedAcks,Disconnects,Resume,DnsEntered,DnsGate;
     unsigned char* Input;size_t Used,Capacity;bool Auth,PauseAfterFirst,Silent,Reject,BlockDns;
+    void (*Frame)(xtlsstream*,struct mqttTlsPeer*,unsigned char,const unsigned char*,size_t);ptr FrameData;
 } mqttTlsPeer;
 static inline void mqttTlsWait(xatomic32* A,uint32 Count,cstr Message)
 {double End=xrtTimer()+15;while(xrtAtomic32Load(A,XMEMORY_ACQUIRE)<Count){testRequire(xrtTimer()<End,Message);xrtSleep(1);}}
@@ -61,7 +62,7 @@ static inline void mqttTlsRead(xtlsstream* S,const xnetbuf* Buffer,ptr Data)
         while(P->Used-At>=2){size_t H=1,N=0;unsigned Shift=0;unsigned char B;
             do{if(At+H==P->Used)goto ReadMore;B=P->Input[At+H++];N|=(size_t)(B&127u)<<Shift;Shift+=7;testRequire(H<=5,"bounded remaining length");}while(B&128u);
             if(N>P->Used-At-H)break;
-            mqttTlsFrame(S,P,P->Input[At],P->Input+At+H,N);At+=H+N;
+            if(P->Frame)P->Frame(S,P,P->Input[At],P->Input+At+H,N);else mqttTlsFrame(S,P,P->Input[At],P->Input+At+H,N);At+=H+N;
             if(P->PauseAfterFirst && xrtAtomic32Load(&P->Publishes,XMEMORY_ACQUIRE) && !xrtAtomic32Load(&P->Resume,XMEMORY_ACQUIRE))break;
         }
 ReadMore:
@@ -98,10 +99,12 @@ static inline void mqttTlsVerifierDrop(ptr Data)
 static inline xtlsverifydecision mqttTlsVerify(const xtlspeer* Peer,ptr Data)
 {mqttTlsPeer* P=Data;testRequire(Peer && Peer->Name.Size==11 && !memcmp(Peer->Name.Data,"example.com",11),"retained verification identity");return P->Reject?XTLS_VERIFY_REJECT:testTlsServerAccept(Peer,NULL);}
 enum {MQTT_TLS_AUTH=1,MQTT_TLS_PAUSE=2,MQTT_TLS_SILENT=4,MQTT_TLS_REJECT=8,MQTT_TLS_BLOCK_DNS=16};
-static inline void mqttTlsStart(mqttTlsPeer* P,xmqttversion Version,unsigned Flags)
+static inline void mqttTlsStartWith(mqttTlsPeer* P,xmqttversion Version,unsigned Flags,
+    void (*Frame)(xtlsstream*,mqttTlsPeer*,unsigned char,const unsigned char*,size_t),ptr Data)
 {
     memset(P,0,sizeof(*P));P->Version=Version;P->Auth=(Flags&MQTT_TLS_AUTH)!=0;P->PauseAfterFirst=(Flags&MQTT_TLS_PAUSE)!=0;
     P->Silent=(Flags&MQTT_TLS_SILENT)!=0;P->Reject=(Flags&MQTT_TLS_REJECT)!=0;P->BlockDns=(Flags&MQTT_TLS_BLOCK_DNS)!=0;
+    P->Frame=Frame;P->FrameData=Data;
     P->Capacity=3u*1024u*1024u;P->Input=xrtMalloc(P->Capacity);testRequire(P->Input!=NULL,"fixture bounded input");
     xrtAtomicPtrInit(&P->Server,NULL);P->Context=testTlsServerContext();P->Identity=testTlsServerIdentity();testRequire(P->Context && P->Identity,"TLS fixture resources");
     static const xstrview Protocols[]={{"mqtt",4}};xrtTlsServerConfigInit(&P->Config);P->Config.Context=P->Context;P->Config.Identity=P->Identity;P->Config.Protocols=Protocols;P->Config.ProtocolCount=1;P->Config.RequireProtocol=true;
@@ -110,6 +113,8 @@ static inline void mqttTlsStart(mqttTlsPeer* P,xmqttversion Version,unsigned Fla
     static const xnetlistenerevents Events={mqttTlsAccept,NULL,mqttTlsListenerClosed};P->Listener=xrtNetListen(P->Engine,&L,&Events,NULL,P);testRequire(P->Listener && xrtNetListenerLocal(P->Listener,&P->Address),"TLS MQTT listener");
     xnetresolverconfig R;xrtNetResolverConfigInit(&R);R.Workers=1;R.Lookup=mqttTlsLookup;R.LookupData=P;P->Resolver=xrtNetResolverCreate(&R);testRequire(P->Resolver!=NULL,"TLS MQTT resolver");
 }
+static inline void mqttTlsStart(mqttTlsPeer* P,xmqttversion Version,unsigned Flags)
+{mqttTlsStartWith(P,Version,Flags,NULL,NULL);}
 static inline void mqttTlsStop(mqttTlsPeer* P)
 {
     xrtAtomic32Store(&P->DnsGate,1,XMEMORY_RELEASE);

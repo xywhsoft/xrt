@@ -43,8 +43,9 @@ XRT_EXTERN_C_BEGIN
  * under host queue pressure. Native loans retain both request and packet data.
  * Replay adds no payload copy. Independent request/packet headers remain separate
  * allocations; alias locking, small header copies and native leases have costs.
- * TLS/Dial/Auth composition, assigned-id adoption, automatic reconnect and durable
- * recovery remain separate work. No production/performance acceptance implied. */
+ * Optional client_session_tls composes TLS/Dial/Auth. Plain Dial/Auth composition,
+ * assigned-id adoption, automatic reconnect and durable recovery remain separate
+ * work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
     const xmqttpacket* Connect,xmqttclient** Client);

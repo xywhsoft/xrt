@@ -1,0 +1,373 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Explicit MQTT TLS Session with numeric/Dial/address and proof-gated authentication",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "654d2cfe7aebd645004e2e2db7b477fc135d6598",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "scope": [
+    "Optional xmqtt_client_session_tls leaf: numeric/hostname/prepared TLS Session/Inbox factories, plus three MQTT5 enhanced-auth variants when client_auth is selected",
+    "Existing constructors, monotonic entry deadlines, passive exclusive claims, TLS native progress and explicit caller-driven reconnect; no new shared runtime or Core implementation changes",
+    "Session Open/reset/replay follows accepted MQTT and local initial proof. Pre-acceptance TLS/DNS/proof failure preserves offline obligations/expiry. After accepted gates local replay failure can follow an authenticated reset/resume even before Ready succeeds",
+    "Shared canonical snapshots remain one MQTT payload copy. Four span TLS gather, actual TLS termination timestamp and native fence storage on recovery wrappers. Native TLS record copies/crypto/storage and metadata remain real costs",
+    "Ordinary enhanced Auth retains its bounded receive quarantine and protocol ACK progress. Receive preflight uses protocol readiness to reserve QoS2 state before application readiness"
+  ],
+  "new_public_functions": [
+    "xmqttClientTlsConnectSession",
+    "xmqttClientTlsConnectSessionAuth",
+    "xmqttClientTlsDialSession",
+    "xmqttClientTlsDialSessionAuth",
+    "xmqttClientTlsDialAddressesSession",
+    "xmqttClientTlsDialAddressesSessionAuth"
+  ],
+  "source_identity": {
+    "frozen": {
+      "path": "out/service-extensions/xmqtt-session-tls-20261110/source.json",
+      "sha256": "ff5328a7f577b6b6028fd72d32f6d7bfa18896e49c0593183927839ec816d7b3"
+    },
+    "inputs": 1100,
+    "publication_deltas": {
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "3225eb7adb249c221bf5f877555262065ab2e465c0f57d4f7b870328cba75a5c",
+        "after_sha256": "0964d48e8f50cff1e2ce52ab9679d9cbca4c4b2660c5161d6c0a3e007c27975b",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "extlibs/xmqtt/README.md": {
+        "before_sha256": "d875470b577b4d080b755072cdabafd8adb917236b21cd49ccb107751b8b942b",
+        "after_sha256": "609f17be711e885c32c060c28bfd0b06584ea8d0452f0dcc5799dfc598469374",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "1b6e885f8b79c6b3cbb404ec8fbee1ac31757702c91ebd088c1e75acee656931",
+        "after_sha256": "a149c8ee0c6334354ee12de9f8dcbc0943da589c7b48742238ce6ac83545b450",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "extlibs/xmqtt/include/xmqtt/client_session_tls.h": {
+        "before_sha256": "814272c9ec8831779691f2b329cc59c71f4d9e50e1e07c65e3c53fb15683c7b0",
+        "after_sha256": "9f36bdece8beafa6529ea912ad1307eb97d5b39fe0bcc8074b53d712e622098e",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "single/extlibs/xmqtt.h": {
+        "before_sha256": "65134e87cccad955a5104841848d799dbf9a8539db2d3edf51f11418b4e957c3",
+        "after_sha256": "23dd8fc73447182b8fb3479b0a5da78ffa35fcbef41648bb7f2c738398314a01",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "single/extlibs/xmqtt_decl.h": {
+        "before_sha256": "bcfb51ec62edecc229d264f3a164d108c2c99a18504e23972ef2272923b9b62b",
+        "after_sha256": "7ef89ca654f8b993624f6659dca2c98ce5ea1191ca749445859f27f3a2dbd811",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      },
+      "extlibs/xmqtt/docs/client_session_tls.md": {
+        "before_sha256": "dfc75546450d72bd4d89d70b1695f0d3128b213fe518ad7116b4fbd1aeeda55f",
+        "after_sha256": "9f3cb544b8f272d0000a4a3e06ad7c750864daf02eb47c4619cbe1bbc707a973",
+        "reason": "Publication prose/comment clarification only; full selected modular/minimal-single/auth-single preprocessor bytes identical before/after on both OSes for header comments"
+      }
+    },
+    "comment_proof": {
+      "windows": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-comment-before.json",
+          "sha256": "c258cba46338af61942044a44aed18141d8b83c14b3589c237899f0b32af2ffa"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-comment-after.json",
+          "sha256": "c258cba46338af61942044a44aed18141d8b83c14b3589c237899f0b32af2ffa"
+        },
+        "selected_preprocessor_bytes_identical": true
+      },
+      "wsl": {
+        "before": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-comment-before.json",
+          "sha256": "bd0410f53a7d2d599ad5488fbd4c200371cf626c3e2a2317348063fb1f5b4a53"
+        },
+        "after": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-comment-after.json",
+          "sha256": "bd0410f53a7d2d599ad5488fbd4c200371cf626c3e2a2317348063fb1f5b4a53"
+        },
+        "selected_preprocessor_bytes_identical": true
+      }
+    },
+    "archive_audits": {
+      "windows": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-archive-audit.json",
+        "sha256": "f01b283be4b9fff954be4457d370234d057509c7d915ffee71afd190387c0123"
+      },
+      "wsl": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-archive-audit.json",
+        "sha256": "a20b8ad9feb38431a75793a971d7d7289814c3101b91eb7149785e34c07dc1c7"
+      }
+    }
+  },
+  "tests": {
+    "platforms": {
+      "windows": {
+        "root": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-root.json",
+          "sha256": "4ac09e3b21cc71e50bb15ab6a9311e927c2ab461d6b8ae723d0a55e66e7894e9"
+        },
+        "root_programs": 43,
+        "root_mqtt_programs": 40,
+        "root_time_programs": 3,
+        "minimal": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-leaf.json",
+          "sha256": "59c015019cec39f1a1d4d0077f5b3ca12d570c579153a2387a93d721068a6145"
+        },
+        "minimal_programs": 6,
+        "packages": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-packages.json",
+          "sha256": "25df9cf4eff00ae50d2bf1936234cbbd384cb9bb1836e064b9ac50c3a565c594"
+        },
+        "generic_package_consumers": 4,
+        "checks": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-checks.json",
+          "sha256": "97b535205643aa6811d7c6b38ba43db4c39412384a885c332c71388a41a95496"
+        },
+        "tools_tests": 89,
+        "performance_smoke": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-performance.json",
+          "sha256": "0091894ed421628968d36650e8b00f7959a2fb8e63c4bf5f77491f5581733d17"
+        },
+        "registered_smoke_cases": 4
+      },
+      "wsl": {
+        "root": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-root.json",
+          "sha256": "1e02b8a3bd8750e1c87d80eca69513e8f6ae1a29bc64ef344bcc07ab82e17a58"
+        },
+        "root_programs": 43,
+        "root_mqtt_programs": 40,
+        "root_time_programs": 3,
+        "minimal": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-leaf.json",
+          "sha256": "00b2db98c64e95d308948b474bde408a5765a62651c093e8b3d436232cd98f3c"
+        },
+        "minimal_programs": 6,
+        "packages": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-packages.json",
+          "sha256": "56e0c896e471e6c70e5c720aa0c237a12ba592afec9b35aa6b71ae9affb011d1"
+        },
+        "generic_package_consumers": 4,
+        "checks": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-checks.json",
+          "sha256": "7939549e3363a24c3b63d181f463b33d78f30822d09d7a160e0fdcbb04c6a47e"
+        },
+        "tools_tests": 89,
+        "performance_smoke": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-performance.json",
+          "sha256": "013266008ed4721faf67d16f7b0da1de4ef7be84cfe309cfba6b898e77c93d92"
+        },
+        "registered_smoke_cases": 4
+      }
+    },
+    "case_groups": {
+      "two_engine_recovery": 36,
+      "additional_auth_recovery": 9,
+      "proof_denied_or_missing_state": 7,
+      "ordinary_auth_coalesced_qos2": 3,
+      "failed_secure_setup_then_recovery": 8,
+      "constructor_validation": "NULL passive owners/endpoints, combined private limit, identity rollback",
+      "allocator_budget_prefixes": 7
+    },
+    "single_payload_copy_probe": "257-byte binary QoS1/2, full/compact alias and unaliased; counts MQTT source memcpy only, excludes separately counted native TLS record copies",
+    "strict_sanitizers": {
+      "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-direct-sanitizers.json",
+      "sha256": "eb172cd2ee133cd40eecba4db099e767b96751efa3952340ab84b3f6807e375a"
+    },
+    "tsan": "Full modular native TLS/auth/Session implementation closure passes with halt_on_error=1; applicable lifetime/concurrent owner paths",
+    "real_broker": {
+      "report": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/example-broker-results.json",
+        "sha256": "a505ccd04090d8b6a916d7f06dbd694144370ee7e59acf76122affd43cc8368d"
+      },
+      "version": "2.1.2",
+      "cases": 8,
+      "pin": {
+        "path": "extlibs/xmqtt/tests/interop/broker.lock.json",
+        "sha256": "ca369cc12275dcb6895f7a09b93517d79a2d5f3e4026ecc3cdbe106a69f7d4e4"
+      },
+      "scope": "Direct strict-trust TLS to continuously running Mosquitto, two Engines, SessionPresent and completed QoS1/2; no ACK cuts/restart/durable recovery",
+      "runtime_material_removed": true
+    }
+  },
+  "performance": {
+    "method": "Three matched binaries share identical current peer/observer and one140-object Core with TLS server/RSA fixture and MemoryStats, from unchanged Core sources. Instrumentation disabled for timing samples; enabled for separate allocation windows.",
+    "repeats": 7,
+    "warmups": 1,
+    "thresholds": {
+      "relative_mad": 0.03,
+      "relative_central_range": 0.06,
+      "throughput_loss": 0.05,
+      "p99_increase": 0.1
+    },
+    "results": {
+      "windows": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-paired.json",
+          "sha256": "c30048daddcb0f0d14a4390943006477ce9b1207fc0695a8f321ba6198e18805"
+        },
+        "common_core": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-common-core-inputs.json",
+          "sha256": "99c51e7611711081c0cef0b4d7bc07740d8303bd93a52bc97aba16b1bd5e1935"
+        },
+        "builds": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-pair-builds.json",
+          "sha256": "e266baec516e8d81bb8b278d56a300a0475e57bab06c0bc2d6b08e9568d8af30"
+        },
+        "resources": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/windows-resources.json",
+          "sha256": "a046fa27046c7a0ce7649caf00baed994655fe883a2a3cf19594bca90a1102b0"
+        },
+        "comparisons": {
+          "after": {
+            "throughput_qualified": 2,
+            "p99_qualified": 0,
+            "qualified_throughput_failures": 0,
+            "qualified_p99_failures": 0,
+            "raw_throughput_failures": 0,
+            "raw_p99_failures": 0
+          },
+          "session": {
+            "throughput_qualified": 2,
+            "p99_qualified": 1,
+            "qualified_throughput_failures": 0,
+            "qualified_p99_failures": 0,
+            "raw_throughput_failures": 2,
+            "raw_p99_failures": 1
+          }
+        },
+        "layouts": {
+          "client_config": 272,
+          "client_info": 160,
+          "session_config": 112,
+          "session_info": 88,
+          "request_header": 104,
+          "driver": 144,
+          "mutex": 24,
+          "tls_fence": 24,
+          "tcp_recovery_extra": 88,
+          "tls_recovery_extra": 112,
+          "span": 16
+        }
+      },
+      "wsl": {
+        "report": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-paired.json",
+          "sha256": "399c5f59d51337185ef1e8a35697c707f3c70be43151eebcead29866ccb202a3"
+        },
+        "common_core": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-common-core-inputs.json",
+          "sha256": "242224317a49a089363d92f98c61aac98c0f20ed60a5679d50cc9abb1d93cd15"
+        },
+        "builds": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-pair-builds.json",
+          "sha256": "ba7cb7f22450f1fd41e318a40ffcc7588bf79f3f49a2f32d743be3a04c8b3520"
+        },
+        "resources": {
+          "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-resources.json",
+          "sha256": "482bcaf1c94dcfaade4fa686af86897dd503b9d5eb54c6ae11ab58f1a45d9896"
+        },
+        "comparisons": {
+          "after": {
+            "throughput_qualified": 4,
+            "p99_qualified": 2,
+            "qualified_throughput_failures": 0,
+            "qualified_p99_failures": 0,
+            "raw_throughput_failures": 0,
+            "raw_p99_failures": 0
+          },
+          "session": {
+            "throughput_qualified": 4,
+            "p99_qualified": 1,
+            "qualified_throughput_failures": 1,
+            "qualified_p99_failures": 0,
+            "raw_throughput_failures": 1,
+            "raw_p99_failures": 1
+          }
+        },
+        "layouts": {
+          "client_config": 272,
+          "client_info": 160,
+          "session_config": 112,
+          "session_info": 88,
+          "request_header": 104,
+          "driver": 216,
+          "mutex": 96,
+          "tls_fence": 24,
+          "tcp_recovery_extra": 88,
+          "tls_recovery_extra": 112,
+          "span": 16
+        }
+      }
+    },
+    "qualified_new_session_cost": "WSL MQTT311/window32 Session/ordinary throughput ratio0.9258511797245763, below observation bound; new recovery semantics have no parent TLS Session equivalent. Existing ordinary after/before has no qualified bound failures.",
+    "raw_unqualified_costs_retained": "Windows5/window32 P99 ratio1.3156378600823044 and wide throughput ratios0.9209239509913473/0.8957199439160926; WSL311/window32 P99 ratio1.126595522075748 is unqualified.",
+    "heap_scope": "Post-Ready MemoryStats BlockAllocCalls/BlockAllocBytes across caller and native client/server/cipher window; excludes setup, libc observer and OS/RSS. Window1 adds about one XRT allocation and273/280 bytes for MQTT5/311.",
+    "acceptance": false
+  },
+  "costs_and_layouts": {
+    "public_abi_unchanged": true,
+    "request_header_bytes": 104,
+    "driver_bytes_windows": 144,
+    "driver_bytes_wsl": 216,
+    "tls_fence_bytes": 24,
+    "tcp_recovery_extra_bytes": 88,
+    "tls_recovery_extra_bytes": 112,
+    "declared_span_array_entries_before": 3,
+    "declared_span_array_entries_after": 4,
+    "span_bytes": 16,
+    "actual_compiler_stack_use_measured": false,
+    "additional_payload_copy": false,
+    "remaining_costs": [
+      "independent request/packet allocations",
+      "Session synchronization/id and quota accounting",
+      "native TLS record encryption/copying/buffers/fence retirement",
+      "cold setup/credentials/handshake, libc observer and OS/RSS costs still need separate complete accounting"
+    ]
+  },
+  "preparation_failures": [
+    {
+      "kind": "Composition before transport fixes",
+      "reproductions": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/reproductions.json",
+        "sha256": "b205395fbaad22b87dd375c9ea1a420723cef21015b628c71ffeced37fdce2b8"
+      },
+      "native_close_backtrace": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/replay-fence-backtrace.log",
+        "sha256": "f7431155b2626fe0a9aafb5f0740d71d07478098f3079a1a078233bd7be19766"
+      },
+      "detail": "UBSan four-span overflow and TLS native-close abort reproduced through newly exposed composition. Missing replay TLS fence storage fixed by ownership/layout audit and sanitized recovery tests."
+    },
+    {
+      "kind": "Proof gating and ordinary quarantine compatibility",
+      "initial": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-first-fixed.log",
+        "sha256": "f6c57890fdcd654d60317b71667eb3a5626c4dc591e67be060a845b32ab60c6f"
+      },
+      "ordinary": {
+        "path": "out/service-extensions/xmqtt-session-tls-20261110/wsl-root-initial.log",
+        "sha256": "17fbc9230aa29b002f376cc638231e8d4c964ae0c6724fe0e88262c56081b37e"
+      },
+      "detail": "Initial composition opened Session before proof and QoS2 could miss receive preflight; a broad pause broke ordinary ACK/quarantine contract. Final pause is Session-only and protocol-ready preflight serves ordinary Auth."
+    },
+    {
+      "kind": "Test/build setup",
+      "detail": "Initial misleading-indentation and duplicate single module defines fixed; original guard logs retained. Pair fixture initially lacked native server/RSA declarations/provider; final common diagnostic Core includes all fixture dependencies. An initial ps&&python command stopped because no compiler returns ps exit1; no WSL timing run started, final runner handles that exit explicitly."
+    }
+  ],
+  "remaining": [
+    "Optimize qualified new Session throughput cost and retain all unqualified/raw tail-latency failures",
+    "Controlled zero/partial TLS Session output and independent ACK-cut TLS broker recovery matrix",
+    "Session mutual-auth/TLS-resumption composition matrices and plain Dial/Auth factories",
+    "Assigned-id adoption, automatic reconnect and durable/cross-process recovery",
+    "WebSocket, other brokers, fixed-arrival comparators and full native Windows/Linux/>=72h gates",
+    "Complete original xredis/xrpc/xmqtt/xcron scope; all products remain developing"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-session-tls-20261110",
+  "evidence_storage": "C:/Users/Administrator/.codex/artifacts/service-extensions/xmqtt-session-tls-20261110",
+  "evidence_files": 4480,
+  "evidence_index_sha256": "7d6ad70b8d21408558854180daac98fd5bbc146f7b1bab78d3f4c2c888508c52"
+}

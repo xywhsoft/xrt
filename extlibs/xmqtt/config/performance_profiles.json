@@ -3169,6 +3169,89 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_session_tls",
+      "system": "client",
+      "description": "Explicit volatile TLS Session QoS1 closed-loop workload, same local native TLS peer/observer as ordinary TLS; no broker/fixed-arrival/durable/native deployment or production/performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_session_tls_qos1_v5",
+          "source": "extlibs/xmqtt/bench/bench_client_session_tls.c",
+          "suite": "xmqtt_client_session_tls_tests,time",
+          "args": [
+            "20000",
+            "5",
+            "32"
+          ],
+          "smoke_args": [
+            "1000",
+            "5",
+            "16"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/tests/support/tls_peer.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xmqtt/bench/bench_client_tls.c"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publishes/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        },
+        {
+          "name": "xmqtt_client_session_tls_qos1_v311",
+          "source": "extlibs/xmqtt/bench/bench_client_session_tls.c",
+          "suite": "xmqtt_client_session_tls_tests,time",
+          "args": [
+            "20000",
+            "4",
+            "32"
+          ],
+          "smoke_args": [
+            "1000",
+            "4",
+            "16"
+          ],
+          "inputs": [
+            "extlibs/xmqtt/tests/support/tls_peer.h",
+            "tests/fixtures/tls_server.h",
+            "tests/fixtures/tls_identity_legacy.h",
+            "extlibs/xmqtt/bench/bench_client_tls.c"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publishes/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          },
+          "facts": [
+            "checksum"
+          ]
+        }
+      ]
     }
   ]
 }

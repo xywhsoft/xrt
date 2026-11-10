@@ -14,7 +14,14 @@ int main(int Argc,char** Argv)
     mqttTlsPeer P;mqttTlsStart(&P,(xmqttversion)Version,0);xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-qos1");xmqttclient* C=NULL;
     xmqttclienttlsconfig TLS;char Name[12],Alpn[4];xstrview Protocol;xtlsverifier* Verifier=mqttTlsConfigure(&P,&TLS,Name,&Protocol,Alpn);
-    mqttExampleCheck(xmqttClientTlsConnect(P.Engine,&P.Address,1,&K,&TLS,&Connect,&C),"benchmark TLS factory");xrtTlsVerifierRelease(Verifier);xfuture* Ready=xmqttClientReady(C);
+#if defined(XMQTT_BENCH_SESSION_TLS)
+    xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=K.Version;SK.ClientId=Connect.Body.Connect.ClientId;xmqttsession* Session=NULL;xmqttclientinbox* Inbox=NULL;xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=K.Version;
+    mqttExampleCheck(xmqttSessionCreate(&SK,&Session) && xmqttClientInboxCreate(&IK,&Inbox),"benchmark passive TLS Session/Inbox");Connect.Body.Connect.CleanStart=false;
+    mqttExampleCheck(xmqttClientTlsConnectSession(P.Engine,&P.Address,1,&K,&TLS,Session,Inbox,&Connect,&C),"benchmark TLS Session factory");
+#else
+    mqttExampleCheck(xmqttClientTlsConnect(P.Engine,&P.Address,1,&K,&TLS,&Connect,&C),"benchmark TLS factory");
+#endif
+    xrtTlsVerifierRelease(Verifier);xfuture* Ready=xmqttClientReady(C);
     mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"benchmark CONNACK");
     double* Latencies=malloc((size_t)Count*sizeof(*Latencies));mqttExampleCheck(Latencies!=NULL,"latency storage");mqttBenchSlot Slots[64]={{0}};
     xmqttpacket Publish;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Publish);Publish.Flags=2;Publish.Body.Publish.Topic=XRT_STR_LITERAL("bench/qos1");Publish.Body.Publish.Payload=XRT_BYTES_LITERAL("0123456789abcdef0123456789abcdef");
@@ -40,6 +47,9 @@ int main(int Argc,char** Argv)
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
 #endif
     mqttExampleCheck(xmqttClientClose(C) && xmqttClientWaitFor(C,5000)==XWAIT_OK && xmqttClientDestroy(C),"benchmark physical Client close");mqttTlsStop(&P);xrtFutureDestroy(Ready);
+#if defined(XMQTT_BENCH_SESSION_TLS)
+    mqttExampleCheck(xmqttSessionDestroy(Session) && xmqttClientInboxDestroy(Inbox),"benchmark passive owner retirement");
+#endif
     qsort(Latencies,(size_t)Count,sizeof(*Latencies),mqttBenchCompare);
     printf("publishes_per_sec: %.3f\nlatency_p50_us: %.3f\nlatency_p99_us: %.3f\nlatency_max_us: %.3f\nchecksum: %" PRIu64 "\n",(double)Count/Elapsed,Latencies[(size_t)(Count/2)],Latencies[(size_t)((Count-1)*99/100)],Latencies[(size_t)(Count-1)],Sum);
 #if defined(XRT_FEATURE_MEMORY_STATS)
