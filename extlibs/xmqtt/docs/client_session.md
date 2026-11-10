@@ -79,6 +79,13 @@ and retains the existing request for the native lease. The request has no privat
 wire buffer. Request and packet headers remain separate allocations because their
 connection/Future and protocol lifetimes differ. Relative to ordinary Client,
 that extra packet/header allocation and Session synchronization still have costs.
+Identifier selection keeps Client Gate and Session Gate, combining the Client
+and Session byte maps in32-bit groups only when the original next-id bit check
+finds that id occupied. Fallback examines at most2049 groups, including
+a partial wraparound, while preserving physical reservations until actual free.
+There is no extra bitmap storage, initialization, allocation or atomic operation.
+This improves bounded saturated/fragmented lookup, not a demonstrated steady-state
+throughput gain or production performance acceptance.
 Alias admission uses one additional transaction mutex in the optional driver.
 All alias publishers on that Client, including QoS0 bindings, serialize capture,
 encoding and successful queue publication. Failed admission never changes the

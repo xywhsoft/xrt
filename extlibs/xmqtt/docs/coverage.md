@@ -366,3 +366,28 @@ fixed; recovery adds the existing24-byte TLS fence. No zero-overhead or full
 performance/production qualification is claimed. Partial TLS-prefix/ACK-cut
 interop, mutual-auth/resumption composition matrices, automatic/durable recovery,
 WebSocket, native deployment and >=72h gates remain required.
+
+## Occupied identifier group search
+
+The [identifier stage](../tests/results/session-ids-20261110.json) preserves the
+original immediate byte check when the next id is free. On collision it combines
+Client/Session maps in32-bit groups, examining at most2049 groups including
+partial wraparound. Existing8192-byte storage, gates, physical-free reservations,
+initialization, allocations/copies and public/private layouts remain unchanged.
+
+Both OSes pass six targeted root modular/single Session/Client Session/TLS Session
+programs,10 trimmed and8 pure programs, four package forms and four direct TLS
+broker examples each. WSL adds full ASan/UBSan/leak, three direct strict runs and
+TSan. Tests cover complementary maps,17x17 wrap/boundary holes, all65535 held ids,
+sole high-bit reuse and20-id concurrent physical retirement. Core139 members and
+8/9 MQTT members match parent packages. Generated/features/API/docs/maturity and
+89 tools pass on both platforms.
+
+Atomic-map and unconditional-scan variants are rejected after cold/pure throughput
+regressions. The final free-id path has no qualified5% pure-throughput failures;
+WSL311/QoS2 retains a raw6.98% unqualified loss. Two qualified saturated-admission
+cases show about13x/15x faster refusal; the other two are unqualified. TLS change/
+parent raw and qualified bounds pass, while wide-window noise and Session/ordinary
+raw overhead failures remain. This is not full performance/production acceptance.
+The linked result preserves measurements, failed preparations, rejected variants,
+source identities and remaining release gates.

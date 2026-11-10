@@ -1,5 +1,37 @@
 #ifndef XMQTT_CLIENT_SESSION_CASES_H
 #define XMQTT_CLIENT_SESSION_CASES_H
+typedef struct csIdentifierRelease {
+    const xmqttsessionpacket* Packets[20];xatomic32 Step,Released;
+} csIdentifierRelease;
+static int32 csIdentifierReleaseThread(ptr Data)
+{
+    csIdentifierRelease* R=Data;
+    for(unsigned I=0;I<20;++I){mqttResumeWait(&R->Step,I+1);xmqttSessionPacketRelease(R->Packets[I]);xrtAtomic32Store(&R->Released,I+1,XMEMORY_RELEASE);}
+    return 0;
+}
+static void csIdentifierCancel(xmqttclient* C,xfuture* F)
+{
+    testRequire(xrtFutureCancel(F) && ((const xmqttwriteresult*)csResult(F))->Status==XMQTT_STATUS_CANCELLED,"identifier race pending cancellation");double End=xrtTimer()+8;
+    for(;;){xmqttclientinfo I;testRequire(xmqttClientInfo(C,&I),"identifier race request gauges");if(!I.Requests)break;testRequire(xrtTimer()<End,"identifier race actual request retirement");xrtSleep(1);}xrtFutureDestroy(F);
+}
+static void csIdentifierPhysicalRace(xmqttversion V)
+{
+    static const uint16 Ids[20]={1,7,8,15,16,30,31,32,33,63,64,65,127,128,255,256,32767,32768,65534,65535};
+    xmqttsession* S;xmqttclientinbox* Inbox;csPair(V,&S,&Inbox);xmqttpacket Q,A;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("session-client");xmqttproperty E=mqttResumeNumber(XMQTT_PROPERTY_SESSION_EXPIRY,60);if(V==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){&E,1};xmqttPacketInit(XMQTT_PACKET_CONNACK,&A);xmqttnegotiated N;
+    testRequire(xmqttSessionOpen(S,&Q,&A,xrtTimer(),&N)==XMQTT_SESSION_DONE,"identifier race seed");csIdentifierRelease R={0};
+    xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Body.Publish.Topic=XRT_STR_LITERAL("id/race");Q.Body.Publish.Payload=XRT_BYTES_LITERAL("owned");
+    for(unsigned I=0;I<20;++I){Q.Identifier=Ids[I];xmqttsessionframe F;testRequire(xmqttSessionPublish(S,&Q,&R.Packets[I])==XMQTT_SESSION_DONE && xmqttSessionNext(S,&F)==XMQTT_SESSION_DONE && xmqttSessionSent(S,&F)==XMQTT_SESSION_DONE,"identifier race held allocation");xmqttSessionPacketRelease(F.Packet);xmqttPacketInit(XMQTT_PACKET_PUBACK,&A);A.Identifier=Ids[I];testRequire(xmqttSessionAcknowledge(S,&A)==XMQTT_SESSION_DONE,"identifier race logical ACK");}
+    testRequire(xmqttSessionEnd(S,NULL,xrtTimer())==XMQTT_SESSION_DONE && csInfo(S).Objects==20,"completed packets retain physical ids while offline");
+    mqttResumePeer P;mqttResumeStart(&P,V,MQTT_RESUME_HOLD_READY,true);xmqttclientconfig K;xmqttClientConfigInit(&K);K.SetupTimeout=30000;xfuture* Ready;xmqttclient* C=csConnect(&P,S,Inbox,&Ready,&K);mqttResumeWait(&P.Connects,1);
+    xthread* T=xrtThreadCreate(csIdentifierReleaseThread,&R,0);testRequire(T!=NULL,"identifier finalizer thread");
+    for(unsigned I=0;I<20;++I){Q.Identifier=Ids[I];xfuture* F=(xfuture*)(uintptr_t)1;testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_OVERLOADED && F==(xfuture*)(uintptr_t)1,"held completed id remains unavailable through new Client");
+        unsigned Base=Ids[I]&~31u,Neighbor=Base;
+        for(;;){bool Used=!Neighbor;for(unsigned J=0;J<20;++J)if(Neighbor==Ids[J])Used=true;if(!Used)break;++Neighbor;testRequire(Neighbor<Base+32,"free neighboring bit");}
+        xrtAtomic32Store(&R.Step,I+1,XMEMORY_RELEASE);Q.Identifier=(uint16)Neighbor;F=NULL;testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED,"reserve adjacent bitmap bit while old packet retires");csIdentifierCancel(C,F);mqttResumeWait(&R.Released,I+1);
+        Q.Identifier=Ids[I];F=NULL;testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED,"old id available only after actual release");csIdentifierCancel(C,F);
+    }
+    testRequire(xrtThreadWaitFor(T,8000)==XWAIT_OK && xrtThreadExitCode(T)==0,"identifier finalizer joined");xrtThreadDestroy(T);mqttResumeConnack(&P);csReady(Ready);csDone(S,C);testRequire(!xrtAtomic32Load(&P.Publishes,XMEMORY_ACQUIRE),"cancelled id probes send no PUBLISH");csClose(C);mqttResumeStop(&P);xrtFutureDestroy(Ready);testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(Inbox),"identifier race physical cleanup");
+}
 static xmqttclient* csConnectExpiry(mqttResumePeer* P,xmqttsession* S,xmqttclientinbox* I,uint32 Seconds,xfuture** Ready)
 {
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=XRT_STR_LITERAL("session-client");xmqttproperty E=mqttResumeNumber(XMQTT_PROPERTY_SESSION_EXPIRY,Seconds);Q.Properties=(xmqttpropertylist){&E,1};xmqttclient* C=NULL;

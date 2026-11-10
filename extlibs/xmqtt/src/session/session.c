@@ -8,7 +8,7 @@
 #include <math.h>
 #include <string.h>
 #if defined(XMQTT_FEATURE_XMQTT_SESSION)
-enum {XMQTT_SESSION_ID_BYTES=8192,XMQTT_SESSION_RX_BYTES=16384};
+enum {XMQTT_SESSION_ID_WORDS=2048,XMQTT_SESSION_ID_BYTES=8192,XMQTT_SESSION_RX_BYTES=16384};
 struct xmqttsessionpacket {
     xatomic32 Refs;xmqttsession* Owner;
     xmqttsessionpacket *Next,*Previous,*HashNext,*ReadyNext,*ReadyPrevious;
@@ -99,6 +99,24 @@ XMQTT_API bool xmqttSessionPacketRetain(const xmqttsessionpacket* Packet)
     xmqttsessionpacket* P=(xmqttsessionpacket*)Packet;uint32 N=xrtAtomic32Load(&P->Refs,XMEMORY_RELAXED);
     while(N && N<UINT32_MAX/2u)if(xrtAtomic32CompareExchange(&P->Refs,&N,N+1,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;
     xmqttSessionFailure(XMQTT_SESSION_RESTRICTED,"session packet reference limit");return false;
+}
+static uint16 xmqttSessionIdFind(const xmqttsession* S,const unsigned char* Used,uint16 First)
+{
+    /* Scan the first partial group, wrap, then visit its remaining low bits.
+     * Both byte maps are protected by the caller's existing gates. */
+    unsigned Group=First>>5,Start=First&31u;
+    for(unsigned Step=0;Step<=XMQTT_SESSION_ID_WORDS;++Step){
+        if(Step==XMQTT_SESSION_ID_WORDS && !Start)break;
+        unsigned Index=(Group+Step)&(XMQTT_SESSION_ID_WORDS-1u),Bit=Step?0:Start;
+        size_t Offset=Index*4u;uint32 Busy=S->Ids?(uint32)S->Ids[Offset]|((uint32)S->Ids[Offset+1]<<8)|((uint32)S->Ids[Offset+2]<<16)|((uint32)S->Ids[Offset+3]<<24):0;
+        if(Used){size_t At=Index*4u;Busy|=(uint32)Used[At]|((uint32)Used[At+1]<<8)|((uint32)Used[At+2]<<16)|((uint32)Used[At+3]<<24);}
+        if(!Index)Busy|=1u; /* Identifier zero is never assignable. */
+        uint32 Free=~Busy;
+        if(!Step)Free&=UINT32_MAX<<Start;
+        if(Step==XMQTT_SESSION_ID_WORDS)Free&=(1u<<Start)-1u;
+        if(Free){Free>>=Bit;while(!(Free&1u)){Free>>=1;++Bit;}return (uint16)(Index*32u+Bit);}
+    }
+    return 0;
 }
 static void xmqttSessionReservationDrop(xmqttsession* S,uint16 Id,size_t Allocation)
 {xrtMutexLock(&S->Gate);S->LiveBytes-=Allocation;--S->Objects;S->Ids[Id>>3]&=(unsigned char)~(1u<<(Id&7u));xrtMutexUnlock(&S->Gate);xmqttSessionDrop(S);}
@@ -255,7 +273,8 @@ static xmqttsessionstatus xmqttSessionPublishOwned(xmqttsession* S,const void* O
     if(S->Objects>=S->Config.MaxOutgoing || Allocation>S->Config.MaxBytes-S->LiveBytes){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_LIMIT;}
     uint16 Id=Publish->Identifier;
     if(Id && (S->Ids[Id>>3]&(1u<<(Id&7u)))){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_LIMIT;}
-    if(!Id){Id=S->Next;while(S->Ids[Id>>3]&(1u<<(Id&7u)))Id=Id==65535?1:(uint16)(Id+1u);}
+    if(!Id){Id=S->Next;if(S->Ids[Id>>3]&(1u<<(Id&7u)))Id=xmqttSessionIdFind(S,NULL,Id);
+        if(!Id){xrtMutexUnlock(&S->Gate);return XMQTT_SESSION_LIMIT;}}
     if(Pending){
         /* Reserve bounded storage/id ownership, then encode outside both the
          * Session gate and the Client admission gate. No protocol link exists. */
@@ -421,8 +440,8 @@ XMQTT_INTERNAL uint16 xmqttInternalSessionIdentifier(xmqttsession* S,const void*
 {
     xrtMutexLock(&S->Gate);if(S->Driver!=Owner)abort();uint16 Id=Requested;
     if(Id){if((Used[Id>>3]&(1u<<(Id&7u))) || (S->Ids && (S->Ids[Id>>3]&(1u<<(Id&7u)))))Id=0;}
-    else {Id=Previous==65535?1:(uint16)(Previous+1u);uint16 First=Id;
-        while((Used[Id>>3]&(1u<<(Id&7u))) || (S->Ids && (S->Ids[Id>>3]&(1u<<(Id&7u))))){Id=Id==65535?1:(uint16)(Id+1u);if(Id==First){Id=0;break;}}}
+    else {Id=Previous==65535?1:(uint16)(Previous+1u);
+        if((Used[Id>>3]&(1u<<(Id&7u))) || (S->Ids && (S->Ids[Id>>3]&(1u<<(Id&7u)))))Id=xmqttSessionIdFind(S,Used,Id);}
     xrtMutexUnlock(&S->Gate);return Id;
 }
 XMQTT_INTERNAL xmqttsessionstatus xmqttInternalSessionVisit(xmqttsession* S,const void* Owner,const xmqttsessionpacket* Previous,const xmqttsessionpacket** Out)

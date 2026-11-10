@@ -126,10 +126,16 @@ copy, gate or per-object storage. These invariants depend on valid reference
 ownership and the existing serialized protocol-owner contract.
 
 List/ready queues permit constant-time admission/removal/selection; identifier
-lookup uses a bounded hash and bitmap. Auto assignment scans at most65535 ids
-on a fragmented bitmap. Open/reset/expiry visit retained active state; rolling
+lookup uses a bounded hash and byte bitmap. Auto assignment keeps the original
+single-bit check when the next id is free. If occupied, it examines at most2049
+32-bit groups including a partial wraparound group, rather than checking every
+individual identifier. Four byte loads are combined explicitly in identifier
+order, independent of host byte order and alignment. Writers and readers retain
+the existing Session Gate; physical release, storage and initialization stay
+unchanged. There are no additional atomic operations or initialization calls.
+Open/reset/expiry visit retained active state; rolling
 back prepared incoming ids can scan the65535-id map. These cold-path costs are
-not described as zero overhead. Every state transition/snapshot takes a gate;
+not described as zero overhead. Every mutable state transition/snapshot takes a gate;
 retained objects also use atomic references. Native/caller buffers, allocator
 headers/pools and external application queues are outside logical MaxBytes.
 
@@ -143,6 +149,7 @@ The transport integration must preserve pending receive payload ownership across
 connection destruction, separate caller cancellation/deadline outcomes from
 remaining protocol duties, retain original packet ids and full logical topics,
 and sequence durable store commits before network acknowledgements. Those duties
-are not fulfilled merely by having this identity/state component. Existing
-Client factories continue refusing an unowned retained broker session until the
-complete attachment and its failure/lifetime tests are implemented.
+are not fulfilled merely by having this identity/state component. Ordinary
+Client factories continue refusing an unowned retained broker session. The
+optional [Client Session attachment](client_session.md) supplies explicit
+volatile recovery; durable store integration remains separate work.

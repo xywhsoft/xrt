@@ -9682,3 +9682,86 @@ recovery, WebSocket and full native/72h gates. All four products stay developing
 and the full goal remains active. Development stays on D:/GIT/xrt master, with
 no branch operation or push. Evidence: extlibs/xmqtt/tests/results/session-tls-20261110.json
 and out/service-extensions/xmqtt-session-tls-20261110 (C-backed artifacts).
+
+## 2026-11-10: bounded occupied-identifier bitmap search
+
+The original free-next-id byte check remains on the normal path. Only a collision
+falls back to32-bit groups, combining four bytes explicitly in identifier order.
+At most2049 groups include partial wraparound, then at most31 bit iterations
+select the free bit. No aligned/native-endian cast is used. The8192-byte map,
+Client/Session gates, physical-free reservations, initialization, allocations,
+payload copies and public APIs stay unchanged. The normal TLS QoS1 counter stays
+at60006 Session gate acquisitions for10000 publications including six setup/close
+acquisitions; this final change does not remove locks.
+
+Both OSes pass six targeted root programs: modular/single Session, Client Session
+and TLS Client Session, with root feature closure. Each also passes10 trimmed
+Client Session/Core programs and8 pure Session/Core programs. WSL adds complete
+ASan/UBSan/leak instrumentation, three direct strict sanitizer runs and TSan.
+New tests race physical release with adjacent-bit admission across20 boundary ids
+and both versions; hold all65535 completed packet allocations; refuse a full map
+without publishing a Future; free only id32767 and admit exactly that id. A single
+white-box test combines complementary Client/Session maps across17 start points
+and17 sole-free boundary ids, including both partial groups and identifier zero.
+These are targeted final-source checks; full46-program runs on rejected variants
+are preserved separately and are not counted as final-source full-suite results.
+
+Eight root/leaf static/shared packages and eight trusted direct TLS Mosquitto
+examples pass across both OSes. All139 Core members and8/9 MQTT members match
+parent packages; only Session changes. Both OSes pass generated/features/API/docs/
+maturity checks and89 focused tool tests. Private Session sizes stay464/536 bytes
+(Windows/WSL), packet header272 bytes and map8192 bytes. Public config/info sizes
+and logical base bytes are unchanged. Measured heap counters remain about one
+extra block and273/280 bytes per MQTT5/311 publish versus ordinary TLS, across
+the sampled client/server/cipher window. This scan change adds none of those costs.
+
+Three variants are deliberately rejected and preserved. An atomic map with2048
+initialization calls caused qualified11.86x Windows cold Create/Destroy cost.
+Using prepublication calloc removed that cost, but qualified pure MQTT5 QoS2
+throughput fell5.25% with no established normal transport gain, so lock removal
+was rejected. An unconditional byte-map word scan improved saturated refusal but
+caused qualified pure throughput losses6.18%/6.32%. The final variant restores
+the original immediate byte check and uses group search only after collision.
+
+Final Create/Destroy enabled-map medians are301.07 to303.81 ns on Windows and
+223.66 to217.47 ns on WSL, both noise-qualified. Create source is unchanged;
+control variation is retained and no intrinsic setup speedup is inferred. Pure
+cycle throughput ratios are0.9679-0.9923 on Windows and0.9302-0.9965 on WSL,
+with3/4 noise-qualified on each. No qualified5% pure-throughput failure remains.
+The WSL311/QoS2 raw6.98% loss is unqualified and stays in the evidence.
+
+Public saturated admission uses65535 held completed packet ids and2000 refused
+PublishAsync calls per run. Seed, warm flow allocation and teardown are outside
+timing; normal validation and both existing gates remain inside. Final/parent
+median refusal-time ratios are Windows5=0.07807 (unqualified),311=0.07719
+(qualified); WSL5=0.06656 (qualified),311=0.06708 (unqualified). Only two cases
+pass the original noise bounds, giving about13x/15x faster refusal there. This
+is not a normal-publication throughput claim.
+
+TLS observations use actual standard MQTT package archives and one common140-
+object native TLS-server/MemoryStats Core from unchanged sources. Seven samples,
+one warmup, rotated before/after/ordinary order,3% MAD/6% central-range noise,
+5% throughput and10% P99 bounds are unchanged. No own compilation overlaps timed
+samples; separate x-lang compiler activity was observed on the shared host before
+timing. This is not isolated-machine or native deployment acceptance.
+
+| OS | Comparison | Qualified throughput/P99 | Qualified bound failures T/P99 | Raw failures T/P99 |
+| --- | --- | --- | --- | --- |
+| windows | Session/parent | 2/1 | 0/0 | 0/0 |
+| windows | Session/ordinary | 2/2 | 0/0 | 1/1 |
+| wsl | Session/parent | 2/2 | 0/0 | 0/0 |
+| wsl | Session/ordinary | 2/2 | 0/0 | 1/1 |
+
+Wide-window samples remain unqualified. Windows5/window32 raw Session/ordinary
+throughput is8.19% lower and P99 is11.30% higher; WSL311/window32 is10.52% lower
+and13.91% higher. Earlier qualified overhead failures remain open. Full performance
+and production acceptance stay false. Continue with contention/fixed-arrival tails,
+allocation costs, TLS partial-prefix/ACK-cut interop, mutual auth/resumption,
+plain Dial/Auth, assigned ids, automatic/durable recovery, WebSocket, native Linux
+and>=72h gates. All four products remain developing and the goal stays active.
+Work remains on D:/GIT/xrt master without a new branch operation or push.
+Evidence: extlibs/xmqtt/tests/results/session-ids-20261110.json and
+out/service-extensions/xmqtt-session-id-fast-20261110. Predecessor session-ids,
+session-ids-zero and session-id-scan artifact directories retain rejected sources,
+receipts and observations. A failed wildcard build selector ran no test; exact
+selectors replaced it, and its failed logs remain.

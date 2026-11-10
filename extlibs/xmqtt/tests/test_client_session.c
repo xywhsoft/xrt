@@ -124,6 +124,33 @@ static void csCancellationBudget(xmqttversion V)
 }
 #if defined(XMQTT_CLIENT_SESSION_SINGLE_TEST)
 typedef struct csProbeArm {bool Armed;} csProbeArm;
+static void csIdentifierWordScan(void)
+{
+    static const uint16 Boundary[]={1,2,7,8,15,16,30,31,32,33,63,64,65,32767,32768,65534,65535};
+    unsigned char Ids[8192],Used[8192];xmqttsession S={0};S.Ids=Ids;
+    memset(Ids,0xa5,sizeof(Ids));memset(Used,0x5a,sizeof(Used));
+    for(size_t I=0;I<sizeof(Boundary)/sizeof(*Boundary);++I){
+        testRequire(!xmqttSessionIdFind(&S,Used,Boundary[I]),"combined full maps wrap without selecting zero");
+        for(size_t J=0;J<sizeof(Boundary)/sizeof(*Boundary);++J){uint16 Id=Boundary[J];unsigned char Mask=(unsigned char)(1u<<(Id&7u)),A=Ids[Id>>3],B=Used[Id>>3];Ids[Id>>3]&=(unsigned char)~Mask;Used[Id>>3]&=(unsigned char)~Mask;
+            testRequire(xmqttSessionIdFind(&S,Used,Boundary[I])==Id,"sole free bit across first/last partial groups and byte/word boundaries");Ids[Id>>3]=A;Used[Id>>3]=B;}
+    }
+    memset(Ids,0,sizeof(Ids));memset(Used,0,sizeof(Used));testRequire(xmqttSessionIdFind(&S,Used,1)==1,"zero is excluded on empty maps");
+}
+static void csIdentifierFullMap(xmqttversion V)
+{
+    xmqttsessionconfig K;xmqttSessionConfigInit(&K);K.Version=V;K.ClientId=XRT_STR_LITERAL("session-client");K.MaxOutgoing=65535;K.MaxIncoming=0;K.MaxBytes=64u*1024u*1024u;xmqttsession* S=NULL;xmqttclientinbox* Inbox=NULL;
+    xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=V;testRequire(xmqttSessionCreate(&K,&S) && xmqttClientInboxCreate(&IK,&Inbox),"full physical id map");
+    xmqttpacket Q,A;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.ClientId=K.ClientId;xmqttproperty E=mqttResumeNumber(XMQTT_PROPERTY_SESSION_EXPIRY,60);if(V==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){&E,1};xmqttPacketInit(XMQTT_PACKET_CONNACK,&A);xmqttnegotiated N;testRequire(xmqttSessionOpen(S,&Q,&A,xrtTimer(),&N)==XMQTT_SESSION_DONE,"full id map open");
+    const xmqttsessionpacket** Held=xrtCalloc(65535,sizeof(*Held));testRequire(Held!=NULL,"full id map handles");xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=2;Q.Body.Publish.Topic=XRT_STR_LITERAL("full");
+    for(unsigned Id=1;Id<=65535;++Id){Q.Identifier=(uint16)Id;xmqttsessionframe F;testRequire(xmqttSessionPublish(S,&Q,Held+Id-1)==XMQTT_SESSION_DONE && xmqttSessionNext(S,&F)==XMQTT_SESSION_DONE && xmqttSessionSent(S,&F)==XMQTT_SESSION_DONE,"reserve every physical id");xmqttSessionPacketRelease(F.Packet);xmqttPacketInit(XMQTT_PACKET_PUBACK,&A);A.Identifier=(uint16)Id;testRequire(xmqttSessionAcknowledge(S,&A)==XMQTT_SESSION_DONE,"logical completion retains id storage");}
+    testRequire(xmqttSessionEnd(S,NULL,xrtTimer())==XMQTT_SESSION_DONE,"full map offline");mqttResumePeer P;mqttResumeStart(&P,V,MQTT_RESUME_HOLD_READY,true);xmqttclientconfig CK;xmqttClientConfigInit(&CK);CK.SetupTimeout=30000;xfuture* Ready;xmqttclient* C=csConnect(&P,S,Inbox,&Ready,&CK);mqttResumeWait(&P.Connects,1);
+    Q.Identifier=0;xfuture* F=(xfuture*)(uintptr_t)1;
+    testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_OVERLOADED && F==(xfuture*)(uintptr_t)1,"saturated id lookup refuses all retained physical ids");
+    xmqttSessionPacketRelease(Held[32766]);Held[32766]=NULL;F=NULL;
+    testRequire(xmqttClientPublishAsync(C,&Q,8000,&F)==XMQTT_ADMISSION_ACCEPTED,"find sole free high bit");testRequire(xrtFutureCancel(F),"cancel full-map candidate");const xmqttwriteresult* R=csResult(F);testRequire(R->Status==XMQTT_STATUS_CANCELLED && R->Identifier==32767 && !R->AcceptedBytes,"sole physically freed id selected");
+    double End=xrtTimer()+8;for(;;){xmqttclientinfo Info;xmqttClientInfo(C,&Info);if(!Info.Requests)break;testRequire(xrtTimer()<End,"full-map cancelled request physically retires");xrtSleep(1);}xrtFutureDestroy(F);
+    for(unsigned I=0;I<65535;++I){xmqttSessionPacketRelease(Held[I]);}xrtFree(Held);mqttResumeConnack(&P);csReady(Ready);csDone(S,C);csClose(C);mqttResumeStop(&P);xrtFutureDestroy(Ready);testRequire(xmqttSessionDestroy(S) && xmqttClientInboxDestroy(Inbox),"full id map cleanup");
+}
 static void csProbeArmReady(xmqttclient* C,ptr Data)
 {csProbeArm* A=Data;xmqttclientinfo I;xmqttClientInfo(C,&I);if(I.Ready && !A->Armed){A->Armed=true;csProbeReset(2);}}
 static void csNativeBoundary(xmqttversion V,bool Partial)
@@ -173,11 +200,13 @@ static void csRequestPhysicalRetirement(xmqttversion V)
 #include "client_session_cases.h"
 int main(void)
 {
+    csIdentifierPhysicalRace(XMQTT_VERSION_5);csIdentifierPhysicalRace(XMQTT_VERSION_311);
     for(unsigned V=0;V<2;++V)for(unsigned Phase=0;Phase<3;++Phase)csOutgoing(V?XMQTT_VERSION_311:XMQTT_VERSION_5,Phase,false);
     csOutgoing(XMQTT_VERSION_5,0,true);csAliasExpansion();
     for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csIncoming(Version,false);csIncoming(Version,true);csMissingState(Version);csCancellationBudget(Version);csAdmissionAndWindow(Version);}
     csFactoryOom();csExpiry();csPendingPhysical(XMQTT_VERSION_5);csPendingPhysical(XMQTT_VERSION_311);csSnapshotOom(XMQTT_VERSION_5);csSnapshotOom(XMQTT_VERSION_311);csConcurrentSnapshots(XMQTT_VERSION_5);csConcurrentSnapshots(XMQTT_VERSION_311);csAliasRollbackBudget();csConcurrentAliases();csOutgoing(XMQTT_VERSION_5,1,true);csOutgoing(XMQTT_VERSION_5,2,true);
 #if defined(XMQTT_CLIENT_SESSION_SINGLE_TEST)
+    csIdentifierWordScan();csIdentifierFullMap(XMQTT_VERSION_5);csIdentifierFullMap(XMQTT_VERSION_311);
     csSharedCopy(XMQTT_VERSION_5,1,false);csSharedCopy(XMQTT_VERSION_5,2,false);csSharedCopy(XMQTT_VERSION_311,1,false);csSharedCopy(XMQTT_VERSION_311,2,false);csSharedCopy(XMQTT_VERSION_5,1,true);
     csSharedCopy(XMQTT_VERSION_5,2,true);
     for(unsigned Q=1;Q<=2;++Q)for(unsigned P=0;P<3;++P){csAliasVectors(Q,P,true,false);csAliasVectors(Q,P,false,true);}
