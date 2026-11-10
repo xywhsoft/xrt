@@ -40,10 +40,10 @@ The opt-in Client adds one pointer; builds selecting only ordinary Client omit
 that field and Inbox code. The enabled receive path takes the existing Client
 gate plus one Inbox gate. Public Client configuration/result layouts are unchanged.
 
-This is application payload preservation, not protocol session recovery. Incoming
-QoS1/2 protocol state still belongs to the connection; the independent Session
-module has not yet been attached to Client. SessionPresent without local state
-still fails closed. No durable storage, automatic replay/reconnect, cross-process
+The ordinary Inbox factory preserves application payloads. For protocol recovery
+use the optional [Client Session factory](client_session.md), which additionally
+attaches the in-memory Session. Ordinary factories still reject SessionPresent
+without local state. No durable storage, automatic reconnect, cross-process
 recovery or TLS/Dial/Auth Inbox factory is provided by this phase.
 
 Runnable example: [two Engines](../examples/inbox/README.md). Tests cover both

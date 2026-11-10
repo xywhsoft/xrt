@@ -366,8 +366,21 @@ static void testSessionConcurrentSelection(xmqttversion V)
     xmqttsessioninfo Info=sessionInfo(S);testRequire(!Info.Objects && Info.LiveBytes==Info.BaseBytes,"contended frame references fully refunded");
     sessionEnd(S,2);testRequire(xmqttSessionDestroy(S),"contended selection destroy");
 }
+static void testSessionEarlyPubrec(xmqttversion V)
+{
+    xmqttsession* S=sessionCreate(V,4,0,1024*1024);sessionStatus(sessionOpen(S,V,false,false,60,2,1),XMQTT_SESSION_DONE,"early PUBREC initial open");
+    const xmqttsessionpacket* One=sessionPublish(S,1,1);xmqttsessionframe F;
+    sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_DONE,"first initial selection");sessionStatus(xmqttSessionSent(S,&F),XMQTT_SESSION_DONE,"first initial sent");xmqttSessionPacketRelease(F.Packet);
+    const xmqttsessionpacket* Two=sessionPublish(S,2,2);sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_DONE,"second initial selection");sessionStatus(xmqttSessionSent(S,&F),XMQTT_SESSION_DONE,"second initial sent");xmqttSessionPacketRelease(F.Packet);
+    sessionStatus(xmqttSessionEnd(S,NULL,2),XMQTT_SESSION_DONE,"early PUBREC old end");sessionStatus(sessionOpen(S,V,false,true,60,1,3),XMQTT_SESSION_DONE,"early PUBREC resume");
+    if(V==XMQTT_VERSION_5){sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_DONE,"consume new connection quota");testRequire(F.Identifier==1,"old QoS1 keeps original order");sessionStatus(xmqttSessionSent(S,&F),XMQTT_SESSION_DONE,"quota consumer sent");xmqttSessionPacketRelease(F.Packet);testRequire(!sessionInfo(S).SendQuota,"zero remaining quota");}
+    xmqttpacket Ack;xmqttPacketInit(XMQTT_PACKET_PUBREC,&Ack);Ack.Identifier=2;sessionStatus(xmqttSessionAcknowledge(S,&Ack),XMQTT_SESSION_DONE,"prior fully sent QoS2 acknowledged before replay");
+    sessionStatus(xmqttSessionNext(S,&F),XMQTT_SESSION_DONE,"PUBREL bypasses PUBLISH quota/ready list after early PUBREC");testRequire(F.Type==XMQTT_PACKET_PUBREL && F.Identifier==2,"transition moves old ready entry into PUBREL priority list");
+    sessionStatus(xmqttSessionSent(S,&F),XMQTT_SESSION_DONE,"early PUBREL sent");xmqttSessionPacketRelease(F.Packet);sessionStatus(xmqttSessionEnd(S,NULL,4),XMQTT_SESSION_DONE,"early PUBREC cleanup end");testRequire(xmqttSessionDestroy(S),"early PUBREC destroy");xmqttSessionPacketRelease(One);xmqttSessionPacketRelease(Two);
+}
 int main(void)
 {
+    testSessionEarlyPubrec(XMQTT_VERSION_5);testSessionEarlyPubrec(XMQTT_VERSION_311);
     testSessionConcurrentSelection(XMQTT_VERSION_5);testSessionConcurrentSelection(XMQTT_VERSION_311);
     testSessionRepeatedSelection(XMQTT_VERSION_5);testSessionRepeatedSelection(XMQTT_VERSION_311);
     testSessionSelectedCompletion(XMQTT_VERSION_5);testSessionSelectedCompletion(XMQTT_VERSION_311);

@@ -1,0 +1,14 @@
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XRT_MODULE_MEMORY_STATS
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#include "../client_session_probe.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#undef xrtNetStreamSendRef
+#undef xrtNetStreamSendRefs
+#undef xrtFree
+#undef xrtCalloc
+#define XMQTT_CLIENT_SESSION_SINGLE_TEST
+#include "../test_client_session.c"

@@ -98,6 +98,12 @@ is established by these workloads. Generated reports/binaries can be removed
 after inspection. All sockets/threads/client/stream/listener/engine and retained
 message/Future owners are released on successful completion.
 
+`xmqtt_client_session` uses the same combined QoS1 echo workload as ordinary
+Client/Inbox, with explicit protocol Session attachment. It includes the current
+extra canonical snapshot allocation/copy for each new QoS1 publication. Compare
+uninstrumented timing separately from instrumented heap counts; recovery itself
+is covered by fault tests rather than this steady-connection echo workload.
+
 
 The [2026-11-02 local observations](results/qos2-local-20261102.json) retain all
 measured arrays and diagnostics. Both platform noise gates failed; the file is

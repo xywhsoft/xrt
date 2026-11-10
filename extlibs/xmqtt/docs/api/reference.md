@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `96` 个函数、`198` 个常量或宏、
+当前登记 `97` 个函数、`199` 个常量或宏、
 `65` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
@@ -159,6 +159,23 @@
 - `xmqttclientinbox`
 - `xmqttclientinboxconfig`
 - `xmqttclientinboxinfo`
+
+## `extlibs/xmqtt/include/xmqtt/client_session.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_session.h)
+
+### 函数 (1)
+
+- `xmqttClientConnectSession`
+
+### 常量与宏 (2)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_SESSION`
+- `XMQTT_FEATURE_XMQTT_SESSION`
+
+### 类型 (1)
+
+- `xmqttsession`
 
 ## `extlibs/xmqtt/include/xmqtt/client_tls.h`
 
@@ -448,9 +465,8 @@
 - `xmqttSessionReset`
 - `xmqttSessionSent`
 
-### 常量与宏 (15)
+### 常量与宏 (14)
 
-- `XMQTT_FEATURE_XMQTT_SESSION`
 - `XMQTT_SESSION_COMPLETE`
 - `XMQTT_SESSION_DISCARDED`
 - `XMQTT_SESSION_DONE`
@@ -466,9 +482,8 @@
 - `XMQTT_SESSION_RESTRICTED`
 - `XMQTT_SESSION_STATE_ERROR`
 
-### 类型 (8)
+### 类型 (7)
 
-- `xmqttsession`
 - `xmqttsessionconfig`
 - `xmqttsessionframe`
 - `xmqttsessioninfo`

@@ -32,4 +32,5 @@
 #include <xmqtt/client_tls.h>
 #include <xmqtt/client_tls_resume.h>
 #include <xmqtt/client_inbox.h>
+#include <xmqtt/client_session.h>
 #endif

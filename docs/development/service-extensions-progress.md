@@ -43,8 +43,10 @@ Target and rules: [development contract](service-extensions-plan.md).
   bounded identifiers/credit, retained ACK/message ownership, diagnostic and
   application graceful DISCONNECT, subscriptions, send/receive aliases, enhanced
   authentication and physical retirement. Hostname/prepared-address Dial is
-  locally verified. Sessions, expiry, reconnect/store, TLS/WebSocket
-  and full performance/production qualification remain pending.
+  locally verified, along with verified TLS and TLS1.3 credential handoff.
+  In-memory Session/expiry and explicit numeric TCP recovery are locally verified.
+  TLS/Dial/Auth recovery composition, automatic reconnect, durable storage,
+  WebSocket and full performance/production qualification remain pending.
 - Default development is directly in D:/GIT/xrt on master; preserve concurrent work.
 
 ## Baseline checks
@@ -9378,3 +9380,73 @@ Old26-file worktree backup is unchanged, archived and already integrated; no
 new pending backup paths. No branch operation or push. Evidence:
 extlibs/xmqtt/tests/results/client-inbox-20261110.json and
 out/service-extensions/xmqtt-inbox-20261110 (C-backed artifacts).
+
+## 2026-11-10: explicit MQTT Client Session recovery on master
+
+The optional numeric TCP factory now attaches the in-memory Session and shared
+Inbox to actual Client IO. QoS1 and pre-PUBREC QoS2 replay DUP with a full logical
+topic and no old aliases; post-PUBREC QoS2 replays PUBREL only. Incoming QoS2
+commits before queue visibility/PUBREC, suppresses resumed duplicates and retires
+known old PUBREL without corrupting current receive-window accounting. Futures
+stay scoped to the original connection and retained outputs outlive both Engines.
+Claims last through actual Client Destroy; failed setup/replay allocation refunds
+temporary storage and preserves old obligations. Expiry starts at actual native
+termination and respects a fully accepted DISCONNECT override. Early old ACKs
+during partial PUBLISH replay commit progress then retire the transport.
+
+Old obligations reserve request slots/outgoing bytes and identifiers during setup;
+current negotiation and conservative in-flight bounds still apply. The ready-list
+transition for early old PUBREC is fixed: the same focused regression fails on
+the parent archives and passes current archives on both OSes. Packet/request
+capacity is now refunded after actual allocator retirement, verified with held
+free barriers. Controlled zero/one-byte native output and replay-header allocation
+failures are test-only hooks, absent from generated and packaged SDKs.
+
+Windows/WSL each pass37 MQTT root programs,2 minimal Client Session programs,
+2 pure Session programs, the new runnable example,4 generic root/leaf static/shared
+consumers and4 actual packaged recovery suites. WSL includes ASan/UBSan/leak,
+2 TSan forms and5 repeated sanitized lifecycle runs. Generated/features/API/docs/
+maturity checks and89 focused tools pass on each OS. Buffered parent/child output
+initially hides the final Windows binary from the evidence parser; corrected
+basename extraction snapshots all37 from the same successful run. No test retry
+is represented as a new successful root run. Preparation/compiler/fixture/probe
+failures remain in the evidence directory.
+
+All139 Core archive members per OS are byte-identical to the parent;7/9 MQTT
+members agree, with only Client and Session changed. Public x64 Client config272,
+Info160, Session config112/Info88/frame72 and request header104 are unchanged.
+The optional driver is120 requested bytes, optional request packet pointer8 bytes;
+enabled private Client adds one pointer and Session two pointers. New QoS1/2
+currently incurs an extra canonical allocation/payload copy. Replay borrows
+immutable packet data with native reference leases and allocates a request header
+per old flow, without a new Future/result allocation or payload copy. These costs
+are explicit performance debt, not zero-overhead or production acceptance.
+
+Seven samples/one warmup compare parent/current ordinary Client and current
+Session/ordinary using one common parent Core archive. Exact distributions,
+ratios and unchanged3% MAD/6% central-range/5% throughput/10% P99 gates are retained.
+External host builds are observed and recorded; closed-loop local echo results
+are diagnostic, not an isolated native/broker/fixed-arrival/72h qualification.
+Eight registered workload smoke cases and two size profiles per OS are execution
+checks. Complete performance acceptance remains false.
+
+Development remains on D:/GIT/xrt master. The unchanged26-file old worktree is a
+preserved, already integrated backup; no new pending paths, branch operations or
+push. TLS/Dial/Auth Session factories, assigned-id adoption, automatic reconnect,
+durable storage, broker recovery interoperability, removal of the extra snapshot
+copy and final production/performance gates remain required. The four-product
+goal stays active. Evidence: extlibs/xmqtt/tests/results/client-session-20261110.json
+and out/service-extensions/xmqtt-client-session-20261110 (C-backed artifacts).
+
+| OS | Comparison | Noise-qualified throughput pairs | Noise-qualified P99 pairs | Raw median bound failures (throughput/P99) |
+| --- | --- | --- | --- | --- |
+| windows | after | 0/4 | 0/4 | 1/0 |
+| windows | session | 0/4 | 0/4 | 2/2 |
+| wsl | after | 2/4 | 2/4 | 0/0 |
+| wsl | session | 2/4 | 2/4 | 0/0 |
+
+All qualified throughput/P99 pairs meet their bounds. Windows window32 raw
+Session throughput is12-14% lower and P99 is13-21% higher. Those series are not
+noise-qualified; the extra snapshot and unresolved regression risk remain open.
+The after comparison means current ordinary/parent ordinary; session means
+current Session/current ordinary. This table does not grant performance acceptance.

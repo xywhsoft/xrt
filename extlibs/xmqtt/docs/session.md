@@ -3,8 +3,9 @@
 `xmqtt_session` implements caller-driven MQTT5/3.1.1 session state using public
 XRT codecs, allocation, atomics and mutexes. It owns no connection, Engine,
 background retry timer, credentials, application receive queue or disk store.
-The existing Client factories **do not yet attach it**; full Client reconnect,
-Future/deadline composition and durable/crash recovery remain required.
+The optional [Client Session factory](client_session.md) attaches it to numeric
+TCP with explicit reconnect and connection-scoped Futures. Automatic reconnect,
+TLS/Dial/Auth composition and durable/crash recovery remain required.
 The [example](../examples/session/README.md) exercises the state boundary directly.
 
 The implementation follows OASIS [MQTT5 sections4.1/4.3/4.4/4.9](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html)

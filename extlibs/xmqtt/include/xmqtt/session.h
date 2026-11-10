@@ -44,7 +44,8 @@ typedef struct xmqttsessionframe {
 } xmqttsessionframe;
 XRT_EXTERN_C_BEGIN
 /* Caller-driven in-memory protocol state, not a transport, retry timer, Future
- * facade or durable store. The existing Client factories do not yet attach it.
+ * facade or durable store. The optional Client Session factory attaches it;
+ * ordinary Client factories retain their connection-local state contract.
  * Mutating operations require one serialized protocol owner. Info, packet
  * getters and Retain/Release may run on other threads with stable references.
  * No callback, thread, Engine pin or credential is owned. The application must

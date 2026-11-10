@@ -245,8 +245,9 @@ The independent [session leaf](session.md) now owns bounded immutable outgoing
 QoS1/2 snapshots, original identifiers, cross-connection PUBLISH/PUBREL state,
 incoming QoS2 prepare/commit/deduplication and elapsed-time expiry. It uses no
 Engine, Future, background retry timer, credential store or new shared runtime.
-Existing Client factories do not yet attach it; automatic Client recovery and
-durable/application-payload composition remain required subsequent work.
+The optional [Client Session factory](client_session.md) now attaches it to
+numeric TCP with a shared Inbox and connection-scoped Futures. Automatic
+reconnect, TLS/Dial/Auth composition and durable recovery remain required.
 
 The [stage report](../tests/results/session-20261110.json) records both platforms'
 33-program full MQTT suites plus minimal session builds and the runnable example.
@@ -267,3 +268,15 @@ experiment still qualifies11/12. Raw failures remain retained, original3% MAD/
 No new regression, comparator, P99, durable, native Linux or production acceptance
 is inferred. The pure state size profile checks absence of Client/Engine/Future
 symbols; measured public layouts and fixed/peak logical bytes are recorded.
+
+## Explicit Client Session recovery
+
+The [recovery stage](../tests/results/client-session-20261110.json) records37
+MQTT root programs per OS, two minimal Client Session and two pure Session
+programs, a runnable two-Engine recovery example, static/shared package suites,
+ASan/UBSan/leak and two TSan forms. It covers QoS1/2 reconnect stages, incoming
+deduplication, expiry/reset, alias expansion, native zero/partial output, early
+ACKs, physical quota retirement and controlled replay allocation failure. New
+QoS1/2 still incurs an extra canonical snapshot allocation/copy; replay borrows
+retained payload. Local echo observations do not establish performance, real
+broker recovery, native deployment or >=72h production acceptance.

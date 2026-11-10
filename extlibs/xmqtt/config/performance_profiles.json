@@ -2897,6 +2897,185 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_session",
+      "system": "client",
+      "description": "Same closed-loop local QoS1 echo workload through a shared Inbox. Includes Client and peer costs, extra Inbox gate, observer, window32/payload32; not fixed-arrival tail latency or broker/native deployment qualification.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_session_5",
+          "source": "extlibs/xmqtt/bench/bench_client_session.c",
+          "suite": "xmqtt_client_session,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_4",
+          "source": "extlibs/xmqtt/bench/bench_client_session.c",
+          "suite": "xmqtt_client_session,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_session.c",
+          "suite": "xmqtt_client_session,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_client_session_4_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_session.c",
+          "suite": "xmqtt_client_session,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "4",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "4",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

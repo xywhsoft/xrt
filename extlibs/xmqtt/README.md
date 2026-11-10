@@ -3,8 +3,9 @@
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
 The independent [in-memory session state](docs/session.md) leaf now implements
 bounded QoS state, cross-connection replay decisions, incoming identity retention
-and expiry. Existing Client factories do not yet attach it; transport reconnect,
-request/Future composition and durable recovery remain required work.
+and expiry. The optional [Client Session factory](docs/client_session.md) now attaches it
+to numeric TCP with explicit reconnect and a shared Inbox. Automatic reconnect,
+TLS/Dial/Auth composition and durable recovery remain required work.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
@@ -19,12 +20,13 @@ with concurrent ordinary traffic. Optional [verified TLS](docs/client_tls.md)
 provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
 numeric, hostname and prepared-address factories. Optional
 [TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
-ticket for explicit subsequent connections. Reconnect, durable sessions,
+ticket for explicit subsequent connections. Automatic reconnect, durable sessions,
 cross-connection cache management and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages
 and one shared physical object quota through sequential Client/Engine destruction.
-It currently composes with numeric TCP and does not restore MQTT protocol state.
+Its ordinary factory preserves application payloads; the optional Client Session
+factory additionally restores protocol state over numeric TCP.
 No broker or production/performance acceptance is claimed.
 
 Run the [offline TCP client example](examples/client/main.c) with the xmqtt
