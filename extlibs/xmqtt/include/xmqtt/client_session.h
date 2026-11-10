@@ -50,9 +50,8 @@ XRT_EXTERN_C_BEGIN
  * Replay adds no payload copy. Independent request/packet headers remain separate
  * allocations; alias locking, small header copies and native leases have costs.
  * Optional client_session_dial and client_session_tls compose Dial/TLS. Enhanced
- * authentication is selected independently. Assigned-id adoption, automatic
- * reconnect and durable recovery remain separate
- * work. No production/performance acceptance implied. */
+ * authentication is selected independently. The optional reconnect controller
+ * adds automatic generation management; durable recovery remains separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
     const xmqttclientconfig* Config,xmqttsession* Session,xmqttclientinbox* Inbox,
     const xmqttpacket* Connect,xmqttclient** Client);

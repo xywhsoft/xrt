@@ -10043,3 +10043,75 @@ offline/subscription recovery, durable state, WebSocket and the remaining scope 
 performance gates of all four developing products stay open. No branch operation
 or remote push. Evidence: extlibs/xmqtt/tests/results/retirement-query-20261110.json
 and out/service-extensions/xmqtt-retirement-query-20261110 (C-backed stage).
+
+## 2026-11-10: bounded automatic MQTT reconnect controller
+
+The developing xmqtt_reconnect leaf now owns a private bounded Session/Inbox and
+copied CONNECT, drives actual replacement connections on a borrowed Engine worker
+and uses a borrowed task pool only after old Client physical retirement. It adds
+no thread/runtime. Typed factory status selects policy independently of ambient
+errors. Adapters must return a Session Client on the exact Engine/affinity/passive
+owners. Numeric/Dial/TLS/Auth factory composition is expressible; this stage's
+independent automatic-controller broker matrix qualifies numeric TCP only.
+
+One generation at a time, bounded caller-storage leases and all actual old
+Client/native notification tails precede destruction/replacement. Last ONLINE
+lease release posts no work. An ONLINE controller has no heartbeat timer. Client
+Notify remains direct; lifecycle hooks occur only at Ready/CLOSED. Selected Client
+storage gains one pointer; unselected numeric and Session Client machine .text
+matches the parent on both OSes. Encoded credentials remain bounded until a secure
+Destroy wipe. Per-operation leases still add two mutex sections, intrusive-list
+updates and metadata writes; no zero-cost claim is made. Backoff saturates, jitter
+is bounded, stable lifetime resets the attempt counter, and one per-outage deadline
+includes setup/backoff/retirement. Stop cancels timers. The clean flag supports
+first-only and always-clean policies. Assigned ids and retained protocol obligations
+are reused; old application Futures retain their original connection outcomes.
+
+Final Windows/WSL runs each pass59 programs:23 modular,30 single and6 Core examples.
+WSL fully instruments them with ASan/UBSan/leak and adds a final Client-controller
+TSan run. Tests cover true replacement/assigned ids/Inbox/QoS1 recovery, held leases,
+20000 concurrent lease attempts, allocation-free lease cycles, stable ownership,
+exact exponential/count/deadline/stop policy, invalid factory returns, closed Pool
+assistance, accepted cleanup cancellation before Proc and seven OOM prefixes on
+constructor and worker factory paths. Four final static/shared packages and eight
+packaged example/consumer executions pass. Four additional packaged probes pass68
+cases:17 typed factory cases each, including all statuses, invalid/empty success,
+identical ambient MEMORY diagnostics and exact retry counts. Nine actual public
+exports, hidden internal hook, declaration-only minimal scope and five generated/
+features/API/docs/maturity checks pass on each OS.
+
+Independent pinned Mosquitto2.1.2/proxy runs pass160 automatic-controller cases:
+Windows static/shared/single and WSL static/shared/single/full ASan+UBSan+leak/TSan,
+each20 cases across MQTT5/311, five outgoing/incoming ACK cuts and normal/fragmented
+work budgets. Exactly two controller generations preserve SessionPresent, protocol
+ids/DUP/PUBREL, binary snapshots, incoming QoS2 dedup and old Future outcomes.
+All probe/broker/proxy/reader owners are reaped; this is numeric TCP, not automatic
+TLS/DNS/Auth, crash/durable, other-broker or production qualification.
+
+Sequential seven-sample/one-warmup local closed-loop QoS1 measurements use400000
+publications/window32 and one static-package benchmark executable per OS. Manual
+Session, one batch lease and per-operation leases share its protocol workload.
+All eight throughput comparisons satisfy3% MAD/6% central-span noise gates; ratios
+range0.98208..1.00657 and none loses5%. Only two Windows311 P99 comparisons qualify;
+the remaining six are noise-unqualified. Cold setup/reconnect latency, CPU/RSS,
+fixed-arrival/contention, pinned upstream, native Linux and>=72h gates remain open.
+Earlier wider performance failures are not waived. No global performance/production
+acceptance is inferred for any of the four developing products.
+
+Preparations are retained: an initial test selector omitted assets, fixture member/
+property names were corrected, typed factory and clean-policy refinements supersede
+the first passing full runs. Final full runs use a separately frozen runtime source
+map. A benchmark-only misleading-indentation failure was corrected by whitespace;
+its original source is retained, while that failed build log was overwritten by
+the final build. Successfully built unchanged broker probes were reused explicitly.
+Automatic subscription/offline acceptance, durable/crash recovery, WebSocket and
+full transport/production/performance scope remain work. No branch operation or
+push. Evidence: extlibs/xmqtt/tests/results/reconnect-controller-20261110.json and
+out/service-extensions/xmqtt-reconnect-controller-20261110 (C-backed stage).
+
+The runnable packaged example additionally forces a real peer outage, holds its
+old lease through physical retirement, observes the automatic second generation
+and retains its original message/Future beyond all owners. Four final packaged
+example/consumer pairs pass this revised source, plus full single-source WSL
+ASan/UBSan/leak and TSan example runs. Only the example changed after the final
+runtime freeze; its exact source delta and scoped validations are recorded.

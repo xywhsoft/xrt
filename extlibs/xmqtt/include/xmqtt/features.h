@@ -52,6 +52,22 @@
 #ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
 #define XMQTT_MODULE_XMQTT_CLIENT_SESSION_DIAL
 #endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT
+#define XMQTT_MODULE_XMQTT_RECONNECT
+#endif
+#endif
+
+/* xmqtt_reconnect 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_RECONNECT)
+#ifndef XMQTT_FEATURE_XMQTT_RECONNECT
+#define XMQTT_FEATURE_XMQTT_RECONNECT
+#endif
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#endif
+#ifndef XRT_MODULE_TASK_POOL
+#define XRT_MODULE_TASK_POOL
+#endif
 #endif
 
 /* xmqtt_client_session_dial 及其直接依赖。 */

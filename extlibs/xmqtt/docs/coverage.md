@@ -14,7 +14,8 @@ Optional [enhanced authentication](client_auth.md) integrates initial AUTH/final
 CONNACK verification and reauthentication. Optional [TLS](client_tls.md) adds
 verified TLS 1.2/1.3 and mutual authentication. Volatile QoS/expiry state and
 explicit reconnect are covered by the optional Session leaves below.
-Automatic reconnect, persistence and WebSocket remain pending. Independent
+A developing [automatic controller](reconnect.md) now drives bounded retry and
+physical generation retirement. Persistence and WebSocket remain pending. Independent
 pinned-broker evidence exists; final performance/production acceptance is pending.
 
 | Contract | Verification |
@@ -489,3 +490,25 @@ minimal scope, exports and generated/API/docs/maturity checks pass on both OSes.
 Automatic reconnect, durable recovery, WebSocket and complete performance/native
 Linux/soak production gates remain open. No broker or end-to-end performance result
 is inferred from this lifecycle stage.
+
+## Automatic reconnect controller
+
+The [controller stage](../tests/results/reconnect-controller-20261110.json) drives
+actual bounded replacement connections, private Session/Inbox, explicit typed
+factory failure policy, saturating jittered backoff, stable reset, per-outage
+deadline, cancellation and physical old-generation cleanup. Caller-storage leases
+prevent premature destruction; cleanup data finalization works even when its
+queued Proc is cancelled. Closed/full cleanup admission retains an owner for
+external Wait/Destroy assistance. No per-connection thread/runtime is created.
+
+Each OS passes59 final root programs. WSL adds full ASan/UBSan/leak and TSan.
+Four packages, eight examples/consumers and68 packaged typed-policy cases pass.
+Independent Mosquitto/proxy tests pass160 automatic numeric-TCP cases over eight
+build forms, both MQTT versions and five outgoing/incoming ACK cuts. Nine exports,
+private-hook visibility, minimal declarations and generated/API/docs/maturity
+checks pass. Two feature-excluded Client scopes retain parent machine .text.
+All eight local throughput comparisons qualify with no5% loss (largest1.8%). Only
+two of eight P99 comparisons qualify; six retain excessive noise. These closed-loop
+observations do not complete throughput/tail/CPU/RSS/contention/native Linux/soak
+production gates. Automatic TLS/DNS/Auth composition still needs dedicated evidence;
+offline acceptance, subscription recovery, durable state and WebSocket remain open.

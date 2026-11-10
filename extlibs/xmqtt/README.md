@@ -8,8 +8,10 @@ to numeric TCP with explicit reconnect and a shared Inbox. Optional
 [TLS Client Session](docs/client_session_tls.md) composes numeric, hostname and
 prepared-address TLS, including MQTT5 challenge/final-proof authentication.
 [TCP Dial/Auth Session](docs/client_session_dial.md) adds hostname/prepared TCP
-recovery and numeric/hostname/prepared enhanced-auth factories. Automatic reconnect
-and durable recovery remain required work.
+recovery and numeric/hostname/prepared enhanced-auth factories. The developing
+[automatic reconnect controller](docs/reconnect.md) adds generation leases, bounded
+backoff/deadlines and physical cleanup over a borrowed Engine/task pool. Durable
+recovery and complete transport/interoperability qualification remain required.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
@@ -24,7 +26,7 @@ with concurrent ordinary traffic. Optional [verified TLS](docs/client_tls.md)
 provides TLS 1.2/1.3, mutual authentication and the same MQTT operations over
 numeric, hostname and prepared-address factories. Optional
 [TLS1.3 credential handoff](docs/client_tls_resume.md) supplies a bounded latest
-ticket for explicit subsequent connections. Automatic reconnect, durable sessions,
+ticket for explicit subsequent connections. Durable sessions,
 cross-connection cache management and WebSocket remain pending. Optional [hostname/prepared-address Dial](docs/client_dial.md)
 uses bounded Core DNS and candidate racing with the original setup deadline.
 Optional [Client Inbox](docs/client_inbox.md) preserves accepted PUBLISH messages

@@ -35,4 +35,5 @@
 #include <xmqtt/client_session.h>
 #include <xmqtt/client_session_dial.h>
 #include <xmqtt/client_session_tls.h>
+#include <xmqtt/reconnect.h>
 #endif

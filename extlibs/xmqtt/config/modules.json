@@ -116,7 +116,8 @@
         "xmqtt_client_inbox",
         "xmqtt_client_session",
         "xmqtt_client_session_tls",
-        "xmqtt_client_session_dial"
+        "xmqtt_client_session_dial",
+        "xmqtt_reconnect"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -673,7 +674,8 @@
         "xmqtt_client_inbox_tests",
         "xmqtt_client_session_tests",
         "xmqtt_client_session_tls_tests",
-        "xmqtt_client_session_dial_tests"
+        "xmqtt_client_session_dial_tests",
+        "xmqtt_reconnect_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -696,7 +698,8 @@
         "extlibs/xmqtt/tests/test_client_inbox.c",
         "extlibs/xmqtt/tests/test_client_session.c",
         "extlibs/xmqtt/tests/test_client_session_tls.c",
-        "extlibs/xmqtt/tests/test_client_session_dial.c"
+        "extlibs/xmqtt/tests/test_client_session_dial.c",
+        "extlibs/xmqtt/tests/test_reconnect.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -725,7 +728,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -957,6 +961,62 @@
       "single_test_owners": {
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c": "xmqtt_client_session_tests"
       }
+    },
+    {
+      "name": "xmqtt_reconnect",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_RECONNECT",
+      "depends": [
+        "xmqtt_client_session",
+        "task_pool"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/reconnect.h"
+      ],
+      "internal_headers": [
+        "extlibs/xmqtt/src/internal/xmqtt_client_lifecycle.h"
+      ],
+      "sources": [
+        "extlibs/xmqtt/src/client/reconnect.c"
+      ],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/reconnect/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_reconnect.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/reconnect.md"
+      ]
+    },
+    {
+      "name": "xmqtt_reconnect_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_reconnect",
+        "memory_stats",
+        "atomic",
+        "time"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     }
   ]
 }

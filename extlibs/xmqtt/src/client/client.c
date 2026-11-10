@@ -8,6 +8,7 @@
 #include <xmqtt/client_session_dial.h>
 #include <xmqtt/client_session_tls.h>
 #include "../internal/xmqtt_session_client.h"
+#include "../internal/xmqtt_client_lifecycle.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/sync.h>
@@ -133,6 +134,9 @@ struct xmqttclient {
     uint64 Timer;unsigned PingOffset;bool PingOutstanding;
     xmqttrequest* Disconnect;bool DisconnectReserved,ApplicationClose,ApplicationFinal,ApplicationNativeClosing;
     xmutex RetirementLock;xcond RetirementReady;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+    const xmqttclientlifecycle* Lifecycle;
+#endif
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
     xmqttclientinbox* Inbox;
 #endif
@@ -479,7 +483,11 @@ static void xmqttReadyFinish(xmqttclient* C,xmqttclientstatus Status)
     xmqttreadybox* B=C->ReadyBox;xpromise* P=C->ReadyPromise;C->ReadyBox=NULL;C->ReadyPromise=NULL;
     B->Value.Status=Status;if(C->Cause)B->Value.Cause=xrtErrorRef(C->Cause);
     if(!xrtPromiseResolveOwned(P,B,xmqttReadyFree,NULL))xmqttReadyFree(B,NULL);
-    xrtPromiseDestroy(P);xmqttStartupRetire(C);xmqttClientNotify(C);
+    xrtPromiseDestroy(P);xmqttStartupRetire(C);
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+    if(C->Lifecycle && Status==XMQTT_STATUS_OK)C->Lifecycle->Changed(C->Lifecycle->Data,C,false,Status,0);
+#endif
+    xmqttClientNotify(C);
 }
 static size_t xmqttSendAliasPadding(size_t Bytes)
 {return (0u-Bytes)&(_Alignof(xmqttsendaliasrequest)-1u);}
@@ -2020,7 +2028,11 @@ Failed:
 Finish:
     if(C->Timer){uint64 Id=C->Timer;C->Timer=0;C->TimerAt=INFINITY;(void)xrtNetEngineTimerCancelCurrent(C->Engine,Id);}
     xrtMutexLock(&C->Gate);Status=C->Info.CloseStatus;C->Info.State=XMQTT_CLIENT_CLOSED;xrtMutexUnlock(&C->Gate);
-    xmqttRequestFinish(C,&C->Disconnect,Status);xmqttClientNotify(C);
+    xmqttRequestFinish(C,&C->Disconnect,Status);
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+    if(C->Lifecycle)C->Lifecycle->Changed(C->Lifecycle->Data,C,true,Status,C->Info.ServerReason);
+#endif
+    xmqttClientNotify(C);
 }
 static void xmqttClientStop(xmqttclient* C)
 {
@@ -2065,7 +2077,12 @@ static void xmqttClientStop(xmqttclient* C)
     if(C->Requests){xmqttClientWake(C);return;}
     if(C->Draining)return;
     xrtMutexLock(&C->Gate);bool Changed=C->Info.State!=XMQTT_CLIENT_CLOSED;C->Info.State=XMQTT_CLIENT_CLOSED;xrtMutexUnlock(&C->Gate);
-    if(Changed)xmqttClientNotify(C);
+    if(Changed){
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+        if(C->Lifecycle)C->Lifecycle->Changed(C->Lifecycle->Data,C,true,C->Info.CloseStatus,C->Info.ServerReason);
+#endif
+        xmqttClientNotify(C);
+    }
 }
 static void xmqttClientWork(xnetworker* Worker,ptr Data)
 {
@@ -2820,6 +2837,19 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 #endif
     return xrtNetStreamWaitRetired(C->Stream,(!Timeout || xrtTimer()>=Deadline)?0:xmqttClientRemaining(Deadline));
 }
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Worker,
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer)
+{
+    if(!C || C->Worker!=Worker || !xrtNetWorkerIsCurrent(Worker) || !C->Session ||
+       C->Session->State!=Session || C->Inbox!=Inbox || C->Lifecycle || !Observer || !Observer->Changed)
+        return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
+    C->Lifecycle=Observer;
+    if(C->Info.State==XMQTT_CLIENT_CLOSED)Observer->Changed(Observer->Data,C,true,C->Info.CloseStatus,C->Info.ServerReason);
+    else if(C->Info.Ready)Observer->Changed(Observer->Data,C,false,XMQTT_STATUS_OK,0);
+    return true;
+}
+#endif
 XMQTT_API bool xmqttClientDestroy(xmqttclient* C)
 {
     if(!C)return true;

@@ -1,0 +1,368 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Bounded automatic MQTT reconnect controller",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "aea9f67ca74e915a8e7713d6c41f942985da46d1",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "module_state": "developing",
+  "production_accepted": false,
+  "performance_accepted": false,
+  "public_apis": [
+    "xmqttReconnectConfigInit",
+    "xmqttReconnectCreate",
+    "xmqttReconnectAcquire",
+    "xmqttReconnectRelease",
+    "xmqttReconnectInfo",
+    "xmqttReconnectTakeMessage",
+    "xmqttReconnectClose",
+    "xmqttReconnectWaitFor",
+    "xmqttReconnectDestroy"
+  ],
+  "source_identity": {
+    "frozen_files": 2746,
+    "map_sha256": "710b63d90ba12d5fa4719a69c2385030be2e16529d5889ead03ceb2ea3b18776",
+    "supplement_sha256": "167b9bc96d7c3d041ffe1e003494bc3bca5f0f8e6e4675fe6f9a2cfef464db19",
+    "runtime_drift": 0,
+    "benchmark_delta": "Whitespace-only Werror correction; original source retained",
+    "additional_public_policy_test": "extlibs/xmqtt/tests/interop/reconnect_policy_probe.c",
+    "publication_deltas": {
+      "extlibs/xmqtt/bench/bench_reconnect.c": {
+        "before_sha256": "6e77702ea5281eaeb5abad0e096b3926f95447fbc9e70beee8ccf4dd48be8552",
+        "after_sha256": "a95c38a7fb65aad6a539766c4f2c69dd841d0687444361a1895199ff20145419"
+      },
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "4556e639036013bbc798b85994ec397deccb964911fa7b8a0158a62e6e5d4045",
+        "after_sha256": "74a704453cda12ee955da79bcd906a2c38389706144b3b374d0436a4cabdb744"
+      },
+      "extlibs/xmqtt/docs/reconnect.md": {
+        "before_sha256": "b38539e64074eadfcc002757f3e3d4fc90f9ce19e7a54fd10058c421c6969cac",
+        "after_sha256": "76fd0f3314160114eb2f52c429b519e8ce328a16cf5233a20770f4f6a33463e4"
+      },
+      "extlibs/xmqtt/examples/reconnect/main.c": {
+        "before_sha256": "504ff621d73880c1035540a5a5bc5a632f7fadfaab247c8ff08758a0763cbc39",
+        "after_sha256": "37d24db40fc2c7a8a10f1d95c9c786b89565ba091c12da45b4bad6216152ff2e"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "06d73f87f640565e928bcaf99f78ed88cc2f2282df9798d6f8b23a786828c8cb",
+        "after_sha256": "71fc3c92e5a494f4ae2e0ec4017c6e0da5c3d34a9c727114d1617a24958db2c7"
+      }
+    }
+  },
+  "implementation": {
+    "new_threads": 0,
+    "new_shared_runtime": false,
+    "one_live_generation": true,
+    "private_session_inbox": true,
+    "encoded_connect_owned_bounded_and_wiped": true,
+    "typed_factory_status_independent_of_ambient_error": true,
+    "online_reconnect_heartbeat_timers": 0,
+    "selected_client_extra_pointers": 1,
+    "unselected_client_text_equal_scopes_per_os": 2,
+    "client_notify_direct": true,
+    "lifecycle_hook_only_ready_closed": true,
+    "lease_requested_heap_allocations": 0,
+    "lease_future_wrappers": 0,
+    "lease_extra_payload_copies": 0,
+    "lease_cost": "Two Gate critical sections, intrusive-list/metadata writes per Acquire/Release pair; no ONLINE release post. Batch sharing is supported.",
+    "cleanup": "After real Client/native retirement and zero leases; borrowed task Data finalizer also handles cancelled-before-Proc jobs. Admission failure retains old ownership for off-worker Wait/Destroy assistance.",
+    "recovery_policy": "Saturating exponential, bounded jitter, stable reset, finite optional attempt/outage budgets, timer cancellation and explicit first-only/always-clean flags"
+  },
+  "validation": {
+    "windows": {
+      "programs": 59,
+      "modular_tests": 23,
+      "single_tests": 30,
+      "core_examples": 6,
+      "sanitizers": [],
+      "packages": 2,
+      "packaged_example_consumer_runs": 4,
+      "typed_policy_probe_runs": 2,
+      "typed_policy_cases": 34,
+      "broker_forms": 3,
+      "independent_broker_cases": 60,
+      "exported_public_functions": 9,
+      "excluded_client_machine_text_scopes": 2,
+      "declaration_only_scopes": 1,
+      "checks": 5,
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "target": "x86_64-w64-mingw32"
+    },
+    "wsl": {
+      "programs": 59,
+      "modular_tests": 23,
+      "single_tests": 30,
+      "core_examples": 6,
+      "sanitizers": [
+        "address",
+        "undefined",
+        "leak"
+      ],
+      "packages": 2,
+      "packaged_example_consumer_runs": 4,
+      "typed_policy_probe_runs": 2,
+      "typed_policy_cases": 34,
+      "broker_forms": 5,
+      "independent_broker_cases": 100,
+      "exported_public_functions": 9,
+      "excluded_client_machine_text_scopes": 2,
+      "declaration_only_scopes": 1,
+      "checks": 5,
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "target": "x86_64-linux-gnu"
+    }
+  },
+  "final_tsan_modular_programs": 1,
+  "additional_outage_example_sanitizers": {
+    "complete": true,
+    "receipts": [
+      {
+        "kind": "asan",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-I/mnt/d/GIT/xrt",
+          "-I/mnt/d/GIT/xrt/include",
+          "-I/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+          "-fsanitize=address,undefined",
+          "-fno-omit-frame-pointer",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-reconnect-controller-20261110/example-single.c",
+          "-lm",
+          "-pthread",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-reconnect-controller-20261110/example-asan"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "a9840429ed9eda71a5a9012d8c7ac4e35fd413c50125c125ec5ca70010531d03",
+        "log_sha256": "887a29fad1e54c2d1ed245bdf55c89db3e943d9823c9e47069b96ebe97419b13"
+      },
+      {
+        "kind": "tsan",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-I/mnt/d/GIT/xrt",
+          "-I/mnt/d/GIT/xrt/include",
+          "-I/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+          "-fsanitize=thread",
+          "-Wno-error=tsan",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-reconnect-controller-20261110/example-single.c",
+          "-lm",
+          "-pthread",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-reconnect-controller-20261110/example-tsan"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "0360904e6d6d993c8b7211d192cf907b63beed7e9dcf78817e6ca3e10c3d1b0b",
+        "log_sha256": "887a29fad1e54c2d1ed245bdf55c89db3e943d9823c9e47069b96ebe97419b13"
+      }
+    ]
+  },
+  "independent_broker": {
+    "version": "Mosquitto2.1.2",
+    "total_cases": 160,
+    "forms": [
+      "Windows static",
+      "Windows shared",
+      "Windows single",
+      "WSL static",
+      "WSL shared",
+      "WSL single",
+      "WSL single ASan/UBSan/leak",
+      "WSL single TSan"
+    ],
+    "mqtt_versions": [
+      5,
+      311
+    ],
+    "ack_cut_modes": 5,
+    "work_budgets": [
+      "normal",
+      "fragmented"
+    ],
+    "transport": "numeric TCP",
+    "assertions": [
+      "exactly two controller generations",
+      "SessionPresent",
+      "original identifiers and DUP/PUBREL",
+      "binary snapshot preservation",
+      "incoming QoS2 dedup",
+      "immutable old Future outcomes",
+      "all probe/broker/proxy/reader owners reaped"
+    ]
+  },
+  "performance": {
+    "scope": "Sequential local closed-loop QoS1 over actual static packages, same benchmark binary per OS, manual Session vs batch/per-operation leases",
+    "messages_per_sample": 400000,
+    "window": 32,
+    "measured_samples": 7,
+    "warmups": 1,
+    "instrumentation": false,
+    "cli_version_mapping": {
+      "4": "MQTT3.1.1",
+      "5": "MQTT5.0"
+    },
+    "noise_gate": {
+      "max_mad_fraction": 0.03,
+      "max_central_span_fraction": 0.06
+    },
+    "qualified_throughput_comparisons": 8,
+    "worst_throughput_ratio": 0.9820818190061529,
+    "throughput_five_percent_losses": 0,
+    "qualified_p99_comparisons": 2,
+    "noise_unqualified_p99_comparisons": 6,
+    "comparisons": {
+      "windows": [
+        {
+          "version": 5,
+          "managed": 1,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 0.9820818190061529,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 0.9954389965792474,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "version": 5,
+          "managed": 2,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 1.00460532576801,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 0.9714937286202965,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "version": 4,
+          "managed": 1,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 1.0011409747178381,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 0.9863481228668942,
+              "qualified": true
+            }
+          }
+        },
+        {
+          "version": 4,
+          "managed": 2,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 1.0065747617856748,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 0.9840728100113765,
+              "qualified": true
+            }
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "version": 5,
+          "managed": 1,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 0.999994953444953,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 1.0057339449541285,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "version": 5,
+          "managed": 2,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 0.9973121567195078,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 0.9856651376146789,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "version": 4,
+          "managed": 1,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 1.0026066896730486,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 1.0370584829183553,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "version": 4,
+          "managed": 2,
+          "ratios": {
+            "publishes_per_sec": {
+              "ratio": 1.0038650141098995,
+              "qualified": true
+            },
+            "latency_p99_us": {
+              "ratio": 1.0241266164833043,
+              "qualified": false
+            }
+          }
+        }
+      ]
+    },
+    "not_measured": [
+      "cold setup/reconnect latency",
+      "fixed-arrival/contention",
+      "CPU/RSS",
+      "pinned external implementation comparison",
+      "native Linux",
+      ">=72h soak"
+    ]
+  },
+  "preparations": [
+    "Initial test selector omitted assets; fixture member/property names corrected.",
+    "Initial passing full runs are superseded by final separately frozen runs after typed factory/clean-policy refinement.",
+    "Benchmark misleading-indentation corrected by whitespace only; original source retained but failed build log overwritten by final compile.",
+    "Unchanged previously successful broker probe binaries reused explicitly with original compile logs; final benchmark rebuilt."
+  ],
+  "open_work": [
+    "automatic TLS/DNS/Auth and other-broker qualification",
+    "offline acceptance and automatic subscription recovery",
+    "durable/crash recovery and WebSocket",
+    "remaining complete xredis/xrpc/xmqtt/xcron scope and performance/production gates; earlier wider failures remain open"
+  ],
+  "artifacts": {
+    "root": "out/service-extensions/xmqtt-reconnect-controller-20261110",
+    "evidence_files": 957,
+    "evidence_index_sha256": "7e45fd38e7c0f9497b88f4178dd0c904ce742927a9ef5f663b06ae0305691c7b"
+  }
+}
