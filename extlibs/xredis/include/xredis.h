@@ -66,4 +66,9 @@
 #endif
 #include <xredis/pool_connect.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TRACKING)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TRACKING"
+#endif
+#include <xredis/tracking.h>
+
 #endif

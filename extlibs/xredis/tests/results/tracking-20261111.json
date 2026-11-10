@@ -1,0 +1,896 @@
+{
+  "schema": 1,
+  "date": "2026-11-11",
+  "stage": "typed Redis Tracking controls, receive-order observations and invalidation views",
+  "base_revision": "af28eaba2f94a45730c2c1e4bf8496e899767c57",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "source_inputs": 2596,
+  "source_map_sha256": "93e0ccc4e52afb97fd6f291ed33c36fc01c706dde07925e9e207b21188f7d13d",
+  "initial_source_map_sha256": "a7862b67c8a2b742d442ec223c6defa944abb597390bddcd46df1bea1af452f8",
+  "test_only_revision": {
+    "production_code_changed": false,
+    "delta": {
+      "extlibs/xredis/tests/test_tracking.c": {
+        "before": "d27fd0f8d87fd32e775387e5c74278d842810c0ec0029ae97747474ea8c87508",
+        "after": "87aa06e129d73a1756c2bbb2e6380584579a8e00bbce9e6ff046de2084fe614e"
+      },
+      "extlibs/xredis/tests/interop/tracking_boundaries.py": {
+        "before": "69709a9bcc335b601d987b83f11b778b337d1ffa252252f87053ce01e15704cd",
+        "after": "327da8ef0d89e0e848f974cdceb0dc643a14c6561fdbe411ae640bae851141dc"
+      }
+    }
+  },
+  "canonical_change_sha256": {
+    "docs/development/service-extensions-progress.md": "07e8de5c994962b3ffa719e348ab15ec8cfb9e9954a08159b6b4aa43a6e5ccff",
+    "extlibs/xredis/README.md": "4e030f3b2069bb107c6b7280f0b7226348364b3eda4fcbfe13ffd6093756447b",
+    "extlibs/xredis/config/modules.json": "c35445b7afa2aafc7e92b74e82da66fc2e41c8365d67ebf366cec887e327b550",
+    "extlibs/xredis/config/performance_profiles.json": "b1bafcbfe9e028f546f406b61a38429745dfdfd71e2fcc58d8f351c5197134e2",
+    "extlibs/xredis/config/size_profiles.json": "11af518693edf8d273d0509e6255b02d0900e87c8ff13527d6d8eef6c45c89bb",
+    "extlibs/xredis/docs/api/reference.md": "ccf35485961b16e9cb7104cfd0631555bc077e37dde4246fa7520ff5fe0f370a",
+    "extlibs/xredis/include/xredis.h": "41176bbabc309dca49fbde038eaebeaa3a03756cf19208bc5110478d7ebe28df",
+    "extlibs/xredis/include/xredis/features.h": "587b1eee2bdd017c21e2051a6f9680d36050a711046ed4b813f83e8bf57226c6",
+    "extlibs/xredis/src/client/client.c": "e8db110e57f0c84c9c9f54972bdf3d4d9a2b67079baa554369dc0d01dfd9d6f8",
+    "extlibs/xredis/src/reply/reply.c": "f89202924ad481efebf6769e93dec0ad76c9a9c1d8c1242985602fd476088301",
+    "single/extlibs/xredis.h": "bdf2d82296a621ffbeabd25c6f3294f9ffb3d3016a735152ff9095e8c148d25c",
+    "single/extlibs/xredis_decl.h": "41e2d71ecacbb40a768053f745d0a4f8dfee650ea3b77276efaf4d7fd1707d53",
+    "extlibs/xredis/bench/bench_tracking.c": "9c195ff2d7058037a79148d03fe6c685909ad2eeec37b310157d84bf6d5f96fc",
+    "extlibs/xredis/docs/tracking.md": "aeca3069ec84f9a92b033a610d7936a3707afacfe1cb1642a8d13cf5ae20f05f",
+    "extlibs/xredis/examples/tracking/README.md": "3ced7b77fac0a3d65e64812eaad59358386d693b3a8ef5ab129fefadcc87edb8",
+    "extlibs/xredis/examples/tracking/main.c": "e033a547ae5f387b47ec19f290b69e92c228c487f9c805bc78976faa7e417b1c",
+    "extlibs/xredis/include/xredis/tracking.h": "c4e989f91697200f1c2fe05769c83ecb864a84ec820c887374655e1aa7bf74af",
+    "extlibs/xredis/src/tracking/tracking.c": "7ea9acd614a9ab5aea94f587db45303763898eeac3313447b88d998d1a8c8255",
+    "extlibs/xredis/tests/interop/build_tracking_probe.py": "cdb44dfb6df23da6e42ecc178f2e67480e4557ec4733705e117ea41581236c00",
+    "extlibs/xredis/tests/interop/health_tracking.py": "08849d61b7e81a10cf52077706c97369cce6578526e01cb8e614201d378f2838",
+    "extlibs/xredis/tests/interop/redis_tracking.c": "52cbba1e88a15b4cc4a6b616c395ab5e73af2443a81cffb303852353159f288a",
+    "extlibs/xredis/tests/interop/run_redis_tracking.py": "e4c51c0e6c2fbff73d64e5fb6fe07b892f17e88bc1263e4bb7d006ebca9ce234",
+    "extlibs/xredis/tests/interop/tracking_boundaries.py": "327da8ef0d89e0e848f974cdceb0dc643a14c6561fdbe411ae640bae851141dc",
+    "extlibs/xredis/tests/single/test_single_xredis_tracking.c": "8c1497ef5e62a14b2acbcd70c98c38c47623e7af9f70704e082a45258a07c77a",
+    "extlibs/xredis/tests/test_tracking.c": "87aa06e129d73a1756c2bbb2e6380584579a8e00bbce9e6ff046de2084fe614e"
+  },
+  "core_api_changes": false,
+  "new_workers": 0,
+  "new_branches": 0,
+  "push": false,
+  "feature": "xredis_tracking",
+  "new_public_api": [
+    "xredisClientTrackingCall",
+    "xredisClientTrackingCallAsync",
+    "xredisClientTrackingConfigureAsync",
+    "xredisClientTrackingInfo",
+    "xredisClientTrackingObserve",
+    "xredisClientTrackingTake",
+    "xredisTrackingConfigInit",
+    "xredisTrackingEventRead"
+  ],
+  "ownership": [
+    "bounded one-time context allocation: header + MaxPushes uint64 slots",
+    "single owner increments per complete frame; every result and transferred push has immutable ordinal",
+    "ordinary result shape/allocation unchanged; observed result is prefix plus8 x64 bytes",
+    "no second Future or command payload copy; no application cache or automatic replay",
+    "live/reserved observer bytes and refusals; constructor/free barriers included in physical close"
+  ],
+  "platforms": {
+    "windows": {
+      "root_programs": 44,
+      "leaf_and_example_programs": 15,
+      "fully_instrumented_asan_ubsan_leak": false,
+      "tsan_unit": false,
+      "runtime_packages": 2,
+      "additional_packaged_examples": 2,
+      "standalone_declarations": 2,
+      "public_tracking_exports": 8,
+      "source_note": "final fixtures",
+      "receipts": "windows-final-receipts.json"
+    },
+    "wsl": {
+      "root_programs": 44,
+      "leaf_and_example_programs": 15,
+      "fully_instrumented_asan_ubsan_leak": true,
+      "tsan_unit": true,
+      "runtime_packages": 2,
+      "additional_packaged_examples": 2,
+      "standalone_declarations": 2,
+      "public_tracking_exports": 8,
+      "source_note": "initial full suite and identical production code, with revised focused single/production-TU ASan/UBSan/TSan fixtures",
+      "receipts": "wsl-final-receipts.json"
+    }
+  },
+  "independent_redis": {
+    "builds": [
+      {
+        "build": "windows-single",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/windows-single/result.json",
+        "sha256": "d3d4a4ae0c6077682c15951a05aa7e21231206e4f540d59eca2143b8943480c1"
+      },
+      {
+        "build": "windows-static",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/windows-static/result.json",
+        "sha256": "4d913d49ca8845be3928fe4e5ef01639bad8d991af14872d4235de2d54f8a996"
+      },
+      {
+        "build": "windows-shared",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/windows-shared/result.json",
+        "sha256": "2ddc649d1cb3e4dbe3f8191dc1ae4955ed555a0d29f2266b83b7183840ec18a9"
+      },
+      {
+        "build": "wsl-modular",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/wsl-modular/result.json",
+        "sha256": "03406e7244ce92bf86c2252dd19aa200bf2e0b9caef51d04a072538e30af0bca"
+      },
+      {
+        "build": "wsl-static",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/wsl-static/result.json",
+        "sha256": "4e032a6f04c0efaf6a2e4a2b0c784cf664406fa569a2dd821c0146652d34f885"
+      },
+      {
+        "build": "wsl-shared",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/wsl-shared/result.json",
+        "sha256": "7d2177fc566e2e225ef21e7150b578471978322549ee6007f3d343b5548e62f1"
+      },
+      {
+        "build": "wsl-single-address-undefined",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/wsl-single-address-undefined/result.json",
+        "sha256": "8f25baf1d29eb351c1e2200d76c59acd4f40eee807f764ba6152693b1ee9145e"
+      },
+      {
+        "build": "wsl-single-thread",
+        "matrices": 27,
+        "all_passed": true,
+        "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+        "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+        "report": "interop/wsl-single-thread/result.json",
+        "sha256": "11f7a1f71311550b52d0e42dc7c78920aca5a750b79d6954cbfb323051a0b555"
+      }
+    ],
+    "total_matrices": 216,
+    "row_matrix": "3 transports x3 connection factories x3 authentication modes",
+    "flows": [
+      "receive order and retained outcomes",
+      "binary/missing keys",
+      "null FLUSHDB invalidation",
+      "BCAST binary PREFIX and NOLOOP",
+      "default NOLOOP removes tracking on own write",
+      "OPTIN/OPTOUT on an exclusively serialized producer",
+      "RESP3 recipient redirection",
+      "RESP2 sender redirection and direct-mode refusal",
+      "broken redirect identity"
+    ]
+  },
+  "performance": {
+    "repeats": 7,
+    "warmups": 1,
+    "noise_limits": {
+      "relative_mad": 0.03,
+      "relative_central_range": 0.06
+    },
+    "results": {
+      "windows": {
+        "all_noise_gates_passed": false,
+        "report": "windows-performance.json",
+        "summary": [
+          {
+            "depth": 1,
+            "metrics": {
+              "queries_per_sec": {
+                "baseline": {
+                  "median": 22416.665,
+                  "relative_mad": 0.006877651068970298,
+                  "relative_central_range": 0.1217396521739518,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 21974.19,
+                  "relative_mad": 0.007016413346749086,
+                  "relative_central_range": 0.014980074350863579,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 21767.308,
+                  "relative_mad": 0.00440141702409874,
+                  "relative_central_range": 0.009565629337353096,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 43.0,
+                  "relative_mad": 0.009302325581395316,
+                  "relative_central_range": 0.1674418604651162,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 43.8,
+                  "relative_mad": 0.006849315068493086,
+                  "relative_central_range": 0.013698630136986335,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 44.2,
+                  "relative_mad": 0.002262443438914059,
+                  "relative_central_range": 0.009049773755656076,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 68.6,
+                  "relative_mad": 0.00728862973760933,
+                  "relative_central_range": 0.02186588921282799,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 69.9,
+                  "relative_mad": 0.02145922746781116,
+                  "relative_central_range": 0.058655221745350615,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 71.7,
+                  "relative_mad": 0.0055788005578801345,
+                  "relative_central_range": 0.015341701534170272,
+                  "qualified": true
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 162.6,
+                  "relative_mad": 0.024600246002460024,
+                  "relative_central_range": 0.06765067650676507,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 182.7,
+                  "relative_mad": 0.11713191023535839,
+                  "relative_central_range": 0.20470717022441148,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 173.2,
+                  "relative_mad": 0.03290993071593527,
+                  "relative_central_range": 0.05889145496535791,
+                  "qualified": false
+                }
+              },
+              "observation_bytes": {
+                "baseline": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1040.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_query": {
+                "baseline": {
+                  "median": 12.002197,
+                  "relative_mad": 2.0329611320209014e-05,
+                  "relative_central_range": 4.065922264056603e-05,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 12.001953,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 4.066004924356342e-05,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 12.001953,
+                  "relative_mad": 2.0330024621855712e-05,
+                  "relative_central_range": 6.0990073865419136e-05,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_query": {
+                "baseline": {
+                  "median": 1967.462891,
+                  "relative_mad": 7.94169997892987e-06,
+                  "relative_central_range": 9.530039974715844e-05,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 1967.447266,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 9.53011566003518e-05,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1975.447266,
+                  "relative_mad": 3.855936896460538e-05,
+                  "relative_central_range": 0.00012655361866794576,
+                  "qualified": true
+                }
+              }
+            },
+            "off_vs_baseline_ratio": 0.9802613368224041,
+            "off_throughput_comparison_qualified": false,
+            "observed_vs_baseline_ratio": 0.9710323993332639
+          },
+          {
+            "depth": 32,
+            "metrics": {
+              "queries_per_sec": {
+                "baseline": {
+                  "median": 197169.539,
+                  "relative_mad": 0.04341780197599375,
+                  "relative_central_range": 0.08230320506049364,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 205013.214,
+                  "relative_mad": 0.024143692513400542,
+                  "relative_central_range": 0.04837288683255303,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 204990.641,
+                  "relative_mad": 0.018274663573543386,
+                  "relative_central_range": 0.05789361378698262,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 109.8,
+                  "relative_mad": 0.02914389799635704,
+                  "relative_central_range": 0.10291438979963567,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 109.3,
+                  "relative_mad": 0.01280878316559919,
+                  "relative_central_range": 0.034766697163769414,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 108.3,
+                  "relative_mad": 0.012003693444136631,
+                  "relative_central_range": 0.04339796860572487,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 187.4,
+                  "relative_mad": 0.04535752401280683,
+                  "relative_central_range": 0.15528281750266806,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 172.8,
+                  "relative_mad": 0.07060185185185178,
+                  "relative_central_range": 0.16319444444444436,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 174.1,
+                  "relative_mad": 0.05858701895462372,
+                  "relative_central_range": 0.15336013785180924,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 261.4,
+                  "relative_mad": 0.10596786534047434,
+                  "relative_central_range": 0.24521805661820975,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 231.5,
+                  "relative_mad": 0.10280777537796981,
+                  "relative_central_range": 0.367170626349892,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 227.2,
+                  "relative_mad": 0.07922535211267606,
+                  "relative_central_range": 0.2548415492957748,
+                  "qualified": false
+                }
+              },
+              "observation_bytes": {
+                "baseline": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1040.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_query": {
+                "baseline": {
+                  "median": 12.018066,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 2.0385975580545407e-05,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 12.018311,
+                  "relative_mad": 2.0302353633433073e-05,
+                  "relative_central_range": 4.06879136344501e-05,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 12.018066,
+                  "relative_mad": 4.060553503358475e-05,
+                  "relative_central_range": 8.129427813084863e-05,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_query": {
+                "baseline": {
+                  "median": 1969.017578,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 7.935429411387409e-06,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 1969.033203,
+                  "relative_mad": 7.935366440847163e-06,
+                  "relative_central_range": 9.522439729016596e-05,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1977.017578,
+                  "relative_mad": 3.852874190279067e-05,
+                  "relative_central_range": 0.0001333685663365621,
+                  "qualified": true
+                }
+              }
+            },
+            "off_vs_baseline_ratio": 1.0397813731257952,
+            "off_throughput_comparison_qualified": false,
+            "observed_vs_baseline_ratio": 1.0396668878959037
+          }
+        ]
+      },
+      "wsl": {
+        "all_noise_gates_passed": false,
+        "report": "wsl-performance.json",
+        "summary": [
+          {
+            "depth": 1,
+            "metrics": {
+              "queries_per_sec": {
+                "baseline": {
+                  "median": 11581.09,
+                  "relative_mad": 0.01971135704842985,
+                  "relative_central_range": 0.04001264129714901,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 11330.927,
+                  "relative_mad": 0.023926374249873834,
+                  "relative_central_range": 0.06299793476738494,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 11370.046,
+                  "relative_mad": 0.028653358130653197,
+                  "relative_central_range": 0.15682750975677676,
+                  "qualified": false
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 83.1,
+                  "relative_mad": 0.013237063778579956,
+                  "relative_central_range": 0.03369434416365821,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 83.0,
+                  "relative_mad": 0.006024096385542169,
+                  "relative_central_range": 0.01686746987951797,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 83.1,
+                  "relative_mad": 0.008423586040914595,
+                  "relative_central_range": 0.2117930204572805,
+                  "qualified": false
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 151.2,
+                  "relative_mad": 0.023809523809523774,
+                  "relative_central_range": 0.04894179894179898,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 154.5,
+                  "relative_mad": 0.031715210355987095,
+                  "relative_central_range": 0.0789644012944985,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 153.8,
+                  "relative_mad": 0.024707412223667173,
+                  "relative_central_range": 0.06631989596879055,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 275.5,
+                  "relative_mad": 0.039201451905626176,
+                  "relative_central_range": 0.12341197822141561,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 278.6,
+                  "relative_mad": 0.07788944723618106,
+                  "relative_central_range": 0.28356066044508255,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 317.7,
+                  "relative_mad": 0.09065155807365444,
+                  "relative_central_range": 0.2867485048788165,
+                  "qualified": false
+                }
+              },
+              "observation_bytes": {
+                "baseline": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1040.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_query": {
+                "baseline": {
+                  "median": 14.000244,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 1.7428267678788674e-05,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 14.000244,
+                  "relative_mad": 1.7428267678788674e-05,
+                  "relative_central_range": 5.228480303623914e-05,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 14.000488,
+                  "relative_mad": 1.742796393944116e-05,
+                  "relative_central_range": 3.485592787900919e-05,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_query": {
+                "baseline": {
+                  "median": 2430.144531,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 5.626002826431198e-06,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 2430.144531,
+                  "relative_mad": 5.626002826431198e-06,
+                  "relative_central_range": 0.00022503805556575764,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 2438.664062,
+                  "relative_mad": 5.606348251521623e-06,
+                  "relative_central_range": 0.00021864553150574854,
+                  "qualified": true
+                }
+              }
+            },
+            "off_vs_baseline_ratio": 0.9783990108012285,
+            "off_throughput_comparison_qualified": false,
+            "observed_vs_baseline_ratio": 0.9817768448393027
+          },
+          {
+            "depth": 32,
+            "metrics": {
+              "queries_per_sec": {
+                "baseline": {
+                  "median": 83901.244,
+                  "relative_mad": 0.008110797499021688,
+                  "relative_central_range": 0.0331755271709679,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 85765.197,
+                  "relative_mad": 0.011232784785651432,
+                  "relative_central_range": 0.04506014251911535,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 84861.468,
+                  "relative_mad": 0.011291072645597065,
+                  "relative_central_range": 0.049166589953405025,
+                  "qualified": true
+                }
+              },
+              "latency_p50_us": {
+                "baseline": {
+                  "median": 255.3,
+                  "relative_mad": 0.020368194281237824,
+                  "relative_central_range": 0.05131218174696433,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 255.4,
+                  "relative_mad": 0.027407987470634297,
+                  "relative_central_range": 0.06108065779169927,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 257.0,
+                  "relative_mad": 0.02529182879377432,
+                  "relative_central_range": 0.05252918287937743,
+                  "qualified": true
+                }
+              },
+              "latency_p99_us": {
+                "baseline": {
+                  "median": 441.3,
+                  "relative_mad": 0.01110355767051887,
+                  "relative_central_range": 0.04826648538409248,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 450.9,
+                  "relative_mad": 0.09957862053670433,
+                  "relative_central_range": 0.18474162785540035,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 424.8,
+                  "relative_mad": 0.04967043314500947,
+                  "relative_central_range": 0.27401129943502817,
+                  "qualified": false
+                }
+              },
+              "latency_max_us": {
+                "baseline": {
+                  "median": 560.5,
+                  "relative_mad": 0.10526315789473684,
+                  "relative_central_range": 0.3611061552185548,
+                  "qualified": false
+                },
+                "off": {
+                  "median": 568.8,
+                  "relative_mad": 0.031997187060478084,
+                  "relative_central_range": 0.22450773558368484,
+                  "qualified": false
+                },
+                "on": {
+                  "median": 582.4,
+                  "relative_mad": 0.08087225274725279,
+                  "relative_central_range": 0.2621909340659341,
+                  "qualified": false
+                }
+              },
+              "observation_bytes": {
+                "baseline": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 0.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 1040.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "checksum": {
+                "baseline": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 24576.0,
+                  "relative_mad": 0.0,
+                  "relative_central_range": 0.0,
+                  "qualified": true
+                }
+              },
+              "heap_blocks_per_query": {
+                "baseline": {
+                  "median": 12.125244,
+                  "relative_mad": 0.0003623844600570153,
+                  "relative_central_range": 0.0005637824690373111,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 12.123291,
+                  "relative_mad": 0.00040277842048001047,
+                  "relative_central_range": 0.0008055568409600209,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 12.121826,
+                  "relative_mad": 0.0004632140405249664,
+                  "relative_central_range": 0.0016112258994643736,
+                  "qualified": true
+                }
+              },
+              "heap_bytes_per_query": {
+                "baseline": {
+                  "median": 2325.28125,
+                  "relative_mad": 5.879675845667471e-05,
+                  "relative_central_range": 0.00017639027537002413,
+                  "qualified": true
+                },
+                "off": {
+                  "median": 2325.144531,
+                  "relative_mad": 0.00011760000135657406,
+                  "relative_central_range": 0.0002352004327940851,
+                  "qualified": true
+                },
+                "on": {
+                  "median": 2333.212891,
+                  "relative_mad": 0.0001523517212558057,
+                  "relative_central_range": 0.0004218967775281334,
+                  "qualified": true
+                }
+              }
+            },
+            "off_vs_baseline_ratio": 1.0222160353188565,
+            "off_throughput_comparison_qualified": true,
+            "observed_vs_baseline_ratio": 1.01144469323959
+          }
+        ]
+      }
+    },
+    "scope": "closed-loop offer-to-collection and whole loopback allocation; setup/shutdown excluded; no upstream/fixed-arrival/native performance acceptance"
+  },
+  "remaining": [
+    "complete four-library goal remains active and all products remain developing",
+    "atomic CLIENT CACHING/query composition for shared producers and broader tracking lifecycle/pool policies",
+    "dedicated Pub/Sub runtime, Sentinel/Cluster and wider product feature matrices",
+    "native Linux, fixed-arrival/concurrency/CPU/RSS and pinned upstream performance comparisons, >=72h soak",
+    "RPC/Cron/MQTT remaining transports, recovery and durable scope from the full plan"
+  ],
+  "production_acceptance": false,
+  "evidence": {
+    "directory": "out/service-extensions/xredis-tracking-20261111",
+    "files": 4496,
+    "inventory_sha256": "4f9dd4f23643a3502264445536cbd867d8325ea71c8d4aac915af33e0389d003"
+  }
+}

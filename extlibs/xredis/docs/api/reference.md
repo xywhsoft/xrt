@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `81` 个函数、`130` 个常量或宏、
-`55` 个公共类型。
+当前登记 `89` 个函数、`145` 个常量或宏、
+`62` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -394,6 +394,49 @@
 ### 常量与宏 (1)
 
 - `XREDIS_FEATURE_XREDIS_TLS_AUTH`
+
+## `extlibs/xredis/include/xredis/tracking.h`
+
+[查看带契约注释的公共头](../../include/xredis/tracking.h)
+
+### 函数 (8)
+
+- `xredisClientTrackingCall`
+- `xredisClientTrackingCallAsync`
+- `xredisClientTrackingConfigureAsync`
+- `xredisClientTrackingInfo`
+- `xredisClientTrackingObserve`
+- `xredisClientTrackingTake`
+- `xredisTrackingConfigInit`
+- `xredisTrackingEventRead`
+
+### 常量与宏 (15)
+
+- `XREDIS_FEATURE_XREDIS_TRACKING`
+- `XREDIS_TRACKING_BCAST`
+- `XREDIS_TRACKING_ERROR`
+- `XREDIS_TRACKING_EVENT`
+- `XREDIS_TRACKING_FLUSH`
+- `XREDIS_TRACKING_KEYS`
+- `XREDIS_TRACKING_MALFORMED`
+- `XREDIS_TRACKING_NOLOOP`
+- `XREDIS_TRACKING_OBSERVATION_BYTES_DEFAULT`
+- `XREDIS_TRACKING_OPTIN`
+- `XREDIS_TRACKING_OPTOUT`
+- `XREDIS_TRACKING_OTHER`
+- `XREDIS_TRACKING_PREFIXES_MAX`
+- `XREDIS_TRACKING_REDIRECT`
+- `XREDIS_TRACKING_REDIRECT_BROKEN`
+
+### 类型 (7)
+
+- `xredistrackingconfig`
+- `xredistrackingevent`
+- `xredistrackingeventkind`
+- `xredistrackinginfo`
+- `xredistrackingpush`
+- `xredistrackingresult`
+- `xredistrackingstatus`
 
 ## `extlibs/xredis/include/xredis/transaction.h`
 

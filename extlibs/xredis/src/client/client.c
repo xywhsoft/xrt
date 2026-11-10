@@ -1,4 +1,5 @@
 #include <xredis/client.h>
+#include <xredis/tracking.h>
 #include "../internal/client_connect.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
@@ -10,6 +11,14 @@
 
 typedef struct xredisrequest xredisrequest;
 typedef struct xredisinitwire xredisinitwire;
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+typedef struct xredisobservation {size_t Bytes;xatomic64 Sequence;uint64 Pushes[];} xredisobservation;
+#define XREDIS_OBSERVE_PARAMETER ,unsigned Observe
+#define XREDIS_OBSERVE_ORDINARY ,false
+#else
+#define XREDIS_OBSERVE_PARAMETER
+#define XREDIS_OBSERVE_ORDINARY
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 enum { XREDIS_TX_MULTI, XREDIS_TX_COMMANDS, XREDIS_TX_EXEC, XREDIS_TX_DISCARD };
 typedef struct xredistransactionstate {
@@ -45,6 +54,9 @@ struct xredisrequest {
 	uint64 Timer;
 	unsigned Phase;
 	bool CancelQueued, Sensitive;
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    uint8 Observe;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 	bool Transaction;
 #endif
@@ -95,7 +107,10 @@ struct xredisclient {
 	size_t TlsWritten, TlsWriteBytes, TlsTurnBytes, TlsTurnCalls, InitWritten;
 	bool InitSending;
 #endif
-	xredisreply* PushQueue[];
+	#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    xatomicptr Observation;uint64 ObservationRejected;bool ObservationPreparing;
+#endif
+    xredisreply* PushQueue[];
 };
 
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
@@ -109,6 +124,9 @@ static xredistransactionstate* xredisTransactionState(xredisrequest* Request)
 }
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+static bool xredisTrackingOutput(xredisclient* C,const void* Output,size_t Bytes);
+#endif
 static void xredisClientWork(xnetworker* Worker, ptr Data);
 static void xredisClientRead(xnetstream* Stream, xnetbuf* Buffer, ptr Data);
 static void xredisClientReadBuffer(xredisclient* Client, const xnetbuf* Buffer);
@@ -293,7 +311,10 @@ XREDIS_API void xredisClientRelease(xredisclient* Client)
 	if (Client->PlanOwned) Client->Plan->Drop(Client->Plan->Data);
 #endif
 	if (Client->EnginePinned) xrtNetEngineUnpin(Client->Engine);
-	xrtMutexUnit(&Client->Gate); xrtFree(Client);
+	#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    xrtFree(xrtAtomicPtrLoad(&Client->Observation,XMEMORY_RELAXED));
+#endif
+    xrtMutexUnit(&Client->Gate); xrtFree(Client);
 }
 
 /* Gate is held. One reference protects each accepted embedded-post callback. */
@@ -990,13 +1011,25 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 {
 	xredisreplyinfo Info = {0}; Info.Size = sizeof(Info); xredisReplyInfo(Reply, &Info);
 	xredisreplyvalue Root; xredisReplyGet(Reply, Info.Root, &Root);
-	if (Root.Type == XREDIS_REPLY_PUSH) {
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    xredisobservation* Observation=xrtAtomicPtrLoad(&Client->Observation,XMEMORY_ACQUIRE);uint64 Sequence=0;
+    if(Observation){
+        /* One IO worker writes; external Info readers only load this atomic. */
+        Sequence=xrtAtomic64Load(&Observation->Sequence,XMEMORY_RELAXED);
+        if(Sequence==UINT64_MAX){xredisReplyRelease(Reply);xredisClientFail(Client,XREDIS_REQUEST_LIMIT,NULL);return;}
+        ++Sequence;xrtAtomic64Store(&Observation->Sequence,Sequence,XMEMORY_RELEASE);
+    }
+#endif
+    if (Root.Type == XREDIS_REPLY_PUSH) {
 		xrtMutexLock(&Client->Gate);
 		bool Fits = Client->Info.Pushes < Client->Config.MaxPushes &&
 			Info.ReservedBytes <= Client->Config.MaxPushBytes - Client->Info.PushBytes;
 		if (Fits) {
 			size_t Index = (Client->PushHead + Client->Info.Pushes) % Client->Config.MaxPushes;
 			Client->PushQueue[Index] = Reply; ++Client->Info.Pushes; Client->Info.PushBytes += Info.ReservedBytes;
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+            if(Observation)Observation->Pushes[Index]=Sequence;
+#endif
 		}
 		xrtMutexUnlock(&Client->Gate);
 		if (!Fits) { xredisReplyRelease(Reply); xredisClientFail(Client, XREDIS_REQUEST_LIMIT, NULL); }
@@ -1015,6 +1048,12 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 #if defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 	if (Request->Transaction) { xredisTransactionFrame(Request, Reply, &Root); return; }
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    if(Request->Observe==2 && Root.Type!=XREDIS_REPLY_SIMPLE_ERROR && Root.Type!=XREDIS_REPLY_BULK_ERROR &&
+        !(Root.Type==XREDIS_REPLY_SIMPLE_STRING && Root.Data.Size==2 && !memcmp(Root.Data.Data,"OK",2))){
+        xredisReplyRelease(Reply);xredisClientFail(Client,XREDIS_REQUEST_PROTOCOL,NULL);return;
+    }
+#endif
 	if (Request->Promise != NULL) {
 		xredisrequeststatus Status = Root.Type == XREDIS_REPLY_SIMPLE_ERROR || Root.Type == XREDIS_REPLY_BULK_ERROR ?
 			XREDIS_REQUEST_SERVER_ERROR : XREDIS_REQUEST_OK;
@@ -1024,7 +1063,10 @@ static void xredisClientFrame(xredisclient* Client, xredisreply* Reply)
 			xredisReplyRelease(Reply); Reply = NULL;
 			xrtMutexLock(&Client->Gate); ++Client->Info.DiscardedReplies; xrtMutexUnlock(&Client->Gate);
 		}
-		xredisClientComplete(Request, Status, XREDIS_REPLIED, Reply, NULL);
+		#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+        if(Request->Observe)((xredistrackingresult*)Request->Result)->Sequence=Reply?Sequence:0;
+#endif
+        xredisClientComplete(Request, Status, XREDIS_REPLIED, Reply, NULL);
 	} else {
 		xredisReplyRelease(Reply); xrtMutexLock(&Client->Gate); ++Client->Info.DiscardedReplies; xrtMutexUnlock(&Client->Gate);
 	}
@@ -1287,6 +1329,9 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 	if (Again) (void)xredisClientWakeLocked(Client);
 	bool Done = Client->TransportClosed && Client->Info.Requests == 0 && Client->Info.InitBytes == 0 &&
 		Client->InitTimer == 0 && !Client->WakeQueued && !Client->CloseDone;
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    Done=Done && !Client->ObservationPreparing;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
 	Done = Done && !Client->PlanPending;
 #endif
@@ -1374,6 +1419,9 @@ static bool xredisClientCreate(xnetengine* Engine, const xnetaddr* Remote,
 	}
 	Client->Worker = xrtNetEngineWorker(Engine, (uint32)(Affinity % xrtNetEngineWorkerCount(Engine)));
 	xrtAtomic32Init(&Client->References, 1);
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    xrtAtomicPtrInit(&Client->Observation,NULL);
+#endif
 	if (!xrtMutexInit(&Client->Gate)) { xrtNetEngineUnpin(Engine); xrtFree(Client); return false; }
 	if (!xrtNetPostInit(&Client->Wake) || !xredisReplyReaderCreate(&Copy.Replies, &Client->Reader) ||
 		(Client->ClosePromise = xrtPromiseCreate(&Client->CloseFuture, NULL)) == NULL ||
@@ -1755,13 +1803,18 @@ xredisadmission __xredisClientTransaction(xredisclient* Client,
 
 static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future,
-    double Entered, xredisexclusiveowner* Owner, bool Control)
+    double Entered, xredisexclusiveowner* Owner, bool Control XREDIS_OBSERVE_PARAMETER)
 {
 	size_t Bytes = 0;
 	if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
 		xrtMemRangesOverlap(Client, Client == NULL ? 0 : Client->StorageBytes, Future, sizeof(*Future))) {
 		xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "invalid client call arguments"); return XREDIS_ADMISSION_ERROR;
 	}
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    if(Observe && !xredisTrackingOutput(Client,Future,sizeof(*Future))){
+        xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"tracking output overlaps owned storage");return XREDIS_ADMISSION_ERROR;
+    }
+#endif
 	if (!xredisCommandSize(Arguments, Count, &Bytes)) return XREDIS_ADMISSION_ERROR;
 	if (xrtMemRangesOverlap(Arguments, Count * sizeof(*Arguments), Future, sizeof(*Future))) {
 		xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "call output overlaps arguments"); return XREDIS_ADMISSION_ERROR;
@@ -1787,6 +1840,11 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	}
 	xrtMutexLock(&Client->Gate);
 	xredisadmission Admission = xredisClientOwnerAdmission(Client, Owner, Control);
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    if(Observe && Admission==XREDIS_ADMISSION_ACCEPTED && !xrtAtomicPtrLoad(&Client->Observation,XMEMORY_ACQUIRE)){
+        xrtMutexUnlock(&Client->Gate);xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"tracking observation is not enabled");return XREDIS_ADMISSION_ERROR;
+    }
+#endif
 	if (Admission == XREDIS_ADMISSION_ACCEPTED) Admission = Client->Info.Requests >= Client->Config.MaxRequests || Bytes > Client->Config.MaxCommandBytes ||
 		Bytes > Client->Config.MaxCommandBytesTotal - Client->Info.CommandBytes ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_ACCEPTED;
 #if defined(XREDIS_FEATURE_XREDIS_POOL)
@@ -1807,8 +1865,14 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
     if (Owner != NULL && (!Control || xredisClientWord(Arguments[0], "WATCH")) && Request->Deadline > Owner->Deadline) Request->Deadline = Owner->Deadline;
 #endif
 	Request->Sensitive = xredisClientWord(Arguments[0], "AUTH") || xredisClientWord(Arguments[0], "HELLO");
-	Request->Result = (xredisrequestresult*)xrtMalloc(sizeof(*Request->Result));
-	xfuture* Observer = NULL;
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+    Request->Observe=Observe;
+    Request->Result=xrtMalloc(Observe?sizeof(xredistrackingresult):sizeof(*Request->Result));
+    if(Observe && Request->Result)((xredistrackingresult*)Request->Result)->Sequence=0;
+#else
+    Request->Result = (xredisrequestresult*)xrtMalloc(sizeof(*Request->Result));
+#endif
+    xfuture* Observer = NULL;
 	if (Request->Result != NULL) Request->Promise = xrtPromiseCreate(&Observer, NULL);
 	if (Request->Promise != NULL) {
 		xcancel* Token = xrtFutureCancelToken(Observer);
@@ -1839,13 +1903,108 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	return Admission == XREDIS_ADMISSION_ACCEPTED ? XREDIS_ADMISSION_ERROR : Admission;
 }
 
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+static bool xredisTrackingOutput(xredisclient* C,const void* Output,size_t Bytes)
+{
+    if(!C || !Output || !xrtMemRangeValid(Output,Bytes) || xrtMemRangesOverlap(C,C->StorageBytes,Output,Bytes))return false;
+    xredisobservation* S=xrtAtomicPtrLoad(&C->Observation,XMEMORY_ACQUIRE);
+    return !S || !xrtMemRangesOverlap(S,S->Bytes,Output,Bytes);
+}
+XREDIS_API xredisadmission xredisClientTrackingObserve(xredisclient* C,size_t MaxBytes)
+{
+    if(!C){xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid tracking client");return XREDIS_ADMISSION_ERROR;}
+    if(!MaxBytes)MaxBytes=XREDIS_TRACKING_OBSERVATION_BYTES_DEFAULT;
+    xrtMutexLock(&C->Gate);xredisobservation* S=xrtAtomicPtrLoad(&C->Observation,XMEMORY_ACQUIRE);
+    size_t Bytes=sizeof(xredisobservation);
+    xredisadmission A=C->Info.State>=XREDIS_CLIENT_CLOSING?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ACCEPTED;
+    if(A==XREDIS_ADMISSION_ACCEPTED && (C->Config.MaxPushes>(SIZE_MAX-Bytes)/sizeof(uint64) ||
+        (Bytes+=C->Config.MaxPushes*sizeof(uint64))>MaxBytes || C->ObservationPreparing))A=XREDIS_ADMISSION_OVERLOADED;
+    if(A!=XREDIS_ADMISSION_ACCEPTED || S){
+        if(A==XREDIS_ADMISSION_OVERLOADED && C->ObservationRejected!=UINT64_MAX)++C->ObservationRejected;
+        xrtMutexUnlock(&C->Gate);return A;
+    }
+    C->ObservationPreparing=true;xrtMutexUnlock(&C->Gate);
+    S=xrtCalloc(1,Bytes);
+    if(S){S->Bytes=Bytes;xrtAtomic64Init(&S->Sequence,0);}
+    xrtMutexLock(&C->Gate);
+    A=!S?XREDIS_ADMISSION_ERROR:C->Info.State>=XREDIS_CLIENT_CLOSING?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ACCEPTED;
+    if(A==XREDIS_ADMISSION_ACCEPTED)xrtAtomicPtrStore(&C->Observation,S,XMEMORY_RELEASE);
+    else {xrtFree(S);if(C->ObservationRejected!=UINT64_MAX)++C->ObservationRejected;}
+    /* Refund unpublished storage before physical close can observe quiescence. */
+    C->ObservationPreparing=false;
+    if(C->Info.State>=XREDIS_CLIENT_CLOSING)(void)xredisClientWakeLocked(C);
+    xrtMutexUnlock(&C->Gate);return A;
+}
+XREDIS_API bool xredisClientTrackingInfo(xredisclient* C,xredistrackinginfo* Info)
+{
+    if(!xredisTrackingOutput(C,Info,sizeof(*Info)) || Info->Size!=sizeof(*Info))return xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid tracking info output");
+    xrtMutexLock(&C->Gate);xredisobservation* S=xrtAtomicPtrLoad(&C->Observation,XMEMORY_ACQUIRE);
+    *Info=(xredistrackinginfo){sizeof(*Info),S?S->Bytes:0,C->ObservationPreparing?sizeof(xredisobservation)+C->Config.MaxPushes*sizeof(uint64):0,S?xrtAtomic64Load(&S->Sequence,XMEMORY_ACQUIRE):0,C->ObservationRejected,S!=NULL,C->ObservationPreparing};
+    xrtMutexUnlock(&C->Gate);return true;
+}
+XREDIS_API xredisadmission xredisClientTrackingCallAsync(xredisclient* C,const xbytesview* Args,size_t Count,int64 Timeout,xfuture** Future)
+{return xredisClientCallAdmit(C,Args,Count,Timeout,Future,xrtTimer(),NULL,false,true);}
+XREDIS_API xredisadmission xredisClientTrackingCall(xredisclient* C,const xbytesview* Args,size_t Count,int64 Timeout,xfuture** Future)
+{
+    double Entered=xrtTimer();
+    if(!C){xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid tracking client");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&C->Gate);bool Worker=!C->CloseDone && xrtNetEngineCurrent(C->Engine)!=NULL;xrtMutexUnlock(&C->Gate);
+    if(Worker){xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"sync tracking call cannot block an engine worker");return XREDIS_ADMISSION_ERROR;}
+    xredisadmission A=xredisClientCallAdmit(C,Args,Count,Timeout,Future,Entered,NULL,false,true);
+    if(A==XREDIS_ADMISSION_ACCEPTED)(void)xrtFutureWait(*Future);
+    return A;
+}
+XREDIS_API bool xredisClientTrackingTake(xredisclient* C,xredistrackingpush* Push)
+{
+    if(!xredisTrackingOutput(C,Push,sizeof(*Push)))return xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid tracking push output");
+    xrtMutexLock(&C->Gate);xredisobservation* S=xrtAtomicPtrLoad(&C->Observation,XMEMORY_ACQUIRE);
+    if(!S){xrtMutexUnlock(&C->Gate);return xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"tracking observation is not enabled");}
+    if(!C->Info.Pushes){xrtMutexUnlock(&C->Gate);return false;}
+    size_t Index=C->PushHead;xredisreply* Value=C->PushQueue[Index];C->PushQueue[Index]=NULL;
+    *Push=(xredistrackingpush){Value,S->Pushes[Index]};S->Pushes[Index]=0;
+    C->PushHead=(Index+1)%C->Config.MaxPushes;--C->Info.Pushes;
+    xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(Value,&I);C->Info.PushBytes-=I.ReservedBytes;
+    xrtMutexUnlock(&C->Gate);return true;
+}
+XREDIS_API xredisadmission xredisClientTrackingConfigureAsync(xredisclient* C,const xredistrackingconfig* K,int64 Timeout,xfuture** Future)
+{
+    double Entered=xrtTimer();
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)) || K->Size!=sizeof(*K) || K->Flags&~31u || K->Redirect<0 ||
+        K->PrefixCount>XREDIS_TRACKING_PREFIXES_MAX || !xrtMemRangeValid(K->Prefixes,K->PrefixCount*sizeof(*K->Prefixes)) ||
+        ((K->Flags&XREDIS_TRACKING_OPTIN) && (K->Flags&XREDIS_TRACKING_OPTOUT)) ||
+        ((K->Flags&XREDIS_TRACKING_BCAST) && (K->Flags&(XREDIS_TRACKING_OPTIN|XREDIS_TRACKING_OPTOUT))) ||
+        (K->PrefixCount && !(K->Flags&XREDIS_TRACKING_BCAST)) || (K->Redirect && !(K->Flags&XREDIS_TRACKING_REDIRECT)) ||
+        (!K->Enabled && (K->Flags || K->Redirect || K->PrefixCount)) || !Future || !xrtMemRangeValid(Future,sizeof(*Future)) ||
+        xrtMemRangesOverlap(K,sizeof(*K),Future,sizeof(*Future)) || xrtMemRangesOverlap(K->Prefixes,K->PrefixCount*sizeof(*K->Prefixes),Future,sizeof(*Future))){
+        xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid tracking configuration");return XREDIS_ADMISSION_ERROR;
+    }
+    if(C && K->Enabled && (!(K->Flags&XREDIS_TRACKING_REDIRECT) || !K->Redirect)){
+        xrtMutexLock(&C->Gate);
+        bool Unknown=C->Info.State<XREDIS_CLIENT_CLOSING && !(C->Managed &&
+            (C->InitMode==XREDIS_INIT_RESP3 || (C->Info.Ready && C->Info.Protocol==XREDIS_RESP3)));
+        xrtMutexUnlock(&C->Gate);
+        if(Unknown){xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"direct invalidations require managed RESP3 selection");return XREDIS_ADMISSION_ERROR;}
+    }
+    xbytesview Args[3+2+2*XREDIS_TRACKING_PREFIXES_MAX+4];size_t Count=0;
+    Args[Count++]=(xbytesview)XRT_BYTES_LITERAL("CLIENT");Args[Count++]=(xbytesview)XRT_BYTES_LITERAL("TRACKING");
+    Args[Count++]=K->Enabled?(xbytesview)XRT_BYTES_LITERAL("ON"):(xbytesview)XRT_BYTES_LITERAL("OFF");
+    unsigned char Number[20];size_t Start=sizeof(Number);uint64 Id=(uint64)K->Redirect;
+    if(K->Flags&XREDIS_TRACKING_REDIRECT){do {Number[--Start]=(unsigned char)('0'+Id%10u);Id/=10u;}while(Id);
+        Args[Count++]=(xbytesview)XRT_BYTES_LITERAL("REDIRECT");Args[Count++]=(xbytesview){Number+Start,sizeof(Number)-Start};}
+    for(size_t I=0;I<K->PrefixCount;++I){Args[Count++]=(xbytesview)XRT_BYTES_LITERAL("PREFIX");Args[Count++]=K->Prefixes[I];}
+    const xbytesview Flags[]={XRT_BYTES_LITERAL("BCAST"),XRT_BYTES_LITERAL("OPTIN"),XRT_BYTES_LITERAL("OPTOUT"),XRT_BYTES_LITERAL("NOLOOP")};
+    for(unsigned I=0;I<4;++I)if(K->Flags&(1u<<I))Args[Count++]=Flags[I];
+    return xredisClientCallAdmit(C,Args,Count,Timeout,Future,Entered,NULL,false,2);
+}
+#endif
+
 XREDIS_API xredisadmission xredisClientCallAsync(xredisclient* Client,
     const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
-{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, xrtTimer(), NULL, false); }
+{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, xrtTimer(), NULL, false XREDIS_OBSERVE_ORDINARY); }
 #if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
 xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
     const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered, bool Control, xfuture** Future)
-{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, Entered, Owner, Control); }
+{ return xredisClientCallAdmit(Client, Arguments, Count, Timeout, Future, Entered, Owner, Control XREDIS_OBSERVE_ORDINARY); }
 #endif
 
 XREDIS_API xredisadmission xredisClientCall(xredisclient* Client,
@@ -1899,3 +2058,6 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 }
 
 #endif
+
+#undef XREDIS_OBSERVE_PARAMETER
+#undef XREDIS_OBSERVE_ORDINARY

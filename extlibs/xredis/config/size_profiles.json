@@ -176,6 +176,22 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_tracking",
+      "system": "client",
+      "suite": "xredis_tracking",
+      "description": "Existing Client with optional bounded observation ring, ordered results, Tracking configuration and immutable event decoder",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xrtNetResolveOp",
+        "xredisClientDial",
+        "xrtTask"
+      ]
     }
   ]
 }

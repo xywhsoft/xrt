@@ -10285,3 +10285,58 @@ the complete four-library plan remain open.
 
 [Portable evidence](../../extlibs/xmqtt/tests/results/reconnect-subscriptions-linear-20261111.json).
 Raw stage: `out/service-extensions/xmqtt-subscriptions-linear-20261111`.
+
+## 2026-11-11 — Redis Tracking controls and receive-order observations
+
+Implemented xredis_tracking directly on master. One opt-in bounded sequence ring
+orders complete parsed replies/pushes on the existing Client owner, including
+abandoned/ordinary/setup frames. Observed results extend the existing allocation;
+ordinary result/public configuration layouts are unchanged. Pre-activation pushes
+are ordered before observed calls; counter exhaustion fails without wrap. Caller
+construction reservations and unpublished free tails now join physical close.
+
+Typed CLIENT TRACKING supports binary PREFIX, BCAST/OPTIN/OPTOUT/NOLOOP and REDIRECT.
+Direct mode requires managed RESP3; RESP2 senders require positive redirection.
+Configuration validates simple OK and retires malformed replies even after local
+cancellation. The immutable event decoder preserves null flush, binary/empty keys,
+redirect failure and the legacy envelope, with linear borrowed-key iteration.
+It allocates/copies nothing. No cache, new shared runtime or network worker is
+introduced; shared-producer atomic CLIENT CACHING pairs remain separate work.
+
+Literal peers prove both orders that ordinary result/push collection cannot
+distinguish, copied configuration with its owner held, malformed controls,
+existing queues, cancelled/expired FIFO drain, four producers, caller allocation
+prefixes1..1024 and observer OOM. Actual production-TU probes hold allocation and
+unpublished free, verify physical close, refund real scoped budgets, test private
+output aliases and exhaust uint64 with the writer held. Windows and WSL final
+boundary runs pass; WSL fully instruments both memory and TSan variants.
+
+Windows final root44 and leaf/example15 pass. WSL initial root44/leaf15/TSan pass,
+followed by the revised focused single and full production-TU ASan/UBSan/TSan tests.
+Only two test fixtures changed between snapshots; every production input matches.
+An initial Windows single compile included unrelated old tests and triggered an
+initialization warning; the test now owns only its necessary fixture helpers.
+An initial boundary TSan run identified the test Free gate/Client gate inversion;
+moving acquisition after Client queries removes that cycle. Both failures remain
+in evidence. A packaged full-unit link requested unselected memory_stats APIs;
+production package examples plus the real broker matrix now test the actual
+selected API surface, while allocation assertions stay in instrumented units.
+
+Four real root static/shared packages, four additional examples, four isolated
+declaration consumers, eight exports and six size runs pass. Eight builds pass216
+independent Redis8.0.5 matrices: TCP/TLS1.2/TLS1.3, numeric/system-DNS/prepared,
+no-auth/password/ACL. Each covers actual order and retained replies, missing/binary
+keys, flush, prefix/NOLOOP, serialized OPTIN/OPTOUT, RESP2/3 redirection and recipient
+failure. INFO SERVER run_id/pid identify the disposable instance before mutation;
+all processes and ephemeral material are reaped/removed.
+
+The closed-loop benchmark separates baseline, feature-selected unobserved and
+observed queries at depths1/32, including a push per query and all loopback heap
+costs. Identical remaining runtime objects/fixture are linked to the exact baseline
+Client TU from Git. Both OSes run serially after other validation, seven samples
+and one warmup, with unchanged3% MAD/6% central-span limits. All raw samples/noise
+failures remain; this does not qualify fixed-arrival, native Linux, upstream,
+CPU/RSS, soak or the full production/four-library plan. No branch or push.
+
+[Portable evidence](../../extlibs/xredis/tests/results/tracking-20261111.json).
+Raw stage: `out/service-extensions/xredis-tracking-20261111`.

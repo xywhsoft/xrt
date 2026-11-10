@@ -1935,6 +1935,197 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xredis_tracking",
+      "system": "client",
+      "description": "Closed-loop literal peer: query plus invalidation, feature-selected observation off/on at depths1/32; whole loopback allocation and offer-to-collection latency, excluding setup/shutdown",
+      "benchmarks": [
+        {
+          "name": "xredis_tracking_0_1",
+          "source": "extlibs/xredis/bench/bench_tracking.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "1",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "query/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_query": {
+              "unit": "blocks/query",
+              "direction": "lower"
+            },
+            "heap_bytes_per_query": {
+              "unit": "bytes/query",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_tracking_0_32",
+          "source": "extlibs/xredis/bench/bench_tracking.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "32",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "query/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_query": {
+              "unit": "blocks/query",
+              "direction": "lower"
+            },
+            "heap_bytes_per_query": {
+              "unit": "bytes/query",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_tracking_1_1",
+          "source": "extlibs/xredis/bench/bench_tracking.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "1",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "query/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_query": {
+              "unit": "blocks/query",
+              "direction": "lower"
+            },
+            "heap_bytes_per_query": {
+              "unit": "bytes/query",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_tracking_1_32",
+          "source": "extlibs/xredis/bench/bench_tracking.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "query/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_query": {
+              "unit": "blocks/query",
+              "direction": "lower"
+            },
+            "heap_bytes_per_query": {
+              "unit": "bytes/query",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

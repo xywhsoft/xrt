@@ -1,4 +1,5 @@
 #include <xredis/reply.h>
+#include <xredis/tracking.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/number.h>
@@ -365,5 +366,48 @@ XREDIS_API bool xredisReplyReaderFinish(xredisreplyreader* Reader)
 	if (!xredisReaderFinish(Reader->Parser)) return xredisReplyParserFailure(Reader);
 	return true;
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_TRACKING)
+static bool xredisTrackingWord(const xredisreplynode* N,const xredisreply* R,cstr Word,size_t Length)
+{
+    return (N->Type==XREDIS_REPLY_BULK_STRING || N->Type==XREDIS_REPLY_SIMPLE_STRING) && !(N->Flags&XREDIS_REPLY_NULL_VALUE) &&
+        N->Bytes==Length && !memcmp(R->Data+N->Offset,Word,Length);
+}
+XREDIS_API xredistrackingstatus xredisTrackingEventRead(const xredisreply* R,xredistrackingevent* Output)
+{
+    if(!R || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xredisReplyOverlap(R,Output,sizeof(*Output))){
+        xredisReplyReport(XERR_ARGUMENT,XREDIS_REPLY_ARGUMENT,"invalid tracking event output");return XREDIS_TRACKING_ERROR;
+    }
+    const xredisreplynode* Root=R->Nodes+R->Root;
+    if((Root->Type!=XREDIS_REPLY_PUSH && Root->Type!=XREDIS_REPLY_ARRAY) || !Root->ChildCount)return XREDIS_TRACKING_OTHER;
+    size_t First=Root->FirstChild;const xredisreplynode* Tag=R->Nodes+First;
+    bool Keys=Root->Type==XREDIS_REPLY_PUSH && xredisTrackingWord(Tag,R,"invalidate",10);
+    bool Broken=Root->Type==XREDIS_REPLY_PUSH && xredisTrackingWord(Tag,R,"tracking-redir-broken",21);
+    size_t Payload=Tag->Next;
+    if(Root->Type==XREDIS_REPLY_ARRAY && xredisTrackingWord(Tag,R,"message",7) && Root->ChildCount>=2){
+        const xredisreplynode* Channel=R->Nodes+Payload;
+        if(xredisTrackingWord(Channel,R,"__redis__:invalidate",20)){
+            if(Root->ChildCount!=3)return XREDIS_TRACKING_MALFORMED;
+            Keys=true;Payload=Channel->Next;
+        }
+    }
+    if(!Keys && !Broken)return XREDIS_TRACKING_OTHER;
+    if(Root->Type==XREDIS_REPLY_PUSH && Root->ChildCount!=2)return XREDIS_TRACKING_MALFORMED;
+    const xredisreplynode* Value=R->Nodes+Payload;
+    xredistrackingevent E={R,XREDIS_TRACKING_KEYS,XREDIS_REPLY_NONE,0,0};
+    if(Broken){
+        if(Value->Type!=XREDIS_REPLY_INTEGER || Value->Integer<0)return XREDIS_TRACKING_MALFORMED;
+        E.Kind=XREDIS_TRACKING_REDIRECT_BROKEN;E.Redirect=(uint64)Value->Integer;
+    }else if(Value->Type==XREDIS_REPLY_NULL ||
+        ((Value->Type==XREDIS_REPLY_ARRAY || Value->Type==XREDIS_REPLY_BULK_STRING) && (Value->Flags&XREDIS_REPLY_NULL_VALUE)))E.Kind=XREDIS_TRACKING_FLUSH;
+    else {
+        if(Value->Type!=XREDIS_REPLY_ARRAY)return XREDIS_TRACKING_MALFORMED;
+        E.FirstKey=Value->FirstChild;E.Keys=Value->ChildCount;
+        for(size_t N=E.FirstKey;N!=XREDIS_REPLY_NONE;N=R->Nodes[N].Next)
+            if(R->Nodes[N].Type!=XREDIS_REPLY_BULK_STRING || (R->Nodes[N].Flags&XREDIS_REPLY_NULL_VALUE))return XREDIS_TRACKING_MALFORMED;
+    }
+    *Output=E;return XREDIS_TRACKING_EVENT;
+}
+#endif
 
 #endif

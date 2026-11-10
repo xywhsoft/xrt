@@ -177,3 +177,8 @@ See [the offline example](examples/command/main.c),
 [the full development contract](../../docs/development/service-extensions-plan.md).
 The public command frame follows the
 [Redis protocol specification](https://redis.io/docs/latest/develop/reference/protocol-spec/).
+
+Optional [Tracking observations](docs/tracking.md) preserve command-reply and
+invalidation wire order on existing Client transports, with copied configuration,
+borrowed event views and bounded opt-in storage. The [example](examples/tracking/README.md)
+shows collection in a different order and retention after physical shutdown.

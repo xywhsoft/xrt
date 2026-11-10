@@ -46,6 +46,19 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_CONNECT
 #define XREDIS_MODULE_XREDIS_POOL_CONNECT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_TRACKING
+#define XREDIS_MODULE_XREDIS_TRACKING
+#endif
+#endif
+
+/* xredis_tracking 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_TRACKING)
+#ifndef XREDIS_FEATURE_XREDIS_TRACKING
+#define XREDIS_FEATURE_XREDIS_TRACKING
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
 #endif
 
 /* xredis_tls_auth 及其直接依赖。 */
