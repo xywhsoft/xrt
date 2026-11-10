@@ -808,7 +808,8 @@
         "extlibs/xmqtt/examples/client_session/main.c"
       ],
       "benchmarks": [
-        "extlibs/xmqtt/bench/bench_client_session.c"
+        "extlibs/xmqtt/bench/bench_client_session.c",
+        "extlibs/xmqtt/bench/bench_client_session_alias.c"
       ],
       "docs": [
         "extlibs/xmqtt/docs/client_session.md"

@@ -11,9 +11,18 @@ int main(int Argc,char** Argv)
     uint64 Count=Argc>1?strtoull(Argv[1],NULL,10):20000;unsigned Version=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):5,Window=Argc>3?(unsigned)strtoul(Argv[3],NULL,10):32;
     bool Instrument=Argc>4 && strtoul(Argv[4],NULL,10)!=0;
     if(!Count || Count>1000000 || (Version!=4 && Version!=5) || !Window || Window>64 || Argc>5)return 1;
-    mqttExamplePeer P;mqttExampleStartMode(&P,(xmqttversion)Version,true,false);
+    mqttExamplePeer P;
+#if defined(XMQTT_BENCH_ALIAS)
+    if(Version!=5)return 1;
+    mqttExampleStartModeWithAliases(&P,(xmqttversion)Version,true,false,true);
+#else
+    mqttExampleStartMode(&P,(xmqttversion)Version,true,false);
+#endif
     xmqttclientconfig K;xmqttClientConfigInit(&K);K.Version=(xmqttversion)Version;
     xmqttpacket Connect;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Connect);Connect.Body.Connect.CleanStart=true;Connect.Body.Connect.ClientId=XRT_STR_LITERAL("bench-receive");xmqttclient* C=NULL;
+#if defined(XMQTT_BENCH_ALIAS)
+    xmqttproperty Incoming={0};Incoming.Id=XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM;Incoming.Type=XMQTT_PROPERTY_UINT16;Incoming.Value.Number=1;Connect.Properties=(xmqttpropertylist){&Incoming,1};
+#endif
 #if defined(XMQTT_BENCH_INBOX)
     xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=K.Version;xmqttclientinbox* Inbox=NULL;
 #if defined(XMQTT_BENCH_SESSION)
@@ -29,6 +38,9 @@ int main(int Argc,char** Argv)
     mqttExampleCheck(xrtFutureWaitFor(Ready,5000)==XWAIT_OK && ((const xmqttreadyresult*)xrtFutureValue(Ready))->Status==XMQTT_STATUS_OK,"echo CONNACK");
     double* Latencies=malloc((size_t)Count*sizeof(*Latencies));mqttExampleCheck(Latencies!=NULL,"echo latency storage");mqttEchoSlot Slots[64]={{0}};
     xmqttpacket Pub;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Pub);Pub.Flags=2;Pub.Body.Publish.Topic=XRT_STR_LITERAL("bench/receive");
+#if defined(XMQTT_BENCH_ALIAS)
+    xmqttproperty Outgoing={0};Outgoing.Id=XMQTT_PROPERTY_TOPIC_ALIAS;Outgoing.Type=XMQTT_PROPERTY_UINT16;Outgoing.Value.Number=1;Pub.Properties=(xmqttpropertylist){&Outgoing,1};
+#endif
 #if defined(XRT_FEATURE_MEMORY_STATS)
     xmemstats Before,After;xrtMemStatsEnable(Instrument);xrtMemStatsGet(&Before);
 #else
@@ -41,6 +53,9 @@ int main(int Argc,char** Argv)
                 mqttExampleCheck(R && R->Status==XMQTT_STATUS_OK && R->Delivery==XMQTT_PEER_ACCEPTED && R->Identifier==xmqttMessagePacket(S->Message)->Identifier,"paired PUBACK/echo");
                 Latencies[Completed++]=(xrtTimer()-S->Start)*1000000.0;Sum+=S->Sequence;xrtFutureDestroy(S->Future);xmqttMessageRelease(S->Message);S->Future=NULL;S->Message=NULL;Progress=true;}
             if(!S->Future && Submitted<Count){unsigned char Payload[32]={0};uint32 Index=I;memcpy(Payload,&Index,sizeof(Index));memcpy(Payload+8,&Submitted,sizeof(Submitted));Pub.Body.Publish.Payload=(xbytesview){Payload,sizeof(Payload)};
+#if defined(XMQTT_BENCH_ALIAS)
+                if(Submitted)Pub.Body.Publish.Topic=(xstrview){0};
+#endif
                 S->Sequence=Submitted;S->Start=xrtTimer();mqttExampleCheck(xmqttClientPublishAsync(C,&Pub,5000,&S->Future)==XMQTT_ADMISSION_ACCEPTED,"echo admission");++Submitted;Progress=true;}
         }
         xmqttmessage* M=NULL;while(xmqttClientTakeMessage(C,&M)){const xmqttpacket* Packet=xmqttMessagePacket(M);uint32 Index;uint64 Sequence;

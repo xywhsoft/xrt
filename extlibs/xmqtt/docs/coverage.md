@@ -292,3 +292,22 @@ Tests cover early overload, cancellation, OOM rollback, concurrent producers and
 closing while a copy is held outside both gates. Full root/trimmed/package and
 sanitizer results are recorded. Aliased publication sharing, allocation/counter
 profiling and complete performance/production qualification remain required.
+
+## Shared aliased publication snapshot
+
+The [alias sharing stage](../tests/results/shared-alias-20261110.json) extends
+one-copy admission to aliased QoS1/2. A per-Client alias transaction mutex covers
+capture through successful FIFO publication, including QoS0 bindings. Payload
+encoding holds neither main gate. Full output gathers four spans; compact
+output copies only small headers and gathers two. A bounded scalar fallback
+handles gather pressure for shared publications. The immutable canonical packet
+continues to support alias-free recovery. Request/packet lifetimes remain separate.
+
+Tests cover property-length boundaries, ordered User Properties, one-byte writes,
+one-lease pressure, cancellation, eight budget prefixes, four concurrent alias
+producers, close with a holder/waiter and ordinary-producer progress. Both QoS
+levels measure parent two-copy/current one-copy alias output; both protocols'
+unaliased controls remain one-copy. Root/leaf/static/shared/sanitized evidence
+and matched alias/ordinary observations are retained. Mutex/native/header costs,
+legacy non-shared gather pressure, contended performance and full production
+qualification remain open; no zero-overhead or broker/native acceptance is claimed.

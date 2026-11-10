@@ -101,7 +101,7 @@ message/Future owners are released on successful completion.
 `xmqtt_client_session` uses the same combined QoS1 echo workload as ordinary
 Client/Inbox, with explicit protocol Session attachment. Unaliased QoS1 shares one
 snapshot; independent request/packet headers still require two allocations. The
-benchmark does not exercise the remaining outgoing-alias extra copy. Compare
+benchmark does not exercise outgoing aliases. Compare
 uninstrumented timing separately from instrumented heap counts; recovery itself
 is covered by fault tests rather than this steady-connection echo workload.
 
@@ -140,3 +140,9 @@ latency array and cross more automatic-id wraps. Cold per-operation heap changes
 are not an allocator improvement; raw lifecycle costs remain separate. Run
 duration/host load can affect CPU/latency, so observed differences cannot all be
 attributed to clock quantization. Full production qualification remains pending.
+
+`xmqtt_client_session_alias` adds MQTT5 alias echo cases using the same observer,
+payload32 and window32: the first admission binds both directions, subsequent
+requests use an empty topic. Alias transaction/gather, incoming alias resolution,
+peer and observer costs are included. This is a steady-connection closed-loop
+workload, not broker recovery/fixed-arrival/native qualification.

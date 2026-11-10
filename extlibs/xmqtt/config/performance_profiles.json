@@ -3076,6 +3076,99 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_session_alias",
+      "system": "client",
+      "description": "Combined MQTT5 QoS1 echo using empty-topic aliases after one binding in both directions; same fixture/observer/window/payload. Includes alias transaction/gather costs, not broker/fixed-arrival/native/production qualification.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_session_alias_5",
+          "source": "extlibs/xmqtt/bench/bench_client_session_alias.c",
+          "suite": "xmqtt_client_session,time",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "0"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_session_alias_5_alloc",
+          "source": "extlibs/xmqtt/bench/bench_client_session_alias.c",
+          "suite": "xmqtt_client_session,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h",
+            "extlibs/xmqtt/bench/bench_client_receive.c"
+          ],
+          "args": [
+            "20000",
+            "5",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "128",
+            "5",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "exchanges_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_exchange": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_exchange": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -176,9 +176,12 @@ int main(void)
     for(unsigned V=0;V<2;++V)for(unsigned Phase=0;Phase<3;++Phase)csOutgoing(V?XMQTT_VERSION_311:XMQTT_VERSION_5,Phase,false);
     csOutgoing(XMQTT_VERSION_5,0,true);csAliasExpansion();
     for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csIncoming(Version,false);csIncoming(Version,true);csMissingState(Version);csCancellationBudget(Version);csAdmissionAndWindow(Version);}
-    csFactoryOom();csExpiry();csPendingPhysical(XMQTT_VERSION_5);csPendingPhysical(XMQTT_VERSION_311);csSnapshotOom(XMQTT_VERSION_5);csSnapshotOom(XMQTT_VERSION_311);csConcurrentSnapshots(XMQTT_VERSION_5);csConcurrentSnapshots(XMQTT_VERSION_311);
+    csFactoryOom();csExpiry();csPendingPhysical(XMQTT_VERSION_5);csPendingPhysical(XMQTT_VERSION_311);csSnapshotOom(XMQTT_VERSION_5);csSnapshotOom(XMQTT_VERSION_311);csConcurrentSnapshots(XMQTT_VERSION_5);csConcurrentSnapshots(XMQTT_VERSION_311);csAliasRollbackBudget();csConcurrentAliases();csOutgoing(XMQTT_VERSION_5,1,true);csOutgoing(XMQTT_VERSION_5,2,true);
 #if defined(XMQTT_CLIENT_SESSION_SINGLE_TEST)
     csSharedCopy(XMQTT_VERSION_5,1,false);csSharedCopy(XMQTT_VERSION_5,2,false);csSharedCopy(XMQTT_VERSION_311,1,false);csSharedCopy(XMQTT_VERSION_311,2,false);csSharedCopy(XMQTT_VERSION_5,1,true);
+    csSharedCopy(XMQTT_VERSION_5,2,true);
+    for(unsigned Q=1;Q<=2;++Q)for(unsigned P=0;P<3;++P){csAliasVectors(Q,P,true,false);csAliasVectors(Q,P,false,true);}
+    csAliasGateClose();
     csSnapshotCloseRace(XMQTT_VERSION_5);csSnapshotCloseRace(XMQTT_VERSION_311);
     for(unsigned V=0;V<2;++V){xmqttversion Version=V?XMQTT_VERSION_311:XMQTT_VERSION_5;csNativeBoundary(Version,false);csNativeBoundary(Version,true);csEarlyAckPartial(Version);csPacketPhysicalRetirement(Version);csRequestPhysicalRetirement(Version);for(unsigned N=0;N<4;++N)csReplayAllocation(Version,N==3?4:N);}
 #endif

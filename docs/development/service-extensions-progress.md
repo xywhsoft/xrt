@@ -9510,3 +9510,67 @@ alias sharing, TLS/Dial/Auth Session composition, durable/automatic recovery and
 full performance/production gates. Development remains on D:/GIT/xrt master; no
 branch operation or push. Evidence: extlibs/xmqtt/tests/results/shared-publish-20261110.json
 and out/service-extensions/xmqtt-shared-publish-20261110 (C-backed artifacts).
+
+## 2026-11-10: share aliased Client Session publication snapshots
+
+Aliased QoS1/2 now uses the same one immutable canonical snapshot as unaliased
+publication. A separate per-Client alias transaction gate serializes all alias
+admissions, including QoS0 binds, from capture to successful queue publication.
+Failed admission does not change planned bindings. Cancelling an admitted bind
+keeps its plan; actual output restores the full topic when needed. Encoding
+holds neither Client nor Session main gate, allowing close/ordinary producers
+to progress. Entry deadlines include alias-gate wait. No new worker/runtime/timer.
+
+Full-topic alias writes gather four immutable spans; compact output combines
+only a small header and gathers two. User Property order is preserved. Shared
+gathers refused by host pressure make one scalar attempt, then yield. Native
+leases retain request/packet backing through actual retirement; one-byte writes
+and alias-free PUBLISH/PUBREL recovery still pass. Independent request/packet
+allocations, alias serialization, small header copies and native leases are costs.
+
+Both OSes reproduce parent6e8be2b0 alias two-copy/current one-copy for QoS1/2,
+with four MQTT5/311 unaliased controls unchanged. Tests add twelve gather/property/
+chunk/lease-pressure variants, 125-to128 property-length expansion, ordered user
+pairs, eight alias budget prefixes, admitted cancellation versus failed bind,
+four concurrent mixed-QoS producers and a controlled close with alias holder/
+waiter. A non-alias producer progresses while alias copying is held. Initial
+test-local misleading-indentation compilation failure is retained and corrected.
+
+Windows/WSL each pass37 MQTT plus3 Core Time root programs, two Client Session
+plus3 Time programs, two pure Session plus3 Time programs, the recovery example,
+four root/leaf static/shared generic consumers and four actual packaged suites.
+WSL includes ASan/UBSan/leak, two TSan forms and five lifecycle repetitions.
+Generated/features/API/docs/maturity and89 tools pass per OS. All139 Core members
+and8/9 MQTT members match the parent; only Client changes. Public layouts and
+request header104/base session tail8 remain unchanged. Alias state is32 bytes,
+alias session tail40; driver size is120 plus the measured native mutex (one new
+mutex per optional Client Session). Metadata allocation/initialization is bounded.
+
+The new MQTT5 alias echo workload binds once then uses empty topics in both
+directions. Six matched binaries share one parent Core archive and identical
+current fixtures/drivers. Seven samples/one warmup preserve3% MAD/6% central range,
+5% throughput/10% P99 bounds. All raw/qualified failures remain recorded. Ten
+registered smoke cases and two size profiles per OS are execution checks. Local
+closed-loop observations and external host load do not establish broker,
+fixed-arrival, native Linux or >=72h production/performance acceptance.
+
+| OS | Comparison | Qualified throughput | Qualified P99 | Qualified bound failures T/P99 | Raw median failures T/P99 |
+| --- | --- | --- | --- | --- | --- |
+| windows | after | 2/4 | 0/4 | 0/0 | 0/0 |
+| windows | unaliased | 2/4 | 1/4 | 0/0 | 0/0 |
+| windows | session | 2/4 | 1/4 | 0/0 | 0/0 |
+| windows | alias | 1/2 | 0/2 | 0/0 | 0/0 |
+| windows | alias_overhead | 1/2 | 0/2 | 0/0 | 0/0 |
+| wsl | after | 4/4 | 2/4 | 0/0 | 0/0 |
+| wsl | unaliased | 3/4 | 1/4 | 0/0 | 0/1 |
+| wsl | session | 4/4 | 1/4 | 0/0 | 0/1 |
+| wsl | alias | 2/2 | 1/2 | 0/0 | 0/0 |
+| wsl | alias_overhead | 2/2 | 1/2 | 0/0 | 0/0 |
+
+Legacy non-shared/QoS0 alias gather pressure and contended producer profiling
+remain audit items. Continue with those costs, TLS/Dial/Auth composition, assigned
+ids, automatic/durable recovery, broker interoperability and full acceptance.
+The complete four-product goal remains active and all products developing.
+Development remains on D:/GIT/xrt master; no branch operation or push. Evidence:
+extlibs/xmqtt/tests/results/shared-alias-20261110.json and
+out/service-extensions/xmqtt-shared-alias-20261110 (C-backed artifacts).

@@ -9,7 +9,8 @@ typedef struct mqttResumePeer {
     xnetengine* Engine;xnetlistener* Listener;xnetaddr Address;xmqttversion Version;unsigned Mode;bool Present;
     uint16 ReceiveMaximum,AliasMaximum;uint32 PacketMaximum;uint8 MaximumQos,Reason;
     xatomicptr Stream;xatomic32 Closed,ListenerClosed,Connects,Publishes,Releases,Pubacks,Pubrecs,Pubcomps,Disconnects,LogCount;
-    struct {uint16 Id,Alias;uint8 Qos,Flags;size_t Topic,Payload;unsigned char First;} Log[32];
+    struct {uint16 Id,Alias;uint8 Qos,Flags,Users;size_t Topic,Payload;unsigned char First,TopicFirst,LogicalFirst;uint64 UserHash;} Log[32];
+    unsigned char AliasFirst;
     unsigned char Input[65536];size_t Used;uint16 EarlyId;
 } mqttResumePeer;
 static inline void mqttResumeWait(xatomic32* A,uint32 N)
@@ -42,6 +43,11 @@ static inline void mqttResumeRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
             mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL))==XMQTT_CODEC_DONE,"Session peer publication");
             uint32 At=xrtAtomic32Load(&P->LogCount,XMEMORY_RELAXED);mqttExampleCheck(At<32,"Session peer log bound");P->Log[At].Id=Q.Identifier;P->Log[At].Flags=Q.Flags;P->Log[At].Qos=(Q.Flags>>1)&3u;P->Log[At].Topic=Q.Body.Publish.Topic.Size;P->Log[At].Payload=Q.Body.Publish.Payload.Size;P->Log[At].First=Q.Body.Publish.Payload.Size?Q.Body.Publish.Payload.Data[0]:0;
             for(size_t I=0;I<Q.Properties.Count;++I)if(Props[I].Id==XMQTT_PROPERTY_TOPIC_ALIAS)P->Log[At].Alias=(uint16)Props[I].Value.Number;
+            P->Log[At].TopicFirst=Q.Body.Publish.Topic.Size?(unsigned char)Q.Body.Publish.Topic.Data[0]:0;
+            if(P->Log[At].Alias==1 && Q.Body.Publish.Topic.Size)P->AliasFirst=P->Log[At].TopicFirst;
+            P->Log[At].LogicalFirst=Q.Body.Publish.Topic.Size?P->Log[At].TopicFirst:P->Log[At].Alias==1?P->AliasFirst:0;
+            for(size_t I=0;I<Q.Properties.Count;++I)if(Props[I].Id==XMQTT_PROPERTY_USER){++P->Log[At].Users;
+                xstrview Views[]={Props[I].Value.Pair.Name,Props[I].Value.Pair.Value};for(unsigned J=0;J<2;++J){for(size_t K=0;K<Views[J].Size;++K)P->Log[At].UserHash=P->Log[At].UserHash*131u+(unsigned char)Views[J].Data[K];P->Log[At].UserHash*=131u;}}
             xrtAtomic32Store(&P->LogCount,At+1,XMEMORY_RELEASE);
             if(((Q.Flags>>1)&3u)==1 && !(P->Mode&MQTT_RESUME_HOLD_ACK))mqttResumeAck(P,XMQTT_PACKET_PUBACK,Q.Identifier);
             if(((Q.Flags>>1)&3u)==2 && !(P->Mode&MQTT_RESUME_HOLD_REC))mqttResumeAck(P,XMQTT_PACKET_PUBREC,Q.Identifier);

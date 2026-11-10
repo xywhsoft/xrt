@@ -9,7 +9,7 @@ TLS/Dial/Auth composition and durable/crash recovery remain required.
 The [example](../examples/session/README.md) exercises the state boundary directly.
 
 When driven by the optional Client Session factory, Objects/LiveBytes also count
-unaliased publication snapshots reserved before CONNACK/output. Those snapshots
+publication snapshots reserved before CONNACK/output. Those snapshots
 do not enter ActiveOutgoing or survive as protocol state until first selection.
 Pending encoding runs outside the gate; physical count/bytes/id reservation stays
 charged through allocation failure cleanup or actual last-reference retirement.

@@ -13,6 +13,7 @@ static xatomic32 csProbeAllocCountdown,csProbeAllocFailures;
 static xatomic64 csProbeCopySize;
 static xatomic32 csProbeCopies;
 static xatomic32 csProbeCopyBlock,csProbeCopyEntered,csProbeCopyRelease;
+static xatomic32 csProbeVectorLimit,csProbeVectorRejected;
 static void* csProbeMemcpy(void* To,const void* From,size_t Bytes)
 {
     if(Bytes && Bytes==xrtAtomic64Load(&csProbeCopySize,XMEMORY_ACQUIRE)){
@@ -57,6 +58,7 @@ static xnetresult csProbeSendRef(xnetstream* S,cbytes Data,size_t Bytes,xnetrele
 }
 static xnetresult csProbeSendRefs(xnetstream* S,const xnetref* Refs,size_t Count)
 {
+    uint32 Limit=xrtAtomic32Load(&csProbeVectorLimit,XMEMORY_ACQUIRE);if(Limit && Count>Limit){xrtAtomic32FetchAdd(&csProbeVectorRejected,1,XMEMORY_RELEASE);return XNET_RESULT_AGAIN;}
     if(Count && csProbeBlock(S,Refs[0].Data,Refs[0].Size))return XNET_RESULT_AGAIN;
     xnetresult R=xrtNetStreamSendRefs(S,Refs,Count);
     if(R==XNET_RESULT_OK && S==xrtAtomicPtrLoad(&csProbeStream,XMEMORY_ACQUIRE)){size_t Bytes=0;for(size_t I=0;I<Count;++I)Bytes+=Refs[I].Size;testRequire(Bytes==1,"probe vector requires one-byte work");xrtAtomic32FetchAdd(&csProbeAccepted,(uint32)Bytes,XMEMORY_RELEASE);}return R;

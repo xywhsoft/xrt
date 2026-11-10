@@ -31,14 +31,18 @@ XRT_EXTERN_C_BEGIN
  * reconnect; duplicate identities do not deliver another application message.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
- * Unaliased QoS1/2 admission takes one immutable Session snapshot shared by the
+ * QoS1/2 admission takes one immutable Session snapshot shared by the
  * request and protocol state. It consumes Session object/id/byte capacity before
  * readiness, but enters recoverable state only when selected for output. Limit
  * returns OVERLOADED without publishing a Future; unsent/failed setup frees the
  * snapshot after its actual last request reference. Encoding runs outside both
- * gates. Initial output uses one native reference; replay adds no payload copy.
- * Developing: outgoing aliases still create a separate canonical copy at first
- * send. Independent request and packet headers remain separate allocations.
+ * main gates. Alias transactions use a separate mutex from capture through
+ * successful queue publication, including QoS0 bindings; encoding does not hold
+ * the Client/Session main gates. Initial non-alias writes use one span; alias
+ * writes gather up to four spans (two for compact aliases), with scalar fallback
+ * under host queue pressure. Native loans retain both request and packet data.
+ * Replay adds no payload copy. Independent request/packet headers remain separate
+ * allocations; alias locking, small header copies and native leases have costs.
  * TLS/Dial/Auth composition, assigned-id adoption, automatic reconnect and durable
  * recovery remain separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,

@@ -18,7 +18,7 @@ after graceful native close. Stable-owner Info/Take and retained packet access
 remain available; public Session mutations and owner destruction are refused.
 Constructor failure leaves the output unchanged and releases both claims.
 
-Unaliased QoS1/2 publication reserves Session object/id/byte capacity at public
+QoS1/2 publication reserves Session object/id/byte capacity at public
 admission, including before CONNACK. SessionInfo.Objects/LiveBytes include that
 pending immutable snapshot. It is absent from protocol lists and does not set
 ActiveOutgoing/HasState. A physical limit returns OVERLOADED without publishing
@@ -70,14 +70,30 @@ replay construction releases temporary wrappers and preserves old obligations.
 
 ## Cost and remaining work
 
-Unaliased outgoing QoS1/2 now takes one canonical snapshot at admission. Client
-and Session share its immutable wire; the initial send uses one native reference
+Outgoing QoS1/2 now takes one canonical snapshot at admission. Client
+and Session share its immutable wire; a non-alias native write uses one span
 and retains the existing request for the native lease. The request has no private
 wire buffer. Request and packet headers remain separate allocations because their
 connection/Future and protocol lifetimes differ. Relative to ordinary Client,
 that extra packet/header allocation and Session synchronization still have costs.
-Outgoing aliases retain the original two-snapshot path and extra payload copy,
-preserving binding/queue linearization; that cost remains performance debt.
+Alias admission uses one additional transaction mutex in the optional driver.
+All alias publishers on that Client, including QoS0 bindings, serialize capture,
+encoding and successful queue publication. Failed admission never changes the
+planned binding; cancelling a successfully admitted binding preserves planned
+state and later sends restore the actual topic when necessary. Payload encoding
+holds neither main gate, so ordinary producers/IO/close remain independent.
+The alias transaction itself can wait on another alias producer; entry deadlines
+include that delay. No application callback is invoked by the submitting code
+under this gate. The mutex remains alive until all request/API references retire.
+
+Full-topic alias output gathers four spans; compact output combines only small
+headers and uses two spans. The immutable property/payload tail is borrowed.
+Topic Alias can precede other properties; User Property order stays unchanged,
+consistent with [MQTT5 section3.3.2.3.7](https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html).
+When a host queue refuses the gather, one bounded scalar attempt permits progress
+with a single lease. Partial frames still win over all subsequent output. There
+are small header copies, native retain/release operations and alias-lock costs;
+this does not establish zero-overhead or production performance acceptance.
 Replay allocates one request header
 per retained flow, borrows immutable packet data and gathers a DUP prefix plus
 tail without copying payload or creating a Future/result allocation. Native
@@ -88,7 +104,7 @@ cover requested objects, not allocator/native/kernel overhead or process RSS.
 
 TLS/Dial/Auth composition, assigned-id adoption, automatic reconnect, durable
 storage, cross-process recovery, broker recovery interoperability, elimination
-of the extra alias-publication copy/allocation costs and production/performance acceptance remain
+of remaining allocation/locking costs and production/performance acceptance remain
 required work. The local recovery tests cover both protocol versions, QoS
 stages, deduplication, resets, expiry, aliases, early ACKs, zero/partial native
 output, physical retirement and controlled constructor/replay allocation failure.

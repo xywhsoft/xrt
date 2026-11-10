@@ -1653,14 +1653,18 @@ XRT_EXTERN_C_BEGIN
  * reconnect; duplicate identities do not deliver another application message.
  * Destroy/Close never implies peer receipt. Actual network termination starts
  * Session expiry; complete DISCONNECT expiry overrides are respected.
- * Unaliased QoS1/2 admission takes one immutable Session snapshot shared by the
+ * QoS1/2 admission takes one immutable Session snapshot shared by the
  * request and protocol state. It consumes Session object/id/byte capacity before
  * readiness, but enters recoverable state only when selected for output. Limit
  * returns OVERLOADED without publishing a Future; unsent/failed setup frees the
  * snapshot after its actual last request reference. Encoding runs outside both
- * gates. Initial output uses one native reference; replay adds no payload copy.
- * Developing: outgoing aliases still create a separate canonical copy at first
- * send. Independent request and packet headers remain separate allocations.
+ * main gates. Alias transactions use a separate mutex from capture through
+ * successful queue publication, including QoS0 bindings; encoding does not hold
+ * the Client/Session main gates. Initial non-alias writes use one span; alias
+ * writes gather up to four spans (two for compact aliases), with scalar fallback
+ * under host queue pressure. Native loans retain both request and packet data.
+ * Replay adds no payload copy. Independent request/packet headers remain separate
+ * allocations; alias locking, small header copies and native leases have costs.
  * TLS/Dial/Auth composition, assigned-id adoption, automatic reconnect and durable
  * recovery remain separate work. No production/performance acceptance implied. */
 XMQTT_API bool xmqttClientConnectSession(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
@@ -3739,8 +3743,9 @@ struct xmqttrequest {
 };
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
 typedef struct xmqttsessionrequest {const xmqttsessionpacket* Packet;} xmqttsessionrequest;
+typedef struct xmqttsharedalias {size_t PropertiesAt;uint8 PrefixBytes;unsigned char Prefix[16];} xmqttsharedalias;
 typedef struct xmqttsessiondriver {
-    xmqttsession* State;xmqttrequest* Selected;xmqttsessionframe Frame;
+    xmqttsession* State;xmqttrequest* Selected;xmqttsessionframe Frame;xmutex AliasGate;
     size_t ReservedCount,ReservedBytes;
     bool Opened,EndExpiry;uint32 Expiry;double EndAt;
 } xmqttsessiondriver;
@@ -4135,7 +4140,7 @@ static size_t xmqttRequestStorageBytes(const xmqttrequest* R)
     return R->Bytes;
 }
 static xmqttsendaliasrequest* xmqttSendAliasRequest(const xmqttrequest* R)
-{return (xmqttsendaliasrequest*)(R->Wire+R->Bytes+xmqttSendAliasPadding(R->Bytes));}
+{size_t Bytes=xmqttRequestStorageBytes(R);return (xmqttsendaliasrequest*)(R->Wire+Bytes+xmqttSendAliasPadding(Bytes));}
 static size_t xmqttRequestExtra(size_t Bytes,bool Alias,bool TLS)
 {
     size_t N=Alias?xmqttSendAliasPadding(Bytes)+sizeof(xmqttsendaliasrequest):0;
@@ -4150,7 +4155,7 @@ static size_t xmqttRequestExtra(size_t Bytes,bool Alias,bool TLS)
 static size_t xmqttSessionRequestExtra(size_t Bytes,bool Alias,bool TLS,bool Borrow)
 {
     size_t Before=(Borrow?0:Bytes)+xmqttRequestExtra(Borrow?0:Bytes,Alias,TLS);
-    return ((0u-Before)&(_Alignof(xmqttsessionrequest)-1u))+sizeof(xmqttsessionrequest)+(Borrow?sizeof(xmqttwritebox):0);
+    return ((0u-Before)&(_Alignof(xmqttsessionrequest)-1u))+sizeof(xmqttsessionrequest)+(Borrow?sizeof(xmqttwritebox):Alias?sizeof(xmqttsharedalias):0);
 }
 static xmqttsessionrequest* xmqttSessionRequest(const xmqttrequest* R)
 {
@@ -4158,6 +4163,8 @@ static xmqttsessionrequest* xmqttSessionRequest(const xmqttrequest* R)
     size_t Before=Bytes+xmqttRequestExtra(Bytes,(R->Capabilities&XMQTT_TX_ALIAS)!=0,(R->Capabilities&XMQTT_TX_TLS)!=0);
     return (xmqttsessionrequest*)(R->Wire+Before+((0u-Before)&(_Alignof(xmqttsessionrequest)-1u)));
 }
+static xmqttsharedalias* xmqttSharedAlias(const xmqttrequest* R)
+{return (xmqttsharedalias*)(xmqttSessionRequest(R)+1);}
 #endif
 static bool xmqttClientUsesTls(const xmqttclient* C)
 {
@@ -4178,19 +4185,21 @@ static void* xmqttSendAliasAllocateLocked(xmqttclient* C,size_t Bytes,xmqttclien
 }
 /* Planned state linearizes only with successful public admission. Actual state
  * is worker-owned and describes accepted TCP packet order, not broker ACKs. */
-static xmqttclientadmission xmqttSendAliasSnapshotLocked(xmqttclient* C,xmqttrequest* R)
+static xmqttclientadmission xmqttSendAliasSnapshotLocked(xmqttclient* C,xmqttrequest* R,const xstrview* Logical)
 {
     xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);xmqttclientadmission Admission=XMQTT_ADMISSION_ACCEPTED;
-    size_t H=1;while(R->Wire[H++]&128u){}A->RawHeader=(uint8)H;
-    size_t Topic=((size_t)R->Wire[H]<<8)|R->Wire[H+1];A->TailOffset=H+2+Topic;
+    size_t Topic;const char* Data;
+    if(Logical){Topic=Logical->Size;Data=Logical->Data;}
+    else {size_t H=1;while(R->Wire[H++]&128u){}A->RawHeader=(uint8)H;
+        Topic=((size_t)R->Wire[H]<<8)|R->Wire[H+1];A->TailOffset=H+2+Topic;Data=(const char*)R->Wire+H+2;}
     size_t Page=A->Alias>>8,Index=A->Alias&255u;
     if(!Topic && (!C->SendAliases || !C->SendAliases->Pages[Page] || !C->SendAliases->Pages[Page][Index].Planned)){
         xmqttClientError(XERR_STATE,"empty outgoing alias has no admitted topic");return XMQTT_ADMISSION_ERROR;}
     if(!C->SendAliases){C->SendAliases=xmqttSendAliasAllocateLocked(C,sizeof(*C->SendAliases),&Admission);if(!C->SendAliases)return Admission;}
     if(!C->SendAliases->Pages[Page]){C->SendAliases->Pages[Page]=xmqttSendAliasAllocateLocked(C,256*sizeof(xmqttsendaliasslot),&Admission);if(!C->SendAliases->Pages[Page])return Admission;}
     A->Slot=C->SendAliases->Pages[Page]+Index;xmqttsendtopic* T=A->Slot->Planned;
-    if(Topic && (!T || Topic!=T->Size || memcmp(T->Data,R->Wire+H+2,Topic))){
-        T=xmqttSendAliasAllocateLocked(C,sizeof(*T)+Topic,&Admission);if(!T)return Admission;T->Refs=1;T->Size=Topic;memcpy(T->Data,R->Wire+H+2,Topic);
+    if(Topic && (!T || Topic!=T->Size || memcmp(T->Data,Data,Topic))){
+        T=xmqttSendAliasAllocateLocked(C,sizeof(*T)+Topic,&Admission);if(!T)return Admission;T->Refs=1;T->Size=Topic;memcpy(T->Data,Data,Topic);
     }else ++T->Refs;
     A->Topic=T;return XMQTT_ADMISSION_ACCEPTED;
 }
@@ -5317,11 +5326,52 @@ static bool xmqttClientSendReceiveAcks(xmqttclient* C,size_t* Budget)
     }
     if(F->Count || (One && One->Count)){xmqttClientWake(C);return false;}return true;
 }
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+static xmqttclientstatus xmqttSharedAliasPrepare(xmqttclient* C,xmqttrequest* R,bool Compact)
+{
+    const xmqttpacket* P=xmqttSessionPacket(xmqttSessionRequest(R)->Packet);xbytesview W=P->Wire;
+    xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);xmqttsharedalias* B=xmqttSharedAlias(R);
+    size_t At=1;while(W.Data[At++]&128u){}At+=2+P->Body.Publish.Topic.Size+2;
+    uint32 Properties=0;unsigned Shift=0;unsigned char Byte;
+    do{Byte=W.Data[At++];Properties|=(uint32)(Byte&127u)<<Shift;Shift+=7;}while(Byte&128u);
+    B->PropertiesAt=At;uint32 N=Properties+3u;size_t H=0;
+    do{Byte=(unsigned char)(N&127u);N>>=7;B->Prefix[H++]=(unsigned char)(Byte|(N?128u:0u));}while(N);
+    B->Prefix[H++]=0x23;B->Prefix[H++]=(unsigned char)(A->Alias>>8);B->Prefix[H++]=(unsigned char)A->Alias;B->PrefixBytes=(uint8)H;
+    size_t Topic=Compact?0:P->Body.Publish.Topic.Size,Tail=W.Size-At,Body=2+Topic+2+H+Tail;
+    if(Body>XMQTT_VARIABLE_MAX)return XMQTT_STATUS_RESTRICTED;
+    A->Prefix[0]=W.Data[0];H=1;N=(uint32)Body;
+    do{Byte=(unsigned char)(N&127u);N>>=7;A->Prefix[H++]=(unsigned char)(Byte|(N?128u:0u));}while(N);
+    A->Prefix[H++]=(unsigned char)(Topic>>8);A->Prefix[H++]=(unsigned char)Topic;A->PrefixBytes=(uint8)H;A->FrameBytes=H+Topic+2+B->PrefixBytes+Tail;A->Mode=Compact?2:3;
+    if(Compact){size_t Prefix=B->PrefixBytes;memmove(B->Prefix+H+2,B->Prefix,Prefix);memcpy(B->Prefix,A->Prefix,H);
+        memcpy(B->Prefix+H,(const unsigned char*)P->Body.Publish.Topic.Data+P->Body.Publish.Topic.Size,2);B->PrefixBytes=(uint8)(H+2+Prefix);}
+    if(A->FrameBytes>C->Peer.SendPacketBytes)return XMQTT_STATUS_RESTRICTED;
+    return A->FrameBytes>C->Config.Codec.MaxPacketBytes?XMQTT_STATUS_LIMIT:XMQTT_STATUS_OK;
+}
+/* Four immutable spans: header/topic length, topic+id (or just id), updated
+ * property length+alias, then the original canonical properties+payload.
+ * User Property order is unchanged; no property value or payload is copied. */
+static size_t xmqttSharedAliasRefs(xmqttrequest* R,size_t Bytes,xnetref Refs[4])
+{
+    const xmqttpacket* P=xmqttSessionPacket(xmqttSessionRequest(R)->Packet);xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);xmqttsharedalias* B=xmqttSharedAlias(R);
+    if(A->Mode==2){size_t At=R->Offset,Count=0;xbytesview Spans[]={{B->Prefix,B->PrefixBytes},{P->Wire.Data+B->PropertiesAt,P->Wire.Size-B->PropertiesAt}};
+        for(unsigned I=0;I<2 && Bytes;++I){if(At>=Spans[I].Size){At-=Spans[I].Size;continue;}size_t N=Spans[I].Size-At;if(N>Bytes)N=Bytes;
+            Refs[Count++]=(xnetref){Spans[I].Data+At,N,xmqttRequestNativeDrop,R};Bytes-=N;At=0;}return Count;}
+    size_t Topic=A->Mode==3?P->Body.Publish.Topic.Size:0,Skip=P->Body.Publish.Topic.Size-Topic,At=R->Offset,Count=0;
+    const unsigned char* Data[4]={A->Prefix,(const unsigned char*)P->Body.Publish.Topic.Data+Skip,B->Prefix,P->Wire.Data+B->PropertiesAt};
+    size_t Sizes[4]={A->PrefixBytes,Topic+2,B->PrefixBytes,P->Wire.Size-B->PropertiesAt};
+    for(unsigned I=0;I<4 && Bytes;++I){if(At>=Sizes[I]){At-=Sizes[I];continue;}size_t N=Sizes[I]-At;if(N>Bytes)N=Bytes;
+        Refs[Count++]=(xnetref){Data[I]+At,N,xmqttRequestNativeDrop,R};Bytes-=N;At=0;}
+    return Count;
+}
+#endif
 static xmqttclientstatus xmqttSendAliasPrepare(xmqttclient* C,xmqttrequest* R)
 {
     xmqttsendaliasrequest* A=xmqttSendAliasRequest(R);xmqttsendtopic* Actual=A->Slot->Actual;
     if(A->Alias>C->Peer.SendAliasMaximum)return XMQTT_STATUS_RESTRICTED;
     bool Compact=Actual && (Actual==A->Topic || (Actual->Size==A->Topic->Size && !memcmp(Actual->Data,A->Topic->Data,Actual->Size)));
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(R->Capabilities&XMQTT_TX_SHARED)return xmqttSharedAliasPrepare(C,R,Compact);
+#endif
     size_t Topic=Compact?0:A->Topic->Size,Tail=R->Bytes-A->TailOffset,Body=2+Topic+Tail;
     if(Body>XMQTT_VARIABLE_MAX)return XMQTT_STATUS_RESTRICTED;
     A->Prefix[0]=R->Wire[0];size_t H=1;uint32 N=(uint32)Body;
@@ -5349,10 +5399,19 @@ static bool xmqttClientSendAliasRequest(xmqttclient* C,xmqttrequest* R,size_t* B
         if(N>*Budget)N=*Budget;
         if(N>Available)N=Available;
         if(!N)return false;
-        xnetref Refs[3];size_t Count=1;
+        xnetref Refs[4];size_t Count=1;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+        if(R->Capabilities&XMQTT_TX_SHARED)Count=xmqttSharedAliasRefs(R,N,Refs);
+        else
+#endif
         if(xmqttSendAliasRequest(R)->Mode!=1)Count=xmqttSendAliasRefs(R,N,Refs);
         else Refs[0]=(xnetref){R->Wire+R->Offset,N,xmqttRequestNativeDrop,R};
         xnetresult S=xmqttRequestSend(C,R,Refs,Count,&N);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+        /* A host queue may admit one lease but not the whole gather. Make
+         * bounded progress with the first span, preserving frame ordering. */
+        if(S==XNET_RESULT_AGAIN && Count>1 && (R->Capabilities&XMQTT_TX_SHARED)){N=Refs[0].Size;S=xmqttRequestSend(C,R,Refs,1,&N);}
+#endif
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xmqttClientFail(C,XMQTT_STATUS_TRANSPORT,xrtGetError());return false;}
         if(R->Qos && !R->Credit){R->Credit=true;++C->SendInflight;}
         R->Offset+=N;*Budget-=N;C->Partial=R->Offset==Bytes?NULL:R;
@@ -5703,7 +5762,7 @@ static void xmqttClientFree(xmqttclient* C)
     if(C->Session){xmqttClientSessionUnreserve(C);xmqttClientSessionEnd(C);
         if(C->Session->State)xmqttInternalSessionUnclaim(C->Session->State,C);
         if(C->Session->Selected)abort();
-        xrtFree(C->Session);}
+        xrtMutexUnit(&C->Session->AliasGate);xrtFree(C->Session);}
 #endif
     xmqttmessage* M=C->MessageHead;while(M){xmqttmessage* Next=M->Next;xmqttMessageRelease(M);M=Next;}
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_DIAL)
@@ -5793,7 +5852,8 @@ static bool xmqttClientConnectImpl(xnetengine* Engine,const xnetaddr* Remote,uin
     C->Peer.SendPacketBytes=XMQTT_PACKET_MAX_BYTES;C->Peer.KeepAlive=Connect->Body.Connect.KeepAlive;
     C->SetupDeadline=xmqttClientDeadline(Now,K.SetupTimeout);C->NextPing=C->PingDeadline=C->TimerAt=INFINITY;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    if(SessionPlan){C->Session=xrtCalloc(1,sizeof(*C->Session));if(!C->Session)goto Fail;
+    if(SessionPlan){xmqttsessiondriver* Driver=xrtCalloc(1,sizeof(*Driver));if(!Driver)goto Fail;
+        if(!xrtMutexInit(&Driver->AliasGate)){xrtFree(Driver);goto Fail;}C->Session=Driver;
         size_t Count=0,Bytes=0;
         if(!xmqttInternalSessionClaim(SessionPlan,C,K.Version,Connect,&C->Config.Codec,Now,&Count,&Bytes))goto Fail;
         C->Session->State=SessionPlan;
@@ -6041,7 +6101,7 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     if(!Valid){if(!Subscription && !P->Body.Publish.Topic.Size)xmqttClientError(XERR_ARGUMENT,"empty publish topic requires a valid outgoing alias");return XMQTT_ADMISSION_ERROR;}
     size_t Storage=Bytes;
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    bool Session=C->Session && Qos,Shared=Session && !Alias;if(Shared)Storage=0;
+    bool Session=C->Session && Qos,Shared=Session,AliasLocked=false;if(Shared)Storage=0;
 #endif
     size_t Extra=xmqttRequestExtra(Storage,Alias,xmqttClientUsesTls(C));
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
@@ -6086,7 +6146,16 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
         R->Result.Write->Box=(xmqttbox){C->Quota,sizeof(*R->Result.Write)};
     }
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
-    if(Shared){xmqttsessionstatus S=xmqttInternalSessionSnapshot(C->Session->State,C,Packet,&xmqttSessionRequest(R)->Packet);
+    /* Serialize alias transactions through successful queue publication,
+     * including QoS0 bindings. Neither C->Gate nor the Session gate protects
+     * payload encoding; close/IO and ordinary publishers remain independent. */
+    if(Alias && C->Session){xrtMutexLock(&C->Session->AliasGate);AliasLocked=true;
+        xrtMutexLock(&C->Gate);if(C->Info.State>=XMQTT_CLIENT_CLOSING){xrtMutexUnlock(&C->Gate);goto Closed;}
+        if(Shared){xmqttclientadmission A=xmqttSendAliasSnapshotLocked(C,R,&Packet->Body.Publish.Topic);
+            if(A!=XMQTT_ADMISSION_ACCEPTED){xrtMutexUnlock(&C->Gate);if(A==XMQTT_ADMISSION_OVERLOADED)goto Overload;goto Failed;}}
+        xrtMutexUnlock(&C->Gate);}
+    if(Shared){xmqttpacket Logical=*Packet;if(Alias){xmqttsendtopic* T=xmqttSendAliasRequest(R)->Topic;Logical.Body.Publish.Topic=(xstrview){T->Data,T->Size};}
+        xmqttsessionstatus S=xmqttInternalSessionSnapshot(C->Session->State,C,&Logical,&xmqttSessionRequest(R)->Packet);
         if(S!=XMQTT_SESSION_DONE){if(S==XMQTT_SESSION_LIMIT)goto Overload;goto Failed;}}
     else
 #endif
@@ -6096,19 +6165,36 @@ static xmqttclientadmission xmqttClientSubmitAsync(xmqttclient* C,const xmqttpac
     R->Cancel=xrtPromiseCancelToken(R->Promise);if(!R->Cancel)goto Failed;
     xrtMutexLock(&C->Gate);
     if(C->Info.State>=XMQTT_CLIENT_CLOSING){xrtMutexUnlock(&C->Gate);goto Closed;}
-    if(Alias){xmqttclientadmission A=xmqttSendAliasSnapshotLocked(C,R);if(A!=XMQTT_ADMISSION_ACCEPTED){xrtMutexUnlock(&C->Gate);if(A==XMQTT_ADMISSION_OVERLOADED)goto Overload;goto Failed;}}
+    if(Alias
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+       && !Shared
+#endif
+    ){xmqttclientadmission A=xmqttSendAliasSnapshotLocked(C,R,NULL);if(A!=XMQTT_ADMISSION_ACCEPTED){xrtMutexUnlock(&C->Gate);if(A==XMQTT_ADMISSION_OVERLOADED)goto Overload;goto Failed;}}
     /* Publish no accepted request unless its worker wake is committed. The
      * post cannot run inline and cannot observe the queue until Gate unlocks. */
     if(!xmqttClientWakeLocked(C)){xrtMutexUnlock(&C->Gate);goto Failed;}
     if(Alias)xmqttSendAliasCommitLocked(C,R);
     if(C->SubmitTail)C->SubmitTail->Next=R;else C->SubmitHead=R;C->SubmitTail=R;++C->Info.Accepted;
-    xrtMutexUnlock(&C->Gate);*Out=F;return XMQTT_ADMISSION_ACCEPTED;
+    xrtMutexUnlock(&C->Gate);
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(AliasLocked)xrtMutexUnlock(&C->Session->AliasGate);
+#endif
+    *Out=F;return XMQTT_ADMISSION_ACCEPTED;
 Closed:
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(AliasLocked)xrtMutexUnlock(&C->Session->AliasGate);
+#endif
     xrtMutexLock(&C->Gate);++C->Info.Rejected;xrtMutexUnlock(&C->Gate);
     xrtPromiseDestroy(R->Promise);xrtFutureDestroy(F);xmqttRequestResultFree(R);xmqttRequestDrop(R);return XMQTT_ADMISSION_CLOSED;
 Overload:
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(AliasLocked)xrtMutexUnlock(&C->Session->AliasGate);
+#endif
     xrtMutexLock(&C->Gate);++C->Info.Rejected;xrtMutexUnlock(&C->Gate);xrtPromiseDestroy(R->Promise);xrtFutureDestroy(F);xmqttRequestResultFree(R);xmqttRequestDrop(R);return XMQTT_ADMISSION_OVERLOADED;
 Failed:
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_SESSION)
+    if(AliasLocked)xrtMutexUnlock(&C->Session->AliasGate);
+#endif
     xrtPromiseDestroy(R->Promise);xrtFutureDestroy(F);xmqttRequestResultFree(R);xmqttRequestDrop(R);return XMQTT_ADMISSION_ERROR;
 UndoReservation:
     xrtMutexLock(&C->Gate);xmqttIdentifierReleaseLocked(C,Identifier);--C->Info.Requests;C->Info.OutgoingBytes-=Bytes;C->Info.PrivateBytes-=Extra;xrtMutexUnlock(&C->Gate);xmqttClientDrop(C);return XMQTT_ADMISSION_ERROR;
