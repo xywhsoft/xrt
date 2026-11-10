@@ -1,0 +1,543 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Independent TLS Session broker recovery and authenticated partial-write composition",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "35cb2edaa8781bfbde196c8b2941934f7f3c761c",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "runtime_or_public_api_changed": false,
+  "source_identity": {
+    "files": 1119,
+    "source_map_sha256": "8f6a245bf543164063dd086f49c9019e4174d02a7012ba956ae01d09a8da46b7",
+    "publication_deltas": {
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "08bb9bd84b188799406d4b8eeb11752c0c3c02a3c11058e267410a89cccd48b4",
+        "after_sha256": "8142beae57ff6495524c48173a38ee6361db9a6ea049ac88b63bb5f8b549d6cc"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "7adf834708dbf55e1db50481fb2bb5a8cf0b525812d474271c22a699c2919dc6",
+        "after_sha256": "7ae2f8bdceb5cda081aaa508f239dd3cbbfcf5906f8981575ce6ab6aba241a28"
+      }
+    }
+  },
+  "scope": [
+    "Test-only independent TLS proxy and shared broker protocol probe; no product runtime changes",
+    "MQTT5/311 numeric, custom asynchronous Resolver and prepared Session TLS factories",
+    "TLS1.2/1.3 full and mutual handshakes; TLS1.3 ticket reuse and rejected-ticket full fallback independent of MQTT SessionPresent",
+    "Five acknowledgement-cut modes plus authenticated64-byte PUBLISH cut and strict local partial acceptance",
+    "Original canonical identifier/DUP/alias-free/PUBREL replay, incoming deduplication, immutable snapshot and two-Engine retained-owner assertions"
+  ],
+  "final_matrix": {
+    "total_cases": 3456,
+    "ack_cut_cases": 2880,
+    "partial_publish_cases": 576,
+    "tls_connections": 6912,
+    "variants": [
+      {
+        "platform": "windows",
+        "variant": "static",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 67,
+          "maximum": 104
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/windows-static.json",
+        "report_sha256": "32a0d07cd5d3612ef8e36e830cda4b85ea5f805036d2726eb188f69113d85317",
+        "client_sha256": "a73ce81622d64562568ad3bb9e20a1defcea3cd7fdacdda9d8d3e73d4cd357d4"
+      },
+      {
+        "platform": "windows",
+        "variant": "shared",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 69,
+          "maximum": 153
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/windows-shared.json",
+        "report_sha256": "a7bbfab3aff0a145d1add35273c7d08339955cf3640d4129b51c6fed41b97fd9",
+        "client_sha256": "28877123779fc967ed2829f95e794d070c9ecc8cb63ae839e32943ebc066fa32"
+      },
+      {
+        "platform": "windows",
+        "variant": "single",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 70,
+          "maximum": 282
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/windows-single.json",
+        "report_sha256": "271fb90f86e0e76559ebfb6af8856171011de562fe40a2875aa345ac3afc73ca",
+        "client_sha256": "0e20fdc1f8a93327afd977284737868a01c76e01f7fb4b4808154aec0dedbca5"
+      },
+      {
+        "platform": "wsl",
+        "variant": "static",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 73,
+          "maximum": 162
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/wsl-static.json",
+        "report_sha256": "462be52006319768496d31a1af43ad1ee02ff0c353e35967145313edc2093096",
+        "client_sha256": "d5fa14e4519d087e417e28ea28e9439e3fc39897d67bc3454fe42b83cd4238ed"
+      },
+      {
+        "platform": "wsl",
+        "variant": "shared",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 70,
+          "maximum": 184
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/wsl-shared.json",
+        "report_sha256": "eaf38cca380047e93416e50dcdbc22847951b3c30686c97cffc4dc852c5869fd",
+        "client_sha256": "79a5fb46026544985beb383ad5681f0ac87b1d4ea72359ccc8b4072c1eb7d7c3"
+      },
+      {
+        "platform": "wsl",
+        "variant": "single",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 65,
+          "maximum": 198
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/wsl-single.json",
+        "report_sha256": "ae17d3c6d8515dfd1ea262eae6439b170d6b0d11cf618db6bce907c5d79e5690",
+        "client_sha256": "c161973a31725276eb00d62780f66f4cf2790a4d1aabf82e882395757c37a146"
+      },
+      {
+        "platform": "wsl",
+        "variant": "asan",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 67,
+          "maximum": 95
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/wsl-asan.json",
+        "report_sha256": "0ed02f1444e340ad62b8357d2f1fd76580aaf17269cabb1aa57c62087e2be040",
+        "client_sha256": "e482a65b756008a38892eaa509b328dae28ca63aae06e2c8a9c4ae10e5ba1942"
+      },
+      {
+        "platform": "wsl",
+        "variant": "tsan",
+        "cases": 432,
+        "ack_cuts": 360,
+        "partial_publish": 72,
+        "tls_connections": 864,
+        "locally_accepted_prefix_bytes": {
+          "minimum": 65,
+          "maximum": 67
+        },
+        "all_processes_and_threads_reaped": true,
+        "runtime_material_removed": true,
+        "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/runs/wsl-tsan.json",
+        "report_sha256": "150a47394fe0c269ecf9dd9f07a28c445d5abd1b24912317c648307e393ba35c",
+        "client_sha256": "0fd36ad446154740d83b9a7769e6c074d20d7f8390cb1a567f5f6556849863ea"
+      }
+    ]
+  },
+  "checks": {
+    "windows": {
+      "complete": true,
+      "receipts": [
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.42199999999138527,
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.10899999999674037,
+          "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31"
+        },
+        {
+          "label": "api",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.17199999999138527,
+          "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--module-prefix",
+            "xmqtt",
+            "--function-prefix",
+            "xmqtt",
+            "--constant-prefix",
+            "XMQTT",
+            "--type-prefix",
+            "xmqtt"
+          ],
+          "exit_code": 0,
+          "seconds": 0.26500000001396984,
+          "log_sha256": "2990a4cb4e992e8b5b5b2595b9f1e1be1bd042673b0b907477e3f5a4d7142841"
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.9689999999827705,
+          "log_sha256": "dac57fff25fc5bf9e2efabb623b6096e2370ceda2ea48606822fa570798ce291"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_build",
+            "tools.test_api_reference",
+            "tools.test_declaration_features",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "seconds": 9.094000000011874,
+          "log_sha256": "9a304d5b23651ed733a8c0a562b2988c034a745ba232a6570013b285d34697ec"
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "receipts": [
+        {
+          "label": "single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 5.076876394014107,
+          "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15"
+        },
+        {
+          "label": "features",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.16685680000227876,
+          "log_sha256": "96e3fe9adb892eb8fe60c298dbd24d910417c3c736a29a1f48779276b62b61b0"
+        },
+        {
+          "label": "api",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.2668054990062956,
+          "log_sha256": "a71e9c259e192c679cf23045e0b42f7b7d1e1b8145c4718d19c914143fc9fc67"
+        },
+        {
+          "label": "docs",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--module-prefix",
+            "xmqtt",
+            "--function-prefix",
+            "xmqtt",
+            "--constant-prefix",
+            "XMQTT",
+            "--type-prefix",
+            "xmqtt"
+          ],
+          "exit_code": 0,
+          "seconds": 0.4669818989932537,
+          "log_sha256": "4be5b6750443c19defa74ec66cacb4afeaace06a1c9a19cb27aed156c61ecaca"
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 10.188195441995049,
+          "log_sha256": "7cafd6f902b871566a85ea541e2add40e3b69e6184d7513843a00ecca6504dfe"
+        },
+        {
+          "label": "tools",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_build",
+            "tools.test_api_reference",
+            "tools.test_declaration_features",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "exit_code": 0,
+          "seconds": 52.175067131000105,
+          "log_sha256": "709a8937ef1f9112fc9b32de1f625ee15cab732e1c8801eec3420d454d41aea2"
+        }
+      ]
+    }
+  },
+  "fixture_controls": {
+    "count": 8,
+    "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/controls.json",
+    "sha256": "807b207d6e6f5eafb0addad220708744d84756be2f939800fe0e11f150a9db02",
+    "expected_failure": "A real probe intentionally exits2 before receiving TLS arguments; it must fail and all subprocess/thread owners must be joined"
+  },
+  "plain_tcp_regressions": [
+    {
+      "mode": "windows",
+      "source": "out/service-extensions/xmqtt-tls-recovery-prefix-20261110/plain-windows.json",
+      "sha256": "4ea9aac64237e53da674b071060e8b95a0d51514dbbdfc80067cd21628757047",
+      "scope": "New shared C protocol probe and unmodified default TCP runner, no TLS proxy injection",
+      "cases": 20
+    },
+    {
+      "mode": "wsl",
+      "source": "out/service-extensions/xmqtt-tls-recovery-prefix-20261110/plain-wsl.json",
+      "sha256": "6caf9bd32830e83dae19e95dbc3da06e043a7ff76f6570b77318a74813125f40",
+      "scope": "New shared C protocol probe and unmodified default TCP runner, no TLS proxy injection",
+      "cases": 20
+    }
+  ],
+  "delayed_coordinator": {
+    "delay_ms": 200,
+    "report": "out/service-extensions/xmqtt-tls-recovery-final-20261110/diagnostic-delay.json",
+    "sha256": "19a6c1168fc7b023d464e2552b70c5ed593238e345254de1c7a192087b47d912",
+    "stdout": "WAIT_CUT\nWAIT_DRAIN\n[PASS] broker Session recovery MQTT5 mode0 fragmented1 messages1\n[PASS] TLS Session factory0 TLS13 resume0 prefix1 accepted27869 wire524323\n"
+  },
+  "package_equivalence": {
+    "head": "35cb2edaa8781bfbde196c8b2941934f7f3c761c",
+    "runtime_diff_paths": [],
+    "unchanged_scopes": [
+      "include",
+      "src",
+      "config",
+      "single",
+      "extlibs/xmqtt/src",
+      "extlibs/xmqtt/include",
+      "extlibs/xmqtt/config"
+    ],
+    "actual_packages": [
+      {
+        "path": "windows/root-shared/libxmqtt.dll.a",
+        "sha256": "e41535495d641db19a2f91a98809da1870aac9d4f193546881d3904908984daa"
+      },
+      {
+        "path": "windows/root-shared/libxrt.dll.a",
+        "sha256": "68b22208c4a78584ea0adc83a00d0726c917147c105ebb6a9c994d637bb1701d"
+      },
+      {
+        "path": "windows/root-shared/packages.json",
+        "sha256": "6fa4b335a4a950ea3d37c39381b6348e0b391b29c2dbba4af0a183ec1ad0d18e"
+      },
+      {
+        "path": "windows/root-shared/test_package_xmqtt.exe",
+        "sha256": "15b938691f9be1b9ba103a39a0582254a7874ca88a7853eecae528555d73a367"
+      },
+      {
+        "path": "windows/root-shared/xmqtt.dll",
+        "sha256": "7cbe341dda5ec3afccb10b0b8b83423a0106d7e6fc532fbec53380eb9a94e3cb"
+      },
+      {
+        "path": "windows/root-shared/xrt.dll",
+        "sha256": "3a7e61b47581728ffed78bc4c6738100972feec346bbd8993d7139e84579be86"
+      },
+      {
+        "path": "windows/root-static/libxmqtt.a",
+        "sha256": "1928f2aac6b918904f40bbdeb6abdf1d288db45f95c3e4fdda222afa7fb2025d"
+      },
+      {
+        "path": "windows/root-static/libxrt.a",
+        "sha256": "97306fd4f1a724015425486372d078cf3a20c7c5b8034dae7e5165ed8cc6e4d7"
+      },
+      {
+        "path": "windows/root-static/packages.json",
+        "sha256": "09669e40e8b0e2359339ca338fca26f41cf457fe8a2848ea576031439464ef7a"
+      },
+      {
+        "path": "windows/root-static/test_package_xmqtt.exe",
+        "sha256": "7035614afe8dacc1fc43ae292787a503c61772ec01a843d422a869a25ed36f76"
+      },
+      {
+        "path": "wsl/root-shared/libxmqtt.so",
+        "sha256": "8a8bb245b7f540856cffa9a294a980c0dc8f5b8639172c7c5dc627eb962cff25"
+      },
+      {
+        "path": "wsl/root-shared/libxrt.so",
+        "sha256": "d215f0f6a9b66ff3f7f5de6b5eb235f5bc14c12aee94ac5c871da98fd24959c3"
+      },
+      {
+        "path": "wsl/root-shared/packages.json",
+        "sha256": "1c220d360e0718086230277bd7f17922c11488cd9961403c5397c489c27a8fc5"
+      },
+      {
+        "path": "wsl/root-shared/test_package_xmqtt",
+        "sha256": "dec6eefdbe817d8ae9d262736f08016cdd1b5aa2a1ef99094b13ca0c75ae8c86"
+      },
+      {
+        "path": "wsl/root-static/libxmqtt.a",
+        "sha256": "50b50a7a064969c0b86ce35cf5bcc774d0d0643219ade4aa5c6af9abe622903e"
+      },
+      {
+        "path": "wsl/root-static/libxrt.a",
+        "sha256": "e1280c8c6e3fd4f73b1d1091495528d93b4b1114d33cd791751f6aec8cac4f7d"
+      },
+      {
+        "path": "wsl/root-static/packages.json",
+        "sha256": "0ff9240ee237f3a18006490b6efa106aceff262bf52931221ec2c47f0f275fe1"
+      },
+      {
+        "path": "wsl/root-static/test_package_xmqtt",
+        "sha256": "c3ed0318147dad30ed1e851817f5d4c5bdc611ef9501e5eea153b75a877227db"
+      }
+    ],
+    "package_stage": "out/service-extensions/xmqtt-session-dial-20261110",
+    "performance_remeasured": false,
+    "scope": "Only test fixture/probe and documentation additions; public/private runtime, configuration and generated files are unchanged. Actual root packages are byte-identical to the previous verified Dial/Auth stage. No new performance claim."
+  },
+  "earlier_evidence": [
+    {
+      "directory": "out/service-extensions/xmqtt-tls-recovery-20261110",
+      "index": "out/service-extensions/xmqtt-tls-recovery-final-20261110/xmqtt-tls-recovery-20261110-index.json",
+      "index_sha256": "f0394dabfa27af70748e71c8d7ac3d5fa14c35dcd14d7e81f65ffd4729a571e3",
+      "files": 6939
+    },
+    {
+      "directory": "out/service-extensions/xmqtt-tls-recovery-prefix-20261110",
+      "index": "out/service-extensions/xmqtt-tls-recovery-final-20261110/xmqtt-tls-recovery-prefix-20261110-index.json",
+      "index_sha256": "cb0443cf7c1b045c652e9fa7e0e0d5101da21ab176094d80b2aac55460c3d477",
+      "files": 3873
+    }
+  ],
+  "preparation_failures": [
+    "Initial257-byte fragmented PUBLISH could be fully locally accepted before the coordinator closed it. Initial Windows shared matrix failed the strict partial precondition; a delayed diagnostic demonstrated accepted=291 wire=291. Seven completed initial matrices are retained but not used as final acceptance. The strict assertion is preserved.",
+    "Initial16KiB/64KiB TCP output settings were smaller than the TLS context send budget; typed setup rejection was correct and archived. Matched64KiB context/native queues plus512KiB payload are used finally.",
+    "An intermediate1MiB payload plus MQTT headers exceeded the default1MiB full-packet limit and stalled the wire-cut barrier. Source inspection led to512KiB payload. Its mutable prototype report/log was overwritten by the corrected72-case prototype; this failure is disclosed, not counted as passing or claimed fully archived.",
+    "After enlarging the payload, tiny peer receive windows on both connections caused WSL static/ASan replay barrier timeouts; both failed rows and successful resource reaping are retained. The tiny window is now first-connection-only; all eight final matrices rerun with the corrected proxy.",
+    "A prior shell-quoting preparation failure in the ordinary Windows broker launch was fixed before the actual cases; its log is retained. No failed stage is counted as final success."
+  ],
+  "limitations": [
+    "TLS authenticates native client to bounded Python/OpenSSL; independent Mosquitto2.1.2 backend is local TCP, not native broker TLS",
+    "Custom asynchronous Resolver, not system DNS; no enhanced-auth broker plugin or corrupted TLS record injection",
+    "Volatile explicit reconnect only; no broker restart/durable/automatic recovery or WebSocket qualification",
+    "Functional runs may overlap; no performance measurement or new performance claim. Existing throughput/tail-latency failures and noise limits stay open",
+    "Windows native and WSL Linux evidence only; native Linux deployment,>=72h and complete four-product production acceptance remain open"
+  ],
+  "remaining": [
+    "Assigned client ids, automatic/durable recovery and WebSocket",
+    "Other broker and enhanced-auth plugin interoperability",
+    "Fixed-arrival/contention, native Linux,>=72h and four-product completeness/performance/release gates"
+  ],
+  "evidence_directory": "out/service-extensions/xmqtt-tls-recovery-final-20261110",
+  "evidence_storage": "C-backed stage; earlier rejected/intermediate stages retained separately and indexed",
+  "evidence_files": 7049,
+  "evidence_index_sha256": "996386bfab276e161956dcbf0a61176da5cbe4a5241cc522cdfc0ef3cd4f0278"
+}

@@ -242,7 +242,7 @@ class Proxy:
         assert not self.acceptor.is_alive() and not any(t.is_alive() for t in self.threads), 'proxy threads reaped'
 
 
-def case(broker_path, client, version, mode, fragmented, directory, name, windows_python=None, proxy_host='127.0.0.1'):
+def case(broker_path, client, version, mode, fragmented, directory, name, windows_python=None, proxy_host='127.0.0.1', *, proxy_factory=None, client_args=()):
     directory.mkdir(parents=True, exist_ok=True)
     with socket.socket() as seed:
         seed.bind(('127.0.0.1', 0))
@@ -269,7 +269,7 @@ def case(broker_path, client, version, mode, fragmented, directory, name, window
                 except OSError:
                     assert time.monotonic() < end, 'broker listen deadline'
                     time.sleep(.05)
-            proxy = Proxy(port, version, mode, proxy_host)
+            proxy = (proxy_factory or Proxy)(port, version, mode, proxy_host)
             if client.suffix.lower() == '.exe' and os.name != 'nt':
                 assert windows_python, 'native Windows Python is required to verify WSL loopback forwarding readiness'
                 # WSL publishes new localhost listeners asynchronously. Verify
@@ -281,7 +281,7 @@ def case(broker_path, client, version, mode, fragmented, directory, name, window
                 ready = subprocess.run([str(windows_python), '-c', code], capture_output=True, text=True, timeout=15)
                 assert ready.returncode == 0, ready.stderr
                 row['native_tcp_readiness_checked'] = True
-            probe = subprocess.Popen([str(client), str(proxy.port), str(version), str(mode), str(fragmented), proxy_host], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+            probe = subprocess.Popen([str(client), str(proxy.port), str(version), str(mode), str(fragmented), proxy_host, *map(str, client_args)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8')
             def read(source, lines, notify):
                 try:
                     for line in source:
@@ -331,6 +331,8 @@ def case(broker_path, client, version, mode, fragmented, directory, name, window
                 except Exception as exc:
                     error = (error + '; ' if error else '') + 'proxy cleanup: ' + str(exc)
                 row.update(trace=proxy.rows, proxy_errors=proxy.errors)
+                if hasattr(proxy, 'observations'):
+                    row['transport_observations'] = proxy.observations
             if broker:
                 broker.terminate()
                 try:

@@ -226,3 +226,38 @@ preserved with exact source inputs under the stage evidence directory.
 ```
 python extlibs/xmqtt/tests/interop/run_disconnect_wire.py --probe PATH_TO_DISCONNECT_PROBE --report out/disconnect-wire.json
 ```
+
+
+## TLS Session recovery through an independent broker proxy
+
+Build with `build_broker_probe.py --probe tls-session --kind modular|single|static|shared`
+(and `--package-dir` for library consumers). Run `run_session_tls_broker.py`
+with `--broker`, `--client` and `--report`. It generates bounded runtime trust and
+client identity files, removes them in every return path and records public
+certificate hashes only. Native Windows probes launched from WSL need a reachable
+IPv4 `--proxy-host`; the runner checks native TCP readiness before MQTT begins.
+
+The default valid Cartesian matrix has 432 cases per binary: TLS1.2/1.3, MQTT5/311,
+three TLS Session constructors, full/mutual handshakes plus TLS1.3 accepted ticket
+or rejected-ticket full fallback, two I/O fragmentation modes, five ACK cuts
+and one partial PUBLISH fault. TLS1.2 resumption scenarios are excluded explicitly.
+Each case uses two Clients/Engines and retains MQTT SessionPresent independently
+from TLS reuse. Mutual-auth native clients currently disable credential publication;
+these cases perform two full mutually authenticated handshakes.
+
+TLS terminates at Python/OpenSSL; the pinned broker backend is local TCP. One
+bridge thread owns both SSL directions. SNI/ALPN/version/cipher/client certificate
+and server-side `session_reused` are asserted. MQTT trace/recovery assertions are
+shared with the existing independent broker runner. On prefix faults the first
+Client uses a 512KiB payload within the default 1MiB full-packet limit, with
+64KiB bounded output and one plaintext byte per call; the proxy forwards 64 authenticated
+MQTT bytes, discards subsequent plaintext until local close, and preserves a
+truncated backend frame. The C probe also requires locally accepted bytes to be
+positive and smaller than the full MQTT wire. Reconnect must replay canonical
+id/DUP state. This does not inject unauthenticated/corrupt TLS records.
+
+`test_session_tls_proxy.py` checks malformed/oversized metadata and joins interrupted
+TCP/TLS handshakes plus an intentionally early-exiting real probe. Limits are2MiB
+per frame/input/output side,32 queued frames and200 metadata rows. These are
+opt-in correctness/lifetime tests, not performance, system DNS, restart/durable/
+automatic recovery, authentication-plugin or native deployment qualification.

@@ -418,3 +418,24 @@ wide raw throughput/P99 and WSL311 wide raw P99 failures are unqualified; no ful
 performance/production acceptance is claimed. The linked report records exact
 source identities, initial single-entry compiler failure/correction, package input
 equivalence, measurements and remaining release work.
+
+## TLS Session recovery interoperability
+
+The [TLS recovery stage](../tests/results/tls-session-recovery-20261110.json)
+adds independent broker/proxy tests without changing runtime, configuration,
+generated headers, ABI or the previously verified root packages. Windows static/
+shared/single and WSL static/shared/single/ASan+UBSan+leak/TSan each pass 432 cases:
+3456 total, including 576 strictly locally partial PUBLISH cases and 2880 ACK cuts.
+TLS1.2/1.3, MQTT5/311, numeric/custom asynchronous Resolver/prepared factories,
+full/mutual handshakes and TLS1.3 ticket reuse/full fallback compose with the
+same MQTT SessionPresent, identifier/DUP/PUBREL and incoming-dedup assertions.
+Every case retires two Clients/Engines; all probe/broker/reader/proxy owners are
+reaped and runtime trust/key material is removed. Eight fixture boundary/cleanup
+controls, 40 ordinary TCP recovery regressions and both OSes' generated/API/docs/
+maturity plus 89 focused tool tests pass. A delayed 200ms cut also retains a locally
+partial write. Earlier fixture failures and their corrections are recorded.
+
+TLS terminates at the bounded Python/OpenSSL proxy; the pinned Mosquitto2.1.2
+backend is local TCP. This is not broker TLS, system DNS, enhanced-auth plugin,
+TLS corrupt-record, restart/durable/automatic recovery, performance or production
+qualification. Shared-host WSL does not establish native Linux or>=72h acceptance.

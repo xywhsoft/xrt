@@ -32,7 +32,11 @@ static xmqttclient* connectSession(xnetengine* E,uint16 Port,xmqttsession* S,xmq
         P[1].Id=XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM;P[1].Type=XMQTT_PROPERTY_UINT16;P[1].Value.Number=4;Q.Properties=(xmqttpropertylist){P,2};}
     xnetaddr A;check(xrtNetAddrParse(&A,Host,Port),"numeric proxy address");xmqttclient* C=NULL;
     check(xmqttClientConnectSession(E,&A,1,&K,S,Inbox,&Q,&C),"Session connection factory");*Ready=xmqttClientReady(C);
-    const xmqttreadyresult* R=outcome(*Ready);check(R->Status==XMQTT_STATUS_OK && R->Negotiated.Accepted && R->Negotiated.SessionPresent==Present,"broker session continuity");return C;
+    const xmqttreadyresult* R=outcome(*Ready);if(R->Status!=XMQTT_STATUS_OK)fprintf(stderr,"readiness status=%u cause=%s\n",(unsigned)R->Status,R->Cause?xrtErrorMessage(R->Cause):"none");check(R->Status==XMQTT_STATUS_OK && R->Negotiated.Accepted && R->Negotiated.SessionPresent==Present,"broker session continuity");
+#if defined(XMQTT_SESSION_BROKER_READY)
+    XMQTT_SESSION_BROKER_READY(C,R);
+#endif
+    return C;
 }
 static void retire(xmqttclient* C,xnetengine* E,bool Graceful)
 {
@@ -52,18 +56,26 @@ int main(int Argc,char** Argv)
     if(Argc==6)Host=Argv[5];
     unsigned long Port=strtoul(Argv[1],NULL,10),V=strtoul(Argv[2],NULL,10);Mode=(unsigned)strtoul(Argv[3],NULL,10);bool Fragment=atoi(Argv[4])!=0;
     check(Port && Port<=65535 && (V==5 || V==311) && Mode<5,"arguments");Version=V==5?XMQTT_VERSION_5:XMQTT_VERSION_311;PayloadBytes=Fragment?257:65537;
+#if defined(XMQTT_SESSION_BROKER_PAYLOAD_SIZE)
+    PayloadBytes=XMQTT_SESSION_BROKER_PAYLOAD_SIZE(PayloadBytes);
+#endif
+    check(PayloadBytes && PayloadBytes<=1024u*1024u,"bounded probe payload");
     xmqttsessionconfig SK;xmqttSessionConfigInit(&SK);SK.Version=Version;SK.ClientId=XRT_STR_LITERAL("xrt-session-recovery");xmqttsession* S=NULL;check(xmqttSessionCreate(&SK,&S),"passive Session");
     xmqttclientinboxconfig IK;xmqttClientInboxConfigInit(&IK);IK.Version=Version;xmqttclientinbox* Inbox=NULL;check(xmqttClientInboxCreate(&IK,&Inbox),"passive Inbox");
     xfuture *R1=NULL,*R2=NULL,*F=NULL;xnetengine* E=engine();xmqttclient* C=connectSession(E,(uint16)Port,S,Inbox,false,Fragment,&R1);subscribe(C,Topic);
-    uint8 Payload[65537];for(size_t I=0;I<PayloadBytes;++I)Payload[I]=(uint8)(I*37u+Mode);
+    uint8* Payload=malloc(PayloadBytes);check(Payload!=NULL,"bounded caller payload allocation");for(size_t I=0;I<PayloadBytes;++I)Payload[I]=(uint8)(I*37u+Mode);
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_PUBLISH,&Q);Q.Flags=Mode?4:2;Q.Body.Publish.Topic=Topic;Q.Body.Publish.Payload=(xbytesview){Payload,PayloadBytes};
     xmqttproperty Alias={0};if(Version==XMQTT_VERSION_5){Alias.Id=XMQTT_PROPERTY_TOPIC_ALIAS;Alias.Type=XMQTT_PROPERTY_UINT16;Alias.Value.Number=1;Q.Properties=(xmqttpropertylist){&Alias,1};}
-    check(xmqttClientPublishAsync(C,&Q,10000,&F)==XMQTT_ADMISSION_ACCEPTED,"shared Session snapshot admission");memset(Payload,0,sizeof(Payload));
+    check(xmqttClientPublishAsync(C,&Q,10000,&F)==XMQTT_ADMISSION_ACCEPTED,"shared Session snapshot admission");memset(Payload,0,PayloadBytes);
     barrier("WAIT_CUT","cut\n");
     if(Mode>=3){const xmqttwriteresult* R=outcome(F);check(R->Status==XMQTT_STATUS_OK && R->PubcompReceived,"independent outgoing QoS2 completes before incoming interruption");}
     retire(C,E,false);const xmqttwriteresult* Old=outcome(F);
+#if defined(XMQTT_SESSION_BROKER_OLD_RESULT)
+    XMQTT_SESSION_BROKER_OLD_RESULT(Old,&Q);
+#endif
     check(Old->AcceptedBytes && Old->Identifier && Old->Status==(Mode>=3?XMQTT_STATUS_OK:XMQTT_STATUS_CLOSED),"original connection outcome retained");
     check(Old->PubrecReceived==(Mode>=2) && Old->PubcompReceived==(Mode>=3),"original observed QoS2 phase retained");
+    free(Payload);
     E=engine();C=connectSession(E,(uint16)Port,S,Inbox,true,Fragment,&R2);
     barrier("WAIT_DRAIN","drain\n");
     /* Independent wire barrier first; then a broker round trip on another topic. */

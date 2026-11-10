@@ -9857,3 +9857,41 @@ stays active. Development remains on D:/GIT/xrt master without a branch operatio
 or push. Evidence: extlibs/xmqtt/tests/results/session-dial-20261110.json and
 out/service-extensions/xmqtt-session-dial-20261110 (C-backed immutable evidence;
 mutable caches live under a separate service-extensions-build root).
+
+## 2026-11-10: TLS Session broker recovery qualification slice
+
+Development and validation remain on D:/GIT/xrt master; no branch operation or
+remote push. This stage adds test-only TLS1.2/1.3 Session recovery against pinned
+Mosquitto2.1.2 through a bounded independent Python/OpenSSL terminator. Existing
+production/config/generated files and 18 actual package artifacts remain identical
+to the preceding Dial/Auth stage; no public API, runtime field or hot path changes.
+
+Eight consumers pass 432 cases each: Windows static/shared/single; WSL static/
+shared/single, fully instrumented ASan+UBSan+leak and TSan modular implementations.
+Total 3456 cases comprise 2880 ACK cuts and 576 partial PUBLISH interruptions across
+MQTT5/311 and numeric/custom async Resolver/prepared TLS Session constructors.
+Full/mutual handshakes and TLS1.3 accepted tickets/rejected-ticket full fallback
+retain MQTT SessionPresent independently of TLS reuse. Every case checks canonical
+identifier/DUP/alias-free replay, PUBREL-only phases, incoming deduplication,
+immutable binary payload, retained outcomes and physical two-Client/Engine closure.
+All probe/broker/reader/proxy resources are reaped; runtime trust/key files removed.
+
+A 512KiB payload, first-connection one-byte plaintext output and bounded native
+queues make partial local acceptance an asserted precondition. Only the faulted
+connection has a tiny peer receive window; recovery uses the normal window. A
+separate 200ms delayed coordinator still accepts a strict prefix. Eight malformed/
+bounds/handshake-cancel/early-probe-exit controls and 40 ordinary TCP regressions
+pass; both OSes pass generated/features/API/docs/maturity and 89 focused tool tests.
+The report retains earlier short-packet precondition and receive-window fixture
+failures; none is counted as a passing final case. An over-cap intermediate probe
+was corrected to stay inside the default full-frame bound, with its overwritten
+mutable prototype log disclosed in the report.
+
+This is client-to-proxy authenticated TLS with a local TCP broker backend, not
+broker-native TLS or corrupt-record injection. No performance samples or overhead
+claims are added; previous failures and acceptance gaps remain. Continue assigned
+client ids, automatic/durable recovery, WebSocket, broker/auth-plugin interop,
+fixed-arrival/contention, native Linux and>=72h gates. All four products remain
+developing and the long-term objective active. Evidence:
+extlibs/xmqtt/tests/results/tls-session-recovery-20261110.json and
+out/service-extensions/xmqtt-tls-recovery-final-20261110 (C-backed immutable stage).
