@@ -10168,3 +10168,30 @@ cryptographic enhanced-auth broker plugins, broker-native TLS/other brokers,
 offline/subscription/durable/WebSocket and remaining full four-product gates stay
 open. Evidence: extlibs/xmqtt/tests/results/reconnect-transports-20261110.json and
 out/service-extensions/xmqtt-reconnect-transports-20261110 (C-backed stage).
+
+
+## 2026-11-11: current mainline four-product regression refresh
+
+Reconfirmed all 26 original pending paths remain unchanged in the preserved old
+worktree and are already integrated through 05dc625d, an ancestor of current master.
+The old development branch is also an ancestor. No new pending path, branch
+operation, source migration, production change or remote push was needed.
+Development continues directly at D:/GIT/xrt master under the versioned mainline
+policy; the old worktree remains a backup.
+
+At 3e8aaa2e Windows passes 149 root-suite programs and WSL passes 149 with
+full ASan/UBSan/leak-halt instrumentation. Both platforms pass all 8 root static/
+shared package verifications and their actual consumers. Windows additionally
+passes 89 tooling tests and 20 normal features/single/API/docs/maturity
+checks. An initial tools-step evidence collector misread a mocked output path. Its
+log and failure are retained; only that step was rerun after correction, while
+all completed library-suite/check receipts were reused. The two frozen source
+maps agree; per-command logs, binary/package hashes and the unchanged old-worktree
+check are retained. An early WSL archive call preceded the final summary and was
+retried after runner completion. No production C/H
+changes were made during validation.
+
+This refresh does not qualify new performance, broker matrices, native Linux,
+soak or production readiness. The full four-product goal remains active.
+Evidence: docs/development/service-extensions-mainline-refresh-20261111.json and
+out/service-extensions/mainline-refresh-20261110.
