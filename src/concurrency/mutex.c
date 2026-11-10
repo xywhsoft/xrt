@@ -208,6 +208,42 @@ XRT_API bool xrtMutexTryLock(xmutex* pMutex)
 
 
 
+/* 显式区分成功、普通争用和真正的同步错误；不改变原 bool 入口。 */
+XRT_API xmutextryresult xrtMutexTryLockResult(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
+	uint64 iCurrent;
+
+	if ( pImpl == NULL ) {
+		return XMUTEX_TRY_ERROR;
+	}
+	iCurrent = __xrtCurrentThreadId();
+	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
+		return XMUTEX_TRY_BUSY;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !TryAcquireSRWLockExclusive(&pImpl->Lock) ) {
+			return XMUTEX_TRY_BUSY;
+		}
+	#else
+		{
+			int iResult = pthread_mutex_trylock(&pImpl->Lock);
+
+			if ( iResult == EBUSY ) {
+				return XMUTEX_TRY_BUSY;
+			}
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("mutex.try-result", iResult, "mutex try-lock failed");
+				return XMUTEX_TRY_ERROR;
+			}
+		}
+	#endif
+	__xrtMutexOwnerStore(pImpl, iCurrent);
+	return XMUTEX_TRY_OK;
+}
+
+
+
 /* 释放当前线程持有的互斥锁。 */
 XRT_API bool xrtMutexUnlock(xmutex* pMutex)
 {

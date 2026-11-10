@@ -9190,6 +9190,11 @@ typedef union xmutex {
 	uint64 Alignment;
 	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
 } xmutex;
+
+/* An immediate attempt has no clock/deadline dependency. */
+typedef enum xmutextryresult {
+    XMUTEX_TRY_ERROR=-1, XMUTEX_TRY_OK=0, XMUTEX_TRY_BUSY=1
+} xmutextryresult;
 #endif
 
 
@@ -9266,6 +9271,16 @@ XRT_API bool xrtMutexLock(xmutex* pMutex);
 
 /* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
 XRT_API bool xrtMutexTryLock(xmutex* pMutex);
+
+/* Same immediate lock attempt with an explicit result: XMUTEX_TRY_OK transfers the lock
+ * to this native thread, XMUTEX_TRY_BUSY is ordinary contention (including own lock),
+ * XMUTEX_TRY_ERROR is invalid/uninitialized storage or native failure. Ready/pending keep
+ * the exact ambient error without redelivery; errors remain distinguishable
+ * even when old/new diagnostics share the same static/fallback identity.
+ * No normal-path allocation, waiting, recursion or extra ownership; failures
+ * may allocate diagnostics. Normal Unlock/Unit
+ * lifetime rules apply. The original bool TryLock contract is unchanged. */
+XRT_API xmutextryresult xrtMutexTryLockResult(xmutex* pMutex);
 
 
 
@@ -28252,6 +28267,15 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
  * also keep the result pending. Any worker of the same Engine is rejected.
  * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
 XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+/* Immediate physical-retirement query, including from Engine workers. Returns
+ * OK for CLOSED with exactly the caller's one strong reference, TIMEOUT while
+ * references/state or the predicate lock are busy, ERROR on invalid input or
+ * synchronization failure. It does not close/retain/consume the Stream, wait for
+ * progress, allocate a waiter, read the Engine or freeze ownership. A try-lock
+ * observes the final reference-notification tail; normal ready/pending preserves
+ * ambient error without invoking its handler. Keep the caller owner stable and
+ * stop other API/ref entries before interpreting OK as final retirement. */
+XRT_API xwaitresult xrtNetStreamPollRetired(xnetstream* pStream);
 #endif
 
 

@@ -6822,6 +6822,11 @@ typedef union xmutex {
 	uint64 Alignment;
 	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
 } xmutex;
+
+/* An immediate attempt has no clock/deadline dependency. */
+typedef enum xmutextryresult {
+    XMUTEX_TRY_ERROR=-1, XMUTEX_TRY_OK=0, XMUTEX_TRY_BUSY=1
+} xmutextryresult;
 #endif
 
 
@@ -6898,6 +6903,16 @@ XRT_API bool xrtMutexLock(xmutex* pMutex);
 
 /* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
 XRT_API bool xrtMutexTryLock(xmutex* pMutex);
+
+/* Same immediate lock attempt with an explicit result: XMUTEX_TRY_OK transfers the lock
+ * to this native thread, XMUTEX_TRY_BUSY is ordinary contention (including own lock),
+ * XMUTEX_TRY_ERROR is invalid/uninitialized storage or native failure. Ready/pending keep
+ * the exact ambient error without redelivery; errors remain distinguishable
+ * even when old/new diagnostics share the same static/fallback identity.
+ * No normal-path allocation, waiting, recursion or extra ownership; failures
+ * may allocate diagnostics. Normal Unlock/Unit
+ * lifetime rules apply. The original bool TryLock contract is unchanged. */
+XRT_API xmutextryresult xrtMutexTryLockResult(xmutex* pMutex);
 
 
 
@@ -25884,6 +25899,15 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
  * also keep the result pending. Any worker of the same Engine is rejected.
  * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
 XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+/* Immediate physical-retirement query, including from Engine workers. Returns
+ * OK for CLOSED with exactly the caller's one strong reference, TIMEOUT while
+ * references/state or the predicate lock are busy, ERROR on invalid input or
+ * synchronization failure. It does not close/retain/consume the Stream, wait for
+ * progress, allocate a waiter, read the Engine or freeze ownership. A try-lock
+ * observes the final reference-notification tail; normal ready/pending preserves
+ * ambient error without invoking its handler. Keep the caller owner stable and
+ * stop other API/ref entries before interpreting OK as final retirement. */
+XRT_API xwaitresult xrtNetStreamPollRetired(xnetstream* pStream);
 #endif
 
 
@@ -78119,6 +78143,42 @@ XRT_API bool xrtMutexTryLock(xmutex* pMutex)
 	#endif
 	__xrtMutexOwnerStore(pImpl, iCurrent);
 	return true;
+}
+
+
+
+/* 显式区分成功、普通争用和真正的同步错误；不改变原 bool 入口。 */
+XRT_API xmutextryresult xrtMutexTryLockResult(xmutex* pMutex)
+{
+	xrt_mutex_impl* pImpl = __xrtMutexRequire(pMutex);
+	uint64 iCurrent;
+
+	if ( pImpl == NULL ) {
+		return XMUTEX_TRY_ERROR;
+	}
+	iCurrent = __xrtCurrentThreadId();
+	if ( __xrtMutexOwnerLoad(pImpl) == iCurrent ) {
+		return XMUTEX_TRY_BUSY;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( !TryAcquireSRWLockExclusive(&pImpl->Lock) ) {
+			return XMUTEX_TRY_BUSY;
+		}
+	#else
+		{
+			int iResult = pthread_mutex_trylock(&pImpl->Lock);
+
+			if ( iResult == EBUSY ) {
+				return XMUTEX_TRY_BUSY;
+			}
+			if ( iResult != 0 ) {
+				__xrtSyncSetSystemError("mutex.try-result", iResult, "mutex try-lock failed");
+				return XMUTEX_TRY_ERROR;
+			}
+		}
+	#endif
+	__xrtMutexOwnerStore(pImpl, iCurrent);
+	return XMUTEX_TRY_OK;
 }
 
 
@@ -262778,6 +262838,17 @@ bool __xrtNetListenerWaitOwnershipWalk(const xnetlistener* pListener, xrtownersh
 #if !defined(XRT_FEATURE_NET_TCP) || !defined(XRT_FEATURE_COND)
 #error "TCP retirement waiting requires TCP and condition variables"
 #endif
+
+XRT_API xwaitresult xrtNetStreamPollRetired(xnetstream* Stream)
+{
+    if(!Stream){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xmutextryresult Lock=xrtMutexTryLockResult(&Stream->RetirementLock);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    xwaitresult Result=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED &&
+        __xrtAtomicRefLoad(&Stream->References)==1?XWAIT_OK:XWAIT_TIMEOUT;
+    if(!xrtMutexUnlock(&Stream->RetirementLock))return XWAIT_ERROR;
+    return Result;
+}
 
 XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* Stream,int64 Timeout)
 {

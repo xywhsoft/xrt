@@ -8,6 +8,9 @@ int main(void)
 {
 	xmutex tMutex;
 
-	return xrtMutexInit(&tMutex) && xrtMutexLock(&tMutex) &&
+	return xrtMutexInit(&tMutex) &&
+        xrtMutexTryLockResult(&tMutex)==XMUTEX_TRY_OK &&
+        xrtMutexTryLockResult(&tMutex)==XMUTEX_TRY_BUSY &&
+        !xrtMutexTryLock(&tMutex) &&
 		xrtMutexUnlock(&tMutex) && xrtMutexUnit(&tMutex) ? 0 : 1;
 }

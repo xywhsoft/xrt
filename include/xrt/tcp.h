@@ -477,6 +477,15 @@ XRT_API void xrtNetStreamDestroy(xnetstream* pStream);
  * also keep the result pending. Any worker of the same Engine is rejected.
  * No polling, allocation, cancellation or graph freeze; timeout preserves owner. */
 XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* pStream,int64 iTimeout);
+/* Immediate physical-retirement query, including from Engine workers. Returns
+ * OK for CLOSED with exactly the caller's one strong reference, TIMEOUT while
+ * references/state or the predicate lock are busy, ERROR on invalid input or
+ * synchronization failure. It does not close/retain/consume the Stream, wait for
+ * progress, allocate a waiter, read the Engine or freeze ownership. A try-lock
+ * observes the final reference-notification tail; normal ready/pending preserves
+ * ambient error without invoking its handler. Keep the caller owner stable and
+ * stop other API/ref entries before interpreting OK as final retirement. */
+XRT_API xwaitresult xrtNetStreamPollRetired(xnetstream* pStream);
 #endif
 
 

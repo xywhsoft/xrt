@@ -9498,7 +9498,9 @@
 				"tests/single/test_single_net_tcp_retire.c",
 				"tests/single/test_single_net_tcp_write_reentry.c"
 			],
-			"examples": [],
+			"examples": [
+				"examples/network/tcp_retire_poll/main.c"
+			],
 			"benchmarks": [],
 			"docs": [
 				"docs/api/tcp.md"

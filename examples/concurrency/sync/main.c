@@ -30,6 +30,11 @@ int main(void)
 	if ( !xrtMutexInit(&tMutex) ) {
 		return 1;
 	}
+	if ( xrtMutexTryLockResult(&tMutex) != XMUTEX_TRY_OK ||
+		xrtMutexTryLockResult(&tMutex) != XMUTEX_TRY_BUSY ||
+		!xrtMutexUnlock(&tMutex) ) {
+		return 2;
+	}
 	(void)xrtMutexLock(&tMutex);
 	printf("protected section\n");
 	(void)xrtMutexUnlock(&tMutex);

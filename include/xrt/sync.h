@@ -49,6 +49,11 @@ typedef union xmutex {
 	uint64 Alignment;
 	uint8 Storage[XRT_MUTEX_STORAGE_SIZE];
 } xmutex;
+
+/* An immediate attempt has no clock/deadline dependency. */
+typedef enum xmutextryresult {
+    XMUTEX_TRY_ERROR=-1, XMUTEX_TRY_OK=0, XMUTEX_TRY_BUSY=1
+} xmutextryresult;
 #endif
 
 
@@ -125,6 +130,16 @@ XRT_API bool xrtMutexLock(xmutex* pMutex);
 
 /* 尝试获得互斥锁；锁正忙时返回 false 且不设置错误。 */
 XRT_API bool xrtMutexTryLock(xmutex* pMutex);
+
+/* Same immediate lock attempt with an explicit result: XMUTEX_TRY_OK transfers the lock
+ * to this native thread, XMUTEX_TRY_BUSY is ordinary contention (including own lock),
+ * XMUTEX_TRY_ERROR is invalid/uninitialized storage or native failure. Ready/pending keep
+ * the exact ambient error without redelivery; errors remain distinguishable
+ * even when old/new diagnostics share the same static/fallback identity.
+ * No normal-path allocation, waiting, recursion or extra ownership; failures
+ * may allocate diagnostics. Normal Unlock/Unit
+ * lifetime rules apply. The original bool TryLock contract is unchanged. */
+XRT_API xmutextryresult xrtMutexTryLockResult(xmutex* pMutex);
 
 
 

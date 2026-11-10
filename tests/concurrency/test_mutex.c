@@ -42,9 +42,32 @@ static int testMutexWrongOwner(ptr pData)
 
 
 
+static int testMutexTryBusy(ptr Data)
+{
+    xmutex* M=Data;xrtSetErrorKind(XERR_ARGUMENT);const xerror* Old=xrtGetError();
+    bool OK=xrtMutexTryLockResult(M)==XMUTEX_TRY_BUSY && xrtGetError()==Old && !xrtMutexTryLock(M) && xrtGetError()==Old;xrtClearError();return OK?0:1;
+}
+static void testMutexTryResult(void)
+{
+    xmutex M,Bad;memset(&Bad,0,sizeof(Bad));testRequire(xrtMutexInit(&M),"typed try init");
+    xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(1,&B) && xrtAllocationBudgetEnter(B,&Scope),"typed try budget");
+    xrtSetErrorKind(XERR_ARGUMENT);const xerror* Old=xrtGetError();
+    testRequire(xrtMutexTryLockResult(NULL)==XMUTEX_TRY_ERROR && xrtGetError()==Old,"typed invalid input distinct from busy despite identical error");
+    testRequire(xrtMutexTryLockResult(&Bad)==XMUTEX_TRY_ERROR && xrtErrorKind(xrtGetError())==XERR_STATE,"typed uninitialized storage");Old=xrtGetError();
+    testRequire(xrtMutexTryLockResult(&Bad)==XMUTEX_TRY_ERROR && xrtGetError()==Old,"same static failure still ERROR");
+    for(unsigned I=0;I<20000;++I){
+        testRequire(xrtMutexTryLockResult(&M)==XMUTEX_TRY_OK && xrtGetError()==Old,"typed immediate ownership");
+        testRequire(xrtMutexTryLockResult(&M)==XMUTEX_TRY_BUSY && !xrtMutexTryLock(&M) && xrtGetError()==Old,"same-thread pending preserves ambient error");
+        testRequire(xrtMutexUnlock(&M),"typed try release");
+    }
+    testRequire(xrtAllocationBudgetLeave(&Scope),"typed try budget leave");xallocationbudgetinfo Info={0};Info.Size=sizeof(Info);testRequire(xrtAllocationBudgetInfo(B,&Info) && !Info.LiveBytes && !Info.LiveCount && !Info.Rejections,"typed normal/static-error paths require no allocation");xrtAllocationBudgetFree(B);xrtClearError();
+    testRequire(xrtMutexTryLock(&M),"legacy bool ownership");testthread T={0};T.Proc=testMutexTryBusy;T.Data=&M;testThreadsStart(&T,1);testThreadsJoin(&T,1);testRequire(!T.Result,"foreign thread typed busy does not block");testRequire(xrtMutexUnlock(&M) && xrtMutexUnit(&M),"typed try cleanup");
+}
+
 /* 验证嵌入式、拥有式、非递归和并发互斥语义。 */
 int main(void)
 {
+    testMutexTryResult();
 	xmutex tMutex;
 	xmutex* pMutex;
 	testmutexstate tState;

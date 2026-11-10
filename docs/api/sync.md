@@ -124,6 +124,7 @@ typedef union xevent {
 | `xrtMutexDestroy(pMutex)` | 释放拥有式 mutex。 |
 | `xrtMutexLock(pMutex)` | 阻塞到当前线程获得锁。 |
 | `xrtMutexTryLock(pMutex)` | 非阻塞尝试获得锁。 |
+| `xrtMutexTryLockResult(pMutex)` | 显式区分已取得、busy 和错误，不增加 wait/time 依赖。 |
 | `xrtMutexUnlock(pMutex)` | 由持有线程释放锁。 |
 
 ```c
@@ -1879,3 +1880,41 @@ bool xrtEventReset(xevent* pEvent)
 多等待者、错误状态和 OOM 边界见 `tests/concurrency/test_mutex.c`、
 `test_cond.c`、`test_sem.c`、`test_rwlock.c`、`test_event.c` 和
 `test_sync_oom.c`。
+
+
+### `xrtMutexTryLockResult`
+
+立即尝试加锁，明确区分普通争用和同步错误，不依赖旧错误指针变化。
+
+```c
+xmutextryresult xrtMutexTryLockResult(xmutex* pMutex)
+```
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pMutex` | 输入 | 已初始化、生命周期稳定 | 目标非递归互斥锁 |
+
+#### 返回值
+
+| 返回 | 含义 | 错误状态 |
+|---|---|---|
+| `XMUTEX_TRY_OK` | 当前原生线程取得锁，须正常 Unlock | 保留原错误，不重送处理器 |
+| `XMUTEX_TRY_BUSY` | 其他线程或当前线程已持有锁 | 保留原错误，不重送处理器 |
+| `XMUTEX_TRY_ERROR` | 空指针、未初始化存储或原生失败 | 发布本次失败 |
+
+#### 错误
+
+- 空指针为 `XERR_ARGUMENT`，未初始化存储为 `XERR_STATE`；原生错误带同步诊断，诊断分配失败可回退 `XERR_MEMORY`。
+- 静态错误和诊断 OOM 可以复用同一个对象，错误指针相等不能代替返回状态。
+- 正常成功/busy 不等待、不分配、不改变 mutex owner 的外部生命周期。原 bool 入口及结构布局、普通 Lock/Unlock 路径保持原有合同。
+
+#### 范例
+
+[sync](../../examples/concurrency/sync/main.c) 展示取得锁、同线程 busy 和正常释放。
+
+### `xmutextryresult`
+
+此枚举只属于 mutex 叶，不增加 wait/time 依赖；显式值为
+`XMUTEX_TRY_ERROR=-1`、`XMUTEX_TRY_OK=0`、`XMUTEX_TRY_BUSY=1`。

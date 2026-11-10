@@ -1,0 +1,2597 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Prototype-proven nonwaiting retirement and typed mutex attempts for reconnect control",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "f0a0334a96d536bd4799f1985e94b9d614013dd2",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "mqtt_automatic_reconnect_implemented": false,
+  "public_apis": [
+    "xrtMutexTryLockResult",
+    "xrtNetStreamPollRetired"
+  ],
+  "public_types": [
+    "xmutextryresult"
+  ],
+  "source_identity": {
+    "files": 2578,
+    "map_sha256": "77876f0591949e381809f988b407db6db0acd6df8973e80deb03500cdd9f5d1f",
+    "publication_deltas": {
+      "docs/api/sync.md": {
+        "before_sha256": "fc4cf7defe446582d88dd6fd614f15b159c507592c2f63a1045bbda09611d8be",
+        "after_sha256": "7e1d7dc5b85de90fbf5c5794ade36da0f03bac518cc731b846db3160fa8a5a80"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "6cda5e4cda95ecd1d3c6b9cecae131ead1306f973a2d500edf9952b226088c92",
+        "after_sha256": "4c037aa8bf02e92c649d4267488a16fc43926466673a2acd679a0e3a2827beb4"
+      }
+    }
+  },
+  "prototype_gaps": [
+    "Already physically retired Stream: external wait succeeds, same-Engine zero wait is rejected with ERROR/STATE on Windows and WSL",
+    "Public bool mutex try-lock: ordinary own-lock busy and invalid input both returnfalse with the exact same preexisting static diagnostic; return/error-pointer identity cannot distinguish them"
+  ],
+  "contracts": [
+    "Independent mutex result enum OK/BUSY/ERROR, without new Wait/Time/network dependencies; successful caller owns the lock and must unlock normally",
+    "Original bool TryLock implementation unchanged as source; Lock/Unlock, private mutex/Stream declarations and TCP send/ref-release code unchanged",
+    "Immediate Stream query uses typed try-lock and CLOSED/exactly-one-real-owner predicate, TIMEOUT for real aliases/owned/native tails or busy predicate",
+    "No waiting for lock/reference/protocol progress, automatic close, owner retain/consume, waiter/timer allocation, Engine dereference or ownership freeze",
+    "Normal ready/pending preserve exact ambient diagnostic and do not redeliver its handler; new same-identity errors still report ERROR",
+    "Stable caller owner through concurrent queries; exclude other API/Ref entries before final ready interpretation/destruction"
+  ],
+  "tests": {
+    "focused": {
+      "windows": {
+        "complete": true,
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--suite",
+          "net_tcp_retire,mutex",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples"
+        ],
+        "exit_code": 0,
+        "seconds": 13.937999999994645,
+        "log_sha256": "70d73b5cc51c77ca287876f3687bd33ab073353a2df59db1752b536a6ee1d640",
+        "programs": 7,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_net_tcp_retire.exe": "f041483f5a53704303ce0eda7deb85b2353e8dd1ad92a75d26745159a03f44eb",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_tcp_write_reentry.exe": "6be413a8bebe650b656e654a02835826bee5740c8f5b08efadef09d4b1b99c11",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_mutex.exe": "f218d71dc521a32f1be33b60d1d3598b7a76a1bc4e503adfb4360267973e17b5",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_sync_oom.exe": "06bac34db92cf28a3a85be5ada444b31735a944505064b0a59beea6a5e7e189d",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_single_net_tcp_retire.exe": "24f5a6f0dad0568611b9b770f099a665c69a2c7763d2c1f9c8720de61c809454",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_single_net_tcp_write_reentry.exe": "fc0221cbddeccb59959f590026bba3b74982adfb01a75c99fa4866ca7671cf91",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/root/test_single_mutex.exe": "8bc5563e2f845f8b3bb1320bfcad69d28d8577664f831f044743240ecfe3862e"
+        }
+      },
+      "wsl": {
+        "complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "x64",
+          "--suite",
+          "net_tcp_retire,mutex",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "exit_code": 0,
+        "seconds": 40.486772617994575,
+        "log_sha256": "d248c605349602cffcc925f7c59aa18388fffe2d9cb5c1656053f70628df43bd",
+        "programs": 7,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_net_tcp_retire": "466aeefb237b52c49a04315b56a74523d37b3a34efb9b30d136664830948ee0a",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_tcp_write_reentry": "5c0d96a5e0c475abfc9d923f403f966620327c60bb40d50eb187ff821a38c218",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_mutex": "970a23ffaff7bd396ccba601b43cbb0c9189d7f69605e0cda0c73ee00a5e6c2e",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_sync_oom": "d390ef6928569164f070afd6cf2274e2e319d4c22cda550e01d75451b94efc52",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_single_net_tcp_retire": "44cea3adbb4f76de23ef89b3b13e61aabe035c9656a3b246752ce71958143a1b",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_single_net_tcp_write_reentry": "62badb721e423cfe5a9022dbb2bcc9702c28393af86f16f0fb8308b79bdd34f4",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/root/test_single_mutex": "486b5c7fdfcca44d60e615cf0fe34be1a174cd4cc6ce8b2b61a20a10de42feb7"
+        }
+      }
+    },
+    "expanded_tcp_future_owned": {
+      "windows": {
+        "complete": true,
+        "exit_code": 0,
+        "programs": 21,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp.exe": "6b96f7f6ffba3e48962ed05cebff56eeded5bab72b54ba1fc4d3f863d30fdec0",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_bind.exe": "bf3adb2ad4d6a1887f5c147b79cb4a6e0f5250e1aafef8dc8584baef09575553",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_connect_timer.exe": "8467809a332f1ea8afbf821ba3999d42b622fafb1612a9fb208975d62695fb99",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_edges.exe": "6690b5159bbab59ec512a132b5e27cdaad419093daa9e794cdcb2f63cffa6164",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_invalid.exe": "4cd6eadb9b1eee50e7f37daf220a27b9f99773e57589fefa86bda234e4137268",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_lifetime.exe": "676c7d1957e6a4af93ec25958c0572642e3840a5e9ce58971e573be707c0f789",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_oom.exe": "10e7a71461c031ab83baa5d284a72037fb96a665629d69d0f5b37b5096ff66ae",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_pull.exe": "9e01337f90565098d4a3d9c13ca23bc28b68c06592ffa73de7f806d01a2a17d9",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_slow.exe": "eef38538324b318997341882e883156aaca5dbcf326f2f030cc1299aa1a7138d",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_threads.exe": "9847c4ba399e3aa98a8670c3fca176fab0a4fde7591a0e144a439372540d1702",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_future.exe": "d4d3cf1b4e67760f3859fbac791bfdf59335fd3a783e867c7805a07e2735ede7",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_accept_future.exe": "961911e77de2b78a3037c56ada543d5a4b241fe3e92c1f2f352424c8d0593c6c",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_accept_future_threads.exe": "1fd72fcea78ab266a0295b8af764472a907ca10cab96ae4b8da5d9bc95ccb9ac",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_future_invalid.exe": "1659e22af8ae37e135a34b73003739b854938265bce4b344124e82d37b45c7ae",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_future_oom.exe": "dec4f6df83fb82279930e8d5867f18734d7ed24951f714ab399e977689b4ab7d",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_future_threads.exe": "022497c7e0d8e0b12027a41ab157218792d434a8487e8264cf1864ec841b8bf9",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_retire.exe": "cc761d7370771ff65afb1953a7b75ca57d2327fe65895cef153ec0a3c9b4448e",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_tcp_write_reentry.exe": "af737b25b0c30534a4a07507da3b35c572ad137777a49aeb34f9c32bb4d551de",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_tcp_ownership.exe": "b58f0890efe345f6432cc1bfc10d4b45559f5fddd2eae664507db36fc9dbb785",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_listener_events_ownership.exe": "e7db1b5af3435e5a063edf22c77d4d539635c5b32213b535ecfb8b8713bca476",
+          "out/service-extensions/net-retire-poll-20261110/binaries/windows/broad/test_net_stream_events_ownership.exe": "b4c8c564feba6ba3e3daaa02030bffcee1a14322391a9a07c74a1cbdc3044f32"
+        },
+        "excluded_reproduced_without_retire": [],
+        "command": [
+          "C:\\Program Files\\Python312\\python.exe",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "E:/software/w64devkit/bin/gcc.exe",
+          "--arch",
+          "native",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples",
+          "--suite",
+          "net_tcp,net_tcp_future,net_tcp_retire,net_tcp_ownership_tests",
+          "--no-single"
+        ],
+        "seconds": 49.328999999997905,
+        "log_sha256": "2b176665df1b686b946479e0422951cd08e043939c63588e3305a235db6b0e6d"
+      },
+      "wsl": {
+        "complete": true,
+        "exit_code": 0,
+        "programs": 21,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp": "fbf42c874dd8b4e8c76304998c56f5329b1f77fd3af56063b4c7a84b6a6f2588",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_bind": "1ed0747228ef25c8888aabdfb06ef0fe592b523ef03a69129d39c2716a369da4",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_connect_timer": "39f0a60e18f569604d92635696b69b9981e9fb5789e5ea925df85a08740d1ee0",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_edges": "ff1146766e100b5af07ba930e99a5da2a5fc195e0e8792bc1a5c2ff8c25b84a5",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_invalid": "6cfc48c27dfcb6a6dee1731f9ad5a83ad91121b9d42df51ce89494dcddfbe076",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_lifetime": "bf70fcfb63fc4c16193419679940bc0f2c8a965b6c13a6fc0439c860c052df30",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_oom": "43a924f21c4711691c6fc3e14c671d822fd8c98046b1a5af91d9f6d50e7b6c93",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_pull": "939444b55ecd500906578eec1de72cf1207d0e4eaadba209673c3cd129ae6b2c",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_slow": "99a67a97214bf55932b451bccb66b3272a065f1eb66719d2533e96fda6ef3ef8",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_threads": "c88d3fb144065bfd651ed0c76d475f7835fc11e8e899c0fbb5ce1d3f2f903ef7",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_future": "b8f9962db4553ab6b74dbcf24baecb96ce50f1c7850c15c5977af93f5b87e1bc",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_accept_future": "05ca27030a7c31079be20e5a4a1e8ae4088cfde11a9e7ffe7206bc1312bf632f",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_accept_future_threads": "cea70070b3e3a08cdd24e316d8c0bd1571ec1398b3b762c6d3e3f0284126dcc9",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_future_invalid": "1d745755dd1bdfb69e579b08d6bac9e5f4fcbfbf34b3ce8a2a0baebfe0548428",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_future_oom": "7a0bfb38ba38b5cd255f4657c70b795c08695ca6a45d2d71f13f5aa841201dc3",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_future_threads": "5958254a57527c712b47088d8f99f4ef1bf224ead75d46360272f5d5313c1e62",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_retire": "7a2dd728cce989f716ee8968321db2758ca4dd7e8718eea4a8bdf813fbafebd0",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_tcp_write_reentry": "d63039c2a31c8c0e4dbaf3c4f601ec183d6c57cfa073c60ba3868d88d5010a00",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_tcp_ownership": "466e830af3d7bc46786ebea130181444b90bbee730ae6ea803f0d5d893dcaa95",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_listener_events_ownership": "0604cb7e9f0eb091d5b93f42fb2f7b98d70150bbcdec42711fa98a1c8d8bddcf",
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/broad/test_net_stream_events_ownership": "035bea203de23430cbadbd531c7c0d73758c77a6211fb690375c74118cd6bb76"
+        },
+        "excluded_reproduced_without_retire": [],
+        "command": [
+          "/usr/bin/python3",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "x64",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples",
+          "--suite",
+          "net_tcp,net_tcp_future,net_tcp_retire,net_tcp_ownership_tests",
+          "--no-single",
+          "--cflag=-fsanitize=address,undefined",
+          "--cflag=-fno-omit-frame-pointer",
+          "--ldflag=-fsanitize=address,undefined"
+        ],
+        "seconds": 58.21311385900481,
+        "log_sha256": "3f4ff9205fd5976b54a304040360dbee6b2b240a2863590d516222655f183845"
+      }
+    },
+    "unselected_retirement_controls": {
+      "windows": [
+        {
+          "test": "test_net_tcp.c",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--no-examples",
+            "--suite",
+            "net_tcp",
+            "--test",
+            "test_net_tcp.c"
+          ],
+          "diagnostics": [],
+          "log_sha256": "cbd3114068445f8465aceb974cf4577d1f629808764c857221c342a2dbcc7b3c"
+        },
+        {
+          "test": "test_net_tcp_invalid.c",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--no-examples",
+            "--suite",
+            "net_tcp",
+            "--test",
+            "test_net_tcp_invalid.c"
+          ],
+          "diagnostics": [],
+          "log_sha256": "8cbc3b0c8e0c84fd91e53110278cb047688aeebbce90ddcdf592bcddefcb0a4b"
+        }
+      ],
+      "wsl": [
+        {
+          "test": "test_net_tcp.c",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--no-examples",
+            "--suite",
+            "net_tcp",
+            "--test",
+            "test_net_tcp.c",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "diagnostics": [],
+          "log_sha256": "768aae5f7888d715b03386444d018dfb65de894ca2c3fb01995c5f611122ac37"
+        },
+        {
+          "test": "test_net_tcp_invalid.c",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--no-examples",
+            "--suite",
+            "net_tcp",
+            "--test",
+            "test_net_tcp_invalid.c",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "diagnostics": [],
+          "log_sha256": "35dfedbb04073332a38fbc6eff4a6a0de5243ec7dd176a6b7b86ae80a2c983e7"
+        }
+      ]
+    },
+    "wsl_sanitizers": "Full ASan/UBSan/leak source instrumentation in focused and expanded runs; standalone TSan retirement and mutex programs",
+    "wsl_tsan": {
+      "tsan": {
+        "complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "x64",
+          "--suite",
+          "net_tcp_retire,mutex",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples",
+          "--test",
+          "test_net_tcp_retire.c",
+          "--cflag=-fsanitize=thread",
+          "--cflag=-Wno-error=tsan",
+          "--cflag=-g",
+          "--ldflag=-fsanitize=thread"
+        ],
+        "exit_code": 0,
+        "seconds": 32.611911657004384,
+        "log_sha256": "6f3522d6b663c5de5979f3da441f243d10d30efbba1a650f929372241234cd17",
+        "programs": 1,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/tsan/test_net_tcp_retire": "8c9312177d2a6dc428dcb91d66365d87dfa1a645cf93210d37dae66e524f47ef"
+        }
+      },
+      "tsan-mutex": {
+        "complete": true,
+        "command": [
+          "/usr/bin/python3",
+          "-X",
+          "utf8",
+          "tools/build.py",
+          "--compiler",
+          "gcc",
+          "--arch",
+          "x64",
+          "--suite",
+          "net_tcp_retire,mutex",
+          "--jobs",
+          "3",
+          "--cflag=-O2",
+          "--no-examples",
+          "--test",
+          "test_mutex.c",
+          "--cflag=-fsanitize=thread",
+          "--cflag=-Wno-error=tsan",
+          "--cflag=-g",
+          "--ldflag=-fsanitize=thread"
+        ],
+        "exit_code": 0,
+        "seconds": 21.666238225006964,
+        "log_sha256": "b9c083c00179733c7e71b0d6684b115f70a816baaa0b9de91e4b0285b6b112aa",
+        "programs": 1,
+        "binaries": {
+          "out/service-extensions/net-retire-poll-20261110/binaries/wsl/tsan-mutex/test_mutex": "b9a87591b3b6cf41f10a6eb3bc60c05c2eaba885fb329ba225d967c5202449b6"
+        }
+      }
+    },
+    "scenarios": [
+      "33 lifecycle cases per retirement program: held owned Drop, actual aliases, two concurrent stable-owner waiters, both same-Engine worker affinities and legacy wait rejection",
+      "Single-only final-notification predicate lock held across foreign worker poll, same-thread predicate busy, no wait for releasing thread",
+      "Old/new static error pointer identical, previous OOM vs current static STATE under diagnostic quota, no stale-error classification and no leaked budget",
+      "10000 ready queries and alias pending within one-byte budget, exact ambient identity and zero handler redelivery per lifecycle case",
+      "Inert Stream and new real alias after actual Engine destruction, no stale Engine read",
+      "Mutex typed ownership, own/foreign ordinary contention, invalid storage/input, original bool behavior and20000 budgeted cycles"
+    ]
+  },
+  "package_verifications": {
+    "windows": {
+      "complete": true,
+      "receipts": [
+        {
+          "scope": "lock",
+          "suite": "mutex,core",
+          "kind": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "mutex,core",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "2dfb55cf46dfff78222e763b40d0ffcf24f90142e0b1c2f794208d11b554a5dd"
+        },
+        {
+          "scope": "lock",
+          "suite": "mutex,core",
+          "kind": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "mutex,core",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "e9dc78f488e3f44832f6e928fc8d5d16f73072046770efe857250c75c64e292f"
+        },
+        {
+          "scope": "retire",
+          "suite": "mutex,net_tcp_retire",
+          "kind": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "mutex,net_tcp_retire",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "6af8ac91476c1c3f0c88e0ec7403931321ed6bd1f782658db1b7a27bece53a30"
+        },
+        {
+          "scope": "retire",
+          "suite": "mutex,net_tcp_retire",
+          "kind": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "mutex,net_tcp_retire",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "eea0a692e1da4b04d5d9397ce458536aeabe166befd15efa39c43e0dfb63b481"
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "receipts": [
+        {
+          "scope": "lock",
+          "suite": "mutex,core",
+          "kind": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "mutex,core",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "14b86c1ddf0a15551bf36d8766240415790c11d4fbee27f1936d5513b920ca7b"
+        },
+        {
+          "scope": "lock",
+          "suite": "mutex,core",
+          "kind": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "mutex,core",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "f253e4037e104ec3035ec17f98feac5b54c568b452697ddb32f7851c9876ec3b"
+        },
+        {
+          "scope": "retire",
+          "suite": "mutex,net_tcp_retire",
+          "kind": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "mutex,net_tcp_retire",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "d4b043d01b3d1621aa487f0cc02a57e9422026cf769b3f20c41d812676ee908a"
+        },
+        {
+          "scope": "retire",
+          "suite": "mutex,net_tcp_retire",
+          "kind": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "mutex,net_tcp_retire",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "log_sha256": "458027f97e647080d6fb7e6730334eed7c488fdd2f41b6d799c57655a1e1f002"
+        }
+      ]
+    }
+  },
+  "packaged_tests_and_examples": {
+    "windows": [
+      {
+        "scope": "lock",
+        "kind": "static",
+        "program": "test",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "D:\\GIT\\xrt\\tests\\concurrency\\test_mutex.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\lock-static\\libxrt.a",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\lock-static\\test.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "d26c376849816d046421f5253145924269000f83eb9723338f0952bfd53a40e0",
+        "log_sha256": "05a2f51d3a48a83546ff292e0398cca5600fa2864be60b04019a13977d0f2cbe"
+      },
+      {
+        "scope": "lock",
+        "kind": "static",
+        "program": "example",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "D:\\GIT\\xrt\\examples\\concurrency\\sync\\main.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\lock-static\\libxrt.a",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\lock-static\\example.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "82f9a329c7e4af8016d7b483a29acfd3f5815cb3bbe102f02a8b9ab856c47968",
+        "log_sha256": "0db507ff33415273cb32563088315ed86326553cd28fd0ac53b5b77ae80bd170"
+      },
+      {
+        "scope": "lock",
+        "kind": "shared",
+        "program": "test",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "D:\\GIT\\xrt\\tests\\concurrency\\test_mutex.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\lock-shared\\libxrt.dll.a",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\lock-shared\\test.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "c7bc8aab5639924c4e2becc77b6e90f844d5816212867050f9f732a8071fa81d",
+        "log_sha256": "05a2f51d3a48a83546ff292e0398cca5600fa2864be60b04019a13977d0f2cbe"
+      },
+      {
+        "scope": "lock",
+        "kind": "shared",
+        "program": "example",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "D:\\GIT\\xrt\\examples\\concurrency\\sync\\main.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\lock-shared\\libxrt.dll.a",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\lock-shared\\example.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "773832e992853892dd9a4f19f90d7be6264ed60e23618d1011f6e2ad534dce9e",
+        "log_sha256": "0db507ff33415273cb32563088315ed86326553cd28fd0ac53b5b77ae80bd170"
+      },
+      {
+        "scope": "retire",
+        "kind": "static",
+        "program": "test",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "D:\\GIT\\xrt\\tests\\network\\test_net_tcp_retire.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\retire-static\\libxrt.a",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\retire-static\\test.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "126c712db0737e73cf5db32582740e3975b38418d129424abc6e1f04c6dc928e",
+        "log_sha256": "4114db7c238c85e33a0bf47c48b71cabd0cceef764c0d0c80162b13ce50a60ff"
+      },
+      {
+        "scope": "retire",
+        "kind": "static",
+        "program": "example",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "D:\\GIT\\xrt\\examples\\network\\tcp_retire_poll\\main.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\retire-static\\libxrt.a",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\retire-static\\example.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "1537641cf4acb479b830f39d63ab5fdb0919d5a196200434f69dfecc4630434a",
+        "log_sha256": "6498723aaa254936206d570c149b570713e96dbd180f769f253a2b0595fe5a54"
+      },
+      {
+        "scope": "retire",
+        "kind": "shared",
+        "program": "test",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "D:\\GIT\\xrt\\tests\\network\\test_net_tcp_retire.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\retire-shared\\libxrt.dll.a",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\retire-shared\\test.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "ea4d533efb3b0541653b5f55be45cdcbcaaaa6a5511094d6fd9ccb529b305a24",
+        "log_sha256": "4114db7c238c85e33a0bf47c48b71cabd0cceef764c0d0c80162b13ce50a60ff"
+      },
+      {
+        "scope": "retire",
+        "kind": "shared",
+        "program": "example",
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "D:\\GIT\\xrt\\include",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "D:\\GIT\\xrt\\examples\\network\\tcp_retire_poll\\main.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\packages\\windows\\retire-shared\\libxrt.dll.a",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\net-retire-poll-20261110\\consumers\\windows\\retire-shared\\example.exe"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "9a80657c53cdf7b37c459ff2f5a31e415c96bd4589864a6118019f48e698eb7a",
+        "log_sha256": "6498723aaa254936206d570c149b570713e96dbd180f769f253a2b0595fe5a54"
+      }
+    ],
+    "wsl": [
+      {
+        "scope": "lock",
+        "kind": "static",
+        "program": "test",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "/mnt/d/GIT/xrt/tests/concurrency/test_mutex.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/lock-static/libxrt.a",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/lock-static/test"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "2fba46f1c1ebd22b7b7070d216cd8b2cce99a1fabffb9b9862daa452ce58e2cd",
+        "log_sha256": "fcaa077a55f59548a6b4c142da5a98339d5b9b7f73da468a3b4d1f7e809875da"
+      },
+      {
+        "scope": "lock",
+        "kind": "static",
+        "program": "example",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "/mnt/d/GIT/xrt/examples/concurrency/sync/main.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/lock-static/libxrt.a",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/lock-static/example"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "51a3ff8141aa1aeca9843bc08bb659dc089de9dc0f2abfbb52e2e8de40e62787",
+        "log_sha256": "ed9c84cdb05498e1826cb6daa55a822d202d8553e1bfbcc2796ebf5c833e4857"
+      },
+      {
+        "scope": "lock",
+        "kind": "shared",
+        "program": "test",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "-Xlinker",
+          "-rpath",
+          "-Xlinker",
+          "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/net-retire-poll-20261110/packages/wsl/lock-shared",
+          "/mnt/d/GIT/xrt/tests/concurrency/test_mutex.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/lock-shared/libxrt.so",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/lock-shared/test"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "b8fa520d482b14abdab247e3668d0cafc3df25b79316e332febd537f20ec4a53",
+        "log_sha256": "fcaa077a55f59548a6b4c142da5a98339d5b9b7f73da468a3b4d1f7e809875da"
+      },
+      {
+        "scope": "lock",
+        "kind": "shared",
+        "program": "example",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "-Xlinker",
+          "-rpath",
+          "-Xlinker",
+          "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/net-retire-poll-20261110/packages/wsl/lock-shared",
+          "/mnt/d/GIT/xrt/examples/concurrency/sync/main.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/lock-shared/libxrt.so",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/lock-shared/example"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "463ca0d2e0159c3c8fc99250c695b5d25754731916746122e3f5cd1acf757d05",
+        "log_sha256": "ed9c84cdb05498e1826cb6daa55a822d202d8553e1bfbcc2796ebf5c833e4857"
+      },
+      {
+        "scope": "retire",
+        "kind": "static",
+        "program": "test",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_EPOLL",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "/mnt/d/GIT/xrt/tests/network/test_net_tcp_retire.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/retire-static/libxrt.a",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/retire-static/test"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "9673cb1075e745f59ed93a41db4ae2bf404f9a47aedf4532affa2ec349898b54",
+        "log_sha256": "ae35ff93cc5889a0fd7e53476ea9224984a83f7d9c59f5284b869cd924c0d5fd"
+      },
+      {
+        "scope": "retire",
+        "kind": "static",
+        "program": "example",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_EPOLL",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "/mnt/d/GIT/xrt/examples/network/tcp_retire_poll/main.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/retire-static/libxrt.a",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/retire-static/example"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "e75435df308859f3242880da8abb9b12873249f03da4797d0fb91d9615642d7c",
+        "log_sha256": "66c04c66ffc076e74f0f78c563b642530008267810d2f04bfbe12b96459009fd"
+      },
+      {
+        "scope": "retire",
+        "kind": "shared",
+        "program": "test",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_EPOLL",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "-Xlinker",
+          "-rpath",
+          "-Xlinker",
+          "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/net-retire-poll-20261110/packages/wsl/retire-shared",
+          "/mnt/d/GIT/xrt/tests/network/test_net_tcp_retire.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/retire-shared/libxrt.so",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/retire-shared/test"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "92343fe7112f5634889898e06f5b44fba9c8d51fd024b152051405b4db3e920a",
+        "log_sha256": "ae35ff93cc5889a0fd7e53476ea9224984a83f7d9c59f5284b869cd924c0d5fd"
+      },
+      {
+        "scope": "retire",
+        "kind": "shared",
+        "program": "example",
+        "command": [
+          "gcc",
+          "-std=c11",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-m64",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_EPOLL",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-I",
+          "/mnt/d/GIT/xrt/include",
+          "-pthread",
+          "-O2",
+          "-DXRT_USE_SHARED",
+          "-Xlinker",
+          "-rpath",
+          "-Xlinker",
+          "/mnt/c/Users/Administrator/.codex/artifacts/service-extensions/net-retire-poll-20261110/packages/wsl/retire-shared",
+          "/mnt/d/GIT/xrt/examples/network/tcp_retire_poll/main.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/packages/wsl/retire-shared/libxrt.so",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/net-retire-poll-20261110/consumers/wsl/retire-shared/example"
+        ],
+        "exit_code": 0,
+        "binary_sha256": "7e6ac65f9e6ee30fe2efbea04fd70bb71c198dcd9337712a3fc3f5889a6794af",
+        "log_sha256": "66c04c66ffc076e74f0f78c563b642530008267810d2f04bfbe12b96459009fd"
+      }
+    ]
+  },
+  "exports_and_trim": {
+    "windows": {
+      "packages": [
+        {
+          "scope": "lock",
+          "kind": "static",
+          "sha256": "77e38bffedc444d246814812227d60281b97393cf7eeaf49e71653063cc655cd",
+          "typed_mutex_export": true,
+          "retire_export": false
+        },
+        {
+          "scope": "lock",
+          "kind": "shared",
+          "sha256": "c86699b555d86fcc48266556307187c336855ba4fe155e8a5f1efeea85c8e27a",
+          "typed_mutex_export": true,
+          "retire_export": false
+        },
+        {
+          "scope": "retire",
+          "kind": "static",
+          "sha256": "7ec8f586a8e8046f3da9915490989d0ddfb1fdcd1ea6a3dea0ce447426180783",
+          "typed_mutex_export": true,
+          "retire_export": true
+        },
+        {
+          "scope": "retire",
+          "kind": "shared",
+          "sha256": "e9929425159f7521c574d3eb324ce3b7df72366564c2242443a570dd6df8fe14",
+          "typed_mutex_export": true,
+          "retire_export": true
+        }
+      ],
+      "declaration_only_scopes": 2
+    },
+    "wsl": {
+      "packages": [
+        {
+          "scope": "lock",
+          "kind": "static",
+          "sha256": "04d854f6fccc2e20bebf8a0bcdb265372f6a059c3beebe9cb972bfb0071ba29c",
+          "typed_mutex_export": true,
+          "retire_export": false
+        },
+        {
+          "scope": "lock",
+          "kind": "shared",
+          "sha256": "87d606e5f7e53f3113a52715d612a3d08be714c46c7dc2a5dec81465386cfd0d",
+          "typed_mutex_export": true,
+          "retire_export": false
+        },
+        {
+          "scope": "retire",
+          "kind": "static",
+          "sha256": "0cedf3d1dc339263f9f7d8173ee9d89e9698d395ab23e5bb1abb686e12351b72",
+          "typed_mutex_export": true,
+          "retire_export": true
+        },
+        {
+          "scope": "retire",
+          "kind": "shared",
+          "sha256": "6f0ba0e2f2d2b0542bf2bece69a869fcafac8731930c2f445387d53dec014f49",
+          "typed_mutex_export": true,
+          "retire_export": true
+        }
+      ],
+      "declaration_only_scopes": 2
+    }
+  },
+  "tooling_checks": {
+    "windows": {
+      "complete": true,
+      "receipts": [
+        {
+          "label": "single",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check"
+          ],
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7"
+        },
+        {
+          "label": "features",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_features.py",
+            "--check"
+          ],
+          "log_sha256": "dc13349ca84e3edf80028bd0b76441a06a4bb498f8d4d51c748183acea42ef8f"
+        },
+        {
+          "label": "api",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--check"
+          ],
+          "log_sha256": "538a1ac1d64c854e7121d23d99144e8c96710859e2b655d9a349f5530d6fb1e7"
+        },
+        {
+          "label": "net-docs",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--module-prefix",
+            "net",
+            "--function-prefix",
+            "xrtNet",
+            "--constant-prefix",
+            "XNET_",
+            "--type-prefix",
+            "xnet"
+          ],
+          "log_sha256": "30f590e0de450e1255ee1aa89e45e90620db158c457ef53b4209fa6e8150a22b"
+        },
+        {
+          "label": "mutex-docs",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--module-prefix",
+            "sync",
+            "--function-prefix",
+            "xrtMutex",
+            "--constant-prefix",
+            "XMUTEX_",
+            "--type-prefix",
+            "xmutex"
+          ],
+          "log_sha256": "04861c446c22d95d696517858f634c12e030db9f8d9f0799f0a6679e6f90e50a"
+        },
+        {
+          "label": "maturity",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py"
+          ],
+          "log_sha256": "de5d036d92c4313ebc6e6ec98e2a31862fbfe6a3ae6878cc74d15a9904066158"
+        },
+        {
+          "label": "sync-detail",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_reference_detail.py",
+            "--doc",
+            "sync.md"
+          ],
+          "log_sha256": "f01c2f7ed8b37c18a19e1cefa46b4267dc13b22f49ac6aa410503b180cde4ea9"
+        },
+        {
+          "label": "tools",
+          "exit_code": 0,
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_build",
+            "tools.test_api_reference",
+            "tools.test_declaration_features",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "log_sha256": "e42f62b59421c793ef659cc458a88063ba3f5dda2c015742a12117799eb04eca"
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "receipts": [
+        {
+          "label": "single",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--check"
+          ],
+          "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15"
+        },
+        {
+          "label": "features",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_features.py",
+            "--check"
+          ],
+          "log_sha256": "7206fa087d0ecdbb94ae9b1083968addeded483f7bed6983bfc5d82fc2d5f1fc"
+        },
+        {
+          "label": "api",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--check"
+          ],
+          "log_sha256": "1432a4f44841a0c93118f9df4b097d45666d3edf0fd9eef35261f467dcffd2ca"
+        },
+        {
+          "label": "net-docs",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--module-prefix",
+            "net",
+            "--function-prefix",
+            "xrtNet",
+            "--constant-prefix",
+            "XNET_",
+            "--type-prefix",
+            "xnet"
+          ],
+          "log_sha256": "62be86434fb329bb77ebb5b92496642d023aca8fdee976e2e5b6f6ac0d139932"
+        },
+        {
+          "label": "mutex-docs",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--module-prefix",
+            "sync",
+            "--function-prefix",
+            "xrtMutex",
+            "--constant-prefix",
+            "XMUTEX_",
+            "--type-prefix",
+            "xmutex"
+          ],
+          "log_sha256": "80f7d0c6ee552949ee88edc7510965f673d0677fb3023b8f7dc363371609da46"
+        },
+        {
+          "label": "maturity",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py"
+          ],
+          "log_sha256": "e0d36b11ce6b3533fad9f527169367edc5badafcb0ecc44d64c882ad4cfa2f58"
+        },
+        {
+          "label": "sync-detail",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_reference_detail.py",
+            "--doc",
+            "sync.md"
+          ],
+          "log_sha256": "e6e65d8a7da7513a376ce42960756f5f4fc49314ebce16364c1b4b0e7c0306ce"
+        },
+        {
+          "label": "tools",
+          "exit_code": 0,
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "-m",
+            "unittest",
+            "tools.test_build",
+            "tools.test_api_reference",
+            "tools.test_declaration_features",
+            "tools.test_scope",
+            "tools.test_measure_performance",
+            "tools.test_measure_size"
+          ],
+          "log_sha256": "6bdb3d5aa75a9226d6516669efa68db2ffc33248323f9dd648c844af7379b929"
+        }
+      ]
+    }
+  },
+  "tcp_strict_documentation": {
+    "before_functions": 168,
+    "after_functions": 169,
+    "unchanged_preexisting_issues": [
+      "G2 param-missing: xrtNetStreamConnectOwnedV1 -> pEngine, pRemote, iAffinity, pConfig, pData, pPolicy",
+      "G2 no-example-link: xrtNetStreamConnectOwnedV1",
+      "G2 missing-section: xrtNetStreamWaitRetired"
+    ],
+    "new_api_issues": []
+  },
+  "toolchains": {
+    "windows": {
+      "platform": "Windows-10-10.0.19045-SP0",
+      "machine": "AMD64",
+      "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "compiler": "E:/software/w64devkit/bin/gcc.exe",
+      "compiler_sha256": "9a52de3e3af8f4896e963c4b68ed159f049954775decb20e421cd75d51aab6ed",
+      "compiler_version": "gcc.exe (GCC) 16.2.0",
+      "compiler_target": "x86_64-w64-mingw32"
+    },
+    "wsl": {
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "machine": "x86_64",
+      "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+      "compiler": "/usr/bin/gcc",
+      "compiler_sha256": "b5f1b773a7c733738352000c92a077dc5852a1a2fc6d836b1e411be1e9ec5f88",
+      "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "compiler_target": "x86_64-linux-gnu"
+    }
+  },
+  "local_performance": {
+    "summary": {
+      "windows": [
+        {
+          "kind": "static",
+          "comparison": "retired-poll-vs-zero-wait",
+          "ratio": 3.2348243024205514,
+          "noise_qualified": true
+        },
+        {
+          "kind": "static",
+          "comparison": "typed-vs-bool-lock",
+          "ratio": 1.01033470826592,
+          "noise_qualified": true
+        },
+        {
+          "kind": "shared",
+          "comparison": "retired-poll-vs-zero-wait",
+          "ratio": 3.235521584993851,
+          "noise_qualified": true
+        },
+        {
+          "kind": "shared",
+          "comparison": "typed-vs-bool-lock",
+          "ratio": 1.0005825085505609,
+          "noise_qualified": true
+        }
+      ],
+      "wsl": [
+        {
+          "kind": "static",
+          "comparison": "retired-poll-vs-zero-wait",
+          "ratio": 2.569846501386898,
+          "noise_qualified": false
+        },
+        {
+          "kind": "static",
+          "comparison": "typed-vs-bool-lock",
+          "ratio": 1.0870548037123875,
+          "noise_qualified": true
+        },
+        {
+          "kind": "shared",
+          "comparison": "retired-poll-vs-zero-wait",
+          "ratio": 2.8784317013681133,
+          "noise_qualified": true
+        },
+        {
+          "kind": "shared",
+          "comparison": "typed-vs-bool-lock",
+          "ratio": 1.1159593246453767,
+          "noise_qualified": true
+        }
+      ]
+    },
+    "measurements": {
+      "windows": {
+        "complete": true,
+        "scope": "Local uncontended per-query/lock observations through actual packaged Core; no protocol, traffic, fixed-arrival, end-to-end P99 or production qualification",
+        "samples": 7,
+        "warmups": 1,
+        "iterations": 3000000,
+        "cases": [
+          {
+            "kind": "static",
+            "label": "retired-poll-vs-zero-wait",
+            "samples": {
+              "new": [
+                79506634.824,
+                79196002.198,
+                79065759.045,
+                79456306.956,
+                69926157.994,
+                79532138.881,
+                79339682.28
+              ],
+              "old": [
+                24638289.381,
+                24653616.686,
+                24333860.571,
+                24526736.188,
+                19480608.028,
+                24600911.709,
+                24388637.822
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 79625653.242,
+                  "ns_per_op": 12.559,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79506634.824,
+                  "ns_per_op": 12.578,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79196002.198,
+                  "ns_per_op": 12.627,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79065759.045,
+                  "ns_per_op": 12.648,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79456306.956,
+                  "ns_per_op": 12.586,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 69926157.994,
+                  "ns_per_op": 14.301,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79532138.881,
+                  "ns_per_op": 12.574,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79339682.28,
+                  "ns_per_op": 12.604,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 24584964.82,
+                  "ns_per_op": 40.675,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24638289.381,
+                  "ns_per_op": 40.587,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24653616.686,
+                  "ns_per_op": 40.562,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24333860.571,
+                  "ns_per_op": 41.095,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24526736.188,
+                  "ns_per_op": 40.772,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 19480608.028,
+                  "ns_per_op": 51.333,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24600911.709,
+                  "ns_per_op": 40.649,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24388637.822,
+                  "ns_per_op": 41.003,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 79339682.28,
+                "mad_ratio": 0.0021042754294226013,
+                "central_span_ratio": 0.00555681301374628
+              },
+              "old": {
+                "median": 24526736.188,
+                "mad_ratio": 0.005173150517355728,
+                "central_span_ratio": 0.012412120702343911
+              }
+            },
+            "throughput_ratio": 3.2348243024205514,
+            "noise_qualified": true
+          },
+          {
+            "kind": "static",
+            "label": "typed-vs-bool-lock",
+            "samples": {
+              "new": [
+                92346904.188,
+                92496384.875,
+                92119485.08,
+                92274189.668,
+                92145516.199,
+                92633477.11,
+                91608647.781
+              ],
+              "old": [
+                91271966.158,
+                91330317.481,
+                91631592.147,
+                84114901.007,
+                90089278.442,
+                92105343.893,
+                91866450.688
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 91961633.603,
+                  "ns_per_op": 10.874,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92346904.188,
+                  "ns_per_op": 10.829,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92496384.875,
+                  "ns_per_op": 10.811,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92119485.08,
+                  "ns_per_op": 10.855,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92274189.668,
+                  "ns_per_op": 10.837,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92145516.199,
+                  "ns_per_op": 10.852,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92633477.11,
+                  "ns_per_op": 10.795,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91608647.781,
+                  "ns_per_op": 10.916,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 91065005.23,
+                  "ns_per_op": 10.981,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91271966.158,
+                  "ns_per_op": 10.956,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91330317.481,
+                  "ns_per_op": 10.949,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91631592.147,
+                  "ns_per_op": 10.913,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 84114901.007,
+                  "ns_per_op": 11.888,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 90089278.442,
+                  "ns_per_op": 11.1,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92105343.893,
+                  "ns_per_op": 10.857,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91866450.688,
+                  "ns_per_op": 10.885,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 92274189.668,
+                "mad_ratio": 0.001676574874909467,
+                "central_span_ratio": 0.004084563585506163
+              },
+              "old": {
+                "median": 91330317.481,
+                "mad_ratio": 0.005870265447303655,
+                "central_span_ratio": 0.019458732817497406
+              }
+            },
+            "throughput_ratio": 1.01033470826592,
+            "noise_qualified": true
+          },
+          {
+            "kind": "shared",
+            "label": "retired-poll-vs-zero-wait",
+            "samples": {
+              "new": [
+                79952881.103,
+                80056146.086,
+                79511692.228,
+                79355422.363,
+                79939246.194,
+                69441711.787,
+                79285164.974
+              ],
+              "old": [
+                24221031.447,
+                24633858.749,
+                24443363.506,
+                24768210.829,
+                23841293.281,
+                24574613.44,
+                24665048.638
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 79664559.127,
+                  "ns_per_op": 12.553,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79952881.103,
+                  "ns_per_op": 12.507,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 80056146.086,
+                  "ns_per_op": 12.491,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79511692.228,
+                  "ns_per_op": 12.577,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79355422.363,
+                  "ns_per_op": 12.602,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79939246.194,
+                  "ns_per_op": 12.509,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 69441711.787,
+                  "ns_per_op": 14.401,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79285164.974,
+                  "ns_per_op": 12.613,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 24569420.898,
+                  "ns_per_op": 40.701,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24221031.447,
+                  "ns_per_op": 41.286,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24633858.749,
+                  "ns_per_op": 40.595,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24443363.506,
+                  "ns_per_op": 40.911,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24768210.829,
+                  "ns_per_op": 40.374,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 23841293.281,
+                  "ns_per_op": 41.944,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24574613.44,
+                  "ns_per_op": 40.692,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24665048.638,
+                  "ns_per_op": 40.543,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 79511692.228,
+                "mad_ratio": 0.005377246465513442,
+                "central_span_ratio": 0.00839770995044748
+              },
+              "old": {
+                "median": 24574613.44,
+                "mad_ratio": 0.0053408748145907904,
+                "central_span_ratio": 0.018068125144026666
+              }
+            },
+            "throughput_ratio": 3.235521584993851,
+            "noise_qualified": true
+          },
+          {
+            "kind": "shared",
+            "label": "typed-vs-bool-lock",
+            "samples": {
+              "new": [
+                91307523.725,
+                92953504.66,
+                93260672.978,
+                92940546.005,
+                93364579.364,
+                92794793.643,
+                93273141.064
+              ],
+              "old": [
+                92899389.971,
+                92856545.941,
+                93304761.327,
+                92502659.442,
+                93047202.807,
+                93102645.63,
+                92123728.307
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 92487830.103,
+                  "ns_per_op": 10.812,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 91307523.725,
+                  "ns_per_op": 10.952,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92953504.66,
+                  "ns_per_op": 10.758,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93260672.978,
+                  "ns_per_op": 10.723,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92940546.005,
+                  "ns_per_op": 10.76,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93364579.364,
+                  "ns_per_op": 10.711,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92794793.643,
+                  "ns_per_op": 10.776,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93273141.064,
+                  "ns_per_op": 10.721,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 93340468.697,
+                  "ns_per_op": 10.713,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92899389.971,
+                  "ns_per_op": 10.764,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92856545.941,
+                  "ns_per_op": 10.769,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93304761.327,
+                  "ns_per_op": 10.718,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92502659.442,
+                  "ns_per_op": 10.811,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93047202.807,
+                  "ns_per_op": 10.747,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 93102645.63,
+                  "ns_per_op": 10.741,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 92123728.307,
+                  "ns_per_op": 10.855,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 92953504.66,
+                "mad_ratio": 0.0033045372428242093,
+                "central_span_ratio": 0.005146093444778233
+              },
+              "old": {
+                "median": 92899389.971,
+                "mad_ratio": 0.002187911665119048,
+                "central_span_ratio": 0.00645845132230996
+              }
+            },
+            "throughput_ratio": 1.0005825085505609,
+            "noise_qualified": true
+          }
+        ]
+      },
+      "wsl": {
+        "complete": true,
+        "scope": "Local uncontended per-query/lock observations through actual packaged Core; no protocol, traffic, fixed-arrival, end-to-end P99 or production qualification",
+        "samples": 7,
+        "warmups": 1,
+        "iterations": 3000000,
+        "cases": [
+          {
+            "kind": "static",
+            "label": "retired-poll-vs-zero-wait",
+            "samples": {
+              "new": [
+                65658012.235,
+                64712632.771,
+                64950669.987,
+                65279122.661,
+                62583573.836,
+                62661483.867,
+                60628842.356
+              ],
+              "old": [
+                26479263.858,
+                25103447.125,
+                26324079.017,
+                24545037.076,
+                26121914.455,
+                22736815.13,
+                25181516.77
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 51568720.467,
+                  "ns_per_op": 19.392,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 65658012.235,
+                  "ns_per_op": 15.23,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 64712632.771,
+                  "ns_per_op": 15.453,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 64950669.987,
+                  "ns_per_op": 15.396,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 65279122.661,
+                  "ns_per_op": 15.319,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 62583573.836,
+                  "ns_per_op": 15.979,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 62661483.867,
+                  "ns_per_op": 15.959,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 60628842.356,
+                  "ns_per_op": 16.494,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 26302176.712,
+                  "ns_per_op": 38.02,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 26479263.858,
+                  "ns_per_op": 37.765,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 25103447.125,
+                  "ns_per_op": 39.835,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 26324079.017,
+                  "ns_per_op": 37.988,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24545037.076,
+                  "ns_per_op": 40.741,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 26121914.455,
+                  "ns_per_op": 38.282,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 22736815.13,
+                  "ns_per_op": 43.982,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 25181516.77,
+                  "ns_per_op": 39.712,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 64712632.771,
+                "mad_ratio": 0.01460888583138684,
+                "central_span_ratio": 0.04165413628802266
+              },
+              "old": {
+                "median": 25181516.77,
+                "mad_ratio": 0.03734475939592096,
+                "central_span_ratio": 0.0706487205377343
+              }
+            },
+            "throughput_ratio": 2.569846501386898,
+            "noise_qualified": false
+          },
+          {
+            "kind": "static",
+            "label": "typed-vs-bool-lock",
+            "samples": {
+              "new": [
+                81203764.558,
+                81099273.607,
+                80027529.481,
+                79808459.712,
+                81165537.157,
+                80373143.553,
+                79186177.259
+              ],
+              "old": [
+                62640549.727,
+                75067560.812,
+                73936606.764,
+                72060473.14,
+                75524898.011,
+                73971609.708,
+                73638425.524
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 78079656.836,
+                  "ns_per_op": 12.807,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 81203764.558,
+                  "ns_per_op": 12.315,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 81099273.607,
+                  "ns_per_op": 12.331,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 80027529.481,
+                  "ns_per_op": 12.496,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79808459.712,
+                  "ns_per_op": 12.53,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 81165537.157,
+                  "ns_per_op": 12.32,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 80373143.553,
+                  "ns_per_op": 12.442,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79186177.259,
+                  "ns_per_op": 12.628,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 75079770.39,
+                  "ns_per_op": 13.319,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 62640549.727,
+                  "ns_per_op": 15.964,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 75067560.812,
+                  "ns_per_op": 13.321,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 73936606.764,
+                  "ns_per_op": 13.525,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 72060473.14,
+                  "ns_per_op": 13.877,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 75524898.011,
+                  "ns_per_op": 13.241,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 73971609.708,
+                  "ns_per_op": 13.519,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 73638425.524,
+                  "ns_per_op": 13.58,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 80373143.553,
+                "mad_ratio": 0.009034486171629736,
+                "central_span_ratio": 0.016884712790972495
+              },
+              "old": {
+                "median": 73936606.764,
+                "mad_ratio": 0.015296266592405664,
+                "central_span_ratio": 0.04067116146671973
+              }
+            },
+            "throughput_ratio": 1.0870548037123875,
+            "noise_qualified": true
+          },
+          {
+            "kind": "shared",
+            "label": "retired-poll-vs-zero-wait",
+            "samples": {
+              "new": [
+                69502844.501,
+                67382871.71,
+                69673301.917,
+                68094222.691,
+                70658228.536,
+                70386020.431,
+                69864439.672
+              ],
+              "old": [
+                24801484.781,
+                24205299.672,
+                25009628.709,
+                25188472.748,
+                23519948.447,
+                23572470.811,
+                23730910.456
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 70125079.777,
+                  "ns_per_op": 14.26,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 69502844.501,
+                  "ns_per_op": 14.388,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 67382871.71,
+                  "ns_per_op": 14.841,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 69673301.917,
+                  "ns_per_op": 14.353,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 68094222.691,
+                  "ns_per_op": 14.686,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 70658228.536,
+                  "ns_per_op": 14.153,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 70386020.431,
+                  "ns_per_op": 14.207,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 69864439.672,
+                  "ns_per_op": 14.313,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 22446739.499,
+                  "ns_per_op": 44.55,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24801484.781,
+                  "ns_per_op": 40.32,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 24205299.672,
+                  "ns_per_op": 41.313,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 25009628.709,
+                  "ns_per_op": 39.985,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 25188472.748,
+                  "ns_per_op": 39.701,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 23519948.447,
+                  "ns_per_op": 42.517,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 23572470.811,
+                  "ns_per_op": 42.422,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 23730910.456,
+                  "ns_per_op": 42.139,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 69673301.917,
+                "mad_ratio": 0.010229435011549212,
+                "central_span_ratio": 0.032893485408946946
+              },
+              "old": {
+                "median": 24205299.672,
+                "mad_ratio": 0.02614422748634821,
+                "central_span_ratio": 0.05937368747648522
+              }
+            },
+            "throughput_ratio": 2.8784317013681133,
+            "noise_qualified": true
+          },
+          {
+            "kind": "shared",
+            "label": "typed-vs-bool-lock",
+            "samples": {
+              "new": [
+                88924458.707,
+                86687413.904,
+                82694974.111,
+                88849926.554,
+                87536291.123,
+                87939661.712,
+                87399342.526
+              ],
+              "old": [
+                77125581.021,
+                81718485.274,
+                81190578.624,
+                78403905.504,
+                78440395.801,
+                79778110.514,
+                75634574.05
+              ]
+            },
+            "raw": {
+              "new": [
+                {
+                  "ops_per_sec": 88503926.954,
+                  "ns_per_op": 11.299,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 88924458.707,
+                  "ns_per_op": 11.245,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 86687413.904,
+                  "ns_per_op": 11.536,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 82694974.111,
+                  "ns_per_op": 12.093,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 88849926.554,
+                  "ns_per_op": 11.255,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 87536291.123,
+                  "ns_per_op": 11.424,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 87939661.712,
+                  "ns_per_op": 11.371,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 87399342.526,
+                  "ns_per_op": 11.442,
+                  "checksum": 3000000.0
+                }
+              ],
+              "old": [
+                {
+                  "ops_per_sec": 80000213.323,
+                  "ns_per_op": 12.5,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 77125581.021,
+                  "ns_per_op": 12.966,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 81718485.274,
+                  "ns_per_op": 12.237,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 81190578.624,
+                  "ns_per_op": 12.317,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 78403905.504,
+                  "ns_per_op": 12.754,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 78440395.801,
+                  "ns_per_op": 12.749,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 79778110.514,
+                  "ns_per_op": 12.535,
+                  "checksum": 3000000.0
+                },
+                {
+                  "ops_per_sec": 75634574.05,
+                  "ns_per_op": 13.221,
+                  "checksum": 3000000.0
+                }
+              ]
+            },
+            "noise": {
+              "new": {
+                "median": 87536291.123,
+                "mad_ratio": 0.009697431866369717,
+                "central_span_ratio": 0.0247041840847631
+              },
+              "old": {
+                "median": 78440395.801,
+                "mad_ratio": 0.017053900599809897,
+                "central_span_ratio": 0.051822757413319646
+              }
+            },
+            "throughput_ratio": 1.1159593246453767,
+            "noise_qualified": true
+          }
+        ]
+      }
+    },
+    "scope": "Existing zero-wait vs new query, and original bool vs typed mutex, in actual static/shared packages. Three million uncontended operations per sample, seven measured after one warmup; platform runs sequential after own build/test jobs terminated.",
+    "limitations": [
+      "Local loop observations only; no actual reconnect/application throughput/P99/CPU/RSS/fixed-arrival/production acceptance",
+      "Shared host; WSL static poll comparison fails3%MAD/6%central-span noise gates and is retained unqualified",
+      "Existing broader performance failures and four-product/native Linux/72h gates remain open"
+    ]
+  },
+  "preparation_failures": [
+    "Initial public prototype omitted asynchronous Listener retirement before Engine Stop; both failures and source retained, corrected bounded join succeeds",
+    "Initial private fault test expected invalid mutex STATE to allocate/fall back to MEMORY. Existing static error code was confirmed; expectation corrected to same-static-identity ERROR and prior-OOM/current-STATE cases. No product failure was hidden",
+    "A working quiet-error-swap query variant passed, then was superseded by public typed mutex status so extensions need no Core-private error interface. Experimental logs/metadata are not final acceptance",
+    "Initial typed return used Wait enum and failed mutex-only single compilation. Its own small mutex result enum preserves minimal dependencies; logs retained",
+    "Two root runs were inadvertently launched against the same mutable output. Both completed successfully; only final verified log/binary hash-matching receipts are accepted, and no own jobs overlapped timed samples",
+    "Documentation checks initially lacked required family prefixes and used an unknown family name. Correct net/sync family checks pass; failed invocation logs retained",
+    "Windows default GBK failed one source-body audit read; explicit UTF-8 retry confirms original bool body unchanged"
+  ],
+  "remaining": [
+    "Integrate physical Client retirement with the MQTT automatic reconnect driver, preserving bounded ownership, original deadlines and retry policy",
+    "Durable state, subscription recovery, WebSocket and complete independent broker/auth-plugin scope",
+    "Complete all four products and performance/production/native Windows/Linux>=72h acceptance; current goal active"
+  ],
+  "evidence_directory": "out/service-extensions/net-retire-poll-20261110",
+  "evidence_storage": "C-backed immutable stage; compiler/package caches remain under separate service-extensions-build paths",
+  "evidence_files": 269,
+  "evidence_index_sha256": "20b2a3ea8bb5dadb94ff17779d3a56332d381ab42c484d74f89c27cc395d5daf"
+}

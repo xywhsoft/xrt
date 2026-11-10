@@ -9946,3 +9946,64 @@ fixed-arrival/contention, native Linux and>=72h gates for the four developing
 products. No branch operation or push. Evidence:
 extlibs/xmqtt/tests/results/assigned-id-20261110.json and
 out/service-extensions/xmqtt-assigned-id-20261110 (C-backed immutable stage).
+
+## 2026-11-10: prototype-proven nonwaiting retirement primitives
+
+The next MQTT automatic reconnect driver needs physical old-connection retirement
+without blocking an IO worker. Public-API-only Windows/WSL prototypes first prove
+an already retired Stream returns OK off-worker but legacy WaitRetired(Stream,0)
+still returns ERROR/STATE on the same Engine worker. Another prototype proves
+bool TryLock can return false with the identical old diagnostic both for ordinary
+busy and a real invalid-input failure. No error-pointer heuristic can distinguish
+them. No reconnect capability or new shared runtime is registered in this stage.
+
+Two independent Core operations address those exact gaps. MutexTryLockResult
+returns its own OK/BUSY/ERROR enum and leaves the mutex leaf independent of wait/
+time/network. The original bool TryLock body is unchanged. StreamPollRetired uses
+that typed try-lock and the existing CLOSED/refcount predicate; it never waits for
+lock/protocol progress, closes, retains, consumes or reads the Engine. Busy returns
+TIMEOUT. Stable-owner query and final caller-entry exclusion remain required.
+No object storage, send/ref-release paths, ordinary Lock/Unlock or waiting behavior
+is changed. The last 2->1 notification mutex still prevents premature readiness.
+Normal paths preserve ambient diagnostics without redelivery or requested heap.
+
+Both platforms pass7 focused programs and21 expanded TCP/Future/owned-callback
+regressions. WSL uses full ASan/UBSan/leak instrumentation and two further TSan
+programs. Thirty-three lifecycle cases per retirement executable exercise held
+Drop tails, aliases, two concurrent waiters, both workers, zero/finite waits,
+Engine destruction, normal 10000-query budget loops and owned callback boundaries.
+Single tests also hold the notification predicate from the caller and query on
+another worker without waiting, and distinguish a new identical static error
+from old OOM diagnostics. Mutex tests cover own/foreign busy, legacy behavior,
+invalid storage, typed ownership and20000 allocation-budget cycles.
+
+Eight real static/shared package verifications and16 packaged test/example runs
+pass. Mutex-only packages and declaration-only single headers select no Wait,
+Time or TCP, and export typed try-lock without StreamPollRetired. Retire packages
+export both. Generated/features/API, normal asset maturity, net/mutex API docs,
+strict sync details and89 tool tests pass on each OS. Strict TCP documentation
+retains exactly three issues from the inspected parent: old ConnectOwnedV1 parameter/
+example gaps and missing WaitRetired detail node. The new query has no strict issue.
+Older TCP baseline failures no longer reproduce: both prior cases pass without
+retirement selected on both OSes, so the full21-program run excludes nothing.
+
+Sequential7-sample/1-warmup local static/shared observations compare new queries
+with existing zero waits and typed mutex with bool mutex under an idle local
+connection. Windows query ratios are3.235x/3.236x, both qualified; WSL static2.570x
+is noise-unqualified and shared2.878x qualifies. Typed/bool ratios range1.001x to
+1.116x with all four qualified. These are uncontended local operation observations,
+not application throughput/tail latency, actual reconnect timing or production
+qualification. Shared-host/native Linux/72h and all four developing products' gates
+remain open. Actual automatic reconnect, MQTT retirement integration, durable state
+and WebSocket remain the next work; no claim that those are delivered here.
+
+Preparatory failures are retained: the first prototype omitted asynchronous
+Listener retirement before Stop; a static STATE failure was initially expected
+to allocate and fall back to MEMORY; an initial typed result used Wait's enum and
+failed mutex-only compilation, corrected with an independent enum; docs CLI family
+arguments were corrected. A working quiet-error-swap variant was superseded by the
+public typed primitive to avoid extension use of Core private interfaces. Duplicated
+root validation jobs both completed; only final hash-matching receipts are used.
+No branch operation or push. Evidence:
+docs/development/results/net-retire-poll-20261110.json and
+out/service-extensions/net-retire-poll-20261110 (C-backed immutable stage).

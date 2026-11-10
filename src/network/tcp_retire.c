@@ -6,6 +6,17 @@
 #error "TCP retirement waiting requires TCP and condition variables"
 #endif
 
+XRT_API xwaitresult xrtNetStreamPollRetired(xnetstream* Stream)
+{
+    if(!Stream){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xmutextryresult Lock=xrtMutexTryLockResult(&Stream->RetirementLock);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    xwaitresult Result=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED &&
+        __xrtAtomicRefLoad(&Stream->References)==1?XWAIT_OK:XWAIT_TIMEOUT;
+    if(!xrtMutexUnlock(&Stream->RetirementLock))return XWAIT_ERROR;
+    return Result;
+}
+
 XRT_API xwaitresult xrtNetStreamWaitRetired(xnetstream* Stream,int64 Timeout)
 {
     if (!Stream || Timeout<XRT_WAIT_FOREVER) {

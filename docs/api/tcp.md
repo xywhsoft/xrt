@@ -7713,3 +7713,56 @@ python tools/build.py --compiler gcc --suite net_tcp_retire --test test_net_tcp_
 ```
 
 独立单头验证入口为 `tests/single/test_single_net_tcp_retire.c`。
+
+
+### `xrtNetStreamPollRetired`
+
+```c
+xwaitresult xrtNetStreamPollRetired(xnetstream* pStream)
+```
+
+该查询属于同一个 `net_tcp_retire` 叶，可从任意线程、同一 Engine 的任意
+Worker 调用。它只尝试获取现有退休谓词锁，不等待锁持有方、引用下降或事件
+回调返回，不发起关闭、不增加或消费 owner，也不创建 timer、等待节点或所有权
+冻结过程。锁忙（包括当前线程已经持有锁）、尚未 CLOSED 或仍有其他真实引用
+时返回 `XWAIT_TIMEOUT`；只在 CLOSED、只剩调用方 owner、最后一次通知的谓词锁
+已经释放时返回 `XWAIT_OK`。空指针或同步错误返回 `XWAIT_ERROR`。
+
+原有 `xrtNetStreamWaitRetired(Stream, 0)` 的同 Engine Worker 拒绝语义保留。
+Close 回调及 owned Drop 尾部仍持有引用，不能在它们内部把逻辑 CLOSED 当作
+已经物理退休。调用方必须在查询期间保持 owner 存活；要把 OK 解释为最终可销毁，
+须先停止其他 API/Ref 入口。原 Engine 销毁后，保留的惰性 Stream 仍可查询。
+
+正常 ready/pending 保留原错误对象，并且不重新投递错误通知。实现用
+`xrtMutexTryLockResult` 的显式状态区分普通 busy 与真实失败；即使旧错误和新的
+诊断都指向同一个静态或 fallback 对象，也不会误报 pending。正常路径有一次
+try-lock、原子谓词读取和 unlock，并非无同步操作。没有增加对象字段
+或改变发送/释放热路径；该 API 本身也不执行自动重连。
+
+现有退休测试新增 Worker ready/pending、held callback/alias、单头谓词锁争用、
+诊断 OOM、旧错误不重送、三十三轮回收/唤醒、Engine 销毁后查询以及一字节分配
+预算下的一万次查询检查。
+
+#### 参数
+
+| 参数 | 方向 | 约束 | 说明 |
+|---|---|---|---|
+| `pStream` | 输入 | 非空、稳定强 owner | 要查询的 Stream；最终解释 OK 前停止其他 API/Ref |
+
+#### 返回值
+
+| 返回 | 含义 |
+|---|---|
+| `XWAIT_OK` | CLOSED 且只剩调用方强 owner，最后通知尾部已退出谓词锁 |
+| `XWAIT_TIMEOUT` | 尚未关闭、其他引用或谓词锁仍 busy；没有等待 |
+| `XWAIT_ERROR` | 参数或同步失败 |
+
+#### 错误
+
+- 空指针为 `XERR_ARGUMENT`。同步失败保留本次错误，诊断 OOM 可回退 `XERR_MEMORY`。
+- 普通 ready/pending 保留原错误和 owner，不触发错误处理器；没有对端收包保证。
+
+#### 范例
+
+[tcp_retire_poll](../../examples/network/tcp_retire_poll/main.c) 使用两个 Worker，
+演示真实别名仍使 CLOSED 对象 pending，释放别名后另一个 Worker 观察 ready。
