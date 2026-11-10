@@ -10195,3 +10195,56 @@ This refresh does not qualify new performance, broker matrices, native Linux,
 soak or production readiness. The full four-product goal remains active.
 Evidence: docs/development/service-extensions-mainline-refresh-20261111.json and
 out/service-extensions/mainline-refresh-20261110.
+
+
+## 2026-11-11: bounded MQTT subscription intent and automatic reconciliation
+
+Added the optional xmqtt_reconnect_subscriptions leaf with six typed public APIs.
+It copies initial and live/offline desired-state groups, preserves MQTT5 options/
+properties, correlates per-filter acknowledgements and exposes complete retained
+ACK metadata outside locks. Old acknowledgements cannot confirm newer revisions.
+Known resumed subscriptions are carried forward; fresh sessions rebuild wanted
+filters and release unnecessary removal tombstones. Initial/recovery ONLINE waits
+for reconciliation. Strict and explicit partial-rejection policies stay distinct.
+
+Fixed entries/hash buckets, dirty queues and maintained counters bound storage and
+work. Concurrent snapshot builders reserve allocation bytes first. Duplicate checks
+use in-place heapsort rather than potentially allocating libc qsort. One ordinary
+Client control Future and a bounded independently owned watch wake the existing
+worker. There is no added publication callback/payload/Future/lease operation or
+idle heartbeat. Snapshot encoding/decoding/copies, metadata, sorting, control watch
+allocation and bounded prefix preflights remain real administrative costs.
+
+After an initially passing qualification, a public-API prototype proved that a
+three-filter batch timed out under a 40-byte local outgoing cap even though each
+filter fit. The same issue affected factory-narrowed budgets. The private lifecycle
+attachment now captures the actual Client cap before readiness; reconciliation
+splits against it and rejects an unfit single filter. The identical four-mode
+prototype succeeds with three requests/no retries on both OSes. Before/after
+sources, binaries and results are retained separately. No Core runtime change.
+
+Final Windows and WSL runs each pass 63 root and 20 leaf/example programs; WSL
+fully instruments both with ASan/UBSan/leak and passes a TSan program. Tests include
+1024-filter copy/order, revision supersession, local/peer limits, partial rejection,
+initial/live/admission deadlines, caller and actual worker OOM, concurrent updates
+and physical ownership. Four real root static/shared packages verify; eight extra
+packaged full-unit/example consumers, four standalone two-header declaration
+consumers and six exports/hidden internal hooks pass. Eight final broker build
+forms pass 128 Mosquitto2.1.2/proxy cases with actual routing, property preservation,
+first-SUBACK loss, session retain/loss, offline removals and retained outcomes. All
+probe/broker/proxy owners are reaped. Six size runs and benchmark
+smokes complete. The final source map contains 2633 matching inputs.
+
+Serialized seven-sample/one-warmup measurements restore 1024 filters then perform
+1000 acknowledged updates, including whole loopback allocation costs. Both OSes
+have noise-gate failures at the unchanged 3% MAD/6% central-span limits. Qualified
+individual observations are labelled separately; no raw/upstream comparison or
+production performance acceptance is inferred. Original failures remain retained,
+including compiler/layout/reader issues and the Windows interleaved-log collector.
+
+The complete four-product plan remains active. TLS/DNS/Auth subscription matrices,
+wider MQTT5 cases, offline publication/durable/WebSocket, native Linux, fixed-arrival/
+contention/CPU/RSS, upstream comparison and >=72h acceptance remain required. No
+branch operation or push. [Portable evidence](../../extlibs/xmqtt/tests/results/reconnect-subscriptions-20261111.json).
+Raw stages: `out/service-extensions/xmqtt-subscriptions-20261111` and
+`out/service-extensions/xmqtt-subscriptions-final-20261111`.

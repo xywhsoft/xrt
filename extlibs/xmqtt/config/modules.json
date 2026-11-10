@@ -117,7 +117,8 @@
         "xmqtt_client_session",
         "xmqtt_client_session_tls",
         "xmqtt_client_session_dial",
-        "xmqtt_reconnect"
+        "xmqtt_reconnect",
+        "xmqtt_reconnect_subscriptions"
       ],
       "collect_dependency_assets": [
         "examples"
@@ -676,7 +677,8 @@
         "xmqtt_client_session_tls_tests",
         "xmqtt_client_session_dial_tests",
         "xmqtt_reconnect_tests",
-        "xmqtt_reconnect_transport_tests"
+        "xmqtt_reconnect_transport_tests",
+        "xmqtt_reconnect_subscriptions"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -701,7 +703,8 @@
         "extlibs/xmqtt/tests/test_client_session_tls.c",
         "extlibs/xmqtt/tests/test_client_session_dial.c",
         "extlibs/xmqtt/tests/test_reconnect.c",
-        "extlibs/xmqtt/tests/test_reconnect_transports.c"
+        "extlibs/xmqtt/tests/test_reconnect_transports.c",
+        "extlibs/xmqtt/tests/test_reconnect_subscriptions.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -732,7 +735,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_transports.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_transports.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_subscriptions.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1046,6 +1050,34 @@
       "examples": [],
       "benchmarks": [],
       "docs": []
+    },
+    {
+      "name": "xmqtt_reconnect_subscriptions",
+      "state": "developing",
+      "feature": "XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS",
+      "depends": [
+        "xmqtt_reconnect"
+      ],
+      "public_headers": [
+        "extlibs/xmqtt/include/xmqtt/reconnect_subscriptions.h"
+      ],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect_subscriptions.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_subscriptions.c"
+      ],
+      "examples": [
+        "extlibs/xmqtt/examples/reconnect_subscriptions/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xmqtt/bench/bench_subscriptions.c"
+      ],
+      "docs": [
+        "extlibs/xmqtt/docs/reconnect_subscriptions.md"
+      ]
     }
   ]
 }

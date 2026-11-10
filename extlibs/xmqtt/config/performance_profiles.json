@@ -3435,6 +3435,117 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_reconnect_subscriptions",
+      "system": "client",
+      "description": "Closed-loop cold subscription restoration and acknowledged intent updates against the local control fixture; allocations cover the whole loopback runtime; no publication/fixed-arrival/upstream acceptance.",
+      "benchmarks": [
+        {
+          "name": "xmqtt_reconnect_subscriptions_5",
+          "source": "extlibs/xmqtt/bench/bench_subscriptions.c",
+          "suite": "xmqtt_reconnect_subscriptions,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "5",
+            "16",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "updates_per_sec": {
+              "direction": "higher",
+              "unit": "update/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_update": {
+              "direction": "lower",
+              "unit": "blocks/update"
+            },
+            "heap_bytes_per_update": {
+              "direction": "lower",
+              "unit": "bytes/update"
+            }
+          }
+        },
+        {
+          "name": "xmqtt_reconnect_subscriptions_4",
+          "source": "extlibs/xmqtt/bench/bench_subscriptions.c",
+          "suite": "xmqtt_reconnect_subscriptions,time,memory_stats",
+          "inputs": [
+            "extlibs/xmqtt/examples/common/client_peer.h"
+          ],
+          "args": [
+            "1000",
+            "4",
+            "1024",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "4",
+            "16",
+            "8",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "direction": "lower",
+              "unit": "ms"
+            },
+            "updates_per_sec": {
+              "direction": "higher",
+              "unit": "update/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_update": {
+              "direction": "lower",
+              "unit": "blocks/update"
+            },
+            "heap_bytes_per_update": {
+              "direction": "lower",
+              "unit": "bytes/update"
+            }
+          }
+        }
+      ]
     }
   ]
 }

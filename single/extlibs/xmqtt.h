@@ -112,6 +112,19 @@
 #ifndef XMQTT_MODULE_XMQTT_RECONNECT
 #define XMQTT_MODULE_XMQTT_RECONNECT
 #endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS
+#define XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS
+#endif
+#endif
+
+/* xmqtt_reconnect_subscriptions 及其直接依赖。 */
+#if defined(XMQTT_MODULE_ALL) || defined(XMQTT_MODULE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+#ifndef XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS
+#define XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS
+#endif
+#ifndef XMQTT_MODULE_XMQTT_RECONNECT
+#define XMQTT_MODULE_XMQTT_RECONNECT
+#endif
 #endif
 
 /* xmqtt_reconnect 及其直接依赖。 */
@@ -1950,6 +1963,104 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xmqtt/include/xmqtt/reconnect_subscriptions.h */
+/* ========================================================================== */
+
+#ifndef XMQTT_RECONNECT_SUBSCRIPTIONS_H
+#define XMQTT_RECONNECT_SUBSCRIPTIONS_H
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS) && !defined(XMQTT_FEATURE_XMQTT_RECONNECT)
+#error "Subscription recovery requires the reconnect controller"
+#endif
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+XRT_EXTERN_C_BEGIN
+/* One event per accepted Client control result, on the controller worker and
+ * outside locks. Revision identifies its original intent group; Request is the
+ * exact ordered subset attempted, including properties. Wire is empty (no extra
+ * encoded-wire snapshot). The intent can already be superseded.
+ * All views/results are borrowed through this callback. Retain Result->Ack with
+ * xmqttMessageRetain when needed beyond it. Code/User live through Destroy;
+ * callbacks may run before Create returns. May submit/query/Close, never wait.
+ * Local preflight restrictions have no Client result event; query their status. */
+typedef void (*xmqttsubscriptionsnotify)(xmqttreconnect* Controller,uint64 Revision,
+    const xmqttpacket* Request,const xmqttsubscriptionresult* Result,ptr User);
+typedef struct xmqttsubscriptionsconfig {
+    size_t Size,MaxFilters,MaxBytes,MaxBatch;
+    int64 OperationTimeout,RetryDelay;
+    bool FailOnRejected;
+    xmqttsubscriptionsnotify Notify;ptr User;
+} xmqttsubscriptionsconfig;
+typedef struct xmqttsubscriptionsinfo {
+    size_t Size,Filters,Desired,Pending,Rejected,Bytes,Reserved,Watchers;
+    uint64 Revision,SettledRevision,Generation,Requests,Recoveries,Admitted,Overloaded,AdmissionRetries;
+    bool Connected,Synchronized;
+    xmqttclientstatus Status;
+} xmqttsubscriptionsinfo;
+typedef struct xmqttsubscriptionintentinfo {
+    size_t Size;uint64 Revision,AppliedRevision,Generation;
+    bool Desired,Pending,Confirmed,KnownPresent;
+    uint8 Options,Reason;xmqttclientstatus Status;
+} xmqttsubscriptionintentinfo;
+/* Defaults: 1024 distinct filters, 4MiB including fixed storage, snapshots and
+ * at most two watcher tails, 32 filters/request, 30s synchronization deadline,
+ * 5ms admission retry delay, and terminal failure on a rejected/restricted filter. Durations are ms.
+ * MaxFilters <=65535; MaxBatch <=MaxFilters and the Client codec topic limit.
+ * OperationTimeout bounds accepted requests and an online synchronization wave,
+ * including Client admission. Initial/outage admission shares RecoveryTimeout.
+ * RetryDelay is 1..60000ms; pending ACKs use a watch, not retry polling. */
+XMQTT_API bool xmqttSubscriptionsConfigInit(xmqttsubscriptionsconfig* Config);
+/* Copy all initial SUBSCRIBE packets before starting. Later occurrences of a
+ * filter replace earlier intent, including options and all group properties.
+ * Initial=NULL/Count=0 is allowed. The old Create ABI/behavior is unchanged.
+ * ONLINE is delayed until current intent has settled on the accepted session;
+ * the original reconnect outage deadline includes this restoration. With
+ * FailOnRejected=false ONLINE can include explicitly reported rejected filters.
+ * No disk state, offline publication queue or private thread is introduced. */
+XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* Engine,xtaskpool* CleanupPool,
+    uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttsubscriptionsconfig* Subscriptions,
+    const xmqttpacket* Connect,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Controller);
+/* Publish an atomic, bounded desired-state snapshot, online or offline. These
+ * are intent admissions, not broker operation Futures. Packet Identifier must
+ * be zero; Type must match, with codec-valid flags/options/properties. Reject
+ * duplicate exact filters within one packet. Preserve all MQTT5 properties;
+ * a replay batch may contain a subset of its original group. Inputs are borrowed
+ * only during this call. ACCEPTED publishes a new revision and changes Revision
+ * only on success. OVERLOADED/CLOSED preserve ambient error and output.
+ * A newer intent may supersede an older one before transmission. No promise
+ * that every admitted revision is sent, nor atomic broker application, is made.
+ * Raw leased Client Subscribe/Unsubscribe bypass this registry: do not mix them
+ * for managed filters. A lost ACK is reconciled by the next accepted session;
+ * a retained session can require repeating an uncertain control operation. */
+XMQTT_API xmqttclientadmission xmqttReconnectSubscribeIntent(xmqttreconnect* Controller,
+    const xmqttpacket* Subscribe,uint64* Revision);
+XMQTT_API xmqttclientadmission xmqttReconnectUnsubscribeIntent(xmqttreconnect* Controller,
+    const xmqttpacket* Unsubscribe,uint64* Revision);
+/* Pending includes the in-flight latest intent. SettledRevision advances when
+ * all current intents settle; superseded revisions are covered by their latest
+ * replacements. Inspect Status/Rejected as well as Synchronized. No broker
+ * durability or subscriber delivery is implied. Bytes includes fixed/live
+ * storage; Reserved is additionally charged during concurrent snapshot builds.
+ * Requests counts accepted Client controls, not wire delivery. Admitted counts
+ * intent groups; Overloaded counts public capacity refusals; AdmissionRetries
+ * counts Client quota refusals. Recoveries counts accepted sessions after the
+ * first accepted session, independently of failed setup attempts.
+ * The original Client Notify stays direct. Controller Notify also fires on
+ * completion of a synchronization wave (outside locks, on its Engine worker). */
+XMQTT_API bool xmqttReconnectSubscriptionsInfo(xmqttreconnect* Controller,xmqttsubscriptionsinfo* Info);
+/* Exact-filter lookup. A confirmed successful removal is reclaimed, so normal
+ * missing-filter false preserves Info and ambient error. Confirmed requires
+ * the current accepted session and latest successful revision. KnownPresent is
+ * only the last confirmed state, and may be stale while offline or uncertain.
+ * Reason is the exact broker reason for the latest settled revision, or zero
+ * for a local failure. Per-filter results survive until replaced or removed.
+ * These APIs follow the controller's stable-owner/Destroy exclusion contract. */
+XMQTT_API bool xmqttReconnectSubscriptionInfo(xmqttreconnect* Controller,xstrview Filter,
+    xmqttsubscriptionintentinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xmqtt/include/xmqtt.h */
 /* ========================================================================== */
 
@@ -2097,7 +2208,8 @@ typedef struct xmqttclientlifecycle {
 } xmqttclientlifecycle;
 XRT_EXTERN_C_BEGIN
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* Client,xnetworker* Worker,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer);
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
+    size_t* MaxOutgoingBytes);
 XRT_EXTERN_C_END
 #endif
 #endif
@@ -6786,11 +6898,13 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Worker,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer)
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
+    size_t* MaxOutgoingBytes)
 {
     if(!C || C->Worker!=Worker || !xrtNetWorkerIsCurrent(Worker) || !C->Session ||
        C->Session->State!=Session || C->Inbox!=Inbox || C->Lifecycle || !Observer || !Observer->Changed)
         return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
+    if(MaxOutgoingBytes)*MaxOutgoingBytes=C->Config.MaxOutgoingBytes;
     C->Lifecycle=Observer;
     if(C->Info.State==XMQTT_CLIENT_CLOSED)Observer->Changed(Observer->Data,C,true,C->Info.CloseStatus,C->Info.ServerReason);
     else if(C->Info.Ready)Observer->Changed(Observer->Data,C,false,XMQTT_STATUS_OK,0);
@@ -7357,6 +7471,9 @@ struct xmqttreconnect {
     xnetengine* Engine;xnetworker* Worker;xtaskpool* Pool;uint64 Affinity;
     xmqttsession* Session;xmqttclientinbox* Inbox;xmqttclient *Client,*Cleaning;
     xmqttclientlease* Leases;xmqttclientlifecycle Lifecycle;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    struct xmqttsubscriptions* Subscriptions;
+#endif
     xmutex Gate,RetirementLock;xcond RetirementReady;xatomic32 Refs,AssistReady;
     xnetpost Post;bool Posted,Driving,Closed,Stop,Failed,NeedsAssist;
     uint64 Timer,Random;double TimerAt,OnlineAt;
@@ -7408,6 +7525,351 @@ static int64 xmqttReconnectRemaining(double Deadline)
     if(isinf(Deadline))return XRT_WAIT_FOREVER;
     double D=ceil((Deadline-xrtTimer())*1000.0);return D<=0?0:D>=(double)INT64_MAX?INT64_MAX:(int64)D;
 }
+/* Private optional subscription registry. */
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+#define XMQTT_INTENT_NONE SIZE_MAX
+typedef struct xmqttintentorder {uint64 Hash;xstrview Filter;size_t Index,Entry;} xmqttintentorder;
+typedef struct xmqttintentgroup {
+    size_t Refs,Allocation;uint64 Revision;xmqttpacket Packet;xmqttintentorder* Order;
+} xmqttintentgroup;
+typedef struct xmqttintententry {
+    xmqttintentgroup* Group;size_t Topic,HashNext,Next,Previous;
+    uint64 Hash,Revision,Applied,Attempted,Generation,FlightRevision;
+    bool Desired,KnownPresent,Dirty,Flight,FlightDesired;
+    uint8 Reason;xmqttclientstatus Status;
+} xmqttintententry;
+typedef struct xmqttintentwatch {xfuturewatch Watch;xmqttreconnect* Controller;} xmqttintentwatch;
+typedef struct xmqttsubscriptions {
+    xmqttsubscriptionsconfig Config;xmqttintententry* Entries;size_t* Buckets;
+    size_t BucketCount,Free,Head,Tail,Count,Bytes,Reserved,Watchers,Desired,Pending,Rejected;
+    uint64 Revision,SettledRevision,Generation,Requests,Recoveries,Admitted,Overloaded,AdmissionRetries;
+    bool Ready,Announced;double Deadline;xmqttclientstatus Status;
+    xmqttnegotiated Peer;xfuture *ReadyFuture,*Future;size_t MaxOutgoingBytes;
+    xmqttintentgroup* FlightGroup;size_t FlightCount,*FlightEntries;xmqttsubscription* FlightTopics;
+} xmqttsubscriptions;
+static void xmqttSubscriptionsFail(xmqttreconnect* R,xmqttclientstatus Status)
+{
+    xmqttReconnectFail(R,Status,false);xrtMutexLock(&R->Gate);R->Subscriptions->Status=Status;bool OK=xmqttReconnectWakeLocked(R);xrtMutexUnlock(&R->Gate);
+    if(!OK)xmqttReconnectFail(R,Status,true);
+}
+static unsigned xmqttIntentMetrics(xmqttsubscriptions* S,const xmqttintententry* E)
+{
+    if(!E->Group)return 0;
+    return (E->Desired?1u:0u) | ((E->Dirty || E->Flight || E->Attempted!=E->Revision || E->Generation!=S->Generation)?2u:0u) |
+        ((E->Attempted==E->Revision && E->Generation==S->Generation && E->Status!=XMQTT_STATUS_OK)?4u:0u);
+}
+static void xmqttIntentAccount(xmqttsubscriptions* S,unsigned Before,const xmqttintententry* E)
+{
+    unsigned After=xmqttIntentMetrics(S,E);
+    S->Desired=S->Desired-((Before&1u)!=0)+((After&1u)!=0);
+    S->Pending=S->Pending-((Before&2u)!=0)+((After&2u)!=0);
+    S->Rejected=S->Rejected-((Before&4u)!=0)+((After&4u)!=0);
+}
+static uint64 xmqttIntentHash(xstrview V)
+{uint64 H=UINT64_C(14695981039346656037);for(size_t I=0;I<V.Size;++I){H^=(unsigned char)V.Data[I];H*=UINT64_C(1099511628211);}return H;}
+static bool xmqttIntentEqual(xstrview A,xstrview B)
+{return A.Size==B.Size && (!A.Size || !memcmp(A.Data,B.Data,A.Size));}
+static size_t xmqttIntentFind(xmqttsubscriptions* S,xstrview Filter,uint64 Hash)
+{
+    for(size_t I=S->Buckets[Hash&(S->BucketCount-1)];I!=XMQTT_INTENT_NONE;I=S->Entries[I].HashNext){
+        xmqttintententry* E=S->Entries+I;
+        if(E->Hash==Hash && xmqttIntentEqual(E->Group->Packet.Body.Topics.Data[E->Topic].Filter,Filter))return I;
+    }return XMQTT_INTENT_NONE;
+}
+static void xmqttIntentGroupDrop(xmqttsubscriptions* S,xmqttintentgroup* G)
+{if(G && !--G->Refs){size_t N=G->Allocation;S->Bytes-=N;xrtSecureZero(G,N);xrtFree(G);}}
+static void xmqttIntentUnqueue(xmqttsubscriptions* S,size_t I)
+{
+    xmqttintententry* E=S->Entries+I;if(!E->Dirty)return;
+    if(E->Previous!=XMQTT_INTENT_NONE)S->Entries[E->Previous].Next=E->Next;else S->Head=E->Next;
+    if(E->Next!=XMQTT_INTENT_NONE)S->Entries[E->Next].Previous=E->Previous;else S->Tail=E->Previous;
+    E->Dirty=false;E->Next=E->Previous=XMQTT_INTENT_NONE;
+}
+static void xmqttIntentQueue(xmqttsubscriptions* S,size_t I)
+{
+    xmqttintententry* E=S->Entries+I;if(E->Dirty)return;
+    E->Previous=S->Tail;E->Next=XMQTT_INTENT_NONE;E->Dirty=true;
+    if(S->Tail!=XMQTT_INTENT_NONE)S->Entries[S->Tail].Next=I;else S->Head=I;S->Tail=I;
+}
+static void xmqttIntentErase(xmqttsubscriptions* S,size_t I)
+{
+    xmqttintententry* E=S->Entries+I;size_t* Link=S->Buckets+(E->Hash&(S->BucketCount-1));
+    while(*Link!=I)Link=&S->Entries[*Link].HashNext;
+    *Link=E->HashNext;xmqttIntentUnqueue(S,I);xmqttIntentGroupDrop(S,E->Group);
+    memset(E,0,sizeof(*E));E->Next=S->Free;S->Free=I;--S->Count;
+}
+static int xmqttIntentOrderCompare(const xmqttintentorder* X,const xmqttintentorder* Y,bool Index)
+{
+    if(Index)return X->Index<Y->Index?-1:X->Index>Y->Index;
+    if(X->Hash!=Y->Hash)return X->Hash<Y->Hash?-1:1;
+    size_t N=X->Filter.Size<Y->Filter.Size?X->Filter.Size:Y->Filter.Size;int C=memcmp(X->Filter.Data,Y->Filter.Data,N);
+    return C?C:X->Filter.Size<Y->Filter.Size?-1:X->Filter.Size>Y->Filter.Size;
+}
+static void xmqttIntentSift(xmqttintentorder* A,size_t Root,size_t Count,bool Index)
+{
+    while(Root<Count/2){size_t Child=Root*2+1;
+        if(Child+1<Count && xmqttIntentOrderCompare(A+Child,A+Child+1,Index)<0)++Child;
+        if(xmqttIntentOrderCompare(A+Root,A+Child,Index)>=0)break;
+        xmqttintentorder V=A[Root];A[Root]=A[Child];A[Child]=V;Root=Child;
+    }
+}
+/* Fixed-stack in-place heapsort: libc qsort may allocate outside the registry
+ * quota on some platforms. Original indices restore caller ordering afterward. */
+static void xmqttIntentSort(xmqttintentorder* A,size_t Count,bool Index)
+{
+    for(size_t I=Count/2;I;--I)xmqttIntentSift(A,I-1,Count,Index);
+    for(size_t End=Count;End>1;--End){xmqttintentorder V=A[0];A[0]=A[End-1];A[End-1]=V;xmqttIntentSift(A,0,End-1,Index);}
+}
+static bool xmqttIntentGrow(size_t* N,size_t Count,size_t Width)
+{if(Count>(SIZE_MAX-*N)/Width)return false;*N+=Count*Width;return true;}
+XMQTT_API bool xmqttSubscriptionsConfigInit(xmqttsubscriptionsconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xmqttReconnectError(XERR_ARGUMENT,"invalid subscription config");
+    *K=(xmqttsubscriptionsconfig){sizeof(*K),1024,4u*1024u*1024u,32,30000,5,true,NULL,NULL};return true;
+}
+static bool xmqttSubscriptionsCreate(xmqttreconnect* R,const xmqttsubscriptionsconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)) || K->Size!=sizeof(*K) || !K->MaxFilters || K->MaxFilters>65535 || !K->MaxBatch || K->MaxBatch>K->MaxFilters || K->MaxBatch>R->Config.Client.Codec.MaxTopics || K->OperationTimeout<=0 || K->RetryDelay<1 || K->RetryDelay>60000)
+        return xmqttReconnectError(XERR_ARGUMENT,"invalid subscription recovery bounds");
+    size_t Buckets=2;while(Buckets<K->MaxFilters*2)Buckets*=2;
+    size_t N=sizeof(xmqttsubscriptions);
+    if(!xmqttIntentGrow(&N,K->MaxFilters,sizeof(xmqttintententry)) || !xmqttIntentGrow(&N,Buckets,sizeof(size_t)) || !xmqttIntentGrow(&N,K->MaxBatch,sizeof(size_t)+sizeof(xmqttsubscription)) || K->MaxBytes<2*sizeof(xmqttintentwatch) || N>K->MaxBytes-2*sizeof(xmqttintentwatch))
+        return xmqttReconnectError(XERR_RANGE,"subscription fixed storage exceeds limit");
+    xmqttsubscriptions* S=xrtCalloc(1,N);if(!S)return false;
+    S->Config=*K;S->Bytes=N;S->Entries=(xmqttintententry*)(S+1);S->Buckets=(size_t*)(S->Entries+K->MaxFilters);
+    S->FlightEntries=S->Buckets+Buckets;S->FlightTopics=(xmqttsubscription*)(S->FlightEntries+K->MaxBatch);
+    S->BucketCount=Buckets;S->Head=S->Tail=XMQTT_INTENT_NONE;S->Deadline=INFINITY;
+    for(size_t I=0;I<Buckets;++I)S->Buckets[I]=XMQTT_INTENT_NONE;
+    for(size_t I=0;I<K->MaxFilters;++I)S->Entries[I].Next=I+1<K->MaxFilters?I+1:XMQTT_INTENT_NONE;
+    R->Subscriptions=S;return true;
+}
+static void xmqttSubscriptionsDestroy(xmqttreconnect* R)
+{
+    xmqttsubscriptions* S=R->Subscriptions;if(!S)return;
+    for(size_t I=0;I<S->Config.MaxFilters;++I)if(S->Entries[I].Group)xmqttIntentGroupDrop(S,S->Entries[I].Group);
+    xrtFutureDestroy(S->ReadyFuture);xrtFutureDestroy(S->Future);
+    size_t N=sizeof(*S)+S->Config.MaxFilters*sizeof(xmqttintententry)+S->BucketCount*sizeof(size_t)+S->Config.MaxBatch*(sizeof(size_t)+sizeof(xmqttsubscription));
+    xrtSecureZero(S,N);xrtFree(S);R->Subscriptions=NULL;
+}
+static xmqttclientadmission xmqttSubscriptionsSubmit(xmqttreconnect* R,const xmqttpacket* Input,uint64* Revision,xmqttpackettype Type,bool Wake)
+{
+    if(!R || !Input || !Revision || !xrtMemRangeValid(Input,sizeof(*Input)) || !xrtMemRangeValid(Revision,sizeof(*Revision)) || Input->Type!=Type || Input->Identifier){xmqttReconnectError(XERR_ARGUMENT,"invalid subscription intent");return XMQTT_ADMISSION_ERROR;}
+    xrtMutexLock(&R->Gate);xmqttsubscriptions* S=R->Subscriptions;bool Stop=R->Stop;xrtMutexUnlock(&R->Gate);
+    if(!S){xmqttReconnectError(XERR_STATE,"controller has no subscription registry");return XMQTT_ADMISSION_ERROR;}
+    if(Stop)return XMQTT_ADMISSION_CLOSED;
+    xmqttpacket Packet=*Input;Packet.Identifier=1;size_t WireBytes=0;
+    bool Valid=R->Config.Client.Version==XMQTT_VERSION_5?xmqttPacketSize5(&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&WireBytes):xmqttPacketSize311(&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&WireBytes);
+    if(!Valid)return XMQTT_ADMISSION_ERROR;
+    size_t Count=Packet.Body.Topics.Count,N=sizeof(xmqttintentgroup);
+    if(Count>S->Config.MaxFilters){xrtMutexLock(&R->Gate);if(S->Overloaded!=UINT64_MAX)++S->Overloaded;xrtMutexUnlock(&R->Gate);return XMQTT_ADMISSION_OVERLOADED;}
+    if(!xmqttIntentGrow(&N,Packet.Properties.Count,sizeof(xmqttproperty)) || !xmqttIntentGrow(&N,Count,sizeof(xmqttsubscription)+sizeof(xmqttintentorder)) || !xmqttIntentGrow(&N,WireBytes,1)){xmqttReconnectError(XERR_RANGE,"subscription snapshot overflow");return XMQTT_ADMISSION_ERROR;}
+    xrtMutexLock(&R->Gate);
+    if(R->Stop){xrtMutexUnlock(&R->Gate);return XMQTT_ADMISSION_CLOSED;}
+    size_t Used=S->Bytes-S->Watchers*sizeof(xmqttintentwatch),Limit=S->Config.MaxBytes-2*sizeof(xmqttintentwatch);
+    if(Used>Limit || S->Reserved>Limit-Used || N>Limit-Used-S->Reserved){if(S->Overloaded!=UINT64_MAX)++S->Overloaded;xrtMutexUnlock(&R->Gate);return XMQTT_ADMISSION_OVERLOADED;}
+    S->Reserved+=N;xrtMutexUnlock(&R->Gate);
+    xmqttintentgroup* G=xrtCalloc(1,N);bool OK=G!=NULL;
+    if(G){
+        xmqttproperty* Props=(xmqttproperty*)(G+1);xmqttsubscription* Topics=(xmqttsubscription*)(Props+Packet.Properties.Count);
+        G->Order=(xmqttintentorder*)(Topics+Count);unsigned char* Wire=(unsigned char*)(G->Order+Count);
+        G->Allocation=N;G->Refs=1;xmqttcodecbuffers B={Props,Packet.Properties.Count,Topics,Count};
+        OK=R->Config.Client.Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,WireBytes,&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,NULL):xmqttPacketWrite311(Wire,WireBytes,&Packet,XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,NULL);
+        if(OK)OK=(R->Config.Client.Version==XMQTT_VERSION_5?xmqttPacketRead5((xbytesview){Wire,WireBytes},XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&B,&G->Packet,NULL):xmqttPacketRead311((xbytesview){Wire,WireBytes},XMQTT_CLIENT_TO_SERVER,&R->Config.Client.Codec,&B,&G->Packet,NULL))==XMQTT_CODEC_DONE;
+        if(OK){
+            for(size_t I=0;I<Count;++I)G->Order[I]=(xmqttintentorder){xmqttIntentHash(Topics[I].Filter),Topics[I].Filter,I,0};
+            xmqttIntentSort(G->Order,Count,false);
+            for(size_t I=1;I<Count;++I)if(xmqttIntentEqual(G->Order[I-1].Filter,G->Order[I].Filter)){OK=xmqttReconnectError(XERR_ARGUMENT,"duplicate filter in one intent");break;}
+            if(OK)xmqttIntentSort(G->Order,Count,true);
+        }
+    }
+    xrtMutexLock(&R->Gate);xmqttclientadmission Admission=XMQTT_ADMISSION_ERROR;
+    if(OK){
+        size_t New=0;for(size_t I=0;I<Count;++I){G->Order[I].Entry=xmqttIntentFind(S,G->Order[I].Filter,G->Order[I].Hash);if(G->Order[I].Entry==XMQTT_INTENT_NONE)++New;}
+        if(R->Stop)Admission=XMQTT_ADMISSION_CLOSED;
+        else if(New>S->Config.MaxFilters-S->Count || S->Revision==UINT64_MAX)Admission=XMQTT_ADMISSION_OVERLOADED;
+        else {
+            S->Bytes+=N;uint64 V=++S->Revision;G->Revision=V;
+            for(size_t I=0;I<Count;++I){size_t Index=G->Order[I].Entry;xmqttintententry* E;unsigned Before=Index==XMQTT_INTENT_NONE?0:xmqttIntentMetrics(S,S->Entries+Index);
+                if(Index==XMQTT_INTENT_NONE){Index=S->Free;E=S->Entries+Index;S->Free=E->Next;memset(E,0,sizeof(*E));
+                    size_t Bucket=G->Order[I].Hash&(S->BucketCount-1);E->HashNext=S->Buckets[Bucket];S->Buckets[Bucket]=Index;E->Hash=G->Order[I].Hash;++S->Count;}
+                else {E=S->Entries+Index;xmqttIntentGroupDrop(S,E->Group);}
+                E->Group=G;++G->Refs;E->Topic=I;E->Revision=V;E->Desired=Type==XMQTT_PACKET_SUBSCRIBE;E->Status=XMQTT_STATUS_OK;E->Reason=0;xmqttIntentQueue(S,Index);xmqttIntentAccount(S,Before,E);
+            }
+            xmqttIntentGroupDrop(S,G);G=NULL;S->Announced=false;
+            if(S->Ready && isinf(S->Deadline))S->Deadline=xmqttReconnectDeadline(xrtTimer(),S->Config.OperationTimeout);
+            *Revision=V;Admission=XMQTT_ADMISSION_ACCEPTED;if(S->Admitted!=UINT64_MAX)++S->Admitted;
+        }
+    }
+    if(Admission==XMQTT_ADMISSION_OVERLOADED && S->Overloaded!=UINT64_MAX)++S->Overloaded;
+    if(G){xrtSecureZero(G,N);xrtFree(G);G=NULL;}
+    S->Reserved-=N;
+    bool Posted=Admission!=XMQTT_ADMISSION_ACCEPTED || !Wake || xmqttReconnectWakeLocked(R);xrtMutexUnlock(&R->Gate);
+    if(!Posted)xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
+    return Admission;
+}
+XMQTT_API xmqttclientadmission xmqttReconnectSubscribeIntent(xmqttreconnect* R,const xmqttpacket* P,uint64* V)
+{return xmqttSubscriptionsSubmit(R,P,V,XMQTT_PACKET_SUBSCRIBE,true);}
+XMQTT_API xmqttclientadmission xmqttReconnectUnsubscribeIntent(xmqttreconnect* R,const xmqttpacket* P,uint64* V)
+{return xmqttSubscriptionsSubmit(R,P,V,XMQTT_PACKET_UNSUBSCRIBE,true);}
+static void xmqttSubscriptionsInfoLocked(xmqttreconnect* R,xmqttsubscriptionsinfo* Out)
+{
+    xmqttsubscriptions* S=R->Subscriptions;xmqttsubscriptionsinfo I={0};I.Size=sizeof(I);I.Filters=S->Count;I.Bytes=S->Bytes;I.Reserved=S->Reserved;I.Watchers=S->Watchers;
+    I.Revision=S->Revision;I.SettledRevision=S->SettledRevision;I.Generation=S->Generation;I.Requests=S->Requests;I.Recoveries=S->Recoveries;I.Admitted=S->Admitted;I.Overloaded=S->Overloaded;I.AdmissionRetries=S->AdmissionRetries;I.Connected=S->Ready && !R->Closed && !R->Stop;I.Status=S->Status;
+    I.Desired=S->Desired;I.Pending=S->Pending;I.Rejected=S->Rejected;
+    I.Synchronized=I.Connected && !I.Pending && !S->Future;*Out=I;
+}
+XMQTT_API bool xmqttReconnectSubscriptionsInfo(xmqttreconnect* R,xmqttsubscriptionsinfo* Out)
+{
+    if(!R || !Out || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttReconnectError(XERR_ARGUMENT,"invalid subscription info");
+    xrtMutexLock(&R->Gate);if(!R->Subscriptions){xrtMutexUnlock(&R->Gate);return xmqttReconnectError(XERR_STATE,"controller has no subscription registry");}
+    xmqttSubscriptionsInfoLocked(R,Out);xrtMutexUnlock(&R->Gate);return true;
+}
+XMQTT_API bool xmqttReconnectSubscriptionInfo(xmqttreconnect* R,xstrview Filter,xmqttsubscriptionintentinfo* Out)
+{
+    if(!R || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || !Filter.Size || !Filter.Data || !xrtMemRangeValid(Filter.Data,Filter.Size))return xmqttReconnectError(XERR_ARGUMENT,"invalid filter query");
+    uint64 Hash=xmqttIntentHash(Filter);xrtMutexLock(&R->Gate);xmqttsubscriptions* S=R->Subscriptions;
+    if(!S){xrtMutexUnlock(&R->Gate);return xmqttReconnectError(XERR_STATE,"controller has no subscription registry");}
+    size_t N=xmqttIntentFind(S,Filter,Hash);if(N==XMQTT_INTENT_NONE){xrtMutexUnlock(&R->Gate);return false;}
+    xmqttintententry* E=S->Entries+N;xmqttsubscriptionintentinfo I={0};I.Size=sizeof(I);I.Revision=E->Revision;I.AppliedRevision=E->Applied;I.Generation=E->Generation;
+    I.Desired=E->Desired;I.Pending=E->Dirty || E->Flight || E->Attempted!=E->Revision || E->Generation!=S->Generation;
+    I.Confirmed=S->Ready && !R->Closed && !R->Stop && E->Applied==E->Revision && E->Generation==S->Generation;
+    I.KnownPresent=E->KnownPresent;I.Options=E->Group->Packet.Body.Topics.Data[E->Topic].Options;I.Reason=E->Reason;I.Status=E->Status;*Out=I;xrtMutexUnlock(&R->Gate);return true;
+}
+static bool xmqttSubscriptionsBegin(xmqttreconnect* R,xfuture* Ready)
+{
+    const xmqttreadyresult* Result=xrtFutureValue(Ready);if(!Result || Result->Status!=XMQTT_STATUS_OK)return false;
+    xmqttsubscriptions* S=R->Subscriptions;bool Previous=S->Generation!=0;S->ReadyFuture=Ready;S->Peer=Result->Negotiated;S->Ready=true;S->Generation=R->Info.Generation;S->Deadline=INFINITY;S->Announced=false;S->Status=XMQTT_STATUS_OK;
+    S->Desired=S->Pending=S->Rejected=0;
+    if(Previous && S->Recoveries!=UINT64_MAX)++S->Recoveries;
+    for(size_t I=0;I<S->Config.MaxFilters;++I){xmqttintententry* E=S->Entries+I;if(!E->Group)continue;
+        if(!S->Peer.SessionPresent){E->KnownPresent=false;E->Applied=E->Attempted=E->Generation=0;if(!E->Desired && !E->Flight){xmqttIntentErase(S,I);continue;}}
+        if(E->Applied==E->Revision && E->KnownPresent==E->Desired){E->Attempted=E->Revision;E->Generation=S->Generation;xmqttIntentUnqueue(S,I);}
+        else xmqttIntentQueue(S,I);
+        xmqttIntentAccount(S,0,E);
+    }return true;
+}
+static void xmqttSubscriptionsFreeWatch(xmqttintentwatch* W)
+{
+    xmqttreconnect* R=W->Controller;xrtFree(W);xrtMutexLock(&R->Gate);--R->Subscriptions->Watchers;R->Subscriptions->Bytes-=sizeof(*W);xrtMutexUnlock(&R->Gate);
+}
+static void xmqttSubscriptionsWatchNotify(ptr Data){(void)Data;}
+/* Future copies its callback fields before Release. Each registration owns a
+ * distinct heap node; it is never reused before that release. The real Root ref
+ * includes its wake and retirement broadcast tail. No Client Future is wrapped. */
+static void xmqttSubscriptionsWatchRelease(ptr Data)
+{
+    xmqttintentwatch* W=Data;xmqttreconnect* R=W->Controller;xmqttSubscriptionsFreeWatch(W);
+    xrtMutexLock(&R->Gate);bool OK=xmqttReconnectWakeLocked(R);xrtMutexUnlock(&R->Gate);
+    if(!OK)xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
+    xmqttReconnectDrop(R);
+}
+static void xmqttSubscriptionsUnflight(xmqttsubscriptions* S,bool Retry)
+{
+    for(size_t I=0;I<S->FlightCount;++I){size_t N=S->FlightEntries[I];unsigned Before=xmqttIntentMetrics(S,S->Entries+N);S->Entries[N].Flight=false;if(Retry)xmqttIntentQueue(S,N);xmqttIntentAccount(S,Before,S->Entries+N);}
+    xmqttIntentGroupDrop(S,S->FlightGroup);S->FlightGroup=NULL;S->FlightCount=0;
+}
+static xmqttclientstatus xmqttSubscriptionsCollect(xmqttreconnect* R,xfuture** Finished,xmqttintentgroup** Completed,size_t* CompletedCount)
+{
+    xmqttsubscriptions* S=R->Subscriptions;*Finished=NULL;*Completed=NULL;*CompletedCount=0;
+    if(!S->Future || !xrtFutureDone(S->Future))return XMQTT_STATUS_OK;
+    xfuture* F=S->Future;const xmqttsubscriptionresult* Result=xrtFutureState(F)==XFUTURE_RESOLVED?xrtFutureValue(F):NULL;
+    xmqttclientstatus Failure=XMQTT_STATUS_OK;
+    bool Ack=Result && Result->Acknowledged && (Result->Status==XMQTT_STATUS_OK || Result->Status==XMQTT_STATUS_REJECTED);
+    bool Remove=S->FlightGroup->Packet.Type==XMQTT_PACKET_UNSUBSCRIBE;
+    const xmqttpacket* Packet=Ack && Result->Ack?xmqttMessagePacket(Result->Ack):NULL;
+    bool Empty=Remove && R->Config.Client.Version==XMQTT_VERSION_311;
+    if(Ack && !Empty && (!Packet || Packet->Body.Reasons.Size!=S->FlightCount))Ack=false;
+    for(size_t I=0;I<S->FlightCount;++I){size_t N=S->FlightEntries[I];xmqttintententry* E=S->Entries+N;unsigned Before=xmqttIntentMetrics(S,E);E->Flight=false;
+        if(Ack){uint8 Reason=Empty?0:Packet->Body.Reasons.Data[I];bool Accepted=Reason<128;if(Accepted)E->KnownPresent=!Remove;
+            if(E->Revision==E->FlightRevision){E->Attempted=E->Revision;E->Generation=S->Generation;E->Reason=Reason;E->Status=Accepted?XMQTT_STATUS_OK:XMQTT_STATUS_REJECTED;if(Accepted)E->Applied=E->Revision;
+                if(!Accepted && S->Config.FailOnRejected)Failure=XMQTT_STATUS_REJECTED;
+                if(Accepted && Remove){xmqttIntentErase(S,N);xmqttIntentAccount(S,Before,E);continue;}
+            }
+            if(E->Attempted!=E->Revision)xmqttIntentQueue(S,N);
+        }else {xmqttIntentQueue(S,N);if(E->Revision==E->FlightRevision){E->Status=Result?Result->Status:XMQTT_STATUS_INITIALIZATION;E->Reason=0;}}
+        xmqttIntentAccount(S,Before,E);
+    }
+    if(!Ack && !R->Closed)Failure=Result && Result->Status!=XMQTT_STATUS_OK?Result->Status:XMQTT_STATUS_INITIALIZATION;
+    *Completed=S->FlightGroup;*CompletedCount=S->FlightCount;
+    S->FlightGroup=NULL;S->FlightCount=0;S->Future=NULL;*Finished=F;return Failure;
+}
+static void xmqttSubscriptionsDrive(xmqttreconnect* R,xmqttclient* C,double Now,double* At)
+{
+    xfuture *Finished=NULL,*Ready=NULL;xmqttclientstatus Failure=XMQTT_STATUS_OK;bool Notify=false;
+    xrtMutexLock(&R->Gate);xmqttsubscriptions* S=R->Subscriptions;
+    xmqttintentgroup* Completed=NULL;size_t CompletedCount=0;
+    Failure=xmqttSubscriptionsCollect(R,&Finished,&Completed,&CompletedCount);
+    if(Completed){
+        xrtMutexUnlock(&R->Gate);
+        if(S->Config.Notify){
+            const xmqttsubscriptionresult* Result=xrtFutureState(Finished)==XFUTURE_RESOLVED?xrtFutureValue(Finished):NULL;
+            xmqttsubscriptionresult Fallback={0};Fallback.Status=XMQTT_STATUS_INITIALIZATION;
+            xmqttpacket Request=Completed->Packet;Request.Wire=(xbytesview){NULL,0};Request.Identifier=Result?Result->Identifier:0;Request.Body.Topics=(xmqttsubscriptionlist){S->FlightTopics,CompletedCount};
+            S->Config.Notify(R,Completed->Revision,&Request,Result?Result:&Fallback,S->Config.User);
+        }
+        xrtMutexLock(&R->Gate);xmqttIntentGroupDrop(S,Completed);Now=xrtTimer();
+    }
+    if(!S->Ready && S->ReadyFuture){Ready=S->ReadyFuture;S->ReadyFuture=NULL;memset(&S->Peer,0,sizeof(S->Peer));}
+    bool Active=!R->Stop && !R->Closed && S->Ready && C;
+    if(Active && (Now>=S->Deadline || Now>=R->Info.RecoveryDeadline))Failure=XMQTT_STATUS_TIMEOUT;
+    if(Failure!=XMQTT_STATUS_OK){S->Status=Failure;Active=false;}
+    bool Send=Active && !S->Future && S->Head!=XMQTT_INTENT_NONE && S->Watchers<2;
+    xmqttpacket Packet={0};xmqttintentwatch* Watch=NULL;
+    if(Send){
+        size_t N=S->Head;xmqttintentgroup* G=S->Entries[N].Group;Packet=G->Packet;Packet.Identifier=1;Packet.Body.Topics.Data=S->FlightTopics;Packet.Body.Topics.Count=0;
+        while(N!=XMQTT_INTENT_NONE && Packet.Body.Topics.Count<S->Config.MaxBatch && S->Entries[N].Group==G){
+            xmqttintententry* E=S->Entries+N;size_t Count=Packet.Body.Topics.Count;S->FlightTopics[Count]=G->Packet.Body.Topics.Data[E->Topic];Packet.Body.Topics.Count=Count+1;
+            size_t Required=0;xmqttnegotiationstatus Status=xmqttNegotiatedPacketCheck(&S->Peer,&Packet,&R->Config.Client.Codec,&Required,NULL);
+            if(Status!=XMQTT_NEGOTIATION_DONE || Required>S->MaxOutgoingBytes){Packet.Body.Topics.Count=Count;
+                if(!Count){unsigned Before=xmqttIntentMetrics(S,E);xmqttIntentUnqueue(S,N);E->Attempted=E->Revision;E->Generation=S->Generation;E->Status=XMQTT_STATUS_RESTRICTED;E->Reason=0;
+                    xmqttIntentAccount(S,Before,E);if(S->Config.FailOnRejected)Failure=XMQTT_STATUS_RESTRICTED;
+                }break;
+            }
+            S->FlightEntries[Count]=N;N=E->Next;
+        }
+        S->FlightCount=Packet.Body.Topics.Count;
+        if(S->FlightCount){S->FlightGroup=G;++G->Refs;
+            for(size_t I=0;I<S->FlightCount;++I){size_t Index=S->FlightEntries[I];xmqttintententry* E=S->Entries+Index;xmqttIntentUnqueue(S,Index);E->Flight=true;E->FlightRevision=E->Revision;E->FlightDesired=E->Desired;}
+            ++S->Watchers;S->Bytes+=sizeof(xmqttintentwatch);
+        }else Send=false;
+    }
+    if(Active && !S->Future && S->Head==XMQTT_INTENT_NONE && !S->FlightCount && Failure==XMQTT_STATUS_OK){
+        xmqttsubscriptionsinfo I;xmqttSubscriptionsInfoLocked(R,&I);S->Status=I.Rejected?XMQTT_STATUS_REJECTED:XMQTT_STATUS_OK;S->SettledRevision=S->Revision;S->Deadline=INFINITY;
+        if(!S->Announced){S->Announced=true;Notify=true;}
+        if(R->Info.State!=XMQTT_RECONNECT_ONLINE)R->OnlineAt=Now;
+        R->Info.RecoveryDeadline=INFINITY;R->Info.LastStatus=XMQTT_STATUS_OK;*At=INFINITY;
+        Notify=xmqttReconnectStateLocked(R,XMQTT_RECONNECT_ONLINE) || Notify;
+    }
+    if(Active && !isinf(S->Deadline) && S->Deadline<*At)*At=S->Deadline;
+    bool Pending=Active && !S->Future && (S->Head!=XMQTT_INTENT_NONE || S->FlightCount);
+    xrtMutexUnlock(&R->Gate);xrtFutureDestroy(Finished);xrtFutureDestroy(Ready);
+    if(Failure!=XMQTT_STATUS_OK){xmqttSubscriptionsFail(R,Failure);return;}
+    if(Notify)xmqttReconnectNotify(R);
+    if(Send){
+        Watch=xrtMalloc(sizeof(*Watch));
+        if(!Watch){xrtMutexLock(&R->Gate);--S->Watchers;S->Bytes-=sizeof(*Watch);xmqttSubscriptionsUnflight(S,true);xrtMutexUnlock(&R->Gate);xmqttSubscriptionsFail(R,XMQTT_STATUS_MEMORY);return;}
+        Watch->Controller=R;Packet.Identifier=0;xfuture* F=NULL;
+        xmqttclientadmission A=Packet.Type==XMQTT_PACKET_SUBSCRIBE?xmqttClientSubscribeAsync(C,&Packet,S->Config.OperationTimeout,&F):xmqttClientUnsubscribeAsync(C,&Packet,S->Config.OperationTimeout,&F);
+        if(A==XMQTT_ADMISSION_ACCEPTED){
+            xrtMutexLock(&R->Gate);S->Future=F;if(S->Requests!=UINT64_MAX)++S->Requests;xrtMutexUnlock(&R->Gate);
+            xmqttReconnectRef(R);
+            bool Init=xrtFutureWatchInit(&Watch->Watch,xmqttSubscriptionsWatchNotify,xmqttSubscriptionsWatchRelease,Watch);
+            xfuturewatchresult Added=Init?xrtFutureWatchAdd(F,&Watch->Watch):XFUTURE_WATCH_ERROR;
+            if(Added!=XFUTURE_WATCH_PENDING)xmqttSubscriptionsWatchRelease(Watch);
+            if(Added==XFUTURE_WATCH_ERROR)xmqttSubscriptionsFail(R,XMQTT_STATUS_INITIALIZATION);
+            Pending=false;
+        }else {
+            xmqttSubscriptionsFreeWatch(Watch);xrtMutexLock(&R->Gate);xmqttSubscriptionsUnflight(S,true);xrtMutexUnlock(&R->Gate);
+            if(A==XMQTT_ADMISSION_ERROR)xmqttSubscriptionsFail(R,xrtErrorKind(xrtGetError())==XERR_MEMORY?XMQTT_STATUS_MEMORY:XMQTT_STATUS_INITIALIZATION);
+            Pending=A==XMQTT_ADMISSION_OVERLOADED;
+            if(Pending){xrtMutexLock(&R->Gate);if(S->AdmissionRetries!=UINT64_MAX)++S->AdmissionRetries;xrtMutexUnlock(&R->Gate);}
+        }
+    }
+    if(Pending){double Poll=xmqttReconnectDeadline(Now,S->Config.RetryDelay);if(Poll<*At)*At=Poll;}
+}
+#undef XMQTT_INTENT_NONE
+#endif
+
 /* One saturating exponential and bounded jitter sample per failed generation. */
 static int64 xmqttReconnectDelay(xmqttreconnect* R)
 {
@@ -7422,13 +7884,27 @@ static int64 xmqttReconnectDelay(xmqttreconnect* R)
 static void xmqttReconnectChanged(ptr Data,xmqttclient* C,bool Closed,xmqttclientstatus Status,uint8 Reason)
 {
     xmqttreconnect* R=Data;bool Notify=false;double Now=xrtTimer();
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    xfuture* Ready=!Closed && R->Subscriptions?xmqttClientReady(C):NULL;
+#endif
     xrtMutexLock(&R->Gate);
     if(R->Client!=C){xrtMutexUnlock(&R->Gate);return;}
     if(!Closed){
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+        if(R->Subscriptions){
+            ++R->Info.Connections;
+            if(!Ready || !xmqttSubscriptionsBegin(R,Ready)){R->Stop=R->Failed=true;R->Info.LastStatus=XMQTT_STATUS_INITIALIZATION;xrtFutureDestroy(Ready);}
+        }else
+#endif
+        {
         ++R->Info.Connections;R->OnlineAt=Now;R->Info.RecoveryDeadline=INFINITY;
         if(!R->Stop){R->Info.LastStatus=Status;Notify=xmqttReconnectStateLocked(R,XMQTT_RECONNECT_ONLINE);}
+        }
     }else if(!R->Closed){
         R->Closed=true;R->Info.ServerReason=Reason;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+        if(R->Subscriptions){R->Subscriptions->Ready=false;R->Subscriptions->Deadline=INFINITY;}
+#endif
         if(!R->Failed)R->Info.LastStatus=Status;
         if(R->Info.State==XMQTT_RECONNECT_ONLINE && Now-R->OnlineAt>=(double)R->Config.StableReset/1000.0)R->Info.ConsecutiveAttempts=0;
         if(!R->Stop){
@@ -7510,7 +7986,11 @@ static void xmqttReconnectAttempt(xmqttreconnect* R)
     xmqttclient* C=NULL;xmqttclientstatus Status=R->Config.Factory(R->Engine,R->Affinity,&R->Config.Client,R->Session,R->Inbox,&Connect,R->Config.FactoryData,&C);
     if(Status==XMQTT_STATUS_OK && C){
         xrtMutexLock(&R->Gate);R->Client=C;xmqttReconnectRef(R);xrtMutexUnlock(&R->Gate);
-        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,R->Inbox,&R->Lifecycle))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
+        size_t* Capacity=NULL;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+        if(R->Subscriptions)Capacity=&R->Subscriptions->MaxOutgoingBytes;
+#endif
+        if(!xmqttInternalClientLifecycle(C,R->Worker,R->Session,R->Inbox,&R->Lifecycle,Capacity))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
     }else{
         if(Status<=XMQTT_STATUS_OK || Status>XMQTT_STATUS_AUTHENTICATION)Status=XMQTT_STATUS_INITIALIZATION;
         /* Reuse the closed-generation policy without a fabricated Client. */
@@ -7525,6 +8005,12 @@ static void xmqttReconnectWork(xnetworker* Worker,ptr Data)
     xmqttclient* C=R->Client;bool Stop=R->Stop,Closed=R->Closed,Cleaning=R->Cleaning!=NULL,Assist=R->NeedsAssist;size_t Leases=R->Info.Leases;
     if(!Stop)At=R->Info.RecoveryDeadline;
     xrtMutexUnlock(&R->Gate);
+    #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    if(R->Subscriptions){
+        xmqttSubscriptionsDrive(R,C,Now,&At);
+        xrtMutexLock(&R->Gate);Stop=R->Stop;Closed=R->Closed;xrtMutexUnlock(&R->Gate);
+    }
+    #endif
     if(C){
         if(Stop && !Closed && !xmqttClientClose(C))xmqttReconnectFail(R,XMQTT_STATUS_INITIALIZATION,true);
         if(Closed && !Leases && !Assist){
@@ -7559,7 +8045,11 @@ XMQTT_API bool xmqttReconnectConfigInit(xmqttreconnectconfig* K)
     K->InitialDelay=250;K->MaxDelay=30000;K->StableReset=30000;K->RecoveryTimeout=60000;K->RetirementPoll=1;K->JitterPermille=200;K->MaxAttempts=8;K->CleanStartFirstOnly=true;
     K->RetryStatuses=(UINT32_C(1)<<XMQTT_STATUS_TRANSPORT)|(UINT32_C(1)<<XMQTT_STATUS_TIMEOUT)|(UINT32_C(1)<<XMQTT_STATUS_SERVER_DISCONNECT);return true;
 }
-XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* Pool,uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttpacket* Connect,xmqttreconnect** Out)
+static bool xmqttReconnectCreateImpl(xnetengine* Engine,xtaskpool* Pool,uint64 Affinity,const xmqttreconnectconfig* Config,const xmqttpacket* Connect,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    const xmqttsubscriptionsconfig* Subscriptions,const xmqttpacket* Initial,size_t InitialCount,
+#endif
+    xmqttreconnect** Out)
 {
     double Started=xrtTimer();
     if(!Engine || !Pool || !Config || !Connect || !Out || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Connect,sizeof(*Connect)) || !xrtMemRangeValid(Out,sizeof(*Out)))return xmqttReconnectError(XERR_ARGUMENT,"invalid reconnect factory arguments");
@@ -7588,15 +8078,43 @@ XMQTT_API bool xmqttReconnectCreate(xnetengine* Engine,xtaskpool* Pool,uint64 Af
     if(!(S.ClientId.Size?xmqttSessionCreate(&S,&R->Session):xmqttSessionCreateUnassigned(&S,K.MaxAssignedIdBytes,&R->Session)))goto Failed;
     xmqttclientinboxconfig I;xmqttClientInboxConfigInit(&I);I.Version=K.Client.Version;I.MaxObjects=K.Client.MaxObjects;I.MaxObjectBytes=K.Client.MaxObjectBytes;I.MaxMessages=K.Client.MaxMessages;I.MaxMessageBytes=K.Client.MaxMessageBytes;
     if(!xmqttClientInboxCreate(&I,&R->Inbox))goto Failed;
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    if(Subscriptions){
+        if(InitialCount && (!Initial || InitialCount>65535 || !xrtMemRangeValid(Initial,InitialCount*sizeof(*Initial)))){xmqttReconnectError(XERR_ARGUMENT,"invalid initial subscription vector");goto Failed;}
+        if(!xmqttSubscriptionsCreate(R,Subscriptions))goto Failed;
+        for(size_t J=0;J<InitialCount;++J){uint64 Revision;
+            xmqttclientadmission A=xmqttSubscriptionsSubmit(R,Initial+J,&Revision,XMQTT_PACKET_SUBSCRIBE,false);
+            if(A!=XMQTT_ADMISSION_ACCEPTED){if(A==XMQTT_ADMISSION_OVERLOADED)xmqttReconnectError(XERR_RANGE,"initial subscription storage limit");goto Failed;}
+        }
+    }else if(InitialCount){xmqttReconnectError(XERR_ARGUMENT,"initial subscriptions require a registry");goto Failed;}
+#endif
     xrtMutexLock(&R->Gate);bool Posted=xmqttReconnectWakeLocked(R);xrtMutexUnlock(&R->Gate);if(!Posted)goto Failed;
     *Out=R;return true;
 Failed:
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    xmqttSubscriptionsDestroy(R);
+#endif
     xmqttClientInboxDestroy(R->Inbox);if(R->Session)xmqttSessionDestroy(R->Session);
     if(Cond)xrtCondUnit(&R->RetirementReady);
     if(Retirement)xrtMutexUnit(&R->RetirementLock);
     if(Gate)xrtMutexUnit(&R->Gate);
     xrtSecureZero(R,Allocation);xrtFree(R);xrtNetEngineUnpin(Engine);return false;
 }
+XMQTT_API bool xmqttReconnectCreate(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttpacket* C,xmqttreconnect** Out)
+{
+    return xmqttReconnectCreateImpl(E,P,A,K,C,
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+        NULL,NULL,0,
+#endif
+        Out);
+}
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+XMQTT_API bool xmqttReconnectCreateSubscribed(xnetengine* E,xtaskpool* P,uint64 A,const xmqttreconnectconfig* K,const xmqttsubscriptionsconfig* S,const xmqttpacket* C,const xmqttpacket* Initial,size_t Count,xmqttreconnect** Out)
+{
+    if(!S)return xmqttReconnectError(XERR_ARGUMENT,"subscription config is NULL");
+    return xmqttReconnectCreateImpl(E,P,A,K,C,S,Initial,Count,Out);
+}
+#endif
 XMQTT_API bool xmqttReconnectAcquire(xmqttreconnect* R,xmqttclientlease* L)
 {
     if(!R || !L || !xrtMemRangeValid(L,sizeof(*L)) || L->Owner)return xmqttReconnectError(XERR_ARGUMENT,"invalid or active Client lease");
@@ -7676,6 +8194,9 @@ XMQTT_API bool xmqttReconnectDestroy(xmqttreconnect* R)
     R->Session=NULL;
     if(!xmqttClientInboxDestroy(R->Inbox))return false;
     R->Inbox=NULL;
+    #if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    xmqttSubscriptionsDestroy(R);
+    #endif
     xnetengine* Engine=R->Engine;size_t Allocation=R->Allocation;
     xrtCondUnit(&R->RetirementReady);xrtMutexUnit(&R->RetirementLock);xrtMutexUnit(&R->Gate);xrtSecureZero(R,Allocation);xrtFree(R);return xrtNetEngineUnpin(Engine);
 }

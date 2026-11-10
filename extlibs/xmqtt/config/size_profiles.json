@@ -123,6 +123,12 @@
       "system": "client",
       "suite": "xmqtt_client_session_dial",
       "description": "Explicit hostname/prepared Session Dial without TLS/Auth; numeric Auth composition remains independently selectable"
+    },
+    {
+      "name": "xmqtt_reconnect_subscriptions",
+      "system": "client",
+      "suite": "xmqtt_reconnect_subscriptions",
+      "description": "Optional bounded subscription registry/reconciliation, immutable intent snapshots and control-result watches with the existing numeric reconnect/Session/Inbox runtime"
     }
   ]
 }

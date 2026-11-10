@@ -532,3 +532,31 @@ authentication fixtures establish protocol/lifetime behavior, not a real algorit
 or enhanced-auth broker-plugin interoperability. Production source/ABI/closures
 are unchanged; broader performance, real system DNS, broker-native TLS/other brokers,
 native Linux and soak acceptance remain open.
+
+## Optional automatic subscription intent recovery
+
+`xmqtt_reconnect_subscriptions` maintains a bounded volatile registry alongside
+the private reconnect Session/Inbox. MQTT 5 and 3.1.1 intent snapshots preserve
+exact filters/options and group properties, reject duplicates atomically, and
+reconcile initial/fresh/resumed sessions, uncertain controls and offline removals.
+Known confirmed resumed subscriptions are carried forward. Original ACKs cannot
+confirm newer revisions. Per-filter reasons, grant downgrade, partial rejection,
+local peer restrictions and full retained ACK metadata are observable.
+
+One Client control Future is in flight, using separately owned bounded watch
+registrations and the existing worker; no new thread or publication callback is
+added. Concurrent builders reserve snapshot bytes before allocation. Filter,
+snapshot, batch, timeout and retry bounds are explicit. Hash lookup, dirty queues,
+maintained counters and allocation-free duplicate sorting avoid an unbounded
+offline queue or per-update full-table scan. Session transitions scan the bounded
+table. Client/native budgets and allocator/kernel overhead remain separate.
+
+Dedicated tests cover 1024-filter copy/order/batching, quota/duplicate rejection,
+negotiated packet splitting/restriction, live and outage deadlines, stop with a
+pending watch, caller and exact worker allocation-budget failures, concurrent
+updates, full result callback retention and actual physical joins. Separate
+examples, numeric broker/proxy consumers and a closed-loop control benchmark are
+provided. Evidence records actual final runs and preparatory failures; no release
+or performance parity is implied by those assets alone. Automatic TLS/DNS/Auth
+subscription composition, durable/crash/WebSocket/offline-publication scope,
+native Linux, fixed-arrival/contention/CPU/RSS and >=72h acceptance remain open.

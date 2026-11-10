@@ -200,3 +200,12 @@ durability or performance parity.
 Automatic reconnect TLS/Dial composition now has a [dedicated qualification stage](tests/results/reconnect-transports-20261110.json):3456 independent TLS/Mosquitto
 proxy cases plus local enhanced-auth proof/ownership tests. Algorithm/plugin,
 system-DNS, native-broker TLS and production/performance acceptance remain open.
+
+The optional [subscription intent registry](docs/reconnect_subscriptions.md)
+restores MQTT 5/3.1.1 subscriptions after a lost session, preserves confirmed
+subscriptions on resume, and reconciles offline changes and uncertain ACKs.
+It preserves options and group properties, exposes per-filter outcomes and full
+control-result callbacks, and bounds snapshots, entries and actual watcher owners.
+The [runnable loopback example](examples/reconnect_subscriptions/README.md) forces
+an outage and verifies restoration. This is volatile intent; publication offline
+queues, durable/crash state and WebSocket remain separate work.

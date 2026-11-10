@@ -68,6 +68,14 @@ int main(void)
     if(xmqttClientPollRetired(NULL)!=XWAIT_ERROR || xrtErrorKind(xrtGetError())!=XERR_ARGUMENT)return 31;
     xrtClearError();
 #endif
+#if defined(XMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS)
+    xmqttsubscriptionsconfig Subscriptions;xmqttreconnect* SubscriptionOwner=(xmqttreconnect*)(uintptr_t)1;
+    if(!xmqttSubscriptionsConfigInit(&Subscriptions) || Subscriptions.MaxFilters!=1024 || Subscriptions.MaxBatch!=32 || Subscriptions.RetryDelay!=5 ||
+       xmqttReconnectCreateSubscribed(NULL,NULL,0,NULL,&Subscriptions,NULL,NULL,0,&SubscriptionOwner) || SubscriptionOwner!=(xmqttreconnect*)(uintptr_t)1 ||
+       xmqttReconnectSubscribeIntent(NULL,NULL,NULL)!=XMQTT_ADMISSION_ERROR || xmqttReconnectUnsubscribeIntent(NULL,NULL,NULL)!=XMQTT_ADMISSION_ERROR ||
+       xmqttReconnectSubscriptionsInfo(NULL,NULL) || xmqttReconnectSubscriptionInfo(NULL,(xstrview){0},NULL))return 32;
+    xrtClearError();
+#endif
 	unsigned char Output[128]; size_t Written; xmqttframe Frame;
 	if (!xmqttHeaderWrite(Output,sizeof(Output),XMQTT_PACKET_PINGREQ,0,0,NULL,&Written) || Written != 2 ||
 		xmqttFrameRead((xbytesview){Output,Written},NULL,&Frame) != XMQTT_WIRE_DONE || Frame.Header.Type != XMQTT_PACKET_PINGREQ) return 1;

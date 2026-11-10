@@ -24,11 +24,18 @@ static void rcRead(xnetstream* Stream,xnetbuf* Buffer,ptr Data)
     (void)Stream;rcConnection* C=Data;rcPeer* P=C->Peer;size_t N=xrtNetBufSize(Buffer);testRequire(N<=sizeof(C->Input)-C->Used,"reconnect fixture capacity");C->Used+=xrtNetBufRead(Buffer,C->Input+C->Used,N);
     while(C->Used){xmqttwireconfig W;xmqttWireConfigInit(&W);W.Version=P->Version;xmqttframe F;xmqttwirestatus S=xmqttFrameRead((xbytesview){C->Input,C->Used},&W,&F);
         testRequire(S!=XMQTT_WIRE_ERROR,"reconnect framing");if(S==XMQTT_WIRE_MORE)break;
-        xmqttproperty Props[16];xmqttcodecbuffers B={Props,16,NULL,0};xmqttpacket Q;testRequire((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL))==XMQTT_CODEC_DONE,"reconnect fixture packet");
+        xmqttproperty Props[16];xmqttcodecbuffers B={Props,16,NULL,0};
+#if defined(RC_CONTROL)
+        xmqttsubscription Topics[64];B.Topics=Topics;B.TopicCapacity=64;
+#endif
+        xmqttpacket Q;testRequire((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Q,NULL))==XMQTT_CODEC_DONE,"reconnect fixture packet");
         if(Q.Type==XMQTT_PACKET_CONNECT){
             if(P->Mode&RC_ASSIGNED)testRequire(C->Index?Q.Body.Connect.ClientId.Size==10 && !memcmp(Q.Body.Connect.ClientId.Data,"assigned-r",10):!Q.Body.Connect.ClientId.Size,"assigned id reused by automatic retry");
             xmqttpacket A;xmqttPacketInit(XMQTT_PACKET_CONNACK,&A);A.SessionPresent=C->Index && (P->Mode&RC_PERSIST);
             xmqttproperty Id={XMQTT_PROPERTY_ASSIGNED_CLIENT_ID,XMQTT_PROPERTY_STRING,{0}};Id.Value.Text=XRT_STR_LITERAL("assigned-r");if((P->Mode&RC_ASSIGNED) && !C->Index)A.Properties=(xmqttpropertylist){&Id,1};
+#if defined(RC_CONNACK)
+            RC_CONNACK(C,&A);
+#endif
             rcSend(C,&A);xrtAtomic32FetchAdd(&P->Connects,1,XMEMORY_RELEASE);
             if(!C->Index){xmqttPacketInit(XMQTT_PACKET_PUBLISH,&A);A.Body.Publish.Topic=XRT_STR_LITERAL("queued");A.Body.Publish.Payload=XRT_BYTES_LITERAL("before-reconnect");rcSend(C,&A);}
         }else if(Q.Type==XMQTT_PACKET_PUBLISH){
@@ -38,7 +45,11 @@ static void rcRead(xnetstream* Stream,xnetbuf* Buffer,ptr Data)
                     xmqttpacket A;xmqttPacketInit(XMQTT_PACKET_PUBACK,&A);A.Identifier=Q.Identifier;rcSend(C,&A);}
             }
             xrtAtomic32FetchAdd(&P->Publishes,1,XMEMORY_RELEASE);
-        }else testRequire(false,"unexpected reconnect fixture request");
+        }
+#if defined(RC_CONTROL)
+        else if(RC_CONTROL(C,&Q)){}
+#endif
+        else testRequire(false,"unexpected reconnect fixture request");
         C->Used-=F.Wire.Size;if(C->Used)memmove(C->Input,C->Input+F.Wire.Size,C->Used);
     }
 }

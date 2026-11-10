@@ -2839,11 +2839,13 @@ XMQTT_API xwaitresult xmqttClientWaitFor(xmqttclient* C,int64 Timeout)
 }
 #if defined(XMQTT_FEATURE_XMQTT_RECONNECT)
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* C,xnetworker* Worker,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer)
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
+    size_t* MaxOutgoingBytes)
 {
     if(!C || C->Worker!=Worker || !xrtNetWorkerIsCurrent(Worker) || !C->Session ||
        C->Session->State!=Session || C->Inbox!=Inbox || C->Lifecycle || !Observer || !Observer->Changed)
         return xmqttClientError(XERR_STATE,"reconnect factory returned an incompatible Client");
+    if(MaxOutgoingBytes)*MaxOutgoingBytes=C->Config.MaxOutgoingBytes;
     C->Lifecycle=Observer;
     if(C->Info.State==XMQTT_CLIENT_CLOSED)Observer->Changed(Observer->Data,C,true,C->Info.CloseStatus,C->Info.ServerReason);
     else if(C->Info.Ready)Observer->Changed(Observer->Data,C,false,XMQTT_STATUS_OK,0);

@@ -9,7 +9,8 @@ typedef struct xmqttclientlifecycle {
 } xmqttclientlifecycle;
 XRT_EXTERN_C_BEGIN
 XMQTT_INTERNAL bool xmqttInternalClientLifecycle(xmqttclient* Client,xnetworker* Worker,
-    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer);
+    xmqttsession* Session,xmqttclientinbox* Inbox,const xmqttclientlifecycle* Observer,
+    size_t* MaxOutgoingBytes);
 XRT_EXTERN_C_END
 #endif
 #endif

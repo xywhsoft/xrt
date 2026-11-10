@@ -9,6 +9,9 @@
 #include <string.h>
 typedef struct mqttExamplePeer {
     xnetengine* Engine;xnetlistener* Listener;xnetaddr Address;xmqttversion Version;
+#if defined(MQTT_EXAMPLE_SUBSCRIPTIONS)
+    xatomic32 SubscriptionPackets;
+#endif
     xatomicptr Stream;xatomic32 Closed,ListenerClosed,Acks,Disconnects;bool EchoQosOne,ErrorAfterConnack,Aliases;unsigned char Input[65536];size_t Used;
 } mqttExamplePeer;
 static inline void mqttExampleCheck(bool OK,const char* Message)
@@ -32,7 +35,21 @@ static inline void mqttExampleRead(xnetstream* S,xnetbuf* Buffer,ptr Data)
             }else mqttExampleCheck(xrtNetStreamSend(S,F.Wire.Data,F.Wire.Size)==XNET_RESULT_OK,"QoS0 echo");
         }else if(F.Header.Type==XMQTT_PACKET_PUBACK){mqttExampleCheck(P->EchoQosOne && F.Wire.Size==4,"echo PUBACK");xrtAtomic32FetchAdd(&P->Acks,1,XMEMORY_RELEASE);
         }else if(F.Header.Type==XMQTT_PACKET_DISCONNECT){const unsigned char* W=F.Wire.Data;mqttExampleCheck(P->ErrorAfterConnack && P->Version==XMQTT_VERSION_5 && F.Wire.Size==3 && W[2]==0x81,"diagnostic DISCONNECT");xrtAtomic32FetchAdd(&P->Disconnects,1,XMEMORY_RELEASE);mqttExampleCheck(xrtNetStreamClose(S),"diagnostic peer close");
-        }else if(F.Header.Type==XMQTT_PACKET_PINGREQ){const unsigned char Pong[]={0xd0,0};mqttExampleCheck(xrtNetStreamSend(S,Pong,sizeof(Pong))==XNET_RESULT_OK,"PINGRESP");}
+        }
+#if defined(MQTT_EXAMPLE_SUBSCRIPTIONS)
+        else if(F.Header.Type==XMQTT_PACKET_SUBSCRIBE || F.Header.Type==XMQTT_PACKET_UNSUBSCRIBE){
+            xmqttproperty Props[16];xmqttsubscription Topics[32];xmqttcodecbuffers B={Props,16,Topics,32};xmqttpacket Control;
+            mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketRead5(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Control,NULL):xmqttPacketRead311(F.Wire,XMQTT_CLIENT_TO_SERVER,NULL,&B,&Control,NULL))==XMQTT_CODEC_DONE,"subscription control");
+            unsigned char Reasons[32],Wire[64];bool Remove=Control.Type==XMQTT_PACKET_UNSUBSCRIBE;
+            for(size_t I=0;I<Control.Body.Topics.Count;++I)Reasons[I]=Remove?0:Control.Body.Topics.Data[I].Options&3u;
+            xmqttpacket Ack;xmqttPacketInit(Remove?XMQTT_PACKET_UNSUBACK:XMQTT_PACKET_SUBACK,&Ack);Ack.Identifier=Control.Identifier;
+            if(!Remove || P->Version==XMQTT_VERSION_5)Ack.Body.Reasons=(xbytesview){Reasons,Control.Body.Topics.Count};
+            size_t Size=0;
+            mqttExampleCheck((P->Version==XMQTT_VERSION_5?xmqttPacketWrite5(Wire,sizeof(Wire),&Ack,XMQTT_SERVER_TO_CLIENT,NULL,&Size):xmqttPacketWrite311(Wire,sizeof(Wire),&Ack,XMQTT_SERVER_TO_CLIENT,NULL,&Size)) && xrtNetStreamSend(S,Wire,Size)==XNET_RESULT_OK,"subscription acknowledgement");
+            xrtAtomic32FetchAdd(&P->SubscriptionPackets,1,XMEMORY_RELEASE);
+        }
+#endif
+        else if(F.Header.Type==XMQTT_PACKET_PINGREQ){const unsigned char Pong[]={0xd0,0};mqttExampleCheck(xrtNetStreamSend(S,Pong,sizeof(Pong))==XNET_RESULT_OK,"PINGRESP");}
         else mqttExampleCheck(false,"packet type");
         P->Used-=F.Wire.Size;if(P->Used)memmove(P->Input,P->Input+F.Wire.Size,P->Used);
     }
@@ -51,6 +68,9 @@ static inline void mqttExampleListenerClosed(xnetlistener* L,ptr Data)
 static inline void mqttExampleStartModeWithAliases(mqttExamplePeer* P,xmqttversion Version,bool Echo,bool Error,bool Aliases)
 {
     memset(P,0,sizeof(*P));P->Version=Version;P->EchoQosOne=Echo;P->ErrorAfterConnack=Error;P->Aliases=Aliases;xrtAtomicPtrInit(&P->Stream,NULL);xrtAtomic32Init(&P->Closed,0);xrtAtomic32Init(&P->ListenerClosed,0);xrtAtomic32Init(&P->Acks,0);xrtAtomic32Init(&P->Disconnects,0);
+#if defined(MQTT_EXAMPLE_SUBSCRIPTIONS)
+    xrtAtomic32Init(&P->SubscriptionPackets,0);
+#endif
     xnetengineconfig E;xrtNetEngineConfigInit(&E);E.Workers=2;P->Engine=xrtNetEngineCreate(&E);mqttExampleCheck(P->Engine && xrtNetEngineStart(P->Engine),"Engine");
     xnetlistenconfig L;xrtNetListenConfigInit(&L);xrtNetAddrParse(&L.Address,"127.0.0.1",0);L.Distribution=XNET_ACCEPT_LOCAL;
     static const xnetlistenerevents Events={mqttExampleAccept,NULL,mqttExampleListenerClosed};P->Listener=xrtNetListen(P->Engine,&L,&Events,NULL,P);

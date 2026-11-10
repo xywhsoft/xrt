@@ -1,0 +1,1267 @@
+{
+  "schema": 1,
+  "date": "2026-11-11",
+  "stage": "bounded volatile MQTT subscription intent and automatic session reconciliation",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "ebd211f3126335907b526ad3a04ef572d7677505",
+  "source_dirty_at_test_time": true,
+  "final_source_inputs": 2633,
+  "final_source_map_sha256": "1f83d673acb46929eb38d0d36a4954be3b0be091a5894a966e6691e73eaf74ac",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "core_runtime_changes": false,
+  "new_public_apis": [
+    "xmqttReconnectCreateSubscribed",
+    "xmqttReconnectSubscribeIntent",
+    "xmqttReconnectSubscriptionInfo",
+    "xmqttReconnectSubscriptionsInfo",
+    "xmqttReconnectUnsubscribeIntent",
+    "xmqttSubscriptionsConfigInit"
+  ],
+  "feature": "xmqtt_reconnect_subscriptions",
+  "defaults": {
+    "max_filters": 1024,
+    "max_bytes": 4194304,
+    "max_batch": 32,
+    "operation_timeout_ms": 30000,
+    "retry_delay_ms": 5,
+    "fail_on_rejected": true
+  },
+  "implementation_costs": [
+    "one optional registry pointer in selected controller storage; one captured actual outgoing-byte cap per registry",
+    "fixed entries/hash buckets/dirty queue/batch scratch; owned encoded input and decoded property/topic/order metadata",
+    "two in-place heapsorts at intent admission; bounded hash lookup and aggregate counters; session transition scans the entry table",
+    "one ordinary Client Future and one heap watch per accepted control; at most two allocated watch nodes; actual Root references cover callback tails",
+    "candidate negotiated checks rescan a growing prefix within MaxBatch; actual Client outgoing capacity, including factory narrowing, also splits batches",
+    "Client/Session/Inbox/native/allocator overhead are separate limits; partly superseded snapshots stay charged until last reference retires",
+    "no additional per-publication callback, payload copy/scan, Future wrapper, lease operation or idle heartbeat"
+  ],
+  "behavior": [
+    "copy all initial descriptors before asynchronous work; gate initial/recovery ONLINE on current intent reconciliation",
+    "retain confirmed state on SessionPresent1; rebuild wanted filters/discard removal tombstones on SessionPresent0",
+    "atomic latest desired snapshots with revision tokens; superseded ACKs cannot confirm newer intent",
+    "preserve options and full MQTT5 group properties across subsets; correlate ordered per-filter results",
+    "strict or explicit partial-rejection policy; full immutable ACK metadata callback may be retained beyond all owners",
+    "offline additions/removals and uncertain controls; finite configured recovery/online/admission budgets; actual physical cleanup"
+  ],
+  "platforms": {
+    "windows": {
+      "root_programs": 63,
+      "leaf_programs": 20,
+      "sanitizers": [],
+      "tsan_programs": 0,
+      "package_verifications": 2,
+      "positive_packaged_unit_and_example_executions": 4,
+      "standalone_declaration_consumers": 2,
+      "new_public_exports": [
+        "xmqttReconnectCreateSubscribed",
+        "xmqttReconnectSubscribeIntent",
+        "xmqttReconnectSubscriptionInfo",
+        "xmqttReconnectSubscriptionsInfo",
+        "xmqttReconnectUnsubscribeIntent",
+        "xmqttSubscriptionsConfigInit"
+      ],
+      "internal_hooks_exported": false,
+      "capacity_prototype": {
+        "command": [
+          "E:/software/w64devkit/bin/gcc.exe",
+          "-std=c11",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-ID:\\GIT\\xrt\\include",
+          "-ID:\\GIT\\xrt\\extlibs\\xmqtt\\include",
+          "-ID:\\GIT\\xrt\\extlibs\\xmqtt\\examples\\common",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TEMP_MEMORY",
+          "-DXRT_FEATURE_UNICODE",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_CANCEL",
+          "-DXRT_FEATURE_FUTURE",
+          "-DXRT_FEATURE_TASK",
+          "-DXRT_FEATURE_TASK_POOL",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_IOCP",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-DXMQTT_FEATURE_XMQTT_WIRE",
+          "-DXMQTT_FEATURE_XMQTT_PROPERTIES",
+          "-DXMQTT_FEATURE_XMQTT_PACKET",
+          "-DXMQTT_FEATURE_XMQTT_CODEC5",
+          "-DXMQTT_FEATURE_XMQTT_CODEC311",
+          "-DXMQTT_FEATURE_XMQTT_NEGOTIATION",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT",
+          "-DXMQTT_FEATURE_XMQTT_SESSION",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT_INBOX",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT_SESSION",
+          "-DXMQTT_FEATURE_XMQTT_RECONNECT",
+          "-DXMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\local-capacity-after.c",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\packages\\windows\\static\\libxmqtt.a",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\packages\\windows\\static\\libxrt.a",
+          "-lws2_32",
+          "-o",
+          "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\local-capacity-after-windows.exe"
+        ],
+        "source_sha256": "0f87de2b495a51b4957432b1f37b394913555298d451c5a1b92b4bdb3ed276c2",
+        "same_source_as_before": true,
+        "exit_code": 0,
+        "rows": [
+          "mode=0 narrow=0 batch=1 state=1 status=0 requests=3 retries=0",
+          "mode=1 narrow=0 batch=3 state=1 status=0 requests=3 retries=0",
+          "mode=2 narrow=1 batch=1 state=1 status=0 requests=3 retries=0",
+          "mode=3 narrow=1 batch=3 state=1 status=0 requests=3 retries=0"
+        ]
+      },
+      "receipts": [
+        {
+          "label": "root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 835.329,
+          "log": "windows-final-root.log",
+          "log_sha256": "38729d79fa353f0d310d4ab26624657535312e90ae3aca2b6998bece686d6454",
+          "programs": 63
+        },
+        {
+          "label": "leaf",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_reconnect_subscriptions,memory_stats,time,atomic",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 30.219,
+          "log": "windows-final-leaf.log",
+          "log_sha256": "684c8866046d16d24721e26f83bbb2ad49084176cbd7a82e96834dcc5b7e5348",
+          "programs": 20
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.079,
+          "log": "windows-final-features.log",
+          "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+          "programs": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.297,
+          "log": "windows-final-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.125,
+          "log": "windows-final-reference.log",
+          "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+          "programs": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.281,
+          "log": "windows-final-docs.log",
+          "log_sha256": "baf16f9170125cfa89055a565300f52e67702c65d6d9918a0d0348249cc93dae",
+          "programs": 0
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.047,
+          "log": "windows-final-maturity.log",
+          "log_sha256": "fadbb90530d2f64fd6f535e9451397fe41f5999351dbe2f8b5a894968a168c3a",
+          "programs": 0
+        },
+        {
+          "label": "static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 147.593,
+          "log": "windows-final-static.log",
+          "log_sha256": "77d7a0cddebe8f5d22f84243f25ef85994da35a6a6507d739c4110215c839718",
+          "programs": 1
+        },
+        {
+          "label": "shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 135.75,
+          "log": "windows-final-shared.log",
+          "log_sha256": "c69f55a5e30bd17b4c53def5723c66cf239c5065072e975382a322860cdb5a0d",
+          "programs": 1
+        },
+        {
+          "label": "performance-smoke",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xmqtt/config/performance_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--smoke",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\windows-final-performance-smoke.json"
+          ],
+          "exit_code": 0,
+          "seconds": 75.36,
+          "log": "windows-final-performance-smoke.log",
+          "log_sha256": "e85747f70929d716d6b2474c9b2212c589d2133543c80fe8af20c9ce31aef592",
+          "programs": 0
+        },
+        {
+          "label": "size-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "single",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\windows-final-size-single.json"
+          ],
+          "exit_code": 0,
+          "seconds": 16.438,
+          "log": "windows-final-size-single.log",
+          "log_sha256": "acb04fe99521bd5ab86cd8b64ccff7fcf98dd3cf174791561b6b4afd9ffa5bcb",
+          "programs": 0
+        },
+        {
+          "label": "size-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "static",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\windows-final-size-static.json"
+          ],
+          "exit_code": 0,
+          "seconds": 39.25,
+          "log": "windows-final-size-static.log",
+          "log_sha256": "785317a25981ac02d23b7adc37bf1ff9aad2559c8cdd77dfc157268f0a8c8cf4",
+          "programs": 0
+        },
+        {
+          "label": "size-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "shared",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xmqtt-subscriptions-final-20261111\\windows-final-size-shared.json"
+          ],
+          "exit_code": 0,
+          "seconds": 40.281,
+          "log": "windows-final-size-shared.log",
+          "log_sha256": "9697ba72605766b3e6a46df5f56167778acf9215a4bd388e282897c5f1ac4d01",
+          "programs": 0
+        }
+      ]
+    },
+    "wsl": {
+      "root_programs": 63,
+      "leaf_programs": 20,
+      "sanitizers": [
+        "ASan",
+        "UBSan",
+        "leak"
+      ],
+      "tsan_programs": 1,
+      "package_verifications": 2,
+      "positive_packaged_unit_and_example_executions": 4,
+      "standalone_declaration_consumers": 2,
+      "new_public_exports": [
+        "xmqttReconnectCreateSubscribed",
+        "xmqttReconnectSubscribeIntent",
+        "xmqttReconnectSubscriptionInfo",
+        "xmqttReconnectSubscriptionsInfo",
+        "xmqttReconnectUnsubscribeIntent",
+        "xmqttSubscriptionsConfigInit"
+      ],
+      "internal_hooks_exported": false,
+      "capacity_prototype": {
+        "command": [
+          "/usr/bin/gcc",
+          "-std=c11",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-I/mnt/d/GIT/xrt/include",
+          "-I/mnt/d/GIT/xrt/extlibs/xmqtt/include",
+          "-I/mnt/d/GIT/xrt/extlibs/xmqtt/examples/common",
+          "-DXRT_FEATURE_ATOMIC",
+          "-DXRT_FEATURE_QUEUE",
+          "-DXRT_FEATURE_QUEUE_MPSC",
+          "-DXRT_FEATURE_TEMP_MEMORY",
+          "-DXRT_FEATURE_UNICODE",
+          "-DXRT_FEATURE_TIME",
+          "-DXRT_FEATURE_WAIT",
+          "-DXRT_FEATURE_THREAD",
+          "-DXRT_FEATURE_SYNC",
+          "-DXRT_FEATURE_MUTEX",
+          "-DXRT_FEATURE_COND",
+          "-DXRT_FEATURE_CANCEL",
+          "-DXRT_FEATURE_FUTURE",
+          "-DXRT_FEATURE_TASK",
+          "-DXRT_FEATURE_TASK_POOL",
+          "-DXRT_FEATURE_NET",
+          "-DXRT_FEATURE_NET_SOCKET",
+          "-DXRT_FEATURE_NET_BUFFER",
+          "-DXRT_FEATURE_NET_PORT",
+          "-DXRT_FEATURE_NET_PORT_SELECT",
+          "-DXRT_FEATURE_NET_PORT_EPOLL",
+          "-DXRT_FEATURE_NET_ENGINE",
+          "-DXRT_FEATURE_NET_TCP",
+          "-DXRT_FEATURE_NET_TCP_RETIRE",
+          "-DXMQTT_FEATURE_XMQTT_WIRE",
+          "-DXMQTT_FEATURE_XMQTT_PROPERTIES",
+          "-DXMQTT_FEATURE_XMQTT_PACKET",
+          "-DXMQTT_FEATURE_XMQTT_CODEC5",
+          "-DXMQTT_FEATURE_XMQTT_CODEC311",
+          "-DXMQTT_FEATURE_XMQTT_NEGOTIATION",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT",
+          "-DXMQTT_FEATURE_XMQTT_SESSION",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT_INBOX",
+          "-DXMQTT_FEATURE_XMQTT_CLIENT_SESSION",
+          "-DXMQTT_FEATURE_XMQTT_RECONNECT",
+          "-DXMQTT_FEATURE_XMQTT_RECONNECT_SUBSCRIPTIONS",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/local-capacity-after.c",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/packages/wsl/static/libxmqtt.a",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/packages/wsl/static/libxrt.a",
+          "-pthread",
+          "-lm",
+          "-o",
+          "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/local-capacity-after-wsl"
+        ],
+        "source_sha256": "0f87de2b495a51b4957432b1f37b394913555298d451c5a1b92b4bdb3ed276c2",
+        "same_source_as_before": true,
+        "exit_code": 0,
+        "rows": [
+          "mode=0 narrow=0 batch=1 state=1 status=0 requests=3 retries=0",
+          "mode=1 narrow=0 batch=3 state=1 status=0 requests=3 retries=0",
+          "mode=2 narrow=1 batch=1 state=1 status=0 requests=3 retries=0",
+          "mode=3 narrow=1 batch=3 state=1 status=0 requests=3 retries=0"
+        ]
+      },
+      "receipts": [
+        {
+          "label": "root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 1024.616,
+          "log": "wsl-final-root.log",
+          "log_sha256": "feee73a494639137901829fd1a7fc4daf58466f9be936ded2f7cc07063c644e2",
+          "programs": 63
+        },
+        {
+          "label": "leaf",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_reconnect_subscriptions,memory_stats,time,atomic",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 150.338,
+          "log": "wsl-final-leaf.log",
+          "log_sha256": "7e3f52c04a7a60c97776039815267436c0de2b724782bf125863c71ff1a1fd5c",
+          "programs": 20
+        },
+        {
+          "label": "tsan",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_reconnect_subscriptions,memory_stats,time,atomic",
+            "--test",
+            "test_reconnect_subscriptions.c",
+            "--no-examples",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=thread",
+            "--cflag=-Wno-error=tsan",
+            "--ldflag=-fsanitize=thread"
+          ],
+          "exit_code": 0,
+          "seconds": 59.971,
+          "log": "wsl-final-tsan.log",
+          "log_sha256": "203155daa50d746fa8d343bf0034092fcbed3a596cd405098ae81bb7bf1ca6f7",
+          "programs": 1
+        },
+        {
+          "label": "features",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.173,
+          "log": "wsl-final-features.log",
+          "log_sha256": "96e3fe9adb892eb8fe60c298dbd24d910417c3c736a29a1f48779276b62b61b0",
+          "programs": 0
+        },
+        {
+          "label": "single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 4.732,
+          "log": "wsl-final-single.log",
+          "log_sha256": "295408839c3fe9258e5b71f0d665e85844f8bf72051ee208f81948e6affeee15",
+          "programs": 0
+        },
+        {
+          "label": "reference",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.325,
+          "log": "wsl-final-reference.log",
+          "log_sha256": "a71e9c259e192c679cf23045e0b42f7b7d1e1b8145c4718d19c914143fc9fc67",
+          "programs": 0
+        },
+        {
+          "label": "docs",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.524,
+          "log": "wsl-final-docs.log",
+          "log_sha256": "9d3457d9c5d254ffad7d9713dc21a85d8660fce45a4212179656ee602589b869",
+          "programs": 0
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 11.364,
+          "log": "wsl-final-maturity.log",
+          "log_sha256": "a47501c38630f8515a00c062ccd58e75b9d0009e9358071c5b93841e1cd40379",
+          "programs": 0
+        },
+        {
+          "label": "static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 86.958,
+          "log": "wsl-final-static.log",
+          "log_sha256": "2e9f8b8534fbd93b850bd939e56866a9acfdfc4a15468a3a44b838b3be8f0a71",
+          "programs": 1
+        },
+        {
+          "label": "shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt,tls_identity_rsa,atomic",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 92.004,
+          "log": "wsl-final-shared.log",
+          "log_sha256": "3c3728866029f85da3cf3c0ee7ff2ebe25f721f68dacc2f8ec82b7695e7ce404",
+          "programs": 1
+        },
+        {
+          "label": "performance-smoke",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_performance.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xmqtt/config/performance_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--smoke",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-final-performance-smoke.json"
+          ],
+          "exit_code": 0,
+          "seconds": 87.077,
+          "log": "wsl-final-performance-smoke.log",
+          "log_sha256": "aedc3c30dd259ca01662985a8ca3a5363d62c0b5819a7e3cd45c2bb4ac27ed2a",
+          "programs": 0
+        },
+        {
+          "label": "size-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "single",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-final-size-single.json"
+          ],
+          "exit_code": 0,
+          "seconds": 63.214,
+          "log": "wsl-final-size-single.log",
+          "log_sha256": "ff69f0aea5e3b8b39b1ee465ba659082eb21f5e6f234609e64ac57ebf92fb27e",
+          "programs": 0
+        },
+        {
+          "label": "size-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "static",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-final-size-static.json"
+          ],
+          "exit_code": 0,
+          "seconds": 79.606,
+          "log": "wsl-final-size-static.log",
+          "log_sha256": "3429f5da1f06166c7a8bfb78c19ff26a1e2f82093f26208bade1134da7a21b54",
+          "programs": 0
+        },
+        {
+          "label": "size-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/measure_size.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--config",
+            "extlibs/xmqtt/config/size_profiles.json",
+            "--profiles",
+            "xmqtt_reconnect_subscriptions",
+            "--kind",
+            "shared",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-final-size-shared.json"
+          ],
+          "exit_code": 0,
+          "seconds": 80.958,
+          "log": "wsl-final-size-shared.log",
+          "log_sha256": "cb1adb07fc3939c9b8db0d9109cb40aac2c690bfec58d2bd9798e1fdadea9c9f",
+          "programs": 0
+        }
+      ]
+    }
+  },
+  "independent_broker": {
+    "implementation": "Mosquitto2.1.2; independent framing proxy and public API consumer",
+    "build_forms": 8,
+    "cases": 128,
+    "axes": [
+      "MQTT5/3.1.1",
+      "fresh/resumed sessions",
+      "normal/fragmented work and proxy writes",
+      "normal/one lost first SUBACK"
+    ],
+    "observations": [
+      "actual binary routing after restoration",
+      "Subscription Identifier and User Property preservation",
+      "no needless known-session resubscription",
+      "offline removal and new subscription",
+      "original application messages/Futures beyond all owners"
+    ],
+    "controlled_recovery_policy": "probe explicitly retries normal OK/CLOSED graceful closures for deterministic known-session rotations; first-SUBACK loss is an actual proxy connection cut",
+    "reports": [
+      {
+        "build": "windows-single",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/windows-single-broker.json",
+        "sha256": "54b43cb80d09662fc3a4daadfe9b832bf0fbf1b2c78b1cf9f01c2ee61343b1d2",
+        "client_sha256": "209a3f484652fde13b312ba7474584fc5acebcc8e84e0783c0abefe1a0bef95c",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "windows-static",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/windows-static-broker.json",
+        "sha256": "d69dcae2ce60d95a3691f0f4f4c10fb15ab6c202617acbb8bca782079afedbab",
+        "client_sha256": "9bbbb066e4ea44ee85d06392d3054ad2ce74c85e217d5c2f153bea7cf13da9be",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "windows-shared",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/windows-shared-broker.json",
+        "sha256": "232ba33b6376839ec11e22414748e4b0ad0b3eaa75bfc2f49483206c86b1e61b",
+        "client_sha256": "b9e47dc1dcfa1d8208d24e05bfd4a1998b6423c2731f6d4ae0275f0a8d22e43b",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "wsl-single",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-single-broker.json",
+        "sha256": "4d799137e29f8f61207c7d2149e26981086a9b99b32b49478a8be42d1ebe8819",
+        "client_sha256": "c2b11f6ab93f842643ffd5e20a65116ea0a91c90b4a55c0155276b7e7a05fef9",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "wsl-static",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-static-broker.json",
+        "sha256": "dd6109f8880a9a0624f71f72e0af5f806287f0a79764053831ebb9f555289e0b",
+        "client_sha256": "9974d353a29a15558795c1345726ddb0cc2c69b2829a1bfe86f1c77bc4e67f41",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "wsl-shared",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-shared-broker.json",
+        "sha256": "fd16eb0bfc97d94ee39e951cf56f6f7b96d5fcb1d1107a8f2927b161a9a163ef",
+        "client_sha256": "da72e4793154c47132133f4b886edfb5d7ef07e17da5859df11b531b7dc205c9",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "wsl-single-address-undefined",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-single-address-undefined-broker.json",
+        "sha256": "b94882e798b5140cb0d30ca90787a4d04ea96b82e2a56a2385cf84b7a0261479",
+        "client_sha256": "d4cec4fb1e3e32649a0299c31d68e1da865cd84bfb8e363a2daaceae8c23cbd5",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      },
+      {
+        "build": "wsl-single-thread",
+        "cases": 16,
+        "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-single-thread-broker.json",
+        "sha256": "b16e92dee91c7eedcd32ff54796104e6853d96aaacbde8e19dee86bf3bb39329",
+        "client_sha256": "6f28f468fc3f492d064baa23f715fe90471ef0395904596579c8c6af73b2fd2c",
+        "broker_sha256": "8d4c175d497021d0e61cc8c56dae8d1e8bde2d25f9a7afb351c6389d84bb7b85",
+        "all_processes_and_proxy_threads_reaped": true
+      }
+    ]
+  },
+  "performance": {
+    "windows": {
+      "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/windows-cold-performance.json",
+      "sha256": "cbf0c434b6c5c31e996260179eafa89cf3787619f378c3928fc17769ff6175b1",
+      "command_exit_code": 1,
+      "reason": "measurement noise gate failure; workload functional assertions completed",
+      "policy": "baseline-unpinned",
+      "repeats": 7,
+      "warmups": 1,
+      "relative_mad_limit": 0.03,
+      "relative_central_range_limit": 0.06,
+      "instrumentation": true,
+      "scope": "closed-loop local control fixture: 1024 initial filters in batches of32,1000 acknowledged single-filter updates; allocation counts include the entire loopback runtime",
+      "benchmarks": {
+        "xmqtt_reconnect_subscriptions_5": {
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "median": 2.911,
+              "unit": "ms",
+              "relative_mad": 0.03984884919271731,
+              "relative_central_range": 0.15492957746478875,
+              "noise_qualified": false
+            },
+            "updates_per_sec": {
+              "median": 15821.108,
+              "unit": "update/s",
+              "relative_mad": 0.04484932408020974,
+              "relative_central_range": 0.10581951655977576,
+              "noise_qualified": false
+            },
+            "latency_p50_us": {
+              "median": 62.3,
+              "unit": "us",
+              "relative_mad": 0.06581059390048145,
+              "relative_central_range": 0.11396468699839478,
+              "noise_qualified": false
+            },
+            "latency_p99_us": {
+              "median": 94.7,
+              "unit": "us",
+              "relative_mad": 0.028511087645195384,
+              "relative_central_range": 0.05807814149947201,
+              "noise_qualified": true
+            },
+            "latency_max_us": {
+              "median": 195.0,
+              "unit": "us",
+              "relative_mad": 0.09230769230769231,
+              "relative_central_range": 0.4620512820512821,
+              "noise_qualified": false
+            },
+            "heap_blocks_per_update": {
+              "median": 8.0,
+              "unit": "blocks/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            },
+            "heap_bytes_per_update": {
+              "median": 1161.78,
+              "unit": "bytes/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            }
+          }
+        },
+        "xmqtt_reconnect_subscriptions_4": {
+          "args": [
+            "1000",
+            "4",
+            "1024",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "median": 3.049,
+              "unit": "ms",
+              "relative_mad": 0.0603476549688423,
+              "relative_central_range": 0.19711380780583798,
+              "noise_qualified": false
+            },
+            "updates_per_sec": {
+              "median": 18851.74,
+              "unit": "update/s",
+              "relative_mad": 0.04203999206439309,
+              "relative_central_range": 0.05711700882783239,
+              "noise_qualified": false
+            },
+            "latency_p50_us": {
+              "median": 51.8,
+              "unit": "us",
+              "relative_mad": 0.04826254826254826,
+              "relative_central_range": 0.11003861003860996,
+              "noise_qualified": false
+            },
+            "latency_p99_us": {
+              "median": 86.0,
+              "unit": "us",
+              "relative_mad": 0.013953488372093056,
+              "relative_central_range": 0.04534883720930239,
+              "noise_qualified": true
+            },
+            "latency_max_us": {
+              "median": 146.0,
+              "unit": "us",
+              "relative_mad": 0.22054794520547938,
+              "relative_central_range": 0.339041095890411,
+              "noise_qualified": false
+            },
+            "heap_blocks_per_update": {
+              "median": 8.0,
+              "unit": "blocks/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            },
+            "heap_bytes_per_update": {
+              "median": 1114.78,
+              "unit": "bytes/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            }
+          }
+        }
+      },
+      "global_performance_acceptance": false
+    },
+    "wsl": {
+      "report": "out/service-extensions/xmqtt-subscriptions-final-20261111/wsl-cold-performance.json",
+      "sha256": "c52dbe1ff4d072cb15d896303fc5edc2de002b7e6330c3f5a2e1d6cc343cea92",
+      "command_exit_code": 1,
+      "reason": "measurement noise gate failure; workload functional assertions completed",
+      "policy": "baseline-unpinned",
+      "repeats": 7,
+      "warmups": 1,
+      "relative_mad_limit": 0.03,
+      "relative_central_range_limit": 0.06,
+      "instrumentation": true,
+      "scope": "closed-loop local control fixture: 1024 initial filters in batches of32,1000 acknowledged single-filter updates; allocation counts include the entire loopback runtime",
+      "benchmarks": {
+        "xmqtt_reconnect_subscriptions_5": {
+          "args": [
+            "1000",
+            "5",
+            "1024",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "median": 4.893,
+              "unit": "ms",
+              "relative_mad": 0.03167790721438795,
+              "relative_central_range": 0.10545677498467199,
+              "noise_qualified": false
+            },
+            "updates_per_sec": {
+              "median": 7265.91,
+              "unit": "update/s",
+              "relative_mad": 0.011567443031912008,
+              "relative_central_range": 0.023909049245036004,
+              "noise_qualified": true
+            },
+            "latency_p50_us": {
+              "median": 134.8,
+              "unit": "us",
+              "relative_mad": 0.004451038575667824,
+              "relative_central_range": 0.014094955489614284,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 195.0,
+              "unit": "us",
+              "relative_mad": 0.006666666666666725,
+              "relative_central_range": 0.016405128205128267,
+              "noise_qualified": true
+            },
+            "latency_max_us": {
+              "median": 291.9,
+              "unit": "us",
+              "relative_mad": 0.09386776293251106,
+              "relative_central_range": 0.1750599520383693,
+              "noise_qualified": false
+            },
+            "heap_blocks_per_update": {
+              "median": 10.0,
+              "unit": "blocks/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            },
+            "heap_bytes_per_update": {
+              "median": 1481.78,
+              "unit": "bytes/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            }
+          }
+        },
+        "xmqtt_reconnect_subscriptions_4": {
+          "args": [
+            "1000",
+            "4",
+            "1024",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "initial_restore_ms": {
+              "median": 4.634,
+              "unit": "ms",
+              "relative_mad": 0.021363832542080127,
+              "relative_central_range": 0.0791972378075097,
+              "noise_qualified": false
+            },
+            "updates_per_sec": {
+              "median": 7408.719,
+              "unit": "update/s",
+              "relative_mad": 0.01923935838300788,
+              "relative_central_range": 0.04354544962496215,
+              "noise_qualified": true
+            },
+            "latency_p50_us": {
+              "median": 131.9,
+              "unit": "us",
+              "relative_mad": 0.010614101592115281,
+              "relative_central_range": 0.033358605003790794,
+              "noise_qualified": true
+            },
+            "latency_p99_us": {
+              "median": 194.9,
+              "unit": "us",
+              "relative_mad": 0.016931759876859985,
+              "relative_central_range": 0.033350436121087734,
+              "noise_qualified": true
+            },
+            "latency_max_us": {
+              "median": 294.5,
+              "unit": "us",
+              "relative_mad": 0.1439728353140917,
+              "relative_central_range": 0.3154499151103566,
+              "noise_qualified": false
+            },
+            "heap_blocks_per_update": {
+              "median": 10.0,
+              "unit": "blocks/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            },
+            "heap_bytes_per_update": {
+              "median": 1434.78,
+              "unit": "bytes/update",
+              "relative_mad": 0.0,
+              "relative_central_range": 0.0,
+              "noise_qualified": true
+            }
+          }
+        }
+      },
+      "global_performance_acceptance": false
+    }
+  },
+  "initial_qualification_and_later_fix": {
+    "initial_evidence_directory": "out/service-extensions/xmqtt-subscriptions-20261111",
+    "prototype_log": "out/service-extensions/xmqtt-subscriptions-20261111/local-capacity-prototype.log",
+    "issue": "3-filter batch times out with 40-byte actual outgoing cap while one-filter batches succeed, including narrowed factories",
+    "fix": "capture actual Client byte capacity at private owner-worker lifecycle attachment and split before admission; reject an unfit single filter",
+    "new_public_api": false,
+    "core_runtime_changes": false,
+    "changed_inputs": {
+      "extlibs/xmqtt/include/xmqtt/reconnect_subscriptions.h": {
+        "before": "ae2f8a0fddfa3fc95ca21c324b4c5e26f40f9a073174e26827914f606978d368",
+        "after": "f57ce5ff75c44fed95cfc5461d06eb477c198e221ed3534dce09513547eb8ef0"
+      },
+      "extlibs/xmqtt/src/client/client.c": {
+        "before": "5a5d6df067819830bd664b5d97f202312747128812dea38a3f6910bc1c59c0a4",
+        "after": "de3a87f8eac2736cb56754a39a4deae54a70b7258de4a13a145bc40919eed869"
+      },
+      "extlibs/xmqtt/src/client/reconnect.c": {
+        "before": "3a0fcabea3adab84c89930944915c2b782d0cda6f900b31001a7b78d5b441f97",
+        "after": "0511b2501e5508378c22f64880639cf51453320bf2c99533ae67b411fb8a57c4"
+      },
+      "extlibs/xmqtt/src/internal/xmqtt_client_lifecycle.h": {
+        "before": "9b46fd2d542a3f6fc0611c8eb7a018d226c5f8195857f9517a01425a7cd1333d",
+        "after": "2ad56959c1d5ceafa3506caf8360d95bd653960caaa7d00750eec4290851eb74"
+      },
+      "extlibs/xmqtt/tests/test_reconnect_subscriptions.c": {
+        "before": "15222d94bc2395a1bc4f30a3ead23dffa96ad778b57507f6ec10f763d8c90cf3",
+        "after": "4e5f883cbadae4fc43e092e0e1cc5928ce2bc5ac1767a00afde8c04aef1437f9"
+      },
+      "single/extlibs/xmqtt.h": {
+        "before": "8928a11626c467a49583c52b76e554ef22840b78adcd5f0bee7772fa3342efbf",
+        "after": "a40a411483c60729b14d3aa972f0b0e5978204edb726a3ea79f59d6df14841d1"
+      },
+      "single/extlibs/xmqtt_decl.h": {
+        "before": "64dd66675772679f6bfb65f1133b0480fb3a384e7098fadd179b99d66b9c9bd3",
+        "after": "5efe34ba1debe5830fc25ddbf6021c461a295be357ab53eff9eba2004d522129"
+      }
+    }
+  },
+  "preparatory_failures": [
+    "initial allocator spelling used xrtAlloc rather than xrtMalloc; corrected before successful builds",
+    "example fixture misleading-indentation warning corrected",
+    "implementation-bearing internal header was hoisted before controller definitions by amalgamation; implementation moved to canonical reconnect.c",
+    "PE export reader initially did not recognize objdump +base/hint columns; actual export rows verified after reader correction",
+    "a later local-capacity fixture required a forward declaration before its first use",
+    "final Windows leaf collector hit parent/child stdout interleaving; root receipt reused, leaf step resumed after bounded executable-path parsing",
+    "seven-sample performance noise gates failed and are retained without weaker limits"
+  ],
+  "evidence": [
+    {
+      "directory": "out/service-extensions/xmqtt-subscriptions-20261111",
+      "files": 3270,
+      "inventory_sha256": "dee7e985032b7e2a7bc427b3aa64757a43eef95afbba3b3587910b451fbe5fb0"
+    },
+    {
+      "directory": "out/service-extensions/xmqtt-subscriptions-final-20261111",
+      "files": 3235,
+      "inventory_sha256": "322bf7488cb8367498ddc9dea753f1f7b74277bc738e2a8889dc727056a14cb5"
+    }
+  ],
+  "remaining": [
+    "all four products remain developing; this stage does not complete the full plan",
+    "automatic TLS/DNS/Auth subscription composition and wider shared/NoLocal/retained/expiry broker matrices require qualification",
+    "other brokers, native Linux, >=72h soak, fixed-arrival/contention/CPU/RSS, publication overhead and pinned raw/upstream performance comparisons remain open",
+    "offline publication queues, durable/crash recovery and WebSocket remain required",
+    "request/private/object quota pressure still uses bounded admission retry; actual outgoing-byte capacity is split before admission"
+  ],
+  "production_or_global_performance_acceptance": false
+}
