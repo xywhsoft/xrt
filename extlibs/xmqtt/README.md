@@ -11,7 +11,7 @@ prepared-address TLS, including MQTT5 challenge/final-proof authentication.
 recovery and numeric/hostname/prepared enhanced-auth factories. The developing
 [automatic reconnect controller](docs/reconnect.md) adds generation leases, bounded
 backoff/deadlines and physical cleanup over a borrowed Engine/task pool. Durable
-recovery and complete transport/interoperability qualification remain required.
+recovery and remaining transport/interoperability qualification remain required.
 **Wire primitives, bounded framing, MQTT 5.0 properties and full MQTT 5.0/3.1.1
 packet codecs and negotiated connection constraints are implemented.** A developing
 [bounded TCP client](docs/client.md) now covers CONNECT/CONNACK, basic credentials,
@@ -196,3 +196,7 @@ MQTT 3.1.1 binary PUBLISH decode/encode.
 Two negotiation variants measure independent handshake descriptor preflights
 plus one outbound check for MQTT 5 and 3.1.1. They do not establish network delivery throughput, tail latency, QoS sessions,
 durability or performance parity.
+
+Automatic reconnect TLS/Dial composition now has a [dedicated qualification stage](tests/results/reconnect-transports-20261110.json):3456 independent TLS/Mosquitto
+proxy cases plus local enhanced-auth proof/ownership tests. Algorithm/plugin,
+system-DNS, native-broker TLS and production/performance acceptance remain open.

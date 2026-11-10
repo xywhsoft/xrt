@@ -276,3 +276,15 @@ not invent it. TLS retains the same client-to-proxy/local-TCP-broker topology an
 scope limitations described above. Default valid matrices have 10 plain or 216 TLS
 cases per binary. Local enhanced-auth proof tests are separate from broker auth
 algorithm/plugin interoperability.
+
+## Automatic reconnect TLS recovery
+
+`build_broker_probe.py --probe reconnect-tls` builds the managed transport adapter
+for `run_session_tls_broker.py`. Its matrix uses the same independent bounded TLS
+proxy and pinned broker. `--kind modular|single|static|shared` selects the artifact;
+ASan/UBSan or TSan use fully instrumented single/modular sources. The runner checks
+two actual TLS handshakes and controller generations, SessionPresent, MQTT replay,
+strict locally partial prefixes, ticket reuse/full fallback, and resource reaping.
+See [the stage receipt](../results/reconnect-transports-20261110.json) for exact
+commands, source identities,3456 cases and limitations. No test key is committed;
+CA/client material is generated at runtime and removed before runner return.

@@ -18,12 +18,14 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--compiler', default='gcc')
     parser.add_argument('--sanitize', help='GCC sanitizer list, for example address,undefined')
-    parser.add_argument('--probe', choices=['ordinary', 'session', 'tls-session', 'assigned-session', 'assigned-tls-session'], default='ordinary')
+    parser.add_argument('--probe', choices=['ordinary', 'session', 'tls-session', 'assigned-session', 'assigned-tls-session', 'reconnect', 'reconnect-tls'], default='ordinary')
     args = parser.parse_args()
     if args.kind in ['static', 'shared'] and not args.package_dir:
         parser.error('--package-dir is required for a library consumer')
     suite = ('xmqtt_client_session_tls,xmqtt_client_tls_resume,tls_identity_rsa'
              if args.probe in ['tls-session', 'assigned-tls-session'] else
+             'xmqtt_reconnect,xmqtt_client_session_tls,xmqtt_client_tls_resume,tls_identity_rsa' if args.probe=='reconnect-tls' else
+             'xmqtt_reconnect' if args.probe=='reconnect' else
              'xmqtt_client_session,time' if args.probe in ['session', 'assigned-session'] else 'xmqtt_client_tls_resume,tls_identity_rsa')
     modules = _load_modules(suite, [root / 'extlibs/xmqtt/config/modules.json'],
                             platform='windows' if os.name == 'nt' else 'linux')
@@ -42,7 +44,8 @@ def main():
     source = {'ordinary': 'broker_probe.c', 'session': 'session_broker_probe.c',
               'tls-session': 'session_tls_broker_probe.c',
               'assigned-session': 'session_assigned_broker_probe.c',
-              'assigned-tls-session': 'session_assigned_tls_broker_probe.c'}[args.probe]
+              'assigned-tls-session': 'session_assigned_tls_broker_probe.c',
+              'reconnect': 'reconnect_broker_probe.c', 'reconnect-tls': 'reconnect_tls_broker_probe.c'}[args.probe]
     if args.kind == 'single':
         command += [str(here / ('single_' + source))]
     else:

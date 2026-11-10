@@ -25,15 +25,22 @@ static xfuture* managedOnline(xmqttreconnect* R,uint64 Connections,bool Present,
         if(I.State==XMQTT_RECONNECT_ONLINE && I.Connections==Connections && xmqttReconnectAcquire(R,L))break;
         xrtSleep(1);}
     managedCheck(L->Generation==Connections,"one generation per automatic attempt");xfuture* Ready=xmqttClientReady(L->Client);const xmqttreadyresult* V=managedOutcome(Ready);
-    managedCheck(V->Status==XMQTT_STATUS_OK && V->Negotiated.Accepted && V->Negotiated.SessionPresent==Present,"real broker Session continuity");return Ready;
+    managedCheck(V->Status==XMQTT_STATUS_OK && V->Negotiated.Accepted && V->Negotiated.SessionPresent==Present,"real broker Session continuity");
+#if defined(XMQTT_RECONNECT_BROKER_READY)
+    XMQTT_RECONNECT_BROKER_READY(L->Client,V);
+#endif
+    return Ready;
 }
 int main(int Argc,char** Argv)
 {
     if(Argc!=5 && Argc!=6)return 2;
     unsigned long Port=strtoul(Argv[1],NULL,10),V=strtoul(Argv[2],NULL,10);unsigned Mode=(unsigned)strtoul(Argv[3],NULL,10);bool Fragment=atoi(Argv[4])!=0;const char* Host=Argc==6?Argv[5]:"127.0.0.1";
     managedCheck(Port && Port<=65535 && (V==5 || V==311) && Mode<5,"arguments");xmqttversion Version=V==5?XMQTT_VERSION_5:XMQTT_VERSION_311;size_t Bytes=Fragment?257:65537;
+#if defined(XMQTT_RECONNECT_BROKER_PAYLOAD_SIZE)
+    Bytes=XMQTT_RECONNECT_BROKER_PAYLOAD_SIZE(Bytes);
+#endif
     xnetengineconfig EC;xrtNetEngineConfigInit(&EC);EC.Workers=2;xnetengine* E=xrtNetEngineCreate(&EC);managedCheck(E && xrtNetEngineStart(E),"Engine");xtaskpoolconfig TC={1,8,0};xtaskpool* Pool=xrtTaskPoolCreate(&TC);managedCheck(Pool!=NULL,"cleanup Pool");
-    xnetaddr Address;managedCheck(xrtNetAddrParse(&Address,Host,(uint16)Port),"proxy address");xmqttreconnectconfig K;xmqttReconnectConfigInit(&K);K.Factory=managedFactory;K.FactoryData=&Address;K.Client.Version=Version;K.Client.SetupTimeout=10000;K.InitialDelay=5;K.MaxDelay=20;K.JitterPermille=0;K.RetryStatuses|=UINT32_C(1)<<XMQTT_STATUS_CLOSED;
+    xnetaddr Address;managedCheck(xrtNetAddrParse(&Address,Host,(uint16)Port),"proxy address");xmqttreconnectconfig K;managedCheck(xmqttReconnectConfigInit(&K),"controller defaults");K.Factory=managedFactory;K.FactoryData=&Address;K.Client.Version=Version;K.Client.SetupTimeout=10000;K.InitialDelay=5;K.MaxDelay=20;K.JitterPermille=0;K.RetryStatuses|=UINT32_C(1)<<XMQTT_STATUS_CLOSED;
     if(Fragment){K.Client.ReadBytes=37;K.Client.WriteBytes=41;K.Client.WriteChunkBytes=13;K.Client.WorkPackets=4;}
     xmqttpacket Q;xmqttPacketInit(XMQTT_PACKET_CONNECT,&Q);Q.Body.Connect.CleanStart=false;Q.Body.Connect.KeepAlive=5;Q.Body.Connect.ClientId=XRT_STR_LITERAL("xrt-session-recovery");
     xmqttproperty P[2]={{XMQTT_PROPERTY_SESSION_EXPIRY,XMQTT_PROPERTY_UINT32,{0}},{XMQTT_PROPERTY_TOPIC_ALIAS_MAXIMUM,XMQTT_PROPERTY_UINT16,{0}}};P[0].Value.Number=60;P[1].Value.Number=4;if(Version==XMQTT_VERSION_5)Q.Properties=(xmqttpropertylist){P,2};
@@ -44,6 +51,9 @@ int main(int Argc,char** Argv)
     if(Mode>=3){const xmqttwriteresult* W=managedOutcome(F);managedCheck(W->Status==XMQTT_STATUS_OK && W->PubcompReceived,"outgoing QoS2 completed before incoming cut");}
     managedCheck(xmqttClientClose(L.Client) && xmqttClientWaitFor(L.Client,15000)==XWAIT_OK,"physical first Client under retained lease");const xmqttwriteresult* Old=managedOutcome(F);
     managedCheck(Old->AcceptedBytes && Old->Identifier && Old->Status==(Mode>=3?XMQTT_STATUS_OK:XMQTT_STATUS_CLOSED) && Old->PubrecReceived==(Mode>=2) && Old->PubcompReceived==(Mode>=3),"immutable original connection result");
+#if defined(XMQTT_RECONNECT_BROKER_OLD_RESULT)
+    XMQTT_RECONNECT_BROKER_OLD_RESULT(Old,&Q);
+#endif
     managedCheck(xmqttReconnectRelease(&L),"release enables automatic replacement");free(Payload);xfuture* R2=managedOnline(R,2,true,&L);managedBarrier("WAIT_DRAIN","drain\n");managedSubscribe(L.Client,XRT_STR_LITERAL("xrt/qual/session/barrier"));
     xmqttmessage *Held=NULL,*M=NULL;unsigned Count=0;double End=xrtTimer()+15;
     while(!xmqttReconnectTakeMessage(R,&Held)){managedCheck(xrtTimer()<End,"recovered Inbox");xrtSleep(1);}

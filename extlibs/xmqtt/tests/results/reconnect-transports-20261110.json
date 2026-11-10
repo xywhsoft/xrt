@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "stage": "Automatic reconnect TLS/Dial/Auth composition evidence",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "development_base": "2e9a9572e513b53a8e9c2485314515e1ad59e052",
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_accepted": false,
+  "performance_accepted": false,
+  "production_runtime_changes": 0,
+  "new_public_apis": 0,
+  "public_header_change": "Document copied Client config as a template whose operational budgets may be narrowed; ABI/declaration tokens unchanged. Original version/identity, compatible codec and four exact Inbox caps remain required.",
+  "source_identity": {
+    "frozen_files": 2752,
+    "map_sha256": "e982ec2e01278c558814694f9bd41a9af73d34c5b12191949bb596a3233b7ed1",
+    "supplement_sha256": "941e4784cd7a3d091e8825893065ed6f6bd7b4fae2a499e3f6a4e67404d1cdfd",
+    "runtime_equivalence_sha256": "ae196d64c6d4e09dc9dad4b2b3814bfdaf626f51adef18b845346146febe3c0c",
+    "deltas": {
+      "extlibs/xmqtt/README.md": {
+        "before_sha256": "aed2bc13508d9685432c0f5b407639917049b59d49e55c28df237287dbafca87",
+        "after_sha256": "e98d1109a33330386d290e0147cdd2a20b50b9039164ac76d093762898fe51b0"
+      },
+      "extlibs/xmqtt/docs/coverage.md": {
+        "before_sha256": "74a704453cda12ee955da79bcd906a2c38389706144b3b374d0436a4cabdb744",
+        "after_sha256": "0ab07b9527646545e4215f8bc276aea24ede663c288c3cb8693a66285b41fcfe"
+      },
+      "extlibs/xmqtt/docs/reconnect.md": {
+        "before_sha256": "76fd0f3314160114eb2f52c429b519e8ce328a16cf5233a20770f4f6a33463e4",
+        "after_sha256": "7d5d1b6b9b6e52d318873a5840be4ee0b71e954a20a4f15c6954ff4df8ac9cc9"
+      },
+      "extlibs/xmqtt/tests/interop/README.md": {
+        "before_sha256": "90b5bae4b1007b8d2a995bef2baf382935e88287b8eea7ef47861d4102da3303",
+        "after_sha256": "fb4a5ac80302c4b02f45d77b7f83f0ec353a6c29bb2890a089043b58ae2a9c7c"
+      },
+      "extlibs/xmqtt/tests/test_reconnect_transports.c": {
+        "before_sha256": "9967d5e441b4d96e5a49a5614b2f341d426167a09e4f1a2aec758606e542986c",
+        "after_sha256": "6e3adf7154d4eefcbface5b398c022a4af57ad53427283c9521264c2400188bd"
+      },
+      "docs/development/service-extensions-progress.md": {
+        "before_sha256": "71fc3c92e5a494f4ae2e0ec4017c6e0da5c3d34a9c727114d1617a24958db2c7",
+        "after_sha256": "7c727c3c945cd699e85424685d515ec22b43323cb06e034c77f576caa7dbf158"
+      }
+    }
+  },
+  "validation": {
+    "windows": {
+      "final_programs": 61,
+      "modular_tests": 24,
+      "single_tests": 31,
+      "core_examples": 6,
+      "local_auth_transport_scenarios_per_program": 16,
+      "final_focused_programs": 2,
+      "full_sanitizers": [],
+      "verified_root_packages": 2,
+      "broker_forms": 3,
+      "independent_broker_cases": 1296,
+      "normal_checks": 5
+    },
+    "wsl": {
+      "final_programs": 61,
+      "modular_tests": 24,
+      "single_tests": 31,
+      "core_examples": 6,
+      "local_auth_transport_scenarios_per_program": 16,
+      "final_focused_programs": 2,
+      "full_sanitizers": [
+        "address",
+        "undefined",
+        "leak"
+      ],
+      "verified_root_packages": 2,
+      "broker_forms": 5,
+      "independent_broker_cases": 2160,
+      "normal_checks": 5
+    }
+  },
+  "additional_final_tsan_programs": 1,
+  "independent_broker": {
+    "version": "Mosquitto2.1.2",
+    "tls": "Native client to bounded Python/OpenSSL TLS proxy; broker backend is local TCP",
+    "cases": 3456,
+    "strict_locally_partial_cases": 576,
+    "ack_cut_cases": 2880,
+    "tls_handshakes": 6912,
+    "forms": [
+      "Windows static",
+      "Windows shared",
+      "Windows single",
+      "WSL static",
+      "WSL shared",
+      "WSL single",
+      "WSL full ASan/UBSan/leak single",
+      "WSL TSan single"
+    ],
+    "matrix": {
+      "total": 3456,
+      "tls": {
+        "12": 1152,
+        "13": 2304
+      },
+      "mqtt": {
+        "5": 1728,
+        "311": 1728
+      },
+      "factories": {
+        "0": 1152,
+        "1": 1152,
+        "2": 1152
+      },
+      "scenarios": {
+        "full": 1152,
+        "mutual": 1152,
+        "resume": 576,
+        "fallback": 576
+      },
+      "faults": {
+        "ack": 2880,
+        "prefix": 576
+      }
+    },
+    "assertions": [
+      "exactly two automatic generations on one Engine",
+      "SessionPresent and original MQTT identifiers/DUP/PUBREL",
+      "incoming QoS2 dedup and binary snapshots",
+      "old application Future outcomes remain immutable",
+      "TLS1.2/1.3 and mutual authentication",
+      "TLS1.3 accepted ticket and full-handshake fallback independent of MQTT state",
+      "numeric/custom asynchronous Resolver/prepared endpoints",
+      "one borrowed Resolver across both generations, cache disabled, exactly two actual lookups",
+      "strict0<AcceptedBytes<original PUBLISH wire for prefix cases",
+      "all probe/proxy/reader/broker owners reaped and runtime-only keys removed"
+    ]
+  },
+  "local_contracts": [
+    "Final application proof gates controller ONLINE, leases and newly received Inbox data.",
+    "Two authenticated generations and reauthentication preserve correct generation identity.",
+    "Reject/Close with a held real auth ticket cannot physically retire until release; stale valid challenge response cannot revive the Client.",
+    "Default MQTT authentication failure never retries or publishes ONLINE.",
+    "DNS/TLS original outage deadlines and rejected TLS verification expose no Client/message and release actual verifier owners.",
+    "Blocked shared Resolver work outlives a fully retired controller only under caller Resolver ownership, then joins.",
+    "Fixture recycles TLS peer state only after a retained real native owner passes WaitRetired; TLS Destroy alone is just reference release."
+  ],
+  "performance": "No new measurements or qualification. Production runtime/ABI and production closures match parent. Parent numeric TCP controller observations retain six unqualified P99 comparisons; no TLS/Dial/Auth throughput, tail, CPU/RSS, native Linux or soak acceptance is inferred.",
+  "preparations": [
+    "Windows GCC found ignored config-init result in test probe; corrected with checked initialization.",
+    "An initial shell-quoted cross-OS proxy host failed before MQTT; structured subprocess arguments replaced it.",
+    "A test-log reader hit an empty successful compiler log; no compilation failure inferred.",
+    "Local fixture originally released a TLS reference after CLOSED; strengthened with actual native alias/join and final full reruns.",
+    "A selector condition accidentally chose a second full61-program run for the local label; actual command/count retained, condition corrected, only final run counted."
+  ],
+  "remaining": [
+    "cryptographic MQTT enhanced-auth broker/plugin interoperability",
+    "real system DNS and broker-native TLS/other brokers",
+    "automatic subscription and offline admission",
+    "durable/crash recovery and WebSocket",
+    "full four-product performance/production/native Linux/soak gates"
+  ],
+  "artifacts": {
+    "root": "out/service-extensions/xmqtt-reconnect-transports-20261110",
+    "evidence_files": 7328,
+    "evidence_index_sha256": "bcf121bbcf267e54fdfeabcb97c81eb6dccfff320c88dcec650ea6fa0080f53d"
+  }
+}

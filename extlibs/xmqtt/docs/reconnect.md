@@ -83,3 +83,23 @@ Only call Client APIs while their lease remains active; finish every entry using
 that lease before Release. Bind the factory and Session to one logical broker and
 security principal across attempts. FactoryData remains application-owned; its
 borrowed transport/auth resources must obey the selected factory's lifetime rules.
+
+## Automatic TLS/Dial/Auth composition evidence
+
+The [transport stage](../tests/results/reconnect-transports-20261110.json) passes
+3456 independent broker/proxy cases over eight native Windows/WSL build forms,
+including full ASan/UBSan/leak and TSan. It covers TLS1.2/1.3, mutual TLS, accepted
+TLS1.3 tickets/full fallback, MQTT5/311, numeric/custom async DNS/prepared factories,
+five ACK cuts and576 strictly locally partial PUBLISH cases. One Engine hosts both
+automatic generations; the same bounded Resolver is borrowed through both and
+joins after the controller. Runtime trust/identity material is removed each run.
+The broker backend is TCP behind a bounded Python/OpenSSL TLS proxy.
+
+Both OSes pass61 root programs and final2-program transport reruns; WSL adds full
+memory instrumentation and a final TSan run. Sixteen literal-peer scenarios cover
+proof quarantine, two authenticated generations, reauth, held tickets, default
+proof-failure retry policy, TLS rejection and DNS/TLS deadlines. These fixed-token
+authentication fixtures establish protocol/lifetime behavior, not a real algorithm
+or enhanced-auth broker-plugin interoperability. Production source/ABI/closures
+are unchanged; broader performance, real system DNS, broker-native TLS/other brokers,
+native Linux and soak acceptance remain open.

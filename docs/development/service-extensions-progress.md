@@ -10115,3 +10115,56 @@ and retains its original message/Future beyond all owners. Four final packaged
 example/consumer pairs pass this revised source, plus full single-source WSL
 ASan/UBSan/leak and TSan example runs. Only the example changed after the final
 runtime freeze; its exact source delta and scoped validations are recorded.
+
+## 2026-11-10: automatic reconnect TLS/Dial/Auth composition
+
+Automatic reconnect now has dedicated transport-composition evidence. No production
+runtime implementation changes: public reconnect declarations/ABI tokens and root
+production closures match parent2e9a9572. Its config documentation now accurately
+allows narrowing per-attempt operational budgets while preserving Engine/affinity,
+Session/Inbox, identity/version, compatible codec and exact Inbox caps. Test adapters
+copy and erase transient host/SNI/ALPN descriptors. One borrowed cache-disabled
+Resolver spans both generations and performs exactly two actual custom lookups.
+
+Eight build forms pass3456 independent native-TLS/Python-OpenSSL/Mosquitto2.1.2
+cases: Windows static/shared/single and WSL static/shared/single/full ASan+UBSan+
+leak/TSan. TLS1.2/1.3, MQTT5/311, numeric/asynchronous hostname/prepared factories,
+full/mutual TLS, accepted TLS1.3 ticket and full-handshake fallback compose with
+five outgoing/incoming ACK cuts and two work budgets. All576 prefix cases assert
+0<original AcceptedBytes<original PUBLISH wire before automatic recovery. Exactly
+two controller generations preserve MQTT SessionPresent, ids/DUP/PUBREL, incoming
+QoS2 dedup, binary data and immutable original Future outcomes. All6912 TLS
+handshakes, probe/proxy/broker/readers and runtime-only key files retire/reap.
+TLS terminates at the proxy; the broker backend is local TCP, not broker-native TLS.
+
+Each OS passes61 root programs (24 modular,31 single,6 Core examples) and final
+scoped2-program reruns; WSL adds full ASan/UBSan/leak and a final TSan transport
+program. Sixteen local scenarios per transport test prove two authenticated
+connections, reauthentication without another generation, initial-proof lease/data
+quarantine, held-ticket reject/stop, stale valid response refusal, original DNS/TLS
+outage deadlines, rejected TLS verification and actual verifier release. MQTT proof
+rejection uses the default eight-attempt budget, so the one-attempt observation
+proves policy rather than a cap. A blocked independent DNS job remains Resolver-
+owned after controller destruction, then joins. Fixed m/B/C/D values exercise
+protocol/proof ownership only, not a cryptographic MQTT authentication algorithm.
+
+The local TLS server fixture additionally retains its real native transport and
+waits physical retirement before reusing state; TLS Destroy is only reference
+release. Broad before/after and final focused source versions are recorded rather
+than presented as one unchanged test snapshot. Four root static/shared package
+verifications, eight full broker consumers and five normal generated/features/API/
+docs/maturity checks pass. Parent numeric-TCP performance observations remain
+source-equivalent for their covered scope, including six unqualified P99 comparisons;
+no new TLS/Dial/Auth performance, CPU/RSS, native Linux or soak gate is inferred.
+
+Preparatory failures are retained: checked config init fixes a Windows GCC probe
+warning; a shell-quoted host failed before MQTT and was replaced with structured
+arguments; a log reader encountered an empty successful compiler log. A local
+selector accidentally repeated the full61-program suite; actual commands/counts
+are recorded, the selector corrected, and final scoped tests count separately.
+Native peer joining and the proof-retry budget strengthened the fixture with
+subsequent scoped/sanitizer validation. No branch operation or push. System DNS,
+cryptographic enhanced-auth broker plugins, broker-native TLS/other brokers,
+offline/subscription/durable/WebSocket and remaining full four-product gates stay
+open. Evidence: extlibs/xmqtt/tests/results/reconnect-transports-20261110.json and
+out/service-extensions/xmqtt-reconnect-transports-20261110 (C-backed stage).

@@ -675,7 +675,8 @@
         "xmqtt_client_session_tests",
         "xmqtt_client_session_tls_tests",
         "xmqtt_client_session_dial_tests",
-        "xmqtt_reconnect_tests"
+        "xmqtt_reconnect_tests",
+        "xmqtt_reconnect_transport_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -699,7 +700,8 @@
         "extlibs/xmqtt/tests/test_client_session.c",
         "extlibs/xmqtt/tests/test_client_session_tls.c",
         "extlibs/xmqtt/tests/test_client_session_dial.c",
-        "extlibs/xmqtt/tests/test_reconnect.c"
+        "extlibs/xmqtt/tests/test_reconnect.c",
+        "extlibs/xmqtt/tests/test_reconnect_transports.c"
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_wire.c",
@@ -729,7 +731,8 @@
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_dial_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_auth.c",
         "extlibs/xmqtt/tests/single/test_single_xmqtt_client_session_assigned_auth.c",
-        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c"
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c",
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_transports.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1013,6 +1016,32 @@
       ],
       "single_tests": [
         "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xmqtt_reconnect_transport_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xmqtt_reconnect",
+        "xmqtt_client_session_tls",
+        "xmqtt_client_auth",
+        "tls_identity_rsa",
+        "memory_stats",
+        "atomic",
+        "time"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xmqtt/tests/test_reconnect_transports.c"
+      ],
+      "single_tests": [
+        "extlibs/xmqtt/tests/single/test_single_xmqtt_reconnect_transports.c"
       ],
       "examples": [],
       "benchmarks": [],

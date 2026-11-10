@@ -13,8 +13,10 @@ typedef enum xmqttreconnectstate {
     XMQTT_RECONNECT_WAITING,XMQTT_RECONNECT_STOPPED,XMQTT_RECONNECT_FAILED
 } xmqttreconnectstate;
 /* Called only on the supplied Engine/Affinity worker, outside controller locks.
- * Use a Session factory with these exact Engine, affinity, config, Session and
- * Inbox. Return OK with one unique Client; another typed status transfers none.
+ * Use a Session factory with these exact Engine, affinity, Session and Inbox.
+ * Config is a copied template; operational budgets may be narrowed per attempt.
+ * Preserve version/identity, compatible codec and the four exact Inbox caps.
+ * Return OK with one unique Client; another typed status transfers none.
  * Failure classification never depends on an older ambient error. Borrowed
  * inputs last only through this call. Do not wait or retain Session/Inbox.
  * Numeric TCP, Dial, TLS and Auth factories may be selected by the application.
