@@ -10340,3 +10340,32 @@ CPU/RSS, soak or the full production/four-library plan. No branch or push.
 
 [Portable evidence](../../extlibs/xredis/tests/results/tracking-20261111.json).
 Raw stage: `out/service-extensions/xredis-tracking-20261111`.
+
+
+## 2026-11-11: reconfirm migration and current mainline root regressions
+
+At 9afef1e5, reconfirmed the old service-extension branch and migration commit
+05dc625d are ancestors of master. All 26 originally pending backup files retain
+their recorded hashes; there are no new pending paths in the preserved worktree.
+No source migration, branch operation, history rewrite or push was needed.
+Development remains directly at D:/GIT/xrt master under the versioned policy.
+
+Fresh Windows and WSL root regressions cover all four products. Each platform
+passes 159 programs: xredis38, xrpc30, xmqtt57 and xcron34.
+WSL uses full ASan/UBSan/leak-halt instrumentation. Windows also passes the 20
+normal feature/single/API/docs/maturity checks. Both source maps agree on
+6432 inputs; no production source changed during validation.
+Windows native-symbolic-link fixtures retain the existing system1314 permission
+skips; their exact messages are recorded instead of counting them as exercised.
+
+The first WSL launch stopped at its clean-tree precondition before any build.
+Immediate read-only checks were clean; the retry used explicit line-ending
+configuration and disabled optional index refresh locks. No root cause is
+claimed, and the failure is retained separately from product results.
+Existing static/shared results are reused after every production source/header,
+generated header and module manifest matches its corresponding passing snapshot;
+they were not rebuilt in this refresh. This does not qualify new performance,
+native Linux, interop, soak or production readiness. The full goal remains active.
+
+Evidence: [portable report](service-extensions-mainline-confirmation-20261111.json)
+and out/service-extensions/mainline-confirmation-20261111.
