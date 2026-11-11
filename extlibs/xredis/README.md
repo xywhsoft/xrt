@@ -243,3 +243,7 @@ per-call leases. Automatic node reconnection and Cluster routing remain work.
 [Automatic shared pools](docs/pool_shared_connect.md) maintain and refill shared
 node connections with bounded setup/retry and physical generation retirement.
 Accepted business calls never replay. Full Cluster routing remains work.
+
+[Shared ASKING groups](docs/pool_shared_asking.md) execute adjacent native
+ASKING/query pairs on fixed or maintained shared pools, with one Future and
+separate control/query outcomes. Cluster routing remains subsequent work.

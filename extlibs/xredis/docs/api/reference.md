@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `161` 个函数、`268` 个常量或宏、
+当前登记 `163` 个函数、`269` 个常量或宏、
 `122` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
@@ -303,6 +303,19 @@
 ### 常量与宏 (1)
 
 - `XREDIS_FEATURE_XREDIS_POOL_SHARED`
+
+## `extlibs/xredis/include/xredis/pool_shared_asking.h`
+
+[查看带契约注释的公共头](../../include/xredis/pool_shared_asking.h)
+
+### 函数 (2)
+
+- `xredisSharedPoolAskingCall`
+- `xredisSharedPoolAskingCallAsync`
+
+### 常量与宏 (1)
+
+- `XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING`
 
 ## `extlibs/xredis/include/xredis/pool_shared_connect.h`
 

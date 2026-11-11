@@ -180,6 +180,13 @@
         "source_roots": [
           "pool_shared_connect"
         ]
+      },
+      {
+        "name": "pool_shared_asking",
+        "state": "retained",
+        "source_roots": [
+          "pool_shared_asking"
+        ]
       }
     ]
   },
@@ -463,7 +470,8 @@
         "xredis_cluster_topology",
         "xredis_pool_asking",
         "xredis_pool_shared",
-        "xredis_pool_shared_connect"
+        "xredis_pool_shared_connect",
+        "xredis_pool_shared_asking"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -894,7 +902,8 @@
         "xredis_cluster_topology",
         "xredis_pool_asking_tests",
         "xredis_pool_shared_tests",
-        "xredis_pool_shared_connect_tests"
+        "xredis_pool_shared_connect_tests",
+        "xredis_pool_shared_asking_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -929,7 +938,8 @@
         "extlibs/xredis/tests/test_cluster_topology.c",
         "extlibs/xredis/tests/test_pool_asking.c",
         "extlibs/xredis/tests/test_pool_shared.c",
-        "extlibs/xredis/tests/test_pool_shared_connect.c"
+        "extlibs/xredis/tests/test_pool_shared_connect.c",
+        "extlibs/xredis/tests/test_pool_shared_asking.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -972,7 +982,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect.c",
-        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1022,7 +1034,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared.c": "xredis_pool_shared",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_tls.c": "xredis_pool_shared_tests",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect.c": "xredis_pool_shared_connect",
-        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c": "xredis_pool_shared_connect_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c": "xredis_pool_shared_connect_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c": "xredis_pool_shared_asking",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c": "xredis_pool_shared_asking_tests"
       }
     },
     {
@@ -1765,6 +1779,67 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/pool_shared_connect.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_shared_asking",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+      "depends": [
+        "xredis_pool_shared",
+        "xredis_pool_asking"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/pool_shared_asking.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/pool_admit.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/pool/pool.c",
+        "extlibs/xredis/src/pool_shared_asking/pool_shared_asking.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_pool_shared_asking.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/pool_shared_asking/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_pool_shared_asking.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/pool_shared_asking.md",
+        "extlibs/xredis/examples/pool_shared_asking/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_shared_asking_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_pool_shared_asking",
+        "xredis_tls_tests",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_pool_shared_asking.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/pool_shared_asking.md"
       ]
     }
   ]

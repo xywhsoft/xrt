@@ -1,0 +1,10 @@
+#define XREDIS_SHARED_ASKING_WHITEBOX
+#define XREDIS_MODULE_XREDIS_POOL_SHARED_ASKING
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#include "../test_pool_shared_asking.c"

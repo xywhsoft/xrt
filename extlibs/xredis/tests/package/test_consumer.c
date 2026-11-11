@@ -175,8 +175,16 @@ static int testPubSubPackage(void)
 #include "../../examples/pool_shared_connect/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+#define main sharedAskingPackageExample
+#include "../../examples/pool_shared_asking/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+    if(sharedAskingPackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
     if (sharedConnectPackageExample()) return 1;
 #endif

@@ -133,5 +133,10 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_ASKING"
 #endif
 #include <xredis/pool_asking.h>
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING"
+#endif
+#include <xredis/pool_shared_asking.h>
+
 
 #endif

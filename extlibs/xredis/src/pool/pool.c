@@ -565,9 +565,12 @@ xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
     xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
 { return xredisPoolCreateAdmit(Engine, Affinity, Clients, Count, Config, Result, true); }
 
-xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
-    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+static xredisadmission xredisSharedPoolCallAdmit(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync, bool Asking)
 {
+#if !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+    (void)Asking;
+#endif
     if (!Pool || !Future || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
         xrtMemRangesOverlap(Pool, Pool ? Pool->StorageBytes : 0, Future, sizeof(*Future))) {
         xredisPoolReport(XERR_ARGUMENT, "invalid shared pool call/output"); return XREDIS_ADMISSION_ERROR;
@@ -592,6 +595,10 @@ xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Argum
         if (!Client) break;
         /* Native owner admission rechecks state/claim under the client gate.
          * Only a rejected constructor may try another member; never replay. */
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+        if (Asking) Admission = __xredisClientOwnedAsking(Client, &Slot->Owner, Arguments, Count, Timeout, Entered, Future);
+        else
+#endif
         Admission = __xredisClientOwnedCall(Client, &Slot->Owner, Arguments, Count, Timeout, Entered, false, Future);
         xredisClientRelease(Client);
         if (Admission == XREDIS_ADMISSION_ACCEPTED) {
@@ -604,6 +611,14 @@ xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Argum
     Admission = Pool->Info.State == XREDIS_POOL_OPEN ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_CLOSED;
     ++Pool->Info.Rejected; xrtMutexUnlock(&Pool->Gate); return Admission;
 }
+xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{ return xredisSharedPoolCallAdmit(Pool, Arguments, Count, Timeout, Future, Entered, Sync, false); }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+xredisadmission __xredisSharedPoolAsking(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{ return xredisSharedPoolCallAdmit(Pool, Arguments, Count, Timeout, Future, Entered, Sync, true); }
+#endif
 #endif
 
 static xredisadmission xredisPoolAcquireAdmit(xredispool* Pool, int64 Timeout, xfuture** Future, double Entered, bool Sync)

@@ -88,3 +88,10 @@ native bounded connection maintenance. Replacement waits for native readiness
 and physical retirement; accepted business requests never replay. See
 [contracts](pool_shared_connect.md). Cluster routing/refresh and full production
 acceptance remain work.
+
+## Shared native ASKING
+
+The developing `xredis_pool_shared_asking` leaf combines native ASKING groups
+with shared member selection, physical quotas and concurrent ordinary traffic.
+See [contracts](pool_shared_asking.md). It does not follow redirects or complete
+Cluster routing/refresh or production acceptance.

@@ -11355,3 +11355,71 @@ four-library native Linux/upstream/fixed-arrival/mixed-load/CPU/RSS/72h gates
 remain active. All started jobs are terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/shared-reconnect-20261112.json)
 and out/service-extensions/xredis-shared-reconnect-20261112.
+
+
+## 2026-11-12: native shared ASKING/query groups
+
+Developed directly on master from 00212d80. The developing
+xredis_pool_shared_asking leaf adds async/sync ASKING/query execution on fixed
+or maintained shared pools. Shared selection dispatches directly to the existing
+native group admission: one request/Future, existing immutable xredisaskingresult,
+no lease/proxy Future/payload clone or new runtime. No client/request/pool/slot/
+lease/connector/result header grows. Prefix/aligned state remain charged to the
+native physical quotas. Entry deadlines cover selection/construction/both replies
+without a lease hold. Only rejected constructors may probe another member;
+accepted requests never migrate/replay. Both commands are pipelined, so a denied
+control can still execute the query. Concurrent producers cannot interleave
+inside a group. Sent stops preserve partial wire/two-reply FIFO/drain obligations;
+following ordinary calls cannot inherit a pending one-shot flag or group replies.
+Address selection, redirect/refresh/deadline orchestration remain separate work.
+
+Windows/WSL full xredis roots each pass 35 programs; logical totals are45/47.
+Focused, old fixed-shared/leased-ASKING feature-off combination, bare/TLS singles,
+examples, generated features/amalgamation/API docs and maturity gates pass.
+WSL adds ASan/UBSan/leak halt and both TSan singles. Tests cover copied binary
+input, separate control/query errors, malformed/disconnected groups, sent and
+unsent cancel/timeout, exact physical quota/state charging, OOM prefixes,
+concurrent ordinary/group producers, engine-worker sync refusal/async reentry,
+forgotten observers and close/drain expiry. Whitebox TLS singles observe actual
+partial prefix acceptance and an ACK while query plaintext remains incomplete,
+cancel there, then admit ordinary traffic behind the stopped group. Complete
+wire/reply drain precedes successful ordinary results and retained snapshots
+never change. Shared lease counters remain zero; replies survive engine teardown.
+
+All eight modular/single/static/shared forms pass 36 real Redis8.0.5 Cluster
+cases per form (288 total): fixed/maintained pools, numeric/DNS/prepared factories,
+RESP2/3/AUTO and default/ASKING-denied nopass ACL. Owned run IDs precede use.
+For each case four producers each submit12 ASKING/query plus ordinary GET pairs
+on the same importing connection. Native grouped GET reads the owned binary
+value; ordinary GET stays MOVED to the source. Denied ASKING still executes
+ECHO, preserving independent outcomes. CLIENT ID remains unchanged; exact
+factory/Drop obligations retire. Retained group outcomes survive engine teardown.
+Targets are explicitly supplied after the owned fixture obtains a real ASK;
+this is execution-primitive evidence, not automatic Cluster routing. All fixture
+processes/materials retire. Real transport remains plaintext IPv4; full real
+TLS/auth/trust acceptance remains work. All inputs use one frozen source map.
+No formal command failed and no source changed during validation.
+
+Whole-root selector examples, isolated static/shared declaration consumers,
+both new exports and private-symbol exclusion pass. Baseline/current selected,
+feature-off/full/delivery layouts match, including the56-byte group result and
+connector state/entry sizes where selected. Six size forms and product/core
+TLS/DNS/HTTP/tasks/process symbol gates pass. After all functional/delivery jobs
+terminate, serial unpinned comparisons use the same binary ECHO/peer/affinities,
+one warmup plus seven samples, depths1/32, common calibrated counts targeting
+350ms and unchanged3% MAD/6% central-span limits. Ordinary shared baseline/
+current throughput qualifies at Windows depth1 (+0.59%) and WSL depth32 (-0.50%),
+within5%; only WSL depth32 ordinary P99 qualifies (+3.24%), within10%. Other
+ordinary comparisons remain unqualified. Same-wire shared versus held-lease
+ASKING throughput qualifies at Windows depth1 (-0.10%, rounded) and WSL depth32
+(-0.05%, rounded); all ASKING P99 comparisons remain unqualified. No timing
+rerun selected green samples. Windows depth1 old/current ordinary heap counts
+match at10 blocks/1595bytes; shared/leased ASKING both13 blocks/2298bytes. These
+runs include peers/mechanical tails and exclude setup, not isolated library
+costs. Extra protocol command/reply work remains real; no zero-overhead/full
+regression-matrix/production-tail claim is made. Full Cluster routing/refresh/
+redirect/deadline/replica policy and the four-library native Linux/upstream/
+fixed-arrival/mixed-load/CPU/RSS/72h gates remain active. All started jobs are
+terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/shared-asking-20261112.json)
+and out/service-extensions/xredis-shared-asking-20261112.

@@ -383,6 +383,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_pool_shared_asking",
+      "system": "pool_shared_asking",
+      "suite": "xredis_pool_shared_asking",
+      "description": "Native shared ASKING groups without TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

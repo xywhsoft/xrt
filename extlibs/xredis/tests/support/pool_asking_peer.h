@@ -10,7 +10,7 @@ typedef struct redisaskingpeer {
 #if defined(XREDIS_FEATURE_XREDIS_TLS) && defined(XRT_FEATURE_TLS_IDENTITY_RSA)
     redistlspeer TLS;
 #endif
-    unsigned Mode;xredisinitmode Protocol;bool Secure,Armed,Reentered;xfuture* Reentry;
+    unsigned Mode;xredisinitmode Protocol;bool Secure,Armed,Reentered,Shared;xfuture* Reentry;
     xatomic32 Prefixes,Queries,Ordinary,SyncChecked;
 } redisaskingpeer;
 static bool redisAskingCommand(redispeer* P,xredisreply* R,ptr Data)
@@ -21,8 +21,17 @@ static bool redisAskingCommand(redispeer* P,xredisreply* R,ptr Data)
         redisPeerRequire(!F->Armed && Root.ChildCount==1,"ASKING cannot interleave with a preceding group");F->Armed=true;
         if(F->Mode==AK_SYNC && !F->Reentered){
             F->Reentered=true;xfuture* Failed=(xfuture*)(uintptr_t)1;xbytesview Body[]={XRT_BYTES_LITERAL("APPLY"),XRT_BYTES_LITERAL("nested")};
-            redisPeerRequire(xredisLeaseAskingCall(F->Lease,Body,2,5000,&Failed)==XREDIS_ADMISSION_ERROR && Failed==(void*)(uintptr_t)1,"sync ASKING must reject all engine workers");xrtClearError();
-            redisPeerRequire(xredisLeaseAskingCallAsync(F->Lease,Body,2,5000,&F->Reentry)==XREDIS_ADMISSION_ACCEPTED,"async ASKING callback reentry");xrtAtomic32Store(&F->SyncChecked,1,XMEMORY_RELEASE);
+            xredisadmission A;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+            if(F->Shared)A=xredisSharedPoolAskingCall(F->Pool,Body,2,5000,&Failed);else
+#endif
+            A=xredisLeaseAskingCall(F->Lease,Body,2,5000,&Failed);
+            redisPeerRequire(A==XREDIS_ADMISSION_ERROR && Failed==(void*)(uintptr_t)1,"sync ASKING must reject all engine workers");xrtClearError();
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+            if(F->Shared)A=xredisSharedPoolAskingCallAsync(F->Pool,Body,2,5000,&F->Reentry);else
+#endif
+            A=xredisLeaseAskingCallAsync(F->Lease,Body,2,5000,&F->Reentry);
+            redisPeerRequire(A==XREDIS_ADMISSION_ACCEPTED,"async ASKING callback reentry");xrtAtomic32Store(&F->SyncChecked,1,XMEMORY_RELEASE);
         }
         if(F->Mode==AK_DROP_PREFIX){xrtNetStreamAbort(P->Stream);xrtAtomic32FetchAdd(&F->Prefixes,1,XMEMORY_RELEASE);return true;}
         if(F->Mode==AK_HOLD_CONTROL || F->Mode==AK_HOLD_BAD_CONTROL)P->Blocked=true;
@@ -46,9 +55,9 @@ static bool redisAskingCommand(redispeer* P,xredisreply* R,ptr Data)
     }
     redisPeerRequire(!F->Armed,"ordinary request consumed another query's ASKING flag");xrtAtomic32FetchAdd(&F->Ordinary,1,XMEMORY_RELEASE);return false;
 }
-static inline redisaskingpeer* redisAskingPeerStart(unsigned Mode,bool Secure,xredisinitmode Protocol,const xredisclientconfig* C,const xredispoolconfig* K)
+static inline redisaskingpeer* redisAskingPeerStartMode(unsigned Mode,bool Secure,xredisinitmode Protocol,const xredisclientconfig* C,const xredispoolconfig* K,bool Shared)
 {
-    redisaskingpeer* F=xrtCalloc(1,sizeof(*F));redisPeerRequire(F!=NULL,"ASKING fixture allocation");F->Mode=Mode;F->Secure=Secure;F->Protocol=Protocol;
+    redisaskingpeer* F=xrtCalloc(1,sizeof(*F));redisPeerRequire(F!=NULL,"ASKING fixture allocation");F->Mode=Mode;F->Secure=Secure;F->Protocol=Protocol;F->Shared=Shared;
 #if defined(XREDIS_FEATURE_XREDIS_TLS) && defined(XRT_FEATURE_TLS_IDENTITY_RSA)
     if(Secure){redisTlsPeerStart(&F->TLS,false,false,0);F->Peer=&F->TLS.Dial.Init.Peer;}else
 #else
@@ -62,8 +71,21 @@ static inline redisaskingpeer* redisAskingPeerStart(unsigned Mode,bool Secure,xr
 #endif
     redisPeerRequire(xredisClientConnectInit(F->Peer->Engine,&F->Peer->Address,0,C,&I,&F->Client),"ASKING numeric connect");
     F->Peer->Client=F->Client;xfuture* Ready=xredisClientReady(F->Client);redisPeerRequire(Ready && xrtFutureWaitFor(Ready,10000)==XWAIT_OK && ((const xredisreadyresult*)xrtFutureValue(Ready))->Status==XREDIS_READY_OK,"ASKING managed readiness");xrtFutureDestroy(Ready);
-    redisPeerRequire(xredisPoolCreate(F->Peer->Engine,1,&F->Client,1,K,&F->Pool)==XREDIS_ADMISSION_ACCEPTED,"ASKING native pool");return F;
+    xredisadmission A;
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+    if(Shared)A=xredisSharedPoolCreate(F->Peer->Engine,1,&F->Client,1,K,&F->Pool);else
+#else
+    redisPeerRequire(!Shared,"shared ASKING test selection missing");
+#endif
+    A=xredisPoolCreate(F->Peer->Engine,1,&F->Client,1,K,&F->Pool);
+    redisPeerRequire(A==XREDIS_ADMISSION_ACCEPTED,"ASKING native pool");return F;
 }
+static inline redisaskingpeer* redisAskingPeerStart(unsigned Mode,bool Secure,xredisinitmode Protocol,const xredisclientconfig* C,const xredispoolconfig* K)
+{return redisAskingPeerStartMode(Mode,Secure,Protocol,C,K,false);}
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+static inline redisaskingpeer* redisSharedAskingPeerStart(unsigned Mode,bool Secure,xredisinitmode Protocol,const xredisclientconfig* C,const xredispoolconfig* K)
+{return redisAskingPeerStartMode(Mode,Secure,Protocol,C,K,true);}
+#endif
 static inline xfuture* redisAskingAcquire(redisaskingpeer* F)
 {
     xfuture* A=NULL;redisPeerRequire(xredisPoolAcquire(F->Pool,5000,&A)==XREDIS_ADMISSION_ACCEPTED && ((const xredisleaseresult*)xrtFutureValue(A))->Lease,"ASKING native acquisition");F->Lease=((const xredisleaseresult*)xrtFutureValue(A))->Lease;return A;

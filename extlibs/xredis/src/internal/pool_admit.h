@@ -7,6 +7,10 @@ xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
 xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
     int64 Timeout, xfuture** Future, double Entered, bool Sync);
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
+xredisadmission __xredisSharedPoolAsking(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #include <xredis/transaction.h>
 xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
