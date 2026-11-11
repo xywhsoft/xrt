@@ -1,6 +1,12 @@
 #ifndef XREDIS_POOL_ADMIT_INTERNAL_H
 #define XREDIS_POOL_ADMIT_INTERNAL_H
 #include <xredis/pool.h>
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result);
+xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #include <xredis/transaction.h>
 xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,

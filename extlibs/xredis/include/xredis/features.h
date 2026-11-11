@@ -82,6 +82,19 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_ASKING
 #define XREDIS_MODULE_XREDIS_POOL_ASKING
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_SHARED
+#define XREDIS_MODULE_XREDIS_POOL_SHARED
+#endif
+#endif
+
+/* xredis_pool_shared 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_SHARED)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_SHARED
+#define XREDIS_FEATURE_XREDIS_POOL_SHARED
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_pool_asking 及其直接依赖。 */

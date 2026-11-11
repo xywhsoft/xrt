@@ -139,6 +139,19 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_ASKING
 #define XREDIS_MODULE_XREDIS_POOL_ASKING
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_SHARED
+#define XREDIS_MODULE_XREDIS_POOL_SHARED
+#endif
+#endif
+
+/* xredis_pool_shared 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_SHARED)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_SHARED
+#define XREDIS_FEATURE_XREDIS_POOL_SHARED
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_pool_asking 及其直接依赖。 */
@@ -2538,6 +2551,48 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_shared.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_SHARED_H
+#define XREDIS_POOL_SHARED_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "Shared pools require native pools"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+XRT_EXTERN_C_BEGIN
+/* Fixed ready managed members, same ownership/profile/rollback rules as
+ * PoolCreate. Uses the native pool handle and PoolInfo/Close/Closed/Retain/
+ * Release. Exclusively claims members, but multiplexes ordinary calls without
+ * allocating a lease. Acquire APIs reject this mode. Public config validation
+ * is unchanged; MaxPending/LeaseTimeout/ReturnTimeout do not govern shared
+ * calls. There is no acquisition wait queue, reconnect or business replay.
+ * PoolInfo.Idle counts dispatch-eligible members, including busy ones; Leased,
+ * Pending, Acquired and Returned stay zero. Requests/CommandBytes retain hard
+ * native constructor/wire/timer/cancel-tail accounting. */
+XREDIS_API xredisadmission xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Pool);
+/* One native request/Future. Round-robin selection probes at most
+ * min(dispatch-eligible members, WorkItems) candidates. Only nonaccepted
+ * admissions can try another member; accepted calls never move or replay.
+ * No ready/capacity candidate returns OVERLOADED without changing output.
+ * Timeout starts at API entry, including selection and constructor work.
+ * Ordinary client restrictions, limits, FIFO and sent-stop drain apply.
+ * A blocking command also blocks later replies on its selected connection;
+ * isolate blocking traffic in a separate pool. Known connection/mode/session
+ * controls require exclusive APIs and are refused here. No cross-connection
+ * order or key affinity is promised. Caller retains Pool across each API.
+ * Result storage outlives the pool/engine. Sync rejects every engine worker. */
+XREDIS_API xredisadmission xredisSharedPoolCallAsync(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisSharedPoolCall(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -2590,6 +2645,10 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_SHARED"
+#endif
+
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_TRANSACTION"
@@ -2796,9 +2855,16 @@ void __xredisClientConnectRetired(xredisclient* Client);
 /* ========================================================================== */
 
 #if defined(XREDIS_FEATURE_XREDIS_POOL) || \
-	defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+	defined(XREDIS_FEATURE_XREDIS_POOL_ASKING) || \
+	defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
 #ifndef XREDIS_POOL_ADMIT_INTERNAL_H
 #define XREDIS_POOL_ADMIT_INTERNAL_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result);
+xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
     size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future, double Entered, bool Sync);
@@ -7272,7 +7338,8 @@ bool __xredisSentinelClientProfile(xredisclient* C,xnetengine* Engine)
 
 #if defined(XREDIS_FEATURE_XREDIS_POOL) || \
 	defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL) || \
-	defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+	defined(XREDIS_FEATURE_XREDIS_POOL_ASKING) || \
+	defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7454,7 +7521,7 @@ static bool xredisLeaseDisarm(xredispool* Pool, xredislease* Lease)
 
 static void xredisPoolIdleRemove(xredispool* Pool, xredispoolslot* Slot)
 {
-    /* Owning worker, with Pool Gate held for public counters. */
+    /* Pool Gate held, including shared callers rotating ready members. */
     if (!Slot->Idle) return;
     if (Slot->PreviousIdle) Slot->PreviousIdle->NextIdle = Slot->NextIdle; else Pool->IdleHead = Slot->NextIdle;
     if (Slot->NextIdle) Slot->NextIdle->PreviousIdle = Slot->PreviousIdle; else Pool->IdleTail = Slot->PreviousIdle;
@@ -7756,8 +7823,8 @@ static void xredisPoolSlotInit(xredispool* Pool, xredispoolslot* Slot)
     xrtAtomic32Init(&Slot->Owner.Nested, 0);
 #endif
 }
-XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
-    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+static xredisadmission xredisPoolCreateAdmit(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result, bool Shared)
 {
     xredispoolconfig Options;
     if (!Engine || !Result || !xrtMemRangeValid(Result, sizeof(*Result)) || !Count || Count > 65536 || !Clients ||
@@ -7769,6 +7836,8 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
     if (!xredisPoolBounds(&Options)) {
         xredisPoolReport(XERR_ARGUMENT, "invalid pool bounds/deadlines"); return XREDIS_ADMISSION_ERROR;
     }
+    /* Private mode tag. Public exclusive configurations require a finite hold. */
+    if (Shared) Options.LeaseTimeout = 0;
     xredisclient** Sorted = xrtMalloc(Count * sizeof(*Sorted)); if (!Sorted) return XREDIS_ADMISSION_ERROR;
     memcpy(Sorted, Clients, Count * sizeof(*Sorted)); qsort(Sorted, Count, sizeof(*Sorted), xredisPoolCompareClient);
     bool Valid = Sorted[0] != NULL;
@@ -7813,9 +7882,64 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
         xrtNetEngineUnpin(Engine); xredisPoolRelease(Pool); return Admission;
     }
     xredisPoolRef(Pool); /* Active lifetime, independent of caller. */
-    xrtMutexLock(&Pool->Gate); Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
+    xrtMutexLock(&Pool->Gate);
+    if (Shared) for (size_t Index = 0; Index < Count; ++Index) {
+        xredispoolslot* Slot = &Pool->Slots[Index];
+        xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_ACTIVE, XMEMORY_RELEASE);
+        xredisPoolIdleAppend(Pool, Slot);
+    }
+    Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
     return XREDIS_ADMISSION_ACCEPTED;
 }
+XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+{ return xredisPoolCreateAdmit(Engine, Affinity, Clients, Count, Config, Result, false); }
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+{ return xredisPoolCreateAdmit(Engine, Affinity, Clients, Count, Config, Result, true); }
+
+xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{
+    if (!Pool || !Future || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
+        xrtMemRangesOverlap(Pool, Pool ? Pool->StorageBytes : 0, Future, sizeof(*Future))) {
+        xredisPoolReport(XERR_ARGUMENT, "invalid shared pool call/output"); return XREDIS_ADMISSION_ERROR;
+    }
+    xrtMutexLock(&Pool->Gate);
+    if (Pool->Config.LeaseTimeout != 0 || (Sync && !Pool->Finished && xrtNetEngineCurrent(Pool->Engine))) {
+        xrtMutexUnlock(&Pool->Gate);
+        xredisPoolReport(XERR_STATE, "requires shared pool; sync call cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
+    }
+    size_t Budget = Pool->Info.Idle < Pool->Config.WorkItems ? Pool->Info.Idle : Pool->Config.WorkItems;
+    xrtMutexUnlock(&Pool->Gate);
+    xredisadmission Admission = XREDIS_ADMISSION_OVERLOADED;
+    for (size_t Index = 0; Index < Budget; ++Index) {
+        xrtMutexLock(&Pool->Gate);
+        xredispoolslot* Slot = Pool->Info.State == XREDIS_POOL_OPEN ? Pool->IdleHead : NULL;
+        xredisclient* Client = Slot ? Slot->Client : NULL;
+        if (Client) {
+            xredisClientRetain(Client);
+            xredisPoolIdleRemove(Pool, Slot); xredisPoolIdleAppend(Pool, Slot);
+        }
+        xrtMutexUnlock(&Pool->Gate);
+        if (!Client) break;
+        /* Native owner admission rechecks state/claim under the client gate.
+         * Only a rejected constructor may try another member; never replay. */
+        Admission = __xredisClientOwnedCall(Client, &Slot->Owner, Arguments, Count, Timeout, Entered, false, Future);
+        xredisClientRelease(Client);
+        if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+            if (Sync) xrtFutureWait(*Future);
+            return Admission;
+        }
+        if (Admission != XREDIS_ADMISSION_CLOSED && Admission != XREDIS_ADMISSION_OVERLOADED) return Admission;
+    }
+    xrtMutexLock(&Pool->Gate);
+    Admission = Pool->Info.State == XREDIS_POOL_OPEN ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_CLOSED;
+    ++Pool->Info.Rejected; xrtMutexUnlock(&Pool->Gate); return Admission;
+}
+#endif
 
 static xredisadmission xredisPoolAcquireAdmit(xredispool* Pool, int64 Timeout, xfuture** Future, double Entered, bool Sync)
 {
@@ -7824,6 +7948,11 @@ static xredisadmission xredisPoolAcquireAdmit(xredispool* Pool, int64 Timeout, x
         xredisPoolReport(XERR_ARGUMENT, "invalid pool acquisition/output"); return XREDIS_ADMISSION_ERROR;
     }
     xrtMutexLock(&Pool->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+    if (!Pool->Config.LeaseTimeout) {
+        xrtMutexUnlock(&Pool->Gate); xredisPoolReport(XERR_STATE, "shared pools do not grant exclusive leases"); return XREDIS_ADMISSION_ERROR;
+    }
+#endif
     if (Sync && !Pool->Finished && xrtNetEngineCurrent(Pool->Engine)) {
         xrtMutexUnlock(&Pool->Gate); xredisPoolReport(XERR_STATE, "sync acquire cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
     }
@@ -10632,6 +10761,25 @@ XREDIS_API xredisadmission xredisLeaseAskingCallAsync(xredislease* L,const xbyte
 {return __xredisLeaseAsking(L,A,N,T,F,xrtTimer(),false);}
 XREDIS_API xredisadmission xredisLeaseAskingCall(xredislease* L,const xbytesview* A,size_t N,int64 T,xfuture** F)
 {return __xredisLeaseAsking(L,A,N,T,F,xrtTimer(),true);}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/pool_shared/pool_shared.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+XREDIS_API xredisadmission xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Pool)
+{ return __xredisSharedPoolCreate(Engine, Affinity, Clients, Count, Config, Pool); }
+XREDIS_API xredisadmission xredisSharedPoolCallAsync(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+{ return __xredisSharedPoolCall(Pool, Arguments, Count, Timeout, Future, xrtTimer(), false); }
+XREDIS_API xredisadmission xredisSharedPoolCall(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
+{ return __xredisSharedPoolCall(Pool, Arguments, Count, Timeout, Future, xrtTimer(), true); }
 #endif
 #endif
 

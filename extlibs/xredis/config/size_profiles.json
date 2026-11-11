@@ -353,6 +353,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_pool_shared",
+      "system": "pool_shared",
+      "suite": "xredis_pool_shared",
+      "description": "Fixed native multiplexed pools without TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

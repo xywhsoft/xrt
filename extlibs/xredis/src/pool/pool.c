@@ -186,7 +186,7 @@ static bool xredisLeaseDisarm(xredispool* Pool, xredislease* Lease)
 
 static void xredisPoolIdleRemove(xredispool* Pool, xredispoolslot* Slot)
 {
-    /* Owning worker, with Pool Gate held for public counters. */
+    /* Pool Gate held, including shared callers rotating ready members. */
     if (!Slot->Idle) return;
     if (Slot->PreviousIdle) Slot->PreviousIdle->NextIdle = Slot->NextIdle; else Pool->IdleHead = Slot->NextIdle;
     if (Slot->NextIdle) Slot->NextIdle->PreviousIdle = Slot->PreviousIdle; else Pool->IdleTail = Slot->PreviousIdle;
@@ -488,8 +488,8 @@ static void xredisPoolSlotInit(xredispool* Pool, xredispoolslot* Slot)
     xrtAtomic32Init(&Slot->Owner.Nested, 0);
 #endif
 }
-XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
-    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+static xredisadmission xredisPoolCreateAdmit(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result, bool Shared)
 {
     xredispoolconfig Options;
     if (!Engine || !Result || !xrtMemRangeValid(Result, sizeof(*Result)) || !Count || Count > 65536 || !Clients ||
@@ -501,6 +501,8 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
     if (!xredisPoolBounds(&Options)) {
         xredisPoolReport(XERR_ARGUMENT, "invalid pool bounds/deadlines"); return XREDIS_ADMISSION_ERROR;
     }
+    /* Private mode tag. Public exclusive configurations require a finite hold. */
+    if (Shared) Options.LeaseTimeout = 0;
     xredisclient** Sorted = xrtMalloc(Count * sizeof(*Sorted)); if (!Sorted) return XREDIS_ADMISSION_ERROR;
     memcpy(Sorted, Clients, Count * sizeof(*Sorted)); qsort(Sorted, Count, sizeof(*Sorted), xredisPoolCompareClient);
     bool Valid = Sorted[0] != NULL;
@@ -545,9 +547,64 @@ XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
         xrtNetEngineUnpin(Engine); xredisPoolRelease(Pool); return Admission;
     }
     xredisPoolRef(Pool); /* Active lifetime, independent of caller. */
-    xrtMutexLock(&Pool->Gate); Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
+    xrtMutexLock(&Pool->Gate);
+    if (Shared) for (size_t Index = 0; Index < Count; ++Index) {
+        xredispoolslot* Slot = &Pool->Slots[Index];
+        xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_ACTIVE, XMEMORY_RELEASE);
+        xredisPoolIdleAppend(Pool, Slot);
+    }
+    Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
     return XREDIS_ADMISSION_ACCEPTED;
 }
+XREDIS_API xredisadmission xredisPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+{ return xredisPoolCreateAdmit(Engine, Affinity, Clients, Count, Config, Result, false); }
+
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+xredisadmission __xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Result)
+{ return xredisPoolCreateAdmit(Engine, Affinity, Clients, Count, Config, Result, true); }
+
+xredisadmission __xredisSharedPoolCall(xredispool* Pool, const xbytesview* Arguments, size_t Count,
+    int64 Timeout, xfuture** Future, double Entered, bool Sync)
+{
+    if (!Pool || !Future || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
+        xrtMemRangesOverlap(Pool, Pool ? Pool->StorageBytes : 0, Future, sizeof(*Future))) {
+        xredisPoolReport(XERR_ARGUMENT, "invalid shared pool call/output"); return XREDIS_ADMISSION_ERROR;
+    }
+    xrtMutexLock(&Pool->Gate);
+    if (Pool->Config.LeaseTimeout != 0 || (Sync && !Pool->Finished && xrtNetEngineCurrent(Pool->Engine))) {
+        xrtMutexUnlock(&Pool->Gate);
+        xredisPoolReport(XERR_STATE, "requires shared pool; sync call cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
+    }
+    size_t Budget = Pool->Info.Idle < Pool->Config.WorkItems ? Pool->Info.Idle : Pool->Config.WorkItems;
+    xrtMutexUnlock(&Pool->Gate);
+    xredisadmission Admission = XREDIS_ADMISSION_OVERLOADED;
+    for (size_t Index = 0; Index < Budget; ++Index) {
+        xrtMutexLock(&Pool->Gate);
+        xredispoolslot* Slot = Pool->Info.State == XREDIS_POOL_OPEN ? Pool->IdleHead : NULL;
+        xredisclient* Client = Slot ? Slot->Client : NULL;
+        if (Client) {
+            xredisClientRetain(Client);
+            xredisPoolIdleRemove(Pool, Slot); xredisPoolIdleAppend(Pool, Slot);
+        }
+        xrtMutexUnlock(&Pool->Gate);
+        if (!Client) break;
+        /* Native owner admission rechecks state/claim under the client gate.
+         * Only a rejected constructor may try another member; never replay. */
+        Admission = __xredisClientOwnedCall(Client, &Slot->Owner, Arguments, Count, Timeout, Entered, false, Future);
+        xredisClientRelease(Client);
+        if (Admission == XREDIS_ADMISSION_ACCEPTED) {
+            if (Sync) xrtFutureWait(*Future);
+            return Admission;
+        }
+        if (Admission != XREDIS_ADMISSION_CLOSED && Admission != XREDIS_ADMISSION_OVERLOADED) return Admission;
+    }
+    xrtMutexLock(&Pool->Gate);
+    Admission = Pool->Info.State == XREDIS_POOL_OPEN ? XREDIS_ADMISSION_OVERLOADED : XREDIS_ADMISSION_CLOSED;
+    ++Pool->Info.Rejected; xrtMutexUnlock(&Pool->Gate); return Admission;
+}
+#endif
 
 static xredisadmission xredisPoolAcquireAdmit(xredispool* Pool, int64 Timeout, xfuture** Future, double Entered, bool Sync)
 {
@@ -556,6 +613,11 @@ static xredisadmission xredisPoolAcquireAdmit(xredispool* Pool, int64 Timeout, x
         xredisPoolReport(XERR_ARGUMENT, "invalid pool acquisition/output"); return XREDIS_ADMISSION_ERROR;
     }
     xrtMutexLock(&Pool->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+    if (!Pool->Config.LeaseTimeout) {
+        xrtMutexUnlock(&Pool->Gate); xredisPoolReport(XERR_STATE, "shared pools do not grant exclusive leases"); return XREDIS_ADMISSION_ERROR;
+    }
+#endif
     if (Sync && !Pool->Finished && xrtNetEngineCurrent(Pool->Engine)) {
         xrtMutexUnlock(&Pool->Gate); xredisPoolReport(XERR_STATE, "sync acquire cannot block an engine worker"); return XREDIS_ADMISSION_ERROR;
     }

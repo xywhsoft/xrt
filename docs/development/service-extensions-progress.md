@@ -11227,3 +11227,64 @@ The full four-library native Linux/upstream/fixed-arrival/mixed-load/CPU/RSS/72h
 acceptance remains active. All started jobs are terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/pool-asking-20261112.json)
 and out/service-extensions/xredis-pool-asking-20261112.
+
+
+## 2026-11-12: fixed native shared pools
+
+Developed directly on master from a393b1c1. The developing xredis_pool_shared
+leaf claims fixed ready managed members and multiplexes ordinary commands with
+one native request/Future, without a per-call lease or proxy Future/payload
+clone. Ready-list rotation under the pool gate probes at most min(eligible
+members, WorkItems) candidates. Only rejected constructors can try another
+member; accepted business requests never migrate or replay. Native owner/state,
+original-entry deadlines, physical quota, FIFO, cancellation, drain and close
+obligations remain in force. Config uses a private invalid zero lease-hold tag
+after normal validation; no pool/client/request/slot/lease structure grows.
+Shared calls reject exclusive pools; exclusive acquisition rejects shared mode.
+Idle means dispatch-eligible members, including busy ones; lease counters stay
+zero. Blocking calls need a separate traffic pool. Reconnect and full Cluster
+routing/refresh/redirect execution remain subsequent work.
+
+Windows and WSL full xredis roots each pass 33 programs. Logical validation
+counts are 42/44, including focused bare/TLS, feature-off, singles, examples,
+and WSL ASan/UBSan/leak and both TSan variants. Cases cover copied binary input,
+round robin, bounded probes against actual member saturation, exact aggregate
+physical quotas, sent cancel/timeout/close, post-drain reuse, malformed member
+retirement, constructor/request OOM prefixes, worker reentry and concurrent
+producers/close. Completed outcomes survive pool/engine teardown. All eight
+modular/single/static/shared forms pass 18 real cases each (144 total), covering
+numeric/DNS/prepared factories, RESP2/3/AUTO, default/named nopass ACL, exact
+CLIENT IDs, two-member binary pipelines, retirement and retained replies. Owned
+Redis 8.0.5 PID/run IDs precede fixture use; all processes/materials retire.
+Real transport remains plaintext IPv4. Isolated static/shared declaration
+consumers, whole-root selector examples, exports, all six size forms and
+product/core forbidden-symbol gates pass. Layouts match the base on both hosts.
+
+Initial strict test pointer signedness and invalid fixture MaxInFlight were
+corrected. A declaration-driver include-name typo is preserved with its failed
+logs/artifacts. A Windows real probe timed out before pool creation: WSL port-0
+selected 49667, occupied on Windows by svchost PID1900. A same-port diagnostic
+reproduced the pre-pool INFO timeout; another candidate hit Windows exclusions.
+The runner now uses ports below the dynamic RPC range; Windows orchestration
+screens exclusive binds, WSL checks its namespace, and probes verify actual
+Redis identity. v2 changes only the two interop-test inputs; all shipping/unit/
+single/example inputs are byte-identical to v1. The WSL driver's final full-map
+guard observed these concurrent test-only edits after every child passed. Its
+exit1 is retained; receipt reconciliation proves the exact unused-input diff
+and verifies the v2 map without rerunning or waiving a functional failure.
+
+After all functional/delivery jobs ended, serial unpinned comparisons use the
+same native ECHO/peer/affinities, one warmup plus seven samples, depths 1/32 and
+calibrated common counts for a 350ms target. Noise limits remain 3% MAD/6%
+central span. Shared versus current held-lease throughput comparisons qualify
+at Windows depth1 (-1.40%) and WSL depth32 (-2.35%); only WSL depth32 P99
+qualifies (+2.19%). Other shared comparisons remain unqualified. Ordinary base/
+current throughput qualifies only at Windows depth1 (+0.55%); all ordinary
+P99 comparisons remain unqualified. No rerun selected green timing. Windows
+depth1 old/current/shared heap observations match at 10 blocks/1595 bytes;
+these runs include peers and mechanical tails, not isolated library costs.
+No zero-overhead, complete regression-matrix, production-tail or full performance
+acceptance is claimed. The four-library native Linux/upstream/fixed-arrival/
+mixed-load/CPU/RSS/72h gates remain active. All started jobs are terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/pool-shared-20261112.json)
+and out/service-extensions/xredis-pool-shared-20261112.

@@ -54,6 +54,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_POOL_CONNECT)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_SHARED 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION 1
 #endif
@@ -134,6 +137,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_POOL_CONNECT)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_POOL_SHARED)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_SHARED 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION 1
@@ -2710,6 +2716,19 @@
 #ifndef XREDIS_MODULE_XREDIS_POOL_ASKING
 #define XREDIS_MODULE_XREDIS_POOL_ASKING
 #endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_SHARED
+#define XREDIS_MODULE_XREDIS_POOL_SHARED
+#endif
+#endif
+
+/* xredis_pool_shared 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_SHARED)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_SHARED
+#define XREDIS_FEATURE_XREDIS_POOL_SHARED
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
+#endif
 #endif
 
 /* xredis_pool_asking 及其直接依赖。 */
@@ -5109,6 +5128,48 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/pool_shared.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_POOL_SHARED_H
+#define XREDIS_POOL_SHARED_H
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED) && !defined(XREDIS_FEATURE_XREDIS_POOL)
+#error "Shared pools require native pools"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+XRT_EXTERN_C_BEGIN
+/* Fixed ready managed members, same ownership/profile/rollback rules as
+ * PoolCreate. Uses the native pool handle and PoolInfo/Close/Closed/Retain/
+ * Release. Exclusively claims members, but multiplexes ordinary calls without
+ * allocating a lease. Acquire APIs reject this mode. Public config validation
+ * is unchanged; MaxPending/LeaseTimeout/ReturnTimeout do not govern shared
+ * calls. There is no acquisition wait queue, reconnect or business replay.
+ * PoolInfo.Idle counts dispatch-eligible members, including busy ones; Leased,
+ * Pending, Acquired and Returned stay zero. Requests/CommandBytes retain hard
+ * native constructor/wire/timer/cancel-tail accounting. */
+XREDIS_API xredisadmission xredisSharedPoolCreate(xnetengine* Engine, uint64 Affinity,
+    xredisclient* const* Clients, size_t Count, const xredispoolconfig* Config, xredispool** Pool);
+/* One native request/Future. Round-robin selection probes at most
+ * min(dispatch-eligible members, WorkItems) candidates. Only nonaccepted
+ * admissions can try another member; accepted calls never move or replay.
+ * No ready/capacity candidate returns OVERLOADED without changing output.
+ * Timeout starts at API entry, including selection and constructor work.
+ * Ordinary client restrictions, limits, FIFO and sent-stop drain apply.
+ * A blocking command also blocks later replies on its selected connection;
+ * isolate blocking traffic in a separate pool. Known connection/mode/session
+ * controls require exclusive APIs and are refused here. No cross-connection
+ * order or key affinity is promised. Caller retains Pool across each API.
+ * Result storage outlives the pool/engine. Sync rejects every engine worker. */
+XREDIS_API xredisadmission xredisSharedPoolCallAsync(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XREDIS_API xredisadmission xredisSharedPoolCall(xredispool* Pool,
+    const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -5161,6 +5222,10 @@ XRT_EXTERN_C_END
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL"
 #endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_SHARED"
+#endif
+
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_TRANSACTION"
@@ -5244,6 +5309,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT)
 #undef XREDIS_FEATURE_XREDIS_POOL_CONNECT
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_CONNECT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_SHARED)
+#undef XREDIS_FEATURE_XREDIS_POOL_SHARED
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_SHARED
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 #undef XREDIS_FEATURE_XREDIS_POOL_TRANSACTION
@@ -5352,6 +5421,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT)
 #undef XREDIS_MODULE_XREDIS_POOL_CONNECT
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_CONNECT
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_SHARED)
+#undef XREDIS_MODULE_XREDIS_POOL_SHARED
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_SHARED
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_POOL_TRANSACTION)
 #undef XREDIS_MODULE_XREDIS_POOL_TRANSACTION
@@ -7171,6 +7244,19 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_POOL_ASKING
 #define XREDIS_MODULE_XREDIS_POOL_ASKING
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL_SHARED
+#define XREDIS_MODULE_XREDIS_POOL_SHARED
+#endif
+#endif
+
+/* xredis_pool_shared 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_POOL_SHARED)
+#ifndef XREDIS_FEATURE_XREDIS_POOL_SHARED
+#define XREDIS_FEATURE_XREDIS_POOL_SHARED
+#endif
+#ifndef XREDIS_MODULE_XREDIS_POOL
+#define XREDIS_MODULE_XREDIS_POOL
 #endif
 #endif
 

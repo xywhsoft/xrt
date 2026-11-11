@@ -235,3 +235,7 @@ Automatic Cluster request routing/redirect execution remains subsequent work.
 one native request/Future and explicit control/query outcomes. The native FIFO
 and physical lease boundary contain one-shot state through timeout/cancel.
 Automatic Cluster address selection/redirect execution remains subsequent work.
+
+[Native shared pools](docs/pool_shared.md) multiplex ordinary calls over fixed
+ready members with one native request/Future and bounded selection, without
+per-call leases. Automatic node reconnection and Cluster routing remain work.

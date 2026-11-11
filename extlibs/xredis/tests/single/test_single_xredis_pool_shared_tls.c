@@ -1,0 +1,11 @@
+#define XREDIS_MODULE_XREDIS_POOL_SHARED
+#define XREDIS_MODULE_XREDIS_TLS
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#include "../test_pool_shared.c"

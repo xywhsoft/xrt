@@ -73,3 +73,10 @@ production acceptance remain open. See [contracts](cluster_topology.md).
 control/business outcomes, bounded physical drain and reuse. See
 [contracts](pool_asking.md). Automatic Cluster routing/redirect refresh and
 production acceptance remain open.
+
+## Native shared pools
+
+The developing `xredis_pool_shared` leaf adds fixed managed-member multiplexing,
+bounded round robin, native physical quotas/stops and immediate overload.
+See [contracts](pool_shared.md). Node reconnection, Cluster routing and
+production performance acceptance remain open.
