@@ -159,6 +159,13 @@
         "source_roots": [
           "cluster_topology"
         ]
+      },
+      {
+        "name": "pool_asking",
+        "state": "retained",
+        "source_roots": [
+          "pool_asking"
+        ]
       }
     ]
   },
@@ -439,7 +446,8 @@
         "xredis_role_client",
         "xredis_sentinel",
         "xredis_sentinel_pool",
-        "xredis_cluster_topology"
+        "xredis_cluster_topology",
+        "xredis_pool_asking"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -867,7 +875,8 @@
         "xredis_role_client_tests",
         "xredis_sentinel_tests",
         "xredis_sentinel_pool_tests",
-        "xredis_cluster_topology"
+        "xredis_cluster_topology",
+        "xredis_pool_asking_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -899,7 +908,8 @@
         "extlibs/xredis/tests/test_role_client.c",
         "extlibs/xredis/tests/test_sentinel.c",
         "extlibs/xredis/tests/test_sentinel_pool.c",
-        "extlibs/xredis/tests/test_cluster_topology.c"
+        "extlibs/xredis/tests/test_cluster_topology.c",
+        "extlibs/xredis/tests/test_pool_asking.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -936,7 +946,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -980,7 +992,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c": "xredis_sentinel_tests",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c": "xredis_sentinel_pool",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c": "xredis_sentinel_pool_tests",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c": "xredis_cluster_topology"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c": "xredis_cluster_topology",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking.c": "xredis_pool_asking",
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking_tls.c": "xredis_pool_asking_tests"
       }
     },
     {
@@ -1542,6 +1556,66 @@
         "extlibs/xredis/docs/cluster_topology.md",
         "extlibs/xredis/docs/api/reference.md",
         "extlibs/xredis/examples/cluster_topology/README.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_asking",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+      "depends": [
+        "xredis_pool"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/pool_asking.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/pool_admit.h",
+        "extlibs/xredis/src/internal/client_connect.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/client/client.c",
+        "extlibs/xredis/src/pool/pool.c",
+        "extlibs/xredis/src/pool_asking/pool_asking.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_pool_asking.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/pool_asking/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_pool_asking.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/pool_asking.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/pool_asking/README.md"
+      ]
+    },
+    {
+      "name": "xredis_pool_asking_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_pool_asking",
+        "xredis_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_pool_asking.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pool_asking_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/pool_asking.md"
       ]
     }
   ]

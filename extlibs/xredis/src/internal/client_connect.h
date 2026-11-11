@@ -44,6 +44,10 @@ bool __xredisClientIsWorker(xredisclient* Client);
 xredisadmission __xredisClientOwnedCall(xredisclient* Client, xredisexclusiveowner* Owner,
     const xbytesview* Arguments, size_t Count, int64 Timeout, double Entered,
     bool Control, xfuture** Future);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+xredisadmission __xredisClientOwnedAsking(xredisclient* Client,xredisexclusiveowner* Owner,
+    const xbytesview* Arguments,size_t Count,int64 Timeout,double Entered,xfuture** Future);
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_WATCH)
 #include <xredis/watch.h>
 xredisadmission __xredisClientClaimNested(xredisclient* Client, xredisexclusiveowner* Parent,

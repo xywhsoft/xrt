@@ -66,3 +66,10 @@ The developing `xredis_cluster_topology` leaf covers RESP2/3 SHARDS, legacy
 SLOTS, bounded immutable lifetime, indexed slots and borrowed MOVED/ASK views.
 Automatic Cluster connection/routing, ASKING execution, refresh, resharding and
 production acceptance remain open. See [contracts](cluster_topology.md).
+
+## Native leased ASKING
+
+`xredis_pool_asking` supplies adjacent native ASKING/query execution, separate
+control/business outcomes, bounded physical drain and reuse. See
+[contracts](pool_asking.md). Automatic Cluster routing/redirect refresh and
+production acceptance remain open.

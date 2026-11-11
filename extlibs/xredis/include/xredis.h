@@ -119,4 +119,9 @@
 #endif
 #include <xredis/cluster_topology.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_ASKING"
+#endif
+#include <xredis/pool_asking.h>
+
 #endif

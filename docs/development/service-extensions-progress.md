@@ -11158,3 +11158,72 @@ redirect/refresh, replica policy and resharding/failover remain work, as do the
 full four-library native Linux/upstream/mixed-load/CPU/RSS/fixed-arrival/72h gates.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-topology-20261112.json)
 and out/service-extensions/xredis-cluster-topology-20261112.
+
+
+## 2026-11-12: native leased ASKING/query groups
+
+Developed directly on master from22d2e72b. The developing xredis_pool_asking
+leaf adds async/sync lease operations. A single native request/Future owns one
+adjacent ASKING/query wire and request-only aligned state; no second Future,
+worker, timer or payload clone exists. Both commands are pipelined, so the
+query may execute even if ASKING is denied. Independent Query/Control outcomes
+make that explicit, and no error authorizes business replay. Both replies and
+full wire acceptance remain native FIFO obligations across sent stops; timeout/
+protocol/disconnect retires the member when needed, before physical lease reuse.
+Immutable results contain no lease/client/engine references. Native constructor/
+queue/deadline/owner/quota checks remain in force, including original lease hold.
+The existing sensitivity byte uses a separate mode bit; wire wiping keeps bit0.
+No request/client/pool/slot/lease header grows. Feature-off retains the bool byte.
+
+Windows/WSL roots each run32 programs. Feature-off pools, focused bare/TLS,
+new singles and offline examples pass. WSL adds ASan/UBSan/leak halt and both
+singles pass TSan. Tests prove exact one-request/byte quotas including alignment
+state, actual constructor OOM prefixes, two-reply drain, late malformed
+control, unobserved/closed futures, worker sync refusal/async reentry, producers
+and retained outcomes. TLS single whitebox cases observe actual partial-prefix
+acceptance before cancellation and a received prefix ACK while the query still
+has unsent plaintext. Original wire drains before next lease; logical snapshots
+never update. Whole-root module-selector examples pass on both hosts.
+
+All8 modular/single/static/shared forms run18 real numeric/DNS/prepared RESP2/3/
+AUTO/ACL matrix cases per form against an owned Redis8.0.5 three-master Cluster
+with a migrating/importing slot. ASKING+GET reads a binary value on the importer;
+ordinary GET is MOVED before/after the pair and after same-connection lease reuse
+verified by CLIENT ID. A real ASKING-denied user still executes ECHO, preserving
+both outcomes. Owned run IDs precede fixture use; retained outcomes survive engine
+teardown, and all processes/materials retire. Four additional Python socket-only
+checks (not native matrix cases) show valid/unknown/WRONGTYPE/ACL-denied queries
+consume one-shot state. Real transport is plaintext IPv4; full real TLS/auth/
+trust and automatic Cluster route/refresh/redirect execution remain work.
+
+Static/shared SDK and isolated declaration consumers pass; both new APIs export
+without internal helper exports. Baseline/current selected, feature-off, full
+and delivery layout probes match on both hosts, including request104/offset102
+and sensitivity byte1 in the minimal selection. All six size forms and product/
+core forbidden-symbol gates pass. Windows/WSL logical functional totals are42/
+44 including v2 targeted full-root rerun; whole-root and SDK consumers are separate.
+
+The first strict Windows single build reported a possibly uninitialized test
+output local. v2 initializes that local; only test_pool_asking.c differs from
+v1 and all shipping/SDK/interop inputs remain byte-identical. Original32-program
+roots remain v1 evidence; v2 reruns the changed test with full-root features,
+bare/TLS singles, sanitizer variants and examples. Fixture root/selector/else
+warning corrections and all available initial compiler/runtime logs remain.
+
+After every functional/delivery job ended, serial unpinned same-object network
+comparisons use one warmup plus7 samples at depths1/32 and calibrated common
+counts for a350ms target. Baseline swaps only old client/pool objects and omits
+the unavailable new ASKING wrapper/call sites; worker/peer profiles and
+ECHO payload are identical. Under unchanged3% MAD/6% central-span gates, all
+ordinary throughput comparisons qualify and lose0.25%-0.82%, within5% budget.
+All ordinary P99 comparisons are unqualified and remain so; no production-tail
+or full10% tail-budget acceptance is claimed. ASKING costs its extra command/
+reply work; zero overhead is not claimed. Windows ordinary heap counts match
+baseline (10 blocks/1595bytes at depth1); all heap runs include peers/mechanical
+tails and are not isolated library costs. The initial collector rejected the
+backend-name banner before final series; raw calibration/build are preserved,
+parser corrected, and no implementation/gate changed to select green timing.
+The full four-library native Linux/upstream/fixed-arrival/mixed-load/CPU/RSS/72h
+acceptance remains active. All started jobs are terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/pool-asking-20261112.json)
+and out/service-extensions/xredis-pool-asking-20261112.

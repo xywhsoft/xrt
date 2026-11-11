@@ -11,4 +11,8 @@ xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransac
 xredisadmission __xredisLeaseWatch(xredislease* Lease, const xbytesview* Keys, size_t Count,
     const xrediswatchconfig* Config, xfuture** Future, double Entered, bool Sync);
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+xredisadmission __xredisLeaseAsking(xredislease* Lease,const xbytesview* Arguments,size_t Count,
+    int64 Timeout,xfuture** Future,double Entered,bool Sync);
+#endif
 #endif

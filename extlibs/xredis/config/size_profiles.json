@@ -338,6 +338,21 @@
         "xrtTask",
         "xrtFuture"
       ]
+    },
+    {
+      "name": "xredis_pool_asking",
+      "system": "pool_asking",
+      "suite": "xredis_pool_asking",
+      "description": "Native pooled ASKING groups without TLS/DNS/HTTP/tasks or an extra runtime",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

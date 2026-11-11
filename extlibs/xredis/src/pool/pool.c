@@ -657,6 +657,19 @@ XREDIS_API xredisadmission xredisLeaseCallAsync(xredislease* Lease, const xbytes
 { return xredisLeaseCallAdmit(Lease, Arguments, Count, Timeout, Future, xrtTimer(), false); }
 XREDIS_API xredisadmission xredisLeaseCall(xredislease* Lease, const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future)
 { return xredisLeaseCallAdmit(Lease, Arguments, Count, Timeout, Future, xrtTimer(), true); }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_ASKING)
+xredisadmission __xredisLeaseAsking(xredislease* Lease,const xbytesview* Arguments,size_t Count,
+    int64 Timeout,xfuture** Future,double Entered,bool Sync)
+{
+    xredispool* Pool=NULL;xredispoolslot* Slot=NULL;
+    xredisadmission A=xredisLeaseEnter(Lease,Sync,Future,&Pool,&Slot);
+    if(A!=XREDIS_ADMISSION_ACCEPTED)return A;
+    A=__xredisClientOwnedAsking(Slot->Client,&Slot->Owner,Arguments,Count,Timeout,Entered,Future);
+    xredisLeaseLeave(Lease,Pool);
+    if(Sync && A==XREDIS_ADMISSION_ACCEPTED)xrtFutureWait(*Future);
+    return A;
+}
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)
 xredisadmission __xredisLeaseTransaction(xredislease* Lease, const xredistransactioncommand* Commands,
     size_t Count, const xredistransactionconfig* Config, int64 Timeout, xfuture** Future, double Entered, bool Sync)

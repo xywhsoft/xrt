@@ -4128,6 +4128,121 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_pool_asking",
+      "system": "pool_asking",
+      "description": "Warm native lease ECHO versus ASKING+same ECHO; caller-observed closed-loop local C peer, setup/physical cleanup outside timing",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_asking_0_1",
+          "source": "extlibs/xredis/bench/bench_pool_asking.c",
+          "suite": "xredis_pool_asking,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_asking_0_32",
+          "source": "extlibs/xredis/bench/bench_pool_asking.c",
+          "suite": "xredis_pool_asking,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_asking_1_1",
+          "source": "extlibs/xredis/bench/bench_pool_asking.c",
+          "suite": "xredis_pool_asking,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_asking_1_32",
+          "source": "extlibs/xredis/bench/bench_pool_asking.c",
+          "suite": "xredis_pool_asking,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -230,3 +230,8 @@ fence/retire all old members when the verified master endpoint changes.
 [Cluster topology](docs/cluster_topology.md) provides bounded immutable SHARDS/
 SLOTS snapshots, constant-time slot lookup, binary key slots and MOVED/ASK views.
 Automatic Cluster request routing/redirect execution remains subsequent work.
+
+[Leased ASKING groups](docs/pool_asking.md) execute an adjacent ASKING/query with
+one native request/Future and explicit control/query outcomes. The native FIFO
+and physical lease boundary contain one-shot state through timeout/cancel.
+Automatic Cluster address selection/redirect execution remains subsequent work.
