@@ -10369,3 +10369,65 @@ native Linux, interop, soak or production readiness. The full goal remains activ
 
 Evidence: [portable report](service-extensions-mainline-confirmation-20261111.json)
 and out/service-extensions/mainline-confirmation-20261111.
+
+
+## 2026-11-11: adjacent one-shot Redis CACHING/query groups
+
+Implemented directly on master from99fa5326. Two typed sync/async APIs copy
+CLIENT CACHING YES/NO and one ordinary query into one adjacent native request,
+Future and deadline. Other producers cannot split the pair. There is no prefix
+ACK round trip or earlier-request drain. Prefix errors remain independent from
+an already-executed query; malformed prefix responses retire the connection.
+Sent cancellation/timeout conservatively reports MAY_HAVE_EXECUTED, continues
+the original partial wire group and drains both reply slots under bounded grace.
+Known Control reply/cause/order survives local stop, close and physical owners;
+late frames never mutate an earlier result. Pushes retain their own wire order.
+
+Existing observation tags select the group. Request remains104 bytes on x64;
+private aligned state56, result72 versus ordinary24/observed32. Both encoded
+frames and aligned state count toward per-call/total byte bounds; one group uses
+one request/inflight credit. Per-frame reader bounds still apply independently
+to the two owned reply trees. No Core API, new worker, runtime or branch is added.
+Examples, isolated declaration consumers and actual static/shared consumers
+exercise the new surface; DLL/ELF export tables expose both functions and no
+internal hooks. Both platforms pass three size/forbidden-symbol forms.
+
+Windows and WSL initial root modular21 programs pass. Final focused modular,
+bare/full single and feature-excluded Client runs pass; WSL fully instruments
+memory/UB/leak-halt and TSan forms. Tests cover binary snapshots, concurrent
+producers/async reentry, both Engine workers, independent errors, every caller
+construction quota prefix1..1536, exact byte/count limits, immutable late drain,
+unobserved Future drops, dual retained error references and mixed transactions.
+TLS uses three-byte write turns. Owner-held single probes confirm cancellation
+inside the preface and after prefix ACK during partial query writing, followed
+by successful ordinary FIFO recovery. The initial ASan bare single exposed a
+fixture response-write race after deliberate prefix corruption; an instrumented
+trace reproduces Mode3, and the preserved failed binary/log remain. The fixture
+still records the parsed query but does not demand a response on that corrupted
+connection. Only this one test file differs between snapshots; all production
+inputs match. A package collector initially assumed out/ instead of release/;
+actual passing package receipts were reused after fixing that collector.
+
+Eight builds pass216 independent Redis8.0.5 cases: TCP/TLS1.2/TLS1.3, numeric,
+system-DNS and prepared factories, no-auth/password/ACL. Four producers prove
+the exact32-key OPTIN/OPTOUT invalidation sets; unrelated queries cannot consume
+a pair's flag. Cases also retain both outcomes after real prefix rejection and
+all owners, and exercise RESP2 OPTIN with a RESP3 recipient. Existing Tracking
+flows remain covered. Disposable instance identity is checked before mutation;
+every process and ephemeral credential directory is reaped/removed.
+
+Performance is measured serially after validation, with seven samples/one
+warmup and unchanged3% MAD/6% central-span gates. The pair comparator sends the
+same two frames from one serialized producer using two async Futures, with no
+prefix-ACK wait; grouping removes one request/Future rather than hiding a round
+trip. Whole-loopback heap calls fall from about20 to14/group on Windows and22
+to16 (depth1),20 to14 (depth32) on WSL. Joint-qualified throughput gains are2.2%
+Windows depth1,12.3% WSL depth1 and24.7% WSL depth32. Other cells retain failed
+noise gates; neither complete report is fully qualified. Matched old/current
+ordinary calls use identical remaining runtime objects; qualified throughput
+comparisons stay within the existing5% regression budget. Ordinary P99 comparisons
+remain unqualified. No zero-cost, native Linux, upstream, fixed-arrival, CPU/RSS,
+soak or production acceptance is claimed. The full four-library goal remains active.
+
+Evidence: [portable report](../../extlibs/xredis/tests/results/caching-20261111.json)
+and out/service-extensions/xredis-caching-20261111.

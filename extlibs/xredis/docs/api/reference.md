@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `89` 个函数、`145` 个常量或宏、
-`62` 个公共类型。
+当前登记 `91` 个函数、`145` 个常量或宏、
+`63` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -399,8 +399,10 @@
 
 [查看带契约注释的公共头](../../include/xredis/tracking.h)
 
-### 函数 (8)
+### 函数 (10)
 
+- `xredisClientCachingCall`
+- `xredisClientCachingCallAsync`
 - `xredisClientTrackingCall`
 - `xredisClientTrackingCallAsync`
 - `xredisClientTrackingConfigureAsync`
@@ -428,8 +430,9 @@
 - `XREDIS_TRACKING_REDIRECT`
 - `XREDIS_TRACKING_REDIRECT_BROKEN`
 
-### 类型 (7)
+### 类型 (8)
 
+- `xrediscachingresult`
 - `xredistrackingconfig`
 - `xredistrackingevent`
 - `xredistrackingeventkind`

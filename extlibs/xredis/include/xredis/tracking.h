@@ -21,6 +21,13 @@ typedef struct xredistrackingconfig {
  * Zero means no reply was published. Counter exhaustion closes without wrap.
  * No Client/Engine reference survives in an observed result. */
 typedef struct xredistrackingresult {xredisrequestresult Request;uint64 Sequence;} xredistrackingresult;
+/* Query is the ordinary result prefix. Control independently preserves the
+ * CLIENT CACHING outcome known at logical completion. Both replies/causes
+ * belong to the Future; neither result retains a Client/Engine. */
+typedef struct xrediscachingresult {
+    xredistrackingresult Query,Control;
+    bool ControlReceived;
+} xrediscachingresult;
 typedef struct xredistrackingpush {xredisreply* Reply;uint64 Sequence;} xredistrackingpush;
 typedef struct xredistrackinginfo {size_t Size,Bytes,Reserved;uint64 Sequence,Rejected;bool Enabled,Preparing;} xredistrackinginfo;
 typedef enum xredistrackingeventkind {XREDIS_TRACKING_KEYS=0,XREDIS_TRACKING_FLUSH,XREDIS_TRACKING_REDIRECT_BROKEN} xredistrackingeventkind;
@@ -48,6 +55,21 @@ XREDIS_API xredisadmission xredisClientTrackingCallAsync(xredisclient* Client,
     const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
 XREDIS_API xredisadmission xredisClientTrackingCall(xredisclient* Client,
     const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
+/* Requires Observe and a managed connection. Copies CLIENT CACHING YES/NO
+ * and one ordinary query into ONE adjacent wire group/request/Future. Other
+ * producers cannot interleave commands; this is not a rollback transaction.
+ * Query may execute even if Control is SERVER_ERROR. Only two successful
+ * results authorize caching; invalidations still require receive-order checks.
+ * Known connection/transaction/multiple-reply controls are refused as queries.
+ * MaxCommandBytes/Total include both frames and aligned private group state.
+ * A sent cancel/timeout is MAY_HAVE_EXECUTED even if only the prefix was sent:
+ * the original group remains a bounded FIFO drain obligation, with no replay.
+ * ControlReceived and both results are immutable snapshots, not later updates.
+ * Timeout covers construction and both replies. Sync rejects all Engine workers. */
+XREDIS_API xredisadmission xredisClientCachingCallAsync(xredisclient* Client,bool Caching,
+    const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
+XREDIS_API xredisadmission xredisClientCachingCall(xredisclient* Client,bool Caching,
+    const xbytesview* Arguments,size_t Count,int64 Timeout,xfuture** Future);
 /* Transfers one reply reference. Same push queue/credits as ordinary TakePush;
  * do not mix consumers when ordered invalidation handling is required. Empty
  * preserves output/error. Values survive Client/Engine destruction. */
@@ -60,8 +82,8 @@ XREDIS_API bool xredisTrackingConfigInit(xredistrackingconfig* Config);
  * validates a simple OK; unexpected non-error replies close as PROTOCOL.
  * The server reply/status remains explicit:
  * a sent timeout can leave mode uncertain. No replay or hidden local cache.
- * OPTIN/OPTOUT CLIENT CACHING pairs require exclusive producer serialization;
- * this API does not make two separately submitted commands atomic. */
+ * Use CachingCall for adjacent OPTIN/OPTOUT queries shared by producers;
+ * two separately submitted commands do not form an atomic group. */
 XREDIS_API xredisadmission xredisClientTrackingConfigureAsync(xredisclient* Client,
     const xredistrackingconfig* Config,int64 Timeout,xfuture** Future);
 /* Fully validate recognized RESP3 invalidations/redirection failure, or the

@@ -30,9 +30,10 @@ including when the caller already cancelled the control.
 Clear the application cache before changing configuration and resume it only
 after a successful barrier. Sent timeout/cancellation can leave the server mode
 uncertain. Existing FIFO obligations drain under the original Client grace; no
-control is replayed automatically. OPTIN/OPTOUT one-shot CLIENT CACHING commands
-must be serialized together with their query on a dedicated producer. This stage
-does not provide an atomic two-command API for concurrent producers.
+control is replayed automatically. For concurrent OPTIN/OPTOUT producers use
+[`xredisClientCachingCallAsync`](caching.md): it places CLIENT CACHING and its
+query in one adjacent request, and independently returns both outcomes. Two
+separate ordinary submissions still require producer synchronization.
 
 ## Receive order and ownership
 

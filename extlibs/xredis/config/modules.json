@@ -797,7 +797,8 @@
         "xredis_watch_tests",
         "xredis_pool_tests",
         "xredis_pool_sessions_tests",
-        "xredis_pool_connect_tests"
+        "xredis_pool_connect_tests",
+        "xredis_caching_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -818,7 +819,8 @@
         "extlibs/xredis/tests/test_pool.c",
         "extlibs/xredis/tests/test_pool_sessions.c",
         "extlibs/xredis/tests/test_pool_connect.c",
-        "extlibs/xredis/tests/test_tracking.c"
+        "extlibs/xredis/tests/test_tracking.c",
+        "extlibs/xredis/tests/test_caching.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -836,7 +838,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_sessions.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_connect.c",
-        "extlibs/xredis/tests/single/test_single_xredis_tracking.c"
+        "extlibs/xredis/tests/single/test_single_xredis_tracking.c",
+        "extlibs/xredis/tests/single/test_single_xredis_caching.c",
+        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -861,7 +865,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool.c": "xredis_pool_tests",
         "extlibs/xredis/tests/single/test_single_xredis_pool_sessions.c": "xredis_pool_sessions_tests",
         "extlibs/xredis/tests/single/test_single_xredis_pool_connect.c": "xredis_pool_connect_tests",
-        "extlibs/xredis/tests/single/test_single_xredis_tracking.c": "xredis_tracking"
+        "extlibs/xredis/tests/single/test_single_xredis_tracking.c": "xredis_tracking",
+        "extlibs/xredis/tests/single/test_single_xredis_caching.c": "xredis_tracking",
+        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c": "xredis_caching_tests"
       }
     },
     {
@@ -879,22 +885,51 @@
         "extlibs/xredis/src/tracking/tracking.c"
       ],
       "tests": [
-        "extlibs/xredis/tests/test_tracking.c"
+        "extlibs/xredis/tests/test_tracking.c",
+        "extlibs/xredis/tests/test_caching.c"
       ],
       "single_tests": [
-        "extlibs/xredis/tests/single/test_single_xredis_tracking.c"
+        "extlibs/xredis/tests/single/test_single_xredis_tracking.c",
+        "extlibs/xredis/tests/single/test_single_xredis_caching.c"
       ],
       "examples": [
-        "extlibs/xredis/examples/tracking/main.c"
+        "extlibs/xredis/examples/tracking/main.c",
+        "extlibs/xredis/examples/caching/main.c"
       ],
       "benchmarks": [
-        "extlibs/xredis/bench/bench_tracking.c"
+        "extlibs/xredis/bench/bench_tracking.c",
+        "extlibs/xredis/bench/bench_caching.c"
       ],
       "docs": [
         "extlibs/xredis/README.md",
         "extlibs/xredis/docs/api/reference.md",
-        "extlibs/xredis/docs/tracking.md"
+        "extlibs/xredis/docs/tracking.md",
+        "extlibs/xredis/docs/caching.md"
       ]
+    },
+    {
+      "name": "xredis_caching_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_tracking",
+        "xredis_transaction",
+        "xredis_tls",
+        "tls_identity_rsa",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_caching.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     }
   ]
 }

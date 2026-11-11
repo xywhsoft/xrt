@@ -49,6 +49,58 @@ static void trackingRealNone(xredisclient* C)
     xbytesview Ping=XRT_BYTES_LITERAL("PING");xfuture* F=interopCall(C,&Ping,1);xrtFutureDestroy(F);double End=xrtTimer()+0.02;
     do {xredistrackingpush P;interopRequire(!xredisClientTrackingTake(C,&P),"no invalidation through causal ping and bounded observation");xrtSleep(1);}while(xrtTimer()<End);
 }
+typedef struct trackingPairProducer {xredisclient* Client;unsigned Id;bool OptOut;} trackingPairProducer;
+static xbytesview trackingPairKey(unsigned char* Buffer,size_t Capacity,bool OptOut,unsigned Id,unsigned N,bool Group)
+{
+    int Bytes=snprintf((char*)Buffer,Capacity,"xp:%u:%u:%u:%c",OptOut?1u:0u,Id,N,Group?'g':'o');
+    interopRequire(Bytes>0 && (size_t)Bytes<Capacity,"pair key encoding");return (xbytesview){Buffer,(size_t)Bytes};
+}
+static int32 trackingPairsProduce(ptr Data)
+{
+    trackingPairProducer* P=Data;
+    for(unsigned N=0;N<8;++N){
+        unsigned char Text[48];xbytesview Key=trackingPairKey(Text,sizeof(Text),P->OptOut,P->Id,N,true);
+        xbytesview Args[]={XRT_BYTES_LITERAL("GET"),Key};xfuture* F=NULL;
+        interopRequire(xredisClientCachingCallAsync(P->Client,!P->OptOut,Args,2,5000,&F)==XREDIS_ADMISSION_ACCEPTED,"concurrent real group admission");
+        const xrediscachingresult* R=interopWait(F);xredisreplyvalue Value;
+        interopRequire(R->ControlReceived && R->Control.Request.Status==XREDIS_REQUEST_OK && R->Query.Request.Status==XREDIS_REQUEST_OK &&
+            R->Control.Sequence && R->Query.Sequence==R->Control.Sequence+1 && xredisReplyGet(R->Query.Request.Reply,0,&Value) &&
+            Value.Data.Size==4 && !memcmp(Value.Data.Data,"seed",4),"real group exact two statuses/order/value");xrtFutureDestroy(F);
+        Key=trackingPairKey(Text,sizeof(Text),P->OptOut,P->Id,N,false);F=trackingRealGet(P->Client,Key);xrtFutureDestroy(F);
+    }
+    return 0;
+}
+static void trackingRealPairs(xredisclient* C,xredisclient* Writer,bool OptOut)
+{
+    for(unsigned Id=0;Id<4;++Id)for(unsigned N=0;N<8;++N)for(unsigned Group=0;Group<2;++Group){
+        unsigned char Text[48];trackingRealSet(Writer,trackingPairKey(Text,sizeof(Text),OptOut,Id,N,Group!=0),"seed");
+    }
+    trackingRealMode(C,OptOut?XREDIS_TRACKING_OPTOUT:XREDIS_TRACKING_OPTIN);
+    trackingPairProducer Work[4];xthread* Threads[4];
+    for(unsigned Id=0;Id<4;++Id){Work[Id]=(trackingPairProducer){C,Id,OptOut};Threads[Id]=xrtThreadCreate(trackingPairsProduce,&Work[Id],0);interopRequire(Threads[Id]!=NULL,"real concurrent pair producer");}
+    for(unsigned Id=0;Id<4;++Id){interopRequire(xrtThreadWaitFor(Threads[Id],10000)==XWAIT_OK,"real producers joined");xrtThreadDestroy(Threads[Id]);}
+    for(unsigned Id=0;Id<4;++Id)for(unsigned N=0;N<8;++N)for(unsigned Group=0;Group<2;++Group){
+        unsigned char Text[48];trackingRealSet(Writer,trackingPairKey(Text,sizeof(Text),OptOut,Id,N,Group!=0),"changed");
+    }
+    /* Every qualifying key, and no other key, must be invalidated. Messages
+     * may group keys, so validate the complete set rather than push count. */
+    uint64 Seen=0;double End=xrtTimer()+5;
+    while(Seen!=UINT64_C(0xffffffff)){
+        xredistrackingpush Push;if(!xredisClientTrackingTake(C,&Push)){interopRequire(xrtTimer()<End,"real grouped invalidation set deadline");xrtThreadYield();continue;}
+        xredistrackingevent E;interopRequire(xredisTrackingEventRead(Push.Reply,&E)==XREDIS_TRACKING_EVENT && E.Kind==XREDIS_TRACKING_KEYS,"real group invalidation shape");
+        for(size_t Node=E.FirstKey;Node!=XREDIS_REPLY_NONE;){
+            xredisreplyvalue Key;interopRequire(xredisReplyGet(E.Reply,Node,&Key),"real group invalidation key");bool Found=false;
+            for(unsigned Id=0;Id<4;++Id)for(unsigned N=0;N<8;++N){unsigned char Text[48];xbytesview Expected=trackingPairKey(Text,sizeof(Text),OptOut,Id,N,!OptOut);
+                if(Key.Data.Size==Expected.Size && !memcmp(Key.Data.Data,Expected.Data,Expected.Size)){
+                    uint64 Bit=UINT64_C(1)<<(Id*8+N);interopRequire(!(Seen&Bit),"each real tracking key invalidated once");Seen|=Bit;Found=true;
+                }
+            }
+            interopRequire(Found,"CACHING flag never applied to unrelated producer query");Node=Key.Next;
+        }
+        xredisReplyRelease(Push.Reply);
+    }
+    trackingRealNone(C);
+}
 int main(int Argc,char** Argv)
 {
     if(Argc!=7 || strlen(Argv[6])!=40)return 2;
@@ -78,16 +130,27 @@ int main(int Argc,char** Argv)
     trackingRealMode(C,XREDIS_TRACKING_OPTIN);F=trackingRealGet(C,Key);xrtFutureDestroy(F);trackingRealSet(Writer,Key,"not-opted");trackingRealNone(C);
     xbytesview Caching[]={XRT_BYTES_LITERAL("CLIENT"),XRT_BYTES_LITERAL("CACHING"),XRT_BYTES_LITERAL("YES")};F=interopCall(C,Caching,3);xrtFutureDestroy(F);F=trackingRealGet(C,Key);xrtFutureDestroy(F);trackingRealSet(Writer,Key,"opted-in");P=trackingRealEvent(C,XREDIS_TRACKING_KEYS,Key);xredisReplyRelease(P.Reply);
     trackingRealMode(C,XREDIS_TRACKING_OPTOUT);Caching[2]=(xbytesview)XRT_BYTES_LITERAL("NO");F=interopCall(C,Caching,3);xrtFutureDestroy(F);F=trackingRealGet(C,Key);xrtFutureDestroy(F);trackingRealSet(Writer,Key,"opted-out");trackingRealNone(C);F=trackingRealGet(C,Key);xrtFutureDestroy(F);trackingRealSet(Writer,Key,"default-optout");P=trackingRealEvent(C,XREDIS_TRACKING_KEYS,Key);xredisReplyRelease(P.Reply);
+    trackingRealPairs(C,Writer,false);trackingRealPairs(C,Writer,true);
+    trackingRealMode(C,0);xbytesview PairArgs[]={XRT_BYTES_LITERAL("GET"),Key};xfuture* ControlError=NULL;
+    interopRequire(xredisClientCachingCall(C,true,PairArgs,2,5000,&ControlError)==XREDIS_ADMISSION_ACCEPTED,"real refused prefix group");
+    const xrediscachingresult* ErrorPair=interopWait(ControlError);
+    interopRequire(ErrorPair->ControlReceived && ErrorPair->Control.Request.Status==XREDIS_REQUEST_SERVER_ERROR && ErrorPair->Query.Request.Status==XREDIS_REQUEST_OK && ErrorPair->Query.Sequence==ErrorPair->Control.Sequence+1,"real control rejection still executes query");
     xredisclient* Receiver=trackingRealConnect(Engine,&Address,XREDIS_INIT_RESP3);xbytesview ID[]={XRT_BYTES_LITERAL("CLIENT"),XRT_BYTES_LITERAL("ID")};F=interopCall(Receiver,ID,2);V=interopValue(F);interopRequire(V.Type==XREDIS_REPLY_INTEGER && V.Integer>0,"recipient id");int64 Recipient=V.Integer;xrtFutureDestroy(F);
     trackingRealMode(C,0);xredisTrackingConfigInit(&K);K.Flags=XREDIS_TRACKING_REDIRECT;K.Redirect=Recipient;trackingRealConfigure(C,&K);F=trackingRealGet(C,Key);xrtFutureDestroy(F);trackingRealSet(Writer,Key,"redirected");P=trackingRealEvent(Receiver,XREDIS_TRACKING_KEYS,Key);xredisReplyRelease(P.Reply);trackingRealNone(C);
     xredisclient* Legacy=trackingRealConnect(Engine,&Address,XREDIS_INIT_RESP2);xfuture* Rejected=(xfuture*)(uintptr_t)1;xredistrackingconfig Direct;xredisTrackingConfigInit(&Direct);interopRequire(xredisClientTrackingConfigureAsync(Legacy,&Direct,5000,&Rejected)==XREDIS_ADMISSION_ERROR && Rejected==(xfuture*)(uintptr_t)1,"RESP2 direct mode rejected locally");xrtClearError();
-    trackingRealConfigure(Legacy,&K);F=trackingRealGet(Legacy,Missing);xrtFutureDestroy(F);trackingRealSet(Writer,Missing,"resp2-redirect");P=trackingRealEvent(Receiver,XREDIS_TRACKING_KEYS,Missing);xredisReplyRelease(P.Reply);interopClose(Legacy);
+    trackingRealConfigure(Legacy,&K);F=trackingRealGet(Legacy,Missing);xrtFutureDestroy(F);trackingRealSet(Writer,Missing,"resp2-redirect");P=trackingRealEvent(Receiver,XREDIS_TRACKING_KEYS,Missing);xredisReplyRelease(P.Reply);
+    xredistrackingconfig LegacyOptIn=K;LegacyOptIn.Flags|=XREDIS_TRACKING_OPTIN;trackingRealConfigure(Legacy,&LegacyOptIn);PairArgs[1]=Missing;
+    interopRequire(xredisClientCachingCall(Legacy,true,PairArgs,2,5000,&F)==XREDIS_ADMISSION_ACCEPTED,"RESP2 redirected group");const xrediscachingresult* LegacyPair=interopWait(F);
+    interopRequire(LegacyPair->Control.Request.Status==XREDIS_REQUEST_OK && LegacyPair->Query.Request.Status==XREDIS_REQUEST_OK,"RESP2 OPTIN prefix and query replies");xrtFutureDestroy(F);
+    trackingRealSet(Writer,Missing,"resp2-group");P=trackingRealEvent(Receiver,XREDIS_TRACKING_KEYS,Missing);xredisReplyRelease(P.Reply);interopClose(Legacy);
     F=trackingRealGet(C,Key);xrtFutureDestroy(F);interopClose(Receiver);
     char RecipientText[32];int RecipientBytes=snprintf(RecipientText,sizeof(RecipientText),"%" PRIi64,Recipient);interopRequire(RecipientBytes>0 && (size_t)RecipientBytes<sizeof(RecipientText),"recipient id encoding");
     xbytesview Kill[]={XRT_BYTES_LITERAL("CLIENT"),XRT_BYTES_LITERAL("KILL"),XRT_BYTES_LITERAL("ID"),{(cbytes)RecipientText,(size_t)RecipientBytes}};F=interopCall(Writer,Kill,4);xrtFutureDestroy(F);
     trackingRealSet(Writer,Key,"broken-recipient");P=trackingRealEvent(C,XREDIS_TRACKING_REDIRECT_BROKEN,Key);xredistrackingevent Event;interopRequire(xredisTrackingEventRead(P.Reply,&Event)==XREDIS_TRACKING_EVENT && Event.Redirect==(uint64)Recipient,"redirection failure identity");xredisReplyRelease(P.Reply);
     interopClose(C);interopClose(Writer);interopRequire(xrtNetResolverDestroy(InteropResolver) && xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine),"tracking physical owners joined");
     interopRequire(xredisTrackingEventRead(Invalidation.Reply,&Event)==XREDIS_TRACKING_EVENT && OldR->Sequence<Invalidation.Sequence && NewR->Sequence>Invalidation.Sequence,"real results survive all connections/Engine");
-    xredisReplyRelease(Invalidation.Reply);xrtFutureDestroy(Old);xrtFutureDestroy(New);if(Trust)xrtTlsVerifierRelease(Trust);if(Context)xrtTlsContextRelease(Context);
+    interopRequire(ErrorPair->Control.Request.Status==XREDIS_REQUEST_SERVER_ERROR && ErrorPair->Query.Request.Status==XREDIS_REQUEST_OK,"both group replies survive every physical owner");
+    xredisreplyvalue GroupValue;interopRequire(xredisReplyGet(ErrorPair->Control.Request.Reply,0,&GroupValue) && GroupValue.Type==XREDIS_REPLY_SIMPLE_ERROR && xredisReplyGet(ErrorPair->Query.Request.Reply,0,&GroupValue),"retained error and query allocations");
+    xredisReplyRelease(Invalidation.Reply);xrtFutureDestroy(Old);xrtFutureDestroy(New);xrtFutureDestroy(ControlError);if(Trust)xrtTlsVerifierRelease(Trust);if(Context)xrtTlsContextRelease(Context);
     printf("[PASS] real Tracking: ordering, binary/missing keys, flush, BCAST/PREFIX/NOLOOP, OPTIN/OPTOUT, RESP2/3 redirect and broken redirect; mode=%u TLS=%u auth=%d\n",TrackingMode,TrackingVersion,TrackingAuth);return 0;
 }

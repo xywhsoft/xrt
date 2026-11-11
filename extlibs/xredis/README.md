@@ -182,3 +182,9 @@ Optional [Tracking observations](docs/tracking.md) preserve command-reply and
 invalidation wire order on existing Client transports, with copied configuration,
 borrowed event views and bounded opt-in storage. The [example](examples/tracking/README.md)
 shows collection in a different order and retention after physical shutdown.
+
+[Adjacent CACHING/query groups](docs/caching.md) let concurrent producers submit
+OPTIN/OPTOUT queries with one queue credit, deadline and Future. Prefix and query
+outcomes remain independent, including a prefix error followed by an executed
+query. The [runnable example](examples/caching/README.md) retains both results
+after physical shutdown; no application cache or uncertain replay is implied.

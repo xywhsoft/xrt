@@ -2126,6 +2126,197 @@
           }
         }
       ]
+    },
+    {
+      "system": "client",
+      "name": "xredis_caching",
+      "description": "Adjacent one-request CACHING/query groups versus two observed async requests from one serialized producer; same loopback wire and logical pipeline, whole-pair offer-to-collection latency and heap costs; no upstream or production claim",
+      "benchmarks": [
+        {
+          "name": "xredis_caching_0_1",
+          "source": "extlibs/xredis/bench/bench_caching.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "1",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "unit": "group/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_group": {
+              "unit": "blocks/group",
+              "direction": "lower"
+            },
+            "heap_bytes_per_group": {
+              "unit": "bytes/group",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_caching_1_1",
+          "source": "extlibs/xredis/bench/bench_caching.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "1",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "unit": "group/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_group": {
+              "unit": "blocks/group",
+              "direction": "lower"
+            },
+            "heap_bytes_per_group": {
+              "unit": "bytes/group",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_caching_0_32",
+          "source": "extlibs/xredis/bench/bench_caching.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "32",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "unit": "group/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_group": {
+              "unit": "blocks/group",
+              "direction": "lower"
+            },
+            "heap_bytes_per_group": {
+              "unit": "bytes/group",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_caching_1_32",
+          "source": "extlibs/xredis/bench/bench_caching.c",
+          "suite": "xredis_tracking,memory_stats,time",
+          "inputs": [
+            "extlibs/xredis/tests/support/client_peer.h"
+          ],
+          "args": [
+            "4096",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "groups_per_sec": {
+              "unit": "group/s",
+              "direction": "higher"
+            },
+            "latency_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "latency_max_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_group": {
+              "unit": "blocks/group",
+              "direction": "lower"
+            },
+            "heap_bytes_per_group": {
+              "unit": "bytes/group",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }
