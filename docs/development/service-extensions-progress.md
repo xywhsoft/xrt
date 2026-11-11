@@ -10588,3 +10588,50 @@ also remain; this stage does not complete Pub/Sub or the full four-library goal.
 
 Evidence: [portable report](../../extlibs/xredis/tests/results/subscriber-20261111.json)
 and out/service-extensions/xredis-subscriber-20261111.
+
+
+## 2026-11-11: preserve current work and verify the actual master workspace
+
+Reconfirmed the preserved c2a8b434 branch and 05dc625d migration are ancestors
+of the current master at 80e246bf. All 26 original pending source files keep their
+migration hashes; no additional pending paths exist in the old worktree.
+Development continues explicitly at D:/GIT/xrt master. No branch creation,
+checkout, merge, history rewrite or remote push was performed.
+
+The current master had two unfinished subscriber-notification prototype files.
+Preflight correctly rejected its unregistered header and missing single-header
+closure. Preserved their exact original bytes and full Git patch, then removed
+only this uncommitted prototype from the production closure. The complete
+reapplicable draft is docs/development/drafts/xredis-subscriber-notify-20261111.patch;
+Readable/TakeBatch remain proposed APIs. Existing
+production sources now match 80e246bf exactly. Continue that feature directly on
+master after its implementation, ownership/race/OOM tests and module assets exist.
+
+The 8,425 historical regular evidence files were no longer visible at their
+original logical mainline paths, while the retained old worktree still had them.
+Copied all 1,619,572,098 bytes into the new stage's legacy-evidence archive and
+verified both source/copy hashes against the original migration inventory.
+Restored all 8,425 original logical paths using 50 directory junctions and 161
+file hardlinks without overwriting existing mainline paths, and rechecked their
+hashes through the logical paths. No source or old evidence was removed.
+The 37 previously absent cache-junction targets remain explicitly recorded; they are not new lost source/evidence.
+
+Fresh root modular/single tests on the actual current mainline pass:
+Windows and WSL each pass 167 programs: xredis 46, xrpc 30, xmqtt 57, xcron 34.
+WSL uses O2 ASan/UBSan/leak halt. All 20 normal feature/single/API/docs/maturity
+checks pass. Windows symbolic-link fixtures retain their system1314 permission
+skips, recorded exactly in the report. Both execution maps agree on 6,459 inputs;
+production source bytes remained unchanged throughout the final validation.
+
+The first completed Windows xredis run passed 46 programs, then its result
+collector encountered adjacent buffered child output. Recovered the original
+passing log and executable hashes without restarting that successful suite;
+its duration is not reconstructed. Earlier draft preflight/archive-move/status
+preparation failures are also retained separately. No test skip or suppressed
+sanitizer finding is counted as a passed exercise.
+
+No new SDK/interop/performance/native-Linux/72h acceptance is claimed. All four
+products remain developing and the full long-term goal remains active.
+Evidence: [portable report](service-extensions-mainline-workspace-20261111.json),
+raw source maps/commands/binary hashes/logs and historical archive under
+out/service-extensions/mainline-workspace-20261111.

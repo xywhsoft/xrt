@@ -1,0 +1,2066 @@
+{
+  "schema": 1,
+  "date": "2026-11-11",
+  "scope": "Confirm all historical service-extension source is on master, preserve unfinished work and historical evidence, and test the actual current mainline.",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "tested_revision": "80e246bfd1ccbf3215a087d843b0952df501c8c1",
+  "old_source_head": "c2a8b434175645a8e06f4208c6217e063c315ffb",
+  "migration_commit": "05dc625df2a0c6c0f34f8f79b612777dd09e0d17",
+  "old_branch_and_migration_are_ancestors": true,
+  "old_worktree_is_untouched_backup": true,
+  "original_pending_source_files": 26,
+  "no_new_pending_paths_in_old_worktree": true,
+  "old_source_hashes_unchanged": true,
+  "new_branch_operations": 0,
+  "remote_push": false,
+  "production_sources_match_tested_revision": true,
+  "unfinished_notify_draft": {
+    "revision": "80e246bfd1ccbf3215a087d843b0952df501c8c1",
+    "branch": "master",
+    "draft": "docs/development/drafts/xredis-subscriber-notify-20261111.patch",
+    "draft_sha256": "dc4277d58433a3f30f1306e1df5db67cec3701e6a60b2b5c13568becc6b0d136",
+    "original_client_sha256": "815734b0959d21d421c4243ed91175e26a8007f9cf4f9508f47c8e2b186fa6d7",
+    "original_header_sha256": "770bb1855347659e986a868ddf7c9137b032265df40883bb39220ab5b7603536",
+    "preserved_files": 2,
+    "initial_failures": [
+      "single header misses local include",
+      "production header not registered"
+    ],
+    "production_restored_to_head": true,
+    "draft_apply_check": true,
+    "initial_archive_move_failure": "WinError17: out junction targets another volume; corrected using verified copy and move"
+  },
+  "legacy_evidence": {
+    "files": 8425,
+    "bytes": 1619572098,
+    "all_hashes_match_original_migration": true,
+    "previous_logical_paths_missing": 8425,
+    "new_archive_directory": "out/service-extensions/mainline-workspace-20261111/legacy-evidence",
+    "restored_logical_paths": {
+      "original_regular_paths_restored_and_verified": 8425,
+      "directory_junctions": 50,
+      "file_hardlinks": 161,
+      "archive_originals_retained": true,
+      "existing_paths_overwritten": 0,
+      "prior_missing_cache_targets_not_recreated": 37
+    },
+    "old_files_untouched": true,
+    "preexisting_missing_cache_junctions": 37,
+    "manifest_sha256": "a10e2fe3889d68d466887bece4b9215faf1bb363c49604ea3fb1802db1029284"
+  },
+  "input_count": 6459,
+  "input_maps_agree": true,
+  "input_map_sha256": {
+    "windows": "feba59c5cee72da245184f9e134091bd10249c1fa2704baf643ba4b726d8baa1",
+    "wsl": "15904cd1a1af92c05dd65b6b0c14dc8f7eb817463a71928c6e6200c5e6a5c5fb"
+  },
+  "platforms": {
+    "windows": {
+      "complete": true,
+      "revision": "80e246bfd1ccbf3215a087d843b0952df501c8c1",
+      "branch": "master",
+      "workspace": "D:\\GIT\\xrt",
+      "initial_status": "?? docs/development/drafts/xredis-subscriber-notify-20261111.patch",
+      "inputs": 6459,
+      "input_map_sha256": "feba59c5cee72da245184f9e134091bd10249c1fa2704baf643ba4b726d8baa1",
+      "suite_programs": 167,
+      "sanitizer": [],
+      "receipts": [
+        {
+          "label": "xredis-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": null,
+          "recovered_completed_run": true,
+          "log": "windows-xredis-suite.log",
+          "log_sha256": "b1c29b73cd31db0cae710ade6803773c74832f4859036cf981e3f79031a7e429",
+          "programs": 46,
+          "binaries": [
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_command.exe",
+              "sha256": "b908792f2ea5ab4d07713ce84a416fe80162d26e8ec4ba99618ad97e2adbb071"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_reader.exe",
+              "sha256": "ebfcc3a9fd20fad41ebc3c1b19c385459ba77ffe2e68388bfe8f82f78145abc5"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_reply.exe",
+              "sha256": "990df1c640935b6cfc33f30028174f4c5b1503f07e5fd6a39d5a87b2aed0e1db"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_client.exe",
+              "sha256": "9c98adb0ee9ca720707e9f02e8bf5c317cc40be91652334b6b1db4f7d9380b6a"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_client_init.exe",
+              "sha256": "b1b446a360ebf75357e8d7ac6e62d965874b59cf3272f37dc8edc949bbe1df97"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_openloop.exe",
+              "sha256": "6eb83ecc69af47ac2e253d3085660852125534b962176448f6f0dce6824b10f1"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_dial.exe",
+              "sha256": "1bb383806fb9426e3fc5085859c2eb99c91a897c7fa64a873dede677cedb1f65"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_tls.exe",
+              "sha256": "02825df8238d1670c052d42bfd79d3df04d8d1652a2041d25ffe8a22e49fcb4d"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_tls_openloop.exe",
+              "sha256": "07e9a457d9bb199264eade917e3cc424043e9223ed475bf7ec8c2991d0c1ff12"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_tls_auth.exe",
+              "sha256": "4b54763644847176103cf3f7a175a1f226ec4491532c21e3cec912eb7b8fe713"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_transaction.exe",
+              "sha256": "e89291f5fa628297682659c2337c2d7f0a22bd2c1f2f16c07657ff9927692af9"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_watch.exe",
+              "sha256": "ae1d40a87b29120d6d5119d5d2b7a5cc24aef1f6d9d5bfb97a9659dfdd84be75"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_pool.exe",
+              "sha256": "bc3fa69d32427d318d083af8962da40e898e3aecd9d0d497314db4bc3306bed9"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_pool_sessions.exe",
+              "sha256": "c9901a8596c51d4893e607a2c2b6f800a84370b5c844a1a3ae33fa55f317fa24"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_pool_connect.exe",
+              "sha256": "60e3acb3bf7afa5515a5bbaf3bc86147e5d35c110d8409c01042d49e55ca0763"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_tracking.exe",
+              "sha256": "d6ffa0d74f8351bdead74beaffd986abf377e6fa10a0c87c6609594e50313a49"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_caching.exe",
+              "sha256": "c3d1e4d7ece9b6597036464738ab1b2fe5c110e118e127a8cd35aeaee7b797a2"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_pubsub.exe",
+              "sha256": "6ec0cb9c2f810f9da6ad2bae85a6c6d288004abfc22ce1c2c01455e02f6942a2"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_subscriber.exe",
+              "sha256": "817ccabef8f9848e1f75dad49f942f48a70dbe7f1a6b7a78d40823118a7e92c4"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_time.exe",
+              "sha256": "93fadda8dc7a220dce96654aed4fb60e3b8677bc92ac14eaccfbd7fde8304ab6"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_time_property.exe",
+              "sha256": "d0ed868b4f56936a27c82ad00aaac0ce7fe12defe6ecfc54b06fbead71ef06d7"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_atomic.exe",
+              "sha256": "c2396460f6b3007451d75334274c0a01709f13fc25b8258fdbfcb86a85db9cc7"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_atomic_threads.exe",
+              "sha256": "2a0787bc730e991d37052b00a984e50406e0fd518143a0491bada5925666b0f7"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_command.exe",
+              "sha256": "99056347be3c553ab2dbe166ba69763e9e662dc47ae96a4dcb64b69b608ccfce"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_reader.exe",
+              "sha256": "0c6618581c6044ff3bd04378578f9525fb98b8da0e1980fd61632cd54291dc79"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_reply.exe",
+              "sha256": "c72564ab06b467967a26641fa435be20edbbb7ae83731b0dbf0643feec624081"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_client.exe",
+              "sha256": "e4cba8cce777ba4261a5f0afde007f06d2d32923c7dd1b45d3e2dc206e7d72e6"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_client_init.exe",
+              "sha256": "68319ca5dbd5371467eacaca31245844acc220f58b228c097b432b9d60e5a3df"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_openloop.exe",
+              "sha256": "b1d4a310fd1e2f080e4ef60c2c0c3e27ae926613200d9b9268e4c97d6fd0fd0c"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_dial.exe",
+              "sha256": "ed939e4eb573cd52004a4d4b8d1741a5eb637405e648561a263f8d9450147024"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_tls.exe",
+              "sha256": "5a76b95ced3a96240b2ceb6a2778960b3bf67b952b10d92a2be584fd3aa7e33e"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_tls_openloop.exe",
+              "sha256": "c6f32ddeb908f641c006a5abded18f7e4be126b7101bb8eae9fcb0e25d20deaa"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_tls_auth.exe",
+              "sha256": "5bd2a35487151b83d0722aa0d9c038d3795a740de9ffe56658cf94c5bc3a7b28"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_transaction.exe",
+              "sha256": "11256c8b639b23a2ee8c02c137b729b6929fae215849b6a0e671e8c4b6decb7c"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_watch.exe",
+              "sha256": "527b08be3ca0c76b2dbcae28db5643e126b8c8957150a4dd9b22f9518ca5d075"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_pool.exe",
+              "sha256": "276de5504e00f002e8086905954f926345b3102cf3813e7edae651fa203960d8"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_pool_sessions.exe",
+              "sha256": "6b3b616114f3719a19dc8af628253778be4277b89783918ad46f8784cea3d760"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_pool_connect.exe",
+              "sha256": "6563651da25b8127b0ad35ef0a62553755737cc46cf3302fc0fa48c34580dd96"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_tracking.exe",
+              "sha256": "363c149e93028f3a05c18fdaeed6164b73c7b7ebd58629e0ed2f889aa291f0db"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_caching.exe",
+              "sha256": "96a9cd7928cabbe7c4581328cfee92ff4ed1afbb36f6ce6df690a5efd537e30d"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_caching_tls.exe",
+              "sha256": "c903f5b3d1d3cdcf57c940e3869acf61f1ef6f9f2d7316232a025b862f6ff549"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_pubsub.exe",
+              "sha256": "6ec52dbc4cb2f4c61a53aa9b6b74e520caa349832bcb5501956031f409cc16c9"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_subscriber.exe",
+              "sha256": "ea4923bfa1b891fa85050aec0d1caa96b9941d11460ea823bbfc7b34c1070f5d"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_xredis_subscriber_tls.exe",
+              "sha256": "5162ca1a817162e05d0e6e95c74a7275c2e7cab79e3cecc1dfc53e436745ea97"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_time.exe",
+              "sha256": "2b6135805df75eaf186df2be2616f12068981f576fb90892603722f88ad1ae2d"
+            },
+            {
+              "path": "out/gcc/native/xredis_tests,time,atomic/test_single_atomic.exe",
+              "sha256": "c821c78cee5bdea96ad3624c15797c1beee65b8d5c7808f2be0d9b4726fc283d"
+            }
+          ]
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 123.766,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-suite.log",
+          "log_sha256": "66dd744762e8ee9a2ff3424154655d3b54d038b2ffbb98ec0568f0ef99044149",
+          "programs": 30,
+          "binaries": [
+            {
+              "path": "out/gcc/native/xrpc_tests/test_decode.exe",
+              "sha256": "30edf06d7dcc4101892169d8de2b6787e022f7abed74e5e35a75c2df7965d3a3"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_encode.exe",
+              "sha256": "3fd07bde4eb935db3a0359ed5ddb0d32d9dd2c13357766c518e95d07917ff3bf"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_dispatch.exe",
+              "sha256": "4210586a028392d151ce6a1af1eb61d207077302d73ee37bd2fa2ec72e058344"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_methods.exe",
+              "sha256": "f085ef9fd80fc9890b593e7a2aae7f4af3e74800b1b9d946d8efe24484d58e1f"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_id.exe",
+              "sha256": "5cea4c44d5922265a3449c7dffe8adc07cf2ea79cf8f14e1d2a2cc3b66d667ed"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_pending.exe",
+              "sha256": "935e5cdf4e51a4b26436c4f1bf2bbde8eb5a63d4421b9d6d6c27700b34d81796"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_response.exe",
+              "sha256": "5158fe9f8fd33d8aaca26f2598500e493f5900fcf470a2c8b9bc65344b9173e2"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_receive.exe",
+              "sha256": "312660f8a9bdc4bc4057cdb457ee6b42c53cff1036b9eead1f379b8d521b9d67"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_call.exe",
+              "sha256": "e28bab7cc0fc089f4efa764b3a64b4ddaf3f51e2c1e8057759950aa215e2789e"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_http_client.exe",
+              "sha256": "ce9583385505cfec95ce429a019b9d1c19ef09c6c62b886219c8b3d4f5242c39"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_server.exe",
+              "sha256": "dea68499f896be8d385d60058e3a4eba6ffbd11295613e6af5e640dd8fcbf084"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_http_server.exe",
+              "sha256": "9f5587fcbbd110816756c8d9bfa78950a7c1a1265e2ac55ee288fd85990210cd"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_http_dial.exe",
+              "sha256": "1d280972c6ba0c3a20e8d6f09644add09d15518d08140d52d416767159efa29d"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_http_tls.exe",
+              "sha256": "c36ee33b5b706d7351f5c27697a037c204d502ee96060c6c1ae220c7dcff7e51"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_http_server_tls.exe",
+              "sha256": "58b22f534f144328f5ecc8ade29a1bf1ba8ab73e05918302f8c73fcd97fe3eae"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_decode.exe",
+              "sha256": "ed853ea9c0df5237145d48bfb7fdfbb18a78b7cc45ea86392693b3978802caee"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_encode.exe",
+              "sha256": "bf6af799948c14a0b718b359b20e5321932a798151e5b67d8c8bbebd62adbb42"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_dispatch.exe",
+              "sha256": "104d30e12ef9cb2b78e1d41c58ed12df8122410b8e1636bdc3b83d963e07f6a1"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_methods.exe",
+              "sha256": "da835a92ddf3a99cfc409eaef5a14981c2c62d747cab510f5fd1bbc52a9d48d7"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_id.exe",
+              "sha256": "628792fcaa9b0c53127da31506c6e2f5df5359875aecddd5bdcabc86c93b027d"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_pending.exe",
+              "sha256": "2085f845e8cdaf788916bd3829c65900db6024b4c40d1f6d165a2e7da0e3673e"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_response.exe",
+              "sha256": "99dcf1351d3ac8d4f3ee50b9891594fe44b1391ac695cb1a1da7a3c93c0896db"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_receive.exe",
+              "sha256": "7beb84fa7f9d5e36937ffa0dc49e32d1d104918d90e3e59a0a00be10f0a101c2"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_call.exe",
+              "sha256": "410cecaa60355ec4014db9eac4e8fbce6f6eb01947549bdbaa5c29bf3178cb96"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_http_client.exe",
+              "sha256": "5b74cce0876ceab215661cf0dffd9853655fa6ca02dd28993c50ca8c540eab2b"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_server.exe",
+              "sha256": "7d9b2622de01844a655b725d046a977e0434b71e81892ff6c0448aa24d7fca81"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_http_server.exe",
+              "sha256": "a6b3936bddf34aec6d7ccb4c22260dca129638c12a7407b38f37d21fb02ee8d4"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_http_dial.exe",
+              "sha256": "1d114678f5e826aa7dbfb4b3ff228598b27b7ecc7178be25ea976fd892fa8f8a"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_http_tls.exe",
+              "sha256": "4d1d9376cc502c479a05324f1d03e51721d2614a00edd7026220996fb4962556"
+            },
+            {
+              "path": "out/gcc/native/xrpc_tests/test_single_xrpc_http_server_tls.exe",
+              "sha256": "93a593483bb78e2eca1798800cac91f4c11ed09f8665681f30b1bb931df1865d"
+            }
+          ]
+        },
+        {
+          "label": "xmqtt-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 561.875,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-suite.log",
+          "log_sha256": "8144a9d66cdb994dbee9c9ab7a2e11f489fd5ae8767ed5c79172611396602e7e",
+          "programs": 57,
+          "binaries": [
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_wire.exe",
+              "sha256": "c69cd162c204ccafa993bdff952e4b59b834ed974ec8ee545b096dee7ae75001"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_properties.exe",
+              "sha256": "e8bdacc1b516a5ea628d307b84069fa53e3d9cd1ba0ce4f38a9c194dea40372b"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_packet.exe",
+              "sha256": "dbea72aecb911a556029a5a34d914ee270b5bde7875fe1446f6ba4d58278b576"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_codec5.exe",
+              "sha256": "c69d0531b6c844415df7e3fad7792f14dd6d4ecf30f22f803a84085829245bcd"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_codec311.exe",
+              "sha256": "177af3b3fc04c359c270cddd926152848c9ff77472c9a15105abf14442d63e0b"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_negotiation.exe",
+              "sha256": "d4b54907114a3a78d8ca4e061e1d1ca08f1e9bb8ef2bd954a458cfd96c6aa2ed"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client.exe",
+              "sha256": "aa1d30bb7015fa24d7590b015ae82a64b257605c5d7584fe9d3f6bf0342ed492"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_auth.exe",
+              "sha256": "8259046050f8c7367a8ebf053c87873feb6bd2033e175eb5152b28a602744e7b"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_dial.exe",
+              "sha256": "3cf65e106a7e668c13e12fae935c3634b82d790b683c0a4956e7b38e29c55da6"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_tls.exe",
+              "sha256": "79937f9061e3f044b5af9acbbb36c0034f2f78d464d28e8c8ebb2cabf0e19d17"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_tls_select.exe",
+              "sha256": "7fc4b7045f7efa5be3dd6d8e3e0a1becd3e39698a074df98345cfb6a7706f728"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_tls_resume.exe",
+              "sha256": "4cffa38d05d401b279fa37cd5f18a0ef2407c4ef72985e8d1453c875d1398f22"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_tls_resume_select.exe",
+              "sha256": "af2b7e4d2bdabf8433cc26e85d78e1b3df5373a0cfab06af25971d693627f110"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_session.exe",
+              "sha256": "2e8735135152061ad21095f812a30cd9cb1c402fa580ec3726e9e33b604e02f5"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_inbox.exe",
+              "sha256": "db5ae92cf01e815caa047e84b6c5230a4392594ce2efad8e065b4b8ea7d64769"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_session.exe",
+              "sha256": "2d8923b9a5800bcb832304209391acc9271afba0293ff880c171a7bd43a05fa6"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_session_tls.exe",
+              "sha256": "f5cf4e0cb618c45a9d7b063c5b4cb4ca87abce8dec3f64689c0f949d00deaa3b"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_client_session_dial.exe",
+              "sha256": "7f7f2867d205415a507dcd124272c0c696201019156161ceb7e53dc567f9c6cd"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_reconnect.exe",
+              "sha256": "784d59aa24efa29c167c1888cb533448cc599241e596f93c1980efb0e9353c5e"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_reconnect_transports.exe",
+              "sha256": "14a323420f81dd8b1131cccc1e43ecb3a3812097dcd7d49e64d7b0f934155b08"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_reconnect_subscriptions.exe",
+              "sha256": "fab97ecee3422f7f122b7361700c8a1847d4523dc52f340d43b90f091291f9c2"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_time.exe",
+              "sha256": "8bcefc0b4fa427bc9abf1d87449e85a6ff5b10f6b71deb0e4aa765f66d773659"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_time_property.exe",
+              "sha256": "8e1bd9d697ad923498265b8e5b1e4d23c78d34f8070dbf5c789f138238234488"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_atomic.exe",
+              "sha256": "e70836a09539d886f75a946ee168f8190b3b5533eac0866ee8fb35aeb15983b1"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_atomic_threads.exe",
+              "sha256": "112ee13d83d6f23ce0983bb5fa2da163c116c30db910e51f16c354f0c7a5e932"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_wire.exe",
+              "sha256": "7b74494d6d6231d846c4ff73800e03729731db6040dfa3f79a5306b9f339cd23"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_properties.exe",
+              "sha256": "642f692bacd0553e4291a0d12b3c4b81f3d69fbac422c76891d49ac1249f5bd6"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_packet.exe",
+              "sha256": "f3763cf6bb571e841da9604fad8dbd2c341eb7275451c08b5fdb1e3d9c66b280"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_codec5.exe",
+              "sha256": "a559f803ad8d7dd32bed08b66ff90ce10e3b05c5473fd34ca4e74be6c65736ec"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_codec311.exe",
+              "sha256": "5b3c97d5c5d5b797e0ea5d42f0822baecbca1c24231301af986ead42fabd9821"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_negotiation.exe",
+              "sha256": "0f076b0f6ce7b01aaa185a879968c8a007df46555b4d2d10171e719c38849292"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client.exe",
+              "sha256": "91f7f3eab9f50762f40c26708a06cd7e1ac64735b33643c898eab3818e92b44b"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_auth.exe",
+              "sha256": "66784a425284d3f2b3286aeeeadaf1acac862f22acafb6111cf6be1b7a92a5a2"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_auth_cancel_retirement.exe",
+              "sha256": "58ad9f2fe3eeace631f5beadae864d58a468566362bafa462052aa5bb58dc96d"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_auth_completion_reservation.exe",
+              "sha256": "5e9831f2c4e5083d53379afb9d05b7e2d741ff59abbf31c235ed339ecf874d7f"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_dial.exe",
+              "sha256": "b7f01ff55ca24e49d6cbf03c1d910501fc47702808ee66a1d5437f5bce369577"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_dial_auth.exe",
+              "sha256": "c45d9278f06d8cb31f5a1bc1cd37499266072b9c455db996313b74c0f5f559cf"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_dial_retirement.exe",
+              "sha256": "01f5b0947b829c7f2b04aac3a9497d5d3c129106617038ee73df90e6e644ee76"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls.exe",
+              "sha256": "1ecddcaf31ccf316a7a250882c4e709d4f0a592db8e2b152ae056f21f35f03b5"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_auth.exe",
+              "sha256": "1c8d0de3dd739180514c422eea718a2c334e3d2806cdf2556a0a798efd9bf93c"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_stats_off.exe",
+              "sha256": "372ef6cb4ebf971634788bfd73dd6c4a63eb8f76fd0b53a5b73c86308dfe5bf8"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_resume.exe",
+              "sha256": "ee39668da11ff09cd88a2b576b57cf349df1d921a987a4111897862631a32c12"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_resume_stats_off.exe",
+              "sha256": "2e1038dafde851fb7dcf2e40370562e9f1ec6f1300e677f870323f6cbdc0ced7"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_session.exe",
+              "sha256": "ea238ee3e0cee64c97a09493039d12422069f116d83bffb5e591dec9b5903a08"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_inbox.exe",
+              "sha256": "1928ba54dc780e87998b9fb329692c9d5b24b04d3cf9e5deef9b9c7dce96e4ad"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session.exe",
+              "sha256": "1add0b8927942655c05d139e7279c9658a5ce68ef6c7ca12061ebb82ef9071a3"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_tls.exe",
+              "sha256": "45fccfc0db939d3e0f3961854d6230ff21dd116ae75a3371db0be074e9f8edcd"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_tls_auth.exe",
+              "sha256": "a1ee7dd3a67bc220276d69c2bd2441e03cda77009aedc76addb9a1f78791fdbf"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_dial.exe",
+              "sha256": "31c1ceb58612ed73c9a6b14b841d13e7af60acd0f9fdd60665648376a4d5b1a5"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_dial_auth.exe",
+              "sha256": "8df3d001124225728549a687e138b42c4fd9694b0684ed9d2542e0269dfe30fd"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_auth.exe",
+              "sha256": "5604f06d0ffc2f52c91ffecbc21b5590bd7b44786e2b0ff4a5ece775b892ff80"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_assigned_auth.exe",
+              "sha256": "4c41a8042b591e96bfe9a489b877d13dd39f11c467fb56ae551c5c935235e11d"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect.exe",
+              "sha256": "e5d69e1a5cb90ce313f470c45eaf2f4cb55726520d5146432529e008893b5daa"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect_transports.exe",
+              "sha256": "90a3765a8aed0ab07f98f5781970c548bc7df89b7437ed626f8207be0457323a"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect_subscriptions.exe",
+              "sha256": "2e0eae720bf3a13cf9fbfe9aa1c2f15cc3524c7de47ebbc60d223c594aec921d"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_time.exe",
+              "sha256": "2b6135805df75eaf186df2be2616f12068981f576fb90892603722f88ad1ae2d"
+            },
+            {
+              "path": "out/gcc/native/xmqtt_tests,time,atomic/test_single_atomic.exe",
+              "sha256": "c821c78cee5bdea96ad3624c15797c1beee65b8d5c7808f2be0d9b4726fc283d"
+            }
+          ]
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 52.328,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-suite.log",
+          "log_sha256": "075ba20e2c99246281a4d6d93137820eb2dd821858c40cb8f97137b707a5fd43",
+          "programs": 34,
+          "binaries": [
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_expression.exe",
+              "sha256": "c764fbd2ec6e76589115a6e160e8b78a56dfb4d195560cfc5a4e56cb3a7290fb"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_calendar.exe",
+              "sha256": "acc737f7d9db2fd179c58b1fc74745bcbe7fe5f1e6dd2a4812ce3e0376ec4b1a"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_timezone.exe",
+              "sha256": "94575e8547ec62ed9e9e51920832a0e21191b7fb676d20f6f9c7e408b5f8f66f"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_tzif.exe",
+              "sha256": "a0ee0355285fc969bc046f49a7f7800e350e71717828a1adb54a5670b69498ce"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_zoned.exe",
+              "sha256": "b360dc9f143945520b4b83c68596cb0aa266edb6b5391d9707f82b6576fc5acc"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_scheduler.exe",
+              "sha256": "1b773b65f535681128974fb32af5d97ecb97489c4fd588227ef8a30c4ee42da9"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_executor.exe",
+              "sha256": "74ee9c29c59d6aafb2fefc07cbb2a6c17793be3407db1d8877d5132017e51768"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_service.exe",
+              "sha256": "0769de8ba1f0ff313c63eba9ec602293546a5a80c3d6e287024777f433e3a6f7"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_tzdb.exe",
+              "sha256": "6e51dc3c83fdff30abef53d152f793b973a22e52167c0d021c5e28e95a0244c0"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_tzdb_file.exe",
+              "sha256": "46954c956f1d4c33c4ebe10689eb2b91b47756a7cc5de397a7eada3c70286610"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_delivery.exe",
+              "sha256": "f718dfc2217a18a9a346b8434bee076c6b442ecd6daaf6ec692f707df2ded87e"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_occurrence.exe",
+              "sha256": "ad712441c6fe5c0ad0a8ec6f63bf482864e1f20c27577a6b737630a44b7b247f"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_scheduler_selected.exe",
+              "sha256": "a5688a10a8605e60596485f968ea2674e29070d9d3a4642436d395833a265bf8"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_executor_selected.exe",
+              "sha256": "3e9367e561452d46d9735a8ca9c60752ed874ff1e1d301173ac552419fdbfb02"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_service_selected.exe",
+              "sha256": "3d9d00e433fab40835f4ee4b97d095cde30b95ac9ae25addb6272c15712ed88c"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_event_waiter.exe",
+              "sha256": "6db550350ce3618162a8161d98f7327e74cf6ae94370a388a3f15aa474bb0d77"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_expression.exe",
+              "sha256": "334c0e98c6fcec9262ab54aeea4ab1f440a9d569f5f0c37dd660a5efb744c672"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_calendar.exe",
+              "sha256": "9eee3f56ab88184296e6a443438b98e0141d35121946d009effd570dee429f32"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_timezone.exe",
+              "sha256": "e3f0bad41250f3ed0704c3721812e6b258c6e53102f101fc017fe1e9a3cf3430"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_tzif.exe",
+              "sha256": "326189931b43ebb719fb32078d5039a003df93eea251eed8060e28a6b3060374"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_zoned.exe",
+              "sha256": "53035b0de903aba8d5b2076a1e4d5fa87afd494815877392cc3720123b9dbb0f"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_scheduler.exe",
+              "sha256": "56536f5c48b65a3b094793c4923e91db27f110ac4fe9fc3e5cde22e4159c9531"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_executor.exe",
+              "sha256": "9397952f0ce4dc10d64ff22c09112de9251d09f65400977b4b611bc3889903be"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_service.exe",
+              "sha256": "897763a0ccca366ccb37f366c4238fdeb81599e9686e1cf04bed79c6bb61049e"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_service_waiter.exe",
+              "sha256": "59be1d4a519c520c65f614bc4c45cc470c85d54cc64b8d184a3e51dc765d5b7e"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_tzdb.exe",
+              "sha256": "3c60990143a75366d53a5cefc257276af47afdeeab1342f4ac536ddb46beae17"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_tzdb_file.exe",
+              "sha256": "e836c2ecc391530af0e133d8dd4b8b9dd83d824b6a668f2c5a7739b83fb422ca"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_delivery.exe",
+              "sha256": "4997bfed95b0e9f15325f0aac86c3365c6d9ab2043657aebde1229adbaddfc89"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_occurrence.exe",
+              "sha256": "bbc6fafcfae67ff53a5e92a87299484e2a17ca84ac058c69ad11b0fb56d4a8e3"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_scheduler_selected.exe",
+              "sha256": "cd2f326750039e3d3b1016b840c980c70e52540984638fe41b18ab554fc9d727"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_executor_selected.exe",
+              "sha256": "2a73f00954e9f873808c7859c1188190163bebbab0f4ed223223b39a1c2bab13"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_service_selected.exe",
+              "sha256": "cea002e29cdd9e4edb40b3652d50e4f3c03a1f5031fca6b451f6bb19ba00adf6"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_xcron_service_readable.exe",
+              "sha256": "fce2e074e83d13b23ff764f0b7b40ff74e0a85c09f18ae1a6d9794959e5961b0"
+            },
+            {
+              "path": "out/gcc/native/xcron_tests,event_waiter/test_single_event_waiter.exe",
+              "sha256": "68003aaffa2b1d6af4276a2273bc10731b54d4464d909029e65f040c5b29a383"
+            }
+          ]
+        },
+        {
+          "label": "xredis-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "recovered_completed_run": false,
+          "log": "windows-xredis-features.log",
+          "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xredis-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.265,
+          "recovered_completed_run": false,
+          "log": "windows-xredis-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xredis-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "recovered_completed_run": false,
+          "log": "windows-xredis-reference.log",
+          "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xredis-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.156,
+          "recovered_completed_run": false,
+          "log": "windows-xredis-docs.log",
+          "log_sha256": "b31cf6d5a8e405dfe27aa785c9b566a10822e7645194e1a7788a29fa40e4472f",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xredis-maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.875,
+          "recovered_completed_run": false,
+          "log": "windows-xredis-maturity.log",
+          "log_sha256": "3161cae3cc70e90631af0c347aaa2bbb38c6f2bcdca152ce9232ab61c1fb2f6f",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xrpc-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.063,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-features.log",
+          "log_sha256": "c1dd669472228fc3a2f1f46af77b72c6b7c54fee393648702082b1b57da35e1c",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xrpc-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.297,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xrpc-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.141,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-reference.log",
+          "log_sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xrpc-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.172,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-docs.log",
+          "log_sha256": "019550b6b21ceb696027a55fcd60303be6aa6ef312cad6f5638a1689431d3e51",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xrpc-maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.766,
+          "recovered_completed_run": false,
+          "log": "windows-xrpc-maturity.log",
+          "log_sha256": "6bbf6a763788f04e641d508cbca8408e9100c2857712201afcce59a95bdcb22f",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xmqtt-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-features.log",
+          "log_sha256": "e1c3e679dfc7654ade4edd7c44c74490b97eaf64726ace090ec37f7bd327db31",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xmqtt-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.282,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xmqtt-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.14,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-reference.log",
+          "log_sha256": "4c344dc038dde9ddf0bd8a65a63c830082c5950bee6add673ac7af76fc19cc74",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xmqtt-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.234,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-docs.log",
+          "log_sha256": "baf16f9170125cfa89055a565300f52e67702c65d6d9918a0d0348249cc93dae",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xmqtt-maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.657,
+          "recovered_completed_run": false,
+          "log": "windows-xmqtt-maturity.log",
+          "log_sha256": "7db2fcc5dd7128df6ca0e08ca95956c10b74155ab487e4d682187c8434ddcac3",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xcron-features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.094,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-features.log",
+          "log_sha256": "e6b86c7c71ea1cf145330ea48e4b86941eceeaa7b5281b7fe2416e28686e4dd4",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xcron-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.359,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-single.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xcron-reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.125,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-reference.log",
+          "log_sha256": "4d138644df6a8560791e156ad5a9cdfdc676a5d0bb99575b7e52a886246602e4",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xcron-docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.171,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-docs.log",
+          "log_sha256": "6f546cc7e5a3f5eb8b84132539c0aa342f079a5fa7d0150eebda5fecd78898eb",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "xcron-maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xcron/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.578,
+          "recovered_completed_run": false,
+          "log": "windows-xcron-maturity.log",
+          "log_sha256": "0eedc7cde0ccfcffcfff578728f3d2f9f5300c87ff6a7d25d75259d3e2c00383",
+          "programs": 0,
+          "binaries": []
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "revision": "80e246bfd1ccbf3215a087d843b0952df501c8c1",
+      "branch": "master",
+      "workspace": "/mnt/d/GIT/xrt",
+      "initial_status": "?? docs/development/drafts/xredis-subscriber-notify-20261111.patch",
+      "inputs": 6459,
+      "input_map_sha256": "15904cd1a1af92c05dd65b6b0c14dc8f7eb817463a71928c6e6200c5e6a5c5fb",
+      "suite_programs": 167,
+      "sanitizer": [
+        "--cflag=-fsanitize=address,undefined",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=address,undefined"
+      ],
+      "receipts": [
+        {
+          "label": "xredis-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 546.133,
+          "recovered_completed_run": false,
+          "log": "wsl-xredis-suite.log",
+          "log_sha256": "df6f282ed2b0641db536645e9a04440437977a5ba7da0c07b62598675b65cec1",
+          "programs": 46,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_command",
+              "sha256": "1823a36186abb30149395a75f8079f2f93fffe3a537d8dceb5c62bb00ee67632"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reader",
+              "sha256": "392752f60ebfd73b5e7882a00630c7ae0e89702914c4b32d271bd99cf2087a06"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reply",
+              "sha256": "0084d1e8d8f983708a38168e2b20a036681c4ae8e3875a70b1b9409239fbbd56"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client",
+              "sha256": "db466ac91c059d707e07f47d3afba561a920e82075d1b28a45a869dbf2b3fb8d"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client_init",
+              "sha256": "d0ddb8ed2c1cf3e782715e140c3571f0d7f64bdcea8997016ef7e271c6dd6d9e"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_openloop",
+              "sha256": "e04ba7461acf54c85f761d8b78fc1fee3918ce7b5b4f4520f15912b390ad628a"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_dial",
+              "sha256": "00977e34089c1d064863caa07057de24df27e20ea1bd0faba082fbda16c83e3a"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls",
+              "sha256": "a569a45d07a6037f44c6a0d2d740d8f0b15890a9b109d5d0b53cee967e33c4d7"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_openloop",
+              "sha256": "2f501920541adb3008d90b247f5e1922e09b132f9ecd4bbaf043eb304e62b7bc"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_auth",
+              "sha256": "2dc8ec0476276a269ff501c428c90e3886af1cf8f4cbe857cb67c36a6b402da9"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_transaction",
+              "sha256": "aae95a26f43662b026df613a642acac2ff3e3cfdcf497f8b760ac05e970f8812"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_watch",
+              "sha256": "9280cbfc69ce95d8bc05857218b10e7da3913a3f9d506ea2437c07d84d4d8059"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool",
+              "sha256": "6e226514c4af9a21cf4a0b490bacb797cbd995b9b7f61f17819de143dda6112d"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_sessions",
+              "sha256": "bce1bd1be2aca190d0baaf2fb4045c184b866b3464619acc65299f2a40817f5e"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_connect",
+              "sha256": "c44d791780b02752bf779a70dfdeac9855120eede5804d061b48f61fb30880dc"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tracking",
+              "sha256": "3ec28da69d6c53d41b92f7062f1869c3df248304a6123970fa8723d324e6b6b1"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_caching",
+              "sha256": "43627fa007e5517b6661fa75f6ab2b010be348917e691e63f244a1f9bd90be25"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pubsub",
+              "sha256": "124e7e8f8a07dc8ffb6b889e466b9d27f6d8e196a49e60c4af097249ebfb207f"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriber",
+              "sha256": "d5144f04897a751ea5a8f3ea9ac325e17943d03f3bdd094fa48f9bbc22cad409"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time",
+              "sha256": "8bd692f53da8f60503e32a003bc78e5161b63b2606a2bb6cea5ad3e577244fde"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time_property",
+              "sha256": "bfcc21461251b836661876701b17140125acec3561afd8370773103ebb991ef7"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic",
+              "sha256": "29b9c7e82bfab00311e0e42dbee3df451f73ace6740f438c3c8c8449e4b7ebc1"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic_threads",
+              "sha256": "9706d56ead6e7b34df2bec5e0135d7bb2b41f64164de9c1262f883dc020c4ff0"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_command",
+              "sha256": "5efc4579ca91dfdd8c8d1118c426ec300a9770ff967f6286cb82d4a480fdaa7d"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_reader",
+              "sha256": "ffc4e35b6e475ff73dae3b076d472e0ef0eb3d826eb0471727be6400f31cd79f"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_reply",
+              "sha256": "be6e3eed5e6a39a94dbbab408c7beaebf19947b323bc9d1170b340c2b74957e4"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_client",
+              "sha256": "68154cba9bc7760275dde6e44583873049ff2d1078d71fbd6f0cacad433b9137"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_client_init",
+              "sha256": "92c3041dc16c470c62f8d560792ba75893cbb0751e97e37dd2084608b39270cc"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_openloop",
+              "sha256": "6eb79e67faac4e819c9213d244e37b03fb522b47661d873a9345fddb7b8ab65d"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_dial",
+              "sha256": "9189cff52d20532224a3b0b0f315f3e0429e26964441a05c144936aa28fe5982"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_tls",
+              "sha256": "a6a5936aa63533bb1dc0c437623031d16f02e00f28e69a0f76a5d8b3499ef8db"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_tls_openloop",
+              "sha256": "b24c7f03c365dcdb4af16828710118fc6b451b9b5e4367e6e9f47217ecbadd1a"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_tls_auth",
+              "sha256": "d6496dfdcab62e9030e51c8be6e0ff3e47352d82cb105e97f75b3309122644fb"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_transaction",
+              "sha256": "2c871c349a2b633a06901cce4fab771d400a27137ba3d7cab00324dab4fc318c"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_watch",
+              "sha256": "b32baa5ae6e21a7a855f28dfadab4dc2d5abb002368581c447e873af911d46a6"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_pool",
+              "sha256": "9ae65f2200e710a78f150ad7818d8d04f35913890d3addf090c008627b74aa8b"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_pool_sessions",
+              "sha256": "8165b436c66b0f5dc83a0d46c82cf8b9f6e7fe059a731c2286df488ba9ea4aed"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_pool_connect",
+              "sha256": "5913835ce7262c7a2b5d0101bffa56028d358ec26ae106fb5c462e9b224ad51f"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_tracking",
+              "sha256": "cc326d865aedddb13fa21be8c59f48a4dfff821434c07710ccffec44a853fca3"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_caching",
+              "sha256": "a6bdbe06ba4af26cf2cb18b08d4cc9118f02dbf2dced18be870a21f5da324973"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_caching_tls",
+              "sha256": "bb5aaefdd3fb927ab6f7df45d7c008f78716ec36c2b435040d9ce40d4d76876a"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_pubsub",
+              "sha256": "b772c53e1cfd22ca71b7f7817538a1d8837334d8bdc1b1b1f26ecbcdb4c424b2"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_subscriber",
+              "sha256": "0fb7a7d6035541570f2ba6891afab88252e9255c458bd24f7df1210b9a8cec58"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_xredis_subscriber_tls",
+              "sha256": "b71d21b821ca5270bf54c49300730451a488ab8d4d3bbf2877755c61f16836bb"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_time",
+              "sha256": "7a58eff7e1ce8508b83ca5c61465ea5afe8c560d6601020064cf4bbacd675da0"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_single_atomic",
+              "sha256": "68f00dbf5ab46b3335de920d0c54c0b06d3e2b69894685ca31c633dbb6bb1cd5"
+            }
+          ]
+        },
+        {
+          "label": "xrpc-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--suite",
+            "xrpc_tests",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 335.893,
+          "recovered_completed_run": false,
+          "log": "wsl-xrpc-suite.log",
+          "log_sha256": "f441348630a8fdec9d3eb5413271af4b35fc0e3b0a9b8528cc1119efce5cf1a0",
+          "programs": 30,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_decode",
+              "sha256": "79738513a27cc78ca4b3525619e76c360d8f7ffd29bed9348fd72621cdbfe53f"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_encode",
+              "sha256": "370349d27b187df6ea7c4b85bcc0b5238b583f621b6217686fe660741a137554"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_dispatch",
+              "sha256": "2c80acb0fddfdfbb4709cb19eee1ac479ec14b9cdef46e60de76a276826891fd"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_methods",
+              "sha256": "b1986083601f4be97200a8bbf4601d5b9142548b7d916a27873ec0cca2dd2437"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_id",
+              "sha256": "07f4193a47c21a55a9b10b051bb2d28dab9649d8b36c9930d086fa37a7468dee"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_pending",
+              "sha256": "154cc367e22c8a37244132d5c57fbee53cb40eed79e7957cc9a5a076bd75a5d5"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_response",
+              "sha256": "030a924b8a87fd7772284509272e920fbefe7c3ae66d1de5656fa1f31df162e1"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_receive",
+              "sha256": "607cae24dd00528dce0213ec671e4cd75105cad1737c7dfed5d8add92f444664"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_call",
+              "sha256": "8992b28e85ae2d8713629eef486f6ad708b9f8fac7826195ed461bcb5b99e454"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_http_client",
+              "sha256": "e85d96d788ec94aa698e9cdeeb16c66ea2ef66b7f7e4da7781b80189a8978e57"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_server",
+              "sha256": "66bcc0766dd8c08a817dd17dd54f4c2e251801f87c4b114a46faf39c4acfd140"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_http_server",
+              "sha256": "4f05bbc9d09348768cc5ae28cf85b228dcaaf5d22438126bca00ddc609142765"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_http_dial",
+              "sha256": "0b979ac394722d248327f2565b0b165426cd7664abea6bff06ff732e9282e08f"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_http_tls",
+              "sha256": "436fa777414c8bfe8112ec8828cc8107a34174e4d49440a6b76b1e18cea4c1ef"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_http_server_tls",
+              "sha256": "12cb9767445e582bd8a986fd958576c41a8c7c6c1961423d2e247534e7b86eec"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_decode",
+              "sha256": "1b38be47f9fd28616e7737f4998379024ac932e93912cc7bb8599e8c122d7154"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_encode",
+              "sha256": "0c51c16bab031d66b5c916d4cc84cdfe44b947550d6f93701ece59b174d7aeb1"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_dispatch",
+              "sha256": "f44535200c9662ca5e2b136426e1848b17dd972a4362e08e0fffb0443303dd40"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_methods",
+              "sha256": "42fa276ec8bf697195352730929a273f4e4334b910d088e4657f222463903e21"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_id",
+              "sha256": "91179ec291f5355f60198d1359e8ff4e895203ecd3c387f346195e488a9b8224"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_pending",
+              "sha256": "a2760a20e2be75225e119c28107814784256a7ad48501b78bd81476a572e9ff5"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_response",
+              "sha256": "925f5d17854d0856969049fa3aae3832f56cb396cd3f875d6244e0e0ab304917"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_receive",
+              "sha256": "d9ca0ae6835d0d71cdf505fd028517c6feab570a75c16bab701aa885cbaec264"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_call",
+              "sha256": "9ec5e2db14bf7ec61b2dbbe2f99d02a08273fe2258e7072b074821feaac82569"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_http_client",
+              "sha256": "df323e58cf6052c9d5efb4c55a3df2bf08aa60239dc6d3e684847d2b5c7eb65c"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_server",
+              "sha256": "21ea57077f838276449945aa2a1582363f98786277cf4ecccca6ffc266f2e39e"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_http_server",
+              "sha256": "c5a58573be7d169029182cf2e7459860a3c541d5b84d0e6a8195a48c7d0761c4"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_http_dial",
+              "sha256": "a5e94c4765e51d3ef4459ab811825834687787858a6051c88dedaf477e467bda"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_http_tls",
+              "sha256": "811f090fac820099135372c3ba17bf15b314ec6819908802513fd6a1d14e9a39"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests/test_single_xrpc_http_server_tls",
+              "sha256": "0439c2c8bbeb2b781e5f63f9b618e5b2213d503a3fc11bb02d99af1cbe6b1b06"
+            }
+          ]
+        },
+        {
+          "label": "xmqtt-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xmqtt/config/modules.json",
+            "--suite",
+            "xmqtt_tests,time,atomic",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 615.669,
+          "recovered_completed_run": false,
+          "log": "wsl-xmqtt-suite.log",
+          "log_sha256": "3d26a889a8a0197084237402a649f5ab4439b6bcc5d044c0c2c14907c5de9db5",
+          "programs": 57,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_wire",
+              "sha256": "3bc4e39293fc3b1366f28951995fed6f2c1adb37f00e3c86cd547052b99cef36"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_properties",
+              "sha256": "5aa97996dec300ea01db0b31d01420c6b87d964889b8a5a7e01a4d25509f9e90"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_packet",
+              "sha256": "b5f7e0d46464dd89975a543b8b95646a01b85a9faacd8e0c7465de754bfd4239"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_codec5",
+              "sha256": "bb8daa2cee45ee95c71d9d6a5fad482efc5e996267bee823ab6602410f30b4d3"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_codec311",
+              "sha256": "501e5a7e3e10c6a8d99cdbe998e9b476f533ee29b8ed0814752abddbee4f20a3"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_negotiation",
+              "sha256": "e1f40a7a3ceb32b46c05306442e1acd614a1f8a879684dece88f4c4d9e6ad691"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client",
+              "sha256": "2fc7bfa2ffb103f1f6417dd25d0bc77dc95945395cf307f50395e1687d2264a2"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_auth",
+              "sha256": "34864fc420c259dcfc57182c14111a70e268fb6387c6b51f3ae06055bef350f4"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_dial",
+              "sha256": "5a56085a00b2e376855ca6d1b2b95a34d27d78409bc393db5e9b3002400d546b"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_tls",
+              "sha256": "84f24f9afda96cdb895a7854ce7fc59d256faf27e68fa3e454bc46711c2464d4"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_tls_select",
+              "sha256": "cffe00dbd4e167b58d3246bc67337a4a5e6fd8e1e7b5da7086af4b261371d7ff"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_tls_resume",
+              "sha256": "d8a8b575e7c9336a24f8298f97b490dc9ed9016c1942b193808e0262b2949459"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_tls_resume_select",
+              "sha256": "efec6dadba54c911aad16e52fafff33a1f1ce5f6f41f3276f5f1b7aab155c5ad"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_session",
+              "sha256": "9465f7568b43727707e63a0174659c7b2141a0a2d86c66929049d9cf618f23d3"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_inbox",
+              "sha256": "0ab90426898386bd04acaf66d344b45e364c43f5af83534e8af29b06236a0111"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_session",
+              "sha256": "c2a0536abd530c7b8daeb92da5fdb011367e9f030b2b34712c0ca16775670569"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_session_tls",
+              "sha256": "055e287c3ecd347a0a67a69c0fa84730ae8fa2e1b76172c80c8801ad4e002805"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_client_session_dial",
+              "sha256": "f97d0cf5e5f7ee2f90c8f11132abe54fe565ac3b6c97bfe4874f27cd9ef6b1a8"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_reconnect",
+              "sha256": "7a1cdd4c74b2e9473cbdba29af0589fca0282f2b66aefe340c68b8ce6d05fac8"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_reconnect_transports",
+              "sha256": "aef4f9d00ee594580a61b59efa5da259bbe096cc50cc52a0e5087759d45912a7"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_reconnect_subscriptions",
+              "sha256": "bb703aaac3e6c72791493b6937edefab842f66204d7ea9b6aef487dabd7c8f03"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_time",
+              "sha256": "800445c7bda74bcfc71fd6161e1c8518bd90510d01b38793f4199b867d4f4e7b"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_time_property",
+              "sha256": "37f799f6398acb65556feef78c9e9daac4fc22af621465d89e0180eeff361322"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_atomic",
+              "sha256": "ef9d8d2ce087e10a133b8350270c8d316a1eabec216e95839ebd750482241816"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_atomic_threads",
+              "sha256": "6d06893d2f0dcccd0bd3da5eff91895521b2f95b9a382684d17fc99e8afdb2a5"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_wire",
+              "sha256": "be0e9915642cbe15705ce7c0a4782d7f393a73870db7e0779776d366f858559e"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_properties",
+              "sha256": "7aad0b36c0d1e2fec617803326fbbf41105361b3a0143b76d206cf7b83e08f98"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_packet",
+              "sha256": "bfdccd889388a535459944bc49a0304aed7e4dac66081e2f4ac396c92657f5d5"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_codec5",
+              "sha256": "219fe7926199d28c6047530c3f0cf77754caae66389d2ed6491c895e055ebd83"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_codec311",
+              "sha256": "1423c0d96161d5052e20c3af197cd4f5659b1b518ba2e2ce91cd2f32baa710ca"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_negotiation",
+              "sha256": "615a5721ff08ab4558cefac448e9e9344f0be3f7a2774e640580742f844258d8"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client",
+              "sha256": "22034ede0461729027c95b4458cab7755ad10a064d22bb3b0cf93953e2558de8"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_auth",
+              "sha256": "13496327d2ea7ab2e96d50993e0267f3e17d9b07b3797b41413065c6ededff4f"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_auth_cancel_retirement",
+              "sha256": "621808e0fb95aad08876cbd9189544d5816603a3a1b6a66e3a110b1be93eb0db"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_auth_completion_reservation",
+              "sha256": "3f55dd73941320ffc1416e23a795dd3b78f2e223251c4ba83fa5bd3861b5d45a"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_dial",
+              "sha256": "6333a33d9cf3feef2244b87ec722a54d3add3c5e83dcfd324450d09be138d2db"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_dial_auth",
+              "sha256": "cc2a4a64ef75dcfa081a1824d8296b6f2a5f52c5056cf4faa5a9683b837c2d8e"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_dial_retirement",
+              "sha256": "3d5171c10ba369e5ec81e748c9f7d84c5d08860f6c0e70017ea2fd7c4b6ef109"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls",
+              "sha256": "6dafd9d0c61bb32bdfe69ba4951ca94cf021e746d9232b9b5f393ba5606f217c"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_auth",
+              "sha256": "18187c9485054d5874a33515946fbc617534ed54db78cd772ffaad84f2c01ac8"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_stats_off",
+              "sha256": "736e2183dfa7f4397c4f5e037c5c27dbef2cc4c69ee9cc361150aca47127f193"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_resume",
+              "sha256": "fbab6ca63a6ad25205a10ffb6997e8dfbd794a96e87b084b3af6e402bab9fc50"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_tls_resume_stats_off",
+              "sha256": "e0c6c3f7466cf47eee47660cf14951c9ac47b5c9e83087373569af7b980e1ee7"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_session",
+              "sha256": "d838d110386ab47ad6255f84a40672f1ffcec2a0515011b2bbee12da71235a29"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_inbox",
+              "sha256": "fecb996e7139ae2e1d6e3719b1aad097a70b7380ccfce071582f4fc1dc8a6e64"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session",
+              "sha256": "8236ded31814ec2d4ccdf36d61692a8fc545eb37c2f7dcb8cd31751116ba58b3"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_tls",
+              "sha256": "75c3b8c92e1863f83bed26415347a94e211b187e878f234b7bb84be211bd71b1"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_tls_auth",
+              "sha256": "a8d0865be6cee90b1cca2b3ea474ecbba54940822a004ad6379e68d4d852859c"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_dial",
+              "sha256": "d50ee903460286b5a663effc8202b23ad8c4075d647633d4cdf9910895014db2"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_dial_auth",
+              "sha256": "a087b80f5daea7b1dfc2afc54cd5317bd717f2ea0e6a02fdfd980ddf9091fb28"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_auth",
+              "sha256": "40143ef4cc65f3c5764f68e2b212ed3adaca29a3746af80d5e9395c7e6dd1a42"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_client_session_assigned_auth",
+              "sha256": "7a716c67561aea60bb51a6b35eb497a84b4c9a1c216826a7952328d3755a0f6c"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect",
+              "sha256": "22bdebdaefa44bdeab5f522b891ff2ff74a1892cefb32ca107b8c523323d31bc"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect_transports",
+              "sha256": "a862c18420004c7e5303215ba53741d686e3566fed4ad88cbaec2f7fbc45e99e"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_xmqtt_reconnect_subscriptions",
+              "sha256": "53e4fbc904d3b6c1bcddb42c543d86b5668f7595e4853ce5aa805a3e3a37661a"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_time",
+              "sha256": "7a58eff7e1ce8508b83ca5c61465ea5afe8c560d6601020064cf4bbacd675da0"
+            },
+            {
+              "path": "out/gcc/x64/xmqtt_tests,time,atomic/test_single_atomic",
+              "sha256": "68f00dbf5ab46b3335de920d0c54c0b06d3e2b69894685ca31c633dbb6bb1cd5"
+            }
+          ]
+        },
+        {
+          "label": "xcron-suite",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xcron/config/modules.json",
+            "--suite",
+            "xcron_tests,event_waiter",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 125.646,
+          "recovered_completed_run": false,
+          "log": "wsl-xcron-suite.log",
+          "log_sha256": "f41cebe51647ed16d8e0f42015e1aeb9ed0d8536137d803c29c09ad579bb4def",
+          "programs": 34,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_expression",
+              "sha256": "cb77e5c72ff6462f3775a22578383ef0a0c90b258ca39ce2ab2d4456fea6c1f1"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_calendar",
+              "sha256": "5d226f2db78d94e1fc884b2180ec50a17ec25810da09a78c055c50212575169d"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_timezone",
+              "sha256": "16f5dd40b3b64fcf23b52cd4f0e153003c32f2b0899020e567b91f93d529e9e9"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_tzif",
+              "sha256": "378d0b72ee8c74f3635416efd575cf6ee7ff50e1400033668eca07e5652dab63"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_zoned",
+              "sha256": "28262d6dfafa4a9373beaf641f4593bda2912f1c6ff57e26cefc678226f672c5"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_scheduler",
+              "sha256": "bd1ad734879fc179bc841ec938943c8700c6c8d2493ddb498ea66445b3c6ec68"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_executor",
+              "sha256": "7fcc312e555beb4027e4a38b4c12fa6a20dc873cca99dd06d87b13607c65ea62"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_service",
+              "sha256": "c8bf2443fe78002d13c239ccdf256899ed8d03058ef0ad3b5858dad83c3be2b3"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_tzdb",
+              "sha256": "d8f6344b3d8f802d0a0c544bcd1f1a8f8f5cf5ce60aa55ac89659baa4af15051"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_tzdb_file",
+              "sha256": "4c91802f9ebc252ea8712fc0f3b8cb43fb47e4eaf2a61e1745a5ebd093f2269d"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_delivery",
+              "sha256": "729545a867392599304acdef3608a8f4f02e49e04c90961b8240a53b62891a87"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_occurrence",
+              "sha256": "f62ad10cd6076173f095518a1a978579b60c1e11918c63711b538c56a2124456"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_scheduler_selected",
+              "sha256": "c843fde107ab18a2e3cb1bc412dd8401138439c136f3b647bdba1d1a8cf8afe5"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_executor_selected",
+              "sha256": "3b8433433d9725fad5f943ea7136e921061990bf6a13811052e62456a527e32d"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_service_selected",
+              "sha256": "47a5891263488c35155192e21c27a48f2b303ba22a479ca13e33ac5c22a9277a"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_event_waiter",
+              "sha256": "8d0758dcd87e2be3700a2a783c8b64e4e3a8e47d49227985344edf2bb2d0ac6a"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_expression",
+              "sha256": "f784faf8c0eadf6c8bb158bd0be3d31970d904c4d052857c506bd49242ff7571"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_calendar",
+              "sha256": "6b1b0554cbf2e40ad95b5d1b17f722c69b77d536020f70c02aa611f9dd71ccf2"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_timezone",
+              "sha256": "5ad6a3240190dedda2d49daef44772a439a7cae1643eb591b5e480adc1c48e57"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_tzif",
+              "sha256": "f602d86ea0da61c4d9f893e1608a072df785ae776312c3c6ac9cef7cc1741757"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_zoned",
+              "sha256": "5676d7b74597a76bc8d208bcfe0efadc5aecb64849abb358d3873a6b6aba3484"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_scheduler",
+              "sha256": "08f815d34b4e3dd2c5f169a27b18dedd73a54e290f034a5fb1bc8e86bc23e785"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_executor",
+              "sha256": "2fceed70fc167cccc6c3d66bbdefe365dd82678bbcedebe0aa80c3ac128601ee"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_service",
+              "sha256": "5362bb361d695ce4f577689f33a9f3c1e5aa16e55531de1ab89cf827075f22b1"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_service_waiter",
+              "sha256": "f3f64667758bfc1a7e3eb4b3051c59af4dbde119a112851ab6c71f73e981eaa9"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_tzdb",
+              "sha256": "13724129bd38d22b5d8ff1c35bfea1a6cca6aaa3ea8f6692e582a604996b3e6a"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_tzdb_file",
+              "sha256": "34c39eb763274c1b1b5e4d7478a995c9fddd8d0b823c3060f3dedb6a309debf2"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_delivery",
+              "sha256": "c4ffaa8b3316b7bf7b1a365a71a4d92152c270c5cdfc59334980ea4490c8fb76"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_occurrence",
+              "sha256": "acf739982dd273c18bcb4222a731114d2e4ba30ac45d4200846195f3855cadde"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_scheduler_selected",
+              "sha256": "3c4ed3ac07948d26f23162e00b7c6b3e15e57581c54c9e5dd78d24948694a33d"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_executor_selected",
+              "sha256": "619eb4d6832ffe4019ee7c0b23d232ebca6946852ec5489bdc7a56c74e990e73"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_service_selected",
+              "sha256": "b204ace2c1fdeea3b7c88afad86be0ab1772c3721fca6f8a84ec5fb2b4455f95"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_xcron_service_readable",
+              "sha256": "3d7dce16eea1b3396be9a664bcb69c0358905f889cc42d986d16f107625862df"
+            },
+            {
+              "path": "out/gcc/x64/xcron_tests,event_waiter/test_single_event_waiter",
+              "sha256": "4b2bedc768c96af787820acc5dad692632163723d67c103b1155234531cca85b"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "normal_metadata_checks": 20,
+  "reported_skips": {
+    "windows-xcron-suite.log": [
+      "[SKIP] native symbolic link fixture: system=1314",
+      "[SKIP] native symbolic link fixture: system=1314"
+    ]
+  },
+  "preparation_failures": [
+    {
+      "stage": "initial guard",
+      "detail": "Default untracked directory compression and stale index stat made status differ from expected; corrected using explicit untracked-files=all and index stat refresh. No content delta was staged."
+    },
+    {
+      "stage": "completed Windows xredis result collection",
+      "detail": "46 test programs returned success and build.py emitted final pass; a test child wrote adjacent to a buffered test executable path, so line-based extraction failed. Recovered the original passing log and executable hashes without rerunning the suite; collector now matches actual executable paths."
+    }
+  ],
+  "evidence_directory": "out/service-extensions/mainline-workspace-20261111",
+  "evidence_inventory_sha256": "9a8b41092204bd3781a858a3c0792b5d0834f2d2442b71b68a27964308b65bc6",
+  "limits": [
+    "The unfinished subscriber readability/batch API is preserved as a complete patch; it is not a shipped or validated feature. Its unregistered production header initially failed single-header and maturity preflight; the exact original source bytes and failures are retained.",
+    "The Windows xredis runner completed all46 programs successfully before log collection failed on adjacent child output. The passing result and binary hashes are recovered from its original final-pass log without rebuilding; duration is unavailable.",
+    "Tests execute at the logical D:/GIT/xrt master path; Windows and WSL have separate build outputs. WSL uses ASan/UBSan and leak halt, not native Linux-host production qualification.",
+    "This refresh covers root modular/single tests and20 normal metadata checks; it does not rerun static/shared SDK, upstream interop, performance or >=72h acceptance.",
+    "Historical evidence regular files were copied and verified against the original migration inventory;37 previously missing cache-junction targets remain recorded rather than reconstructed.",
+    "All four libraries remain developing; the full long-term goal remains active."
+  ],
+  "production_acceptance": false
+}

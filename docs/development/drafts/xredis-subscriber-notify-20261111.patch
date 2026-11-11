@@ -1,0 +1,132 @@
+diff --git a/extlibs/xredis/src/client/client.c b/extlibs/xredis/src/client/client.c
+index 2bc7d024..6d1609a4 100644
+--- a/extlibs/xredis/src/client/client.c
++++ b/extlibs/xredis/src/client/client.c
+@@ -1,6 +1,7 @@
+ #include <xredis/client.h>
+ #include <xredis/tracking.h>
+ #include <xredis/subscriber.h>
++#include <xredis/subscriber_notify.h>
+ #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+ #include <xrt/hash.h>
+ #endif
+@@ -69,6 +70,11 @@ typedef struct xredissubscriber {
+     xredissubscriberconfig Config;xredissubscriberinfo Info;
+     size_t StorageBytes,Buckets,Entries,NameBytes,EntryBytes,Counts[3];
+     xredissubentry* Head;
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    xpromise* ReadablePromise;
++    xfuture* ReadableFuture;
++    bool ReadablePreparing;
++#endif
+     xredissubentry* Table[];
+ } xredissubscriber;
+ typedef struct xredissubcall {
+@@ -84,6 +90,9 @@ static bool xredisSubscriberCloseStep(xredisclient* Client);
+ static bool xredisSubscriberPrepare(xredisrequest* Request);
+ static void xredisSubscriberWritten(xredisrequest* Request);
+ static void xredisSubscriberFrame(xredisclient* Client,xredisreply* Reply,const xredisreplyvalue* Root,size_t Bytes);
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++static void xredisSubscriberNotify(xpromise* Promise);
++#endif
+ #define XREDIS_SUBSCRIBER_RETIRE(R) do{if((R)->Observe>=5)xredisSubscriberRetire(R);}while(0)
+ #else
+ #define XREDIS_SUBSCRIBER_RETIRE(R) ((void)0)
+@@ -1537,9 +1546,19 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
+ #endif
+ #if defined(XREDIS_FEATURE_XREDIS_DIAL)
+ 	Done = Done && !Client->PlanPending;
++#endif
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    Done=Done && (!Subscriber || !Subscriber->ReadablePreparing);
++    xpromise* ReadableSignal=NULL;
++    if(Subscriber && Subscriber->ReadablePromise && (Client->Info.Pushes || Done)){
++        ReadableSignal=Subscriber->ReadablePromise;Subscriber->ReadablePromise=NULL;
++    }
+ #endif
+ 	if (Done) { Client->CloseDone = true; Client->Info.State = XREDIS_CLIENT_CLOSED; Client->EnginePinned = false; }
+ 	xrtMutexUnlock(&Client->Gate);
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    xredisSubscriberNotify(ReadableSignal);
++#endif
+ 	if (Done) {
+ 		xpromise* Promise = Client->ClosePromise; Client->ClosePromise = NULL;
+ 		xrtNetStreamDestroy(Client->Stream); Client->Stream = NULL;
+@@ -2254,6 +2273,9 @@ static void xredisSubscriberRelease(xredisclient* C)
+ {
+     xredissubscriber* M=xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_RELAXED);if(!M)return;
+     while(M->Head)xredisSubscriberDelete(M,M->Head,true);
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    xrtPromiseDestroy(M->ReadablePromise);xrtFutureDestroy(M->ReadableFuture);
++#endif
+     xrtFree(M);
+ }
+ static bool xredisSubscriberPrepare(xredisrequest* R)
+@@ -2306,10 +2328,21 @@ static void xredisSubscriberWritten(xredisrequest* R)
+ {if(R->Observe>=5){xredisSubscriberState(R)->Written=true;xredisSubscriberFinish(R);}}
+ static bool xredisSubscriberQueue(xredisclient* C,xredissubscriber* M,xredisreply* Reply,size_t Bytes,bool Message)
+ {
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    xpromise* Signal=NULL;
++#endif
+     xrtMutexLock(&C->Gate);bool Fits=C->Info.Pushes<C->Config.MaxPushes && Bytes<=C->Config.MaxPushBytes-C->Info.PushBytes;
+     if(Fits){size_t N=(C->PushHead+C->Info.Pushes)%C->Config.MaxPushes;C->PushQueue[N]=Reply;++C->Info.Pushes;C->Info.PushBytes+=Bytes;
+-        if(Message)++M->Info.Messages;else ++M->Info.Sidebands;}
+-    xrtMutexUnlock(&C->Gate);return Fits;
++        if(Message)++M->Info.Messages;else ++M->Info.Sidebands;
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++        Signal=M->ReadablePromise;M->ReadablePromise=NULL;
++#endif
++    }
++    xrtMutexUnlock(&C->Gate);
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++    xredisSubscriberNotify(Signal);
++#endif
++    return Fits;
+ }
+ static void xredisSubscriberFrame(xredisclient* C,xredisreply* Reply,const xredisreplyvalue* Root,size_t Bytes)
+ {
+diff --git a/extlibs/xredis/include/xredis/subscriber_notify.h b/extlibs/xredis/include/xredis/subscriber_notify.h
+new file mode 100644
+--- /dev/null
++++ b/extlibs/xredis/include/xredis/subscriber_notify.h
+@@ -0,0 +1,39 @@
++#ifndef XREDIS_SUBSCRIBER_NOTIFY_H
++#define XREDIS_SUBSCRIBER_NOTIFY_H
++#include <xredis/subscriber.h>
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
++#error "Subscriber notification requires the native subscriber"
++#endif
++#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
++XRT_EXTERN_C_BEGIN
++/* Nonblocking shared readiness observer, not a receive reservation. ACCEPTED
++ * returns one owned Future reference. Wait/Watch it, destroy that reference,
++ * then recheck the delivery queue. Its only terminal value is RESOLVED/NULL;
++ * a competing consumer can have drained the queue by the time it is observed.
++ * One pending epoch is shared by all observers; rearming an empty queue creates
++ * at most one replacement outside Gate. Concurrent epoch construction returns
++ * OVERLOADED, and allocation failure returns ERROR; both preserve Future.
++ * CLOSED means physical close AND an empty queue; queued messages remain
++ * readable after close. Physical close wakes every pending epoch. Retaining an
++ * observer does not keep Client/Engine alive after close. FutureCancel is not
++ * acted on by this producer; use your own cancel token with Core's cancelable
++ * wait, or detach your Watch. Never block an Engine worker in a wait/callback.
++ * Pending Watch callbacks run on the owning IO worker. Newly constructed ready
++ * epochs resolve before publication, so no user callback runs under Gate or on
++ * a constructor thread. Ready WatchAdd follows Core's immediate-ready contract.
++ * Drain-before-arm races cannot strand available messages. Success transfers
++ * no message and retains no caller storage. No notification is allocated on
++ * the producer path. Outputs must be disjoint, caller-owned writable objects. */
++XREDIS_API xredisadmission xredisSubscriberReadable(xredisclient* Client,xfuture** Future);
++/* Transfer up to Capacity owned reply references in one Gate acquisition.
++ * Only the actual prefix is written; each reference must later be released.
++ * Successful transfer sets Taken >0. Empty returns false and preserves all
++ * output bytes and ambient error, including after physical close. Invalid
++ * arguments report an error and change no outputs/queue. Capacity is positive,
++ * Replies and Taken are disjoint and cannot overlap Client/mode storage.
++ * Shares FIFO delivery with ClientTakePush; neither path reserves messages for
++ * a particular readiness observer. No allocation, retain, payload copy or scan. */
++XREDIS_API bool xredisSubscriberTakeBatch(xredisclient* Client,xredisreply** Replies,size_t Capacity,size_t* Taken);
++XRT_EXTERN_C_END
++#endif
++#endif
