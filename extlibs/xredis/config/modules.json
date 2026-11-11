@@ -131,6 +131,13 @@
         "source_roots": [
           "subscriptions"
         ]
+      },
+      {
+        "name": "subscription_session",
+        "state": "retained",
+        "source_roots": [
+          "subscription_session"
+        ]
       }
     ]
   },
@@ -405,7 +412,8 @@
         "xredis_pubsub",
         "xredis_subscriber",
         "xredis_subscriber_notify",
-        "xredis_subscriptions"
+        "xredis_subscriptions",
+        "xredis_subscription_session"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -826,7 +834,8 @@
         "xredis_caching_tests",
         "xredis_subscriber_tests",
         "xredis_subscriber_notify_tests",
-        "xredis_subscriptions_tests"
+        "xredis_subscriptions_tests",
+        "xredis_subscription_session_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -852,7 +861,8 @@
         "extlibs/xredis/tests/test_pubsub.c",
         "extlibs/xredis/tests/test_subscriber.c",
         "extlibs/xredis/tests/test_subscriber_notify.c",
-        "extlibs/xredis/tests/test_subscriptions.c"
+        "extlibs/xredis/tests/test_subscriptions.c",
+        "extlibs/xredis/tests/test_subscription_session.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -879,7 +889,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions.c",
-        "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -913,7 +925,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify.c": "xredis_subscriber_notify",
         "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify_tls.c": "xredis_subscriber_notify_tests",
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions.c": "xredis_subscriptions",
-        "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c": "xredis_subscriptions_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c": "xredis_subscriptions_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c": "xredis_subscription_session",
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c": "xredis_subscription_session_tests"
       }
     },
     {
@@ -1174,6 +1188,61 @@
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xredis_subscription_session",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION",
+      "depends": [
+        "xredis_subscriptions"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/subscription_session.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/subscription_session/subscription_session.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_subscription_session.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/subscription_session/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_subscription_session.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/subscription_session.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_subscription_session_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_subscription_session",
+        "xredis_tls",
+        "tls_identity_rsa",
+        "memory_stats",
+        "time"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_subscription_session.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c"
       ],
       "examples": [],
       "benchmarks": [],

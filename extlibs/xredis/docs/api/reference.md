@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `120` 个函数、`191` 个常量或宏、
-`81` 个公共类型。
+当前登记 `129` 个函数、`200` 个常量或宏、
+`90` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -448,6 +448,49 @@
 
 - `XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY`
 
+## `extlibs/xredis/include/xredis/subscription_session.h`
+
+[查看带契约注释的公共头](../../include/xredis/subscription_session.h)
+
+### 函数 (9)
+
+- `xredisSubscriptionSessionApply`
+- `xredisSubscriptionSessionClose`
+- `xredisSubscriptionSessionClosed`
+- `xredisSubscriptionSessionConfigInit`
+- `xredisSubscriptionSessionCreate`
+- `xredisSubscriptionSessionCurrent`
+- `xredisSubscriptionSessionInfo`
+- `xredisSubscriptionSessionRelease`
+- `xredisSubscriptionSessionRetain`
+
+### 常量与宏 (10)
+
+- `XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS`
+- `XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION`
+- `XREDIS_SESSION_BACKOFF`
+- `XREDIS_SESSION_CLOSED`
+- `XREDIS_SESSION_CLOSING`
+- `XREDIS_SESSION_CONNECTING`
+- `XREDIS_SESSION_DRAINING`
+- `XREDIS_SESSION_ONLINE`
+- `XREDIS_SESSION_RESTORING`
+- `XREDIS_SESSION_UPDATING`
+
+### 类型 (11)
+
+- `xredissubscriptionreplayconfig`
+- `xredissubscriptions`
+- `xredissubscriptionsession`
+- `xredissubscriptionsessionclosed`
+- `xredissubscriptionsessionconfig`
+- `xredissubscriptionsessionconnect`
+- `xredissubscriptionsessioncurrent`
+- `xredissubscriptionsessiondrop`
+- `xredissubscriptionsessioninfo`
+- `xredissubscriptionsessionnotify`
+- `xredissubscriptionsessionstate`
+
 ## `extlibs/xredis/include/xredis/subscriptions.h`
 
 [查看带契约注释的公共头](../../include/xredis/subscriptions.h)
@@ -473,9 +516,8 @@
 - `xredisSubscriptionsRetain`
 - `xredisSubscriptionsSnapshot`
 
-### 常量与宏 (15)
+### 常量与宏 (14)
 
-- `XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS`
 - `XREDIS_SUBSCRIPTIONS_CANCELLED`
 - `XREDIS_SUBSCRIPTIONS_CLOSED`
 - `XREDIS_SUBSCRIPTIONS_DONE`
@@ -491,12 +533,10 @@
 - `XREDIS_SUBSCRIPTIONS_TIMEOUT`
 - `XREDIS_SUBSCRIPTIONS_WAIT`
 
-### 类型 (10)
+### 类型 (8)
 
 - `xredissubscriptionreplay`
-- `xredissubscriptionreplayconfig`
 - `xredissubscriptionreplayresult`
-- `xredissubscriptions`
 - `xredissubscriptionsconfig`
 - `xredissubscriptionsinfo`
 - `xredissubscriptionsnapshot`

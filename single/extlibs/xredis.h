@@ -118,6 +118,19 @@
 #ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTIONS
 #define XREDIS_MODULE_XREDIS_SUBSCRIPTIONS
 #endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#define XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#endif
+#endif
+
+/* xredis_subscription_session 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION)
+#ifndef XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION
+#define XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTIONS
+#define XREDIS_MODULE_XREDIS_SUBSCRIPTIONS
+#endif
 #endif
 
 /* xredis_subscriptions 及其直接依赖。 */
@@ -1962,6 +1975,101 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/subscription_session.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_SUBSCRIPTION_SESSION_H
+#define XREDIS_SUBSCRIPTION_SESSION_H
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+#error "Subscription sessions require desired-state replay"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+typedef struct xredissubscriptionsession xredissubscriptionsession;
+typedef enum xredissubscriptionsessionstate {
+    XREDIS_SESSION_CONNECTING=0,XREDIS_SESSION_RESTORING,XREDIS_SESSION_ONLINE,
+    XREDIS_SESSION_UPDATING,XREDIS_SESSION_DRAINING,XREDIS_SESSION_BACKOFF,
+    XREDIS_SESSION_CLOSING,XREDIS_SESSION_CLOSED
+} xredissubscriptionsessionstate;
+typedef struct xredissubscriptionsessioninfo {
+    size_t Size;xredissubscriptionsessionstate State;
+    uint64 Attempts,Failures,Generations,Restored,AppliedRevision,DesiredRevision;
+    xredisrequeststatus LastFailure;double NextAttempt;
+} xredissubscriptionsessioninfo;
+/* Serialized on the controller worker, outside gates; must not block. Success
+ * transfers one private managed Client reference. Failure transfers nothing.
+ * Use the provided total setup limit with numeric/DNS/prepared/TLS/auth factory.
+ * Every generation must use the same Engine and RESP/service/security profile. */
+typedef bool (*xredissubscriptionsessionconnect)(xnetengine* Engine,uint64 Attempt,
+    int64 Timeout,ptr Data,xredisclient** Client);
+/* Coalesced state snapshots, not a complete transition log. Reentry is allowed.
+ * Called on the controller worker; retain escaping objects explicitly. Data and
+ * callback code remain resident through Drop. No per-message callback is added. */
+typedef void (*xredissubscriptionsessionnotify)(xredissubscriptionsession* Session,
+    const xredissubscriptionsessioninfo* Info,ptr Data);
+typedef void (*xredissubscriptionsessiondrop)(ptr Data);
+typedef struct xredissubscriptionsessionconfig {
+    size_t Size;xredissubscriptionsessionconnect Connect;
+    xredissubscriptionsessionnotify Notify;xredissubscriptionsessiondrop Drop;ptr Data;
+    xredisprotocol Protocol;xredissubscriptionreplayconfig Replay;
+    int64 AttemptTimeout,RetryMin,RetryMax;uint32 MaxFailures;
+} xredissubscriptionsessionconfig;
+/* Terminal stop reason (explicit Close is OK); LastFailure remains historical. */
+typedef struct xredissubscriptionsessionclosed {
+    xredisrequeststatus Status;uint64 Attempts,Generations;
+} xredissubscriptionsessionclosed;
+typedef struct xredissubscriptionsessioncurrent {
+    xredisclient* Client;uint64 Generation,Revision;
+} xredissubscriptionsessioncurrent;
+XRT_EXTERN_C_BEGIN
+/* RESP3, 5s per complete factory/readiness/restore attempt, 100ms..10s jittered
+ * backoff, unlimited consecutive transient failures (MaxFailures=0). Positive
+ * MaxFailures stops at that bound. Replay.Timeout is ignored: initial restore
+ * shares the attempt's original deadline; each live diff gets AttemptTimeout. */
+XREDIS_API bool xredisSubscriptionSessionConfigInit(xredissubscriptionsessionconfig* Config);
+/* Retain and exclusively claim Store editing until physical close. Read-only
+ * snapshots remain available; direct Store Apply is OVERLOADED while claimed.
+ * All desired edits use SessionApply. Caller owns one Session reference and must
+ * Close then Release it. Accepted creation consumes Data/Drop duty;
+ * failure preserves it and Output. No callback runs inline on the caller, but
+ * the owning worker may run before return. One candidate/generation, one native
+ * control Future, three embedded Watches, one timer and one coalesced post.
+ * No worker/runtime is created. Transient connect/disconnect/timeout retries only
+ * after physical retirement. Invalid profile, server/protocol/limit/memory and
+ * authentication failures close the controller; ordinary commands are not replayed. */
+XREDIS_API xredisadmission xredisSubscriptionSessionCreate(xnetengine* Engine,uint64 Affinity,
+    xredissubscriptions* Store,const xredissubscriptionsessionconfig* Config,xredissubscriptionsession** Output);
+XREDIS_API bool xredisSubscriptionSessionRetain(xredissubscriptionsession* Session);
+XREDIS_API void xredisSubscriptionSessionRelease(xredissubscriptionsession* Session);
+/* Commit local intent and automatically schedule bounded incremental reconciliation.
+ * Only removed names are unsubscribed and only added names subscribed; unchanged
+ * names stay live. Finish the captured revision, then reconcile newer intent.
+ * This is not a server acknowledgement. No-op edits send nothing. Native message
+ * queues retain their limits; transport loss still creates an at-most-once gap. */
+XREDIS_API xredisadmission xredisSubscriptionSessionApply(xredissubscriptionsession* Session,
+    xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision);
+XREDIS_API bool xredisSubscriptionSessionInfo(xredissubscriptionsession* Session,xredissubscriptionsessioninfo* Info);
+/* ACCEPTED transfers one retained native Client for receiving/observing only.
+ * Release it; do not issue commands/adopt/claim it. Controller owns close duty.
+ * Available only at the last fully applied desired revision. OVERLOADED during
+ * recovery/update and CLOSED after close begins, preserving Output. Old retained
+ * generations may still be drained after retirement; they never become current
+ * again. Native receive/readability APIs run directly, without a proxy queue. */
+XREDIS_API xredisadmission xredisSubscriptionSessionCurrent(xredissubscriptionsession* Session,
+    xredissubscriptionsessioncurrent* Output);
+XREDIS_API bool xredisSubscriptionSessionClose(xredissubscriptionsession* Session);
+/* Physical close retires accepted edits, native generations and callback access;
+ * releases Store claim, runs Drop once on worker, then unpins Engine and resolves
+ * this shared typed observer. Cancelling the observer does not close the session.
+ * Final post/Watch release frames may finish afterwards without context/Engine
+ * access. Join owner worker turns for quota-zero accounting. Retained
+ * session/outcomes keep no Engine/context reference after close. */
+XREDIS_API xfuture* xredisSubscriptionSessionClosed(xredissubscriptionsession* Session);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -2037,6 +2145,10 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION"
 #endif
 
 #endif
@@ -2216,6 +2328,16 @@ xredisadmission __xredisSubscriberReplayStart(xredisclient* Client,const xrediss
 void __xredisSubscriberReplayRelease(xredisclient* Client,ptr Owner);
 xredisadmission __xredisSubscriberCommandBudget(xredisclient* Client,xredispubsubcommand Command,
     const xbytesview* Names,size_t Count,int64 Timeout,double Entered,ptr Owner,xfuture** Future);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+bool __xredisSubscriptionsFits(xredissubscriptions* Store,const xredissubscriberconfig* Config);
+bool __xredisSubscriptionRegistryBounds(const xredissubscriberconfig* Config);
+bool __xredisSubscriptionClientProfile(xredisclient* Client,xnetengine* Engine);
+xredisadmission __xredisSubscriptionsClaim(xredissubscriptions* Store,ptr Owner,ptr Output);
+void __xredisSubscriptionsUnclaim(xredissubscriptions* Store,ptr Owner);
+xredisadmission __xredisSubscriptionsApply(xredissubscriptions* Store,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision,ptr Owner);
+xredisadmission __xredisSubscriptionTransitionCreate(xredissubscriptions* Store,xredisclient* Client,xredissubscriptionsnapshot* Base,const xredissubscriptionreplayconfig* Config,double Entered,ptr Scope,xredissubscriptionreplay** Output);
+xredissubscriptionsnapshot* __xredisSubscriptionTransitionSnapshot(xredissubscriptionreplay* Replay);
+#endif
 #endif
 #endif
 #endif
@@ -5941,6 +6063,18 @@ static xredisadmission xredisSubscriberAdmit(xredisclient* C,xredispubsubcommand
     return xredisClientCallAdmit(C,Names,Count,Timeout,Future,Entered,NULL,true,(unsigned)Command+5);
 }
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+bool __xredisSubscriptionRegistryBounds(const xredissubscriberconfig* K)
+{return K->MaxNameBytes<=SIZE_MAX-sizeof(xredissubscriber)-K->MaxSubscriptions*(sizeof(xredissubentry)+4*sizeof(xredissubentry*));}
+bool __xredisSubscriptionClientProfile(xredisclient* C,xnetengine* Engine)
+{
+    xrtMutexLock(&C->Gate);bool OK=C->Managed && (C->CloseDone || C->Engine==Engine) && !xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_ACQUIRE);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
+    OK=OK && !C->Owner;
+#endif
+    xrtMutexUnlock(&C->Gate);return OK;
+}
+#endif
 xredisadmission __xredisSubscriberReplayStart(xredisclient* C,const xredissubscriberconfig* Config,ptr Owner)
 {return xredisSubscriberStartScope(C,Config,Owner);}
 void __xredisSubscriberReplayRelease(xredisclient* C,ptr Owner)
@@ -8174,6 +8308,9 @@ struct xredissubscriptionsnapshot {
 struct xredissubscriptions {
     xatomic32 References;xmutex Gate;xredissubscriptionsconfig Config;
     xredissubscriptionsnapshot* Current;bool Preparing;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    ptr EditOwner;
+#endif
 };
 typedef struct xredissubscriptionedit {xbytesview Name;uint64 Hash;uint16 Slot;} xredissubscriptionedit;
 typedef struct xredissubscriptionmerge {size_t Count,NameBytes,EntryBytes;bool Changed;} xredissubscriptionmerge;
@@ -8181,6 +8318,9 @@ struct xredissubscriptionreplay {
     xredissubscriptions* Store;xredissubscriptionsnapshot* Snapshot;xredisclient* Client;
     xredissubscriptionreplayconfig Config;xredissubscriptionreplayresult Result;
     xfuture* Future;size_t Offset,InFlight,StorageBytes;uint64 ExpectedRegular,ExpectedShard;double Entered,Deadline;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    ptr Scope;xredissubscriptionsnapshot* Base;size_t OldCursor,NewCursor;bool Adding;
+#endif
     xbytesview Names[];
 };
 static bool xredisSubscriptionsReport(xerrkind Kind,cstr Text)
@@ -8279,7 +8419,7 @@ static bool xredisSubscriptionMerge(const xredissubscriptionsnapshot* Old,const 
     }
     return true;
 }
-XREDIS_API xredisadmission xredisSubscriptionsApply(xredissubscriptions* S,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision)
+static xredisadmission xredisSubscriptionsApplyScope(xredissubscriptions* S,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision,ptr Scope)
 {
     if(!S || (unsigned)Command>XREDIS_PUBSUB_CMD_SUNSUBSCRIBE || !Revision || !xrtMemRangeValid(Revision,sizeof(*Revision)) ||
         xrtMemRangesOverlap(S,S?sizeof(*S):0,Revision,sizeof(*Revision)) || Count>XREDIS_PUBSUB_NAMES_MAX || ((unsigned)Command<3 && !Count) || !xrtMemRangeValid(Names,Count*sizeof(*Names)) ||
@@ -8290,6 +8430,11 @@ XREDIS_API xredisadmission xredisSubscriptionsApply(xredissubscriptions* S,xredi
         if(Names[N].Size>S->Config.MaxChangeBytes-InputBytes)return XREDIS_ADMISSION_OVERLOADED;
         InputBytes+=Names[N].Size;}
     xrtMutexLock(&S->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    if(S->EditOwner!=Scope){xrtMutexUnlock(&S->Gate);return XREDIS_ADMISSION_OVERLOADED;}
+#else
+    (void)Scope;
+#endif
     if(S->Preparing){xrtMutexUnlock(&S->Gate);return XREDIS_ADMISSION_OVERLOADED;}
     S->Preparing=true;xredissubscriptionsnapshot* Old=S->Current;xrtMutexUnlock(&S->Gate);
     xredisadmission Result=XREDIS_ADMISSION_ERROR;xredissubscriptionsnapshot* Next=NULL;xredissubscriptionedit* Edits=NULL;
@@ -8312,6 +8457,23 @@ Done:
     xredisSubscriptionSnapshotRelease(Next);xrtFree(Edits);
     xrtMutexLock(&S->Gate);S->Preparing=false;xrtMutexUnlock(&S->Gate);return Result;
 }
+XREDIS_API xredisadmission xredisSubscriptionsApply(xredissubscriptions* S,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision)
+{return xredisSubscriptionsApplyScope(S,Command,Names,Count,Revision,NULL);}
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+bool __xredisSubscriptionsFits(xredissubscriptions* S,const xredissubscriberconfig* K)
+{return S->Config.MaxSubscriptions<=K->MaxSubscriptions && S->Config.MaxNameBytes<=K->MaxNameBytes;}
+xredisadmission __xredisSubscriptionsClaim(xredissubscriptions* S,ptr Owner,ptr Output)
+{
+    if(xrtMemRangesOverlap(S,sizeof(*S),Output,sizeof(void*))){xredisSubscriptionsReport(XERR_ARGUMENT,"session output overlaps desired store");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&S->Gate);xredisadmission A=S->Preparing || S->EditOwner?XREDIS_ADMISSION_OVERLOADED:XREDIS_ADMISSION_ACCEPTED;
+    if(A==XREDIS_ADMISSION_ACCEPTED)S->EditOwner=Owner;
+    xrtMutexUnlock(&S->Gate);return A;
+}
+void __xredisSubscriptionsUnclaim(xredissubscriptions* S,ptr Owner)
+{xrtMutexLock(&S->Gate);if(S->EditOwner==Owner)S->EditOwner=NULL;xrtMutexUnlock(&S->Gate);}
+xredisadmission __xredisSubscriptionsApply(xredissubscriptions* S,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision,ptr Owner)
+{return xredisSubscriptionsApplyScope(S,Command,Names,Count,Revision,Owner);}
+#endif
 static xredissubscriptionsinfo xredisSubscriptionInfoValue(const xredissubscriptionsnapshot* P,bool Preparing)
 {return (xredissubscriptionsinfo){sizeof(xredissubscriptionsinfo),P->Revision,P->Count,P->NameBytes,P->StorageBytes,P->EntryBytes,Preparing};}
 XREDIS_API bool xredisSubscriptionsInfo(xredissubscriptions* S,xredissubscriptionsinfo* Info)
@@ -8340,26 +8502,44 @@ XREDIS_API bool xredisSubscriptionReplayConfigInit(xredissubscriptionreplayconfi
     if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xredisSubscriptionsReport(XERR_ARGUMENT,"invalid replay config");
     *K=(xredissubscriptionreplayconfig){0};K->Size=sizeof(*K);xredisSubscriberConfigInit(&K->Registry);K->MaxBatchNames=64;K->MaxBatchBytes=65536;K->Timeout=5000;return true;
 }
-XREDIS_API xredisadmission xredisSubscriptionReplayCreate(xredissubscriptions* S,xredisclient* C,const xredissubscriptionreplayconfig* Config,xredissubscriptionreplay** Output)
-{
-    double Entered=xrtTimer();xredissubscriptionreplayconfig K;
+static xredisadmission xredisSubscriptionReplayCreateBudget(xredissubscriptions* S,xredisclient* C,const xredissubscriptionreplayconfig* Config,xredissubscriptionreplay** Output,double Entered,ptr Scope,xredissubscriptionsnapshot* Base)
+{xredissubscriptionreplayconfig K;
     if(!S || !C || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(S,S?sizeof(*S):0,Output,sizeof(*Output)) ||
        (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))))){xredisSubscriptionsReport(XERR_ARGUMENT,"invalid replay arguments");return XREDIS_ADMISSION_ERROR;}
     if(Config)K=*Config;else xredisSubscriptionReplayConfigInit(&K);
     if(K.Size!=sizeof(K) || !K.MaxBatchNames || K.MaxBatchNames>XREDIS_PUBSUB_NAMES_MAX || !K.MaxBatchBytes || K.Timeout<XRT_WAIT_FOREVER){xredisSubscriptionsReport(XERR_ARGUMENT,"invalid replay work bounds");return XREDIS_ADMISSION_ERROR;}
     xredissubscriptionsnapshot* P=NULL;if(!xredisSubscriptionsSnapshot(S,&P))return XREDIS_ADMISSION_ERROR;
     if(P->Count>K.Registry.MaxSubscriptions || P->NameBytes>K.Registry.MaxNameBytes){xredisSubscriptionSnapshotRelease(P);xredisSubscriptionsReport(XERR_RANGE,"native registry cannot fit desired set");return XREDIS_ADMISSION_ERROR;}
-    size_t Slots=P->Count<K.MaxBatchNames?P->Count:K.MaxBatchNames;
+    size_t Capacity=P->Count;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    if(Base && Base->Count>Capacity)Capacity=Base->Count;
+#else
+    (void)Base;
+#endif
+    size_t Slots=Capacity<K.MaxBatchNames?Capacity:K.MaxBatchNames;
     size_t Bytes=sizeof(xredissubscriptionreplay)+Slots*sizeof(xbytesview);xredissubscriptionreplay* R=xrtCalloc(1,Bytes);
     if(!R){xredisSubscriptionSnapshotRelease(P);return XREDIS_ADMISSION_ERROR;}
     if(!xredisSubscriptionsRetain(S)){xredisSubscriptionSnapshotRelease(P);xrtFree(R);return XREDIS_ADMISSION_ERROR;}
     if(!xredisClientRetain(C)){xredisSubscriptionsRelease(S);xredisSubscriptionSnapshotRelease(P);xrtFree(R);return XREDIS_ADMISSION_ERROR;}
-    xredisadmission A=__xredisSubscriberReplayStart(C,&K.Registry,R);
+    xredisadmission A=Scope?XREDIS_ADMISSION_ACCEPTED:__xredisSubscriberReplayStart(C,&K.Registry,R);
     if(A!=XREDIS_ADMISSION_ACCEPTED){xredisClientRelease(C);xredisSubscriptionsRelease(S);xredisSubscriptionSnapshotRelease(P);xrtFree(R);return A;}
     R->Store=S;R->Snapshot=P;R->Client=C;R->Config=K;R->StorageBytes=Bytes;R->Entered=Entered;
     R->Deadline=K.Timeout==XRT_WAIT_FOREVER?INFINITY:K.Timeout?nextafter(Entered+(double)K.Timeout*.001,INFINITY):Entered;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    R->Scope=Scope;R->Base=Base;R->Adding=Base==NULL;
+    if(Base && !xredisSubscriptionSnapshotRetain(Base)){xredisClientRelease(C);xredisSubscriptionsRelease(S);xredisSubscriptionSnapshotRelease(P);xrtFree(R);return XREDIS_ADMISSION_ERROR;}
+    if(Scope){xredissubscriberinfo I={0};I.Size=sizeof(I);if(xredisSubscriberInfo(C,&I)){R->ExpectedRegular=I.Subscriptions;R->ExpectedShard=I.ShardSubscriptions;}}
+#endif
     R->Result.Size=sizeof(R->Result);R->Result.Revision=P->Revision;*Output=R;return XREDIS_ADMISSION_ACCEPTED;
 }
+XREDIS_API xredisadmission xredisSubscriptionReplayCreate(xredissubscriptions* S,xredisclient* C,const xredissubscriptionreplayconfig* Config,xredissubscriptionreplay** Output)
+{return xredisSubscriptionReplayCreateBudget(S,C,Config,Output,xrtTimer(),NULL,NULL);}
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+xredisadmission __xredisSubscriptionTransitionCreate(xredissubscriptions* S,xredisclient* C,xredissubscriptionsnapshot* Base,const xredissubscriptionreplayconfig* Config,double Entered,ptr Scope,xredissubscriptionreplay** Output)
+{return xredisSubscriptionReplayCreateBudget(S,C,Config,Output,Entered,Scope,Base);}
+xredissubscriptionsnapshot* __xredisSubscriptionTransitionSnapshot(xredissubscriptionreplay* R)
+{return xredisSubscriptionSnapshotRetain(R->Snapshot)?R->Snapshot:NULL;}
+#endif
 static xredissubscriptionstatus xredisSubscriptionNativeStatus(xredisrequeststatus S)
 {
     switch(S){case XREDIS_REQUEST_OK:return XREDIS_SUBSCRIPTIONS_OK;case XREDIS_REQUEST_SERVER_ERROR:return XREDIS_SUBSCRIPTIONS_SERVER_ERROR;
@@ -8369,14 +8549,78 @@ static xredissubscriptionstatus xredisSubscriptionNativeStatus(xredisrequeststat
 }
 static xredissubscriptionstep xredisSubscriptionFinish(xredissubscriptionreplay* R,xredissubscriptionstatus Status,xredisrequeststatus Native)
 {
-    R->Result.Status=Status;R->Result.NativeStatus=Native;if(Status!=XREDIS_SUBSCRIPTIONS_OK)(void)xredisClientClose(R->Client);__xredisSubscriberReplayRelease(R->Client,R);return XREDIS_SUBSCRIPTIONS_DONE;
+    R->Result.Status=Status;R->Result.NativeStatus=Native;if(Status!=XREDIS_SUBSCRIPTIONS_OK)(void)xredisClientClose(R->Client);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    if(!R->Scope)
+#endif
+    __xredisSubscriberReplayRelease(R->Client,R);
+    return XREDIS_SUBSCRIPTIONS_DONE;
 }
 static size_t xredisSubscriptionDigits(size_t N)
 {size_t D=1;while(N>=10){N/=10;++D;}return D;}
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+/* Session-private: finish this immutable target even if newer intent arrives.
+ * Remove only absent keys before adding only new keys; unchanged names stay live.
+ * At most1024 merge inspections and one wire batch per scheduled turn. */
+static int xredisSubscriptionEntryCompare(const xredissubscriptionentry* A,const xredissubscriptionentry* B)
+{
+    if(A==B)return 0;
+    if(A->Family!=B->Family)return A->Family<B->Family?-1:1;
+    if(A->Slot!=B->Slot)return A->Slot<B->Slot?-1:1;
+    if(A->Hash!=B->Hash)return A->Hash<B->Hash?-1:1;
+    size_t N=A->Bytes<B->Bytes?A->Bytes:B->Bytes;int C=N?memcmp(A->Name,B->Name,N):0;
+    return C?C:(A->Bytes>B->Bytes)-(A->Bytes<B->Bytes);
+}
+static xredissubscriptionstep xredisSubscriptionTransitionStep(xredissubscriptionreplay* R)
+{
+    bool Observed=false;
+    if(R->Future && xrtFutureDone(R->Future)){
+        xfutureresult F;if(!xrtFutureResult(R->Future,&F) || F.State!=XFUTURE_RESOLVED || !F.Value)return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_PROTOCOL,XREDIS_REQUEST_PROTOCOL);
+        const xredissubscriberresult* V=F.Value;R->Result.Acknowledged+=V->Acknowledged;R->Result.Subscriptions=V->Subscriptions;R->Result.ShardSubscriptions=V->ShardSubscriptions;
+        if(V->Request.Status!=XREDIS_REQUEST_OK){R->Result.ErrorReply=V->Request.Reply;R->Result.Cause=V->Request.Cause;return xredisSubscriptionFinish(R,xredisSubscriptionNativeStatus(V->Request.Status),V->Request.Status);}
+        if(V->Acknowledged!=R->InFlight || V->Subscriptions!=R->ExpectedRegular || V->ShardSubscriptions!=R->ExpectedShard)return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_PROTOCOL,XREDIS_REQUEST_PROTOCOL);
+        ++R->Result.Batches;xrtFutureDestroy(R->Future);R->Future=NULL;Observed=true;
+    }
+    if(xrtTimer()>=R->Deadline)return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_TIMEOUT,XREDIS_REQUEST_TIMEOUT);
+    xredisclientinfo I={0};I.Size=sizeof(I);if(!xredisClientInfo(R->Client,&I))return XREDIS_SUBSCRIPTIONS_STEP_ERROR;
+    if(I.State>=XREDIS_CLIENT_CLOSING)return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_CLOSED,I.CloseStatus==XREDIS_REQUEST_OK?XREDIS_REQUEST_CLOSED:I.CloseStatus);
+    if(R->Future)return XREDIS_SUBSCRIPTIONS_WAIT;
+    if(Observed || I.Requests)return XREDIS_SUBSCRIPTIONS_MORE;
+    size_t Count=0,Sum=0,Scanned=0;unsigned Family=0,Slot=0;bool Adding=R->Adding;
+    while(Scanned++<1024 && Count<R->Config.MaxBatchNames){
+        size_t OldCount=R->Base?R->Base->Count:0;
+        if(!R->Adding && R->OldCursor==OldCount){if(Count)break;R->Adding=true;Adding=true;R->OldCursor=R->NewCursor=0;}
+        if(R->Adding && R->NewCursor==R->Snapshot->Count)break;
+        xredissubscriptionentry *Old=R->OldCursor<OldCount?R->Base->Entries[R->OldCursor]:NULL,*New=R->NewCursor<R->Snapshot->Count?R->Snapshot->Entries[R->NewCursor]:NULL;
+        int Compare=Old && New?xredisSubscriptionEntryCompare(Old,New):Old?-1:1;
+        if(Old && New && !Compare){++R->OldCursor;++R->NewCursor;continue;}
+        if(!R->Adding && Compare>0){++R->NewCursor;continue;}
+        if(R->Adding && Compare<0){++R->OldCursor;continue;}
+        xredissubscriptionentry* E=R->Adding?New:Old;
+        if(Count && (E->Family!=Family || (Family==2 && E->Slot!=Slot)))break;
+        Family=E->Family;Slot=E->Slot;size_t Word=(R->Adding?9:11)+(Family!=0),CommandBytes=Word+5+xredisSubscriptionDigits(Word),Digits=xredisSubscriptionDigits(E->Bytes),Header=CommandBytes+3+xredisSubscriptionDigits(Count+2);
+        if(E->Bytes>SIZE_MAX-5-Digits || Header>R->Config.MaxBatchBytes || Sum>R->Config.MaxBatchBytes-Header || E->Bytes+5+Digits>R->Config.MaxBatchBytes-Header-Sum)break;
+        R->Names[Count++]=(xbytesview){E->Name,E->Bytes};Sum+=E->Bytes+5+Digits;
+        if(R->Adding)++R->NewCursor;else ++R->OldCursor;
+    }
+    if(!Count){
+        if(R->Adding && R->NewCursor==R->Snapshot->Count){R->Result.Subscriptions=R->ExpectedRegular;R->Result.ShardSubscriptions=R->ExpectedShard;return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_OK,XREDIS_REQUEST_OK);}
+        if(Scanned>1024)return XREDIS_SUBSCRIPTIONS_MORE;
+        return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_LIMIT,XREDIS_REQUEST_LIMIT);
+    }
+    uint64* Expected=Family==2?&R->ExpectedShard:&R->ExpectedRegular;if(Adding)*Expected+=Count;else *Expected-=Count;
+    xfuture* F=NULL;xredisadmission A=__xredisSubscriberCommandBudget(R->Client,(xredispubsubcommand)(Family+(Adding?0:3)),R->Names,Count,R->Config.Timeout,R->Entered,R->Scope,&F);
+    if(A!=XREDIS_ADMISSION_ACCEPTED)return xredisSubscriptionFinish(R,A==XREDIS_ADMISSION_ERROR?XREDIS_SUBSCRIPTIONS_MEMORY:A==XREDIS_ADMISSION_CLOSED?XREDIS_SUBSCRIPTIONS_CLOSED:XREDIS_SUBSCRIPTIONS_LIMIT,A==XREDIS_ADMISSION_ERROR?XREDIS_REQUEST_MEMORY:A==XREDIS_ADMISSION_CLOSED?XREDIS_REQUEST_CLOSED:XREDIS_REQUEST_LIMIT);
+    R->InFlight=Count;R->Future=F;return XREDIS_SUBSCRIPTIONS_WAIT;
+}
+#endif
 XREDIS_API xredissubscriptionstep xredisSubscriptionReplayStep(xredissubscriptionreplay* R)
 {
     if(!R){xredisSubscriptionsReport(XERR_ARGUMENT,"replay is NULL");return XREDIS_SUBSCRIPTIONS_STEP_ERROR;}
     if(R->Result.Status!=XREDIS_SUBSCRIPTIONS_PENDING)return XREDIS_SUBSCRIPTIONS_DONE;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    if(R->Scope)return xredisSubscriptionTransitionStep(R);
+#endif
     bool Observed=false;
     if(R->Future && xrtFutureDone(R->Future)){
         xfutureresult F;if(!xrtFutureResult(R->Future,&F) || F.State!=XFUTURE_RESOLVED || !F.Value)return xredisSubscriptionFinish(R,XREDIS_SUBSCRIPTIONS_PROTOCOL,XREDIS_REQUEST_PROTOCOL);
@@ -8423,8 +8667,295 @@ XREDIS_API void xredisSubscriptionReplayDestroy(xredissubscriptionreplay* R)
 {
     if(!R)return;
     if(R->Result.Status==XREDIS_SUBSCRIPTIONS_PENDING)(void)xredisClientClose(R->Client);
-    __xredisSubscriberReplayRelease(R->Client,R);xrtFutureDestroy(R->Future);xredisClientRelease(R->Client);xredisSubscriptionSnapshotRelease(R->Snapshot);xredisSubscriptionsRelease(R->Store);xrtFree(R);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    if(!R->Scope)
+#endif
+    __xredisSubscriberReplayRelease(R->Client,R);
+    xrtFutureDestroy(R->Future);xredisClientRelease(R->Client);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+    xredisSubscriptionSnapshotRelease(R->Base);
+#endif
+    xredisSubscriptionSnapshotRelease(R->Snapshot);xredisSubscriptionsRelease(R->Store);xrtFree(R);
 }
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/subscription_session/subscription_session.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+#include <math.h>
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+typedef struct xredissessionwatch {
+    xfuturewatch Watch;xfuture* Future;xredissubscriptionsession* Session;bool Active;
+} xredissessionwatch;
+struct xredissubscriptionsession {
+    xatomic32 References;xmutex Gate;xnetengine* Engine;xnetworker* Worker;xnetpost Work;
+    xredissubscriptions* Store;xredissubscriptionsessionconfig Config;xredissubscriptionsessioninfo Info;
+    xredisclient *Client,*Published;xredissubscriptionreplay* Replay;xredissubscriptionsnapshot* Applied;
+    xredissessionwatch Ready,Closed,Control;xpromise* Promise;xfuture* Future;
+    xredissubscriptionsessionclosed* Result;
+    xredisrequeststatus StopStatus;size_t APIs;bool Queued,Closing,Finished,Notify,Draining,ReadyOK;
+    uint32 Consecutive;uint64 Timer,Random;double Due,TimerDue,Entered,WakeDue;
+};
+static void xredisSessionWork(xnetworker*,ptr);
+static bool xredisSessionReport(xerrkind Kind,cstr Text)
+{xrtSetErrorInfo(Kind,"xrt.redis",Kind==XERR_STATE?XREDIS_CLIENT_STATE:XREDIS_CLIENT_ARGUMENT,Text);return false;}
+static void xredisSessionRef(xredissubscriptionsession* S){xrtAtomic32FetchAdd(&S->References,1,XMEMORY_RELAXED);}
+static void xredisSessionIncrement(uint64* N){if(*N!=UINT64_MAX)++*N;}
+static double xredisSessionDeadline(double Now,int64 Timeout)
+{return nextafter(Now+(double)Timeout*.001,INFINITY);}
+XREDIS_API bool xredisSubscriptionSessionRetain(xredissubscriptionsession* S)
+{
+    if(!S)return xredisSessionReport(XERR_ARGUMENT,"session is NULL");
+    uint32 N=xrtAtomic32Load(&S->References,XMEMORY_RELAXED);
+    for(;;){if(N>=UINT32_MAX-32)return xredisSessionReport(XERR_RANGE,"session reference overflow");if(xrtAtomic32CompareExchange(&S->References,&N,N+1,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
+}
+XREDIS_API void xredisSubscriptionSessionRelease(xredissubscriptionsession* S)
+{
+    if(!S || xrtAtomic32FetchSub(&S->References,1,XMEMORY_ACQ_REL)!=1)return;
+    xrtPromiseDestroy(S->Promise);xrtFutureDestroy(S->Future);xrtFree(S->Result);xrtMutexUnit(&S->Gate);xrtFree(S);
+}
+/* Gate protects worker borrowing and post admission; no allocation. */
+static void xredisSessionWakeLocked(xredissubscriptionsession* S)
+{
+    if(S->Finished || S->Queued)return;
+    S->Queued=true;xredisSessionRef(S);
+    if(!xrtNetPost(S->Worker,&S->Work,xredisSessionWork,S)){S->Queued=false;xredisSubscriptionSessionRelease(S);}
+}
+static void xredisSessionWake(xredissubscriptionsession* S)
+{xrtMutexLock(&S->Gate);xredisSessionWakeLocked(S);xrtMutexUnlock(&S->Gate);}
+/* Release follows Core's final access to Watch storage. Only this callback
+ * publishes reuse; logical Future completion alone is not mechanical retirement. */
+static void xredisSessionWatchNotify(ptr Data){(void)Data;}
+static void xredisSessionWatchDrop(ptr Data)
+{
+    xredissessionwatch* W=Data;xredissubscriptionsession* S=W->Session;
+    xrtMutexLock(&S->Gate);W->Active=false;xredisSessionWakeLocked(S);xrtMutexUnlock(&S->Gate);
+    xredisSubscriptionSessionRelease(S); /* No further Watch/Engine access. */
+}
+static bool xredisSessionWatchActive(xredissubscriptionsession* S,xredissessionwatch* W)
+{xrtMutexLock(&S->Gate);bool Active=W->Active;xrtMutexUnlock(&S->Gate);return Active;}
+static bool xredisSessionWatchStop(xredissubscriptionsession* S,xredissessionwatch* W)
+{
+    if(!W->Future)return true;
+    if(xredisSessionWatchActive(S,W))(void)xrtFutureWatchDetach(W->Future,&W->Watch);
+    if(xredisSessionWatchActive(S,W))return false;
+    xrtFutureDestroy(W->Future);W->Future=NULL;return true;
+}
+/* Takes the supplied observer reference even if registration fails. */
+static bool xredisSessionWatchStart(xredissubscriptionsession* S,xredissessionwatch* W,xfuture* F)
+{
+    W->Future=F;W->Session=S;if(!F || !xrtFutureWatchInit(&W->Watch,xredisSessionWatchNotify,xredisSessionWatchDrop,W))return false;
+    xredisSessionRef(S);xrtMutexLock(&S->Gate);W->Active=true;xrtMutexUnlock(&S->Gate);
+    xfuturewatchresult A=xrtFutureWatchAdd(F,&W->Watch);
+    if(A!=XFUTURE_WATCH_PENDING){xrtMutexLock(&S->Gate);W->Active=false;xrtMutexUnlock(&S->Gate);xredisSubscriptionSessionRelease(S);}
+    return A!=XFUTURE_WATCH_ERROR;
+}
+static void xredisSessionState(xredissubscriptionsession* S,xredissubscriptionsessionstate State)
+{xrtMutexLock(&S->Gate);if(!S->Closing && S->Info.State!=State){S->Info.State=State;S->Notify=true;}xrtMutexUnlock(&S->Gate);}
+static bool xredisSessionClosing(xredissubscriptionsession* S)
+{xrtMutexLock(&S->Gate);bool Closing=S->Closing;xrtMutexUnlock(&S->Gate);return Closing;}
+static void xredisSessionNotify(xredissubscriptionsession* S)
+{
+    xrtMutexLock(&S->Gate);bool Needed=S->Notify;S->Notify=false;
+    xredissubscriptionsessionnotify Notify=Needed?S->Config.Notify:NULL;ptr Data=S->Config.Data;xredissubscriptionsessioninfo Info=S->Info;xrtMutexUnlock(&S->Gate);
+    if(Notify)Notify(S,&Info,Data);
+}
+static void xredisSessionTimer(xnetworker* Worker,uint64 Id,xnetresult Result,ptr Data)
+{
+    (void)Worker;xredissubscriptionsession* S=Data;if(S->Timer==Id)S->Timer=0;
+    if(Result!=XNET_RESULT_OK && Result!=XNET_RESULT_CANCELLED)(void)xredisSubscriptionSessionClose(S);
+    xredisSessionWake(S);xredisSubscriptionSessionRelease(S);
+}
+static bool xredisSessionArm(xredissubscriptionsession* S,double Due)
+{
+    if(S->Timer && S->TimerDue==Due)return true;
+    if(S->Timer)(void)xrtNetEngineTimerCancelCurrent(S->Engine,S->Timer);
+    if(S->Timer)return false;
+    if(Due==INFINITY)return true;
+    S->TimerDue=Due;xredisSessionRef(S);
+    S->Timer=__xrtNetEngineSchedule(S->Engine,xrtNetWorkerIndex(S->Worker),Due,xredisSessionTimer,S);
+    if(S->Timer)return true;
+    xredisSubscriptionSessionRelease(S);return false;
+}
+static void xredisSessionFailure(xredissubscriptionsession* S,xredisrequeststatus Status,bool Fatal)
+{
+    xrtMutexLock(&S->Gate);
+    if(!S->Closing){xredisSessionIncrement(&S->Info.Failures);S->Info.LastFailure=Status;S->Notify=true;S->Published=NULL;
+        if(S->Consecutive!=UINT32_MAX)++S->Consecutive;
+        if(Fatal || (S->Config.MaxFailures && S->Info.Failures && S->Consecutive>=S->Config.MaxFailures)){S->Closing=true;S->StopStatus=Status;S->Info.State=XREDIS_SESSION_CLOSING;}else S->Info.State=XREDIS_SESSION_DRAINING;}
+    xrtMutexUnlock(&S->Gate);
+    S->Draining=true;xredisSessionState(S,XREDIS_SESSION_DRAINING);if(S->Client)(void)xredisClientClose(S->Client);xredisSessionWake(S);
+}
+static void xredisSessionBackoff(xredissubscriptionsession* S)
+{
+    uint64 Cap=(uint64)S->Config.RetryMin<<(S->Consecutive<31?S->Consecutive:31);if(Cap>(uint64)S->Config.RetryMax)Cap=(uint64)S->Config.RetryMax;
+    uint64 R=S->Random;R^=R<<13;R^=R>>7;R^=R<<17;S->Random=R;
+    int64 Delay=S->Config.RetryMin+(int64)(R%(Cap-(uint64)S->Config.RetryMin+1));S->Due=xredisSessionDeadline(xrtTimer(),Delay);
+    xrtMutexLock(&S->Gate);S->Info.NextAttempt=S->Due;xrtMutexUnlock(&S->Gate);xredisSessionState(S,XREDIS_SESSION_BACKOFF);
+}
+static xredisrequeststatus xredisSessionReadyStatus(xredisreadystatus Status)
+{
+    switch(Status){case XREDIS_READY_TIMEOUT:return XREDIS_REQUEST_TIMEOUT;case XREDIS_READY_DISCONNECTED:return XREDIS_REQUEST_DISCONNECTED;
+    case XREDIS_READY_CLOSED:return XREDIS_REQUEST_CLOSED;case XREDIS_READY_PROTOCOL:return XREDIS_REQUEST_PROTOCOL;
+    case XREDIS_READY_LIMIT:return XREDIS_REQUEST_LIMIT;case XREDIS_READY_MEMORY:return XREDIS_REQUEST_MEMORY;default:return XREDIS_REQUEST_INITIALIZATION;}
+}
+static void xredisSessionResultDrop(ptr Value,ptr Data){(void)Data;xrtFree(Value);}
+static void xredisSessionFinish(xredissubscriptionsession* S)
+{
+    xrtMutexLock(&S->Gate);
+    if(S->Queued || S->APIs || S->Client || S->Timer || S->Ready.Active || S->Closed.Active || S->Control.Active){xrtMutexUnlock(&S->Gate);return;}
+    S->Finished=true;S->Info.State=XREDIS_SESSION_CLOSED;S->Info.NextAttempt=0;S->Notify=true;
+    xnetengine* Engine=S->Engine;xredissubscriptions* Store=S->Store;S->Engine=NULL;S->Worker=NULL;S->Store=NULL;
+    xredissubscriptionsessiondrop Drop=S->Config.Drop;ptr Data=S->Config.Data;xrtMutexUnlock(&S->Gate);
+    __xredisSubscriptionsUnclaim(Store,S);xredisSubscriptionsRelease(Store);xredisSessionNotify(S);
+    S->Config.Notify=NULL;S->Config.Connect=NULL;S->Config.Drop=NULL;S->Config.Data=NULL;if(Drop)Drop(Data);
+    (void)xrtNetEngineUnpin(Engine);xpromise* P=S->Promise;S->Promise=NULL;xredissubscriptionsessionclosed* R=S->Result;S->Result=NULL;
+    *R=(xredissubscriptionsessionclosed){S->StopStatus,S->Info.Attempts,S->Info.Generations};
+    if(!xrtPromiseResolveOwned(P,R,xredisSessionResultDrop,NULL))xrtFree(R);
+    xrtPromiseDestroy(P);xredisSubscriptionSessionRelease(S); /* Runtime. */
+}
+static bool xredisSessionDrain(xredissubscriptionsession* S)
+{
+    bool Ready=xredisSessionWatchStop(S,&S->Ready),Control=xredisSessionWatchStop(S,&S->Control);
+    if(S->Replay){xredisSubscriptionReplayDestroy(S->Replay);S->Replay=NULL;}
+    if(S->Client){
+        (void)xredisClientClose(S->Client);
+        if(!S->Closed.Future){if(!xredisSessionWatchStart(S,&S->Closed,xredisClientClosed(S->Client)))return false;}
+        if(!xrtFutureDone(S->Closed.Future) || !Ready || !Control)return false;
+        if(!xredisSessionWatchStop(S,&S->Closed))return false;
+        xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);
+        if(I.Requests || I.InitBytes){S->WakeDue=xredisSessionDeadline(xrtTimer(),1);return false;}
+        __xredisSubscriberReplayRelease(S->Client,S);xredisClientRelease(S->Client);S->Client=NULL;
+    }
+    if(!Ready || !Control)return false;
+    xredisSubscriptionSnapshotRelease(S->Applied);S->Applied=NULL;S->Draining=false;
+    if(!xredisSessionClosing(S))xredisSessionBackoff(S);
+    return true;
+}
+static void xredisSessionStart(xredissubscriptionsession* S)
+{
+    S->ReadyOK=false;S->Entered=xrtTimer();S->Due=xredisSessionDeadline(S->Entered,S->Config.AttemptTimeout);
+    xrtMutexLock(&S->Gate);xredisSessionIncrement(&S->Info.Attempts);uint64 Attempt=S->Info.Attempts;S->Info.NextAttempt=0;xrtMutexUnlock(&S->Gate);
+    xredisSessionState(S,XREDIS_SESSION_CONNECTING);xredisclient* C=NULL;
+    bool OK=S->Config.Connect(S->Engine,Attempt,S->Config.AttemptTimeout,S->Config.Data,&C);
+    if(!OK || !C){xredisSessionFailure(S,XREDIS_REQUEST_INITIALIZATION,false);return;}
+    S->Client=C;
+    if(!__xredisSubscriptionClientProfile(C,S->Engine)){xredisSessionFailure(S,XREDIS_REQUEST_INITIALIZATION,true);return;}
+    bool A=xredisSessionWatchStart(S,&S->Closed,xredisClientClosed(C));bool B=xredisSessionWatchStart(S,&S->Ready,xredisClientReady(C));
+    if(!A || !B)xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);
+    else if(xrtFutureDone(S->Ready.Future))xredisSessionWake(S);
+}
+static void xredisSessionRestore(xredissubscriptionsession* S)
+{
+    if((S->Replay || !S->Applied) && xrtTimer()>=S->Due){xredisSessionFailure(S,XREDIS_REQUEST_TIMEOUT,false);return;}
+    if(!S->Replay){
+        if(!S->Applied){
+            if(xrtTimer()>=S->Due){xredisSessionFailure(S,XREDIS_REQUEST_TIMEOUT,false);return;}
+            if(!S->ReadyOK){
+            if(!S->Ready.Future || !xrtFutureDone(S->Ready.Future))return;
+            const xredisreadyresult* Ready=xrtFutureValue(S->Ready.Future);
+            if(!Ready || Ready->Status!=XREDIS_READY_OK || Ready->Protocol!=S->Config.Protocol){xredisrequeststatus Why=Ready?xredisSessionReadyStatus(Ready->Status):XREDIS_REQUEST_INITIALIZATION;
+                xredisSessionFailure(S,Why,Why!=XREDIS_REQUEST_TIMEOUT && Why!=XREDIS_REQUEST_DISCONNECTED && Why!=XREDIS_REQUEST_CLOSED);return;}
+            if(!xredisSessionWatchStop(S,&S->Ready))return;
+            S->ReadyOK=true;}
+            xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);
+            if(I.Requests || I.InitBytes){S->WakeDue=xredisSessionDeadline(xrtTimer(),1);return;}
+            if(__xredisSubscriberReplayStart(S->Client,&S->Config.Replay.Registry,S)!=XREDIS_ADMISSION_ACCEPTED){xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);return;}
+            xredisSessionState(S,XREDIS_SESSION_RESTORING);
+        }else{S->Entered=xrtTimer();S->Due=xredisSessionDeadline(S->Entered,S->Config.AttemptTimeout);xredisSessionState(S,XREDIS_SESSION_UPDATING);}
+        xredissubscriptionreplayconfig K=S->Config.Replay;K.Timeout=S->Config.AttemptTimeout;
+        if(__xredisSubscriptionTransitionCreate(S->Store,S->Client,S->Applied,&K,S->Entered,S,&S->Replay)!=XREDIS_ADMISSION_ACCEPTED){xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);return;}
+    }
+    if(S->Control.Future){if(!xrtFutureDone(S->Control.Future))return;if(!xredisSessionWatchStop(S,&S->Control))return;}
+    xredissubscriptionstep Step=xredisSubscriptionReplayStep(S->Replay);
+    if(Step==XREDIS_SUBSCRIPTIONS_WAIT){xfuture* F=xredisSubscriptionReplayPending(S->Replay);if(F){if(!xredisSessionWatchStart(S,&S->Control,F))xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);else if(xrtFutureDone(F))xredisSessionWake(S);}else xredisSessionWake(S);return;}
+    if(Step==XREDIS_SUBSCRIPTIONS_MORE){xredisSessionWake(S);return;}
+    xredissubscriptionreplayresult R={0};R.Size=sizeof(R);
+    if(Step==XREDIS_SUBSCRIPTIONS_STEP_ERROR || !xredisSubscriptionReplayResult(S->Replay,&R)){xredisSessionFailure(S,XREDIS_REQUEST_PROTOCOL,true);return;}
+    if(R.Status!=XREDIS_SUBSCRIPTIONS_OK){xredisSessionFailure(S,R.NativeStatus,R.NativeStatus!=XREDIS_REQUEST_TIMEOUT && R.NativeStatus!=XREDIS_REQUEST_DISCONNECTED && R.NativeStatus!=XREDIS_REQUEST_CLOSED);return;}
+    xredissubscriptionsnapshot* Applied=__xredisSubscriptionTransitionSnapshot(S->Replay);if(!Applied){xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);return;}
+    bool Fresh=S->Applied==NULL;xredisSubscriptionSnapshotRelease(S->Applied);S->Applied=Applied;xredisSubscriptionReplayDestroy(S->Replay);S->Replay=NULL;S->Consecutive=0;
+    xrtMutexLock(&S->Gate);if(Fresh)xredisSessionIncrement(&S->Info.Generations);xredisSessionIncrement(&S->Info.Restored);S->Info.AppliedRevision=R.Revision;S->Published=S->Closing?NULL:S->Client;
+    if(!S->Closing){S->Info.State=S->Info.DesiredRevision==R.Revision?XREDIS_SESSION_ONLINE:XREDIS_SESSION_UPDATING;S->Notify=true;}xrtMutexUnlock(&S->Gate);xredisSessionWake(S);
+}
+static void xredisSessionWork(xnetworker* Worker,ptr Data)
+{
+    (void)Worker;xredissubscriptionsession* S=Data;S->WakeDue=INFINITY;xrtMutexLock(&S->Gate);S->Queued=false;bool Closing=S->Closing;xrtMutexUnlock(&S->Gate);
+    if(Closing || S->Draining){
+        if(S->Timer)(void)xrtNetEngineTimerCancelCurrent(S->Engine,S->Timer);
+        S->Draining=true;(void)xredisSessionDrain(S);
+        if(xredisSessionClosing(S) && !S->Client && !S->Draining)xredisSessionFinish(S);
+    }else if(!S->Client){if(xrtTimer()>=S->Due)xredisSessionStart(S);}
+    else if(xrtFutureDone(S->Closed.Future)){xredisclientinfo I={0};I.Size=sizeof(I);(void)xredisClientInfo(S->Client,&I);xredisSessionFailure(S,I.CloseStatus==XREDIS_REQUEST_OK?XREDIS_REQUEST_DISCONNECTED:I.CloseStatus,false);}
+    else{
+        xredissubscriptionsinfo I={0};I.Size=sizeof(I);(void)xredisSubscriptionsInfo(S->Store,&I);
+        xrtMutexLock(&S->Gate);if(S->Info.DesiredRevision<I.Revision)S->Info.DesiredRevision=I.Revision;bool Needed=!S->Applied || S->Replay || S->Info.AppliedRevision!=S->Info.DesiredRevision;if(!Needed && !S->Closing && S->Info.State!=XREDIS_SESSION_ONLINE){S->Info.State=XREDIS_SESSION_ONLINE;S->Notify=true;}xrtMutexUnlock(&S->Gate);
+        if(Needed)xredisSessionRestore(S);
+    }
+    if(!S->Finished){
+        double Due=INFINITY;
+        if(S->Draining || xredisSessionClosing(S)){
+            xrtMutexLock(&S->Gate);bool Watching=S->Ready.Active || S->Closed.Active || S->Control.Active;xrtMutexUnlock(&S->Gate);
+            if(S->Draining && !Watching && (!S->Client || (S->Closed.Future && xrtFutureDone(S->Closed.Future) && S->WakeDue==INFINITY)))xredisSessionWake(S);
+        }else Due=(!S->Client || S->Replay || !S->Applied)?S->Due:INFINITY;
+        if(S->WakeDue<Due)Due=S->WakeDue;
+        if(!xredisSessionArm(S,Due)){xredisSessionFailure(S,XREDIS_REQUEST_MEMORY,true);xredisSessionWake(S);}
+        xredisSessionNotify(S);
+    }
+    xredisSubscriptionSessionRelease(S); /* Post. */
+}
+XREDIS_API bool xredisSubscriptionSessionConfigInit(xredissubscriptionsessionconfig* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xredisSessionReport(XERR_ARGUMENT,"invalid session config");
+    *K=(xredissubscriptionsessionconfig){0};K->Size=sizeof(*K);K->Protocol=XREDIS_RESP3;K->AttemptTimeout=5000;K->RetryMin=100;K->RetryMax=10000;return xredisSubscriptionReplayConfigInit(&K->Replay);
+}
+XREDIS_API xredisadmission xredisSubscriptionSessionCreate(xnetengine* Engine,uint64 Affinity,xredissubscriptions* Store,const xredissubscriptionsessionconfig* Config,xredissubscriptionsession** Output)
+{
+    if(!Engine || !Store || !Config || !xrtMemRangeValid(Config,sizeof(*Config)) || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))){xredisSessionReport(XERR_ARGUMENT,"invalid session arguments");return XREDIS_ADMISSION_ERROR;}
+    xredissubscriptionsessionconfig K=*Config;
+    if(K.Size!=sizeof(K) || !K.Connect || (K.Protocol!=XREDIS_RESP2 && K.Protocol!=XREDIS_RESP3) || K.AttemptTimeout<=0 || K.AttemptTimeout>60000 || K.RetryMin<=0 || K.RetryMax<K.RetryMin || K.RetryMax>60000 || K.Replay.Size!=sizeof(K.Replay) || !K.Replay.MaxBatchNames || K.Replay.MaxBatchNames>XREDIS_PUBSUB_NAMES_MAX || !K.Replay.MaxBatchBytes || K.Replay.Registry.Size!=sizeof(K.Replay.Registry) || !K.Replay.Registry.MaxSubscriptions || K.Replay.Registry.MaxSubscriptions>100000 || !K.Replay.Registry.MaxNameBytes){xredisSessionReport(XERR_ARGUMENT,"invalid session bounds/profile");return XREDIS_ADMISSION_ERROR;}
+    xredissubscriptionsinfo Info={0};Info.Size=sizeof(Info);(void)xredisSubscriptionsInfo(Store,&Info);
+    if(!__xredisSubscriptionsFits(Store,&K.Replay.Registry) || !__xredisSubscriptionRegistryBounds(&K.Replay.Registry)){xredisSessionReport(XERR_RANGE,"session registry cannot fit intent");return XREDIS_ADMISSION_ERROR;}
+    if(!xrtNetEnginePin(Engine))return XREDIS_ADMISSION_ERROR;
+    xredissubscriptionsession* S=xrtCalloc(1,sizeof(*S));if(!S || !xrtMutexInit(&S->Gate)){xrtFree(S);(void)xrtNetEngineUnpin(Engine);return XREDIS_ADMISSION_ERROR;}
+    xrtAtomic32Init(&S->References,1);S->Engine=Engine;S->Worker=xrtNetEngineWorker(Engine,(uint32)(Affinity%xrtNetEngineWorkerCount(Engine)));S->Config=K;
+    S->Info.Size=sizeof(S->Info);S->Info.State=XREDIS_SESSION_CONNECTING;S->Info.DesiredRevision=Info.Revision;S->Random=((uint64)(xrtTimer()*1000000.0)^(uint64)(uintptr_t)S)|1u;S->Notify=true;
+    S->Result=xrtMalloc(sizeof(*S->Result));
+    if(!S->Result || !xrtNetPostInit(&S->Work) || !(S->Promise=xrtPromiseCreate(&S->Future,NULL)) || !xredisSubscriptionsRetain(Store)){(void)xrtNetEngineUnpin(Engine);xredisSubscriptionSessionRelease(S);return XREDIS_ADMISSION_ERROR;}
+    xredisadmission A=__xredisSubscriptionsClaim(Store,S,Output);if(A!=XREDIS_ADMISSION_ACCEPTED){xredisSubscriptionsRelease(Store);(void)xrtNetEngineUnpin(Engine);xredisSubscriptionSessionRelease(S);return A;}
+    (void)xredisSubscriptionsInfo(Store,&Info);S->Info.DesiredRevision=Info.Revision;
+    S->Store=Store;xredisSessionRef(S); /* Runtime. */
+    xrtMutexLock(&S->Gate);*Output=S;xredisSessionWakeLocked(S);xrtMutexUnlock(&S->Gate);return XREDIS_ADMISSION_ACCEPTED;
+}
+XREDIS_API xredisadmission xredisSubscriptionSessionApply(xredissubscriptionsession* S,xredispubsubcommand Command,const xbytesview* Names,size_t Count,uint64* Revision)
+{
+    if(!S || !Revision || xrtMemRangesOverlap(S,S?sizeof(*S):0,Revision,sizeof(*Revision))){xredisSessionReport(XERR_ARGUMENT,"invalid session edit");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&S->Gate);if(S->Closing){xrtMutexUnlock(&S->Gate);return XREDIS_ADMISSION_CLOSED;}++S->APIs;xredissubscriptions* Store=S->Store;xrtMutexUnlock(&S->Gate);
+    xredisadmission A=__xredisSubscriptionsApply(Store,Command,Names,Count,Revision,S);
+    xrtMutexLock(&S->Gate);--S->APIs;if(A==XREDIS_ADMISSION_ACCEPTED && S->Info.DesiredRevision<*Revision){S->Info.DesiredRevision=*Revision;S->Notify=true;if(!S->Closing && S->Info.State==XREDIS_SESSION_ONLINE)S->Info.State=XREDIS_SESSION_UPDATING;}xredisSessionWakeLocked(S);xrtMutexUnlock(&S->Gate);return A;
+}
+XREDIS_API bool xredisSubscriptionSessionInfo(xredissubscriptionsession* S,xredissubscriptionsessioninfo* Info)
+{
+    if(!S || !Info || !xrtMemRangeValid(Info,sizeof(*Info)) || Info->Size!=sizeof(*Info) || xrtMemRangesOverlap(S,S?sizeof(*S):0,Info,sizeof(*Info)))return xredisSessionReport(XERR_ARGUMENT,"invalid session info");
+    xrtMutexLock(&S->Gate);*Info=S->Info;xrtMutexUnlock(&S->Gate);return true;
+}
+XREDIS_API xredisadmission xredisSubscriptionSessionCurrent(xredissubscriptionsession* S,xredissubscriptionsessioncurrent* Output)
+{
+    if(!S || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(S,S?sizeof(*S):0,Output,sizeof(*Output))){xredisSessionReport(XERR_ARGUMENT,"invalid current output");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&S->Gate);xredisadmission A=S->Closing?XREDIS_ADMISSION_CLOSED:S->Published && S->Info.State==XREDIS_SESSION_ONLINE && S->Info.AppliedRevision==S->Info.DesiredRevision?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_OVERLOADED;
+    if(A==XREDIS_ADMISSION_ACCEPTED){if(xredisClientRetain(S->Published))*Output=(xredissubscriptionsessioncurrent){S->Published,S->Info.Generations,S->Info.AppliedRevision};else A=XREDIS_ADMISSION_ERROR;}xrtMutexUnlock(&S->Gate);return A;
+}
+XREDIS_API bool xredisSubscriptionSessionClose(xredissubscriptionsession* S)
+{
+    if(!S)return xredisSessionReport(XERR_ARGUMENT,"session is NULL");
+    xrtMutexLock(&S->Gate);if(!S->Closing){S->Closing=true;S->Info.State=XREDIS_SESSION_CLOSING;S->Notify=true;S->Published=NULL;}xredisSessionWakeLocked(S);xrtMutexUnlock(&S->Gate);return true;
+}
+XREDIS_API xfuture* xredisSubscriptionSessionClosed(xredissubscriptionsession* S)
+{if(!S){xredisSessionReport(XERR_ARGUMENT,"session is NULL");return NULL;}return xrtFutureRef(S->Future);}
 #endif
 #endif
 

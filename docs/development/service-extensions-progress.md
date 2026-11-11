@@ -10775,3 +10775,83 @@ The four-library production objective remains active.
 
 Evidence: [portable report](../../extlibs/xredis/tests/results/subscriptions-20261111.json)
 and out/service-extensions/xredis-subscriptions-20261111.
+
+
+## 2026-11-11: autonomous subscription sessions and live deltas
+
+Developed directly on master from007fe8c4. The developing
+xredis_subscription_session leaf adds9 public APIs over existing Engine posts,
+Futures and timers. One private generation/candidate, one native control Future,
+three embedded Watch slots, one controller timer and one coalesced post are
+bounded. No Core API, worker, shared runtime, proxy receive queue or per-message
+controller callback is added. Numeric/DNS/prepared/TLS/auth factories are actual
+existing native factories; factory/readiness/initial replay share one original
+monotonic attempt deadline. Retry uses bounded exponential jitter and starts
+only after physical predecessor retirement. Permanent profile/auth/server/
+protocol/limit/memory errors fail closed; transport/timeouts can retry with an
+explicit consecutive cap or indefinite bounded-resource maintenance.
+
+Store editing is exclusively claimed while active. SessionApply commits local
+intent and schedules incremental reconciliation on the same connection. Only
+absent names are removed and new names added; unchanged names stay live. Each
+turn inspects at most1024 merge entries and submits/observes at most one batch.
+Shared immutable entry identity avoids unchanged payload rescans. Finish a
+captured revision before reconciling later edits; churn does not force a new
+transport. Shard batches retain one-slot grouping. Native receive/readability
+apis remain direct, with caller-owned old generations/snapshots.
+
+Final Windows/WSL roots each execute26 programs, including the newly registered
+controller test. Focused leaf, new bare/TLS singles, six existing compatibility
+singles and the9-API offline example pass. WSL uses ASan/UBSan/leak halt and both
+new singles also pass TSan. Tests cover real peer EOF, same-generation changes,
+overlapping captured targets, empty sets,1100 unchanged names across the merge
+turn budget, concurrent writers/current readers, factory/profile/remote errors,
+long-backoff cancellation, constructor quotas1..4096(step47), worker OOM, an
+accepted edit held across Close, and delayed HELLO with exact original deadline.
+TLS uses three-byte application writes.
+
+Development compile failures and their inputs/logs remain. A missing drain
+continuation for rejected raw profiles was reproduced and fixed. TSan execution
+then exposed a logical publication race (no data-race report): failure cleared
+current before publishing DRAINING in another critical section. The state/pointer
+now change atomically and explicit invariants remain. A separate frozen-v1 probe
+proved that already-closed managed candidates were incorrectly fatal profile
+errors. Final v2 classifies their native close outcome and the identical probe
+reaches a retried online generation. V1 roots had25 programs because the aggregate
+entry lacked the new test assets; the final root registration/single owners are
+corrected. All functional/package/size/layout/performance checks use final v2;
+original frozen inputs, v1 receipts and failed binaries/logs are preserved.
+
+Nine real forms pass243 disposable Redis8.0.5 cases /486 RESP2/3 flows:
+TCP/TLS1.2/TLS1.3 × numeric/DNS/prepared × noauth/password/ACL. They verify live
+same-transport binary deltas and remote NUMSUB membership, actual server-side
+CLIENT KILL followed by autonomous generation2 restoration, retained messages/
+terminal results and non-retrying fatal ACL denial. PID/run identity is verified
+before fixture mutation and complete reports confirm child/material cleanup.
+The Windows static matrix retained17 completed cases before a native-loopback
+startup health timeout preceding the next C probe. Same binary and unchanged
+deadline pass the complete retry; modular/single completed matrices are reused.
+Original partial report and failure log remain.
+Actual static/shared SDK and isolated declaration consumers execute every new
+API. DLL/ELF exports and API documentation cover129 functions,200 constants and
+90 types, without internal exports. Six minimal size forms and forbidden-symbol
+gates pass. Native client/request/control/entry/mode layouts do not grow. Opt-out
+desired/replay layouts are unchanged; selection adds8 bytes to desired Store and
+40 to cold replay metadata, with separately measured controller/Watch headers.
+
+Serial performance runs follow all functional/compilation processes:7 samples
+plus1 warmup, calibrated common counts, unchanged3% MAD/6% central-span gates.
+Old/current ordinary and native-control links share all relevant runtime objects.
+EOF-to-restored-current and fully acknowledged live edits time each whole
+operation, including queue/wait and configured1ms retry. Whole-loopback heap
+includes bounded fixture-ring growth and retained close observers. Initial setup
+release frames may overlap the first sample; no isolated cold-setup claim follows.
+windows: ordinary depth1 throughput 1.0946x (unqualified), P99 0.8668x (unqualified); ordinary depth32 throughput 1.0044x (unqualified), P99 0.9253x (unqualified); control-ack-message depth1 throughput 1.0028x (qualified), P99 0.9430x (unqualified); control-ack-message depth32 throughput 1.0295x (unqualified), P99 0.9662x (unqualified).
+wsl: ordinary depth1 throughput 1.0130x (unqualified), P99 1.0275x (qualified); ordinary depth32 throughput 0.9893x (qualified), P99 1.0679x (unqualified); control-ack-message depth1 throughput 1.0623x (unqualified), P99 1.0050x (unqualified); control-ack-message depth32 throughput 1.0171x (unqualified), P99 0.9882x (unqualified).
+
+Pub/Sub remains at-most-once across outages. Sentinel/Cluster routing and the
+full four-library objective remain active. CPU/RSS, pinned/upstream/fixed-arrival
+mixed workloads, native Linux and>=72h production gates are still open.
+
+Evidence: [portable report](../../extlibs/xredis/tests/results/subscription-session-20261111.json)
+and out/service-extensions/xredis-subscription-session-20261111.

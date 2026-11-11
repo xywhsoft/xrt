@@ -54,3 +54,8 @@ separate incomplete subscriber work.
 `xredis_subscriptions` adds desired-set snapshots and bounded replacement replay;
 see [recovery contracts](subscriptions.md). Automatic subscriber maintenance,
 backoff, live reconciliation and routed HA/Cluster recovery remain separate work.
+
+The developing subscription-session controller adds actual worker factories, shared
+attempt deadlines, physical-retirement-before-retry, bounded jitter, persistent
+control claims and live incremental desired-set reconciliation. This does not
+complete Sentinel/Cluster, mixed-load or production long-run acceptance.

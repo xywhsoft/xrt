@@ -210,3 +210,9 @@ versioned local intent and restores it in bounded native batches onto replacemen
 Clients. Snapshots share immutable names. Stale/cancel/error paths retire partial
 connections; automatic factories/backoff and Cluster/Sentinel routing remain open.
 [Runnable offline example](examples/subscriptions/README.md).
+
+`xredis_subscription_session` autonomously reconnects a private subscriber with
+bounded jittered backoff and restores desired intent. Live edits apply incremental
+deltas on the same transport; native receive remains direct. See
+[session contracts](docs/subscription_session.md). HA topology and the complete
+production/long-run gates remain open.

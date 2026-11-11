@@ -255,6 +255,22 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_subscription_session",
+      "system": "subscription_session",
+      "suite": "xredis_subscription_session",
+      "description": "Autonomous subscriber controller with native Engine posts/timer, no extra runtime; optional transport modules excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xredisClientDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

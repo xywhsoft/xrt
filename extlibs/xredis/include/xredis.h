@@ -91,4 +91,9 @@
 #endif
 #include <xredis/subscriptions.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION"
+#endif
+#include <xredis/subscription_session.h>
+
 #endif

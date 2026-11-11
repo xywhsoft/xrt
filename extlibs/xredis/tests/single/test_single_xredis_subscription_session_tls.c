@@ -1,0 +1,11 @@
+#define XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION
+#define XRT_FEATURE_MEMORY_STATS
+#define XREDIS_FEATURE_XREDIS_TLS
+#define XRT_FEATURE_TLS_IDENTITY_RSA
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#define XREDIS_SESSION_WHITEBOX
+#include "../test_subscription_session.c"

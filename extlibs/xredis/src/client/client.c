@@ -2460,6 +2460,18 @@ static xredisadmission xredisSubscriberAdmit(xredisclient* C,xredispubsubcommand
     return xredisClientCallAdmit(C,Names,Count,Timeout,Future,Entered,NULL,true,(unsigned)Command+5);
 }
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
+bool __xredisSubscriptionRegistryBounds(const xredissubscriberconfig* K)
+{return K->MaxNameBytes<=SIZE_MAX-sizeof(xredissubscriber)-K->MaxSubscriptions*(sizeof(xredissubentry)+4*sizeof(xredissubentry*));}
+bool __xredisSubscriptionClientProfile(xredisclient* C,xnetengine* Engine)
+{
+    xrtMutexLock(&C->Gate);bool OK=C->Managed && (C->CloseDone || C->Engine==Engine) && !xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_ACQUIRE);
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
+    OK=OK && !C->Owner;
+#endif
+    xrtMutexUnlock(&C->Gate);return OK;
+}
+#endif
 xredisadmission __xredisSubscriberReplayStart(xredisclient* C,const xredissubscriberconfig* Config,ptr Owner)
 {return xredisSubscriberStartScope(C,Config,Owner);}
 void __xredisSubscriberReplayRelease(xredisclient* C,ptr Owner)
