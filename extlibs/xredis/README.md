@@ -218,3 +218,5 @@ deltas on the same transport; native receive remains direct. See
 production/long-run gates remain open.
 
 Optional [ROLE inspection](docs/role.md) supplies bounded borrowed role/list views; discovery and role-gated initialization remain subsequent work.
+
+Optional [role-verified initialization](docs/role_client.md) withholds readiness and queued business until the requested role is validated under the original setup deadline.

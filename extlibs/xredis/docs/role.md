@@ -33,7 +33,7 @@ releasing its original owner; the original reader/input may already be gone.
 Each thread needs its own cursor/output and a live owner reference. Only use an
 unmodified matching Replicas or Monitored cursor from a successful Read.
 
-This is a wire building block. Managed initialization ROLE barriers, Sentinel
+This is a wire building block. Managed initialization [ROLE barriers](role_client.md) are available. Sentinel
 address discovery/re-resolution, pool retirement, Cluster redirection and live
 failover remain required stages. No automatic retry or readiness guarantee is
 implied. The old role_client prototype remains an unfinished archived draft.
@@ -56,5 +56,5 @@ the report. A Windows probe can also run through WSL with the same corpus.
 
 The historical full ROLE draft patch targets revision `039c589a`; its view
 portion is now superseded by this implementation. Applying that entire archive
-over current source is not an upgrade path. Managed client-role verification
-remains unfinished and is not enabled by this module.
+over current source is not an upgrade path. Managed client-role verification is supplied by the separate role_client
+module.

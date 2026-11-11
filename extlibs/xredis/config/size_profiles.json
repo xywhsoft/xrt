@@ -285,6 +285,19 @@
         "xrtTask",
         "xrtFuture"
       ]
+    },
+    {
+      "name": "xredis_role_client",
+      "system": "client",
+      "suite": "xredis_role_client",
+      "description": "Optional role-gated numeric initialization over existing client/reply owner; excludes TLS/Dial/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetResolver",
+        "xrtTask"
+      ]
     }
   ]
 }

@@ -248,7 +248,7 @@ static void initInvalid(void)
 		xredisclientinitconfig Bad = Defaults; xredisclientconfig Config; xredisClientConfigInit(&Config);
 		if (Trial == 0) Bad.Size = 0;
 		if (Trial == 1) Bad.Mode = (xredisinitmode)1;
-		if (Trial == 2) Bad.Flags = 16;
+		if (Trial == 2) Bad.Flags = 0x80000000u;
 		if (Trial == 3) Bad.Flags = XREDIS_INIT_USERNAME;
 		if (Trial == 4) Bad.Password = (xbytesview)INIT_B("unused");
 		if (Trial == 5) Bad.Username = (xbytesview)INIT_B("unused");
@@ -264,6 +264,11 @@ static void initInvalid(void)
 		testRequire(!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, &Config, &Bad, &Output) &&
 			Output == (xredisclient*)(uintptr_t)1, "invalid initialization changed output/admitted"); xrtClearError();
 	}
+#if !defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
+    xredisclientinitconfig Off = Defaults; Off.Flags = 0x10u; xredisclient* OffOutput = (xredisclient*)(uintptr_t)1;
+    testRequire(!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, NULL, &Off, &OffOutput) && OffOutput == (xredisclient*)(uintptr_t)1,
+        "role flags stay invalid without the optional role-client feature"); xrtClearError();
+#endif
 	xredisclientinitconfig Init = Defaults;
 	testRequire(!xredisClientConnectInit(Peer.Peer.Engine, &Peer.Peer.Address, 0, NULL, &Init, (xredisclient**)&Init), "initialization descriptor alias"); xrtClearError();
 	xredisclient* Output = (xredisclient*)(uintptr_t)1; Init.Flags = XREDIS_INIT_AUTH; Init.Password = (xbytesview){(cbytes)&Output, sizeof(Output)};

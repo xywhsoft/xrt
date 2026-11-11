@@ -66,6 +66,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_ROLE)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_ROLE 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_ROLE_CLIENT 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER 1
 #endif
@@ -131,6 +134,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_ROLE)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_ROLE_CLIENT)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE_CLIENT 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_SUBSCRIBER)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SUBSCRIBER 1
@@ -2665,6 +2671,22 @@
 #ifndef XREDIS_MODULE_XREDIS_ROLE
 #define XREDIS_MODULE_XREDIS_ROLE
 #endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE_CLIENT
+#define XREDIS_MODULE_XREDIS_ROLE_CLIENT
+#endif
+#endif
+
+/* xredis_role_client 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_ROLE_CLIENT)
+#ifndef XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#define XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE
+#define XREDIS_MODULE_XREDIS_ROLE
+#endif
 #endif
 
 /* xredis_role 及其直接依赖。 */
@@ -3416,14 +3438,14 @@ typedef enum xredisinitmode {
 
 typedef enum xredisinitstep {
 	XREDIS_INIT_NONE = 0, XREDIS_INIT_HELLO, XREDIS_INIT_AUTHENTICATE,
-	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE
+	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE, XREDIS_INIT_ROLE
 } xredisinitstep;
 
 typedef enum xredisreadystatus {
 	XREDIS_READY_OK = 0, XREDIS_READY_AUTH_FAILED, XREDIS_READY_UNSUPPORTED,
 	XREDIS_READY_SERVER_ERROR, XREDIS_READY_PROTOCOL, XREDIS_READY_TIMEOUT,
 	XREDIS_READY_CLOSED, XREDIS_READY_DISCONNECTED, XREDIS_READY_LIMIT,
-	XREDIS_READY_MEMORY
+	XREDIS_READY_MEMORY, XREDIS_READY_ROLE_MISMATCH
 } xredisreadystatus;
 
 /* Initialize before use. Views borrow stable readable input only for ConnectInit.
@@ -4683,6 +4705,35 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/role_client.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_ROLE_CLIENT_H
+#define XREDIS_ROLE_CLIENT_H
+#if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XREDIS_FEATURE_XREDIS_ROLE))
+#error "Managed role verification requires native Client and ROLE inspection"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
+/* Choose zero or ONE requirement in ClientInitConfig.Flags. ROLE follows
+ * negotiation/auth/name/database setup and must validate and match before
+ * Ready or any queued business command. All phases share the original setup
+ * deadline and MaxWireBytes/Stream.WriteLimit; the role command adds14 bytes.
+ * Reply limits are the existing Replies.Reader MaxValues/MaxFrameBytes bounds.
+ * No Role reply is retained in Ready; Hello stays the negotiated HELLO map.
+ * Mismatch returns READY_ROLE_MISMATCH at INIT_ROLE; other setup failures keep
+ * their existing typed statuses and redacted diagnostics. Config/result/native
+ * object layouts and all old enum values stay unchanged.
+ * REQUIRE_REPLICA verifies identity, not freshness or replication consistency.
+ * This point-in-time check must be repeated on each new connection. Sentinel
+ * discovery, endpoint replacement and Cluster routing are separate work. */
+#define XREDIS_INIT_REQUIRE_MASTER 0x10u
+#define XREDIS_INIT_REQUIRE_REPLICA 0x20u
+#define XREDIS_INIT_REQUIRE_SENTINEL 0x40u
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -4720,6 +4771,9 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_ROLE)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_ROLE"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_ROLE_CLIENT"
 #endif
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_TRANSACTION)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_TRANSACTION"
@@ -4816,6 +4870,10 @@ XRT_EXTERN_C_END
 #undef XREDIS_FEATURE_XREDIS_ROLE
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_ROLE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
+#undef XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER)
 #undef XREDIS_FEATURE_XREDIS_SUBSCRIBER
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER
@@ -4903,6 +4961,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE)
 #undef XREDIS_MODULE_XREDIS_ROLE
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE_CLIENT)
+#undef XREDIS_MODULE_XREDIS_ROLE_CLIENT
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_ROLE_CLIENT
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SUBSCRIBER)
 #undef XREDIS_MODULE_XREDIS_SUBSCRIBER
@@ -6668,6 +6730,22 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
 #define XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
+#endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE
+#define XREDIS_MODULE_XREDIS_ROLE
+#endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE_CLIENT
+#define XREDIS_MODULE_XREDIS_ROLE_CLIENT
+#endif
+#endif
+
+/* xredis_role_client 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_ROLE_CLIENT)
+#ifndef XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#define XREDIS_FEATURE_XREDIS_ROLE_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
 #endif
 #ifndef XREDIS_MODULE_XREDIS_ROLE
 #define XREDIS_MODULE_XREDIS_ROLE

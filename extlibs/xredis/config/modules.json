@@ -414,7 +414,8 @@
         "xredis_subscriber_notify",
         "xredis_subscriptions",
         "xredis_subscription_session",
-        "xredis_role"
+        "xredis_role",
+        "xredis_role_client"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -836,7 +837,8 @@
         "xredis_subscriber_tests",
         "xredis_subscriber_notify_tests",
         "xredis_subscriptions_tests",
-        "xredis_subscription_session_tests"
+        "xredis_subscription_session_tests",
+        "xredis_role_client_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -864,7 +866,8 @@
         "extlibs/xredis/tests/test_subscriber_notify.c",
         "extlibs/xredis/tests/test_subscriptions.c",
         "extlibs/xredis/tests/test_subscription_session.c",
-        "extlibs/xredis/tests/test_role.c"
+        "extlibs/xredis/tests/test_role.c",
+        "extlibs/xredis/tests/test_role_client.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -894,7 +897,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c",
-        "extlibs/xredis/tests/single/test_single_xredis_role.c"
+        "extlibs/xredis/tests/single/test_single_xredis_role.c",
+        "extlibs/xredis/tests/single/test_single_xredis_role_client.c",
+        "extlibs/xredis/tests/single/test_single_xredis_role_client_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -931,7 +936,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c": "xredis_subscriptions_tests",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c": "xredis_subscription_session",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c": "xredis_subscription_session_tests",
-        "extlibs/xredis/tests/single/test_single_xredis_role.c": "xredis_role"
+        "extlibs/xredis/tests/single/test_single_xredis_role.c": "xredis_role",
+        "extlibs/xredis/tests/single/test_single_xredis_role_client.c": "xredis_role_client",
+        "extlibs/xredis/tests/single/test_single_xredis_role_client_tls.c": "xredis_role_client_tests"
       }
     },
     {
@@ -1282,6 +1289,62 @@
         "extlibs/xredis/docs/role.md",
         "extlibs/xredis/docs/api/reference.md",
         "extlibs/xredis/examples/role/README.md"
+      ]
+    },
+    {
+      "name": "xredis_role_client",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_ROLE_CLIENT",
+      "depends": [
+        "xredis_client",
+        "xredis_role"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/role_client.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/client/client.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_role_client.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_role_client.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/role_client/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_role_client.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/role_client.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/role_client/README.md"
+      ]
+    },
+    {
+      "name": "xredis_role_client_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_role_client",
+        "xredis_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_role_client.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_role_client_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/role_client.md"
       ]
     }
   ]

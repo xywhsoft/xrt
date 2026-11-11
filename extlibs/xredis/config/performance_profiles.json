@@ -3813,6 +3813,71 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_role_client",
+      "system": "client",
+      "description": "Validated-role setup from admission through readiness/verification, including worker/network wait and loopback peer parsing; engine/fixture construction and physical cleanup are outside timing; no production tail claim",
+      "benchmarks": [
+        {
+          "name": "xredis_role_client_setup",
+          "source": "extlibs/xredis/bench/bench_role_client.c",
+          "suite": "xredis_role_client,memory_stats",
+          "args": [
+            "1000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "setups_per_sec": {
+              "unit": "setups/s",
+              "direction": "higher"
+            },
+            "ms_per_setup": {
+              "unit": "ms",
+              "direction": "lower"
+            },
+            "p99_setup_ms": {
+              "unit": "ms",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_client_manual",
+          "source": "extlibs/xredis/bench/bench_role_client.c",
+          "suite": "xredis_role_client,memory_stats",
+          "args": [
+            "1000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "2",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "setups_per_sec": {
+              "unit": "setups/s",
+              "direction": "higher"
+            },
+            "ms_per_setup": {
+              "unit": "ms",
+              "direction": "lower"
+            },
+            "p99_setup_ms": {
+              "unit": "ms",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

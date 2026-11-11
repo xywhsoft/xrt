@@ -10943,3 +10943,51 @@ CPU/RSS, upstream/fixed-arrival mixed workloads and >=72h gates remain open;
 the full four-library objective continues.
 Evidence: [portable report](../../extlibs/xredis/tests/results/role-20261111.json)
 and out/service-extensions/xredis-role-20261111.
+
+
+## 2026-11-11: native role-verified initialization barrier
+
+Developed on master from 316e17be. The optional xredis_role_client
+leaf adds three mutually exclusive role flags and appends typed ROLE phase/
+mismatch values without shifting old enum values. Numeric/DNS/prepared TCP/TLS
+share the same initializer: HELLO/auth/name/SELECT, full bounded ROLE validation,
+then Ready/business dispatch. Unsupported ROLE fails closed; AUTO downgrade
+remains HELLO-only. The fixed 14-byte tail is included in the existing bounded,
+wiped initialization buffer, including unused AUTO fallback bytes. No client/
+request/config/result field, fifth offset slot, extra request/Future or shared
+runtime is introduced. Reader limits and the original deadline cover the whole
+sequence; Role response data is released and only original HELLO metadata survives.
+
+Both root modular suites execute 28 programs. Focused/new bare/TLS singles,
+feature-off initialization/TLS compatibility, offline example and whole-root
+module-selector singles pass. WSL includes ASan/UBSan/leak halt and both new
+singles pass TSan. Quota prefixes and owner OOM, held-role queue/cancel/timeout,
+redaction/unsupported/mismatch/limits/EOF/close, exact wire caps, delayed HELLO
+under the original deadline and notification reentry/physical retirement pass.
+The first TLS single wrapper failed to select the actual role-client feature;
+its exact v1 and errors remain. Only that wrapper changed for v2.
+
+Static/shared SDK and isolated declaration consumers pass. Private selected,
+feature-off and full object layouts match the previous source; all six size
+forms/forbidden-symbol gates pass. Eight real forms execute 216 Redis 8.0.5
+matrix cases, covering 2160 role attempts across RESP2/3/AUTO, all factories,
+TCP/TLS1.2/TLS1.3 and noauth/password/ACL. Verified owned run IDs precede ROLE ACL
+mutation. Master matches, replica/Sentinel mismatches, real NOPERM and queued
+NOT_SENT outcomes are checked. Retained results survive every physical owner.
+
+Serial seven-sample plus one-warmup measurements compare same-object old/current
+ordinary traffic at depths 1/32, then old/manual, current/manual and native
+logical role setup. Common calibrated counts and unchanged 3% MAD/6% central
+span gates apply; qualified ordinary cases meet 5% throughput/10% P99 budgets.
+All noise failures remain unqualified rather than becoming production evidence.
+The cold interval excludes engine/fixture creation and physical cleanup, includes
+worker/network/peer work, and may overlap mechanical release tails. Separate
+allocation mode includes fixture work. No isolated cost or production-tail claim
+follows. Full Sentinel/Cluster and four-library production gates remain active.
+Evidence: [portable report](../../extlibs/xredis/tests/results/role-client-20261111.json)
+and out/service-extensions/xredis-role-client-20261111.
+Uninstrumented setup heap columns are zero placeholders, explicitly marked
+unmeasured in the portable report; only role-setup-heap measures allocations.
+The staged-file whitespace check then found one whitespace-only blank line in
+test_role_client.c; it was removed after validation. The tested v2 and final v3
+hashes are both retained; no executable tokens changed.
