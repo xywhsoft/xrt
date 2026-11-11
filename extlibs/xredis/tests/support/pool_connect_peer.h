@@ -7,6 +7,9 @@ typedef struct redisconnectpeer {
     xnetengine* Engine;
     xnetlistener* Listener;
     xnetaddr Address;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+    const redistlsoptions* TLS;
+#endif
     redispeer* Peers;
     redispeerhook Hook;
     xatomic32 Accepted, ListenerClosed, Mode, Commands, Hello;
@@ -36,9 +39,16 @@ static bool redisConnectPeerAccept(xnetlistener* Listener, xnetstream* Stream, p
     uint32 Count = xrtAtomic32Load(&Fixture->Accepted, XMEMORY_RELAXED); redispeer* Peer = &Fixture->Peers[Count % REDIS_CONNECT_PEERS];
     if (Peer->Stream) {
         redisPeerRequire(xrtAtomic32Load(&Peer->Closed, XMEMORY_ACQUIRE) != 0, "reconnect fixture ring still live");
-        xrtNetStreamDestroy(Peer->Stream); xredisReplyReaderDestroy(Peer->Reader);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+        if(Peer->Secure)xrtTlsStreamDestroy(Peer->Secure);else
+#endif
+        xrtNetStreamDestroy(Peer->Stream);
+        xredisReplyReaderDestroy(Peer->Reader);
     }
     memset(Peer, 0, sizeof(*Peer)); Peer->Engine = Fixture->Engine;
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+    xrtAtomicPtrStore(&Peer->TlsOptions,(ptr)Fixture->TLS,XMEMORY_RELEASE);
+#endif
     xredisreplyreaderconfig Reader; xredisReplyReaderConfigInit(&Reader); Reader.Reader.Protocol = XREDIS_RESP2;
     redisPeerRequire(xredisReplyReaderCreate(&Reader, &Peer->Reader), "reconnect fixture parser");
     xrtAtomicPtrStore(&Peer->Hook, &Fixture->Hook, XMEMORY_RELEASE);
@@ -71,7 +81,11 @@ static void redisConnectPeerStop(redisconnectpeer* Fixture)
     }
     redisPeerRequire(xrtNetEngineStop(Fixture->Engine), "reconnect engine stop");
     for (size_t Index = 0; Index < REDIS_CONNECT_PEERS; ++Index) {
-        xrtNetStreamDestroy(Fixture->Peers[Index].Stream); xredisReplyReaderDestroy(Fixture->Peers[Index].Reader);
+#if defined(XREDIS_FEATURE_XREDIS_TLS)
+        if(Fixture->Peers[Index].Secure)xrtTlsStreamDestroy(Fixture->Peers[Index].Secure);else
+#endif
+        xrtNetStreamDestroy(Fixture->Peers[Index].Stream);
+        xredisReplyReaderDestroy(Fixture->Peers[Index].Reader);
     }
     xrtNetListenerDestroy(Fixture->Listener); xrtFree(Fixture->Peers);
     redisPeerRequire(xrtNetEngineDestroy(Fixture->Engine), "reconnect engine destroy");

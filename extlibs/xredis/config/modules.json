@@ -145,6 +145,13 @@
         "source_roots": [
           "sentinel"
         ]
+      },
+      {
+        "name": "sentinel_pool",
+        "state": "retained",
+        "source_roots": [
+          "sentinel_pool"
+        ]
       }
     ]
   },
@@ -423,7 +430,8 @@
         "xredis_subscription_session",
         "xredis_role",
         "xredis_role_client",
-        "xredis_sentinel"
+        "xredis_sentinel",
+        "xredis_sentinel_pool"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -847,7 +855,8 @@
         "xredis_subscriptions_tests",
         "xredis_subscription_session_tests",
         "xredis_role_client_tests",
-        "xredis_sentinel_tests"
+        "xredis_sentinel_tests",
+        "xredis_sentinel_pool_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -877,7 +886,8 @@
         "extlibs/xredis/tests/test_subscription_session.c",
         "extlibs/xredis/tests/test_role.c",
         "extlibs/xredis/tests/test_role_client.c",
-        "extlibs/xredis/tests/test_sentinel.c"
+        "extlibs/xredis/tests/test_sentinel.c",
+        "extlibs/xredis/tests/test_sentinel_pool.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -911,7 +921,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_role_client.c",
         "extlibs/xredis/tests/single/test_single_xredis_role_client_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel.c",
-        "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -952,7 +964,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_role_client.c": "xredis_role_client",
         "extlibs/xredis/tests/single/test_single_xredis_role_client_tls.c": "xredis_role_client_tests",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel.c": "xredis_sentinel",
-        "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c": "xredis_sentinel_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c": "xredis_sentinel_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c": "xredis_sentinel_pool",
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c": "xredis_sentinel_pool_tests"
       }
     },
     {
@@ -1373,7 +1387,8 @@
         "extlibs/xredis/include/xredis/sentinel.h"
       ],
       "internal_headers": [
-        "extlibs/xredis/src/internal/sentinel_client.h"
+        "extlibs/xredis/src/internal/sentinel_client.h",
+        "extlibs/xredis/src/internal/sentinel_config.h"
       ],
       "sources": [
         "extlibs/xredis/src/sentinel/sentinel.c",
@@ -1418,6 +1433,65 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/sentinel.md"
+      ]
+    },
+    {
+      "name": "xredis_sentinel_pool",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_SENTINEL_POOL",
+      "depends": [
+        "xredis_sentinel",
+        "xredis_pool_connect"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/sentinel_pool.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/sentinel_pool_internal.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/pool/pool.c",
+        "extlibs/xredis/src/sentinel_pool/sentinel_pool.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_sentinel_pool.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/sentinel_pool/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_sentinel_pool.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/sentinel_pool.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/sentinel_pool/README.md"
+      ]
+    },
+    {
+      "name": "xredis_sentinel_pool_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_sentinel_pool",
+        "xredis_tls_tests"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_sentinel_pool.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/sentinel_pool.md"
       ]
     }
   ]

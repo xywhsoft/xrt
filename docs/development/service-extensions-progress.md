@@ -11043,3 +11043,57 @@ replica selection, optional Sentinel refresh/events, Cluster and full four-libra
 native Linux/mixed-load/72h acceptance remain active work.
 Evidence: [portable report](../../extlibs/xredis/tests/results/sentinel-discovery-20261111.json)
 and out/service-extensions/xredis-sentinel-discovery-20261111.
+
+
+## 2026-11-12: automatic Sentinel master pools
+
+Developed on master from be2bbd8e. The developing xredis_sentinel_pool leaf
+integrates discovery into the existing native pool worker/heap/timer. Each
+missing member rediscovers and verifies ROLE. Same-address reconnect preserves
+unaffected leases; a changed verified endpoint atomically fences old admissions
+through the existing quota gate, retires old members/discoveries in WorkItems
+batches, then reopens after physical retirement. No business request is replayed.
+Native PoolAcquire/LeaseCall/Return/Close remain direct; native pool/slot/lease/
+connector layouts and public DTOs match baseline. New cold variant storage is
+allocated only for Sentinel mode. MaxConnecting includes physical/cancel tails;
+one embedded native Watch per active slot retires without worker blocking.
+Callbacks/context remain through Drop, with final mechanical release frames
+joined by engine shutdown before code unload. Private mode tagging survives
+ordinary connector callback clearing; closed ordinary pools reject Sentinel
+snapshots safely. Unknown/auth/server/protocol/limit/OOM fail the pool closed;
+reachability/timeout/stale-role maintenance retries with bounded jitter.
+
+v1 functional/delivery/size positives remain archived. The v2 review removed a
+second relative deadline origin: native discovery now receives the exact parent
+absolute deadline. An already-expired inherited deadline performs no factory.
+All shipping/SDK/interop inputs remain v2-identical; v3 only matches benchmark
+data-client affinity1 across old/new ordinary and Sentinel variants.
+Windows/WSL roots each run30 programs, including nested WATCH retirement.
+Bare/TLS singles, old feature-off pool compatibility, offline examples and
+whole-root selectors pass. WSL includes ASan/UBSan/leak halt and both new singles
+pass TSan. Concurrency/close/reentry, old admission fencing, stale roles, missing
+services, real admission OOM/constructor quota prefixes and physical accounting
+pass. Final functional totals including whole-root probes are34 Windows/36 WSL.
+The first compatibility selector named the production module rather than its
+test-only owner; command/collector failures remain, and corrected full passes
+succeed. Static/shared SDK and independent declaration consumers, three new
+exports, unchanged native layouts and all six size/symbol forms pass.
+
+Eight live modular/single/static/shared forms execute72 actual manual failovers
+against owned Redis8.0.5/Sentinel. Each C pool stays alive with three old leases
+and one queued native acquisition. The old BLPOP is observed server-side before
+failover; new leases verify the promoted run identity, the sent old result keeps
+uncertainty and no BLPOP appears on the new master. Retained outcomes survive
+engine destruction; every factory candidate closes before one context Drop.
+PID/run IDs precede fixture mutation; children/materials retire completely.
+
+Seven-sample plus one-warmup serial steady comparisons at depths1/32 use shared
+objects except baseline pool implementation and equivalent worker/peer profiles.
+Qualified comparisons obey5% throughput/10% P99 budgets under unchanged3% MAD/
+6% central-span noise gates. No noisy series is promoted to acceptance. Separate
+heap counts include peers/mechanical tails; these closed-loop observations do
+not establish production tails or isolated bridge cost. Replica selection,
+optional Sentinel refresh/events, Cluster and full four-library native Linux/
+upstream/fixed-arrival/CPU/RSS/mixed-load/72h acceptance remain active work.
+Evidence: [portable report](../../extlibs/xredis/tests/results/sentinel-pool-20261112.json)
+and out/service-extensions/xredis-sentinel-pool-20261111.

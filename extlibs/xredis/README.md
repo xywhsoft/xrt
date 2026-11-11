@@ -223,3 +223,6 @@ Optional [role-verified initialization](docs/role_client.md) withholds readiness
 
 Optional [Sentinel discovery](docs/sentinel.md) implements bounded master discovery,
 ROLE validation and stale-role re-resolution; full automatic HA remains developing.
+
+[Automatic Sentinel pools](docs/sentinel_pool.md) discover each replacement and
+fence/retire all old members when the verified master endpoint changes.

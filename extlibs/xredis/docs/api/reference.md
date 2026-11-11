@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `142` 个函数、`235` 个常量或宏、
-`105` 个公共类型。
+当前登记 `145` 个函数、`241` 个常量或宏、
+`109` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -501,6 +501,32 @@
 - `xredissentinelseedconnect`
 - `xredissentinelstatus`
 - `xredissentinelstep`
+
+## `extlibs/xredis/include/xredis/sentinel_pool.h`
+
+[查看带契约注释的公共头](../../include/xredis/sentinel_pool.h)
+
+### 函数 (3)
+
+- `xredisSentinelPoolConfigInit`
+- `xredisSentinelPoolCreate`
+- `xredisSentinelPoolInfo`
+
+### 常量与宏 (6)
+
+- `XREDIS_FEATURE_XREDIS_SENTINEL_POOL`
+- `XREDIS_SENTINEL_POOL_CLOSED`
+- `XREDIS_SENTINEL_POOL_CLOSING`
+- `XREDIS_SENTINEL_POOL_DISCOVERING`
+- `XREDIS_SENTINEL_POOL_ONLINE`
+- `XREDIS_SENTINEL_POOL_RECONFIGURING`
+
+### 类型 (4)
+
+- `xredissentinelpoolconfig`
+- `xredissentinelpoolinfo`
+- `xredissentinelpoolnotify`
+- `xredissentinelpoolphase`
 
 ## `extlibs/xredis/include/xredis/subscriber.h`
 

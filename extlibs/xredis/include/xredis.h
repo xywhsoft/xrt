@@ -109,4 +109,9 @@
 #endif
 #include <xredis/sentinel.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SENTINEL_POOL"
+#endif
+#include <xredis/sentinel_pool.h>
+
 #endif

@@ -26,9 +26,9 @@ On DONE/OK, TakeClient transfers the native verified master and close duty.
 Ordinary business calls use the original native API without a proxy. Preserve
 Result.PreferredSeed for the next discovery and rediscover after every lost
 connection. ROLE is point-in-time identity, not freshness/consensus. Retrying
-business commands is never implicit. Pool-wide generation replacement, replica
-selection, optional discovered-Sentinel refresh/events and automatic persistent
-HA sessions remain future work; this leaf does not claim full HA acceptance.
+business commands is never implicit. [Automatic native pools](sentinel_pool.md) provide pool-wide generation
+replacement. Replica selection and optional discovered-Sentinel refresh/events
+remain future work; this leaf does not claim full HA acceptance.
 
 Service bytes are copied once, host bytes once per positive query, one allocation
 holds helper plus bounded service/host capacity. Existing reply reader bounds

@@ -3906,6 +3906,121 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_sentinel_pool",
+      "system": "sentinel_pool",
+      "description": "Native lease business traffic after discovery; compare ordinary and Sentinel-maintained pools over identical loopback peers, include queue/observation wait; allocations include peers and mechanical tails",
+      "benchmarks": [
+        {
+          "name": "xredis_sentinel_pool_ordinary_1",
+          "source": "extlibs/xredis/bench/bench_sentinel_pool.c",
+          "suite": "xredis_sentinel_pool,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_sentinel_pool_sentinel_1",
+          "source": "extlibs/xredis/bench/bench_sentinel_pool.c",
+          "suite": "xredis_sentinel_pool,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_sentinel_pool_ordinary_32",
+          "source": "extlibs/xredis/bench/bench_sentinel_pool.c",
+          "suite": "xredis_sentinel_pool,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_sentinel_pool_sentinel_32",
+          "source": "extlibs/xredis/bench/bench_sentinel_pool.c",
+          "suite": "xredis_sentinel_pool,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

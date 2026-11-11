@@ -1,4 +1,5 @@
 #include <xredis/sentinel.h>
+#include "../internal/sentinel_config.h"
 #include "../internal/sentinel_client.h"
 #include <xrt/memory.h>
 #include <math.h>
@@ -151,21 +152,33 @@ XREDIS_API bool xredisSentinelConfigInit(xredissentinelconfig* K)
     *K=(xredissentinelconfig){0};K->Size=sizeof(*K);K->SeedCount=1;K->MaxRounds=3;K->MaxServiceBytes=65536;K->MaxHostBytes=1024;
     K->Timeout=5000;K->SeedTimeout=300;K->RetryDelay=100;K->Protocol=XREDIS_RESP3;return xredisRoleLimitsInit(&K->Role);
 }
-XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,const xredissentinelconfig* Config,xredissentineldiscovery** Output)
+bool __xredisSentinelConfigValid(const xredissentinelconfig* Config,ptr Output,size_t Bytes)
 {
-    double Entered=xrtTimer();
-    if(!Engine || !Config || !Output || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))){xredisSentinelArgument("invalid Sentinel discovery arguments");return XREDIS_ADMISSION_ERROR;}
+    if(!Config || !xrtMemRangeValid(Config,sizeof(*Config)))return xredisSentinelArgument("invalid Sentinel config input");
     xredissentinelconfig K=*Config;
     if(K.Size!=sizeof(K) || K.Role.Size!=sizeof(K.Role) || !K.ConnectSeed || !K.ConnectMaster || !K.SeedCount || K.SeedCount>4096 || K.PreferredSeed>=K.SeedCount || !K.MaxRounds || K.MaxRounds>1024 ||
        K.Timeout<=0 || K.Timeout>86400000 || K.SeedTimeout<=0 || K.SeedTimeout>60000 || K.RetryDelay<=0 || K.RetryDelay>60000 ||
        !K.MaxServiceBytes || K.MaxServiceBytes>65536 || !K.MaxHostBytes || K.MaxHostBytes>65536 || !K.Service.Size || K.Service.Size>K.MaxServiceBytes || !xrtMemRangeValid(K.Service.Data,K.Service.Size) ||
-       xrtMemRangesOverlap(K.Service.Data,K.Service.Size,Output,sizeof(*Output)) || (K.Protocol!=XREDIS_RESP2 && K.Protocol!=XREDIS_RESP3)){
-        xredisSentinelArgument("invalid Sentinel bounds/service/factories");return XREDIS_ADMISSION_ERROR;}
+       xrtMemRangesOverlap(K.Service.Data,K.Service.Size,Output,Bytes) || (K.Protocol!=XREDIS_RESP2 && K.Protocol!=XREDIS_RESP3)){
+        xredisSentinelArgument("invalid Sentinel bounds/service/factories");return false;}
+    return true;
+}
+xredisadmission __xredisSentinelDiscoveryCreateUntil(xnetengine* Engine,const xredissentinelconfig* Config,double Deadline,xredissentineldiscovery** Output)
+{
+    if(!isfinite(Deadline) || !Engine || !Config || !Output || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))){xredisSentinelArgument("invalid Sentinel discovery arguments");return XREDIS_ADMISSION_ERROR;}
+    xredissentinelconfig K=*Config;
+    if(!__xredisSentinelConfigValid(&K,Output,sizeof(*Output)))return XREDIS_ADMISSION_ERROR;
     if(!xrtNetEnginePin(Engine))return XREDIS_ADMISSION_ERROR;
     xredissentineldiscovery* D=xrtCalloc(1,sizeof(*D)+K.Service.Size+K.MaxHostBytes);
     if(!D){(void)xrtNetEngineUnpin(Engine);return XREDIS_ADMISSION_ERROR;}
     D->Engine=Engine;D->Config=K;memcpy(D->Data,K.Service.Data,K.Service.Size);D->Config.Service=(xbytesview){D->Data,K.Service.Size};
-    D->Deadline=xredisSentinelDue(Entered,K.Timeout);D->NextWake=Entered;D->Result.Size=sizeof(D->Result);D->Result.PreferredSeed=K.PreferredSeed;D->Result.Rounds=1;*Output=D;return XREDIS_ADMISSION_ACCEPTED;
+    D->Deadline=Deadline;D->NextWake=xrtTimer();D->Result.Size=sizeof(D->Result);D->Result.PreferredSeed=K.PreferredSeed;D->Result.Rounds=1;*Output=D;return XREDIS_ADMISSION_ACCEPTED;
+}
+XREDIS_API xredisadmission xredisSentinelDiscoveryCreate(xnetengine* Engine,const xredissentinelconfig* Config,xredissentineldiscovery** Output)
+{
+    double Entered=xrtTimer();
+    if(!Engine || !Config || !Output || !xrtMemRangeValid(Config,sizeof(*Config)) || !xrtMemRangeValid(Output,sizeof(*Output)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))){xredisSentinelArgument("invalid Sentinel discovery arguments");return XREDIS_ADMISSION_ERROR;}
+    return __xredisSentinelDiscoveryCreateUntil(Engine,Config,xredisSentinelDue(Entered,Config->Timeout),Output);
 }
 XREDIS_API xredissentinelstep xredisSentinelDiscoveryStep(xredissentineldiscovery* D)
 {

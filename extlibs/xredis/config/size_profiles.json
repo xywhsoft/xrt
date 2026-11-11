@@ -311,6 +311,19 @@
         "xrtNetResolver",
         "xrtTask"
       ]
+    },
+    {
+      "name": "xredis_sentinel_pool",
+      "system": "sentinel_pool",
+      "suite": "xredis_sentinel_pool",
+      "description": "Native pool Sentinel maintenance without TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetResolver",
+        "xrtTask"
+      ]
     }
   ]
 }
