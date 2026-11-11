@@ -10855,3 +10855,38 @@ mixed workloads, native Linux and>=72h production gates are still open.
 
 Evidence: [portable report](../../extlibs/xredis/tests/results/subscription-session-20261111.json)
 and out/service-extensions/xredis-subscription-session-20261111.
+
+
+## 2026-11-11: confirm mainline-only work and refresh all four roots
+
+Verified directly at D:/GIT/xrt master from 039c589a. The preserved
+service-extension branch and 05dc625d migration are ancestors. The old backup
+HEAD and all 26 original pending hashes remain unchanged, with no new paths.
+At the migration, 24 pending files are text-identical and 2 preserve integrated
+documentation/package-consumer changes. Do not overwrite subsequent mainline
+improvements with stale backup files. No branch, checkout, merge or push occurred.
+
+Rechecked both old-backup and current logical-mainline paths for all 8425 historical
+evidence files (1619572098 bytes); all match the original migration manifest.
+No old source, fixture, log or evidence file was removed.
+
+The current workspace also contained an unfinished ROLE prototype: two enum
+additions, two new public headers and one implementation. Its module/test/
+initialization integration is incomplete. Normal preflight rejected unregistered
+production files and stale singles. Preserved all four exact original files,
+checksums, failure logs and a complete reapplicable patch on master:
+docs/development/drafts/xredis-role-verification-20261111.patch. Only that owned
+uncommitted prototype was removed from the production closure; shipped sources
+now match the tested revision. This does not deliver ROLE or Sentinel support.
+
+windows: xredis=55, xrpc=30, xmqtt=57, xcron=34; total=176 modular/single programs.
+wsl: xredis=55, xrpc=30, xmqtt=57, xcron=34; total=176 modular/single programs.
+WSL uses O2 ASan/UBSan with leak halt. All 20 normal feature/single/API/docs/
+maturity checks pass. Exact fixture skips, commands, logs and executable hashes
+are retained. Both platforms use the same 6493 frozen source inputs.
+
+This refresh does not rerun SDK/interop/performance/native-Linux or 72h gates.
+The full production objective remains active. Future development defaults to
+D:/GIT/xrt master per the existing mainline policy.
+Evidence: [portable report](service-extensions-mainline-final-20261111.json) and
+out/service-extensions/mainline-final-workspace-20261111.

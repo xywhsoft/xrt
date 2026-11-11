@@ -1,0 +1,193 @@
+diff --git a/extlibs/xredis/include/xredis/client.h b/extlibs/xredis/include/xredis/client.h
+index ae23e086..7f2e8172 100644
+--- a/extlibs/xredis/include/xredis/client.h
++++ b/extlibs/xredis/include/xredis/client.h
+@@ -86,14 +86,14 @@ typedef enum xredisinitmode {
+ 
+ typedef enum xredisinitstep {
+ 	XREDIS_INIT_NONE = 0, XREDIS_INIT_HELLO, XREDIS_INIT_AUTHENTICATE,
+-	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE
++	XREDIS_INIT_NAME, XREDIS_INIT_DATABASE, XREDIS_INIT_DONE, XREDIS_INIT_ROLE
+ } xredisinitstep;
+ 
+ typedef enum xredisreadystatus {
+ 	XREDIS_READY_OK = 0, XREDIS_READY_AUTH_FAILED, XREDIS_READY_UNSUPPORTED,
+ 	XREDIS_READY_SERVER_ERROR, XREDIS_READY_PROTOCOL, XREDIS_READY_TIMEOUT,
+ 	XREDIS_READY_CLOSED, XREDIS_READY_DISCONNECTED, XREDIS_READY_LIMIT,
+-	XREDIS_READY_MEMORY
++	XREDIS_READY_MEMORY, XREDIS_READY_ROLE_MISMATCH
+ } xredisreadystatus;
+ 
+ /* Initialize before use. Views borrow stable readable input only for ConnectInit.
+diff --git a/extlibs/xredis/include/xredis/role.h b/extlibs/xredis/include/xredis/role.h
+new file mode 100644
+--- /dev/null
++++ b/extlibs/xredis/include/xredis/role.h
+@@ -0,0 +1,48 @@
++#ifndef XREDIS_ROLE_H
++#define XREDIS_ROLE_H
++#include <xredis/reply.h>
++#if defined(XREDIS_FEATURE_XREDIS_ROLE)
++typedef enum xredisrolekind {XREDIS_ROLE_MASTER=1,XREDIS_ROLE_REPLICA,XREDIS_ROLE_SENTINEL} xredisrolekind;
++typedef enum xredisrolestatus {
++    XREDIS_ROLE_ERROR=-1,XREDIS_ROLE_MALFORMED=-2,XREDIS_ROLE_LIMIT=-3,
++    XREDIS_ROLE_OTHER=0,XREDIS_ROLE_VALUE=1,XREDIS_ROLE_SERVER_ERROR=2
++} xredisrolestatus;
++typedef enum xredisrolelink {
++    XREDIS_ROLE_LINK_OTHER=0,XREDIS_ROLE_LINK_CONNECT,XREDIS_ROLE_LINK_CONNECTING,
++    XREDIS_ROLE_LINK_SYNC,XREDIS_ROLE_LINK_CONNECTED
++} xredisrolelink;
++typedef struct xredisrolelimits {size_t Size,MaxEntries,MaxPayloadBytes;} xredisrolelimits;
++/* Borrowed cursor: Source and all returned views require an existing live Reply
++ * reference. Read consumes no reference and copies no payload. Use existing
++ * ReplyRetain/Release for escaping ownership. Do not edit cursor fields. */
++typedef struct xredisrolecursor {const xredisreply* Source;size_t Next,Remaining;uint32 Kind;} xredisrolecursor;
++typedef struct xredisrolereplica {xbytesview Host;uint16 Port;int64 Offset;} xredisrolereplica;
++typedef struct xredisroleinfo {
++    xredisrolekind Kind;int64 Offset;xbytesview MasterHost,LinkText;uint16 MasterPort;
++    xredisrolelink Link;xredisrolecursor Replicas,Monitored;
++} xredisroleinfo;
++XRT_EXTERN_C_BEGIN
++/* Defaults4096 entries/1MiB scalar payload; zero is a real limit, not unlimited.
++ * MaxPayloadBytes counts the whole immutable reply, including attributes and
++ * numeric lexemes. The caller's bounded reply reader still owns parsing costs. */
++XREDIS_API bool xredisRoleLimitsInit(xredisrolelimits* Limits);
++/* Validate the complete recognized ROLE shape, then publish one borrowed view.
++ * Master replica tuples accept decimal port/offset strings used by Redis and
++ * integer numeric forms. Replica offset -1 means unavailable; master offsets
++ * are nonnegative. Port0 remains represented, not invented as a usable endpoint.
++ * Unknown replica link text is preserved as LINK_OTHER. Protocol role text
++ * "slave" maps to REPLICA; it is a wire value, not an API spelling.
++ * VALUE alone writes Info. OTHER/server-error/malformed/limit preserve output
++ * and ambient error. Invalid arguments report ERROR. No successful/protocol/
++ * limit path allocates, copies payload or retains ownership. Validation is
++ * O(reply entries), bounded by Limits; iteration is O(1) per entry. */
++XREDIS_API xredisrolestatus xredisRoleRead(const xredisreply* Reply,
++    const xredisrolelimits* Limits,xredisroleinfo* Info);
++/* Transfer one borrowed view and advance only on success. Exhaustion preserves
++ * outputs and ambient error. Invalid/forged cursor/output is an argument error;
++ * cursor and output storage must be disjoint and caller-owned writable objects. */
++XREDIS_API bool xredisRoleReplicaNext(xredisrolecursor* Cursor,xredisrolereplica* Replica);
++XREDIS_API bool xredisRoleMasterNext(xredisrolecursor* Cursor,xbytesview* Name);
++XRT_EXTERN_C_END
++#endif
++#endif
+diff --git a/extlibs/xredis/include/xredis/role_client.h b/extlibs/xredis/include/xredis/role_client.h
+new file mode 100644
+--- /dev/null
++++ b/extlibs/xredis/include/xredis/role_client.h
+@@ -0,0 +1,24 @@
++#ifndef XREDIS_ROLE_CLIENT_H
++#define XREDIS_ROLE_CLIENT_H
++#include <xredis/client.h>
++#include <xredis/role.h>
++#if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT) && (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XREDIS_FEATURE_XREDIS_ROLE))
++#error "Managed role verification requires native Client and ROLE inspection"
++#endif
++#if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
++/* Choose zero or ONE role requirement in ClientInitConfig.Flags. After existing
++ * negotiation/auth/name/database setup, ROLE must be a complete validated reply
++ * matching that role before Ready or any queued business command is sent.
++ * All phases share the original initialization deadline and wire limits.
++ * REQUIRE_REPLICA verifies identity, not link freshness or replication consistency.
++ * This is a point-in-time assertion; role can change after Ready. On reconnect,
++ * Sentinel clients must rediscover and verify each new connection. This module
++ * alone does not implement Sentinel discovery/Cluster routing or retry commands.
++ * Config/result layouts and existing enum values remain unchanged; mismatch has
++ * XREDIS_READY_ROLE_MISMATCH at XREDIS_INIT_ROLE. Diagnostics stay redacted.
++ * Malformed/limit/server/timeout remain distinct existing initialization outcomes. */
++#define XREDIS_INIT_REQUIRE_MASTER 0x10u
++#define XREDIS_INIT_REQUIRE_REPLICA 0x20u
++#define XREDIS_INIT_REQUIRE_SENTINEL 0x40u
++#endif
++#endif
+diff --git a/extlibs/xredis/src/role/role.c b/extlibs/xredis/src/role/role.c
+new file mode 100644
+--- /dev/null
++++ b/extlibs/xredis/src/role/role.c
+@@ -0,0 +1,85 @@
++#include <xredis/role.h>
++#include <xrt/memory.h>
++#include <string.h>
++#if defined(XREDIS_FEATURE_XREDIS_ROLE)
++static bool xredisRoleArgument(cstr Text)
++{xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_REPLY_ARGUMENT,Text);return false;}
++static bool xredisRoleString(const xredisreplyvalue* V)
++{return (V->Type==XREDIS_REPLY_BULK_STRING || V->Type==XREDIS_REPLY_SIMPLE_STRING) && !(V->Flags&XREDIS_REPLY_NULL_VALUE);}
++static bool xredisRoleWord(xbytesview V,cstr Text)
++{size_t N=strlen(Text);return V.Size==N && (!N || !memcmp(V.Data,Text,N));}
++static bool xredisRoleArray(const xredisreplyvalue* V,size_t Count)
++{return V->Type==XREDIS_REPLY_ARRAY && !(V->Flags&XREDIS_REPLY_NULL_VALUE) && V->ChildCount==Count;}
++/* Bulk numeric fields are protocol strings, not locale-dependent numbers. */
++static bool xredisRoleUnsigned(const xredisreplyvalue* V,int64* Output)
++{
++    if(V->Type==XREDIS_REPLY_INTEGER){if(V->Integer<0)return false;*Output=V->Integer;return true;}
++    if(!xredisRoleString(V) || !V->Data.Size || V->Data.Size>19)return false;
++    uint64 N=0;for(size_t I=0;I<V->Data.Size;++I){unsigned C=V->Data.Data[I];if(C<'0' || C>'9' || N>((uint64)INT64_MAX-(C-'0'))/10)return false;N=N*10+C-'0';}*Output=(int64)N;return true;
++}
++static bool xredisRoleTuple(const xredisreply* Reply,size_t Node,xredisrolereplica* Output,size_t* Next)
++{
++    xredisreplyvalue T,H,P,O;if(!xredisReplyGet(Reply,Node,&T) || !xredisRoleArray(&T,3) ||
++        !xredisReplyGet(Reply,T.FirstChild,&H) || !xredisRoleString(&H) ||
++        !xredisReplyGet(Reply,H.Next,&P) || !xredisReplyGet(Reply,P.Next,&O) || O.Next!=XREDIS_REPLY_NONE)return false;
++    int64 Port,Offset;if(!xredisRoleUnsigned(&P,&Port) || Port>65535 || !xredisRoleUnsigned(&O,&Offset))return false;
++    *Output=(xredisrolereplica){H.Data,(uint16)Port,Offset};*Next=T.Next;return true;
++}
++XREDIS_API bool xredisRoleLimitsInit(xredisrolelimits* K)
++{
++    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xredisRoleArgument("invalid ROLE limits output");
++    *K=(xredisrolelimits){sizeof(*K),4096,1024u*1024u};return true;
++}
++XREDIS_API xredisrolestatus xredisRoleRead(const xredisreply* Reply,const xredisrolelimits* Config,xredisroleinfo* Output)
++{
++    if(!Reply || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || Config->Size!=sizeof(*Config) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))))){xredisRoleArgument("invalid ROLE arguments/limits");return XREDIS_ROLE_ERROR;}
++    xredisrolelimits K;if(Config)K=*Config;else xredisRoleLimitsInit(&K);
++    xredisreplyinfo I={0};I.Size=sizeof(I);xredisreplyvalue Root,Word;
++    if(!xredisReplyInfo(Reply,&I) || !xredisReplyGet(Reply,I.Root,&Root))return XREDIS_ROLE_ERROR;
++    if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_ROLE_SERVER_ERROR;
++    if(Root.Type!=XREDIS_REPLY_ARRAY || (Root.Flags&XREDIS_REPLY_NULL_VALUE) || !Root.ChildCount || !xredisReplyGet(Reply,Root.FirstChild,&Word) || !xredisRoleString(&Word))return XREDIS_ROLE_OTHER;
++    xredisrolekind Kind=xredisRoleWord(Word.Data,"master")?XREDIS_ROLE_MASTER:xredisRoleWord(Word.Data,"slave")?XREDIS_ROLE_REPLICA:xredisRoleWord(Word.Data,"sentinel")?XREDIS_ROLE_SENTINEL:0;
++    if(!Kind)return XREDIS_ROLE_OTHER;
++    if(I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_ROLE_LIMIT;
++    if(!xredisRoleArray(&Root,Kind==XREDIS_ROLE_MASTER?3:Kind==XREDIS_ROLE_REPLICA?5:2))return XREDIS_ROLE_MALFORMED;
++    xredisroleinfo V={0};V.Kind=Kind;V.Replicas.Next=V.Monitored.Next=XREDIS_REPLY_NONE;
++    xredisreplyvalue A,B,C,D;if(!xredisReplyGet(Reply,Word.Next,&A))return XREDIS_ROLE_MALFORMED;
++    if(Kind==XREDIS_ROLE_REPLICA){
++        if(!xredisRoleString(&A) || !xredisReplyGet(Reply,A.Next,&B) || B.Type!=XREDIS_REPLY_INTEGER || B.Integer<0 || B.Integer>65535 ||
++            !xredisReplyGet(Reply,B.Next,&C) || !xredisRoleString(&C) || !xredisReplyGet(Reply,C.Next,&D) || D.Type!=XREDIS_REPLY_INTEGER || D.Integer< -1 || D.Next!=XREDIS_REPLY_NONE)return XREDIS_ROLE_MALFORMED;
++        V.MasterHost=A.Data;V.MasterPort=(uint16)B.Integer;V.Offset=D.Integer;V.LinkText=C.Data;
++        V.Link=xredisRoleWord(C.Data,"connect")?XREDIS_ROLE_LINK_CONNECT:xredisRoleWord(C.Data,"connecting")?XREDIS_ROLE_LINK_CONNECTING:xredisRoleWord(C.Data,"sync")?XREDIS_ROLE_LINK_SYNC:xredisRoleWord(C.Data,"connected")?XREDIS_ROLE_LINK_CONNECTED:XREDIS_ROLE_LINK_OTHER;
++    }else{
++        if(Kind==XREDIS_ROLE_MASTER){if(A.Type!=XREDIS_REPLY_INTEGER || A.Integer<0 || !xredisReplyGet(Reply,A.Next,&B))return XREDIS_ROLE_MALFORMED;V.Offset=A.Integer;}
++        else B=A;
++        if(B.Type!=XREDIS_REPLY_ARRAY || (B.Flags&XREDIS_REPLY_NULL_VALUE) || B.Next!=XREDIS_REPLY_NONE)return XREDIS_ROLE_MALFORMED;
++        if(B.ChildCount>K.MaxEntries)return XREDIS_ROLE_LIMIT;
++        size_t Node=B.FirstChild;for(size_t N=0;N<B.ChildCount;++N){
++            if(Kind==XREDIS_ROLE_MASTER){xredisrolereplica R;size_t Next;if(!xredisRoleTuple(Reply,Node,&R,&Next))return XREDIS_ROLE_MALFORMED;Node=Next;}
++            else{xredisreplyvalue Name;if(!xredisReplyGet(Reply,Node,&Name) || !xredisRoleString(&Name))return XREDIS_ROLE_MALFORMED;Node=Name.Next;}
++        }
++        if(Node!=XREDIS_REPLY_NONE)return XREDIS_ROLE_MALFORMED;
++        xredisrolecursor Cursor={Reply,B.FirstChild,B.ChildCount,(uint32)Kind};if(Kind==XREDIS_ROLE_MASTER)V.Replicas=Cursor;else V.Monitored=Cursor;
++    }
++    *Output=V;return XREDIS_ROLE_VALUE;
++}
++static bool xredisRoleCursorValid(xredisrolecursor* C,ptr Output,size_t Bytes,xredisrolekind Kind)
++{
++    if(!C || !Output || !xrtMemRangeValid(C,sizeof(*C)) || !xrtMemRangeValid(Output,Bytes) || xrtMemRangesOverlap(C,sizeof(*C),Output,Bytes) || !C->Source || C->Kind!=(uint32)Kind)return xredisRoleArgument("invalid ROLE cursor/output");
++    return true;
++}
++XREDIS_API bool xredisRoleReplicaNext(xredisrolecursor* C,xredisrolereplica* Output)
++{
++    if(!xredisRoleCursorValid(C,Output,sizeof(*Output),XREDIS_ROLE_MASTER))return false;
++    if(!C->Remaining)return false;
++    xredisrolereplica V;size_t Next;if(!xredisRoleTuple(C->Source,C->Next,&V,&Next) || (C->Remaining==1)!=(Next==XREDIS_REPLY_NONE))return xredisRoleArgument("invalid ROLE replica cursor chain");
++    *Output=V;C->Next=Next;--C->Remaining;return true;
++}
++XREDIS_API bool xredisRoleMasterNext(xredisrolecursor* C,xbytesview* Output)
++{
++    if(!xredisRoleCursorValid(C,Output,sizeof(*Output),XREDIS_ROLE_SENTINEL))return false;
++    if(!C->Remaining)return false;
++    xredisreplyvalue V;if(!xredisReplyGet(C->Source,C->Next,&V) || !xredisRoleString(&V) || (C->Remaining==1)!=(V.Next==XREDIS_REPLY_NONE))return xredisRoleArgument("invalid ROLE monitor cursor chain");
++    *Output=V.Data;C->Next=V.Next;--C->Remaining;return true;
++}
++#endif
