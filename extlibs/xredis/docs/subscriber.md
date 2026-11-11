@@ -44,3 +44,7 @@ registration alone does not establish production completeness.
 Protocol references: [Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/),
 [UNSUBSCRIBE](https://redis.io/docs/latest/commands/unsubscribe/),
 [SSUBSCRIBE](https://redis.io/docs/latest/commands/ssubscribe/).
+
+The optional [receive notification leaf](subscriber_notify.md) adds shared
+readability Futures and batch ownership transfer over the same bounded queue.
+The base subscriber remains independently selectable without those fields.

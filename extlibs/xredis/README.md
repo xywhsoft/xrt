@@ -191,12 +191,16 @@ after physical shutdown; no application cache or uncertain replay is implied.
 
 The developing [Pub/Sub wire module](docs/pubsub.md) encodes all six subscription
 controls and PING, and classifies binary RESP2/RESP3 messages, ACKs and contextual
-PONG without allocating. [Offline example](examples/pubsub/README.md). Dedicated
-subscribed connection scheduling, ACK correlation, backpressure and recovery are
-still pending; ordinary Client calls continue to reject subscription mode changes.
+PONG without allocating. [Offline example](examples/pubsub/README.md). The native
+subscriber supplies dedicated scheduling, ACK correlation and bounded delivery;
+recovery remains pending. Ordinary Client calls reject subscription mode changes.
 
 The developing [native subscriber](docs/subscriber.md) dedicates an idle ready
 Client, pipelines validated controls and transfers separately owned messages.
 Confirmed/reserved names, requests and delivery bytes are bounded; sent local
 stops drain their remaining ACKs. Native reconnect/replay and final production
 qualification remain pending. [Runnable example](examples/subscriber/README.md).
+
+Optional `xredis_subscriber_notify` provides shared readability Futures and owned
+batch delivery. See [receive ownership](docs/subscriber_notify.md) and the
+[offline example](examples/subscriber_notify/README.md).

@@ -223,6 +223,22 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_subscriber_notify",
+      "system": "subscriber",
+      "suite": "xredis_subscriber_notify",
+      "description": "Optional shared readability and batch transfers on native Subscriber, excluding TLS/DNS/HTTP/WebSocket/task/process",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xredisClientDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

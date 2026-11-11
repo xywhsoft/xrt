@@ -2825,6 +2825,185 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_subscriber_notify",
+      "system": "subscriber",
+      "description": "Message-only bounded bursts; initial ACK excluded, server enqueue to owned consumption with complete binary/FIFO checks; shared Future/batch versus polling and one-item transfer, not fixed-arrival or production qualification",
+      "benchmarks": [
+        {
+          "name": "xredis_subscriber_notify_wait_batch32",
+          "source": "extlibs/xredis/bench/bench_subscriber_notify.c",
+          "suite": "xredis_subscriber_notify,memory_stats,time",
+          "args": [
+            "8192",
+            "32",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "32",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriber_notify_poll_batch32",
+          "source": "extlibs/xredis/bench/bench_subscriber_notify.c",
+          "suite": "xredis_subscriber_notify,memory_stats,time",
+          "args": [
+            "8192",
+            "32",
+            "32",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "32",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriber_notify_wait_batch1",
+          "source": "extlibs/xredis/bench/bench_subscriber_notify.c",
+          "suite": "xredis_subscriber_notify,memory_stats,time",
+          "args": [
+            "8192",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriber_notify_wait_heap32",
+          "source": "extlibs/xredis/bench/bench_subscriber_notify.c",
+          "suite": "xredis_subscriber_notify,memory_stats,time",
+          "args": [
+            "8192",
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "direction": "higher",
+              "unit": "operations/s"
+            },
+            "p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p95_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "p999_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_operation": {
+              "direction": "lower",
+              "unit": "blocks/operation"
+            },
+            "heap_bytes_per_operation": {
+              "direction": "lower",
+              "unit": "bytes/operation"
+            }
+          }
+        }
+      ]
     }
   ]
 }

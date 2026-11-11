@@ -4,6 +4,23 @@
 #include "redis_init.c"
 #undef main
 #include <xredis/subscriber.h>
+#include <xredis/subscriber_notify.h>
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+static xfuture* SubCloseHints[2];
+static void subscriberHintResult(xfuture* F)
+{xfutureresult R;interopRequire(xrtFutureWaitFor(F,10000)==XWAIT_OK && xrtFutureResult(F,&R) && R.State==XFUTURE_RESOLVED && !R.Value && !R.Error,"real shared readability signal");}
+#endif
+static xredisreply* subscriberTake(xredisclient* C)
+{
+    xredisreply* R=NULL;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    size_t Taken=0;
+    while(!xredisSubscriberTakeBatch(C,&R,1,&Taken)){xfuture* F=NULL;interopRequire(xredisSubscriberReadable(C,&F)==XREDIS_ADMISSION_ACCEPTED,"real message-only readiness");subscriberHintResult(F);xrtFutureDestroy(F);}
+#else
+    double End=xrtTimer()+10;while(!xredisClientTakePush(C,&R)){interopRequire(xrtTimer()<End,"real message deadline");xrtThreadYield();}
+#endif
+    return R;
+}
 static unsigned SubMode,SubTLS,SubAffinity;
 static int SubAuth;
 static void subscriberIdle(xredisclient* C)
@@ -30,8 +47,7 @@ static bool subscriberSame(xbytesview A,xbytesview B)
 {return A.Size==B.Size && (!A.Size || !memcmp(A.Data,B.Data,A.Size));}
 static xredisreply* subscriberMessage(xredisclient* C,xredispubsubkind Kind,xbytesview Channel,xbytesview Pattern,xbytesview Payload)
 {
-    double End=xrtTimer()+10;xredisreply* R=NULL;
-    while(!xredisClientTakePush(C,&R)){interopRequire(xrtTimer()<End,"real message deadline");xrtThreadYield();}
+    xredisreply* R=subscriberTake(C);
     xredispubsubevent E;interopRequire(xredisPubSubEventRead(R,&E)==XREDIS_PUBSUB_EVENT && E.Kind==Kind && subscriberSame(E.Channel,Channel) && subscriberSame(E.Pattern,Pattern) && subscriberSame(E.Payload,Payload),"real binary message/pattern/shard fields");return R;
 }
 static void subscriberPublish(xredisclient* Writer,bool Shard,xbytesview Channel,xbytesview Payload)
@@ -44,10 +60,16 @@ static xfuture* subscriberFlow(xnetengine* Engine,const xnetaddr* A,xredisinitmo
     xfuture* F[3];F[0]=subscriberSubmit(C,XREDIS_PUBSUB_CMD_SUBSCRIBE,Channels,3);F[1]=subscriberSubmit(C,XREDIS_PUBSUB_CMD_PSUBSCRIBE,Patterns,2);F[2]=subscriberSubmit(C,XREDIS_PUBSUB_CMD_SSUBSCRIBE,Shards,2);
     for(size_t N=0;N<3;++N){subscriberOutcome(F[N],N?2:3,XREDIS_REQUEST_OK);xrtFutureDestroy(F[N]);}
     xredissubscriberinfo Info={0};Info.Size=sizeof(Info);interopRequire(xredisSubscriberInfo(C,&Info) && Info.Subscriptions==4 && Info.ShardSubscriptions==2 && Info.Entries==6,"separate real count domains and unique names");
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xfuture* Pending=NULL;interopRequire(xredisSubscriberReadable(C,&Pending)==XREDIS_ADMISSION_ACCEPTED && !xrtFutureDone(Pending),"real pre-publication pending epoch");
+#endif
     subscriberPublish(Writer,false,Channels[0],Payload);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    subscriberHintResult(Pending);xrtFutureDestroy(Pending);
+#endif
     /* Direct and pattern deliveries have no specified cross-family order. */
     bool Direct=false,Pattern=false;
-    for(unsigned N=0;N<2;++N){double End=xrtTimer()+10;xredisreply* R=NULL;while(!xredisClientTakePush(C,&R)){interopRequire(xrtTimer()<End,"binary direct/pattern messages");xrtThreadYield();}
+    for(unsigned N=0;N<2;++N){xredisreply* R=subscriberTake(C);
         xredispubsubevent E;interopRequire(xredisPubSubEventRead(R,&E)==XREDIS_PUBSUB_EVENT && subscriberSame(E.Channel,Channels[0]) && subscriberSame(E.Payload,Payload),"exact binary delivery");
         if(E.Kind==XREDIS_PUBSUB_MESSAGE){interopRequire(!Direct,"one direct delivery");Direct=true;if(!*Retained)*Retained=R;else xredisReplyRelease(R);}
         else{interopRequire(E.Kind==XREDIS_PUBSUB_PMESSAGE && !Pattern && subscriberSame(E.Pattern,Patterns[0]),"one matching pattern");Pattern=true;xredisReplyRelease(R);}
@@ -55,7 +77,7 @@ static xfuture* subscriberFlow(xnetengine* Engine,const xnetaddr* A,xredisinitmo
     interopRequire(Direct && Pattern,"both real delivery families");subscriberPublish(Writer,true,Shards[0],Payload);
     xredisreply* Message=subscriberMessage(C,XREDIS_PUBSUB_SMESSAGE,Shards[0],(xbytesview){NULL,0},Payload);xredisReplyRelease(Message);
     subscriberPublish(Writer,false,Channels[2],Payload);Direct=Pattern=false;
-    for(unsigned N=0;N<2;++N){double End=xrtTimer()+10;Message=NULL;while(!xredisClientTakePush(C,&Message)){interopRequire(xrtTimer()<End,"empty-name messages");xrtThreadYield();}
+    for(unsigned N=0;N<2;++N){Message=subscriberTake(C);
         xredispubsubevent E;interopRequire(xredisPubSubEventRead(Message,&E)==XREDIS_PUBSUB_EVENT && !E.Channel.Size && subscriberSame(E.Payload,Payload),"empty-name message bytes");
         if(E.Kind==XREDIS_PUBSUB_MESSAGE){interopRequire(!Direct,"one empty direct");Direct=true;}else{interopRequire(E.Kind==XREDIS_PUBSUB_PMESSAGE && !Pattern && !E.Pattern.Size,"empty pattern");Pattern=true;}xredisReplyRelease(Message);
     }
@@ -72,6 +94,9 @@ static xfuture* subscriberFlow(xnetengine* Engine,const xnetaddr* A,xredisinitmo
     xbytesview ACL[]={XRT_BYTES_LITERAL("ACL"),XRT_BYTES_LITERAL("SETUSER"),User,XRT_BYTES_LITERAL("resetchannels"),XRT_BYTES_LITERAL("&xs:*")};
     F[0]=interopCall(Writer,ACL,5);xrtFutureDestroy(F[0]);xbytesview Denied=XRT_BYTES_LITERAL("denied");xfuture* Error=subscriberSubmit(C,XREDIS_PUBSUB_CMD_SUBSCRIBE,&Denied,1);subscriberOutcome(Error,0,XREDIS_REQUEST_SERVER_ERROR);
     ACL[4]=(xbytesview)XRT_BYTES_LITERAL("&*");F[0]=interopCall(Writer,ACL,5);xrtFutureDestroy(F[0]);subscriberIdle(C);interopRequire(xredisSubscriberInfo(C,&Info) && !Info.Entries,"server rejection releases persistent-name reservation");
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    unsigned Slot=Mode==XREDIS_INIT_RESP2?0:1;interopRequire(xredisSubscriberReadable(C,&SubCloseHints[Slot])==XREDIS_ADMISSION_ACCEPTED && !xrtFutureDone(SubCloseHints[Slot]),"real pending physical-close epoch");
+#endif
     interopClose(C);interopClose(Writer);return Error;
 }
 int main(int Argc,char** Argv)
@@ -88,7 +113,11 @@ int main(int Argc,char** Argv)
     xfuture* Errors[2];Errors[0]=subscriberFlow(Engine,&A,XREDIS_INIT_RESP2,Argv[6],&Retained);Errors[1]=subscriberFlow(Engine,&A,XREDIS_INIT_RESP3,Argv[6],&Retained);
     interopRequire(xrtNetResolverDestroy(InteropResolver) && xrtNetEngineStop(Engine) && xrtNetEngineDestroy(Engine),"all native physical owners retired");
     xredispubsubevent E;interopRequire(Retained && xredisPubSubEventRead(Retained,&E)==XREDIS_PUBSUB_EVENT && E.Payload.Size==4,"owned message survives every transport and Engine");xredisReplyRelease(Retained);
-    for(unsigned N=0;N<2;++N){subscriberOutcome(Errors[N],0,XREDIS_REQUEST_SERVER_ERROR);xrtFutureDestroy(Errors[N]);}
+    for(unsigned N=0;N<2;++N){subscriberOutcome(Errors[N],0,XREDIS_REQUEST_SERVER_ERROR);xrtFutureDestroy(Errors[N]);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+        subscriberHintResult(SubCloseHints[N]);xrtFutureDestroy(SubCloseHints[N]);
+#endif
+    }
     if(Trust)xrtTlsVerifierRelease(Trust);
     if(Context)xrtTlsContextRelease(Context);
     printf("[PASS] real native subscriber RESP2/3: binary/empty/duplicate patterns and shards, publish sets, pipelined ACKs/counts, unsub-all/null/PONG, ACL error and retained owners; mode=%u TLS=%u auth=%d\n",SubMode,SubTLS,SubAuth);return 0;

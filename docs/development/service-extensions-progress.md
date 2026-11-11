@@ -10635,3 +10635,80 @@ products remain developing and the full long-term goal remains active.
 Evidence: [portable report](service-extensions-mainline-workspace-20261111.json),
 raw source maps/commands/binary hashes/logs and historical archive under
 out/service-extensions/mainline-workspace-20261111.
+
+
+## 2026-11-11: subscriber readiness and batch ownership
+
+Implemented directly on master from c39ba0e8. The optional developing
+xredis_subscriber_notify leaf adds shared readability Futures and FIFO batch
+transfers over existing numeric/DNS/prepared/TLS native subscribers. No Core API,
+worker, shared runtime, public structure layout or request tag is added.
+
+One pending epoch is shared. Empty-queue rearming allocates outside Gate; one
+constructor flag bounds concurrent construction and prevents early Engine unpin.
+Messages detach the pending Promise under the existing queue lock and resolve
+outside it on the owner worker. Physical close wakes any remaining epoch before
+unpinning. Ready new Futures resolve before publication. Hints reserve no message;
+private cancelable waits/detached Watches do not stop subscriptions or siblings.
+Batch take transfers queue-owned references with one Gate acquisition, no retain,
+allocation, payload copy/scan or per-item division; generic TakePush shares FIFO.
+Queued replies and terminal hints outlive physical transport/Engine ownership.
+
+Windows/WSL root 24 programs, focused leaf, bare/TLS singles, base-without-notify
+bare/TLS compatibility singles and the offline example pass. WSL fully instruments
+ASan/UBSan/leak halt and both new singles under TSan. Tests cover shared/private
+cancellation, RESP2/3, ring wrap/prefix tails/aliases/ambient errors, callbacks that
+take/rearm/close, four competing consumers with 1024 unique owners, 16 eight-thread
+constructor/close races and caller allocation quotas 1..2048. Single-TU probes hold
+actual stopped transports behind a constructor reservation, test publication/
+rollback waking final close, and queue an already-parsed frame after logical close.
+Producer signal, repeated pending observation and batch transfer allocation traps
+assert zero peak charged bytes and zero rejections.
+
+The initial full-root runs failed a premature zero-live snapshot after logical
+signal: a worker can still own the detached Promise before returning from Resolve.
+No production workaround or sanitizer weakening was applied. The corrected test
+records live tails then observes a subsequent owner-worker turn before requiring
+zero quota duties. Observed tails: Windows 4, WSL 6. Original frozen inputs, failures
+and actual failed binaries remain. New normal passed artifacts retain the final
+2608-input identity; failed states are not relabelled.
+
+Nine actual native forms pass 243 disposable Redis 8.0.5 cases / 486 RESP2/3 flows:
+TCP/TLS1.2/TLS1.3 × numeric/DNS/prepared × none/password/ACL. They call the receive
+APIs and retain close hints after Engine destruction; native TLS writes use three
+bytes per turn. Each server PID/run identity is checked before mutation and every
+complete matrix confirms all children/material removed. Windows single initially
+passed 19 cases then the controller timed out in its native-loopback health check
+before launching the next C probe. Its partial report/log are preserved. The same
+binary and unchanged startup deadline pass the complete retry; the already-passing
+modular matrix was reused instead of restarted.
+
+Actual static/shared SDK and isolated declaration consumers execute both new APIs;
+the example arms a pending epoch before subscribing. DLL/ELF exports match 102
+public functions with no internal hooks. API docs cover 102 functions, 176 constants
+and 71 types with none missing. All six size forms/forbidden-symbol gates pass.
+Compiler probes keep request 104 bytes and Client/control/entry sizes unchanged.
+Optional mode header 168→192; feature-off mode remains 168 on both targets. Cold
+Core signal construction requests two blocks: Windows 272 bytes, WSL 480 bytes;
+sharing adds no allocation and all cold quota duties return after physical owners.
+
+Serial performance samples follow all functional/compilation jobs. Seven samples
+plus one warmup, calibrated common counts and unchanged 3% MAD/6% central-span gates
+retain every raw sample. Ordinary old/current objects share the same other runtime
+objects and pair each reply with one unobserved Tracking PUSH, no observation ring.
+windows: depth1 throughput 0.9957x (qualified), P99 1.0000x (unqualified); depth32 throughput 1.0040x (qualified), P99 0.9651x (qualified).
+wsl: depth1 throughput 0.9930x (qualified), P99 1.0061x (qualified); depth32 throughput 0.9967x (qualified), P99 0.9762x (unqualified).
+Matched native control-ACK/message comparisons, with no readability observer:
+windows: depth1 throughput 0.9999x (qualified), P99 0.9957x (unqualified); depth32 throughput 0.9948x (unqualified), P99 1.1219x (unqualified).
+wsl: depth1 throughput 0.9981x (qualified), P99 1.0117x (qualified); depth32 throughput 0.9844x (qualified), P99 0.9998x (unqualified).
+Message-only burst workloads separately record throughput and individual-message
+P50/P95/P99/P99.9 for wait/batch32, polling/batch32 and wait/batch1; requested heap
+is a separate instrumented run. Initial logical ACK/readiness precede timing; its
+bounded mechanical tail is not explicitly joined and can overlap the first burst.
+This is not fixed-arrival, callback-streaming or isolated cold-setup qualification.
+No speedup, no-regression or production-tail claim is made from failed noise gates.
+
+Desired-state/reconnect/replay and the complete four-library goal remain active.
+CPU/RSS, upstream/pinned/native-Linux mixed-load and>=72h production gates remain
+open. Evidence: [portable report](../../extlibs/xredis/tests/results/subscriber-notify-20261111.json)
+and out/service-extensions/xredis-subscriber-notify-20261111.

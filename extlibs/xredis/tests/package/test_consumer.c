@@ -120,8 +120,17 @@ static int testPubSubPackage(void)
 #include "../../examples/subscriber/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+#define main subscriberNotifyPackageExample
+#include "../../examples/subscriber_notify/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    int NotifyResult=subscriberNotifyPackageExample();if(NotifyResult)return NotifyResult;
+#endif
+
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
     int SubscriberResult=subscriberPackageExample();if(SubscriberResult)return SubscriberResult;
 #endif

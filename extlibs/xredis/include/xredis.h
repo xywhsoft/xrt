@@ -81,4 +81,9 @@
 #endif
 #include <xredis/subscriber.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY"
+#endif
+#include <xredis/subscriber_notify.h>
+
 #endif

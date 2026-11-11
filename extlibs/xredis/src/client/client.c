@@ -1,6 +1,7 @@
 #include <xredis/client.h>
 #include <xredis/tracking.h>
 #include <xredis/subscriber.h>
+#include <xredis/subscriber_notify.h>
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
 #include <xrt/hash.h>
 #endif
@@ -69,6 +70,11 @@ typedef struct xredissubscriber {
     xredissubscriberconfig Config;xredissubscriberinfo Info;
     size_t StorageBytes,Buckets,Entries,NameBytes,EntryBytes,Counts[3];
     xredissubentry* Head;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xpromise* ReadablePromise;
+    xfuture* ReadableFuture;
+    bool ReadablePreparing;
+#endif
     xredissubentry* Table[];
 } xredissubscriber;
 typedef struct xredissubcall {
@@ -84,6 +90,9 @@ static bool xredisSubscriberCloseStep(xredisclient* Client);
 static bool xredisSubscriberPrepare(xredisrequest* Request);
 static void xredisSubscriberWritten(xredisrequest* Request);
 static void xredisSubscriberFrame(xredisclient* Client,xredisreply* Reply,const xredisreplyvalue* Root,size_t Bytes);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+static void xredisSubscriberNotify(xpromise* Promise);
+#endif
 #define XREDIS_SUBSCRIBER_RETIRE(R) do{if((R)->Observe>=5)xredisSubscriberRetire(R);}while(0)
 #else
 #define XREDIS_SUBSCRIBER_RETIRE(R) ((void)0)
@@ -1538,8 +1547,18 @@ static void xredisClientWork(xnetworker* Worker, ptr Data)
 #if defined(XREDIS_FEATURE_XREDIS_DIAL)
 	Done = Done && !Client->PlanPending;
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    Done=Done && (!Subscriber || !Subscriber->ReadablePreparing);
+    xpromise* ReadableSignal=NULL;
+    if(Subscriber && Subscriber->ReadablePromise && (Client->Info.Pushes || Done)){
+        ReadableSignal=Subscriber->ReadablePromise;Subscriber->ReadablePromise=NULL;
+    }
+#endif
 	if (Done) { Client->CloseDone = true; Client->Info.State = XREDIS_CLIENT_CLOSED; Client->EnginePinned = false; }
 	xrtMutexUnlock(&Client->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xredisSubscriberNotify(ReadableSignal);
+#endif
 	if (Done) {
 		xpromise* Promise = Client->ClosePromise; Client->ClosePromise = NULL;
 		xrtNetStreamDestroy(Client->Stream); Client->Stream = NULL;
@@ -2254,6 +2273,9 @@ static void xredisSubscriberRelease(xredisclient* C)
 {
     xredissubscriber* M=xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_RELAXED);if(!M)return;
     while(M->Head)xredisSubscriberDelete(M,M->Head,true);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xrtPromiseDestroy(M->ReadablePromise);xrtFutureDestroy(M->ReadableFuture);
+#endif
     xrtFree(M);
 }
 static bool xredisSubscriberPrepare(xredisrequest* R)
@@ -2306,10 +2328,21 @@ static void xredisSubscriberWritten(xredisrequest* R)
 {if(R->Observe>=5){xredisSubscriberState(R)->Written=true;xredisSubscriberFinish(R);}}
 static bool xredisSubscriberQueue(xredisclient* C,xredissubscriber* M,xredisreply* Reply,size_t Bytes,bool Message)
 {
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xpromise* Signal=NULL;
+#endif
     xrtMutexLock(&C->Gate);bool Fits=C->Info.Pushes<C->Config.MaxPushes && Bytes<=C->Config.MaxPushBytes-C->Info.PushBytes;
     if(Fits){size_t N=(C->PushHead+C->Info.Pushes)%C->Config.MaxPushes;C->PushQueue[N]=Reply;++C->Info.Pushes;C->Info.PushBytes+=Bytes;
-        if(Message)++M->Info.Messages;else ++M->Info.Sidebands;}
-    xrtMutexUnlock(&C->Gate);return Fits;
+        if(Message)++M->Info.Messages;else ++M->Info.Sidebands;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+        Signal=M->ReadablePromise;if(Signal)M->ReadablePromise=NULL;
+#endif
+    }
+    xrtMutexUnlock(&C->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+    xredisSubscriberNotify(Signal);
+#endif
+    return Fits;
 }
 static void xredisSubscriberFrame(xredisclient* C,xredisreply* Reply,const xredisreplyvalue* Root,size_t Bytes)
 {
@@ -2584,6 +2617,79 @@ XREDIS_API xfuture* xredisClientClosed(xredisclient* Client)
 	if (Client == NULL) { xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "client is NULL"); return NULL; }
 	return xrtFutureRef(Client->CloseFuture);
 }
+
+
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY)
+static void xredisSubscriberNotify(xpromise* Promise)
+{if(Promise){(void)xrtPromiseResolve(Promise,NULL);xrtPromiseDestroy(Promise);}}
+static bool xredisSubscriberOutput(xredisclient* C,void* Output,size_t Bytes,xredissubscriber** Mode)
+{
+    if(!C || !Output || !xrtMemRangeValid(Output,Bytes) || xrtMemRangesOverlap(C,C?C->StorageBytes:0,Output,Bytes))return false;
+    *Mode=xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_ACQUIRE);
+    return !*Mode || !xrtMemRangesOverlap(*Mode,(*Mode)->StorageBytes,Output,Bytes);
+}
+/* Preparing protects the owning Engine activation until unexposed Future
+ * resources are destroyed and the replacement epoch is fully published. */
+static void xredisSubscriberPrepared(xredisclient* C,xredissubscriber* M)
+{
+    xrtMutexLock(&C->Gate);M->ReadablePreparing=false;
+    if(C->Info.State>=XREDIS_CLIENT_CLOSING && !C->CloseDone)(void)xredisClientWakeLocked(C);
+    xrtMutexUnlock(&C->Gate);
+}
+XREDIS_API xredisadmission xredisSubscriberReadable(xredisclient* C,xfuture** Output)
+{
+    xredissubscriber* M=NULL;
+    if(!xredisSubscriberOutput(C,Output,sizeof(*Output),&M)){
+        xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid subscriber readiness output");return XREDIS_ADMISSION_ERROR;
+    }
+    if(!M){xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"subscriber mode is not active");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&C->Gate);
+    if(C->CloseDone && !C->Info.Pushes){xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_CLOSED;}
+    if(M->ReadableFuture && (M->ReadablePromise || C->Info.Pushes)){
+        xfuture* F=xrtFutureRef(M->ReadableFuture);if(F)*Output=F;
+        xrtMutexUnlock(&C->Gate);return F?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_ERROR;
+    }
+    if(M->ReadablePreparing){xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_OVERLOADED;}
+    M->ReadablePreparing=true;xrtMutexUnlock(&C->Gate);
+    xfuture* F=NULL;xfuture* Returned=NULL;xpromise* P=xrtPromiseCreate(&F,NULL);
+    if(P)Returned=xrtFutureRef(F);
+    if(!P || !Returned){xrtPromiseDestroy(P);xrtFutureDestroy(F);xredisSubscriberPrepared(C,M);return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&C->Gate);
+    if(C->CloseDone && !C->Info.Pushes){
+        xrtMutexUnlock(&C->Gate);xrtPromiseDestroy(P);xrtFutureDestroy(F);xrtFutureDestroy(Returned);
+        xredisSubscriberPrepared(C,M);return XREDIS_ADMISSION_CLOSED;
+    }
+    if(C->Info.Pushes || C->CloseDone){
+        xrtMutexUnlock(&C->Gate);xredisSubscriberNotify(P);P=NULL;xrtMutexLock(&C->Gate);
+    }
+    xfuture* Old=M->ReadableFuture;M->ReadableFuture=F;M->ReadablePromise=P;
+    xrtMutexUnlock(&C->Gate);xrtFutureDestroy(Old);
+    /* No fallible operation follows publication. Keep Preparing until the old
+     * reference is dropped; a closing worker must observe the final epoch. */
+    xrtMutexLock(&C->Gate);M->ReadablePreparing=false;*Output=Returned;
+    if(C->Info.State>=XREDIS_CLIENT_CLOSING && !C->CloseDone)(void)xredisClientWakeLocked(C);
+    xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_ACCEPTED;
+}
+XREDIS_API bool xredisSubscriberTakeBatch(xredisclient* C,xredisreply** Replies,size_t Capacity,size_t* Taken)
+{
+    xredissubscriber *M=NULL,*Other=NULL;
+    if(!Capacity || Capacity>SIZE_MAX/sizeof(*Replies) ||
+        !xredisSubscriberOutput(C,Replies,Capacity*sizeof(*Replies),&M) ||
+        !xredisSubscriberOutput(C,Taken,sizeof(*Taken),&Other) ||
+        xrtMemRangesOverlap(Replies,Capacity*sizeof(*Replies),Taken,sizeof(*Taken)))
+        return xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid subscriber batch outputs");
+    if(!M)return xredisClientReport(XERR_STATE,XREDIS_CLIENT_STATE,"subscriber mode is not active");
+    xrtMutexLock(&C->Gate);size_t Count=C->Info.Pushes<Capacity?C->Info.Pushes:Capacity;
+    if(!Count){xrtMutexUnlock(&C->Gate);return false;}
+    size_t Bytes=0,Head=C->PushHead,Limit=C->Config.MaxPushes;
+    for(size_t N=0;N<Count;++N){
+        xredisreply* R=C->PushQueue[Head];C->PushQueue[Head]=NULL;
+        if(++Head==Limit)Head=0;
+        xredisreplyinfo I={0};I.Size=sizeof(I);(void)xredisReplyInfo(R,&I);Bytes+=I.ReservedBytes;Replies[N]=R;
+    }
+    C->PushHead=Head;C->Info.Pushes-=Count;C->Info.PushBytes-=Bytes;*Taken=Count;xrtMutexUnlock(&C->Gate);return true;
+}
+#endif
 
 #endif
 

@@ -396,7 +396,8 @@
         "xredis_pool_connect",
         "xredis_tracking",
         "xredis_pubsub",
-        "xredis_subscriber"
+        "xredis_subscriber",
+        "xredis_subscriber_notify"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -815,7 +816,8 @@
         "xredis_pool_sessions_tests",
         "xredis_pool_connect_tests",
         "xredis_caching_tests",
-        "xredis_subscriber_tests"
+        "xredis_subscriber_tests",
+        "xredis_subscriber_notify_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -839,7 +841,8 @@
         "extlibs/xredis/tests/test_tracking.c",
         "extlibs/xredis/tests/test_caching.c",
         "extlibs/xredis/tests/test_pubsub.c",
-        "extlibs/xredis/tests/test_subscriber.c"
+        "extlibs/xredis/tests/test_subscriber.c",
+        "extlibs/xredis/tests/test_subscriber_notify.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -862,7 +865,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_pubsub.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscriber.c",
-        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -892,7 +897,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c": "xredis_caching_tests",
         "extlibs/xredis/tests/single/test_single_xredis_pubsub.c": "xredis_pubsub",
         "extlibs/xredis/tests/single/test_single_xredis_subscriber.c": "xredis_subscriber",
-        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c": "xredis_subscriber_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c": "xredis_subscriber_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify.c": "xredis_subscriber_notify",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify_tls.c": "xredis_subscriber_notify_tests"
       }
     },
     {
@@ -1041,6 +1048,61 @@
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
+    },
+    {
+      "name": "xredis_subscriber_notify",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY",
+      "depends": [
+        "xredis_subscriber"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/subscriber_notify.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/client/client.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_subscriber_notify.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/subscriber_notify/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_subscriber_notify.c"
+      ],
+      "docs": [
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/docs/subscriber_notify.md"
+      ]
+    },
+    {
+      "name": "xredis_subscriber_notify_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_subscriber_notify",
+        "xredis_tls",
+        "tls_identity_rsa",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_subscriber_notify.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_notify_tls.c"
       ],
       "examples": [],
       "benchmarks": [],

@@ -1,0 +1,11 @@
+#define XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY
+#define XRT_FEATURE_MEMORY_STATS
+#define XREDIS_FEATURE_XREDIS_TLS
+#define XRT_FEATURE_TLS_IDENTITY_RSA
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#define XREDIS_SUBSCRIBER_NOTIFY_WHITEBOX
+#include "../test_subscriber_notify.c"

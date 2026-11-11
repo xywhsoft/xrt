@@ -43,3 +43,10 @@ The Windows command performance smoke has a single sample and no external
 comparator. It establishes workload execution only, not a stable baseline,
 latency target or performance acceptance. The writer copies payloads once and
 is not an end-to-end zero-copy transport.
+
+Optional receive notification and batch transfer now have the documented
+`xredis_subscriber_notify` leaf; see [contracts](subscriber_notify.md). Shared
+readability, physical-close wake, FIFO owned batches, private wait cancellation,
+callback reentry, allocation rollback and competing consumers are covered by its
+focused modular/single/TLS tests. Desired-state replay and reconnection remain
+separate incomplete subscriber work.
