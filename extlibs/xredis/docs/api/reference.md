@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `145` 个函数、`241` 个常量或宏、
-`109` 个公共类型。
+当前登记 `155` 个函数、`265` 个常量或宏、
+`121` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -103,6 +103,65 @@
 - `xredisreplyreaderconfig`
 - `xredisrequestresult`
 - `xredisrequeststatus`
+
+## `extlibs/xredis/include/xredis/cluster_topology.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_topology.h)
+
+### 函数 (10)
+
+- `xredisClusterKeySlot`
+- `xredisClusterLimitsInit`
+- `xredisClusterRedirectRead`
+- `xredisClusterTopologyCreate`
+- `xredisClusterTopologyInfo`
+- `xredisClusterTopologyLookup`
+- `xredisClusterTopologyNode`
+- `xredisClusterTopologyRange`
+- `xredisClusterTopologyRelease`
+- `xredisClusterTopologyRetain`
+
+### 常量与宏 (24)
+
+- `XREDIS_CLUSTER_ABSENT`
+- `XREDIS_CLUSTER_ASK`
+- `XREDIS_CLUSTER_ENDPOINT_HOST`
+- `XREDIS_CLUSTER_ENDPOINT_SOURCE`
+- `XREDIS_CLUSTER_ENDPOINT_UNKNOWN`
+- `XREDIS_CLUSTER_ERROR`
+- `XREDIS_CLUSTER_FAILED`
+- `XREDIS_CLUSTER_HEALTH_OTHER`
+- `XREDIS_CLUSTER_LEGACY_SLOTS`
+- `XREDIS_CLUSTER_LIMIT`
+- `XREDIS_CLUSTER_LOADING`
+- `XREDIS_CLUSTER_MALFORMED`
+- `XREDIS_CLUSTER_MASTER`
+- `XREDIS_CLUSTER_MEMORY`
+- `XREDIS_CLUSTER_MOVED`
+- `XREDIS_CLUSTER_ONLINE`
+- `XREDIS_CLUSTER_REPLICA`
+- `XREDIS_CLUSTER_ROLE_OTHER`
+- `XREDIS_CLUSTER_SERVER_ERROR`
+- `XREDIS_CLUSTER_SHARDS`
+- `XREDIS_CLUSTER_SLOTS`
+- `XREDIS_CLUSTER_UNREPORTED`
+- `XREDIS_CLUSTER_VALUE`
+- `XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY`
+
+### 类型 (12)
+
+- `xredisclusterendpoint`
+- `xredisclusterformat`
+- `xredisclusterhealth`
+- `xredisclusterlimits`
+- `xredisclusternode`
+- `xredisclusterrange`
+- `xredisclusterredirect`
+- `xredisclusterredirectkind`
+- `xredisclusterrole`
+- `xredisclusterstatus`
+- `xredisclustertopology`
+- `xredisclustertopologyinfo`
 
 ## `extlibs/xredis/include/xredis/command.h`
 

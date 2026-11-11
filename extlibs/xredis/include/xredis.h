@@ -114,4 +114,9 @@
 #endif
 #include <xredis/sentinel_pool.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY"
+#endif
+#include <xredis/cluster_topology.h>
+
 #endif

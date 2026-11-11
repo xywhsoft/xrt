@@ -11097,3 +11097,64 @@ optional Sentinel refresh/events, Cluster and full four-library native Linux/
 upstream/fixed-arrival/CPU/RSS/mixed-load/72h acceptance remain active work.
 Evidence: [portable report](../../extlibs/xredis/tests/results/sentinel-pool-20261112.json)
 and out/service-extensions/xredis-sentinel-pool-20261111.
+
+
+## 2026-11-12: immutable Cluster topology and redirect views
+
+Developed directly on master from f7326aab. The developing
+xredis_cluster_topology leaf adds10 APIs for binary key slots, MOVED/ASK views,
+SHARDS RESP2/3 and legacy SLOTS snapshots. Construction validates complete
+shapes twice, rejects bad/overlapping slot ranges and duplicate known fields,
+and records node roles, health, full signed64-bit offsets and TCP/TLS ports.
+Null/empty endpoints explicitly require the query-origin host; '?' remains
+unknown. Partial/empty maps are represented unless full coverage is required.
+One allocation owns a fixed32KiB index and node/range descriptors; one retained
+Reply owns all text, future fields and attributes and counts toward owned caps.
+Lookup validates output spans/aliases before O(1) slot access and descriptor
+copy, without allocation, locks, refcount changes or text scans. Snapshots
+support synchronized concurrent references. No C transport or replay is added.
+Subscriptions now share the private table-driven CRC/hash-tag implementation;
+existing client/pool sources, layouts and DTOs remain unchanged.
+
+Windows39/WSL40 functional programs include31 root programs each, focused
+units, legacy feature-off ROLE, new bare single and offline example. WSL runs
+ASan/UBSan/leak halt and new single TSan. Whole-root module-selector single
+examples pass separately on both hosts. Fragmentation, independent12000 binary
+CRC keys, complete slot indexes, source-owner release, output aliases, exact
+caps/one-byte real OOM and concurrent final retirement pass. Static/shared SDK
+and isolated declaration consumers exercise all10 APIs. All8 modular/single/
+static/shared forms agree with182 independent topology cases and4103 binary
+key oracles per form. Each host's four forms additionally project36 real
+SHARDS/SLOTS RESP2/3 ip/hostname/unknown-endpoint replies per form from an owned
+three-master Redis8.0.5 Cluster, compare133 KEYSLOT results and parse real MOVED/
+ASK replies. Fixture IDs precede mutation; all processes/materials retire.
+Six size forms and additional product/core symbol gates exclude network,
+threads, futures, TLS/HTTP/tasks/process APIs; no internal helper is exported.
+
+Preselected single-CPU component measurements run serially after all functional/
+delivery jobs end. One warmup plus7 samples uses calibrated common counts for
+a350ms target in the current variant;3% MAD/6% central-span gates are unchanged.
+All current/baseline component series qualify. Hot one-node sequential lookup
+median batch means are6.458ns Windows/7.354ns WSL; keyslot17.595/19.105ns;
+redirect35.094/38.070ns. Separate instrumentation finds zero hot heap calls,
+while one-node/full-range snapshot create/release makes one33016-byte allocation
+(excludes preexisting retained Reply). The same component with only CRC replaced
+by the old private bit loop takes19.622/21.552ns per tagged short key. These are
+local bulk means, not per-request quantiles, network latency or production
+throughput. The base revision had no Cluster API; this is an algorithm control,
+not historical Cluster-client parity. No performance rerun selected a green
+sample, and no gate threshold was relaxed.
+
+Initial script metadata-key errors and strict warning fixes are described in
+the report. Focused units initially passed before an unselected core thread-key
+example failed; examples now run separately with the actual extension suite.
+The first Windows size invocation omitted the explicit extension config and
+returned unknown-profile before measurement; the corrected invocation passes.
+Available development logs/generator inputs are retained, and the report
+explicitly notes the overwritten initial probe compiler log. All formal inputs
+are the same2755-file source map; all started jobs are terminal. Automatic
+Cluster pools/routing, exclusive ASKING execution, bounded original-deadline
+redirect/refresh, replica policy and resharding/failover remain work, as do the
+full four-library native Linux/upstream/mixed-load/CPU/RSS/fixed-arrival/72h gates.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-topology-20261112.json)
+and out/service-extensions/xredis-cluster-topology-20261112.

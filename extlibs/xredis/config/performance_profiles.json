@@ -4021,6 +4021,113 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_cluster_topology",
+      "system": "cluster_topology",
+      "description": "Local immutable topology lookup, CRC key slot, cold construction and redirect classification; excludes networking",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_lookup",
+          "source": "extlibs/xredis/bench/bench_cluster_topology.c",
+          "suite": "xredis_cluster_topology,time,memory_stats",
+          "args": [
+            "10000000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_keyslot",
+          "source": "extlibs/xredis/bench/bench_cluster_topology.c",
+          "suite": "xredis_cluster_topology,time,memory_stats",
+          "args": [
+            "10000000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_create",
+          "source": "extlibs/xredis/bench/bench_cluster_topology.c",
+          "suite": "xredis_cluster_topology,time,memory_stats",
+          "args": [
+            "10000",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_redirect",
+          "source": "extlibs/xredis/bench/bench_cluster_topology.c",
+          "suite": "xredis_cluster_topology,time,memory_stats",
+          "args": [
+            "10000000",
+            "3",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "3",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

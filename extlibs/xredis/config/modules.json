@@ -152,6 +152,13 @@
         "source_roots": [
           "sentinel_pool"
         ]
+      },
+      {
+        "name": "cluster_topology",
+        "state": "retained",
+        "source_roots": [
+          "cluster_topology"
+        ]
       }
     ]
   },
@@ -431,7 +438,8 @@
         "xredis_role",
         "xredis_role_client",
         "xredis_sentinel",
-        "xredis_sentinel_pool"
+        "xredis_sentinel_pool",
+        "xredis_cluster_topology"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -734,7 +742,9 @@
       "public_headers": [
         "extlibs/xredis/include/xredis/reply.h"
       ],
-      "internal_headers": [],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/cluster_reply.h"
+      ],
       "sources": [
         "extlibs/xredis/src/reply/reply.c"
       ],
@@ -856,7 +866,8 @@
         "xredis_subscription_session_tests",
         "xredis_role_client_tests",
         "xredis_sentinel_tests",
-        "xredis_sentinel_pool_tests"
+        "xredis_sentinel_pool_tests",
+        "xredis_cluster_topology"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -887,7 +898,8 @@
         "extlibs/xredis/tests/test_role.c",
         "extlibs/xredis/tests/test_role_client.c",
         "extlibs/xredis/tests/test_sentinel.c",
-        "extlibs/xredis/tests/test_sentinel_pool.c"
+        "extlibs/xredis/tests/test_sentinel_pool.c",
+        "extlibs/xredis/tests/test_cluster_topology.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -923,7 +935,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c",
-        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -966,7 +979,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_sentinel.c": "xredis_sentinel",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_tls.c": "xredis_sentinel_tests",
         "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool.c": "xredis_sentinel_pool",
-        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c": "xredis_sentinel_pool_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_sentinel_pool_tls.c": "xredis_sentinel_pool_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c": "xredis_cluster_topology"
       }
     },
     {
@@ -1186,7 +1200,8 @@
         "extlibs/xredis/include/xredis/subscriptions.h"
       ],
       "internal_headers": [
-        "extlibs/xredis/src/internal/subscription_replay.h"
+        "extlibs/xredis/src/internal/subscription_replay.h",
+        "extlibs/xredis/src/internal/cluster_slot.h"
       ],
       "sources": [
         "extlibs/xredis/src/subscriptions/subscriptions.c"
@@ -1492,6 +1507,41 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/sentinel_pool.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_topology",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+      "depends": [
+        "xredis_reply"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/cluster_topology.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/cluster_slot.h",
+        "extlibs/xredis/src/internal/cluster_reply.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/cluster_topology/cluster_topology.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_topology.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/cluster_topology/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_cluster_topology.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/cluster_topology.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/cluster_topology/README.md"
       ]
     }
   ]

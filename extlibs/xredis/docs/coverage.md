@@ -59,3 +59,10 @@ The developing subscription-session controller adds actual worker factories, sha
 attempt deadlines, physical-retirement-before-retry, bounded jitter, persistent
 control claims and live incremental desired-set reconciliation. This does not
 complete Sentinel/Cluster, mixed-load or production long-run acceptance.
+
+## Cluster topology
+
+The developing `xredis_cluster_topology` leaf covers RESP2/3 SHARDS, legacy
+SLOTS, bounded immutable lifetime, indexed slots and borrowed MOVED/ASK views.
+Automatic Cluster connection/routing, ASKING execution, refresh, resharding and
+production acceptance remain open. See [contracts](cluster_topology.md).

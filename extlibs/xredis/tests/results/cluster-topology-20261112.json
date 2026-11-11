@@ -1,0 +1,4324 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "f7326aabcf4982b66e3b6b0a6c65efe80f773469",
+  "scope": "Immutable bounded Cluster SHARDS/SLOTS routing snapshots, binary key slots and borrowed MOVED/ASK projections. No automatic Cluster request executor.",
+  "state": "developing",
+  "production_acceptance": false,
+  "source_inputs": 2755,
+  "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+  "functional": {
+    "windows": {
+      "programs": 39,
+      "root_programs": 31,
+      "receipts": [
+        {
+          "label": "focused",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_topology,memory_stats,thread",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 2.469,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-focused.log",
+          "log_sha256": "34a208656233972a6c76982eec883b5fd7751b0f796d7c6b0c971cacdda4370d",
+          "programs": 5,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology,memory_stats,thread\\test_cluster_topology.exe",
+              "sha256": "871f1cb46379908efafbe9ef521722356de9df9151ab6311ac28a0bc38ff0072",
+              "preserved": "validated-binaries/windows/focused/test_cluster_topology.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology,memory_stats,thread\\test_memory_stats.exe",
+              "sha256": "951a22644bcad05ccd41d8fce38f80f2b234207a91ae8ef554dd49e7803ea1b0",
+              "preserved": "validated-binaries/windows/focused/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology,memory_stats,thread\\test_memory_stats_threads.exe",
+              "sha256": "41e2d4ea5d7b15eb97a4cbf4ff7fcc345efdb56bfb0e6d15c0338128fe9cd345",
+              "preserved": "validated-binaries/windows/focused/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology,memory_stats,thread\\test_thread.exe",
+              "sha256": "0019430b74812289b4804fcf46e4ca8e58b731a52d667d1ea8207d4169f402fe",
+              "preserved": "validated-binaries/windows/focused/test_thread.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology,memory_stats,thread\\test_thread_oom.exe",
+              "sha256": "422bdaf5c2396af57068ff4cf7f3bd94a15b292c30de499e12672180fe15e5b5",
+              "preserved": "validated-binaries/windows/focused/test_thread_oom.exe"
+            }
+          ]
+        },
+        {
+          "label": "root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 208.219,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-root.log",
+          "log_sha256": "441b6d25fe25870c5825055375cf0e255cc55e08116fdc072004e5cc5a3c643e",
+          "programs": 31,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_command.exe",
+              "sha256": "35ae64050b293acd36f9e1c2a8345364b9731db39257e0c1cc49c80135af95d4",
+              "preserved": "validated-binaries/windows/root/test_command.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_reader.exe",
+              "sha256": "8231e00b08f1ab6d0974058ab68228e8dc4972f9fbd23cc882a65e16779bf584",
+              "preserved": "validated-binaries/windows/root/test_reader.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_reply.exe",
+              "sha256": "636883fcfa0622161c754c0a12a638308e6e8e1ef7e30ccf05f6908fe766adbb",
+              "preserved": "validated-binaries/windows/root/test_reply.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_client.exe",
+              "sha256": "6bfc5899ad8b967caeed8cdff111299ed3f0c416bd827257315f96930e755ab0",
+              "preserved": "validated-binaries/windows/root/test_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_client_init.exe",
+              "sha256": "dd4209d558870f119ded46eef1b5b553de6c2b79e2d27fa6e5a452bff69ac32b",
+              "preserved": "validated-binaries/windows/root/test_client_init.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_openloop.exe",
+              "sha256": "4bffa41d0d3467ae6f4ddbd007f4f485484e480096d626ef8794be0844d3308a",
+              "preserved": "validated-binaries/windows/root/test_openloop.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_dial.exe",
+              "sha256": "5ed3da03f9383633cc68dc1b3dad6cafca088d5af1b8ce701e4886bc0695d976",
+              "preserved": "validated-binaries/windows/root/test_dial.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls.exe",
+              "sha256": "c8c7e77c927019d6cf37397d00da5aeab360332aa1fe19b7646df14ff46ff627",
+              "preserved": "validated-binaries/windows/root/test_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls_openloop.exe",
+              "sha256": "f3f6c905d2a49ed76e06ea2ac02adf95b2f3d3388ab34a2b4d38d66fedf2440c",
+              "preserved": "validated-binaries/windows/root/test_tls_openloop.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls_auth.exe",
+              "sha256": "a1177f6cd6fb6cdb0f7ef590ef025eafe73571601f74f7f35c08c711f82de728",
+              "preserved": "validated-binaries/windows/root/test_tls_auth.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_transaction.exe",
+              "sha256": "e8470877d117e3a22a34c258b6f5d64e88455cc7fcc246e155c40fb3b380a0f1",
+              "preserved": "validated-binaries/windows/root/test_transaction.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_watch.exe",
+              "sha256": "6a1e83ab5522ac46723d4af37373232978efd66fbbd0642d19e4c8f603b82b4f",
+              "preserved": "validated-binaries/windows/root/test_watch.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool.exe",
+              "sha256": "db2c031a82cab1a325070cc78ee09b3cdd88c3387c579d968e1349140cab9f39",
+              "preserved": "validated-binaries/windows/root/test_pool.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_sessions.exe",
+              "sha256": "885398974446ebd9a2bd03cb08d857db56eef0c234ab592dd96cd2e51f026264",
+              "preserved": "validated-binaries/windows/root/test_pool_sessions.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_connect.exe",
+              "sha256": "fb0f9fd249d312a5f55141a856b3f7d65b0ffb6b2a7a0cc7e2912d1e699c7ef5",
+              "preserved": "validated-binaries/windows/root/test_pool_connect.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tracking.exe",
+              "sha256": "95326ca4eef975e679fba02ca69090a3ad292c980ace409962f7135414d880fb",
+              "preserved": "validated-binaries/windows/root/test_tracking.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_caching.exe",
+              "sha256": "d6392ee19e6dd74c69774f20d8f0333ab0cec0d54b088f65cc7ad4cd643a66bc",
+              "preserved": "validated-binaries/windows/root/test_caching.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pubsub.exe",
+              "sha256": "50bd29df864538f3f8dbe6deaef687cdec53021d4ea27af1c9552b7a2a1456d2",
+              "preserved": "validated-binaries/windows/root/test_pubsub.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriber.exe",
+              "sha256": "2c85b46ac01c80d70ecb1d2f60ad94418089594149a5a42a3962ccf6aec1c5de",
+              "preserved": "validated-binaries/windows/root/test_subscriber.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriber_notify.exe",
+              "sha256": "42b80667cf120fa8badce39692c41a002451db7eee77d1cdfdcd00e1fa175de4",
+              "preserved": "validated-binaries/windows/root/test_subscriber_notify.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriptions.exe",
+              "sha256": "b8a9d01bceadb4c54427b9bfc02ceccf12499336c027d4e37b2100576330da28",
+              "preserved": "validated-binaries/windows/root/test_subscriptions.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscription_session.exe",
+              "sha256": "8e368b4c70d4a28a1fa741574be78f93f29f63f65598b91edea4a74d7ac890a8",
+              "preserved": "validated-binaries/windows/root/test_subscription_session.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_role.exe",
+              "sha256": "1877324f6f04bb139e07e59664afaa2b09ee5dc18bf5dfaf552af3493ec820a3",
+              "preserved": "validated-binaries/windows/root/test_role.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_role_client.exe",
+              "sha256": "d1c828a4753d839d45057176cfb51e3f26236e387dc1f4325b24e6ed457ae8ea",
+              "preserved": "validated-binaries/windows/root/test_role_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_sentinel.exe",
+              "sha256": "99d92b9a04f0981ed82902a12320a348e75f6e5af874149bdb0f1174710ea4f5",
+              "preserved": "validated-binaries/windows/root/test_sentinel.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_sentinel_pool.exe",
+              "sha256": "e63b50822b4c60c740c64dd417988eff728709de565be3bdad4685cb157c3bcc",
+              "preserved": "validated-binaries/windows/root/test_sentinel_pool.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_topology.exe",
+              "sha256": "235f888ad750ac23a8320263a8b9d00ae3a11702585c5139d6862bbeb97c89cf",
+              "preserved": "validated-binaries/windows/root/test_cluster_topology.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_time.exe",
+              "sha256": "31e653f21a94011fed004a08312ec5ed9332871a0950bfcf35dc03b2e5d15907",
+              "preserved": "validated-binaries/windows/root/test_time.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_time_property.exe",
+              "sha256": "9ee723697c8f5d1eca789ec39f09bf1f77e7932b07dd3fb1b2e6b6b71a194aff",
+              "preserved": "validated-binaries/windows/root/test_time_property.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_atomic.exe",
+              "sha256": "4e8f86ba635d124297e1ad41948fc26b2d6c7807ec6c52ce1e1297f4ce3805d1",
+              "preserved": "validated-binaries/windows/root/test_atomic.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_atomic_threads.exe",
+              "sha256": "df92a6f00b11c55fa611245c5753a76041e737b7a803973abdc115ee9c010b9e",
+              "preserved": "validated-binaries/windows/root/test_atomic_threads.exe"
+            }
+          ]
+        },
+        {
+          "label": "feature-off",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_role",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 9.078,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-feature-off.log",
+          "log_sha256": "87702788894220b63a7ca71a5ca69a539c57f5cc758932dd2648fb86fc2de40f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_role\\test_role.exe",
+              "sha256": "7bc19205651abe489d8289bb5dcc5d8e3d20da996d11ead261b503b017e32eb7",
+              "preserved": "validated-binaries/windows/feature-off/test_role.exe"
+            }
+          ]
+        },
+        {
+          "label": "single-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\include",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\tests\\single\\test_single_xredis_cluster_topology.c",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-single.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 3.734,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-single.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.36,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-single-run.log",
+          "log_sha256": "9cafdcddb33b06816b5257c2c93c4398002c2dd9f349e82706d02c6de60b4fe4",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "example",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--exclude-test",
+            "*",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 0.563,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-example.log",
+          "log_sha256": "efdd8d4bc09c42a784a4bba9c7265f46963d52abcd1d8e1cb37c232fbbc6e42e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_topology\\examples_cluster_topology_main.exe",
+              "sha256": "f2e4fb58718bedee1e332b984fdf8eb0e84af3cf31d99c35851f3e1e74180698",
+              "preserved": "validated-binaries/windows/example/examples_cluster_topology_main.exe"
+            }
+          ]
+        },
+        {
+          "label": "features",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_extension_features.py",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.094,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-features.log",
+          "log_sha256": "6a9b92a4a93feb36d652d14ecbc52e260168207a0a520fccabf0f09017c3b533",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "amalgamation",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/amalgamate.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.406,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-amalgamation.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/generate_api_reference.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.14,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-reference.log",
+          "log_sha256": "e232bf6dc67d2e45102656eb4979d4ed8d782b87171142ca693f3faa4015be92",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "docs",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_api_docs.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 0.281,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-docs.log",
+          "log_sha256": "c69b97b97636751ae1d84ecfa94b56a40894d7adf6cf1e3ad469e38d39b5fd9d",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "maturity",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/check_release_maturity.py",
+            "--manifest",
+            "extlibs/xredis/config/modules.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.422,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-maturity.log",
+          "log_sha256": "dd1b8dbcbdeb9a2786e8fb9ef9b735b4f3ca8ae51272a241ec39b542a17c7ee9",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "c27d738cedc1b529d837d7266d6acd17cf4ddc92b0a371709406beff6af850cd",
+        "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60"
+      },
+      "sanitizers": []
+    },
+    "wsl": {
+      "programs": 40,
+      "root_programs": 31,
+      "receipts": [
+        {
+          "label": "focused",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_topology,memory_stats,thread",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 18.796,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-focused.log",
+          "log_sha256": "f844392da3cb30843f04de78299a2bc0f0923f51826b1a46384a0bcb89154a0f",
+          "programs": 5,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology,memory_stats,thread/test_cluster_topology",
+              "sha256": "9095524dbb194bb335d7b27029dd7b7e003187fcff6b88a8d7ac816208b3c0c6",
+              "preserved": "validated-binaries/wsl/focused/test_cluster_topology"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology,memory_stats,thread/test_memory_stats",
+              "sha256": "253067a54620d3df25cc0ab7060188419336b864b5ad8250516cd42c4d5edcfe",
+              "preserved": "validated-binaries/wsl/focused/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology,memory_stats,thread/test_memory_stats_threads",
+              "sha256": "e3529542210abfc124e2654831deccaf6b44b839293b792117b1926960e9052f",
+              "preserved": "validated-binaries/wsl/focused/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology,memory_stats,thread/test_thread",
+              "sha256": "067438fb328a7c5b719ffb8de4ed03399e5c9238a362be874f7f721ad6f947d8",
+              "preserved": "validated-binaries/wsl/focused/test_thread"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology,memory_stats,thread/test_thread_oom",
+              "sha256": "155efac8bef9f8dbd7519eafe8793ae64a77f2aa0ea592d5f0fa38eabbbddf30",
+              "preserved": "validated-binaries/wsl/focused/test_thread_oom"
+            }
+          ]
+        },
+        {
+          "label": "root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 440.204,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-root.log",
+          "log_sha256": "6bb5de969e7824e130d8e0a8ef4a3886e10e2ae09faf63de9a428d15d6bd7f45",
+          "programs": 31,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_command",
+              "sha256": "535bd42c989d46819408fa336b78526f7db62e4bb7936c8a4c47cf8c50e79a98",
+              "preserved": "validated-binaries/wsl/root/test_command"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reader",
+              "sha256": "cc15372909592203ffca0979fb0269a80c77d7d42609781932eec94e4fe9be29",
+              "preserved": "validated-binaries/wsl/root/test_reader"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reply",
+              "sha256": "4284b66a924e17158d17e967e6b1c02e9b8656acb8999b1134095cbd5cbd988f",
+              "preserved": "validated-binaries/wsl/root/test_reply"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client",
+              "sha256": "843580991114077cddd4a3a1dd0072ff8be4ba60908baa9ad48a2daa266cd50d",
+              "preserved": "validated-binaries/wsl/root/test_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client_init",
+              "sha256": "a99585f5577bf05acff19e2e61e1382c5afc27df412c8660ce784a556e42da6b",
+              "preserved": "validated-binaries/wsl/root/test_client_init"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_openloop",
+              "sha256": "1eee54a8016063e7c6d578d5eb649d7f2362f66fcee307d7909e428b22ccd0aa",
+              "preserved": "validated-binaries/wsl/root/test_openloop"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_dial",
+              "sha256": "4cb0046a786c9ed6bc76ad56ee8c042b38a0c76c60107b53dd37b80b5b5b69b8",
+              "preserved": "validated-binaries/wsl/root/test_dial"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls",
+              "sha256": "8d14dfe27d6dab1b3dcbe6a0c4053f315a8c0e83da1dd5aadcade11b854c78b3",
+              "preserved": "validated-binaries/wsl/root/test_tls"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_openloop",
+              "sha256": "75210161f94f6377789f11e989f747cf1a20a25d60bf9ec120fae7e5ee651cd6",
+              "preserved": "validated-binaries/wsl/root/test_tls_openloop"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_auth",
+              "sha256": "a38b8fcb6d8575c640480ae66a5c32ec0519c77bb5f9cf4bd6f09e5bee80b27b",
+              "preserved": "validated-binaries/wsl/root/test_tls_auth"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_transaction",
+              "sha256": "80e98e74fa3b2dfd6994b9e386b11ffd7b54e7c78a372985d8f146d31efd7c6f",
+              "preserved": "validated-binaries/wsl/root/test_transaction"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_watch",
+              "sha256": "80c51c72040d65f0d24d8c79e22887a7bb8cefd5d8fb9f1daa7d9df21d9f2aaa",
+              "preserved": "validated-binaries/wsl/root/test_watch"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool",
+              "sha256": "84a644fa62c77f3a596ca8d6b3142ce559ef750113df78db5a404b067f33e49f",
+              "preserved": "validated-binaries/wsl/root/test_pool"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_sessions",
+              "sha256": "0edc82f6ed1e75057d3566b663182d63253b8dab9a6a0f2b2cfc9debd6330cfd",
+              "preserved": "validated-binaries/wsl/root/test_pool_sessions"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_connect",
+              "sha256": "a1dd4ed0927342c4d649d70e1c5a983fb31a5bf2b3f26eab61804b966d4e17c3",
+              "preserved": "validated-binaries/wsl/root/test_pool_connect"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tracking",
+              "sha256": "174baf42f26201f64f72c01512f548c6cc85633c811fb816d7ea22765d303920",
+              "preserved": "validated-binaries/wsl/root/test_tracking"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_caching",
+              "sha256": "843e30f2da70d1a68d1f4255cdd11dd66093b1053b415f5d57d3773b98d45e49",
+              "preserved": "validated-binaries/wsl/root/test_caching"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pubsub",
+              "sha256": "4b2545bd3d1bf14df18f5e3d91c8d1d56ef28acea5fb94c6032b4dd7832082d5",
+              "preserved": "validated-binaries/wsl/root/test_pubsub"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriber",
+              "sha256": "cef1809326a2083e13a9fde0cd088f6bff6f459714e1a82479717ffce6ad4c74",
+              "preserved": "validated-binaries/wsl/root/test_subscriber"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriber_notify",
+              "sha256": "1bf4cc90a3417f0c7ce9ea4d251c05a4cf78562f4604e833fc166799d60b09c1",
+              "preserved": "validated-binaries/wsl/root/test_subscriber_notify"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriptions",
+              "sha256": "f865d27c38401d7971fc63d5ddcfd1e24d467b09121a6d8cbdac20fc9b8d0267",
+              "preserved": "validated-binaries/wsl/root/test_subscriptions"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscription_session",
+              "sha256": "a094e36d9349c21245553d47706138509c4f86dfead27c19d6b3f5fbd521164e",
+              "preserved": "validated-binaries/wsl/root/test_subscription_session"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_role",
+              "sha256": "981d71be13355858fc112416671327ed5efd91b95af6056a295d9ec5a73cb3b8",
+              "preserved": "validated-binaries/wsl/root/test_role"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_role_client",
+              "sha256": "16bf5337de518d9bb68b67b5f27a6db34ebfe6bc1238330c3b7eb50a22694284",
+              "preserved": "validated-binaries/wsl/root/test_role_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_sentinel",
+              "sha256": "152dcf0847e87db44bbd9f24773418d0a45dc8961a1455e852af6e9bd028df97",
+              "preserved": "validated-binaries/wsl/root/test_sentinel"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_sentinel_pool",
+              "sha256": "df4305c3cb5e267aace9fa8103e3499b3f345ccf8fbe9ba51d2c69fb51606de3",
+              "preserved": "validated-binaries/wsl/root/test_sentinel_pool"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_topology",
+              "sha256": "fa40e4589f0d3b9fd4046f950a8fceda4e55b6ce98c4dcb35468538f48add400",
+              "preserved": "validated-binaries/wsl/root/test_cluster_topology"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time",
+              "sha256": "67d179f9e5d75ac4490fefcca0fcb247637135ccd23f01feae2925530d33b913",
+              "preserved": "validated-binaries/wsl/root/test_time"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time_property",
+              "sha256": "19094ec57cb4c6fb112a6690789994e89c67307f6636f5ffd53ebd383b9a7b87",
+              "preserved": "validated-binaries/wsl/root/test_time_property"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic",
+              "sha256": "0116512f2f97fbb4c441eb50d03c647488addb2308483ea67a1067834a8167f9",
+              "preserved": "validated-binaries/wsl/root/test_atomic"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic_threads",
+              "sha256": "a910cb33312b27485a1cbbdc3cecd07f914e75b34768293829802b8ea241e61e",
+              "preserved": "validated-binaries/wsl/root/test_atomic_threads"
+            }
+          ]
+        },
+        {
+          "label": "feature-off",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_role",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 9.522,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-feature-off.log",
+          "log_sha256": "5cae1d34e04904e8cb12a963014488f25e00f0040e64c4981bbd331e5aefcdb5",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_role/test_role",
+              "sha256": "52ac2f195bee66edea857e33157a92bc2f00fbebfaf1592e27a4f88b4f0f1112",
+              "preserved": "validated-binaries/wsl/feature-off/test_role"
+            }
+          ]
+        },
+        {
+          "label": "single-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-O2",
+            "-g",
+            "-fsanitize=address,undefined",
+            "-fno-omit-frame-pointer",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-single",
+            "-pthread",
+            "-lm"
+          ],
+          "exit_code": 0,
+          "seconds": 6.49,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "single-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-single"
+          ],
+          "exit_code": 0,
+          "seconds": 1.228,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-single-run.log",
+          "log_sha256": "b9c0f9bcfe360ca295ad0ff4639a05c4beec1c2905936f6467f2a4ad87cec895",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "example",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--exclude-test",
+            "*",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 6.596,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-example.log",
+          "log_sha256": "d22239e89b001bdd69172ec56ce0caa995fcda137fe42f55174a3f715236c688",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_cluster_topology/examples_cluster_topology_main",
+              "sha256": "07392dacc83775a5f9e8e0f7c233e67775b9603cc4a4699242d00851ede405ed",
+              "preserved": "validated-binaries/wsl/example/examples_cluster_topology_main"
+            }
+          ]
+        },
+        {
+          "label": "tsan-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-O2",
+            "-g",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wno-error=tsan",
+            "-fsanitize=thread",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/extlibs/xredis/tests/single/test_single_xredis_cluster_topology.c",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-tsan",
+            "-pthread",
+            "-lm"
+          ],
+          "exit_code": 0,
+          "seconds": 3.689,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-tsan-build.log",
+          "log_sha256": "b27a976c6ec97abffba594b9affba099c02c7097a5ba6ee7af17a03df3ede0b5",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "tsan-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-tsan"
+          ],
+          "exit_code": 0,
+          "seconds": 2.779,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-tsan-run.log",
+          "log_sha256": "b9c0f9bcfe360ca295ad0ff4639a05c4beec1c2905936f6467f2a4ad87cec895",
+          "programs": 1,
+          "binaries": []
+        }
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "6f5e98cf9893bf7781b68245622803c84fe49d64c6423f128eaea3ef12ad219e",
+        "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60"
+      },
+      "sanitizers": [
+        "address",
+        "undefined",
+        "leak",
+        "thread"
+      ]
+    }
+  },
+  "delivery": {
+    "windows": {
+      "forms": {
+        "modular": {
+          "path": "delivery/windows/modular/probe.exe",
+          "sha256": "12b4ed2e1435e568f0e6cbdcac479a3219cf280438c89fbbacca09b0729a081e"
+        },
+        "single": {
+          "path": "delivery/windows/single/probe.exe",
+          "sha256": "93ff8cf2faeef47968efe0199a5253fe18f3b37e20fcbf1607b737afd1ef6a39"
+        },
+        "static": {
+          "path": "delivery/windows/static/probe.exe",
+          "sha256": "d61bea31e03dc5d1f00973a35fd817d0bd9238c3caabcdb52e2797bd636938c5"
+        },
+        "shared": {
+          "path": "delivery/windows/shared/probe.exe",
+          "sha256": "5f5554c3f49a6a1a00118812526d6bc8c28a8217c06ba13fe073ab877779d2bd"
+        }
+      },
+      "reference_cases_per_form": 182,
+      "binary_keys_per_form": 4103,
+      "real_cluster_cases_per_form": 36,
+      "real_cluster_total_projections": 144,
+      "redis_keyslot_oracles": 133,
+      "real_redirects": [
+        "MOVED",
+        "ASK"
+      ],
+      "fixtures": [
+        {
+          "port": 35922,
+          "pid": 21316,
+          "run_id": "6ce4c74fa5531d2199c8fab545a1ae0da6e70a34",
+          "node_id": "649bfb04622f849bb0c1233ed4d10be0370fff62"
+        },
+        {
+          "port": 33249,
+          "pid": 21322,
+          "run_id": "95d625612493a60a68f52783bb14d38a501a8081",
+          "node_id": "be04c16e876f57435ce623f9c30ad430f0a12b8d"
+        },
+        {
+          "port": 12510,
+          "pid": 21328,
+          "run_id": "cab5c0fc03144be3876477cb1756f91aa5d73566",
+          "node_id": "357d94652bc630277200050a79046af71bb51e04"
+        }
+      ],
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "real_report": "windows-real-cluster.json",
+      "real_report_sha256": "7545fbac124747005f8e43461bac34f69e6cfb23c9b5523f28ea0cfe67028acf",
+      "exports": {
+        "new_api": [
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterRedirectRead",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain"
+        ],
+        "exports": [
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterRedirectRead",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain",
+          "xredisReaderConfigInit",
+          "xredisReaderCreate",
+          "xredisReaderDestroy",
+          "xredisReaderFeed",
+          "xredisReaderFinish",
+          "xredisReaderInfo",
+          "xredisReaderReset",
+          "xredisReplyDouble",
+          "xredisReplyGet",
+          "xredisReplyInfo",
+          "xredisReplyReaderConfigInit",
+          "xredisReplyReaderCreate",
+          "xredisReplyReaderDestroy",
+          "xredisReplyReaderFeed",
+          "xredisReplyReaderFinish",
+          "xredisReplyReaderInfo",
+          "xredisReplyReaderReset",
+          "xredisReplyRelease",
+          "xredisReplyRetain"
+        ],
+        "internal_exports": false
+      },
+      "receipts": [
+        {
+          "label": "probe-modular-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\include",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\tests\\interop\\redis_cluster_topology.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__core__core.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__core__ownership.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__core__ownership_scope.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__memory__allocator.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__memory__heap.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__core__error.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__core__atomic.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__text__number_float_core.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\src__text__number_float.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\extlibs__xredis__src__reader__reader.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\extlibs__xredis__src__reply__reply.o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\obj\\extlibs__xredis__src__cluster_topology__cluster_topology.o",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\probe.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.156,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-probe-modular-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-modular",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\modular\\probe.exe",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-reference-modular.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.375,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-reference-modular.log",
+          "log_sha256": "90edb0f10af1c3eb37b54a6bba78ab888a9f3c8c12d9941cdda5e36ecc7b6fb6",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-single-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\include",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\single\\probe.c",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\single\\probe.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 2.984,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-probe-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-single",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\single\\probe.exe",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-reference-single.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.515,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-reference-single.log",
+          "log_sha256": "90edb0f10af1c3eb37b54a6bba78ab888a9f3c8c12d9941cdda5e36ecc7b6fb6",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 8.515,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-package-static.log",
+          "log_sha256": "ea96ec18d0544207cb4ad1cdea4e8b9685ebebb43f71a9b564804df9303402be",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-static-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\include",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\tests\\interop\\redis_cluster_topology.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\static\\libxredis.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\static\\libxrt.a",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\static\\probe.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.141,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-probe-static-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-static",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\static\\probe.exe",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-reference-static.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.25,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-reference-static.log",
+          "log_sha256": "90edb0f10af1c3eb37b54a6bba78ab888a9f3c8c12d9941cdda5e36ecc7b6fb6",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-static-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\static\\consumer.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\static\\libxredis.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\static\\libxrt.a",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\static\\consumer.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.156,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-decl-static-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-static-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\static\\consumer.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-decl-static-run.log",
+          "log_sha256": "5d9348e5f1e946d07400b37b5aaa1b94953f2efc93152226801f4572cfa5b3e0",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 9.094,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-package-shared.log",
+          "log_sha256": "c34994038eb1ec5b91dd5b8dcb8db233635437f8d034800e5b1014f769da6caa",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-shared-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "D:\\GIT\\xrt\\include",
+            "-O2",
+            "-I",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\include",
+            "D:\\GIT\\xrt\\extlibs\\xredis\\tests\\interop\\redis_cluster_topology.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\shared\\libxredis.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\shared\\libxrt.dll.a",
+            "-DXRT_USE_SHARED",
+            "-DXREDIS_USE_SHARED",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\shared\\probe.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.156,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-probe-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-shared",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\delivery\\windows\\shared\\probe.exe",
+            "--report",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\windows-reference-shared.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.516,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-reference-shared.log",
+          "log_sha256": "90edb0f10af1c3eb37b54a6bba78ab888a9f3c8c12d9941cdda5e36ecc7b6fb6",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-shared-build",
+          "command": [
+            "E:/software/w64devkit/bin/gcc.exe",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\shared\\consumer.c",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\shared\\libxredis.dll.a",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\packages\\windows\\shared\\libxrt.dll.a",
+            "-DXRT_USE_SHARED",
+            "-DXREDIS_USE_SHARED",
+            "-o",
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\shared\\consumer.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.172,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-decl-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-shared-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\declarations\\windows\\shared\\consumer.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-decl-shared-run.log",
+          "log_sha256": "5d9348e5f1e946d07400b37b5aaa1b94953f2efc93152226801f4572cfa5b3e0",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "real-cluster",
+          "command": [
+            "wsl.exe",
+            "--cd",
+            "/mnt/d/GIT/xrt",
+            "--exec",
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_cluster_topology.py",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/windows-real-cluster.json",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/windows/modular/probe.exe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/windows/single/probe.exe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/windows/static/probe.exe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/windows/shared/probe.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 11.297,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "windows-real-cluster.log",
+          "log_sha256": "c3988fa037fbc493f90319bd22c61592d09394724f846896f431346ed163a315",
+          "programs": 0,
+          "binaries": []
+        }
+      ]
+    },
+    "wsl": {
+      "forms": {
+        "modular": {
+          "path": "delivery/wsl/modular/probe",
+          "sha256": "2b3645488854ca7beb81966857f7c72d72f8bc45e8ce741b9098a819d6656c1d"
+        },
+        "single": {
+          "path": "delivery/wsl/single/probe",
+          "sha256": "b283a775bc6c9f701f7dba96a7c1dfc4aa4b6b96a25b553b38b5240e1a54df3e"
+        },
+        "static": {
+          "path": "delivery/wsl/static/probe",
+          "sha256": "2d1153e2ef1753a1938d8cb1d468a3fab6664c5db4089610771a6d80eab2a9fe"
+        },
+        "shared": {
+          "path": "delivery/wsl/shared/probe",
+          "sha256": "b81b67443e5e64b09daef3c9ac1fbee040b3e260f9e9c253fed94a94ecf80454"
+        }
+      },
+      "reference_cases_per_form": 182,
+      "binary_keys_per_form": 4103,
+      "real_cluster_cases_per_form": 36,
+      "real_cluster_total_projections": 144,
+      "redis_keyslot_oracles": 133,
+      "real_redirects": [
+        "MOVED",
+        "ASK"
+      ],
+      "fixtures": [
+        {
+          "port": 35922,
+          "pid": 22928,
+          "run_id": "668c777c1bd2ae21856016de7da081c7fe871973",
+          "node_id": "9af42e6be6d1c25198d41a9132f16012febcddd9"
+        },
+        {
+          "port": 33249,
+          "pid": 22934,
+          "run_id": "3f68eba51828c3c57489e1dac058304eb9a0a6db",
+          "node_id": "d6b4e695845c54ec3d4863e24a15e5437294c5cd"
+        },
+        {
+          "port": 12510,
+          "pid": 22940,
+          "run_id": "91e855924f90d6baf6e8c71dff427c89fed7f06d",
+          "node_id": "c6a29bb69f23d75b05480ead510a0a4ed2c52382"
+        }
+      ],
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "real_report": "wsl-real-cluster.json",
+      "real_report_sha256": "3a3ecf4135095bc6a8ebb3f3b6c914ac326dc5047ff4fef533b7b312f8abda41",
+      "exports": {
+        "new_api": [
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterRedirectRead",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain"
+        ],
+        "exports": [
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterRedirectRead",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain",
+          "xredisReaderConfigInit",
+          "xredisReaderCreate",
+          "xredisReaderDestroy",
+          "xredisReaderFeed",
+          "xredisReaderFinish",
+          "xredisReaderInfo",
+          "xredisReaderReset",
+          "xredisReplyDouble",
+          "xredisReplyGet",
+          "xredisReplyInfo",
+          "xredisReplyReaderConfigInit",
+          "xredisReplyReaderCreate",
+          "xredisReplyReaderDestroy",
+          "xredisReplyReaderFeed",
+          "xredisReplyReaderFinish",
+          "xredisReplyReaderInfo",
+          "xredisReplyReaderReset",
+          "xredisReplyRelease",
+          "xredisReplyRetain"
+        ],
+        "internal_exports": false
+      },
+      "receipts": [
+        {
+          "label": "probe-modular-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-m64",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-pthread",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/extlibs/xredis/tests/interop/redis_cluster_topology.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__core__core.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__core__ownership.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__core__ownership_scope.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__memory__allocator.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__memory__heap.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__core__error.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__core__atomic.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__text__number_float_core.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/src__text__number_float.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/extlibs__xredis__src__reader__reader.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/extlibs__xredis__src__reply__reply.o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/obj/extlibs__xredis__src__cluster_topology__cluster_topology.o",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/probe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.64,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-probe-modular-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-modular",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/probe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-reference-modular.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.374,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-reference-modular.log",
+          "log_sha256": "1243a6eba45c9da7584fd717e4c9d4c7cf907a7e0cd6fccadcb96db20e0d0f7e",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-single-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-m64",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-pthread",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/single/probe.c",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/single/probe"
+          ],
+          "exit_code": 0,
+          "seconds": 1.933,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-probe-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-single",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/single/probe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-reference-single.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.375,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-reference-single.log",
+          "log_sha256": "1243a6eba45c9da7584fd717e4c9d4c7cf907a7e0cd6fccadcb96db20e0d0f7e",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "package-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--kind",
+            "static",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 6.788,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-package-static.log",
+          "log_sha256": "03ddd6b476923a2e3ca861f3badf35b718bbe077e08eaa1ca47a6571786b0bdc",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-static-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-m64",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-pthread",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/extlibs/xredis/tests/interop/redis_cluster_topology.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/static/libxredis.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/static/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/static/probe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.422,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-probe-static-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-static",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/static/probe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-reference-static.json"
+          ],
+          "exit_code": 0,
+          "seconds": 1.375,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-reference-static.log",
+          "log_sha256": "1243a6eba45c9da7584fd717e4c9d4c7cf907a7e0cd6fccadcb96db20e0d0f7e",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-static-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/static/consumer.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/static/libxredis.a",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/static/libxrt.a",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/static/consumer"
+          ],
+          "exit_code": 0,
+          "seconds": 0.372,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-decl-static-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-static-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/static/consumer"
+          ],
+          "exit_code": 0,
+          "seconds": 0.014,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-decl-static-run.log",
+          "log_sha256": "d9752413d54ebd50b46480d96faafb05d7633baa097b906147ecd7b7efd4fd44",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "package-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/package.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--suite",
+            "xredis_cluster_topology",
+            "--kind",
+            "shared",
+            "--verify",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 7.489,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-package-shared.log",
+          "log_sha256": "818618fcba18ec6aefa3210375105930a22a58c49c48324cbad2022b9ce0a5ac",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "probe-shared-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-m64",
+            "-DXRT_FEATURE_ATOMIC",
+            "-DXRT_FEATURE_NUMBER_FLOAT",
+            "-DXREDIS_FEATURE_XREDIS_READER",
+            "-DXREDIS_FEATURE_XREDIS_REPLY",
+            "-DXREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "-I",
+            "/mnt/d/GIT/xrt/include",
+            "-pthread",
+            "-O2",
+            "-I",
+            "/mnt/d/GIT/xrt/extlibs/xredis/include",
+            "/mnt/d/GIT/xrt/extlibs/xredis/tests/interop/redis_cluster_topology.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared/libxredis.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared/libxrt.so",
+            "-DXRT_USE_SHARED",
+            "-DXREDIS_USE_SHARED",
+            "-Xlinker",
+            "-rpath",
+            "-Xlinker",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/shared/probe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.372,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-probe-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "reference-shared",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/test_cluster_topology_reference.py",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/shared/probe",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-reference-shared.json"
+          ],
+          "exit_code": 0,
+          "seconds": 3.83,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-reference-shared.log",
+          "log_sha256": "1243a6eba45c9da7584fd717e4c9d4c7cf907a7e0cd6fccadcb96db20e0d0f7e",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-shared-build",
+          "command": [
+            "/usr/bin/gcc",
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/shared/consumer.c",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared/libxredis.so",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared/libxrt.so",
+            "-DXRT_USE_SHARED",
+            "-DXREDIS_USE_SHARED",
+            "-Xlinker",
+            "-rpath",
+            "-Xlinker",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/packages/wsl/shared",
+            "-pthread",
+            "-lm",
+            "-o",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/shared/consumer"
+          ],
+          "exit_code": 0,
+          "seconds": 0.338,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-decl-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "programs": 0,
+          "binaries": []
+        },
+        {
+          "label": "decl-shared-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/declarations/wsl/shared/consumer"
+          ],
+          "exit_code": 0,
+          "seconds": 0.026,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-decl-shared-run.log",
+          "log_sha256": "d9752413d54ebd50b46480d96faafb05d7633baa097b906147ecd7b7efd4fd44",
+          "programs": 1,
+          "binaries": []
+        },
+        {
+          "label": "real-cluster",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "extlibs/xredis/tests/interop/run_redis_cluster_topology.py",
+            "--report",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/wsl-real-cluster.json",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/modular/probe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/single/probe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/static/probe",
+            "--probe",
+            "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/delivery/wsl/shared/probe"
+          ],
+          "exit_code": 0,
+          "seconds": 4.331,
+          "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+          "log": "wsl-real-cluster.log",
+          "log_sha256": "c3988fa037fbc493f90319bd22c61592d09394724f846896f431346ed163a315",
+          "programs": 0,
+          "binaries": []
+        }
+      ]
+    }
+  },
+  "footprint": {
+    "windows": {
+      "size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "f7326aabcf4982b66e3b6b0a6c65efe80f773469",
+        "source_dirty": true,
+        "source_fingerprint": "f3303ff844360ed90c20ed1b4e604289bd268e2adbb5bca0fa9cf2052658a02d",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xredis_cluster_topology": {
+            "suite": "xredis_cluster_topology",
+            "description": "Immutable Cluster routing without networking, threads, futures or runtime",
+            "forbid_symbols": [
+              "xredisClient",
+              "xrtNet",
+              "xrtTcp",
+              "xrtThread",
+              "xrtTask",
+              "xrtFuture"
+            ],
+            "kinds": {
+              "single": {
+                "text": 82652,
+                "data": 2376,
+                "bss": 11040,
+                "members": 1,
+                "load": 85028,
+                "file": 117948,
+                "path": "out/size/gnu/native/xredis_cluster_topology/single/xredis_single.o",
+                "compile_seconds": 2.7936018999898806,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 31240,
+                "data": 0,
+                "bss": 0,
+                "members": 3,
+                "load": 31240,
+                "file": 44248,
+                "path": "release/gnu/native/xredis_cluster_topology/static/libxredis.a"
+              },
+              "shared": {
+                "text": 41035,
+                "data": 144,
+                "bss": 272,
+                "members": 1,
+                "load": 41179,
+                "file": 76784,
+                "path": "release/gnu/native/xredis_cluster_topology/shared/xredis.dll"
+              }
+            }
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+        "prefixes": [
+          "xredisClient",
+          "xrtNet",
+          "xrtTcp",
+          "xrtThread",
+          "xrtTask",
+          "xrtFuture",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/windows/single/xredis_single.o",
+              "sha256": "d520eabf35e664094696dd3b3ae9d87a62324866f3fb44544f5e91e049cbe2ad",
+              "defined_symbols": 279,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/static/libxredis.a",
+              "sha256": "587bc2408183c8adbeb2f393877bb47c87b2a70b289e0695f59550240a2dc82a",
+              "defined_symbols": 70,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/static/libxrt.a",
+              "sha256": "dcf26fec355900eb5ac5bc6db308b10d2ae4b98ff559eed31b33e5a9a10e11ad",
+              "defined_symbols": 283,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/shared/libxredis.dll.a",
+              "sha256": "fe52ec61e92004d990fd380ee2b24594374673864c933984a4db0b1461f0df70",
+              "defined_symbols": 211,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/libxrt.dll.a",
+              "sha256": "a931c0c6a0ebcd73436c8c5a6b4000500b9f7d003dec0416d2c249176b534666",
+              "defined_symbols": 701,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xredis.dll",
+              "sha256": "05dad9cd416f017b34516d58b5168009a247aa6253526040e12f9f5106466d63",
+              "defined_symbols": 692,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrt.dll",
+              "sha256": "fedaef7adf4f242f3247288a229b5bf92f18a4a14f691045d00dff8255ef2eef",
+              "defined_symbols": 960,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      }
+    },
+    "wsl": {
+      "size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "f7326aabcf4982b66e3b6b0a6c65efe80f773469",
+        "source_dirty": true,
+        "source_fingerprint": "f3303ff844360ed90c20ed1b4e604289bd268e2adbb5bca0fa9cf2052658a02d",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xredis_cluster_topology": {
+            "suite": "xredis_cluster_topology",
+            "description": "Immutable Cluster routing without networking, threads, futures or runtime",
+            "forbid_symbols": [
+              "xredisClient",
+              "xrtNet",
+              "xrtTcp",
+              "xrtThread",
+              "xrtTask",
+              "xrtFuture"
+            ],
+            "kinds": {
+              "single": {
+                "text": 84787,
+                "data": 2552,
+                "bss": 10892,
+                "members": 1,
+                "load": 87339,
+                "file": 143640,
+                "path": "out/size/gnu/x64/xredis_cluster_topology/single/xredis_single.o",
+                "compile_seconds": 1.671300011999847,
+                "forbidden_symbol_count": 0
+              },
+              "static": {
+                "text": 32156,
+                "data": 112,
+                "bss": 0,
+                "members": 3,
+                "load": 32268,
+                "file": 58600,
+                "path": "release/gnu/x64/xredis_cluster_topology/static/libxredis.a"
+              },
+              "shared": {
+                "text": 37018,
+                "data": 872,
+                "bss": 8,
+                "members": 1,
+                "load": 37890,
+                "file": 51384,
+                "path": "release/gnu/x64/xredis_cluster_topology/shared/libxredis.so"
+              }
+            }
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+        "prefixes": [
+          "xredisClient",
+          "xrtNet",
+          "xrtTcp",
+          "xrtThread",
+          "xrtTask",
+          "xrtFuture",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/wsl/single/xredis_single.o",
+              "sha256": "5ac270b00058f6785eadc10a439cd034733f294a4d38c5ddebdd37cc93a9dea7",
+              "defined_symbols": 381,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/static/libxredis.a",
+              "sha256": "95cdec4f50767d6682d72fa47ebfc5842980be6b695ffb8fa2be7ddba32caa6a",
+              "defined_symbols": 149,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/static/libxrt.a",
+              "sha256": "71b7a4694eb6ca87d487cb6755094feeeecbd7cf3cd048534d5cb72d2d643ce8",
+              "defined_symbols": 232,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/shared/libxredis.so",
+              "sha256": "60b8f2983dfe394b53d7fbf15ac0f60644b43a8a57803bd95d496e468b5ef411",
+              "defined_symbols": 64,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/shared/libxrt.so",
+              "sha256": "f69131407613e1cf68753b71e4611f6e8ba0464810a61853d2846d7aefe63741",
+              "defined_symbols": 222,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+      "binaries": {
+        "current": {
+          "path": "performance/windows/current.exe",
+          "sha256": "65af7dda0d492fc54cde2a9ffcbdb7c4fd342f0b57fd9783e9b5c26fb25bf158"
+        },
+        "legacy-crc": {
+          "path": "performance/windows/legacy-crc.exe",
+          "sha256": "3f2baf190789987cb19cf3f72f1accd9ae5032b7c70aee213a2c5f3154032681"
+        }
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0x1/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "scope": "Local component bulk means; no per-operation latency distribution or network/production-tail acceptance. Legacy-crc is the same new topology/benchmark with only private CRC replaced by the pre-change bit loop, not a previously existing Cluster API.",
+      "cases": [
+        {
+          "name": "lookup",
+          "mode": 0,
+          "count": 48112611,
+          "calibration": {
+            "command": [
+              "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+              "1000000",
+              "0",
+              "0"
+            ],
+            "log": "windows-perf-lookup-cal.log",
+            "log_sha256": "eecb94597293d3e170963aae42fb4886e9784442452b4f6b67eb6fdca7762b53",
+            "values": {
+              "operations_per_sec": 137464602.167,
+              "ns_per_operation": 7.275,
+              "checksum": 6379000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "48112611",
+                "0",
+                "0"
+              ],
+              "log": "windows-perf-lookup-current-0.log",
+              "log_sha256": "b6f0f6fb3b65e35ec8b4464d7f739296e2288b478aef3e59ac6f6e377766c7f3",
+              "values": {
+                "operations_per_sec": 151539696.458,
+                "ns_per_operation": 6.599,
+                "checksum": 306910345569.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-1.log",
+                "log_sha256": "5048bc4e0cbda871f232ff091b81a435256f3334bac5e2427758139d9ced59d9",
+                "values": {
+                  "operations_per_sec": 150761084.367,
+                  "ns_per_operation": 6.633,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-2.log",
+                "log_sha256": "642810c3d753dbdce972d9baf473a5a8fa6c0d996d681aada22c2e34ef070b3e",
+                "values": {
+                  "operations_per_sec": 155890302.085,
+                  "ns_per_operation": 6.415,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-3.log",
+                "log_sha256": "14d8b538c49636c2e248900c906279d4281120a7d40a167197181ffd7b6d8cc1",
+                "values": {
+                  "operations_per_sec": 156386574.019,
+                  "ns_per_operation": 6.394,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-4.log",
+                "log_sha256": "b3a2c904ddcd7c013fa823c74a111a1bdfb23bdd95782b4453f7f83818ee2608",
+                "values": {
+                  "operations_per_sec": 154844779.042,
+                  "ns_per_operation": 6.458,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-5.log",
+                "log_sha256": "34dec21ae92184d30193e6fac2b56fc73a300c58a38d06542254864872d15912",
+                "values": {
+                  "operations_per_sec": 157706244.382,
+                  "ns_per_operation": 6.341,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-6.log",
+                "log_sha256": "b3b8bdc5d6911808db93e9a697333e3770c5fb80ddf6b492e2ebfcf89d5ecb78",
+                "values": {
+                  "operations_per_sec": 154139897.341,
+                  "ns_per_operation": 6.488,
+                  "checksum": 306910345569.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "48112611",
+                  "0",
+                  "0"
+                ],
+                "log": "windows-perf-lookup-current-7.log",
+                "log_sha256": "501bdf497a388c0f9ede652f39f55e38a9c3e0471d091064aaf328093a0f23c0",
+                "values": {
+                  "operations_per_sec": 154648677.906,
+                  "ns_per_operation": 6.466,
+                  "checksum": 306910345569.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "256",
+                "0",
+                "1"
+              ],
+              "log": "windows-perf-lookup-current-heap.log",
+              "log_sha256": "2d411cdc8039e48563f0ae0eb063992fd5e1c3c1276ede41dafc7fe765cfa82b",
+              "values": {
+                "operations_per_sec": 150587088.65,
+                "ns_per_operation": 6.641,
+                "checksum": 1633024.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  150761084.367,
+                  155890302.085,
+                  156386574.019,
+                  154844779.042,
+                  157706244.382,
+                  154139897.341,
+                  154648677.906
+                ],
+                "median": 154844779.042,
+                "mean": 154911079.87742856,
+                "min": 150761084.367,
+                "max": 157706244.382,
+                "mad": 1045523.0430000126,
+                "relative_mad": 0.006752071651808329,
+                "range": 6945160.014999986,
+                "relative_range": 0.044852400306736755,
+                "central_range": 2246676.678000003,
+                "relative_central_range": 0.014509218146713335,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  6.633,
+                  6.415,
+                  6.394,
+                  6.458,
+                  6.341,
+                  6.488,
+                  6.466
+                ],
+                "median": 6.458,
+                "mean": 6.456428571428572,
+                "min": 6.341,
+                "max": 6.633,
+                "mad": 0.04300000000000015,
+                "relative_mad": 0.006658408175905876,
+                "range": 0.2919999999999998,
+                "relative_range": 0.04521523691545367,
+                "central_range": 0.0940000000000003,
+                "relative_central_range": 0.014555589965933773,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "keyslot",
+          "mode": 1,
+          "count": 19969077,
+          "calibration": {
+            "command": [
+              "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+              "1000000",
+              "1",
+              "0"
+            ],
+            "log": "windows-perf-keyslot-cal.log",
+            "log_sha256": "61c7c779b8e00c345b98f5e766a4872e319554e0aad8ee8081b52d721d90c6ed",
+            "values": {
+              "operations_per_sec": 57054504.201,
+              "ns_per_operation": 17.527,
+              "checksum": 12739000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "19969077",
+                "1",
+                "0"
+              ],
+              "log": "windows-perf-keyslot-current-0.log",
+              "log_sha256": "fa18b8633a79c821e7efc329d84f375493f7ba87f8950853ba2548f1531596fc",
+              "values": {
+                "operations_per_sec": 57326692.85,
+                "ns_per_operation": 17.444,
+                "checksum": 254386071903.0
+              }
+            },
+            "legacy-crc": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                "19969077",
+                "1",
+                "0"
+              ],
+              "log": "windows-perf-keyslot-legacy-crc-0.log",
+              "log_sha256": "3eb92c64635524ebf0e7c0f1b6ac2f5aab2d6f8bcd02f2f89bc4d8253d1fd622",
+              "values": {
+                "operations_per_sec": 51061582.806,
+                "ns_per_operation": 19.584,
+                "checksum": 254386071903.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-1.log",
+                "log_sha256": "b93db53c1d234ba6dfb3f50dd0768e70cf231c4929f24667220ab603c58c9370",
+                "values": {
+                  "operations_per_sec": 54029165.731,
+                  "ns_per_operation": 18.509,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-2.log",
+                "log_sha256": "dab5f1ea1d0ea6035c16a551ae3d9006cf37da16f4d3fb180292c2a8ae336c70",
+                "values": {
+                  "operations_per_sec": 56736312.261,
+                  "ns_per_operation": 17.625,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-3.log",
+                "log_sha256": "feac460863988e3bb7737b137171eacd01c75fa53d753a343aa6869bf34dc972",
+                "values": {
+                  "operations_per_sec": 57034152.67,
+                  "ns_per_operation": 17.533,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-4.log",
+                "log_sha256": "ec5a663d740f090507c0e8c0ec91a37d76dd1a902769e032b6538cce2ff78890",
+                "values": {
+                  "operations_per_sec": 55442460.727,
+                  "ns_per_operation": 18.037,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-5.log",
+                "log_sha256": "fed3157dcc525405b959b26d2fe0bdf4f6868e879cc55b0b3d03385bf6be64a4",
+                "values": {
+                  "operations_per_sec": 56835235.374,
+                  "ns_per_operation": 17.595,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-6.log",
+                "log_sha256": "b797c8f109b89c5f8de96fbc853544ca00a07eada214c789343ecb5c6ffdfe2c",
+                "values": {
+                  "operations_per_sec": 57009517.064,
+                  "ns_per_operation": 17.541,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-current-7.log",
+                "log_sha256": "33b5593249e8fe570e646c3566a18c49b6f238039032930f13852874057d7fae",
+                "values": {
+                  "operations_per_sec": 56841560.985,
+                  "ns_per_operation": 17.593,
+                  "checksum": 254386071903.0
+                }
+              }
+            ],
+            "legacy-crc": [
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-1.log",
+                "log_sha256": "19b836c0b8565d120cbcb2a0ac5e9044e23e93639e304077cd3a696437295b31",
+                "values": {
+                  "operations_per_sec": 50756017.482,
+                  "ns_per_operation": 19.702,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-2.log",
+                "log_sha256": "f372f42c23d9f38d2d9d9f2206ed6acd8f92587cdf4e8e6eafc8dd0cd35c6937",
+                "values": {
+                  "operations_per_sec": 50979015.943,
+                  "ns_per_operation": 19.616,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-3.log",
+                "log_sha256": "16c7920d7b09f26d0e0ade4a41fcfeb6e1924c3013fe795ae64952f8070c0c56",
+                "values": {
+                  "operations_per_sec": 50947852.454,
+                  "ns_per_operation": 19.628,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-4.log",
+                "log_sha256": "5666db7bfb8e89c0bf9c4a599b03ec22c577370096fff95772408654901d37f2",
+                "values": {
+                  "operations_per_sec": 49280384.288,
+                  "ns_per_operation": 20.292,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-5.log",
+                "log_sha256": "2899f692348643e5eef1aaf82669d681da330a13f0bc1415cde1a3f7ab25fa87",
+                "values": {
+                  "operations_per_sec": 50961946.737,
+                  "ns_per_operation": 19.622,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-6.log",
+                "log_sha256": "2c1d3af1a1a043a3887487b8071db3fcc6a9253ceb96134dab95055dd204f684",
+                "values": {
+                  "operations_per_sec": 51082860.895,
+                  "ns_per_operation": 19.576,
+                  "checksum": 254386071903.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                  "19969077",
+                  "1",
+                  "0"
+                ],
+                "log": "windows-perf-keyslot-legacy-crc-7.log",
+                "log_sha256": "16815112af261758e848bf883500f830c359e24c18c68dcb402a01bfc5f84a43",
+                "values": {
+                  "operations_per_sec": 51138392.73,
+                  "ns_per_operation": 19.555,
+                  "checksum": 254386071903.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "256",
+                "1",
+                "1"
+              ],
+              "log": "windows-perf-keyslot-current-heap.log",
+              "log_sha256": "d1eed30dc5523b601b9154b5d4525c0beae59ac7c7a7fbf034ff3596806edc4c",
+              "values": {
+                "operations_per_sec": 50196269.116,
+                "ns_per_operation": 19.922,
+                "checksum": 3261184.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            },
+            "legacy-crc": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\legacy-crc.exe",
+                "256",
+                "1",
+                "1"
+              ],
+              "log": "windows-perf-keyslot-legacy-crc-heap.log",
+              "log_sha256": "f26813278e2c962eca8da6649bd4776dae66f0799a318e8116461610a4abba93",
+              "values": {
+                "operations_per_sec": 46545100.128,
+                "ns_per_operation": 21.485,
+                "checksum": 3261184.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  54029165.731,
+                  56736312.261,
+                  57034152.67,
+                  55442460.727,
+                  56835235.374,
+                  57009517.064,
+                  56841560.985
+                ],
+                "median": 56835235.374,
+                "mean": 56275486.40171428,
+                "min": 54029165.731,
+                "max": 57034152.67,
+                "mad": 174281.69000000507,
+                "relative_mad": 0.0030664373755674187,
+                "range": 3004986.939000003,
+                "relative_range": 0.05287190101749227,
+                "central_range": 1567056.337000005,
+                "relative_central_range": 0.027571916025122593,
+                "qualified": true
+              },
+              "legacy-crc": {
+                "samples": [
+                  50756017.482,
+                  50979015.943,
+                  50947852.454,
+                  49280384.288,
+                  50961946.737,
+                  51082860.895,
+                  51138392.73
+                ],
+                "median": 50961946.737,
+                "mean": 50735210.07557143,
+                "min": 49280384.288,
+                "max": 51138392.73,
+                "mad": 120914.15799999982,
+                "relative_mad": 0.0023726361676095916,
+                "range": 1858008.4419999942,
+                "relative_range": 0.036458741491737806,
+                "central_range": 326843.4130000025,
+                "relative_central_range": 0.006413479741791413,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  18.509,
+                  17.625,
+                  17.533,
+                  18.037,
+                  17.595,
+                  17.541,
+                  17.593
+                ],
+                "median": 17.595,
+                "mean": 17.776142857142855,
+                "min": 17.533,
+                "max": 18.509,
+                "mad": 0.053999999999998494,
+                "relative_mad": 0.0030690537084398124,
+                "range": 0.9759999999999991,
+                "relative_range": 0.0554703040636544,
+                "central_range": 0.49599999999999866,
+                "relative_central_range": 0.028189826655299725,
+                "qualified": true
+              },
+              "legacy-crc": {
+                "samples": [
+                  19.702,
+                  19.616,
+                  19.628,
+                  20.292,
+                  19.622,
+                  19.576,
+                  19.555
+                ],
+                "median": 19.622,
+                "mean": 19.713,
+                "min": 19.555,
+                "max": 20.292,
+                "mad": 0.045999999999999375,
+                "relative_mad": 0.002344307410049912,
+                "range": 0.7370000000000019,
+                "relative_range": 0.0375598817653655,
+                "central_range": 0.12600000000000122,
+                "relative_central_range": 0.006421363775354257,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "create-release",
+          "mode": 2,
+          "count": 7964,
+          "calibration": {
+            "command": [
+              "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+              "1024",
+              "2",
+              "0"
+            ],
+            "log": "windows-perf-create-release-cal.log",
+            "log_sha256": "8a1d73b879df80ee99043d9872116723991b4da681d18b76d73f016d683441f5",
+            "values": {
+              "operations_per_sec": 22753.482,
+              "ns_per_operation": 43949.316,
+              "checksum": 1024.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "7964",
+                "2",
+                "0"
+              ],
+              "log": "windows-perf-create-release-current-0.log",
+              "log_sha256": "85c580d9ca65526cfcb98642554d7b1cc663d414d8d0d147c7a4c55802683a95",
+              "values": {
+                "operations_per_sec": 22733.248,
+                "ns_per_operation": 43988.435,
+                "checksum": 7964.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-1.log",
+                "log_sha256": "ecb73390fedbb0bf146a3fb86443807bef4b409ef2664ed1a142fed9a215d08b",
+                "values": {
+                  "operations_per_sec": 22625.791,
+                  "ns_per_operation": 44197.351,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-2.log",
+                "log_sha256": "999720c51fb92038961c38874be19a76e9cd3bc987c557bafd90e163b3d1e088",
+                "values": {
+                  "operations_per_sec": 22898.013,
+                  "ns_per_operation": 43671.911,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-3.log",
+                "log_sha256": "3215114c5f7d4994a0afb52fc6246dec2714bd0d3a212c62799c51905b4b6bbf",
+                "values": {
+                  "operations_per_sec": 21987.961,
+                  "ns_per_operation": 45479.432,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-4.log",
+                "log_sha256": "649adc87459562cf0644007a8eb4e8867116b3d46c19b01ed66c67bfe2f7099c",
+                "values": {
+                  "operations_per_sec": 22838.331,
+                  "ns_per_operation": 43786.037,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-5.log",
+                "log_sha256": "69639c1eed1a07dfd06ba50ca6a850be56f23b32dfb81118a0b2d321d747efd3",
+                "values": {
+                  "operations_per_sec": 22956.725,
+                  "ns_per_operation": 43560.221,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-6.log",
+                "log_sha256": "9a33ce8ef71ecbf2e16bada2f6ac4e8b8d807e7e832a7293080287f265d33cb9",
+                "values": {
+                  "operations_per_sec": 22923.566,
+                  "ns_per_operation": 43623.23,
+                  "checksum": 7964.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "7964",
+                  "2",
+                  "0"
+                ],
+                "log": "windows-perf-create-release-current-7.log",
+                "log_sha256": "c75cc88b83a501b687947db1f53c4b3b022b79b184afef705e585d836316f123",
+                "values": {
+                  "operations_per_sec": 22322.517,
+                  "ns_per_operation": 44797.815,
+                  "checksum": 7964.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "256",
+                "2",
+                "1"
+              ],
+              "log": "windows-perf-create-release-current-heap.log",
+              "log_sha256": "0bce504a7c7fcb736c5f4f6c70a0a91636ed416e3a1583b109664b6b25376f61",
+              "values": {
+                "operations_per_sec": 22219.908,
+                "ns_per_operation": 45004.688,
+                "checksum": 256.0,
+                "heap_blocks_per_operation": 1.0,
+                "heap_bytes_per_operation": 33016.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  22625.791,
+                  22898.013,
+                  21987.961,
+                  22838.331,
+                  22956.725,
+                  22923.566,
+                  22322.517
+                ],
+                "median": 22838.331,
+                "mean": 22650.414857142856,
+                "min": 21987.961,
+                "max": 22956.725,
+                "mad": 118.39400000000023,
+                "relative_mad": 0.0051840040325188495,
+                "range": 968.7639999999992,
+                "relative_range": 0.042418336085942504,
+                "central_range": 601.0489999999991,
+                "relative_central_range": 0.02631755359005871,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  44197.351,
+                  43671.911,
+                  45479.432,
+                  43786.037,
+                  43560.221,
+                  43623.23,
+                  44797.815
+                ],
+                "median": 43786.037,
+                "mean": 44159.42814285714,
+                "min": 43560.221,
+                "max": 45479.432,
+                "mad": 225.8159999999989,
+                "relative_mad": 0.005157260521202202,
+                "range": 1919.211000000003,
+                "relative_range": 0.04383157580577578,
+                "central_range": 1174.5849999999991,
+                "relative_central_range": 0.026825560851739087,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "redirect",
+          "mode": 3,
+          "count": 9989697,
+          "calibration": {
+            "command": [
+              "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+              "1000000",
+              "3",
+              "0"
+            ],
+            "log": "windows-perf-redirect-cal.log",
+            "log_sha256": "b2083187db8255137b34d6786e1d144d66c96d46af9fcb5bc6764f59fbbea413",
+            "values": {
+              "operations_per_sec": 28541989.535,
+              "ns_per_operation": 35.036,
+              "checksum": 1234000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "9989697",
+                "3",
+                "0"
+              ],
+              "log": "windows-perf-redirect-current-0.log",
+              "log_sha256": "43e249affe543cb4995b109adde6e583b917e958f8587e62c883e54bec7b82c2",
+              "values": {
+                "operations_per_sec": 28101543.887,
+                "ns_per_operation": 35.585,
+                "checksum": 12327286098.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-1.log",
+                "log_sha256": "a1c7f2c28c8248e12b9526a2b82fcb933524c85c2f75e48bd773f67678caeaf0",
+                "values": {
+                  "operations_per_sec": 28494747.14,
+                  "ns_per_operation": 35.094,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-2.log",
+                "log_sha256": "a72d987092bbbde7c70741c944b1e638296ebd0102ac1c1cb958e8a178ae2d42",
+                "values": {
+                  "operations_per_sec": 27513179.324,
+                  "ns_per_operation": 36.346,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-3.log",
+                "log_sha256": "3c111bf37cc47e8a644dbd487b4adecfcf9a620a4654062116b70bfa2eba56fb",
+                "values": {
+                  "operations_per_sec": 28766451.942,
+                  "ns_per_operation": 34.763,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-4.log",
+                "log_sha256": "bf6c7817eeedca0670ac901de6146fca311feb59a339e3eddda9cceb4b204891",
+                "values": {
+                  "operations_per_sec": 28751656.721,
+                  "ns_per_operation": 34.781,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-5.log",
+                "log_sha256": "f922d7093473fd8cac8970eef4be5f5469d76d3af393601ac7f1a978f750b45d",
+                "values": {
+                  "operations_per_sec": 27968203.752,
+                  "ns_per_operation": 35.755,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-6.log",
+                "log_sha256": "670921c7de52271073292f5c410ffd6f8cf141bc731962bae5e14521c5251106",
+                "values": {
+                  "operations_per_sec": 28912693.465,
+                  "ns_per_operation": 34.587,
+                  "checksum": 12327286098.0
+                }
+              },
+              {
+                "command": [
+                  "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                  "9989697",
+                  "3",
+                  "0"
+                ],
+                "log": "windows-perf-redirect-current-7.log",
+                "log_sha256": "4bb466f13661d60b5fcdc94556504cbaa9337e9d68aa93961cdd9241f263f6ba",
+                "values": {
+                  "operations_per_sec": 28259941.07,
+                  "ns_per_operation": 35.386,
+                  "checksum": 12327286098.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "D:\\GIT\\xrt\\out\\service-extensions\\xredis-cluster-topology-20261112\\performance\\windows\\current.exe",
+                "256",
+                "3",
+                "1"
+              ],
+              "log": "windows-perf-redirect-current-heap.log",
+              "log_sha256": "456425e6a3e0488f316c859c833a3790686c8e54ef02a9e9f94c836b28d330a0",
+              "values": {
+                "operations_per_sec": 28131833.866,
+                "ns_per_operation": 35.547,
+                "checksum": 315904.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  28494747.14,
+                  27513179.324,
+                  28766451.942,
+                  28751656.721,
+                  27968203.752,
+                  28912693.465,
+                  28259941.07
+                ],
+                "median": 28494747.14,
+                "mean": 28380981.916285716,
+                "min": 27513179.324,
+                "max": 28912693.465,
+                "mad": 271704.8020000011,
+                "relative_mad": 0.009535259276562966,
+                "range": 1399514.140999999,
+                "relative_range": 0.04911481172736593,
+                "central_range": 798248.1900000013,
+                "relative_central_range": 0.02801387168231602,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  35.094,
+                  36.346,
+                  34.763,
+                  34.781,
+                  35.755,
+                  34.587,
+                  35.386
+                ],
+                "median": 35.094,
+                "mean": 35.244571428571426,
+                "min": 34.587,
+                "max": 36.346,
+                "mad": 0.33100000000000307,
+                "relative_mad": 0.009431811705704765,
+                "range": 1.7589999999999932,
+                "relative_range": 0.050122528067475726,
+                "central_range": 0.9920000000000044,
+                "relative_central_range": 0.028266940217701157,
+                "qualified": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "93b191935dd551ce361f4471773a1f20a1862685d86cdb6465908000ddff0a60",
+      "binaries": {
+        "current": {
+          "path": "performance/wsl/current",
+          "sha256": "d80912590a2100a2b491d5641976f4cb92ec35d8d683faa42574fe38ecf6bbef"
+        },
+        "legacy-crc": {
+          "path": "performance/wsl/legacy-crc",
+          "sha256": "d5f42ce28fdc0848eb34349223b05927815944060fa468bc745505e8884dffee"
+        }
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "scope": "Local component bulk means; no per-operation latency distribution or network/production-tail acceptance. Legacy-crc is the same new topology/benchmark with only private CRC replaced by the pre-change bit loop, not a previously existing Cluster API.",
+      "cases": [
+        {
+          "name": "lookup",
+          "mode": 0,
+          "count": 53980683,
+          "calibration": {
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+              "1000000",
+              "0",
+              "0"
+            ],
+            "log": "wsl-perf-lookup-cal.log",
+            "log_sha256": "59831ae959e045fe874e12a88832f5ac171a426a436c2ce603589df8ea4ae64a",
+            "values": {
+              "operations_per_sec": 154230520.034,
+              "ns_per_operation": 6.484,
+              "checksum": 6379000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "53980683",
+                "0",
+                "0"
+              ],
+              "log": "wsl-perf-lookup-current-0.log",
+              "log_sha256": "0bcfaa0352ace519a086a0b008f7ab1988b28ee47271c676163bd90e7fcd415c",
+              "values": {
+                "operations_per_sec": 137639144.485,
+                "ns_per_operation": 7.265,
+                "checksum": 344342776857.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-1.log",
+                "log_sha256": "a608833e95ab2989805a5f3dd3f02966c3c64c480ade27f7f8842e5aa2d422ea",
+                "values": {
+                  "operations_per_sec": 135982897.77,
+                  "ns_per_operation": 7.354,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-2.log",
+                "log_sha256": "469ea19eee3bdd1c4bc9af3e04b638a966f1cc86b676b77c8840c4cac450e4bc",
+                "values": {
+                  "operations_per_sec": 139899169.947,
+                  "ns_per_operation": 7.148,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-3.log",
+                "log_sha256": "3147833b963ceb32b6feb245d2a711fdf50da4e6c3f543824c60843184cb5b08",
+                "values": {
+                  "operations_per_sec": 135634694.308,
+                  "ns_per_operation": 7.373,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-4.log",
+                "log_sha256": "41a415073577f91cec4cdfe82145f7757bb36649ed45b565e8926219872b0d2b",
+                "values": {
+                  "operations_per_sec": 136207368.154,
+                  "ns_per_operation": 7.342,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-5.log",
+                "log_sha256": "261dbbaffd4aedc50c66735755657966e8b5a401d2953f984eff39a66a96c840",
+                "values": {
+                  "operations_per_sec": 137443593.174,
+                  "ns_per_operation": 7.276,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-6.log",
+                "log_sha256": "c7df20e336fefa544cd97c649d9b613e4ad432dafdd817b048562d300231fba9",
+                "values": {
+                  "operations_per_sec": 133742010.016,
+                  "ns_per_operation": 7.477,
+                  "checksum": 344342776857.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "53980683",
+                  "0",
+                  "0"
+                ],
+                "log": "wsl-perf-lookup-current-7.log",
+                "log_sha256": "f95b2bf44ad528a78e15be8611cd2dfde733a3499e97160f19fe145faee45f0f",
+                "values": {
+                  "operations_per_sec": 133579444.861,
+                  "ns_per_operation": 7.486,
+                  "checksum": 344342776857.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "256",
+                "0",
+                "1"
+              ],
+              "log": "wsl-perf-lookup-current-heap.log",
+              "log_sha256": "182003a617814f4fb4ab369fcaee3ca0c14c4e34fae04c8631ee4c8a92ac96a5",
+              "values": {
+                "operations_per_sec": 150588216.54,
+                "ns_per_operation": 6.641,
+                "checksum": 1633024.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  135982897.77,
+                  139899169.947,
+                  135634694.308,
+                  136207368.154,
+                  137443593.174,
+                  133742010.016,
+                  133579444.861
+                ],
+                "median": 135982897.77,
+                "mean": 136069882.60428572,
+                "min": 133579444.861,
+                "max": 139899169.947,
+                "mad": 1460695.4039999843,
+                "relative_mad": 0.010741758176609741,
+                "range": 6319725.0859999955,
+                "relative_range": 0.04647441104460878,
+                "central_range": 3701583.1579999924,
+                "relative_central_range": 0.027220946300620903,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  7.354,
+                  7.148,
+                  7.373,
+                  7.342,
+                  7.276,
+                  7.477,
+                  7.486
+                ],
+                "median": 7.354,
+                "mean": 7.350857142857143,
+                "min": 7.148,
+                "max": 7.486,
+                "mad": 0.07800000000000029,
+                "relative_mad": 0.010606472667935856,
+                "range": 0.3380000000000001,
+                "relative_range": 0.04596138156105522,
+                "central_range": 0.2010000000000005,
+                "relative_central_range": 0.027332064182757753,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "keyslot",
+          "mode": 1,
+          "count": 18937755,
+          "calibration": {
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+              "1000000",
+              "1",
+              "0"
+            ],
+            "log": "wsl-perf-keyslot-cal.log",
+            "log_sha256": "6266a1bef4ac997cdb85851dbf80d114574b4fc18448f8ae557850211285db36",
+            "values": {
+              "operations_per_sec": 54107869.448,
+              "ns_per_operation": 18.482,
+              "checksum": 12739000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "18937755",
+                "1",
+                "0"
+              ],
+              "log": "wsl-perf-keyslot-current-0.log",
+              "log_sha256": "775017cc9646cab8c6146ccd94f0ebaa1248f67512f03d287f676b18a5e383c5",
+              "values": {
+                "operations_per_sec": 52692944.964,
+                "ns_per_operation": 18.978,
+                "checksum": 241248060945.0
+              }
+            },
+            "legacy-crc": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                "18937755",
+                "1",
+                "0"
+              ],
+              "log": "wsl-perf-keyslot-legacy-crc-0.log",
+              "log_sha256": "ca3fee4ac0a3de72b9bb6cb1322ab7a81911624da7bf39749fd770e9988cc86c",
+              "values": {
+                "operations_per_sec": 45014696.557,
+                "ns_per_operation": 22.215,
+                "checksum": 241248060945.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-1.log",
+                "log_sha256": "04fc4040ae176e148e55b0762caa1c198b87754549e112ebd6e1bf1b5d29d068",
+                "values": {
+                  "operations_per_sec": 52519617.716,
+                  "ns_per_operation": 19.041,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-2.log",
+                "log_sha256": "759932b45dddaa947aba8eff76c81f47920b420fab7f3100fb9149e1710e6ea7",
+                "values": {
+                  "operations_per_sec": 52103006.969,
+                  "ns_per_operation": 19.193,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-3.log",
+                "log_sha256": "d5b9a3aa4214e995bd807d8e968ffd44598df6e8c7ccd01999b1d407b9c6b7e3",
+                "values": {
+                  "operations_per_sec": 52578176.532,
+                  "ns_per_operation": 19.019,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-4.log",
+                "log_sha256": "e518b74c67be4d2dd8ac4f1295b1908d32678244f962d4121c6d17e773256fe6",
+                "values": {
+                  "operations_per_sec": 52341495.069,
+                  "ns_per_operation": 19.105,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-5.log",
+                "log_sha256": "a43759b44b9669f7e2053d733e504d0bacbcfd119699516c73906b55459275b1",
+                "values": {
+                  "operations_per_sec": 50197899.389,
+                  "ns_per_operation": 19.921,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-6.log",
+                "log_sha256": "f16abeb1da5d67659b660e3354cf51efff9aa102f95c98ecd2f6c14911fa8708",
+                "values": {
+                  "operations_per_sec": 52456713.635,
+                  "ns_per_operation": 19.063,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-current-7.log",
+                "log_sha256": "de1bbe445c7cb0b83e912ca1b5587d7fdd6eec6da0dce4cc5ac80a6c1d29f0a9",
+                "values": {
+                  "operations_per_sec": 52035247.602,
+                  "ns_per_operation": 19.218,
+                  "checksum": 241248060945.0
+                }
+              }
+            ],
+            "legacy-crc": [
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-1.log",
+                "log_sha256": "b84c3db731257ea4bb3586b403d2daca353ee1b386a54e4b26a98d0c4cf0c495",
+                "values": {
+                  "operations_per_sec": 47642677.949,
+                  "ns_per_operation": 20.99,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-2.log",
+                "log_sha256": "01fc1047d1bbf671c66a2143d4d207c185cfa218c7769d5aa158c46cd9003700",
+                "values": {
+                  "operations_per_sec": 45103208.72,
+                  "ns_per_operation": 22.171,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-3.log",
+                "log_sha256": "78c6bdf2d31a9ee084de9626df47bc5a3274269cc8917a7cdaefb141f9503a84",
+                "values": {
+                  "operations_per_sec": 46713981.963,
+                  "ns_per_operation": 21.407,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-4.log",
+                "log_sha256": "695b09bb1f636c29fe0d1324e20e182a463f87a865b15d3bcc3c8cb92488eac2",
+                "values": {
+                  "operations_per_sec": 46398757.279,
+                  "ns_per_operation": 21.552,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-5.log",
+                "log_sha256": "12ab584e53acbf0c04325948211b9e7a04834f8cf14b32bd86521ce560de6460",
+                "values": {
+                  "operations_per_sec": 47328804.136,
+                  "ns_per_operation": 21.129,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-6.log",
+                "log_sha256": "73dd421b791d763558ffcc15527744d1335299f931879c4c0cca3bb41347b37b",
+                "values": {
+                  "operations_per_sec": 43839486.023,
+                  "ns_per_operation": 22.81,
+                  "checksum": 241248060945.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                  "18937755",
+                  "1",
+                  "0"
+                ],
+                "log": "wsl-perf-keyslot-legacy-crc-7.log",
+                "log_sha256": "25012c4c0967bc19ecda10537cd4d2824397a79c460e1ed969ed738261d5587d",
+                "values": {
+                  "operations_per_sec": 46164570.76,
+                  "ns_per_operation": 21.662,
+                  "checksum": 241248060945.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "256",
+                "1",
+                "1"
+              ],
+              "log": "wsl-perf-keyslot-current-heap.log",
+              "log_sha256": "1eb0dc15cd59a204a26b6f5036b438e2084f1b3526ec25656420245d7733c539",
+              "values": {
+                "operations_per_sec": 58181820.133,
+                "ns_per_operation": 17.187,
+                "checksum": 3261184.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            },
+            "legacy-crc": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/legacy-crc",
+                "256",
+                "1",
+                "1"
+              ],
+              "log": "wsl-perf-keyslot-legacy-crc-heap.log",
+              "log_sha256": "543b10b573f0aa1a4cadde42a2d4cf386703be7ccaf838c37f122583eb44849e",
+              "values": {
+                "operations_per_sec": 42666665.158,
+                "ns_per_operation": 23.438,
+                "checksum": 3261184.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  52519617.716,
+                  52103006.969,
+                  52578176.532,
+                  52341495.069,
+                  50197899.389,
+                  52456713.635,
+                  52035247.602
+                ],
+                "median": 52341495.069,
+                "mean": 52033165.27314286,
+                "min": 50197899.389,
+                "max": 52578176.532,
+                "mad": 236681.46299999952,
+                "relative_mad": 0.004521870509965191,
+                "range": 2380277.142999999,
+                "relative_range": 0.04547591045808228,
+                "central_range": 484370.11400000006,
+                "relative_central_range": 0.009254036656031157,
+                "qualified": true
+              },
+              "legacy-crc": {
+                "samples": [
+                  47642677.949,
+                  45103208.72,
+                  46713981.963,
+                  46398757.279,
+                  47328804.136,
+                  43839486.023,
+                  46164570.76
+                ],
+                "median": 46398757.279,
+                "mean": 46170212.404285714,
+                "min": 43839486.023,
+                "max": 47642677.949,
+                "mad": 930046.8570000008,
+                "relative_mad": 0.02004465014887238,
+                "range": 3803191.925999999,
+                "relative_range": 0.0819675385513249,
+                "central_range": 2225595.416000001,
+                "relative_central_range": 0.04796670312994141,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  19.041,
+                  19.193,
+                  19.019,
+                  19.105,
+                  19.921,
+                  19.063,
+                  19.218
+                ],
+                "median": 19.105,
+                "mean": 19.222857142857144,
+                "min": 19.019,
+                "max": 19.921,
+                "mad": 0.08600000000000207,
+                "relative_mad": 0.004501439413766138,
+                "range": 0.902000000000001,
+                "relative_range": 0.04721277152577864,
+                "central_range": 0.1769999999999996,
+                "relative_central_range": 0.009264590421355644,
+                "qualified": true
+              },
+              "legacy-crc": {
+                "samples": [
+                  20.99,
+                  22.171,
+                  21.407,
+                  21.552,
+                  21.129,
+                  22.81,
+                  21.662
+                ],
+                "median": 21.552,
+                "mean": 21.67442857142857,
+                "min": 20.99,
+                "max": 22.81,
+                "mad": 0.42299999999999827,
+                "relative_mad": 0.019626948775055598,
+                "range": 1.8200000000000003,
+                "relative_range": 0.0844469190794358,
+                "central_range": 1.041999999999998,
+                "relative_central_range": 0.04834818114328127,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "create-release",
+          "mode": 2,
+          "count": 6786,
+          "calibration": {
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+              "1024",
+              "2",
+              "0"
+            ],
+            "log": "wsl-perf-create-release-cal.log",
+            "log_sha256": "75fdcd41a2ea32d2247ef3e54d0672b3a1bca9825a9cff1a0370526f1cade547",
+            "values": {
+              "operations_per_sec": 19387.697,
+              "ns_per_operation": 51579.103,
+              "checksum": 1024.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "6786",
+                "2",
+                "0"
+              ],
+              "log": "wsl-perf-create-release-current-0.log",
+              "log_sha256": "05b15424e11fe98970551b2e8714091815b8a56cc7ea6b11d291903cc0556e2e",
+              "values": {
+                "operations_per_sec": 18956.504,
+                "ns_per_operation": 52752.343,
+                "checksum": 6786.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-1.log",
+                "log_sha256": "13a4fcbbcaab50b4c0514e46884388a49e2f6e8c81949e9a7b3feadd788d915d",
+                "values": {
+                  "operations_per_sec": 18992.268,
+                  "ns_per_operation": 52653.007,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-2.log",
+                "log_sha256": "d5d2d0ae40a8f6999da0c2d4870b8736cef040badda0a01b19fc36f3b4f7fb7a",
+                "values": {
+                  "operations_per_sec": 18635.715,
+                  "ns_per_operation": 53660.404,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-3.log",
+                "log_sha256": "47b86d22d6d73f67505513c2a5b456198a908ccb3e286b4da0fd361fbf08c9a7",
+                "values": {
+                  "operations_per_sec": 19105.843,
+                  "ns_per_operation": 52340.009,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-4.log",
+                "log_sha256": "b7d54da98e267eafa61c86efc75e8729d78660e4fc681fc95a43fba4de18959f",
+                "values": {
+                  "operations_per_sec": 18526.415,
+                  "ns_per_operation": 53976.982,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-5.log",
+                "log_sha256": "454652178d06e60844235ca541a9c6645cbf9c64fb216054427121631e7165d2",
+                "values": {
+                  "operations_per_sec": 18806.677,
+                  "ns_per_operation": 53172.606,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-6.log",
+                "log_sha256": "5642ef378a7bb56ff0afe56400de49579ceb8d38ce3479da5762b4c4826b29e0",
+                "values": {
+                  "operations_per_sec": 18557.264,
+                  "ns_per_operation": 53887.253,
+                  "checksum": 6786.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "6786",
+                  "2",
+                  "0"
+                ],
+                "log": "wsl-perf-create-release-current-7.log",
+                "log_sha256": "5647cab1ed3c5e2285fb8c262c9886346857fccab83945a30b9b24de6a0c9295",
+                "values": {
+                  "operations_per_sec": 19130.102,
+                  "ns_per_operation": 52273.637,
+                  "checksum": 6786.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "256",
+                "2",
+                "1"
+              ],
+              "log": "wsl-perf-create-release-current-heap.log",
+              "log_sha256": "f8d67ce039a3944c2944ba0bddfd295ff4a65008819cd4b1cad04a5feab29208",
+              "values": {
+                "operations_per_sec": 19395.409,
+                "ns_per_operation": 51558.594,
+                "checksum": 256.0,
+                "heap_blocks_per_operation": 1.0,
+                "heap_bytes_per_operation": 33016.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  18992.268,
+                  18635.715,
+                  19105.843,
+                  18526.415,
+                  18806.677,
+                  18557.264,
+                  19130.102
+                ],
+                "median": 18806.677,
+                "mean": 18822.04057142857,
+                "min": 18526.415,
+                "max": 19130.102,
+                "mad": 249.41300000000047,
+                "relative_mad": 0.013261938831618178,
+                "range": 603.6869999999981,
+                "relative_range": 0.03209961015441474,
+                "central_range": 548.5790000000015,
+                "relative_central_range": 0.02916937426000359,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  52653.007,
+                  53660.404,
+                  52340.009,
+                  53976.982,
+                  53172.606,
+                  53887.253,
+                  52273.637
+                ],
+                "median": 53172.606,
+                "mean": 53137.699714285714,
+                "min": 52273.637,
+                "max": 53976.982,
+                "mad": 714.6469999999972,
+                "relative_mad": 0.01344013494467428,
+                "range": 1703.3450000000012,
+                "relative_range": 0.032034258392375975,
+                "central_range": 1547.2439999999988,
+                "relative_central_range": 0.029098517383180332,
+                "qualified": true
+              }
+            }
+          }
+        },
+        {
+          "name": "redirect",
+          "mode": 3,
+          "count": 8859594,
+          "calibration": {
+            "command": [
+              "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+              "1000000",
+              "3",
+              "0"
+            ],
+            "log": "wsl-perf-redirect-cal.log",
+            "log_sha256": "4e1eec7b3657c03fa7f1e9e89be1e11dc2f124d2d5b8f70609def568feaa3ec3",
+            "values": {
+              "operations_per_sec": 25313123.336,
+              "ns_per_operation": 39.505,
+              "checksum": 1234000000.0
+            }
+          },
+          "warmups": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "8859594",
+                "3",
+                "0"
+              ],
+              "log": "wsl-perf-redirect-current-0.log",
+              "log_sha256": "5ba694a4352f81e48f8228f788215ca2f8cbe0479486eaae7fe9e0455c4f28f9",
+              "values": {
+                "operations_per_sec": 26354246.22,
+                "ns_per_operation": 37.945,
+                "checksum": 10932738996.0
+              }
+            }
+          },
+          "samples": {
+            "current": [
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-1.log",
+                "log_sha256": "fcaef0b19f173f3b086693c565b1072efeb5cb2a6fafeb8238badc30fe267561",
+                "values": {
+                  "operations_per_sec": 26367752.806,
+                  "ns_per_operation": 37.925,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-2.log",
+                "log_sha256": "45ed712b0a780e579f6f5fb0bc3c4c7d4e245c10cc21025f0e1bea15922d0613",
+                "values": {
+                  "operations_per_sec": 26259666.497,
+                  "ns_per_operation": 38.081,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-3.log",
+                "log_sha256": "9b7a305ef5158860c0dd7f8ee16041c83a0c237aba86cf4996f44eb1c2421f85",
+                "values": {
+                  "operations_per_sec": 26267233.982,
+                  "ns_per_operation": 38.07,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-4.log",
+                "log_sha256": "13b689e0e2e3e897fc98a38fecdf8023885f59b7b39d29085f4fd6d6eeaa4148",
+                "values": {
+                  "operations_per_sec": 22639098.735,
+                  "ns_per_operation": 44.171,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-5.log",
+                "log_sha256": "e3d9bdf9807c9dcdb8cac9171277ef063a38bde47f88af918da2f92b90cafff4",
+                "values": {
+                  "operations_per_sec": 26764430.636,
+                  "ns_per_operation": 37.363,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-6.log",
+                "log_sha256": "e6463e70cf037a1ac5e99c981ea08ed43eb19ac39519682b4adff322c0995028",
+                "values": {
+                  "operations_per_sec": 26636142.774,
+                  "ns_per_operation": 37.543,
+                  "checksum": 10932738996.0
+                }
+              },
+              {
+                "command": [
+                  "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                  "8859594",
+                  "3",
+                  "0"
+                ],
+                "log": "wsl-perf-redirect-current-7.log",
+                "log_sha256": "874d93a08a1534e1781869873d4242c29a4a424bc7cbe944b60e52831a71b529",
+                "values": {
+                  "operations_per_sec": 25304420.849,
+                  "ns_per_operation": 39.519,
+                  "checksum": 10932738996.0
+                }
+              }
+            ]
+          },
+          "allocations": {
+            "current": {
+              "command": [
+                "/mnt/d/GIT/xrt/out/service-extensions/xredis-cluster-topology-20261112/performance/wsl/current",
+                "256",
+                "3",
+                "1"
+              ],
+              "log": "wsl-perf-redirect-current-heap.log",
+              "log_sha256": "42052bac1ef146cd53e05fccf7faf54dff4fea13733217b712a143a330162df9",
+              "values": {
+                "operations_per_sec": 24380952.574,
+                "ns_per_operation": 41.016,
+                "checksum": 315904.0,
+                "heap_blocks_per_operation": 0.0,
+                "heap_bytes_per_operation": 0.0
+              }
+            }
+          },
+          "metrics": {
+            "operations_per_sec": {
+              "current": {
+                "samples": [
+                  26367752.806,
+                  26259666.497,
+                  26267233.982,
+                  22639098.735,
+                  26764430.636,
+                  26636142.774,
+                  25304420.849
+                ],
+                "median": 26267233.982,
+                "mean": 25748392.32557143,
+                "min": 22639098.735,
+                "max": 26764430.636,
+                "mad": 368908.79199999943,
+                "relative_mad": 0.014044447628280903,
+                "range": 4125331.9010000005,
+                "relative_range": 0.1570523909684188,
+                "central_range": 1331721.9250000007,
+                "relative_central_range": 0.050698978275085314,
+                "qualified": true
+              }
+            },
+            "ns_per_operation": {
+              "current": {
+                "samples": [
+                  37.925,
+                  38.081,
+                  38.07,
+                  44.171,
+                  37.363,
+                  37.543,
+                  39.519
+                ],
+                "median": 38.07,
+                "mean": 38.95314285714286,
+                "min": 37.363,
+                "max": 44.171,
+                "mad": 0.527000000000001,
+                "relative_mad": 0.013842920935119544,
+                "range": 6.808,
+                "relative_range": 0.17882847386393486,
+                "central_range": 1.975999999999999,
+                "relative_central_range": 0.05190438665615968,
+                "qualified": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initial_failures": [
+    {
+      "stage": "metadata registration",
+      "cause": "Incorrect local script key single_test_suites; corrected to single_test_owners before manifest was written."
+    },
+    {
+      "stage": "metadata performance registration",
+      "cause": "Incorrect local script top-level systems key; corrected to profiles/benchmarks. Original write-deliverables.py retains the failed command."
+    },
+    {
+      "stage": "initial unit compile",
+      "cause": "Misleading-indentation warning in independent CRC oracle, fixed. Original source remains in write-tests.py; development-windows.log preserves failure."
+    },
+    {
+      "stage": "development focused invocation",
+      "cause": "Unit programs passed, but unrequested core thread_tour example failed due to its missing thread-key selection. Focused units use --no-examples; the extension example has its own passing run.",
+      "log": "development-windows-2.log"
+    },
+    {
+      "stage": "initial wire-probe compile",
+      "cause": "Two misleading-indentation warnings, fixed. Original source remains in write-probe.py; the development build log was overwritten by later development compiles, so its original raw log is not retained."
+    },
+    {
+      "stage": "first Windows size command",
+      "cause": "Missing explicit extension profile config; unknown size profile, no artifact measured. Correct --config run passes.",
+      "log": "windows-size.log"
+    }
+  ],
+  "limits": [
+    "This increment has no C Cluster transport, automatic MOVED/ASK execution, refresh, retries, cross-slot command planning or resharding/failover acceptance.",
+    "Real fixture is a disposable owned 3-master Redis8.0.5 plaintext IPv4 Cluster hosted in WSL. Hostname/unknown endpoints and real MOVED/ASK replies are projected, not dialed by C.",
+    "Native Linux, realistic mixed/fixed-arrival workloads, CPU/RSS/upstream comparison and >=72h production acceptance remain open.",
+    "Local benchmark uses one node/full slot range, sequential hot slot lookups and a fixed 9-byte hash tag. Reported ns are bulk means, not latency quantiles or production tails.",
+    "Legacy CRC comparison is the same new component/benchmark with the pre-change private bit loop; the Cluster API did not exist in the base revision."
+  ],
+  "unchanged_native_client_pool_sources": [
+    "extlibs/xredis/src/client/client.c",
+    "extlibs/xredis/src/pool/pool.c",
+    "extlibs/xredis/include/xredis/client.h",
+    "extlibs/xredis/include/xredis/pool.h",
+    "extlibs/xredis/include/xredis/pool_connect.h"
+  ],
+  "total_reference_topology_cases": 1456,
+  "total_reference_binary_key_results": 32824,
+  "total_real_topology_projections": 288,
+  "remote_push": false,
+  "new_branch_operations": 0
+}

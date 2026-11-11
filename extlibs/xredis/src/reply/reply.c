@@ -2,6 +2,7 @@
 #include <xredis/tracking.h>
 #include <xredis/pubsub.h>
 #include <xredis/role.h>
+#include "../internal/cluster_reply.h"
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/number.h>
@@ -62,6 +63,11 @@ static bool xredisReplyOverlap(const xredisreply* Reply, const void* Data, size_
 			Reply->NodeCapacity * sizeof(*Reply->Nodes), Data, Bytes)) ||
 		(Reply->Data != Reply->InlineData && xrtMemRangesOverlap(Reply->Data, Reply->DataCapacity, Data, Bytes)));
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+bool __xredisClusterReplyOutput(const xredisreply* Reply,const void* Output,size_t Bytes)
+{return Reply && Output && xrtMemRangeValid(Output,Bytes) && !xredisReplyOverlap(Reply,Output,Bytes);}
+#endif
 
 static bool xredisReplyReaderOverlap(const xredisreplyreader* Reader, const void* Data, size_t Bytes)
 {

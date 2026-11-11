@@ -217,7 +217,7 @@ deltas on the same transport; native receive remains direct. See
 [session contracts](docs/subscription_session.md). HA topology and the complete
 production/long-run gates remain open.
 
-Optional [ROLE inspection](docs/role.md) supplies bounded borrowed role/list views; discovery and role-gated initialization remain subsequent work.
+Optional [ROLE inspection](docs/role.md) supplies bounded borrowed role/list views; role-gated initialization and discovery are described below.
 
 Optional [role-verified initialization](docs/role_client.md) withholds readiness and queued business until the requested role is validated under the original setup deadline.
 
@@ -226,3 +226,7 @@ ROLE validation and stale-role re-resolution; full automatic HA remains developi
 
 [Automatic Sentinel pools](docs/sentinel_pool.md) discover each replacement and
 fence/retire all old members when the verified master endpoint changes.
+
+[Cluster topology](docs/cluster_topology.md) provides bounded immutable SHARDS/
+SLOTS snapshots, constant-time slot lookup, binary key slots and MOVED/ASK views.
+Automatic Cluster request routing/redirect execution remains subsequent work.

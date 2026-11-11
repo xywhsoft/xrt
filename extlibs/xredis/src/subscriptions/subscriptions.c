@@ -1,5 +1,6 @@
 #include <xredis/subscriptions.h>
 #include "../internal/subscription_replay.h"
+#include "../internal/cluster_slot.h"
 #include <xrt/hash.h>
 #include <xrt/memory.h>
 #include <stdlib.h>
@@ -76,18 +77,9 @@ XREDIS_API bool xredisSubscriptionsCreate(const xredissubscriptionsconfig* Confi
     S->Current=xrtCalloc(1,sizeof(*S->Current));if(!S->Current){xrtMutexUnit(&S->Gate);xrtFree(S);return false;}
     xrtAtomic32Init(&S->Current->References,1);S->Current->StorageBytes=sizeof(*S->Current);*Output=S;return true;
 }
-/* Redis Cluster normative CRC16/XMODEM polynomial and first-pair hash tags.
- * Compute once for edited shard names; recovery reads the cached slot. */
+/* Compute once for edited shard names; recovery reads the cached slot. */
 static uint16 xredisSubscriptionSlot(xbytesview Name)
-{
-    size_t Begin=0,End=Name.Size,Open=0;while(Open<Name.Size && Name.Data[Open]!='{')++Open;
-    if(Open<Name.Size){size_t Close=Open+1;while(Close<Name.Size && Name.Data[Close]!='}')++Close;
-        if(Close<Name.Size && Close>Open+1){Begin=Open+1;End=Close;}}
-    uint16 Crc=0;
-    for(size_t N=Begin;N<End;++N){Crc^=(uint16)((uint16)Name.Data[N]<<8);
-        for(unsigned Bit=0;Bit<8;++Bit)Crc=(uint16)((Crc<<1)^((Crc&0x8000u)?0x1021u:0));}
-    return (uint16)(Crc&16383u);
-}
+{return xredisClusterSlotRaw(Name);}
 static int xredisSubscriptionCompareName(uint16 ASlot,uint64 AHash,xbytesview A,uint16 BSlot,uint64 BHash,xbytesview B)
 {
     if(ASlot!=BSlot)return ASlot<BSlot?-1:1;

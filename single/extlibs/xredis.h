@@ -133,6 +133,19 @@
 #ifndef XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #define XREDIS_MODULE_XREDIS_SENTINEL_POOL
 #endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
+#define XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY
+#endif
+#endif
+
+/* xredis_cluster_topology 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_TOPOLOGY)
+#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY
+#define XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY
+#endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
 #endif
 
 /* xredis_sentinel_pool 及其直接依赖。 */
@@ -2378,6 +2391,96 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/cluster_topology.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_CLUSTER_TOPOLOGY_H
+#define XREDIS_CLUSTER_TOPOLOGY_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY) && !defined(XREDIS_FEATURE_XREDIS_REPLY)
+#error "Cluster topology requires immutable replies"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#define XREDIS_CLUSTER_SLOTS 16384u
+typedef struct xredisclustertopology xredisclustertopology;
+typedef enum xredisclusterformat {XREDIS_CLUSTER_SHARDS=1,XREDIS_CLUSTER_LEGACY_SLOTS} xredisclusterformat;
+typedef enum xredisclusterstatus {
+    XREDIS_CLUSTER_ERROR=-1,XREDIS_CLUSTER_MALFORMED=-2,XREDIS_CLUSTER_LIMIT=-3,
+    XREDIS_CLUSTER_MEMORY=-4,XREDIS_CLUSTER_SERVER_ERROR=-5,
+    XREDIS_CLUSTER_ABSENT=0,XREDIS_CLUSTER_VALUE=1
+} xredisclusterstatus;
+typedef enum xredisclusterendpoint {XREDIS_CLUSTER_ENDPOINT_HOST=1,XREDIS_CLUSTER_ENDPOINT_SOURCE,XREDIS_CLUSTER_ENDPOINT_UNKNOWN} xredisclusterendpoint;
+typedef enum xredisclusterrole {XREDIS_CLUSTER_ROLE_OTHER=0,XREDIS_CLUSTER_MASTER,XREDIS_CLUSTER_REPLICA} xredisclusterrole;
+typedef enum xredisclusterhealth {XREDIS_CLUSTER_HEALTH_OTHER=0,XREDIS_CLUSTER_ONLINE,XREDIS_CLUSTER_FAILED,XREDIS_CLUSTER_LOADING,XREDIS_CLUSTER_UNREPORTED} xredisclusterhealth;
+typedef enum xredisclusterredirectkind {XREDIS_CLUSTER_MOVED=1,XREDIS_CLUSTER_ASK} xredisclusterredirectkind;
+typedef struct xredisclusterlimits {
+    size_t Size,MaxShards,MaxNodes,MaxRanges,MaxReplyNodes,MaxPayloadBytes,MaxEndpointBytes,MaxOwnedBytes;
+    bool RequireFullCoverage;
+} xredisclusterlimits;
+/* Views are owned by a live topology reference; no NUL terminator. SOURCE means
+ * use the actual host used for the topology query. UNKNOWN ('?') must not use
+ * that fallback. SHARDS has separate TCP/TLS ports (0 means unavailable);
+ * legacy SLOTS Port belongs to the transport used for that query. */
+typedef struct xredisclusternode {
+    xbytesview Id,Host,Ip,Hostname,RoleText,HealthText;
+    size_t Shard;int64 ReplicationOffset;
+    uint16 Port,TlsPort;xredisclusterendpoint Endpoint;
+    xredisclusterrole Role;xredisclusterhealth Health;
+} xredisclusternode;
+typedef struct xredisclusterrange {uint16 First,Last;size_t Master,Shard;} xredisclusterrange;
+typedef struct xredisclustertopologyinfo {
+    size_t Size,Shards,Nodes,Ranges,AssignedSlots,StorageBytes,RetainedReplyBytes;
+    xredisclusterformat Format;
+} xredisclustertopologyinfo;
+/* Borrowed from the existing Reply reference. ASK targets only the current
+ * query and requires exclusive ASKING+query execution, not a permanent map edit.
+ * Empty Host uses the original request's host; IPv6 brackets are stripped. */
+typedef struct xredisclusterredirect {xredisclusterredirectkind Kind;uint16 Slot,Port;xbytesview Host;xredisclusterendpoint Endpoint;} xredisclusterredirect;
+XRT_EXTERN_C_BEGIN
+/* Binary-safe CRC16/XMODEM with first-pair nonempty hash tags. O(key bytes),
+ * no allocation or ownership. Empty keys are valid. Output must be disjoint. */
+XREDIS_API bool xredisClusterKeySlot(xbytesview Key,uint16* Slot);
+/* Classify SIMPLE_ERROR/BULK_ERROR only. MaxEndpointBytes is a real cap,
+ * including brackets; slot/port decimal fields have fixed maximum lengths.
+ * VALUE alone writes Redirect. Non-values preserve output and ambient error.
+ * Input must remain owned; never mutates a topology or executes/replays calls. */
+XREDIS_API xredisclusterstatus xredisClusterRedirectRead(const xredisreply* Reply,size_t MaxEndpointBytes,xredisclusterredirect* Redirect);
+/* Defaults:4096 shards/nodes,16384 ranges,262144 reply nodes,4MiB payload,
+ * 1024 endpoint bytes,32MiB total requested retained+snapshot storage, partial
+ * coverage allowed. Zero is a limit. MaxNodes<=65535; shards/ranges<=16384. */
+XREDIS_API bool xredisClusterLimitsInit(xredisclusterlimits* Limits);
+/* Complete two-pass shape validation; detects overlapping/out-of-range slots,
+ * duplicate known map fields and missing/multiple masters. SHARDS accepts RESP2
+ * alternating arrays or RESP3 maps, preserves unknown fields in the owner,
+ * and preserves unknown role/health text. SLOTS accepts old 2-field endpoints,
+ * optional node IDs and metadata; duplicate per-range node tuples remain so.
+ * Empty shard slot lists and partial maps are valid unless full coverage is
+ * required. Bounded reader costs remain the caller's responsibility.
+ * VALUE transfers one topology ref. One allocation owns the fixed32KiB slot
+ * index and node/range descriptors, plus one retained Reply ref (no text copy).
+ * MaxOwnedBytes includes that Reply's ReservedBytes. Creation scans shapes
+ * twice and fills slots; no hidden runtime, threads, network, refresh or retry.
+ * Output remains unchanged on failure. Source/config/output must be disjoint.
+ * Invalid args/OOM may set ambient error; protocol/limit/server outcomes don't. */
+XREDIS_API xredisclusterstatus xredisClusterTopologyCreate(xredisreply* Reply,xredisclusterformat Format,const xredisclusterlimits* Limits,xredisclustertopology** Topology);
+/* Immutable snapshots support synchronized cross-thread handoff. A caller must
+ * own a live ref before access/retain; final Release frees on its own thread. */
+XREDIS_API bool xredisClusterTopologyRetain(xredisclustertopology* Topology);
+XREDIS_API void xredisClusterTopologyRelease(xredisclustertopology* Topology);
+XREDIS_API bool xredisClusterTopologyInfo(const xredisclustertopology* Topology,xredisclustertopologyinfo* Info);
+/* Constant-time index/slot lookups, no allocations, locks or refcount changes.
+ * Out-of-range arguments report ERROR; unassigned slots return ABSENT and leave
+ * Node unchanged. Lookup does not filter health/unknown endpoints: caller must
+ * choose an eligible node/transport before dialing. Every writable output must
+ * be disjoint from the snapshot and all its retained reply allocations. */
+XREDIS_API xredisclusterstatus xredisClusterTopologyLookup(const xredisclustertopology* Topology,uint16 Slot,xredisclusternode* Node);
+XREDIS_API bool xredisClusterTopologyNode(const xredisclustertopology* Topology,size_t Index,xredisclusternode* Node);
+XREDIS_API bool xredisClusterTopologyRange(const xredisclustertopology* Topology,size_t Index,xredisclusterrange* Range);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -2473,12 +2576,31 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SENTINEL_POOL"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY"
+#endif
+
 #endif
 
 #endif
 
 #if defined(XREDIS_IMPLEMENTATION) && !defined(XREDIS_IMPLEMENTATION_ONCE)
 #define XREDIS_IMPLEMENTATION_ONCE 1
+
+
+/* ========================================================================== */
+/* internal: extlibs/xredis/src/internal/cluster_reply.h */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_REPLY) || \
+	defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#ifndef XREDIS_INTERNAL_CLUSTER_REPLY_H
+#define XREDIS_INTERNAL_CLUSTER_REPLY_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+bool __xredisClusterReplyOutput(const xredisreply* Reply,const void* Output,size_t Bytes);
+#endif
+#endif
+#endif
 
 
 /* ========================================================================== */
@@ -2660,6 +2782,65 @@ xredisadmission __xredisSubscriptionsApply(xredissubscriptions* Store,xredispubs
 xredisadmission __xredisSubscriptionTransitionCreate(xredissubscriptions* Store,xredisclient* Client,xredissubscriptionsnapshot* Base,const xredissubscriptionreplayconfig* Config,double Entered,ptr Scope,xredissubscriptionreplay** Output);
 xredissubscriptionsnapshot* __xredisSubscriptionTransitionSnapshot(xredissubscriptionreplay* Replay);
 #endif
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xredis/src/internal/cluster_slot.h */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS) || \
+	defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#ifndef XREDIS_INTERNAL_CLUSTER_SLOT_H
+#define XREDIS_INTERNAL_CLUSTER_SLOT_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY) || defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+/* CRC16/XMODEM polynomial0x1021, init0, no reflection/final xor. */
+static uint16 xredisClusterSlotRaw(xbytesview Key)
+{
+    static const uint16 Table[256]={
+        0x0000u,0x1021u,0x2042u,0x3063u,0x4084u,0x50a5u,0x60c6u,0x70e7u,
+        0x8108u,0x9129u,0xa14au,0xb16bu,0xc18cu,0xd1adu,0xe1ceu,0xf1efu,
+        0x1231u,0x0210u,0x3273u,0x2252u,0x52b5u,0x4294u,0x72f7u,0x62d6u,
+        0x9339u,0x8318u,0xb37bu,0xa35au,0xd3bdu,0xc39cu,0xf3ffu,0xe3deu,
+        0x2462u,0x3443u,0x0420u,0x1401u,0x64e6u,0x74c7u,0x44a4u,0x5485u,
+        0xa56au,0xb54bu,0x8528u,0x9509u,0xe5eeu,0xf5cfu,0xc5acu,0xd58du,
+        0x3653u,0x2672u,0x1611u,0x0630u,0x76d7u,0x66f6u,0x5695u,0x46b4u,
+        0xb75bu,0xa77au,0x9719u,0x8738u,0xf7dfu,0xe7feu,0xd79du,0xc7bcu,
+        0x48c4u,0x58e5u,0x6886u,0x78a7u,0x0840u,0x1861u,0x2802u,0x3823u,
+        0xc9ccu,0xd9edu,0xe98eu,0xf9afu,0x8948u,0x9969u,0xa90au,0xb92bu,
+        0x5af5u,0x4ad4u,0x7ab7u,0x6a96u,0x1a71u,0x0a50u,0x3a33u,0x2a12u,
+        0xdbfdu,0xcbdcu,0xfbbfu,0xeb9eu,0x9b79u,0x8b58u,0xbb3bu,0xab1au,
+        0x6ca6u,0x7c87u,0x4ce4u,0x5cc5u,0x2c22u,0x3c03u,0x0c60u,0x1c41u,
+        0xedaeu,0xfd8fu,0xcdecu,0xddcdu,0xad2au,0xbd0bu,0x8d68u,0x9d49u,
+        0x7e97u,0x6eb6u,0x5ed5u,0x4ef4u,0x3e13u,0x2e32u,0x1e51u,0x0e70u,
+        0xff9fu,0xefbeu,0xdfddu,0xcffcu,0xbf1bu,0xaf3au,0x9f59u,0x8f78u,
+        0x9188u,0x81a9u,0xb1cau,0xa1ebu,0xd10cu,0xc12du,0xf14eu,0xe16fu,
+        0x1080u,0x00a1u,0x30c2u,0x20e3u,0x5004u,0x4025u,0x7046u,0x6067u,
+        0x83b9u,0x9398u,0xa3fbu,0xb3dau,0xc33du,0xd31cu,0xe37fu,0xf35eu,
+        0x02b1u,0x1290u,0x22f3u,0x32d2u,0x4235u,0x5214u,0x6277u,0x7256u,
+        0xb5eau,0xa5cbu,0x95a8u,0x8589u,0xf56eu,0xe54fu,0xd52cu,0xc50du,
+        0x34e2u,0x24c3u,0x14a0u,0x0481u,0x7466u,0x6447u,0x5424u,0x4405u,
+        0xa7dbu,0xb7fau,0x8799u,0x97b8u,0xe75fu,0xf77eu,0xc71du,0xd73cu,
+        0x26d3u,0x36f2u,0x0691u,0x16b0u,0x6657u,0x7676u,0x4615u,0x5634u,
+        0xd94cu,0xc96du,0xf90eu,0xe92fu,0x99c8u,0x89e9u,0xb98au,0xa9abu,
+        0x5844u,0x4865u,0x7806u,0x6827u,0x18c0u,0x08e1u,0x3882u,0x28a3u,
+        0xcb7du,0xdb5cu,0xeb3fu,0xfb1eu,0x8bf9u,0x9bd8u,0xabbbu,0xbb9au,
+        0x4a75u,0x5a54u,0x6a37u,0x7a16u,0x0af1u,0x1ad0u,0x2ab3u,0x3a92u,
+        0xfd2eu,0xed0fu,0xdd6cu,0xcd4du,0xbdaau,0xad8bu,0x9de8u,0x8dc9u,
+        0x7c26u,0x6c07u,0x5c64u,0x4c45u,0x3ca2u,0x2c83u,0x1ce0u,0x0cc1u,
+        0xef1fu,0xff3eu,0xcf5du,0xdf7cu,0xaf9bu,0xbfbau,0x8fd9u,0x9ff8u,
+        0x6e17u,0x7e36u,0x4e55u,0x5e74u,0x2e93u,0x3eb2u,0x0ed1u,0x1ef0u,
+    };
+    size_t First=0,Last=Key.Size,Open=0;
+    while(Open<Key.Size && Key.Data[Open]!='{')++Open;
+    if(Open<Key.Size){size_t Close=Open+1;while(Close<Key.Size && Key.Data[Close]!='}')++Close;
+        if(Close<Key.Size && Close>Open+1){First=Open+1;Last=Close;}}
+    uint16 Crc=0;
+    for(size_t N=First;N<Last;++N)Crc=(uint16)((Crc<<8)^Table[((Crc>>8)^Key.Data[N])&255u]);
+    return (uint16)(Crc&16383u);
+}
 #endif
 #endif
 #endif
@@ -3522,6 +3703,11 @@ static bool xredisReplyOverlap(const xredisreply* Reply, const void* Data, size_
 			Reply->NodeCapacity * sizeof(*Reply->Nodes), Data, Bytes)) ||
 		(Reply->Data != Reply->InlineData && xrtMemRangesOverlap(Reply->Data, Reply->DataCapacity, Data, Bytes)));
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+bool __xredisClusterReplyOutput(const xredisreply* Reply,const void* Output,size_t Bytes)
+{return Reply && Output && xrtMemRangeValid(Output,Bytes) && !xredisReplyOverlap(Reply,Output,Bytes);}
+#endif
 
 static bool xredisReplyReaderOverlap(const xredisreplyreader* Reader, const void* Data, size_t Bytes)
 {
@@ -9155,18 +9341,9 @@ XREDIS_API bool xredisSubscriptionsCreate(const xredissubscriptionsconfig* Confi
     S->Current=xrtCalloc(1,sizeof(*S->Current));if(!S->Current){xrtMutexUnit(&S->Gate);xrtFree(S);return false;}
     xrtAtomic32Init(&S->Current->References,1);S->Current->StorageBytes=sizeof(*S->Current);*Output=S;return true;
 }
-/* Redis Cluster normative CRC16/XMODEM polynomial and first-pair hash tags.
- * Compute once for edited shard names; recovery reads the cached slot. */
+/* Compute once for edited shard names; recovery reads the cached slot. */
 static uint16 xredisSubscriptionSlot(xbytesview Name)
-{
-    size_t Begin=0,End=Name.Size,Open=0;while(Open<Name.Size && Name.Data[Open]!='{')++Open;
-    if(Open<Name.Size){size_t Close=Open+1;while(Close<Name.Size && Name.Data[Close]!='}')++Close;
-        if(Close<Name.Size && Close>Open+1){Begin=Open+1;End=Close;}}
-    uint16 Crc=0;
-    for(size_t N=Begin;N<End;++N){Crc^=(uint16)((uint16)Name.Data[N]<<8);
-        for(unsigned Bit=0;Bit<8;++Bit)Crc=(uint16)((Crc<<1)^((Crc&0x8000u)?0x1021u:0));}
-    return (uint16)(Crc&16383u);
-}
+{return xredisClusterSlotRaw(Name);}
 static int xredisSubscriptionCompareName(uint16 ASlot,uint64 AHash,xbytesview A,uint16 BSlot,uint64 BHash,xbytesview B)
 {
     if(ASlot!=BSlot)return ASlot<BSlot?-1:1;
@@ -10009,6 +10186,228 @@ XREDIS_API xredisadmission xredisSentinelPoolCreate(xnetengine* E,uint64 A,size_
 {return __xredisSentinelPoolCreate(E,A,N,C,S,P);}
 XREDIS_API bool xredisSentinelPoolInfo(xredispool* P,xredissentinelpoolinfo* I)
 {return __xredisSentinelPoolInfo(P,I);}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xredis/src/cluster_topology/cluster_topology.c */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#include <string.h>
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+struct xredisclustertopology {
+    xatomic32 References;xredisreply* Reply;xredisclustertopologyinfo Info;
+    xredisclusternode* Nodes;xredisclusterrange* Ranges;
+    uint16 Slots[XREDIS_CLUSTER_SLOTS];
+};
+typedef struct xredisclusterbuild {
+    xredisreply* Reply;const xredisclusterlimits* Limits;xredisclustertopology* Output;
+    size_t Shards,Nodes,Ranges,Assigned;unsigned char Seen[XREDIS_CLUSTER_SLOTS/8];
+} xredisclusterbuild;
+static bool xredisClusterArgument(cstr Text)
+{xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_REPLY_ARGUMENT,Text);return false;}
+static bool xredisClusterString(xredisreplyvalue V)
+{return (V.Type==XREDIS_REPLY_SIMPLE_STRING || V.Type==XREDIS_REPLY_BULK_STRING) && !(V.Flags&XREDIS_REPLY_NULL_VALUE);}
+static bool xredisClusterNull(xredisreplyvalue V)
+{return V.Type==XREDIS_REPLY_NULL || (V.Type==XREDIS_REPLY_BULK_STRING && (V.Flags&XREDIS_REPLY_NULL_VALUE));}
+static bool xredisClusterArray(xredisreplyvalue V)
+{return V.Type==XREDIS_REPLY_ARRAY && !(V.Flags&XREDIS_REPLY_NULL_VALUE);}
+static bool xredisClusterWord(xbytesview V,cstr Word)
+{size_t N=strlen(Word);return V.Size==N && (!N || !memcmp(V.Data,Word,N));}
+static xredisreplyvalue xredisClusterGet(const xredisreply* R,size_t Index)
+{xredisreplyvalue V={0};xredisReplyGet(R,Index,&V);return V;}
+static bool xredisClusterHostText(xbytesview Host)
+{
+    for(size_t N=0;N<Host.Size;++N){unsigned C=Host.Data[N];if(C<=32 || C==127 || C=='/' || C=='\\' || C=='@' || C=='#')return false;}
+    return true;
+}
+static xredisclusterendpoint xredisClusterEndpoint(xbytesview Host)
+{return !Host.Size?XREDIS_CLUSTER_ENDPOINT_SOURCE:xredisClusterWord(Host,"?")?XREDIS_CLUSTER_ENDPOINT_UNKNOWN:XREDIS_CLUSTER_ENDPOINT_HOST;}
+XREDIS_API bool xredisClusterKeySlot(xbytesview Key,uint16* Slot)
+{
+    if(!Slot || !xrtMemRangeValid(Slot,sizeof(*Slot)) || !xrtMemRangeValid(Key.Data,Key.Size) ||
+        xrtMemRangesOverlap(Key.Data,Key.Size,Slot,sizeof(*Slot)))return xredisClusterArgument("invalid Cluster key/slot output");
+    *Slot=xredisClusterSlotRaw(Key);return true;
+}
+static bool xredisClusterDecimal(xbytesview V,uint32 Max,uint16* Output)
+{
+    if(!V.Size || V.Size>5)return false;
+    uint32 N=0;for(size_t I=0;I<V.Size;++I){unsigned C=V.Data[I];if(C<'0' || C>'9')return false;N=N*10+C-'0';}
+    if(N>Max)return false;
+    *Output=(uint16)N;return true;
+}
+XREDIS_API xredisclusterstatus xredisClusterRedirectRead(const xredisreply* R,size_t MaxHost,xredisclusterredirect* Output)
+{
+    if(!__xredisClusterReplyOutput(R,Output,sizeof(*Output))){xredisClusterArgument("invalid Cluster redirection output");return XREDIS_CLUSTER_ERROR;}
+    xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(R,&I);xredisreplyvalue V=xredisClusterGet(R,I.Root);
+    if(V.Type!=XREDIS_REPLY_SIMPLE_ERROR && V.Type!=XREDIS_REPLY_BULK_ERROR)return XREDIS_CLUSTER_ABSENT;
+    xbytesview T=V.Data;size_t Prefix=0;xredisclusterredirect E={0};
+    if(T.Size>=5 && !memcmp(T.Data,"MOVED",5) && (T.Size==5 || T.Data[5]==' ')){Prefix=5;E.Kind=XREDIS_CLUSTER_MOVED;}
+    else if(T.Size>=3 && !memcmp(T.Data,"ASK",3) && (T.Size==3 || T.Data[3]==' ')){Prefix=3;E.Kind=XREDIS_CLUSTER_ASK;}
+    else return XREDIS_CLUSTER_ABSENT;
+    if(T.Size<=Prefix+1)return XREDIS_CLUSTER_MALFORMED;
+    size_t Start=Prefix+1,End=Start;while(End<T.Size && End-Start<6 && T.Data[End]!=' ')++End;
+    if(End==T.Size || T.Data[End]!=' ' || !xredisClusterDecimal((xbytesview){T.Data+Start,End-Start},16383,&E.Slot))return XREDIS_CLUSTER_MALFORMED;
+    Start=End+1;if(Start==T.Size)return XREDIS_CLUSTER_MALFORMED;
+    End=T.Size;size_t Digits=0;while(End>Start && T.Data[End-1]!=':' && Digits<6){--End;++Digits;}
+    if(End==Start || T.Data[End-1]!=':' || !xredisClusterDecimal((xbytesview){T.Data+End,Digits},65535,&E.Port) || !E.Port)return XREDIS_CLUSTER_MALFORMED;
+    E.Host=(xbytesview){T.Data+Start,End-1-Start};
+    if(E.Host.Size>MaxHost)return XREDIS_CLUSTER_LIMIT;
+    if(E.Host.Size && E.Host.Data[0]=='['){if(E.Host.Size<3 || E.Host.Data[E.Host.Size-1]!=']')return XREDIS_CLUSTER_MALFORMED;++E.Host.Data;E.Host.Size-=2;}
+    for(size_t N=0;N<E.Host.Size;++N)if(E.Host.Data[N]=='[' || E.Host.Data[N]==']')return XREDIS_CLUSTER_MALFORMED;
+    if(!xredisClusterHostText(E.Host))return XREDIS_CLUSTER_MALFORMED;
+    E.Endpoint=xredisClusterEndpoint(E.Host);*Output=E;return XREDIS_CLUSTER_VALUE;
+}
+XREDIS_API bool xredisClusterLimitsInit(xredisclusterlimits* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xredisClusterArgument("invalid Cluster limits output");
+    *K=(xredisclusterlimits){sizeof(*K),4096,4096,16384,262144,4u*1024u*1024u,1024,32u*1024u*1024u,false};return true;
+}
+/* Fixed known-field lists: each map is scanned once, future fields are skipped.
+ * The immutable reader already guarantees complete child/attribute chains. */
+static bool xredisClusterFields(const xredisreply* R,xredisreplyvalue V,const cstr* Names,size_t Count,size_t* Fields)
+{
+    if((V.Type!=XREDIS_REPLY_MAP && !xredisClusterArray(V)) || V.ChildCount%2)return false;
+    for(size_t N=0;N<Count;++N)Fields[N]=XREDIS_REPLY_NONE;
+    for(size_t I=V.FirstChild;I!=XREDIS_REPLY_NONE;){xredisreplyvalue Key=xredisClusterGet(R,I);if(!xredisClusterString(Key))return false;
+        size_t Value=Key.Next;xredisreplyvalue Data=xredisClusterGet(R,Value);
+        for(size_t N=0;N<Count;++N)if(xredisClusterWord(Key.Data,Names[N])){if(Fields[N]!=XREDIS_REPLY_NONE)return false;Fields[N]=Value;break;}
+        I=Data.Next;
+    }
+    return true;
+}
+static xredisclusterstatus xredisClusterHost(xredisreplyvalue V,size_t Max,xbytesview* Host)
+{
+    if(xredisClusterNull(V)){*Host=(xbytesview){0};return XREDIS_CLUSTER_VALUE;}
+    if(!xredisClusterString(V))return XREDIS_CLUSTER_MALFORMED;
+    if(V.Data.Size>Max)return XREDIS_CLUSTER_LIMIT;
+    if(!xredisClusterHostText(V.Data))return XREDIS_CLUSTER_MALFORMED;
+    *Host=V.Data;return XREDIS_CLUSTER_VALUE;
+}
+static bool xredisClusterPort(xredisreplyvalue V,uint16* Port)
+{if(V.Type!=XREDIS_REPLY_INTEGER || V.Integer<0 || V.Integer>65535)return false;*Port=(uint16)V.Integer;return true;}
+static xredisclusterstatus xredisClusterReadNode(xredisclusterbuild* B,size_t Index,bool Legacy,bool Master,xredisclusternode* N)
+{
+    const xredisreply* R=B->Reply;xredisreplyvalue V=xredisClusterGet(R,Index);*N=(xredisclusternode){0};N->Shard=B->Shards;N->ReplicationOffset=-1;
+    xredisclusterstatus Status;
+    if(Legacy){
+        if(!xredisClusterArray(V) || V.ChildCount<2)return XREDIS_CLUSTER_MALFORMED;
+        xredisreplyvalue Host=xredisClusterGet(R,V.FirstChild),Port=xredisClusterGet(R,Host.Next);
+        Status=xredisClusterHost(Host,B->Limits->MaxEndpointBytes,&N->Host);if(Status!=XREDIS_CLUSTER_VALUE)return Status;
+        if(!xredisClusterPort(Port,&N->Port))return XREDIS_CLUSTER_MALFORMED;
+        if(V.ChildCount>=3){xredisreplyvalue Id=xredisClusterGet(R,Port.Next);if(!xredisClusterString(Id) && !xredisClusterNull(Id))return XREDIS_CLUSTER_MALFORMED;N->Id=Id.Data;
+            if(V.ChildCount>=4){static const cstr Names[]={"ip","hostname"};size_t F[2];if(!xredisClusterFields(R,xredisClusterGet(R,Id.Next),Names,2,F))return XREDIS_CLUSTER_MALFORMED;
+                for(unsigned K=0;K<2;++K)if(F[K]!=XREDIS_REPLY_NONE){xbytesview Text;Status=xredisClusterHost(xredisClusterGet(R,F[K]),B->Limits->MaxEndpointBytes,&Text);if(Status!=XREDIS_CLUSTER_VALUE)return Status;if(K)N->Hostname=Text;else N->Ip=Text;}}}
+        N->Role=Master?XREDIS_CLUSTER_MASTER:XREDIS_CLUSTER_REPLICA;N->Health=XREDIS_CLUSTER_UNREPORTED;
+    }else{
+        static const cstr Names[]={"id","endpoint","ip","hostname","port","tls-port","role","replication-offset","health"};size_t F[9];
+        if(!xredisClusterFields(R,V,Names,9,F))return XREDIS_CLUSTER_MALFORMED;
+        const unsigned Required[]={0,1,2,6,7,8};for(size_t K=0;K<sizeof(Required)/sizeof(*Required);++K)if(F[Required[K]]==XREDIS_REPLY_NONE)return XREDIS_CLUSTER_MALFORMED;
+        xredisreplyvalue Id=xredisClusterGet(R,F[0]),Ip=xredisClusterGet(R,F[2]),Role=xredisClusterGet(R,F[6]),Offset=xredisClusterGet(R,F[7]),Health=xredisClusterGet(R,F[8]);
+        if(!xredisClusterString(Id) || !Id.Data.Size || !xredisClusterString(Ip) || !xredisClusterString(Role) || !xredisClusterString(Health) || Offset.Type!=XREDIS_REPLY_INTEGER || Offset.Integer< -1)return XREDIS_CLUSTER_MALFORMED;
+        N->Id=Id.Data;N->RoleText=Role.Data;N->HealthText=Health.Data;N->ReplicationOffset=Offset.Integer;
+        Status=xredisClusterHost(xredisClusterGet(R,F[1]),B->Limits->MaxEndpointBytes,&N->Host);if(Status!=XREDIS_CLUSTER_VALUE)return Status;
+        Status=xredisClusterHost(Ip,B->Limits->MaxEndpointBytes,&N->Ip);if(Status!=XREDIS_CLUSTER_VALUE)return Status;
+        if(F[3]!=XREDIS_REPLY_NONE){Status=xredisClusterHost(xredisClusterGet(R,F[3]),B->Limits->MaxEndpointBytes,&N->Hostname);if(Status!=XREDIS_CLUSTER_VALUE)return Status;}
+        if(F[4]==XREDIS_REPLY_NONE && F[5]==XREDIS_REPLY_NONE)return XREDIS_CLUSTER_MALFORMED;
+        if(F[4]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[4]),&N->Port))return XREDIS_CLUSTER_MALFORMED;
+        if(F[5]!=XREDIS_REPLY_NONE && !xredisClusterPort(xredisClusterGet(R,F[5]),&N->TlsPort))return XREDIS_CLUSTER_MALFORMED;
+        N->Role=xredisClusterWord(N->RoleText,"master")?XREDIS_CLUSTER_MASTER:xredisClusterWord(N->RoleText,"replica")?XREDIS_CLUSTER_REPLICA:XREDIS_CLUSTER_ROLE_OTHER;
+        N->Health=xredisClusterWord(N->HealthText,"online")?XREDIS_CLUSTER_ONLINE:xredisClusterWord(N->HealthText,"failed")?XREDIS_CLUSTER_FAILED:xredisClusterWord(N->HealthText,"loading")?XREDIS_CLUSTER_LOADING:XREDIS_CLUSTER_HEALTH_OTHER;
+    }
+    N->Endpoint=xredisClusterEndpoint(N->Host);return XREDIS_CLUSTER_VALUE;
+}
+static xredisclusterstatus xredisClusterBuildRange(xredisclusterbuild* B,xredisreplyvalue First,xredisreplyvalue Last,size_t Master)
+{
+    if(First.Type!=XREDIS_REPLY_INTEGER || Last.Type!=XREDIS_REPLY_INTEGER || First.Integer<0 || Last.Integer<First.Integer || Last.Integer>=XREDIS_CLUSTER_SLOTS)return XREDIS_CLUSTER_MALFORMED;
+    if(B->Ranges==B->Limits->MaxRanges)return XREDIS_CLUSTER_LIMIT;
+    if(B->Output)B->Output->Ranges[B->Ranges]=(xredisclusterrange){(uint16)First.Integer,(uint16)Last.Integer,Master,B->Shards};
+    ++B->Ranges;
+    for(size_t Slot=(size_t)First.Integer;Slot<=(size_t)Last.Integer;++Slot){unsigned char Bit=(unsigned char)(1u<<(Slot%8));
+        if(B->Seen[Slot/8]&Bit)return XREDIS_CLUSTER_MALFORMED;
+        B->Seen[Slot/8]|=Bit;++B->Assigned;if(B->Output)B->Output->Slots[Slot]=(uint16)(Master+1);}
+    return XREDIS_CLUSTER_VALUE;
+}
+static xredisclusterstatus xredisClusterBuild(xredisclusterbuild* B,xredisreplyvalue Root,bool Legacy)
+{
+    if(!xredisClusterArray(Root))return XREDIS_CLUSTER_MALFORMED;
+    for(size_t Row=Root.FirstChild;Row!=XREDIS_REPLY_NONE;){
+        if(B->Shards==B->Limits->MaxShards)return XREDIS_CLUSTER_LIMIT;
+        xredisreplyvalue Item=xredisClusterGet(B->Reply,Row),Ranges={0},Nodes={0};size_t Node,Count;size_t Master=SIZE_MAX;
+        if(Legacy){if(!xredisClusterArray(Item) || Item.ChildCount<3)return XREDIS_CLUSTER_MALFORMED;
+            xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild),Last=xredisClusterGet(B->Reply,First.Next);Node=Last.Next;Count=Item.ChildCount-2;
+        }else{static const cstr Names[]={"slots","nodes"};size_t F[2];
+            if(!xredisClusterFields(B->Reply,Item,Names,2,F) || F[0]==XREDIS_REPLY_NONE || F[1]==XREDIS_REPLY_NONE)return XREDIS_CLUSTER_MALFORMED;
+            Ranges=xredisClusterGet(B->Reply,F[0]);Nodes=xredisClusterGet(B->Reply,F[1]);
+            if(!xredisClusterArray(Ranges) || Ranges.ChildCount%2 || !xredisClusterArray(Nodes) || !Nodes.ChildCount)return XREDIS_CLUSTER_MALFORMED;
+            Node=Nodes.FirstChild;Count=Nodes.ChildCount;
+        }
+        if(Count>B->Limits->MaxNodes-B->Nodes)return XREDIS_CLUSTER_LIMIT;
+        for(size_t K=0;K<Count;++K){xredisclusternode N;xredisclusterstatus S=xredisClusterReadNode(B,Node,Legacy,K==0,&N);if(S!=XREDIS_CLUSTER_VALUE)return S;
+            if(N.Role==XREDIS_CLUSTER_MASTER){if(Master!=SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;Master=B->Nodes;}
+            if(B->Output)B->Output->Nodes[B->Nodes]=N;
+            ++B->Nodes;Node=xredisClusterGet(B->Reply,Node).Next;
+        }
+        if(Master==SIZE_MAX)return XREDIS_CLUSTER_MALFORMED;
+        if(Legacy){xredisreplyvalue First=xredisClusterGet(B->Reply,Item.FirstChild);xredisclusterstatus S=xredisClusterBuildRange(B,First,xredisClusterGet(B->Reply,First.Next),Master);if(S!=XREDIS_CLUSTER_VALUE)return S;}
+        else for(size_t Pair=Ranges.FirstChild;Pair!=XREDIS_REPLY_NONE;){xredisreplyvalue First=xredisClusterGet(B->Reply,Pair),Last=xredisClusterGet(B->Reply,First.Next);xredisclusterstatus S=xredisClusterBuildRange(B,First,Last,Master);if(S!=XREDIS_CLUSTER_VALUE)return S;Pair=Last.Next;}
+        ++B->Shards;Row=Item.Next;
+    }
+    if(B->Limits->RequireFullCoverage && B->Assigned!=XREDIS_CLUSTER_SLOTS)return XREDIS_CLUSTER_MALFORMED;
+    return XREDIS_CLUSTER_VALUE;
+}
+XREDIS_API xredisclusterstatus xredisClusterTopologyCreate(xredisreply* R,xredisclusterformat Format,const xredisclusterlimits* Config,xredisclustertopology** Output)
+{
+    if(!__xredisClusterReplyOutput(R,Output,sizeof(*Output)) || (Format!=XREDIS_CLUSTER_SHARDS && Format!=XREDIS_CLUSTER_LEGACY_SLOTS) ||
+        (Config && (!__xredisClusterReplyOutput(R,Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output)) || Config->Size!=sizeof(*Config)))){
+        xredisClusterArgument("invalid Cluster topology arguments");return XREDIS_CLUSTER_ERROR;}
+    xredisclusterlimits K;if(Config)K=*Config;else xredisClusterLimitsInit(&K);
+    if(K.MaxNodes>65535 || K.MaxShards>XREDIS_CLUSTER_SLOTS || K.MaxRanges>XREDIS_CLUSTER_SLOTS){xredisClusterArgument("invalid Cluster topology bounds");return XREDIS_CLUSTER_ERROR;}
+    xredisreplyinfo I={0};I.Size=sizeof(I);xredisReplyInfo(R,&I);
+    if(I.Nodes>K.MaxReplyNodes || I.PayloadBytes>K.MaxPayloadBytes)return XREDIS_CLUSTER_LIMIT;
+    xredisreplyvalue Root=xredisClusterGet(R,I.Root);
+    if(Root.Type==XREDIS_REPLY_SIMPLE_ERROR || Root.Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_CLUSTER_SERVER_ERROR;
+    xredisclusterbuild B={0};B.Reply=R;B.Limits=&K;
+    xredisclusterstatus S=xredisClusterBuild(&B,Root,Format==XREDIS_CLUSTER_LEGACY_SLOTS);if(S!=XREDIS_CLUSTER_VALUE)return S;
+    size_t Bytes=sizeof(xredisclustertopology)+B.Nodes*sizeof(xredisclusternode)+B.Ranges*sizeof(xredisclusterrange);
+    if(Bytes>K.MaxOwnedBytes || I.ReservedBytes>K.MaxOwnedBytes-Bytes)return XREDIS_CLUSTER_LIMIT;
+    xredisclustertopology* T=xrtCalloc(1,Bytes);if(!T)return XREDIS_CLUSTER_MEMORY;
+    T->Nodes=(xredisclusternode*)(T+1);T->Ranges=(xredisclusterrange*)(T->Nodes+B.Nodes);
+    T->Info=(xredisclustertopologyinfo){sizeof(T->Info),B.Shards,B.Nodes,B.Ranges,B.Assigned,Bytes,I.ReservedBytes,Format};
+    xredisclusterbuild Fill={0};Fill.Reply=R;Fill.Limits=&K;Fill.Output=T;
+    S=xredisClusterBuild(&Fill,Root,Format==XREDIS_CLUSTER_LEGACY_SLOTS);
+    if(S!=XREDIS_CLUSTER_VALUE){xrtFree(T);return S;}
+    if(!xredisReplyRetain(R)){xrtFree(T);return XREDIS_CLUSTER_ERROR;}
+    T->Reply=R;xrtAtomic32Init(&T->References,1);*Output=T;return XREDIS_CLUSTER_VALUE;
+}
+XREDIS_API bool xredisClusterTopologyRetain(xredisclustertopology* T)
+{
+    if(!T)return xredisClusterArgument("Cluster topology is NULL");
+    uint32 N=xrtAtomic32Load(&T->References,XMEMORY_RELAXED);
+    for(;;){if(N==UINT32_MAX){xrtSetErrorInfo(XERR_RANGE,"xrt.redis",XREDIS_REPLY_LIMIT,"Cluster topology reference overflow");return false;}
+        if(xrtAtomic32CompareExchange(&T->References,&N,N+1,XMEMORY_RELAXED,XMEMORY_RELAXED))return true;}
+}
+XREDIS_API void xredisClusterTopologyRelease(xredisclustertopology* T)
+{if(T && xrtAtomic32FetchSub(&T->References,1,XMEMORY_ACQ_REL)==1){xredisReplyRelease(T->Reply);xrtFree(T);}}
+static bool xredisClusterOutput(const xredisclustertopology* T,const void* Output,size_t Bytes)
+{
+    if(!T || !__xredisClusterReplyOutput(T->Reply,Output,Bytes) || xrtMemRangesOverlap(T,T->Info.StorageBytes,Output,Bytes))return xredisClusterArgument("invalid Cluster topology output");
+    return true;
+}
+XREDIS_API bool xredisClusterTopologyInfo(const xredisclustertopology* T,xredisclustertopologyinfo* I)
+{if(!xredisClusterOutput(T,I,sizeof(*I)) || I->Size!=sizeof(*I))return xredisClusterArgument("invalid Cluster topology info size");*I=T->Info;return true;}
+XREDIS_API xredisclusterstatus xredisClusterTopologyLookup(const xredisclustertopology* T,uint16 Slot,xredisclusternode* N)
+{
+    if(!xredisClusterOutput(T,N,sizeof(*N)) || Slot>=XREDIS_CLUSTER_SLOTS){xredisClusterArgument("invalid Cluster slot lookup");return XREDIS_CLUSTER_ERROR;}
+    uint16 Index=T->Slots[Slot];if(!Index)return XREDIS_CLUSTER_ABSENT;
+    *N=T->Nodes[Index-1];return XREDIS_CLUSTER_VALUE;
+}
+XREDIS_API bool xredisClusterTopologyNode(const xredisclustertopology* T,size_t Index,xredisclusternode* N)
+{if(!xredisClusterOutput(T,N,sizeof(*N)) || Index>=T->Info.Nodes)return xredisClusterArgument("invalid Cluster node index");*N=T->Nodes[Index];return true;}
+XREDIS_API bool xredisClusterTopologyRange(const xredisclustertopology* T,size_t Index,xredisclusterrange* N)
+{if(!xredisClusterOutput(T,N,sizeof(*N)) || Index>=T->Info.Ranges)return xredisClusterArgument("invalid Cluster range index");*N=T->Ranges[Index];return true;}
 #endif
 #endif
 
