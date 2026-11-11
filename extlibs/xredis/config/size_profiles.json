@@ -239,6 +239,22 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_subscriptions",
+      "system": "subscriptions",
+      "suite": "xredis_subscriptions",
+      "description": "Desired snapshots and bounded native recovery; excludes optional TLS/DNS/HTTP/WebSocket/task/process",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xredisClientDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

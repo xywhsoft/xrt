@@ -10712,3 +10712,66 @@ Desired-state/reconnect/replay and the complete four-library goal remain active.
 CPU/RSS, upstream/pinned/native-Linux mixed-load and>=72h production gates remain
 open. Evidence: [portable report](../../extlibs/xredis/tests/results/subscriber-notify-20261111.json)
 and out/service-extensions/xredis-subscriber-notify-20261111.
+
+
+## 2026-11-11: versioned desired subscriptions and bounded replay
+
+Developed and verified directly on master from f7874f2d. The developing
+xredis_subscriptions leaf adds18 public APIs for local desired intent, immutable
+snapshots and one-Future bounded restoration onto a fresh ready private Client.
+No Core API, runtime or worker is added. Unchanged immutable name entries are
+shared; snapshot acquire is O(1) with no allocation or payload copy. Cold edits
+merge pointer vectors and retain entries in O(current entries + edit sorting).
+One constructor bounds concurrent scratch/publication. Current-set name/count
+caps do not include externally retained snapshots, which are caller-owned.
+
+Replay atomically claims native subscription control at both admission gates.
+No Replay pointer is retained by accepted requests. Every batch receives the
+original Entered/Timeout, and every shard batch stays within one cached CRC16 slot.
+Step submits OR observes one bounded batch; MORE needs another scheduled turn.
+Stale revision, cancel/timeout and native error retire the partial connection.
+Success releases the claim and leaves the Client at the captured revision.
+Independent set-model, concurrent writers/readers, immutable lifetime, OOM,
+empty/exact-wire-boundary, two-generation, stale/cancel/native-cancel, server/
+protocol/limit, exact-deadline,128 CRC oracle and three-byte TLS tests pass.
+
+Windows and WSL each pass25 root programs, the focused leaf, two new singles,
+four prior subscriber/notify compatibility singles and the offline18-API example.
+WSL uses ASan/UBSan/leak halt, and both new singles also pass TSan. Six minimal
+size/forbidden-symbol forms pass. Private selected mode grows8 bytes; feature-off
+mode and client/request/control/entry layouts remain unchanged. API documentation
+and DLL/ELF exports cover120 functions with no internal hooks. Actual static/shared
+SDK and isolated declaration consumers execute every new API.
+
+Nine actual native/package/single forms pass243 disposable Redis8.0.5 cases /
+486 RESP2/3 flows: numeric/DNS/prepared × TCP/TLS1.2/TLS1.3 × none/password/ACL.
+Each flow restores two fresh generations, validates removed remote intent and
+retains snapshot/message/ACL error ownership. PID/run identity is checked before
+fixture ACL mutation; complete reports verify child/material removal. Initial
+interop compilation exposed nested main-macro redefinition in the shared test
+fixture. The entry alias was corrected in two test-only files, with unchanged
+production, functional and benchmark inputs. Original frozen sources/failures
+remain; v1 and final v2 source identities are separate in the portable report.
+The Windows single run also retained7 completed cases before a native-loopback
+health/startup timeout, preceding the next C probe. The exact same binary and
+unchanged startup deadline pass the complete retry; completed modular results
+are reused. Failed logs and the partial report remain.
+
+Performance runs are serial after all functional/compilation jobs, with seven
+samples plus one warmup, calibrated counts and unchanged3% MAD/6% span noise
+gates. Old/current ordinary and native-control workloads share all relevant
+runtime objects; unused subscriptions objects are omitted from both compatibility
+links. Desired snapshots and O(N) edits have separate heap-instrumented runs.
+Snapshot percentiles describe a whole32-operation batch; edit percentiles cover
+one edit plus verification. No snapshot per-operation tail is inferred.
+windows: ordinary depth1 throughput 1.0172x (qualified), P99 0.9726x (qualified); ordinary depth32 throughput 0.9947x (unqualified), P99 1.0108x (qualified); control-ack-message depth1 throughput 0.9952x (unqualified), P99 1.0197x (unqualified); control-ack-message depth32 throughput 1.0125x (unqualified), P99 0.9955x (unqualified).
+wsl: ordinary depth1 throughput 0.9937x (qualified), P99 0.9900x (unqualified); ordinary depth32 throughput 0.9920x (qualified), P99 1.0041x (unqualified); control-ack-message depth1 throughput 0.9955x (qualified), P99 1.0097x (qualified); control-ack-message depth32 throughput 0.9840x (qualified), P99 1.0376x (unqualified).
+
+Automatic factories/backoff/reconnect and live reconciliation remain next
+controller stages. Sentinel/Cluster routing, actual replay latency distribution,
+CPU/RSS, pinned/upstream/native-Linux fixed-arrival mixed workloads and>=72h
+acceptance remain open. Restoring names cannot recover offline Pub/Sub messages.
+The four-library production objective remains active.
+
+Evidence: [portable report](../../extlibs/xredis/tests/results/subscriptions-20261111.json)
+and out/service-extensions/xredis-subscriptions-20261111.

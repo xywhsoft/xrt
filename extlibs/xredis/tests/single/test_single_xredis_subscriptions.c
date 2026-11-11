@@ -1,0 +1,9 @@
+#define XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS
+#define XRT_FEATURE_MEMORY_STATS
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#define XREDIS_SUBSCRIPTIONS_WHITEBOX
+#include "../test_subscriptions.c"

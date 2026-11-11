@@ -2,6 +2,9 @@
 #include <xredis/tracking.h>
 #include <xredis/subscriber.h>
 #include <xredis/subscriber_notify.h>
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+#include "../internal/subscription_replay.h"
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
 #include <xrt/hash.h>
 #endif
@@ -74,6 +77,9 @@ typedef struct xredissubscriber {
     xpromise* ReadablePromise;
     xfuture* ReadableFuture;
     bool ReadablePreparing;
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+    ptr ReplayOwner;
 #endif
     xredissubentry* Table[];
 } xredissubscriber;
@@ -2039,7 +2045,7 @@ xredisadmission __xredisClientTransaction(xredisclient* Client,
 
 static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	const xbytesview* Arguments, size_t Count, int64 Timeout, xfuture** Future,
-    double Entered, xredisexclusiveowner* Owner, bool Control XREDIS_OBSERVE_PARAMETER)
+    double Entered, ptr Scope, bool Control XREDIS_OBSERVE_PARAMETER)
 {
 	size_t Bytes = 0;
 	if (Client == NULL || Future == NULL || !xrtMemRangeValid(Future, sizeof(*Future)) || Timeout < XRT_WAIT_FOREVER ||
@@ -2058,6 +2064,10 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
     bool Measured=xredisCommandSize(Arguments,Count,&Bytes);
 #endif
     if(!Measured)return XREDIS_ADMISSION_ERROR;
+    xredisexclusiveowner* Owner=Scope;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+    if(Subscription)Owner=NULL;
+#endif
 	if (xrtMemRangesOverlap(Arguments, Count * sizeof(*Arguments), Future, sizeof(*Future))) {
 		xredisClientReport(XERR_ARGUMENT, XREDIS_CLIENT_ARGUMENT, "call output overlaps arguments"); return XREDIS_ADMISSION_ERROR;
 	}
@@ -2114,7 +2124,13 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
 	xredisadmission Admission =
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
         Subscription ? (Client->Info.State>=XREDIS_CLIENT_CLOSING?XREDIS_ADMISSION_CLOSED:
-            xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_ACQUIRE)?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_ERROR) :
+            xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_ACQUIRE)?
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+            (((xredissubscriber*)xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_RELAXED))->ReplayOwner==Scope?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_OVERLOADED):
+#else
+            XREDIS_ADMISSION_ACCEPTED:
+#endif
+            XREDIS_ADMISSION_ERROR) :
 #endif
         xredisClientOwnerAdmission(Client, Owner, Control);
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
@@ -2195,7 +2211,13 @@ static xredisadmission xredisClientCallAdmit(xredisclient* Client,
         Admission =
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
         Subscription ? (Client->Info.State>=XREDIS_CLIENT_CLOSING?XREDIS_ADMISSION_CLOSED:
-            xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_ACQUIRE)?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_ERROR) :
+            xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_ACQUIRE)?
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+            (((xredissubscriber*)xrtAtomicPtrLoad(&Client->Subscriber,XMEMORY_RELAXED))->ReplayOwner==Scope?XREDIS_ADMISSION_ACCEPTED:XREDIS_ADMISSION_OVERLOADED):
+#else
+            XREDIS_ADMISSION_ACCEPTED:
+#endif
+            XREDIS_ADMISSION_ERROR) :
 #endif
         xredisClientOwnerAdmission(Client, Owner, Control);
 		if (Admission == XREDIS_ADMISSION_ACCEPTED) {
@@ -2409,7 +2431,7 @@ static xredisadmission xredisSubscriberCanStart(xredisclient* C)
 #endif
         ?XREDIS_ADMISSION_OVERLOADED:XREDIS_ADMISSION_ACCEPTED;
 }
-XREDIS_API xredisadmission xredisSubscriberStart(xredisclient* C,const xredissubscriberconfig* Config)
+static xredisadmission xredisSubscriberStartScope(xredisclient* C,const xredissubscriberconfig* Config,ptr Scope)
 {
     xredissubscriberconfig K;if(!C || (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(C,C->StorageBytes,Config,sizeof(*Config))))){xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid subscriber adoption arguments");return XREDIS_ADMISSION_ERROR;}
     if(Config)K=*Config;else xredisSubscriberConfigInit(&K);
@@ -2420,16 +2442,36 @@ XREDIS_API xredisadmission xredisSubscriberStart(xredisclient* C,const xredissub
     size_t Buckets=1;while(Buckets<2*K.MaxSubscriptions)Buckets*=2;
     size_t Bytes=sizeof(xredissubscriber)+Buckets*sizeof(xredissubentry*);xredissubscriber* M=xrtCalloc(1,Bytes);if(!M)return XREDIS_ADMISSION_ERROR;
     M->Config=K;M->Buckets=Buckets;M->StorageBytes=Bytes;M->Info.Size=sizeof(M->Info);M->Info.RegistryBytes=Bytes;
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+    M->ReplayOwner=Scope;
+#else
+    (void)Scope;
+#endif
     xrtMutexLock(&C->Gate);
     A=xredisSubscriberCanStart(C);
     if(A==XREDIS_ADMISSION_ACCEPTED)xrtAtomicPtrStore(&C->Subscriber,M,XMEMORY_RELEASE);else ++C->Info.Rejected;
     xrtMutexUnlock(&C->Gate);if(A!=XREDIS_ADMISSION_ACCEPTED)xrtFree(M);return A;
 }
+XREDIS_API xredisadmission xredisSubscriberStart(xredisclient* C,const xredissubscriberconfig* Config)
+{return xredisSubscriberStartScope(C,Config,NULL);}
 static xredisadmission xredisSubscriberAdmit(xredisclient* C,xredispubsubcommand Command,const xbytesview* Names,size_t Count,int64 Timeout,xfuture** Future,double Entered)
 {
     if((unsigned)Command>XREDIS_PUBSUB_CMD_PING){xredisClientReport(XERR_ARGUMENT,XREDIS_CLIENT_ARGUMENT,"invalid subscriber command");return XREDIS_ADMISSION_ERROR;}
     return xredisClientCallAdmit(C,Names,Count,Timeout,Future,Entered,NULL,true,(unsigned)Command+5);
 }
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS)
+xredisadmission __xredisSubscriberReplayStart(xredisclient* C,const xredissubscriberconfig* Config,ptr Owner)
+{return xredisSubscriberStartScope(C,Config,Owner);}
+void __xredisSubscriberReplayRelease(xredisclient* C,ptr Owner)
+{
+    xrtMutexLock(&C->Gate);xredissubscriber* M=xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_ACQUIRE);
+    if(M && M->ReplayOwner==Owner)M->ReplayOwner=NULL;
+    xrtMutexUnlock(&C->Gate);
+}
+xredisadmission __xredisSubscriberCommandBudget(xredisclient* C,xredispubsubcommand Command,
+    const xbytesview* Names,size_t Count,int64 Timeout,double Entered,ptr Owner,xfuture** Future)
+{return xredisClientCallAdmit(C,Names,Count,Timeout,Future,Entered,Owner,true,(unsigned)Command+5);}
+#endif
 XREDIS_API xredisadmission xredisSubscriberCommandAsync(xredisclient* C,xredispubsubcommand Command,const xbytesview* Names,size_t Count,int64 Timeout,xfuture** Future)
 {return xredisSubscriberAdmit(C,Command,Names,Count,Timeout,Future,xrtTimer());}
 XREDIS_API xredisadmission xredisSubscriberCommand(xredisclient* C,xredispubsubcommand Command,const xbytesview* Names,size_t Count,int64 Timeout,xfuture** Future)

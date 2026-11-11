@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `102` 个函数、`176` 个常量或宏、
-`71` 个公共类型。
+当前登记 `120` 个函数、`191` 个常量或宏、
+`81` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -447,6 +447,62 @@
 ### 常量与宏 (1)
 
 - `XREDIS_FEATURE_XREDIS_SUBSCRIBER_NOTIFY`
+
+## `extlibs/xredis/include/xredis/subscriptions.h`
+
+[查看带契约注释的公共头](../../include/xredis/subscriptions.h)
+
+### 函数 (18)
+
+- `xredisSubscriptionReplayCancel`
+- `xredisSubscriptionReplayConfigInit`
+- `xredisSubscriptionReplayCreate`
+- `xredisSubscriptionReplayDestroy`
+- `xredisSubscriptionReplayPending`
+- `xredisSubscriptionReplayResult`
+- `xredisSubscriptionReplayStep`
+- `xredisSubscriptionSnapshotAt`
+- `xredisSubscriptionSnapshotInfo`
+- `xredisSubscriptionSnapshotRelease`
+- `xredisSubscriptionSnapshotRetain`
+- `xredisSubscriptionsApply`
+- `xredisSubscriptionsConfigInit`
+- `xredisSubscriptionsCreate`
+- `xredisSubscriptionsInfo`
+- `xredisSubscriptionsRelease`
+- `xredisSubscriptionsRetain`
+- `xredisSubscriptionsSnapshot`
+
+### 常量与宏 (15)
+
+- `XREDIS_FEATURE_XREDIS_SUBSCRIPTIONS`
+- `XREDIS_SUBSCRIPTIONS_CANCELLED`
+- `XREDIS_SUBSCRIPTIONS_CLOSED`
+- `XREDIS_SUBSCRIPTIONS_DONE`
+- `XREDIS_SUBSCRIPTIONS_LIMIT`
+- `XREDIS_SUBSCRIPTIONS_MEMORY`
+- `XREDIS_SUBSCRIPTIONS_MORE`
+- `XREDIS_SUBSCRIPTIONS_OK`
+- `XREDIS_SUBSCRIPTIONS_PENDING`
+- `XREDIS_SUBSCRIPTIONS_PROTOCOL`
+- `XREDIS_SUBSCRIPTIONS_SERVER_ERROR`
+- `XREDIS_SUBSCRIPTIONS_STALE`
+- `XREDIS_SUBSCRIPTIONS_STEP_ERROR`
+- `XREDIS_SUBSCRIPTIONS_TIMEOUT`
+- `XREDIS_SUBSCRIPTIONS_WAIT`
+
+### 类型 (10)
+
+- `xredissubscriptionreplay`
+- `xredissubscriptionreplayconfig`
+- `xredissubscriptionreplayresult`
+- `xredissubscriptions`
+- `xredissubscriptionsconfig`
+- `xredissubscriptionsinfo`
+- `xredissubscriptionsnapshot`
+- `xredissubscriptionstatus`
+- `xredissubscriptionstep`
+- `xredissubscriptionview`
 
 ## `extlibs/xredis/include/xredis/tls.h`
 

@@ -204,3 +204,9 @@ qualification remain pending. [Runnable example](examples/subscriber/README.md).
 Optional `xredis_subscriber_notify` provides shared readability Futures and owned
 batch delivery. See [receive ownership](docs/subscriber_notify.md) and the
 [offline example](examples/subscriber_notify/README.md).
+
+The developing [desired subscriptions/replay](docs/subscriptions.md) leaf commits
+versioned local intent and restores it in bounded native batches onto replacement
+Clients. Snapshots share immutable names. Stale/cancel/error paths retire partial
+connections; automatic factories/backoff and Cluster/Sentinel routing remain open.
+[Runnable offline example](examples/subscriptions/README.md).

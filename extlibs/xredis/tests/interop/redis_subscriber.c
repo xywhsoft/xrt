@@ -99,7 +99,10 @@ static xfuture* subscriberFlow(xnetengine* Engine,const xnetaddr* A,xredisinitmo
 #endif
     interopClose(C);interopClose(Writer);return Error;
 }
-int main(int Argc,char** Argv)
+#ifndef XREDIS_SUBSCRIBER_INTEROP_MAIN
+#define XREDIS_SUBSCRIBER_INTEROP_MAIN main
+#endif
+int XREDIS_SUBSCRIBER_INTEROP_MAIN(int Argc,char** Argv)
 {
     if(Argc!=7 || strlen(Argv[6])!=40)return 2;
     unsigned long Port=strtoul(Argv[1],NULL,10);SubAuth=atoi(Argv[2]);SubMode=(unsigned)atoi(Argv[3]);SubTLS=(unsigned)atoi(Argv[4]);

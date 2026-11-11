@@ -3004,6 +3004,341 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_subscriptions",
+      "system": "subscriptions",
+      "description": "Cold desired edits and allocation-free immutable snapshot references; O(current entries) reference-vector merge, no unchanged-name payload copies; no network or production performance claim",
+      "benchmarks": [
+        {
+          "name": "xredis_subscriptions_snapshot1",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "1000000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_snapshot4096",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "1000000",
+            "4096",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "4096",
+            "0",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_edit1",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "100000",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_edit32",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "100000",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "32",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_edit1024",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "10000",
+            "1024",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "1024",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_edit4096",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "1000",
+            "4096",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "16",
+            "4096",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_snapshot_heap",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "10000",
+            "32",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_operation": {
+              "unit": "blocks/operation",
+              "direction": "lower"
+            },
+            "heap_bytes_per_operation": {
+              "unit": "bytes/operation",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriptions_edit_heap",
+          "source": "extlibs/xredis/bench/bench_subscriptions.c",
+          "suite": "xredis_subscriptions,memory_stats,time",
+          "args": [
+            "10000",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_operation": {
+              "unit": "blocks/operation",
+              "direction": "lower"
+            },
+            "heap_bytes_per_operation": {
+              "unit": "bytes/operation",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

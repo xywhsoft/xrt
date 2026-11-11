@@ -50,3 +50,7 @@ readability, physical-close wake, FIFO owned batches, private wait cancellation,
 callback reentry, allocation rollback and competing consumers are covered by its
 focused modular/single/TLS tests. Desired-state replay and reconnection remain
 separate incomplete subscriber work.
+
+`xredis_subscriptions` adds desired-set snapshots and bounded replacement replay;
+see [recovery contracts](subscriptions.md). Automatic subscriber maintenance,
+backoff, live reconciliation and routed HA/Cluster recovery remain separate work.
