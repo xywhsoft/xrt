@@ -49,7 +49,7 @@ def main():
             except OSError:
                 assert time.monotonic() < due; time.sleep(.02)
         result.update(port=port, pid=child.pid, run_id=info[b'run_id'].decode(), command=command); save(); owned()
-        exchange(port, ['ACL', 'SETUSER', 'shared-fixture', 'reset', 'on', 'nopass', 'allkeys', '+hello', '+auth', '+ping', '+info', '+client|id', '+echo'])
+        exchange(port, ['ACL', 'SETUSER', 'shared-fixture', 'reset', 'on', 'nopass', 'allkeys', '+hello', '+auth', '+ping', '+info', '+client|id', '+echo', '+blpop'])
         for client in clients:
             owned(); command = [str(client), str(port), result['run_id']]
             completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
@@ -57,7 +57,7 @@ def main():
                                         output=completed.stdout, expected_native_matrix_cases=18,
                                         native_matrix_cases=18 if completed.returncode == 0 else None)); save()
             assert completed.returncode == 0, completed.stdout
-            print(client.name, '18 native fixed shared-pool cases passed', flush=True)
+            print(client.name, '18 native shared-pool cases passed', flush=True)
         result['complete'] = True
     except BaseException:
         result['failure'] = traceback.format_exc(); raise

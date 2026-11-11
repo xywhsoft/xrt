@@ -1,0 +1,2593 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "8153cb621b0c7ba86bca5a2eb6673ea51079bd0c",
+  "scope": "Automatically maintained native shared pools, bounded factory/setup/retry, readiness activation, physical generation retirement and unchanged native shared business admission without replay.",
+  "state": "developing",
+  "production_acceptance": false,
+  "source_inputs": 2788,
+  "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "programs": 44
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "programs": 46
+    }
+  },
+  "interop": {
+    "windows": {
+      "cases": 72,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "report_sha256": "4f4047247660339626343ece48b0be1063c3ed4aebdf7b6359ac47089c47b46f",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "numeric/DNS/prepared x RESP2/3/AUTO x default/named nopass ACL; two members, 64 binary ECHOs, exact CLIENT IDs, observed blocked BLPOP, owned CLIENT KILL, only its generation replaced, no replay, exactly-once Drop and retained outcomes"
+    },
+    "wsl": {
+      "cases": 72,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "report_sha256": "1a5e97ebc531a5fb26be92a483075ec4b316ffe746dcfa702fbfe6e7e5947446",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "numeric/DNS/prepared x RESP2/3/AUTO x default/named nopass ACL; two members, 64 binary ECHOs, exact CLIENT IDs, observed blocked BLPOP, owned CLIENT KILL, only its generation replaced, no replay, exactly-once Drop and retained outcomes"
+    }
+  },
+  "delivery": {
+    "windows": {
+      "forms": {
+        "modular": {
+          "path": "delivery/windows/modular/client.exe",
+          "sha256": "2728d6959eb276eb307a584efd8f47a2f346b319ef912100e46906659a2db660"
+        },
+        "single": {
+          "path": "delivery/windows/single/client.exe",
+          "sha256": "f31a94485d2fcb0d02017c9bb4d6adc95e52f7ca4b08e53fbc9555a82b3eb4bd"
+        },
+        "static": {
+          "path": "delivery/windows/static/client.exe",
+          "sha256": "4b7a769da49abb789b86a6a72cc404b13315118514721443cc60e49cd751faf7"
+        },
+        "shared": {
+          "path": "delivery/windows/shared/client.exe",
+          "sha256": "e8ca9bd1f5959a020cc4c78a120d2e4a834dde25e10082ab37a5ea8af8f460fd"
+        }
+      },
+      "exports": [
+        "xredisSharedPoolConnect"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "3339699d09eb8d28d71ac55f2b95758383f2b34b089a7c9d75be9f4514839395",
+        "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391"
+      }
+    },
+    "wsl": {
+      "forms": {
+        "modular": {
+          "path": "delivery/wsl/modular/client",
+          "sha256": "1852b976273693c079cd92a3d40138515d95081aedbf48746ad25496f798a22d"
+        },
+        "single": {
+          "path": "delivery/wsl/single/client",
+          "sha256": "28ef582b7280c08344d98735267a1c5d8530d3e93a954cde70a73476d37129b5"
+        },
+        "static": {
+          "path": "delivery/wsl/static/client",
+          "sha256": "fd20935e4d5fe64e6a7a63ed345f590387a48783794f99fa2c447beddb5081f2"
+        },
+        "shared": {
+          "path": "delivery/wsl/shared/client",
+          "sha256": "cf9e4c357fa361cd7b04d1683390c0fddfedb62890449eab22adf0ee4f6f6adb"
+        }
+      },
+      "exports": [
+        "xredisSharedPoolConnect"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "ddd1e25893909ebb072a016fdba4d6cda4585820e34fa41f67703d7181f68d15",
+        "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391"
+      }
+    }
+  },
+  "layouts": {
+    "windows": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "selected-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "full-pool-baseline": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "delivery-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    },
+    "wsl": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "selected-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "full-pool-baseline": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "delivery-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    }
+  },
+  "footprint": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "prefixes": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ],
+      "kinds": {
+        "single": [
+          {
+            "path": "footprint/windows/single/xredis_single.o",
+            "sha256": "2951e0cb34c8c221da6ad21a3b406691ccccea01c3103b464fadfd65708065ba",
+            "defined_symbols": 1334,
+            "forbidden_symbols": []
+          }
+        ],
+        "static": [
+          {
+            "path": "footprint/windows/static/libxredis.a",
+            "sha256": "c9e791ca5d2f02a5105fb3bbb53cdb08b71d5643d3816efb2c511ecd82a62266",
+            "defined_symbols": 199,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/static/libxrt.a",
+            "sha256": "66a681ba5d35b0722eee9e41dc386b21172fd4f8e4642e0a58cc2aef1035b594",
+            "defined_symbols": 1387,
+            "forbidden_symbols": []
+          }
+        ],
+        "shared": [
+          {
+            "path": "footprint/windows/shared/libxredis.dll.a",
+            "sha256": "b05237a7fd4cd80eaa549a4a83e0353385caeebe96dd29a9c70ab5c8fdaea911",
+            "defined_symbols": 407,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/libxrt.dll.a",
+            "sha256": "1f5c021d3fc69cdce9bb72ac0a552158a9540498fd9322d81a2200e8f1323567",
+            "defined_symbols": 3487,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/xredis.dll",
+            "sha256": "07181e399f9bddebb1adebbffed42a4f97ca78a82ebea30d30fbcb93ddbfa7a9",
+            "defined_symbols": 1236,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/xrt.dll",
+            "sha256": "126a88b5e795d1035a8422d9cad37f1d6f4151b0567ad79f06fa0e9cb573e66d",
+            "defined_symbols": 2575,
+            "forbidden_symbols": []
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "prefixes": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ],
+      "kinds": {
+        "single": [
+          {
+            "path": "footprint/wsl/single/xredis_single.o",
+            "sha256": "e981b1bc6ca02a513b5e051d7b831480c0c23377ee80f1cd42c3a6c5bb053788",
+            "defined_symbols": 1924,
+            "forbidden_symbols": []
+          }
+        ],
+        "static": [
+          {
+            "path": "footprint/wsl/static/libxredis.a",
+            "sha256": "91988ee2ad82eb6a61af61d383112c2d5c0f440d2972db534cd9e1ef4b133050",
+            "defined_symbols": 329,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/wsl/static/libxrt.a",
+            "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+            "defined_symbols": 1656,
+            "forbidden_symbols": []
+          }
+        ],
+        "shared": [
+          {
+            "path": "footprint/wsl/shared/libxredis.so",
+            "sha256": "543f3f8208c6e1e0bb4d2c9d6dfab3074a4418ddaf26630b0bfd6d53de12ee89",
+            "defined_symbols": 157,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/wsl/shared/libxrt.so",
+            "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+            "defined_symbols": 1140,
+            "forbidden_symbols": []
+          }
+        ]
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "binaries": {
+        "baseline": {
+          "path": "performance/windows/baseline.exe",
+          "sha256": "b8fa4492fb1b3e2d8f6a63165c7ce5b4b53eef6e90245523f8a51bf0e744806d"
+        },
+        "current": {
+          "path": "performance/windows/current.exe",
+          "sha256": "9deb99e77de467c960459943c69fccf7dbfa981e1da97732c198e142a4c3c98a"
+        }
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "tail_increase": 0.1
+      },
+      "scope": "Unpinned closed-loop identical single-member shared ECHO/peer/affinities, fixed baseline/current versus maintained current. The same native shared call sites run in all variants; setup, readiness, warm call and physical teardown excluded. Maintenance context/generation allocation costs are cold and not isolated by the steady heap runs. Setup/readiness/warm call and physical teardown outside timing; queue-inclusive caller observations. Separate allocation runs include peers and mechanical tails, not isolated library costs or production fixed-arrival/upstream acceptance.",
+      "baseline_sources": {
+        "client": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+        "pool": "e1722242bf41e5f795cf560c863d777db54681f12142f35f8e68962d6c2be013"
+      },
+      "raw_report_sha256": "a42e6965b66831f00f2046b865657d62f562665afce343a39a6e8b8828d83f3e",
+      "cases": [
+        {
+          "depth": 1,
+          "count": 6771,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  20246.104844,
+                  19690.660908,
+                  19688.342065,
+                  19835.730506,
+                  17053.581389,
+                  17185.758993,
+                  17763.196212
+                ],
+                "median": 19688.342065,
+                "mean": 18780.482131,
+                "min": 17053.581389,
+                "max": 20246.104844,
+                "mad": 557.7627790000006,
+                "relative_mad": 0.02832959612132788,
+                "range": 3192.5234550000023,
+                "relative_range": 0.16215298598836092,
+                "central_range": 2649.9715130000004,
+                "relative_central_range": 0.1345959707654033,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  19596.192821,
+                  19687.271572,
+                  19620.024655,
+                  19746.016821,
+                  19580.637175,
+                  17053.529847,
+                  17636.505144
+                ],
+                "median": 19596.192821,
+                "mean": 18988.596862142855,
+                "min": 17053.529847,
+                "max": 19746.016821,
+                "mad": 91.07875100000092,
+                "relative_mad": 0.00464777785317552,
+                "range": 2692.4869739999995,
+                "relative_range": 0.13739847319294754,
+                "central_range": 2050.7664280000026,
+                "relative_central_range": 0.10465126806684234,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  19728.497874,
+                  19772.928171,
+                  19334.113817,
+                  19555.703429,
+                  19276.429291,
+                  17068.941784,
+                  17100.570598
+                ],
+                "median": 19334.113817,
+                "mean": 18833.883566285716,
+                "min": 17068.941784,
+                "max": 19772.928171,
+                "mad": 394.3840569999993,
+                "relative_mad": 0.02039835188376864,
+                "range": 2703.986387000001,
+                "relative_range": 0.13985571889115772,
+                "central_range": 2627.927276000002,
+                "relative_central_range": 0.1359217857551522,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  46.000001,
+                  48.700022,
+                  48.900023,
+                  48.29996,
+                  53.900003,
+                  54.700009,
+                  55.000011
+                ],
+                "median": 48.900023,
+                "mean": 50.78571842857143,
+                "min": 46.000001,
+                "max": 55.000011,
+                "mad": 2.900022,
+                "relative_mad": 0.05930512548020683,
+                "range": 9.000010000000003,
+                "relative_range": 0.18404919768647152,
+                "central_range": 6.400049000000003,
+                "relative_central_range": 0.13088028608902705,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  49.000024,
+                  48.50002,
+                  48.400019,
+                  48.200018,
+                  49.000024,
+                  56.700024,
+                  55.400014
+                ],
+                "median": 49.000024,
+                "mean": 50.74287757142857,
+                "min": 48.200018,
+                "max": 56.700024,
+                "mad": 0.600005000000003,
+                "relative_mad": 0.012244994002451978,
+                "range": 8.500005999999999,
+                "relative_range": 0.17346942523946515,
+                "central_range": 6.999994999999998,
+                "relative_central_range": 0.14285697084556526,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  48.600021,
+                  48.300019,
+                  49.799972,
+                  49.000024,
+                  49.999973,
+                  56.699966,
+                  56.099962
+                ],
+                "median": 49.799972,
+                "mean": 51.21427671428571,
+                "min": 48.300019,
+                "max": 56.699966,
+                "mad": 1.1999509999999987,
+                "relative_mad": 0.024095415154048654,
+                "range": 8.399947000000004,
+                "relative_range": 0.1686737293747877,
+                "central_range": 7.499941,
+                "relative_central_range": 0.1506013095750335,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  73.000032,
+                  71.900024,
+                  71.40002,
+                  70.499955,
+                  100.800011,
+                  93.700015,
+                  80.200029
+                ],
+                "median": 73.000032,
+                "mean": 80.214298,
+                "min": 70.499955,
+                "max": 100.800011,
+                "mad": 2.5000770000000045,
+                "relative_mad": 0.03424761512433316,
+                "range": 30.300055999999998,
+                "relative_range": 0.4150690783258834,
+                "central_range": 22.299994999999996,
+                "relative_central_range": 0.3054792496529316,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  72.799972,
+                  72.300027,
+                  76.199998,
+                  72.299968,
+                  73.800038,
+                  86.200016,
+                  80.700032
+                ],
+                "median": 73.800038,
+                "mean": 76.32857871428571,
+                "min": 72.299968,
+                "max": 86.200016,
+                "mad": 1.5000699999999938,
+                "relative_mad": 0.020326141295482717,
+                "range": 13.900047999999998,
+                "relative_range": 0.18834743689427366,
+                "central_range": 8.400004999999993,
+                "relative_central_range": 0.11382114735496468,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  71.799965,
+                  71.999966,
+                  72.70003,
+                  73.399977,
+                  74.300042,
+                  84.900006,
+                  87.800028
+                ],
+                "median": 73.399977,
+                "mean": 76.70000200000001,
+                "min": 71.799965,
+                "max": 87.800028,
+                "mad": 1.4000110000000063,
+                "relative_mad": 0.019073725322829544,
+                "range": 16.000062999999997,
+                "relative_range": 0.21798457784257882,
+                "central_range": 12.900040000000004,
+                "relative_central_range": 0.17574991883171848,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  136.899995,
+                  132.200017,
+                  112.299982,
+                  104.900042,
+                  625.199988,
+                  173.899985,
+                  112.200039
+                ],
+                "median": 132.200017,
+                "mean": 199.6571497142857,
+                "min": 104.900042,
+                "max": 625.199988,
+                "mad": 19.999978,
+                "relative_mad": 0.15128574453965463,
+                "range": 520.299946,
+                "relative_range": 3.9357025650004265,
+                "central_range": 61.69994599999998,
+                "relative_central_range": 0.46671662682161363,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  117.299962,
+                  142.300036,
+                  122.3,
+                  134.500035,
+                  99.4,
+                  126.399973,
+                  111.699977
+                ],
+                "median": 122.3,
+                "mean": 121.98571185714286,
+                "min": 99.4,
+                "max": 142.300036,
+                "mad": 10.600022999999993,
+                "relative_mad": 0.0866723058053965,
+                "range": 42.900036,
+                "relative_range": 0.3507770727718725,
+                "central_range": 22.800057999999993,
+                "relative_central_range": 0.1864272935404742,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  128.999993,
+                  108.400011,
+                  120.399985,
+                  112.999987,
+                  112.700043,
+                  133.999973,
+                  130.900007
+                ],
+                "median": 120.399985,
+                "mean": 121.19999985714286,
+                "min": 108.400011,
+                "max": 133.999973,
+                "mad": 8.600007999999988,
+                "relative_mad": 0.07142864677267184,
+                "range": 25.599962000000005,
+                "relative_range": 0.21262429559272789,
+                "central_range": 18.199963999999994,
+                "relative_central_range": 0.1511625105268908,
+                "qualified": false
+              }
+            }
+          },
+          "fixed_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.0046803963328031495,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.010958981497432685,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 17642.194105,
+              "latency_p50_us": 55.300014,
+              "latency_p99_us": 81.39998,
+              "latency_max_us": 103.599974,
+              "checksum": 47397.0,
+              "heap_blocks_per_query": 10.0,
+              "heap_bytes_per_query": 1595.0
+            },
+            "new-fixed": {
+              "queries_per_sec": 17543.718736,
+              "latency_p50_us": 55.500015,
+              "latency_p99_us": 80.600032,
+              "latency_max_us": 117.100019,
+              "checksum": 47397.0,
+              "heap_blocks_per_query": 10.0,
+              "heap_bytes_per_query": 1595.0
+            },
+            "maintained": {
+              "queries_per_sec": 17542.832389,
+              "latency_p50_us": 55.400014,
+              "latency_p99_us": 81.899983,
+              "latency_max_us": 105.499988,
+              "checksum": 47397.0,
+              "heap_blocks_per_query": 10.0,
+              "heap_bytes_per_query": 1595.0
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 20246.104844,
+                "latency_p50_us": 46.000001,
+                "latency_p99_us": 73.000032,
+                "latency_max_us": 136.899995,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19690.660908,
+                "latency_p50_us": 48.700022,
+                "latency_p99_us": 71.900024,
+                "latency_max_us": 132.200017,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19688.342065,
+                "latency_p50_us": 48.900023,
+                "latency_p99_us": 71.40002,
+                "latency_max_us": 112.299982,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19835.730506,
+                "latency_p50_us": 48.29996,
+                "latency_p99_us": 70.499955,
+                "latency_max_us": 104.900042,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17053.581389,
+                "latency_p50_us": 53.900003,
+                "latency_p99_us": 100.800011,
+                "latency_max_us": 625.199988,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17185.758993,
+                "latency_p50_us": 54.700009,
+                "latency_p99_us": 93.700015,
+                "latency_max_us": 173.899985,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17763.196212,
+                "latency_p50_us": 55.000011,
+                "latency_p99_us": 80.200029,
+                "latency_max_us": 112.200039,
+                "checksum": 47397.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 19596.192821,
+                "latency_p50_us": 49.000024,
+                "latency_p99_us": 72.799972,
+                "latency_max_us": 117.299962,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19687.271572,
+                "latency_p50_us": 48.50002,
+                "latency_p99_us": 72.300027,
+                "latency_max_us": 142.300036,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19620.024655,
+                "latency_p50_us": 48.400019,
+                "latency_p99_us": 76.199998,
+                "latency_max_us": 122.3,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19746.016821,
+                "latency_p50_us": 48.200018,
+                "latency_p99_us": 72.299968,
+                "latency_max_us": 134.500035,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19580.637175,
+                "latency_p50_us": 49.000024,
+                "latency_p99_us": 73.800038,
+                "latency_max_us": 99.4,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17053.529847,
+                "latency_p50_us": 56.700024,
+                "latency_p99_us": 86.200016,
+                "latency_max_us": 126.399973,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17636.505144,
+                "latency_p50_us": 55.400014,
+                "latency_p99_us": 80.700032,
+                "latency_max_us": 111.699977,
+                "checksum": 47397.0
+              }
+            ],
+            "maintained": [
+              {
+                "queries_per_sec": 19728.497874,
+                "latency_p50_us": 48.600021,
+                "latency_p99_us": 71.799965,
+                "latency_max_us": 128.999993,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19772.928171,
+                "latency_p50_us": 48.300019,
+                "latency_p99_us": 71.999966,
+                "latency_max_us": 108.400011,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19334.113817,
+                "latency_p50_us": 49.799972,
+                "latency_p99_us": 72.70003,
+                "latency_max_us": 120.399985,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19555.703429,
+                "latency_p50_us": 49.000024,
+                "latency_p99_us": 73.399977,
+                "latency_max_us": 112.999987,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 19276.429291,
+                "latency_p50_us": 49.999973,
+                "latency_p99_us": 74.300042,
+                "latency_max_us": 112.700043,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17068.941784,
+                "latency_p50_us": 56.699966,
+                "latency_p99_us": 84.900006,
+                "latency_max_us": 133.999973,
+                "checksum": 47397.0
+              },
+              {
+                "queries_per_sec": 17100.570598,
+                "latency_p50_us": 56.099962,
+                "latency_p99_us": 87.800028,
+                "latency_max_us": 130.900007,
+                "checksum": 47397.0
+              }
+            ]
+          },
+          "maintained_comparison": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.01337397556729214
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.005420877967569515
+            }
+          }
+        },
+        {
+          "depth": 32,
+          "count": 81394,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  215972.990216,
+                  206103.702127,
+                  176340.852565,
+                  200492.400297,
+                  201738.249354,
+                  214699.110275,
+                  182229.031315
+                ],
+                "median": 201738.249354,
+                "mean": 199653.76230700003,
+                "min": 176340.852565,
+                "max": 215972.990216,
+                "mad": 12960.860921000014,
+                "relative_mad": 0.06424592739603364,
+                "range": 39632.137651,
+                "relative_range": 0.1964532644548508,
+                "central_range": 32470.078960000013,
+                "relative_central_range": 0.16095152537495838,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  222531.346705,
+                  201441.825945,
+                  237462.569204,
+                  179227.893607,
+                  173582.653924,
+                  221952.078825,
+                  199235.359574
+                ],
+                "median": 201441.825945,
+                "mean": 205061.96111200002,
+                "min": 173582.653924,
+                "max": 237462.569204,
+                "mad": 21089.520760000014,
+                "relative_mad": 0.1046928593953379,
+                "range": 63879.91527999999,
+                "relative_range": 0.31711346429832915,
+                "central_range": 43303.453098,
+                "relative_central_range": 0.21496753663175797,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  190845.270053,
+                  203562.251888,
+                  206744.481801,
+                  194527.16973,
+                  199638.857604,
+                  198186.725616,
+                  239684.206048
+                ],
+                "median": 199638.857604,
+                "mean": 204741.28039142856,
+                "min": 190845.270053,
+                "max": 239684.206048,
+                "mad": 5111.687873999996,
+                "relative_mad": 0.025604674036651957,
+                "range": 48838.93599500001,
+                "relative_range": 0.2446364228945651,
+                "central_range": 12217.312070999993,
+                "relative_central_range": 0.06119706462773911,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  99.099998,
+                  100.800011,
+                  101.199956,
+                  102.200022,
+                  100.70001,
+                  99.299999,
+                  101.300015
+                ],
+                "median": 100.800011,
+                "mean": 100.65714442857143,
+                "min": 99.099998,
+                "max": 102.200022,
+                "mad": 0.5000040000000041,
+                "relative_mad": 0.004960356601548427,
+                "range": 3.1000240000000048,
+                "relative_range": 0.030754202993092974,
+                "central_range": 2.0000160000000022,
+                "relative_central_range": 0.01984142640619357,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  100.70001,
+                  100.400008,
+                  99.600002,
+                  113.300048,
+                  103.09997,
+                  101.600017,
+                  100.800011
+                ],
+                "median": 100.800011,
+                "mean": 102.78572371428572,
+                "min": 99.600002,
+                "max": 113.300048,
+                "mad": 0.8000059999999962,
+                "relative_mad": 0.007936566594223846,
+                "range": 13.700046,
+                "relative_range": 0.1359131399301137,
+                "central_range": 2.6999619999999993,
+                "relative_central_range": 0.026785334378584536,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  101.100013,
+                  100.600009,
+                  100.500009,
+                  103.499973,
+                  100.900012,
+                  101.200014,
+                  99.500001
+                ],
+                "median": 100.900012,
+                "mean": 101.04286157142857,
+                "min": 99.500001,
+                "max": 103.499973,
+                "mad": 0.3000030000000038,
+                "relative_mad": 0.0029732702113058596,
+                "range": 3.9999719999999996,
+                "relative_range": 0.039642928882902405,
+                "central_range": 0.7000049999999902,
+                "relative_central_range": 0.006937610671443628,
+                "qualified": true
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  149.500032,
+                  148.099964,
+                  154.799956,
+                  156.700029,
+                  148.700026,
+                  148.199964,
+                  156.900031
+                ],
+                "median": 149.500032,
+                "mean": 151.84285742857145,
+                "min": 148.099964,
+                "max": 156.900031,
+                "mad": 1.4000680000000045,
+                "relative_mad": 0.009365001339932854,
+                "range": 8.800067000000013,
+                "relative_range": 0.058863311815210935,
+                "central_range": 8.500065000000006,
+                "relative_central_range": 0.05685660990360193,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  145.500002,
+                  156.899972,
+                  149.199972,
+                  176.400004,
+                  177.699956,
+                  157.299975,
+                  154.600013
+                ],
+                "median": 156.899972,
+                "mean": 159.6571277142857,
+                "min": 145.500002,
+                "max": 177.699956,
+                "mad": 7.699999999999989,
+                "relative_mad": 0.04907585324489407,
+                "range": 32.19995399999999,
+                "relative_range": 0.2052260022073171,
+                "central_range": 27.200031999999993,
+                "relative_central_range": 0.17335906216732783,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  161.600008,
+                  150.000036,
+                  144.399994,
+                  163.400022,
+                  157.399976,
+                  151.299988,
+                  143.200043
+                ],
+                "median": 151.299988,
+                "mean": 153.04286671428574,
+                "min": 143.200043,
+                "max": 163.400022,
+                "mad": 6.899994000000021,
+                "relative_mad": 0.04560472271815395,
+                "range": 20.199979000000013,
+                "relative_range": 0.13350945540061782,
+                "central_range": 17.20001400000001,
+                "relative_central_range": 0.11368152917500568,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  15490.399965,
+                  16167.199996,
+                  19379.000005,
+                  14069.600031,
+                  14175.999968,
+                  18144.700036,
+                  24142.300012
+                ],
+                "median": 16167.199996,
+                "mean": 17367.028573285712,
+                "min": 14069.600031,
+                "max": 24142.300012,
+                "mad": 1991.2000279999993,
+                "relative_mad": 0.12316294896411568,
+                "range": 10072.699981,
+                "relative_range": 0.6230330535585712,
+                "central_range": 5203.000037000002,
+                "relative_central_range": 0.32182443702603414,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  15688.000014,
+                  14097.900013,
+                  8618.800028,
+                  18320.099975,
+                  23498.6,
+                  19806.100056,
+                  18677.600019
+                ],
+                "median": 18320.099975,
+                "mean": 16958.157157857142,
+                "min": 8618.800028,
+                "max": 23498.6,
+                "mad": 2632.0999610000017,
+                "relative_mad": 0.1436727946131201,
+                "range": 14879.799971999999,
+                "relative_range": 0.8122117233151179,
+                "central_range": 5708.200042999999,
+                "relative_central_range": 0.3115812714335364,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  14640.400012,
+                  21531.599981,
+                  16997.30003,
+                  21847.5,
+                  12029.399979,
+                  22396.700049,
+                  4050.899995
+                ],
+                "median": 16997.30003,
+                "mean": 16213.40000657143,
+                "min": 4050.899995,
+                "max": 22396.700049,
+                "mad": 4850.1999700000015,
+                "relative_mad": 0.2853512005694708,
+                "range": 18345.800054,
+                "relative_range": 1.0793361311278802,
+                "central_range": 9818.100021,
+                "relative_central_range": 0.5776270350979973,
+                "qualified": false
+              }
+            }
+          },
+          "fixed_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.001469346591185361,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.04949791582653296,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 204557.392126,
+              "latency_p50_us": 103.500031,
+              "latency_p99_us": 159.900053,
+              "latency_max_us": 14203.600003,
+              "checksum": 569758.0,
+              "heap_blocks_per_query": 10.000774,
+              "heap_bytes_per_query": 1595.06369
+            },
+            "new-fixed": {
+              "queries_per_sec": 181691.714744,
+              "latency_p50_us": 107.600004,
+              "latency_p99_us": 165.49998,
+              "latency_max_us": 15432.999993,
+              "checksum": 569758.0,
+              "heap_blocks_per_query": 10.000774,
+              "heap_bytes_per_query": 1595.06369
+            },
+            "maintained": {
+              "queries_per_sec": 194058.279493,
+              "latency_p50_us": 105.69999,
+              "latency_p99_us": 162.800017,
+              "latency_max_us": 16346.400022,
+              "checksum": 569758.0,
+              "heap_blocks_per_query": 10.000762,
+              "heap_bytes_per_query": 1595.062904
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 215972.990216,
+                "latency_p50_us": 99.099998,
+                "latency_p99_us": 149.500032,
+                "latency_max_us": 15490.399965,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 206103.702127,
+                "latency_p50_us": 100.800011,
+                "latency_p99_us": 148.099964,
+                "latency_max_us": 16167.199996,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 176340.852565,
+                "latency_p50_us": 101.199956,
+                "latency_p99_us": 154.799956,
+                "latency_max_us": 19379.000005,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 200492.400297,
+                "latency_p50_us": 102.200022,
+                "latency_p99_us": 156.700029,
+                "latency_max_us": 14069.600031,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 201738.249354,
+                "latency_p50_us": 100.70001,
+                "latency_p99_us": 148.700026,
+                "latency_max_us": 14175.999968,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 214699.110275,
+                "latency_p50_us": 99.299999,
+                "latency_p99_us": 148.199964,
+                "latency_max_us": 18144.700036,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 182229.031315,
+                "latency_p50_us": 101.300015,
+                "latency_p99_us": 156.900031,
+                "latency_max_us": 24142.300012,
+                "checksum": 569758.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 222531.346705,
+                "latency_p50_us": 100.70001,
+                "latency_p99_us": 145.500002,
+                "latency_max_us": 15688.000014,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 201441.825945,
+                "latency_p50_us": 100.400008,
+                "latency_p99_us": 156.899972,
+                "latency_max_us": 14097.900013,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 237462.569204,
+                "latency_p50_us": 99.600002,
+                "latency_p99_us": 149.199972,
+                "latency_max_us": 8618.800028,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 179227.893607,
+                "latency_p50_us": 113.300048,
+                "latency_p99_us": 176.400004,
+                "latency_max_us": 18320.099975,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 173582.653924,
+                "latency_p50_us": 103.09997,
+                "latency_p99_us": 177.699956,
+                "latency_max_us": 23498.6,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 221952.078825,
+                "latency_p50_us": 101.600017,
+                "latency_p99_us": 157.299975,
+                "latency_max_us": 19806.100056,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 199235.359574,
+                "latency_p50_us": 100.800011,
+                "latency_p99_us": 154.600013,
+                "latency_max_us": 18677.600019,
+                "checksum": 569758.0
+              }
+            ],
+            "maintained": [
+              {
+                "queries_per_sec": 190845.270053,
+                "latency_p50_us": 101.100013,
+                "latency_p99_us": 161.600008,
+                "latency_max_us": 14640.400012,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 203562.251888,
+                "latency_p50_us": 100.600009,
+                "latency_p99_us": 150.000036,
+                "latency_max_us": 21531.599981,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 206744.481801,
+                "latency_p50_us": 100.500009,
+                "latency_p99_us": 144.399994,
+                "latency_max_us": 16997.30003,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 194527.16973,
+                "latency_p50_us": 103.499973,
+                "latency_p99_us": 163.400022,
+                "latency_max_us": 21847.5,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 199638.857604,
+                "latency_p50_us": 100.900012,
+                "latency_p99_us": 157.399976,
+                "latency_max_us": 12029.399979,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 198186.725616,
+                "latency_p50_us": 101.200014,
+                "latency_p99_us": 151.299988,
+                "latency_max_us": 22396.700049,
+                "checksum": 569758.0
+              },
+              {
+                "queries_per_sec": 239684.206048,
+                "latency_p50_us": 99.500001,
+                "latency_p99_us": 143.200043,
+                "latency_max_us": 4050.899995,
+                "checksum": 569758.0
+              }
+            ]
+          },
+          "maintained_comparison": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.008950317703594779
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.03569142765685118
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "aaf476c5472f5fe2d6e9f03c25f0f20504a367f3afeddcb4fd314ecd6ef20391",
+      "binaries": {
+        "baseline": {
+          "path": "performance/wsl/baseline",
+          "sha256": "72dc2e5026b0e2490f06e776633e9b0ceaac8553c63e4d3497e38a866fbd5b87"
+        },
+        "current": {
+          "path": "performance/wsl/current",
+          "sha256": "c9a841cb774254cda3a4e7f75c307d276da409656422f0fde9951d82ca013a0a"
+        }
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "tail_increase": 0.1
+      },
+      "scope": "Unpinned closed-loop identical single-member shared ECHO/peer/affinities, fixed baseline/current versus maintained current. The same native shared call sites run in all variants; setup, readiness, warm call and physical teardown excluded. Maintenance context/generation allocation costs are cold and not isolated by the steady heap runs. Setup/readiness/warm call and physical teardown outside timing; queue-inclusive caller observations. Separate allocation runs include peers and mechanical tails, not isolated library costs or production fixed-arrival/upstream acceptance.",
+      "baseline_sources": {
+        "client": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+        "pool": "e1722242bf41e5f795cf560c863d777db54681f12142f35f8e68962d6c2be013"
+      },
+      "raw_report_sha256": "fda7dd97551eccbe4434c835a20f81c36693a070d1c5fcca3e4f4e28bff0c318",
+      "cases": [
+        {
+          "depth": 1,
+          "count": 4096,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  10974.098873,
+                  10950.018616,
+                  11329.667885,
+                  11163.951179,
+                  11132.649484,
+                  11197.795272,
+                  10652.97892
+                ],
+                "median": 11132.649484,
+                "mean": 11057.308604142858,
+                "min": 10652.97892,
+                "max": 11329.667885,
+                "mad": 158.55061099999875,
+                "relative_mad": 0.014241947635903737,
+                "range": 676.6889650000012,
+                "relative_range": 0.06078417954077761,
+                "central_range": 247.776656,
+                "relative_central_range": 0.022256755353351247,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  10922.894125,
+                  11281.689373,
+                  11028.36276,
+                  10990.559249,
+                  10968.832552,
+                  10802.366017,
+                  10784.115485
+                ],
+                "median": 10968.832552,
+                "mean": 10968.402794428572,
+                "min": 10784.115485,
+                "max": 11281.689373,
+                "mad": 59.53020800000013,
+                "relative_mad": 0.005427214584394918,
+                "range": 497.573887999999,
+                "relative_range": 0.04536252018080757,
+                "central_range": 225.9967429999997,
+                "relative_central_range": 0.02060353660506857,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  10087.802921,
+                  11059.775709,
+                  10949.357082,
+                  10586.165221,
+                  10603.454861,
+                  10300.414739,
+                  10728.231321
+                ],
+                "median": 10603.454861,
+                "mean": 10616.457407714286,
+                "min": 10087.802921,
+                "max": 11059.775709,
+                "mad": 303.04012200000034,
+                "relative_mad": 0.02857937587065099,
+                "range": 971.9727879999991,
+                "relative_range": 0.09166566942015854,
+                "central_range": 648.9423430000006,
+                "relative_central_range": 0.06120102848618149,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  83.7,
+                  85.0,
+                  83.4,
+                  84.3,
+                  84.6,
+                  84.0,
+                  90.0
+                ],
+                "median": 84.3,
+                "mean": 85.0,
+                "min": 83.4,
+                "max": 90.0,
+                "mad": 0.5999999999999943,
+                "relative_mad": 0.007117437722419862,
+                "range": 6.599999999999994,
+                "relative_range": 0.07829181494661915,
+                "central_range": 1.2999999999999972,
+                "relative_central_range": 0.015421115065243145,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  84.5,
+                  83.4,
+                  85.5,
+                  86.0,
+                  86.0,
+                  85.0,
+                  86.4
+                ],
+                "median": 85.5,
+                "mean": 85.25714285714285,
+                "min": 83.4,
+                "max": 86.4,
+                "mad": 0.5,
+                "relative_mad": 0.005847953216374269,
+                "range": 3.0,
+                "relative_range": 0.03508771929824561,
+                "central_range": 1.5,
+                "relative_central_range": 0.017543859649122806,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  94.7,
+                  84.8,
+                  87.3,
+                  87.5,
+                  90.3,
+                  91.3,
+                  87.0
+                ],
+                "median": 87.5,
+                "mean": 88.98571428571428,
+                "min": 84.8,
+                "max": 94.7,
+                "mad": 2.700000000000003,
+                "relative_mad": 0.03085714285714289,
+                "range": 9.900000000000006,
+                "relative_range": 0.11314285714285721,
+                "central_range": 4.299999999999997,
+                "relative_central_range": 0.04914285714285711,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  144.9,
+                  142.8,
+                  132.0,
+                  125.4,
+                  128.0,
+                  133.0,
+                  151.9
+                ],
+                "median": 133.0,
+                "mean": 136.85714285714286,
+                "min": 125.4,
+                "max": 151.9,
+                "mad": 7.599999999999994,
+                "relative_mad": 0.0571428571428571,
+                "range": 26.5,
+                "relative_range": 0.19924812030075187,
+                "central_range": 16.900000000000006,
+                "relative_central_range": 0.12706766917293238,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  137.1,
+                  135.7,
+                  138.5,
+                  135.8,
+                  134.3,
+                  156.2,
+                  148.2
+                ],
+                "median": 137.1,
+                "mean": 140.82857142857142,
+                "min": 134.3,
+                "max": 156.2,
+                "mad": 1.4000000000000057,
+                "relative_mad": 0.010211524434719225,
+                "range": 21.899999999999977,
+                "relative_range": 0.15973741794310706,
+                "central_range": 12.5,
+                "relative_central_range": 0.09117432530999271,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  141.6,
+                  130.3,
+                  138.9,
+                  156.9,
+                  178.0,
+                  163.4,
+                  154.5
+                ],
+                "median": 154.5,
+                "mean": 151.94285714285712,
+                "min": 130.3,
+                "max": 178.0,
+                "mad": 12.900000000000006,
+                "relative_mad": 0.083495145631068,
+                "range": 47.69999999999999,
+                "relative_range": 0.30873786407766984,
+                "central_range": 24.5,
+                "relative_central_range": 0.15857605177993528,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  235.9,
+                  191.0,
+                  191.2,
+                  214.2,
+                  241.5,
+                  190.8,
+                  381.3
+                ],
+                "median": 214.2,
+                "mean": 235.12857142857143,
+                "min": 190.8,
+                "max": 381.3,
+                "mad": 23.19999999999999,
+                "relative_mad": 0.10830999066293179,
+                "range": 190.5,
+                "relative_range": 0.8893557422969188,
+                "central_range": 50.5,
+                "relative_central_range": 0.23576097105508872,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  204.7,
+                  189.7,
+                  201.5,
+                  201.5,
+                  215.1,
+                  256.1,
+                  517.0
+                ],
+                "median": 204.7,
+                "mean": 255.08571428571426,
+                "min": 189.7,
+                "max": 517.0,
+                "mad": 10.400000000000006,
+                "relative_mad": 0.05080605764533467,
+                "range": 327.3,
+                "relative_range": 1.5989252564728873,
+                "central_range": 54.60000000000002,
+                "relative_central_range": 0.26673180263800694,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  185.0,
+                  205.8,
+                  238.3,
+                  2354.3,
+                  512.2,
+                  223.6,
+                  355.1
+                ],
+                "median": 238.3,
+                "mean": 582.0428571428572,
+                "min": 185.0,
+                "max": 2354.3,
+                "mad": 53.30000000000001,
+                "relative_mad": 0.2236676458245909,
+                "range": 2169.3,
+                "relative_range": 9.103231221149812,
+                "central_range": 306.40000000000003,
+                "relative_central_range": 1.2857742341586236,
+                "qualified": false
+              }
+            }
+          },
+          "fixed_regression": {
+            "queries_per_sec": {
+              "qualified": true,
+              "relative_change": -0.014714999536762585,
+              "budget": 0.05,
+              "within_budget": true
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.03082706766917287,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 10957.617229,
+              "latency_p50_us": 85.7,
+              "latency_p99_us": 134.2,
+              "latency_max_us": 175.6,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 12.004639,
+              "heap_bytes_per_query": 2059.259766
+            },
+            "new-fixed": {
+              "queries_per_sec": 10884.029957,
+              "latency_p50_us": 84.1,
+              "latency_p99_us": 154.2,
+              "latency_max_us": 469.0,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 12.006836,
+              "heap_bytes_per_query": 2059.382812
+            },
+            "maintained": {
+              "queries_per_sec": 10690.885559,
+              "latency_p50_us": 88.2,
+              "latency_p99_us": 150.4,
+              "latency_max_us": 201.7,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 12.005371,
+              "heap_bytes_per_query": 2059.300781
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 10974.098873,
+                "latency_p50_us": 83.7,
+                "latency_p99_us": 144.9,
+                "latency_max_us": 235.9,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10950.018616,
+                "latency_p50_us": 85.0,
+                "latency_p99_us": 142.8,
+                "latency_max_us": 191.0,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11329.667885,
+                "latency_p50_us": 83.4,
+                "latency_p99_us": 132.0,
+                "latency_max_us": 191.2,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11163.951179,
+                "latency_p50_us": 84.3,
+                "latency_p99_us": 125.4,
+                "latency_max_us": 214.2,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11132.649484,
+                "latency_p50_us": 84.6,
+                "latency_p99_us": 128.0,
+                "latency_max_us": 241.5,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11197.795272,
+                "latency_p50_us": 84.0,
+                "latency_p99_us": 133.0,
+                "latency_max_us": 190.8,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10652.97892,
+                "latency_p50_us": 90.0,
+                "latency_p99_us": 151.9,
+                "latency_max_us": 381.3,
+                "checksum": 28672.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 10922.894125,
+                "latency_p50_us": 84.5,
+                "latency_p99_us": 137.1,
+                "latency_max_us": 204.7,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11281.689373,
+                "latency_p50_us": 83.4,
+                "latency_p99_us": 135.7,
+                "latency_max_us": 189.7,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11028.36276,
+                "latency_p50_us": 85.5,
+                "latency_p99_us": 138.5,
+                "latency_max_us": 201.5,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10990.559249,
+                "latency_p50_us": 86.0,
+                "latency_p99_us": 135.8,
+                "latency_max_us": 201.5,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10968.832552,
+                "latency_p50_us": 86.0,
+                "latency_p99_us": 134.3,
+                "latency_max_us": 215.1,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10802.366017,
+                "latency_p50_us": 85.0,
+                "latency_p99_us": 156.2,
+                "latency_max_us": 256.1,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10784.115485,
+                "latency_p50_us": 86.4,
+                "latency_p99_us": 148.2,
+                "latency_max_us": 517.0,
+                "checksum": 28672.0
+              }
+            ],
+            "maintained": [
+              {
+                "queries_per_sec": 10087.802921,
+                "latency_p50_us": 94.7,
+                "latency_p99_us": 141.6,
+                "latency_max_us": 185.0,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11059.775709,
+                "latency_p50_us": 84.8,
+                "latency_p99_us": 130.3,
+                "latency_max_us": 205.8,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10949.357082,
+                "latency_p50_us": 87.3,
+                "latency_p99_us": 138.9,
+                "latency_max_us": 238.3,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10586.165221,
+                "latency_p50_us": 87.5,
+                "latency_p99_us": 156.9,
+                "latency_max_us": 2354.3,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10603.454861,
+                "latency_p50_us": 90.3,
+                "latency_p99_us": 178.0,
+                "latency_max_us": 512.2,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10300.414739,
+                "latency_p50_us": 91.3,
+                "latency_p99_us": 163.4,
+                "latency_max_us": 223.6,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10728.231321,
+                "latency_p50_us": 87.0,
+                "latency_p99_us": 154.5,
+                "latency_max_us": 355.1,
+                "checksum": 28672.0
+              }
+            ]
+          },
+          "maintained_comparison": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.03331053594517486
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.12691466083150993
+            }
+          }
+        },
+        {
+          "depth": 32,
+          "count": 18981,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  55329.804873,
+                  55344.97,
+                  54277.130691,
+                  54916.552417,
+                  54174.669615,
+                  54088.510654,
+                  51144.285831
+                ],
+                "median": 54277.130691,
+                "mean": 54182.27486871428,
+                "min": 51144.285831,
+                "max": 55344.97,
+                "mad": 639.4217260000005,
+                "relative_mad": 0.011780684016629985,
+                "range": 4200.684169,
+                "relative_range": 0.0773932614992955,
+                "central_range": 1241.294219000003,
+                "relative_central_range": 0.022869562248356456,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  55642.67041,
+                  54978.015094,
+                  55035.705273,
+                  53388.275769,
+                  55024.888087,
+                  55215.799437,
+                  54907.003718
+                ],
+                "median": 55024.888087,
+                "mean": 54884.62254114286,
+                "min": 53388.275769,
+                "max": 55642.67041,
+                "mad": 117.88436899999942,
+                "relative_mad": 0.002142382712593838,
+                "range": 2254.394640999999,
+                "relative_range": 0.04097045390506873,
+                "central_range": 308.79571900000155,
+                "relative_central_range": 0.005611928160794508,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  54085.290734,
+                  54933.065705,
+                  54798.705396,
+                  54490.070205,
+                  55199.598619,
+                  55001.320716,
+                  55661.335847
+                ],
+                "median": 54933.065705,
+                "mean": 54881.341031714284,
+                "min": 54085.290734,
+                "max": 55661.335847,
+                "mad": 266.5329139999958,
+                "relative_mad": 0.004851957752209268,
+                "range": 1576.0451130000001,
+                "relative_range": 0.028690281395610306,
+                "central_range": 709.5284139999931,
+                "relative_central_range": 0.012916235511236211,
+                "qualified": true
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  321.1,
+                  319.9,
+                  337.0,
+                  327.1,
+                  334.1,
+                  334.7,
+                  347.0
+                ],
+                "median": 334.1,
+                "mean": 331.5571428571429,
+                "min": 319.9,
+                "max": 347.0,
+                "mad": 7.0,
+                "relative_mad": 0.020951810835079316,
+                "range": 27.100000000000023,
+                "relative_range": 0.08111343909009285,
+                "central_range": 15.899999999999977,
+                "relative_central_range": 0.04759054175396581,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  321.0,
+                  326.3,
+                  326.2,
+                  332.2,
+                  325.3,
+                  325.9,
+                  325.6
+                ],
+                "median": 325.9,
+                "mean": 326.07142857142856,
+                "min": 321.0,
+                "max": 332.2,
+                "mad": 0.4000000000000341,
+                "relative_mad": 0.0012273703590059348,
+                "range": 11.199999999999989,
+                "relative_range": 0.034366370052163205,
+                "central_range": 1.0,
+                "relative_central_range": 0.0030684258975145753,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  331.7,
+                  328.6,
+                  328.0,
+                  331.1,
+                  320.8,
+                  326.9,
+                  320.0
+                ],
+                "median": 328.0,
+                "mean": 326.7285714285714,
+                "min": 320.0,
+                "max": 331.7,
+                "mad": 3.1000000000000227,
+                "relative_mad": 0.009451219512195191,
+                "range": 11.699999999999989,
+                "relative_range": 0.035670731707317035,
+                "central_range": 10.300000000000011,
+                "relative_central_range": 0.03140243902439028,
+                "qualified": true
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  621.4,
+                  624.6,
+                  640.3,
+                  612.6,
+                  636.8,
+                  637.3,
+                  709.3
+                ],
+                "median": 636.8,
+                "mean": 640.3285714285714,
+                "min": 612.6,
+                "max": 709.3,
+                "mad": 12.199999999999932,
+                "relative_mad": 0.019158291457286328,
+                "range": 96.69999999999993,
+                "relative_range": 0.1518530150753768,
+                "central_range": 18.899999999999977,
+                "relative_central_range": 0.029679648241205996,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  603.8,
+                  624.5,
+                  622.7,
+                  697.2,
+                  625.1,
+                  612.5,
+                  608.4
+                ],
+                "median": 622.7,
+                "mean": 627.7428571428571,
+                "min": 603.8,
+                "max": 697.2,
+                "mad": 10.200000000000045,
+                "relative_mad": 0.0163802794282962,
+                "range": 93.40000000000009,
+                "relative_range": 0.14999197045126078,
+                "central_range": 16.700000000000045,
+                "relative_central_range": 0.026818692789465304,
+                "qualified": true
+              },
+              "maintained": {
+                "samples": [
+                  639.8,
+                  630.4,
+                  627.8,
+                  632.4,
+                  623.4,
+                  629.3,
+                  610.2
+                ],
+                "median": 629.3,
+                "mean": 627.6142857142858,
+                "min": 610.2,
+                "max": 639.8,
+                "mad": 3.1000000000000227,
+                "relative_mad": 0.004926108374384273,
+                "range": 29.59999999999991,
+                "relative_range": 0.0470363896392816,
+                "central_range": 9.0,
+                "relative_central_range": 0.01430160495788972,
+                "qualified": true
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  1039.6,
+                  873.6,
+                  872.5,
+                  803.4,
+                  833.0,
+                  811.7,
+                  1078.2
+                ],
+                "median": 872.5,
+                "mean": 901.7142857142857,
+                "min": 803.4,
+                "max": 1078.2,
+                "mad": 60.799999999999955,
+                "relative_mad": 0.06968481375358161,
+                "range": 274.80000000000007,
+                "relative_range": 0.3149570200573067,
+                "central_range": 227.89999999999986,
+                "relative_central_range": 0.2612034383954153,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  875.1,
+                  1160.5,
+                  769.4,
+                  2219.0,
+                  1009.2,
+                  753.2,
+                  758.4
+                ],
+                "median": 875.1,
+                "mean": 1077.8285714285714,
+                "min": 753.2,
+                "max": 2219.0,
+                "mad": 121.89999999999998,
+                "relative_mad": 0.13929836590103986,
+                "range": 1465.8,
+                "relative_range": 1.6750085704490913,
+                "central_range": 402.1,
+                "relative_central_range": 0.4594903439606902,
+                "qualified": false
+              },
+              "maintained": {
+                "samples": [
+                  884.3,
+                  834.2,
+                  844.3,
+                  803.9,
+                  882.1,
+                  1030.8,
+                  781.1
+                ],
+                "median": 844.3,
+                "mean": 865.8142857142857,
+                "min": 781.1,
+                "max": 1030.8,
+                "mad": 40.0,
+                "relative_mad": 0.04737652493189625,
+                "range": 249.69999999999993,
+                "relative_range": 0.2957479568873623,
+                "central_range": 80.39999999999998,
+                "relative_central_range": 0.09522681511311143,
+                "qualified": false
+              }
+            }
+          },
+          "fixed_regression": {
+            "queries_per_sec": {
+              "qualified": true,
+              "relative_change": 0.013776656696482092,
+              "budget": 0.05,
+              "within_budget": true
+            },
+            "latency_p99_us": {
+              "qualified": true,
+              "relative_change": -0.022141959798994804,
+              "budget": 0.1,
+              "within_budget": true
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 53832.467847,
+              "latency_p50_us": 331.5,
+              "latency_p99_us": 672.0,
+              "latency_max_us": 962.7,
+              "checksum": 132867.0,
+              "heap_blocks_per_query": 10.254096,
+              "heap_bytes_per_query": 1961.252568
+            },
+            "new-fixed": {
+              "queries_per_sec": 52882.648463,
+              "latency_p50_us": 337.6,
+              "latency_p99_us": 685.6,
+              "latency_max_us": 964.3,
+              "checksum": 132867.0,
+              "heap_blocks_per_query": 10.259681,
+              "heap_bytes_per_query": 1961.565302
+            },
+            "maintained": {
+              "queries_per_sec": 53457.1997,
+              "latency_p50_us": 339.2,
+              "latency_p99_us": 668.8,
+              "latency_max_us": 1124.5,
+              "checksum": 132867.0,
+              "heap_blocks_per_query": 10.243296,
+              "heap_bytes_per_query": 1960.647332
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 55329.804873,
+                "latency_p50_us": 321.1,
+                "latency_p99_us": 621.4,
+                "latency_max_us": 1039.6,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55344.97,
+                "latency_p50_us": 319.9,
+                "latency_p99_us": 624.6,
+                "latency_max_us": 873.6,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54277.130691,
+                "latency_p50_us": 337.0,
+                "latency_p99_us": 640.3,
+                "latency_max_us": 872.5,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54916.552417,
+                "latency_p50_us": 327.1,
+                "latency_p99_us": 612.6,
+                "latency_max_us": 803.4,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54174.669615,
+                "latency_p50_us": 334.1,
+                "latency_p99_us": 636.8,
+                "latency_max_us": 833.0,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54088.510654,
+                "latency_p50_us": 334.7,
+                "latency_p99_us": 637.3,
+                "latency_max_us": 811.7,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 51144.285831,
+                "latency_p50_us": 347.0,
+                "latency_p99_us": 709.3,
+                "latency_max_us": 1078.2,
+                "checksum": 132867.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 55642.67041,
+                "latency_p50_us": 321.0,
+                "latency_p99_us": 603.8,
+                "latency_max_us": 875.1,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54978.015094,
+                "latency_p50_us": 326.3,
+                "latency_p99_us": 624.5,
+                "latency_max_us": 1160.5,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55035.705273,
+                "latency_p50_us": 326.2,
+                "latency_p99_us": 622.7,
+                "latency_max_us": 769.4,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 53388.275769,
+                "latency_p50_us": 332.2,
+                "latency_p99_us": 697.2,
+                "latency_max_us": 2219.0,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55024.888087,
+                "latency_p50_us": 325.3,
+                "latency_p99_us": 625.1,
+                "latency_max_us": 1009.2,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55215.799437,
+                "latency_p50_us": 325.9,
+                "latency_p99_us": 612.5,
+                "latency_max_us": 753.2,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54907.003718,
+                "latency_p50_us": 325.6,
+                "latency_p99_us": 608.4,
+                "latency_max_us": 758.4,
+                "checksum": 132867.0
+              }
+            ],
+            "maintained": [
+              {
+                "queries_per_sec": 54085.290734,
+                "latency_p50_us": 331.7,
+                "latency_p99_us": 639.8,
+                "latency_max_us": 884.3,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54933.065705,
+                "latency_p50_us": 328.6,
+                "latency_p99_us": 630.4,
+                "latency_max_us": 834.2,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54798.705396,
+                "latency_p50_us": 328.0,
+                "latency_p99_us": 627.8,
+                "latency_max_us": 844.3,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 54490.070205,
+                "latency_p50_us": 331.1,
+                "latency_p99_us": 632.4,
+                "latency_max_us": 803.9,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55199.598619,
+                "latency_p50_us": 320.8,
+                "latency_p99_us": 623.4,
+                "latency_max_us": 882.1,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55001.320716,
+                "latency_p50_us": 326.9,
+                "latency_p99_us": 629.3,
+                "latency_max_us": 1030.8,
+                "checksum": 132867.0
+              },
+              {
+                "queries_per_sec": 55661.335847,
+                "latency_p50_us": 320.0,
+                "latency_p99_us": 610.2,
+                "latency_max_us": 781.1,
+                "checksum": 132867.0
+              }
+            ]
+          },
+          "maintained_comparison": {
+            "queries_per_sec": {
+              "qualified": true,
+              "relative_change": -0.0016687427306497638
+            },
+            "latency_p99_us": {
+              "qualified": true,
+              "relative_change": 0.010599004335956064
+            }
+          }
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Full Cluster topology/address policy/routing/refresh/redirect orchestration and automatic Sentinel shared pools remain work.",
+    "No outage wait queue, cross-connection ordering or key affinity; isolate blocking traffic.",
+    "Real transport is plaintext IPv4 with default/named nopass ACL; not the full real TLS/authentication/trust matrix.",
+    "Closed-loop unpinned one-member local-peer measurements exclude setup/readiness/physical teardown and do not establish fixed-arrival/mixed-load/upstream/CPU/RSS/native Linux/72h acceptance.",
+    "Heap observations include peers/mechanical tails; cold connector/attempt allocations remain additional costs, not isolated by the steady-state runs.",
+    "No zero-overhead, full performance-regression-matrix or production-tail claim."
+  ],
+  "initial_failures": [],
+  "development_observation": "Initial PowerShell build log did not contain child stdout although its test exited0; separate preserved subprocess capture verifies the PASS line and exit0. Formal receipts and native interop output are independent evidence.",
+  "raw_evidence": "out/service-extensions/xredis-shared-reconnect-20261112"
+}

@@ -64,6 +64,11 @@
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_SHARED"
 #endif
 #include <xredis/pool_shared.h>
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT"
+#endif
+#include <xredis/pool_shared_connect.h>
+
 
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_POOL_TRANSACTION)

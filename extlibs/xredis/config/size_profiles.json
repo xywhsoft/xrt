@@ -368,6 +368,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_pool_shared_connect",
+      "system": "pool_shared_connect",
+      "suite": "xredis_pool_shared_connect",
+      "description": "Native shared pools and bounded reconnect without TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

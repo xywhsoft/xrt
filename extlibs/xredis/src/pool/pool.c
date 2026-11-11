@@ -965,7 +965,14 @@ static bool xredisPoolConnectProcess(xredispool* Pool, xredispoolslot* Slot)
                 Slot->Claimed && Info.State == XREDIS_CLIENT_OPEN && !Info.Requests) {
                 xredisPoolConnectReadyDrop(Pool, Item); xredisPoolConnectHeapRemove(State, Item);
                 Entry->Phase = XREDIS_PC_ONLINE; Entry->Failures = 0; Entry->InFlight = false; Slot->Dead = false;
-                xrtMutexLock(&Pool->Gate); --State->Info.Connecting; ++Pool->Info.Live; xredisPoolConnectIncrement(&State->Info.Connected); xrtMutexUnlock(&Pool->Gate);
+                xrtMutexLock(&Pool->Gate);
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED)
+                /* Activate only after native readiness/initialization storage
+                 * retire, before ProcessSlot publishes the ready-list entry. */
+                if (!Pool->Config.LeaseTimeout && Pool->Info.State == XREDIS_POOL_OPEN)
+                    xrtAtomic32Store(&Slot->Owner.State, XREDIS_OWNER_ACTIVE, XMEMORY_RELEASE);
+#endif
+                --State->Info.Connecting; ++Pool->Info.Live; xredisPoolConnectIncrement(&State->Info.Connected); xrtMutexUnlock(&Pool->Gate);
 #if defined(XREDIS_FEATURE_XREDIS_SENTINEL_POOL)
                 if(xredisPoolSpMode(Pool))xredisPoolSpState(Pool)->Notify=true;
 #endif
@@ -1290,8 +1297,8 @@ static bool xredisPoolConnectDispose(xredispool* Pool)
     }
     return true;
 }
-xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
-    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result)
+static xredisadmission xredisPoolConnectAdmit(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result, bool Shared)
 {
     if (!Engine || !Count || Count > 65536 || !Result || !xrtMemRangeValid(Result, sizeof(*Result)) ||
         !Connect || !xrtMemRangeValid(Connect, sizeof(*Connect)) || xrtMemRangesOverlap(Connect, sizeof(*Connect), Result, sizeof(*Result)) ||
@@ -1305,6 +1312,7 @@ xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t 
         Factory.AttemptTimeout <= 0 || Factory.AttemptTimeout > 60000 || Factory.RetryMin <= 0 || Factory.RetryMax < Factory.RetryMin || Factory.RetryMax > 60000) {
         xredisPoolReport(XERR_ARGUMENT, "invalid automatic pool bounds/factory/profile"); return XREDIS_ADMISSION_ERROR;
     }
+    if (Shared) Options.LeaseTimeout = 0;
     xredispool* Pool = xredisPoolAllocate(Engine, Affinity, Count, &Options); if (!Pool) return XREDIS_ADMISSION_ERROR;
     size_t Bytes = sizeof(xredispoolconnectstate) + Count * (sizeof(xredispoolconnectentry) + sizeof(size_t));
     xredispoolconnectstate* State = Pool->Connector = xrtCalloc(1, Bytes);
@@ -1324,6 +1332,14 @@ xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t 
     xrtMutexLock(&Pool->Gate); Pool->Initialized = true; *Result = Pool; xredisPoolWakeLocked(Pool); xrtMutexUnlock(&Pool->Gate);
     return XREDIS_ADMISSION_ACCEPTED;
 }
+xredisadmission __xredisPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result)
+{ return xredisPoolConnectAdmit(Engine, Affinity, Count, Config, Connect, Result, false); }
+#if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT)
+xredisadmission __xredisSharedPoolConnect(xnetengine* Engine, uint64 Affinity, size_t Count,
+    const xredispoolconfig* Config, const xredispoolconnectconfig* Connect, xredispool** Result)
+{ return xredisPoolConnectAdmit(Engine, Affinity, Count, Config, Connect, Result, true); }
+#endif
 bool __xredisPoolConnectInfo(xredispool* Pool, xredispoolconnectinfo* Info)
 {
     if (!Pool || !Info || !xrtMemRangeValid(Info, sizeof(*Info)) || Info->Size != sizeof(*Info) ||

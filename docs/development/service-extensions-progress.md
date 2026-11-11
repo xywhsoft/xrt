@@ -11288,3 +11288,70 @@ acceptance is claimed. The four-library native Linux/upstream/fixed-arrival/
 mixed-load/CPU/RSS/72h gates remain active. All started jobs are terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/pool-shared-20261112.json)
 and out/service-extensions/xredis-pool-shared-20261112.
+
+
+## 2026-11-12: automatically maintained native shared pools
+
+Developed directly on master from 8153cb62. The developing
+xredis_pool_shared_connect leaf adds xredisSharedPoolConnect using the existing
+native connector, shared pool handle and business request/Future path. No new
+runtime or pool/client/request/slot/lease/connector header grows. Constructor
+validation selects the existing private shared-mode tag. A replacement activates
+its owner only after readiness/profile validation and initialization storage
+retire, before ready-list publication. Native claim/state checks reject a stale
+selected client across reuse of the same slot. Physical old constructor/wire/
+timer/cancel obligations still prevent unclaim/replacement. The steady shared
+call sites are unchanged; maintenance retains its bounded worker/heap/attempt
+costs and extra cold connector/attempt allocations. No business replay, outage
+wait queue, topology/address policy or redirect execution is introduced.
+
+Windows/WSL full xredis roots each pass 34 programs; logical validation totals
+are 44/46. Focused, bare/TLS singles, old fixed-shared/exclusive-connect feature-
+off combination, examples, docs/features/amalgamation/maturity gates pass. WSL
+adds ASan/UBSan/leak halt and both TSan singles. Tests cover failed factories,
+bounded setup/timeout/retry, readiness/profile refusal, immediate outage overload,
+no exclusive acquisition, repeated disconnects, native sent-stop quota/drain
+expiry before repair, constructor OOM, context Drop, producers and TLS repair.
+Whitebox singles retain an actually selected old client, repair the same slot,
+and prove its owned admission cannot enter the successor generation. Retained
+outcomes/closed metadata survive engine teardown. All use one 2788-file source
+map; no formal command failed. The initial PowerShell development log lacked
+child stdout despite exit0; a separate preserved subprocess capture confirms
+the native PASS output, while formal receipts are independent evidence.
+
+All eight modular/single/static/shared forms pass 18 real Redis 8.0.5 cases
+per form (144 total): numeric/DNS/prepared factories, RESP2/3/AUTO, default/named
+nopass ACL, two members and 64 binary ECHOs. Owned run IDs precede mutation.
+CLIENT LIST proves a BLPOP request is blocked on its exact member ID before
+an independent owned admin kills that connection. Its Future preserves the
+DISCONNECTED/MAY_HAVE_EXECUTED result. Only that physical generation changes;
+the successor does not replay BLPOP, and the other member retains its ID.
+Context Drop joins all client close observers, and retained successful/uncertain
+outcomes survive native engine destruction. All fixture processes/materials
+retire. The shared owned runner grants BLPOP to its fixture user and retains
+the Windows/WSL port screening from the preceding stage. Real transport remains
+plaintext IPv4; the full real TLS/auth/trust matrix is not established here.
+
+Whole-root selector examples, isolated static/shared declaration consumers, the
+new export and private-symbol exclusion pass. Baseline/current selected, full,
+feature-off and delivery layouts match, including connector state/entry sizes.
+All six size forms and product/core TLS/DNS/HTTP/tasks/process symbol gates pass.
+After all functional/delivery jobs terminate, serial unpinned fixed baseline/
+fixed current/maintained current measurements use identical native shared ECHO
+call sites, peer/affinities, one warmup plus seven samples, common calibrated
+counts for a350ms target and unchanged 3% MAD/6% central-span limits. Setup/
+readiness/warm call/physical cleanup are outside timing. WSL depth32 maintained
+versus current fixed qualifies at -0.17% throughput and +1.06% P99. Other
+maintained comparisons remain unqualified. Fixed baseline/current throughput
+qualifies on WSL depths1/32 (-1.47%/+1.38%, within5%); only WSL depth32 P99
+qualifies (-2.21%, within10%). Windows comparisons remain unqualified; no noisy
+comparison is a pass. No timing rerun selected green samples. Windows depth1
+old/current/maintained heap observations match at 10 blocks/1595bytes, including
+peers/mechanical tails. Cold connector/attempt allocations remain additional
+costs and are not isolated by these steady heap runs. No zero-overhead/full
+regression-matrix/production-tail acceptance is claimed. Full Cluster routing,
+refresh/redirect/deadline orchestration, Sentinel shared-pool selection and the
+four-library native Linux/upstream/fixed-arrival/mixed-load/CPU/RSS/72h gates
+remain active. All started jobs are terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/shared-reconnect-20261112.json)
+and out/service-extensions/xredis-shared-reconnect-20261112.

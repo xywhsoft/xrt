@@ -80,3 +80,11 @@ The developing `xredis_pool_shared` leaf adds fixed managed-member multiplexing,
 bounded round robin, native physical quotas/stops and immediate overload.
 See [contracts](pool_shared.md). Node reconnection, Cluster routing and
 production performance acceptance remain open.
+
+## Automatic shared pools
+
+The developing `xredis_pool_shared_connect` leaf combines shared dispatch with
+native bounded connection maintenance. Replacement waits for native readiness
+and physical retirement; accepted business requests never replay. See
+[contracts](pool_shared_connect.md). Cluster routing/refresh and full production
+acceptance remain work.

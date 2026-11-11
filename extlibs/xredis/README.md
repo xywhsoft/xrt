@@ -239,3 +239,7 @@ Automatic Cluster address selection/redirect execution remains subsequent work.
 [Native shared pools](docs/pool_shared.md) multiplex ordinary calls over fixed
 ready members with one native request/Future and bounded selection, without
 per-call leases. Automatic node reconnection and Cluster routing remain work.
+
+[Automatic shared pools](docs/pool_shared_connect.md) maintain and refill shared
+node connections with bounded setup/retry and physical generation retirement.
+Accepted business calls never replay. Full Cluster routing remains work.

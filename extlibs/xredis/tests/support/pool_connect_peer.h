@@ -95,6 +95,7 @@ typedef struct redisconnectfactory {
     xatomic32 Calls, Drops;
     uint32 FailFirst;
     bool Raw, Resp2, Observe;
+    const xredisclientconfig* ClientConfig;
     xatomicptr Pool;
     xfuture* Closed[256];
     double Times[256];
@@ -106,6 +107,7 @@ static bool redisConnectFactory(xnetengine* Engine, size_t Slot, uint64 Attempt,
     xrtAtomic32Store(&Factory->Calls, Call + 1u, XMEMORY_RELEASE);
     (void)Attempt; if (Call < Factory->FailFirst) return false;
     xredisclientconfig Config; xredisClientConfigInit(&Config);
+    if (Factory->ClientConfig) Config = *Factory->ClientConfig;
     if (Factory->Raw) return xredisClientConnect(Engine, &Factory->Peer->Address, 1u - Slot % 2u, &Config, Client);
     xredisclientinitconfig Init; xredisClientInitConfigInit(&Init); Init.Timeout = Timeout; if (Factory->Resp2) Init.Mode = XREDIS_INIT_RESP2;
     bool Result = xredisClientConnectInit(Engine, &Factory->Peer->Address, 1u - Slot % 2u, &Config, &Init, Client);

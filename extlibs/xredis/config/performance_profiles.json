@@ -4358,6 +4358,121 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_pool_shared_connect",
+      "system": "pool_shared_connect",
+      "description": "Identical native shared ECHO dispatch with fixed versus automatically maintained membership",
+      "benchmarks": [
+        {
+          "name": "xredis_pool_shared_connect_0_1",
+          "source": "extlibs/xredis/bench/bench_pool_shared_connect.c",
+          "suite": "xredis_pool_shared_connect,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_shared_connect_0_32",
+          "source": "extlibs/xredis/bench/bench_pool_shared_connect.c",
+          "suite": "xredis_pool_shared_connect,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_shared_connect_1_1",
+          "source": "extlibs/xredis/bench/bench_pool_shared_connect.c",
+          "suite": "xredis_pool_shared_connect,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_pool_shared_connect_1_32",
+          "source": "extlibs/xredis/bench/bench_pool_shared_connect.c",
+          "suite": "xredis_pool_shared_connect,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

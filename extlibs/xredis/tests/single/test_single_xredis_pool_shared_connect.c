@@ -1,0 +1,10 @@
+#define XREDIS_SHARED_CONNECT_WHITEBOX
+#define XREDIS_MODULE_XREDIS_POOL_SHARED_CONNECT
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#include "../test_pool_shared_connect.c"
