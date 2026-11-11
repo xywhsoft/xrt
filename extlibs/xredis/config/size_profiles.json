@@ -207,6 +207,22 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_subscriber",
+      "system": "subscriber",
+      "suite": "xredis_subscriber",
+      "description": "Dedicated native Pub/Sub on existing numeric TCP Client; TLS/DNS/HTTP/WebSocket/task/process excluded",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetDial",
+        "xrtNetResolver",
+        "xredisClientDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

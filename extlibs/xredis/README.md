@@ -194,3 +194,9 @@ controls and PING, and classifies binary RESP2/RESP3 messages, ACKs and contextu
 PONG without allocating. [Offline example](examples/pubsub/README.md). Dedicated
 subscribed connection scheduling, ACK correlation, backpressure and recovery are
 still pending; ordinary Client calls continue to reject subscription mode changes.
+
+The developing [native subscriber](docs/subscriber.md) dedicates an idle ready
+Client, pipelines validated controls and transfers separately owned messages.
+Confirmed/reserved names, requests and delivery bytes are bounded; sent local
+stops drain their remaining ACKs. Native reconnect/replay and final production
+qualification remain pending. [Runnable example](examples/subscriber/README.md).

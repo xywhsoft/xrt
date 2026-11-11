@@ -115,8 +115,17 @@ static int testPubSubPackage(void)
     xredisReplyRelease(Reply);return 0;
 }
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+#define main subscriberPackageExample
+#include "../../examples/subscriber/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+    int SubscriberResult=subscriberPackageExample();if(SubscriberResult)return SubscriberResult;
+#endif
+
 #if defined(XREDIS_FEATURE_XREDIS_PUBSUB)
     int PubSubResult=testPubSubPackage();if(PubSubResult)return PubSubResult;
 #endif

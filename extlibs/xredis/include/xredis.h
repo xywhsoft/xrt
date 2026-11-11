@@ -76,4 +76,9 @@
 #endif
 #include <xredis/pubsub.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIBER"
+#endif
+#include <xredis/subscriber.h>
+
 #endif

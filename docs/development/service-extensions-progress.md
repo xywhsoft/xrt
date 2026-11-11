@@ -10506,3 +10506,85 @@ rejects subscribe/mode commands. The full four-library goal remains active.
 
 Evidence: [portable report](../../extlibs/xredis/tests/results/pubsub-wire-20261111.json)
 and out/service-extensions/xredis-pubsub-20261111.
+
+
+## 2026-11-11: native bounded Redis subscriber mode
+
+Implemented directly on master from179da966. Five APIs dedicate an idle ready
+Client, submit sync/async controls and report registry state. Existing numeric,
+DNS/prepared and TLS factories, worker affinity, request/Future quota, original
+deadline, cancellation and physical close remain authoritative. No Core API,
+worker or shared runtime is added. Ordinary calls, observation and exclusive
+session claims cannot share the dedicated mode. Controls remain pipelined.
+
+A bounded hash registry owns distinct (family,binary-name) keys for confirmed
+and reserved subscriptions. Names are copied from owned request wire after
+admission; caller descriptors/payloads can already be mutated/freed. Duplicates
+share entries. Partial pre-send allocation/limit failures roll back reservations
+and produce NOT_SENT. Named ACK kind/order/content and separate regular/shard
+count domains are checked. Unsubscribe-all accepts its unordered confirmed
+family set or one absent-name ACK. Unknown unsubscribe names do not change counts.
+Messages and unrelated RESP3 pushes use the existing owned delivery queue and
+actual reserved-byte limit, independently of ACK slots; overflow closes explicitly.
+
+Immutable typed results retain the usual outcome prefix and snapshot ACK count
+plus confirmed domains. Local stop after send does not remove partial wire or
+remaining ACK obligations. Late confirmation updates the registry without
+changing a returned result. Partial multi-ACK cancellation keeps its exact prefix;
+expired drain grace retires the connection rather than shifting a successor's
+slot. Close frees at most WorkRequests entries per turn after request duties;
+cold mode/buckets persist until the final Client reference. Closed sync calls
+do not dereference an already-destroyed Engine. Owned messages/errors survive it.
+
+Final Windows/WSL root23 programs, leaf, bare single and TLS single tests pass.
+WSL fully instruments ASan/UBSan/leak-halt forms and both TSan singles. Tests
+cover both envelopes, three families, binary/empty/duplicate names, pipeline
+before any ACK, unordered/all/null ACKs, exact PING forms, cancellation/deadline,
+partial ACK/drain retirement, wrong-name/count ACKs, server rejection, count/byte
+overflow, retained owners and sync refusal on the other Engine worker.
+Caller construction quotas1..1536, cold mode OOM and owning-worker entry OOM
+leave no allocation duties. A held worker proves admission snapshots names.
+TLS uses three-byte turns and a16KiB binary name; the single-TU held-owner test
+observes actual positive partial bytes before cancellation and then verifies
+the original remaining wire/ACK plus successor PONG. The initial unfrozen fixture
+incorrectly assumed one work turn had accepted bytes; diagnostic execution
+reported CANCELLED/NOT_SENT. Its failed binaries/logs remain preserved, without
+being assigned the final frozen source identity. This was a test assumption,
+not grounds to weaken byte-acceptance semantics.
+
+Nine actual C forms pass243 owned Redis8.0.5 server cases /486 RESP2/3 protocol
+flows: TCP/TLS1.2/TLS1.3, numeric/system-DNS/prepared factories and no-auth/
+password/ACL. All native TLS probes use three-byte write turns. Cases validate
+direct/pattern/shard publication sets, binary/empty/duplicate names, pipelined
+ACKs/counts, unsubscribe-all/null/PONG, ACL-denied subscription rollback and
+retained errors/messages after every physical owner. Instance PID/run identity
+is checked before subscription/ACL mutation; all children/material are reaped.
+The shared fixture helper adds channel rules only when explicitly requested by
+this matrix; existing Tracking defaults remain unchanged.
+
+Actual static/shared SDK and isolated declaration consumers exercise all five
+new APIs. DLL/ELF tables export them and no internal hooks. Three size forms on
+each platform pass; minimal single closures exclude TLS/DNS/HTTP/WebSocket/task/
+process symbols. Generated API docs cover100 functions,175 constants,71 types
+with none missing. Compiler probes record private layouts for bare and Tracking
+TCP closures: request allocation104 bytes unchanged, Client+8, control state72,
+entry header56, mode header168. Bare private wire offset changes102 to103;
+Tracking remains103. Headers/buckets/name bytes and request metadata are counted;
+no public structure layout changes or zero-runtime-overhead claim is made.
+
+Serial performance samples follow all functional jobs, with seven samples/one
+warmup, common calibrated counts, identical shared old/current runtime objects
+and unchanged3% MAD/6% central-span,5% throughput/10% P99 decision limits.
+Ordinary cases pair each reply with an unobserved Tracking PUSH (no observation
+ring); old/current comparators use that identical workload.
+Matched ordinary comparisons: windows: depth1 throughput 1.0045x (qualified), P99 1.0110x (qualified); depth32 throughput 0.9793x (unqualified), P99 1.0355x (unqualified) | wsl: depth1 throughput 1.0077x (qualified), P99 0.9921x (unqualified); depth32 throughput 1.0060x (qualified), P99 0.9728x (unqualified).
+Native control-ACK-plus-owned-message cases separately measure queue-inclusive
+P50/P99 and whole-loopback heap at depths1/32 with a warm persistent key. Setup
+and physical shutdown are excluded; all semantic checks/checksums stay timed.
+Every raw sample and failed noise gate is retained. Message-only streaming,
+P95/P99.9, CPU/RSS, upstream/fixed-arrival, native Linux and72h production gates
+remain required. Receive notification/wait and desired-state/reconnect/replay
+also remain; this stage does not complete Pub/Sub or the full four-library goal.
+
+Evidence: [portable report](../../extlibs/xredis/tests/results/subscriber-20261111.json)
+and out/service-extensions/xredis-subscriber-20261111.

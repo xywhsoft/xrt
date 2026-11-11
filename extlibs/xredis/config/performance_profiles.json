@@ -2744,6 +2744,87 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_subscriber",
+      "system": "subscriber",
+      "description": "Native subscription ACK plus independently owned message; closed-loop local fixture, warm registry and bounded pipeline; not upstream/fixed-arrival/native production acceptance",
+      "benchmarks": [
+        {
+          "name": "xredis_subscriber_depth1",
+          "source": "extlibs/xredis/bench/bench_subscriber.c",
+          "suite": "xredis_subscriber,memory_stats,time",
+          "args": [
+            "4096",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_operation": {
+              "unit": "blocks/operation",
+              "direction": "lower"
+            },
+            "heap_bytes_per_operation": {
+              "unit": "bytes/operation",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_subscriber_depth32",
+          "source": "extlibs/xredis/bench/bench_subscriber.c",
+          "suite": "xredis_subscriber,memory_stats,time",
+          "args": [
+            "4096",
+            "32",
+            "1"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "heap_blocks_per_operation": {
+              "unit": "blocks/operation",
+              "direction": "lower"
+            },
+            "heap_bytes_per_operation": {
+              "unit": "bytes/operation",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -63,6 +63,9 @@
 #if !defined(XREDIS_FEATURE_XREDIS_REPLY)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_REPLY 1
 #endif
+#if !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER 1
+#endif
 #if !defined(XREDIS_FEATURE_XREDIS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS 1
 #endif
@@ -113,6 +116,9 @@
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_REPLY)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY 1
+#endif
+#if !defined(XREDIS_MODULE_XREDIS_SUBSCRIBER)
+#define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SUBSCRIBER 1
 #endif
 #if !defined(XREDIS_MODULE_XREDIS_TLS)
 #define XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS 1
@@ -1322,6 +1328,9 @@
 #endif
 #if !defined(XRT_MODULE_FUTURE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE 1
+#endif
+#if !defined(XRT_MODULE_HASH64)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_HASH64 1
 #endif
 #if !defined(XRT_MODULE_NET_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP 1
@@ -2616,6 +2625,25 @@
 #endif
 #ifndef XREDIS_MODULE_XREDIS_PUBSUB
 #define XREDIS_MODULE_XREDIS_PUBSUB
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIBER
+#define XREDIS_MODULE_XREDIS_SUBSCRIBER
+#endif
+#endif
+
+/* xredis_subscriber 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SUBSCRIBER)
+#ifndef XREDIS_FEATURE_XREDIS_SUBSCRIBER
+#define XREDIS_FEATURE_XREDIS_SUBSCRIBER
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_PUBSUB
+#define XREDIS_MODULE_XREDIS_PUBSUB
+#endif
+#ifndef XRT_MODULE_HASH64
+#define XRT_MODULE_HASH64
 #endif
 #endif
 
@@ -4210,6 +4238,73 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/subscriber.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_SUBSCRIBER_H
+#define XREDIS_SUBSCRIBER_H
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER) && \
+    (!defined(XREDIS_FEATURE_XREDIS_CLIENT) || !defined(XREDIS_FEATURE_XREDIS_PUBSUB) || !defined(XRT_FEATURE_HASH64))
+#error "Subscriber requires client, Pub/Sub wire and hash64"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+typedef struct xredissubscriberconfig {
+    size_t Size;
+    size_t MaxSubscriptions;
+    size_t MaxNameBytes;
+} xredissubscriberconfig;
+
+/* First member is the usual immutable request outcome. Reply is the final ACK,
+ * PONG or server error, not a retained vector of every ACK. Acknowledged counts
+ * validated ACKs at logical completion, including duplicates/absent-name ACKs.
+ * Counts are confirmed server state at that instant; later draining cannot
+ * change this result. Cancellation after send can still change subscriptions. */
+typedef struct xredissubscriberresult {
+    xredisrequestresult Request;
+    size_t Acknowledged;
+    uint64 Subscriptions,ShardSubscriptions;
+} xredissubscriberresult;
+
+typedef struct xredissubscriberinfo {
+    size_t Size;
+    size_t Entries,NameBytes,RegistryBytes;
+    uint64 Subscriptions,ShardSubscriptions;
+    uint64 Acknowledgements,Messages,Sidebands;
+} xredissubscriberinfo;
+
+XRT_EXTERN_C_BEGIN
+XREDIS_API bool xredisSubscriberConfigInit(xredissubscriberconfig* Config);
+/* Irreversibly dedicate an idle, ready Client to Pub/Sub until Close. Existing
+ * numeric/DNS/TLS factories, readiness, refs and physical close still apply.
+ * Active requests, queued pushes, exclusive owners or Tracking observation
+ * prevent adoption. Both admission checks and publication are under Gate.
+ * No ordinary calls/transactions/session claims are admitted after adoption.
+ * NULL Config defaults to4096 entries/1MiB name bytes. Entries bound confirmed
+ * AND reserved distinct (family,binary name) keys; name bytes exclude fixed
+ * entry headers and the cold bucket array, both bounded by MaxSubscriptions.
+ * Registry allocation/limit failure before send is a typed NOT_SENT outcome. */
+XREDIS_API xredisadmission xredisSubscriberStart(xredisclient* Client,const xredissubscriberconfig* Config);
+/* Bounded pipelined controls using the same request/deadline/cancellation and
+ * physical wire/FIFO obligations as Client. Inputs are encoded/copied during
+ * admission; subscribe entries additionally own one persistent name copy.
+ * All ACK names, kinds and counts are checked against confirmed state. Empty
+ * unsubscribe-all ACKs and unordered unsubscribe-all families are correlated.
+ * Completion Value is xredissubscriberresult. No implicit replay/reconnect.
+ * Messages and unrelated RESP3 pushes use ClientTakePush (owned Reply transfer)
+ * with the existing MaxPushes/MaxPushBytes bounds. Overflow retires the Client,
+ * never silently drops a message. Retained replies survive all Client owners.
+ * Sync rejects every worker of the same Engine. Callbacks must not block it. */
+XREDIS_API xredisadmission xredisSubscriberCommandAsync(xredisclient* Client,xredispubsubcommand Command,
+    const xbytesview* Names,size_t Count,int64 Timeout,xfuture** Future);
+XREDIS_API xredisadmission xredisSubscriberCommand(xredisclient* Client,xredispubsubcommand Command,
+    const xbytesview* Names,size_t Count,int64 Timeout,xfuture** Future);
+XREDIS_API bool xredisSubscriberInfo(xredisclient* Client,xredissubscriberinfo* Info);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -4275,6 +4370,10 @@ XRT_EXTERN_C_END
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_PUBSUB"
 #endif
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SUBSCRIBER"
+#endif
+
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS)
 #undef XREDIS_FEATURE_XREDIS
@@ -4319,6 +4418,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_REPLY)
 #undef XREDIS_FEATURE_XREDIS_REPLY
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_REPLY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+#undef XREDIS_FEATURE_XREDIS_SUBSCRIBER
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_SUBSCRIBER
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_FEATURE_XREDIS_TLS)
 #undef XREDIS_FEATURE_XREDIS_TLS
@@ -4387,6 +4490,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY)
 #undef XREDIS_MODULE_XREDIS_REPLY
 #undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_REPLY
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SUBSCRIBER)
+#undef XREDIS_MODULE_XREDIS_SUBSCRIBER
+#undef XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_SUBSCRIBER
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XREDIS_MODULE_XREDIS_TLS)
 #undef XREDIS_MODULE_XREDIS_TLS
@@ -6000,6 +6107,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_FUTURE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_FUTURE
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_HASH64)
+#undef XRT_MODULE_HASH64
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_HASH64
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP)
 #undef XRT_MODULE_NET_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_NET_TCP
@@ -6120,6 +6231,25 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XREDIS_MODULE_XREDIS_PUBSUB
 #define XREDIS_MODULE_XREDIS_PUBSUB
+#endif
+#ifndef XREDIS_MODULE_XREDIS_SUBSCRIBER
+#define XREDIS_MODULE_XREDIS_SUBSCRIBER
+#endif
+#endif
+
+/* xredis_subscriber 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SUBSCRIBER)
+#ifndef XREDIS_FEATURE_XREDIS_SUBSCRIBER
+#define XREDIS_FEATURE_XREDIS_SUBSCRIBER
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_PUBSUB
+#define XREDIS_MODULE_XREDIS_PUBSUB
+#endif
+#ifndef XRT_MODULE_HASH64
+#define XRT_MODULE_HASH64
 #endif
 #endif
 

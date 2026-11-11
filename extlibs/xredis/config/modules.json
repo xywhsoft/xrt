@@ -117,6 +117,13 @@
         "source_roots": [
           "pubsub"
         ]
+      },
+      {
+        "name": "subscriber",
+        "state": "retained",
+        "source_roots": [
+          "subscriber"
+        ]
       }
     ]
   },
@@ -388,7 +395,8 @@
         "xredis_pool_watch",
         "xredis_pool_connect",
         "xredis_tracking",
-        "xredis_pubsub"
+        "xredis_pubsub",
+        "xredis_subscriber"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -806,7 +814,8 @@
         "xredis_pool_tests",
         "xredis_pool_sessions_tests",
         "xredis_pool_connect_tests",
-        "xredis_caching_tests"
+        "xredis_caching_tests",
+        "xredis_subscriber_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -829,7 +838,8 @@
         "extlibs/xredis/tests/test_pool_connect.c",
         "extlibs/xredis/tests/test_tracking.c",
         "extlibs/xredis/tests/test_caching.c",
-        "extlibs/xredis/tests/test_pubsub.c"
+        "extlibs/xredis/tests/test_pubsub.c",
+        "extlibs/xredis/tests/test_subscriber.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -850,7 +860,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_tracking.c",
         "extlibs/xredis/tests/single/test_single_xredis_caching.c",
         "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c",
-        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c"
+        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber.c",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -878,7 +890,9 @@
         "extlibs/xredis/tests/single/test_single_xredis_tracking.c": "xredis_tracking",
         "extlibs/xredis/tests/single/test_single_xredis_caching.c": "xredis_tracking",
         "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c": "xredis_caching_tests",
-        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c": "xredis_pubsub"
+        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c": "xredis_pubsub",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber.c": "xredis_subscriber",
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c": "xredis_subscriber_tests"
       }
     },
     {
@@ -974,6 +988,63 @@
         "extlibs/xredis/docs/api/reference.md",
         "extlibs/xredis/docs/pubsub.md"
       ]
+    },
+    {
+      "name": "xredis_subscriber",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_SUBSCRIBER",
+      "depends": [
+        "xredis_client",
+        "xredis_pubsub",
+        "hash64"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/subscriber.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/subscriber/subscriber.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_subscriber.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/subscriber/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_subscriber.c"
+      ],
+      "docs": [
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/docs/subscriber.md"
+      ]
+    },
+    {
+      "name": "xredis_subscriber_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_subscriber",
+        "xredis_tls",
+        "tls_identity_rsa",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_subscriber.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_subscriber_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": []
     }
   ]
 }

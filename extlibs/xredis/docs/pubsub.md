@@ -7,6 +7,9 @@ subscribed connection work; the ordinary Client still rejects subscribe/mode
 commands. This module does not open a subscribed connection, correlate ACKs,
 maintain a subscription registry, implement backpressure or reconnect/replay.
 Those remain required work in the full development plan.
+The optional [native subscriber module](subscriber.md) now supplies connection
+adoption, pipelined controls, a bounded confirmed/reserved registry and delivery
+limits while reusing Client transport ownership.
 
 ## Commands
 

@@ -17,7 +17,7 @@ def run(args,material,version,mode,scenario):
  hostpath=lambda p:subprocess.check_output(['wslpath','-w',str(p)],encoding='utf-8').strip() if native else str(p)
  ca=material/'ca.pem';tls=ssl.create_default_context(cafile=str(ca)) if version else None
  with tempfile.TemporaryDirectory(prefix='xredis-tracking-peer-') as temporary:
-  root=Path(temporary);auth='' if scenario==0 else 'requirepass xredis-fixture-password\n' if scenario==1 else 'user default off\nuser xredis-fixture-user on >xredis-fixture-password ~* +@all\n'
+  root=Path(temporary);channel_rule=' &*' if getattr(args,'pubsub_channels',False) else '';auth='' if scenario==0 else 'requirepass xredis-fixture-password\n' if scenario==1 else 'user default off\nuser xredis-fixture-user on >xredis-fixture-password ~* +@all'+channel_rule+'\n'
   listener=f'port {port}\n'
   if version:listener=f'port 0\ntls-port {port}\ntls-auth-clients no\ntls-cert-file "{material}/server.pem"\ntls-key-file "{material}/server.key"\ntls-ca-cert-file "{ca}"\ntls-protocols "TLSv1.{version-10}"\n'
   config=root/'redis.conf';config.write_text('bind 127.0.0.1\nprotected-mode yes\nsave ""\nappendonly no\n'+listener+auth,encoding='utf-8')
