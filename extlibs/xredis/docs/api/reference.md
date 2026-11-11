@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `133` 个函数、`217` 个常量或宏、
-`97` 个公共类型。
+当前登记 `142` 个函数、`235` 个常量或宏、
+`105` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -453,6 +453,54 @@
 - `xredisrolelink`
 - `xredisrolereplica`
 - `xredisrolestatus`
+
+## `extlibs/xredis/include/xredis/sentinel.h`
+
+[查看带契约注释的公共头](../../include/xredis/sentinel.h)
+
+### 函数 (9)
+
+- `xredisSentinelConfigInit`
+- `xredisSentinelDiscoveryCancel`
+- `xredisSentinelDiscoveryCreate`
+- `xredisSentinelDiscoveryDestroy`
+- `xredisSentinelDiscoveryNextWake`
+- `xredisSentinelDiscoveryPending`
+- `xredisSentinelDiscoveryResult`
+- `xredisSentinelDiscoveryStep`
+- `xredisSentinelDiscoveryTakeClient`
+
+### 常量与宏 (18)
+
+- `XREDIS_FEATURE_XREDIS_SENTINEL`
+- `XREDIS_SENTINEL_AUTH_FAILED`
+- `XREDIS_SENTINEL_CANCELLED`
+- `XREDIS_SENTINEL_DONE`
+- `XREDIS_SENTINEL_FACTORY`
+- `XREDIS_SENTINEL_LIMIT`
+- `XREDIS_SENTINEL_MEMORY`
+- `XREDIS_SENTINEL_MORE`
+- `XREDIS_SENTINEL_OK`
+- `XREDIS_SENTINEL_PENDING`
+- `XREDIS_SENTINEL_PROTOCOL`
+- `XREDIS_SENTINEL_SERVER_ERROR`
+- `XREDIS_SENTINEL_STALE_ROLE`
+- `XREDIS_SENTINEL_STEP_ERROR`
+- `XREDIS_SENTINEL_TIMEOUT`
+- `XREDIS_SENTINEL_UNKNOWN_SERVICE`
+- `XREDIS_SENTINEL_UNREACHABLE`
+- `XREDIS_SENTINEL_WAIT`
+
+### 类型 (8)
+
+- `xredissentinelconfig`
+- `xredissentineldiscovery`
+- `xredissentinelendpoint`
+- `xredissentinelmasterconnect`
+- `xredissentinelresult`
+- `xredissentinelseedconnect`
+- `xredissentinelstatus`
+- `xredissentinelstep`
 
 ## `extlibs/xredis/include/xredis/subscriber.h`
 

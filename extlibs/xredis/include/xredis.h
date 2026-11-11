@@ -104,4 +104,9 @@
 #endif
 #include <xredis/subscription_session.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_SENTINEL)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_SENTINEL"
+#endif
+#include <xredis/sentinel.h>
+
 #endif

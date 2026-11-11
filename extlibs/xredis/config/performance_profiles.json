@@ -3878,6 +3878,34 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_sentinel",
+      "system": "sentinel",
+      "description": "Offline cold discovery workload includes local peer/engine creation and physical teardown; smoke evidence only, not service latency or production acceptance",
+      "benchmarks": [
+        {
+          "name": "xredis_sentinel_discovery",
+          "source": "extlibs/xredis/bench/bench_sentinel.c",
+          "suite": "xredis_sentinel",
+          "args": [
+            "20"
+          ],
+          "smoke_args": [
+            "1"
+          ],
+          "metrics": {
+            "discovery_ms": {
+              "unit": "ms",
+              "direction": "lower"
+            },
+            "discoveries_per_sec": {
+              "unit": "discoveries/s",
+              "direction": "higher"
+            }
+          }
+        }
+      ]
     }
   ]
 }

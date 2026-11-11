@@ -1,4 +1,5 @@
 #include <xredis/client.h>
+#include "../internal/sentinel_client.h"
 #if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
 #include <xredis/role_client.h>
 #endif
@@ -2802,6 +2803,21 @@ XREDIS_API bool xredisSubscriberTakeBatch(xredisclient* C,xredisreply** Replies,
         xredisreplyinfo I={0};I.Size=sizeof(I);(void)xredisReplyInfo(R,&I);Bytes+=I.ReservedBytes;Replies[N]=R;
     }
     C->PushHead=Head;C->Info.Pushes-=Count;C->Info.PushBytes-=Bytes;*Taken=Count;xrtMutexUnlock(&C->Gate);return true;
+}
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL)
+bool __xredisSentinelClientProfile(xredisclient* C,xnetengine* Engine)
+{
+    xrtMutexLock(&C->Gate);
+    bool OK=(C->CloseDone || C->Engine==Engine) && C->Managed && !C->Info.Requests;
+#if defined(XREDIS_FEATURE_XREDIS_WATCH) || defined(XREDIS_FEATURE_XREDIS_POOL)
+    OK=OK && !C->Owner;
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_SUBSCRIBER)
+    OK=OK && !xrtAtomicPtrLoad(&C->Subscriber,XMEMORY_ACQUIRE);
+#endif
+    xrtMutexUnlock(&C->Gate);return OK;
 }
 #endif
 

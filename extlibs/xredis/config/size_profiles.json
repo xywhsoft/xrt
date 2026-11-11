@@ -298,6 +298,19 @@
         "xrtNetResolver",
         "xrtTask"
       ]
+    },
+    {
+      "name": "xredis_sentinel",
+      "system": "sentinel",
+      "suite": "xredis_sentinel",
+      "description": "Caller-driven discovery with native TCP/replies; excludes own timer/runtime, TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtNetResolver",
+        "xrtTask"
+      ]
     }
   ]
 }

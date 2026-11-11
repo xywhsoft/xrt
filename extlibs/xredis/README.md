@@ -220,3 +220,6 @@ production/long-run gates remain open.
 Optional [ROLE inspection](docs/role.md) supplies bounded borrowed role/list views; discovery and role-gated initialization remain subsequent work.
 
 Optional [role-verified initialization](docs/role_client.md) withholds readiness and queued business until the requested role is validated under the original setup deadline.
+
+Optional [Sentinel discovery](docs/sentinel.md) implements bounded master discovery,
+ROLE validation and stale-role re-resolution; full automatic HA remains developing.

@@ -70,6 +70,22 @@
 #ifndef XREDIS_MODULE_XREDIS_ROLE_CLIENT
 #define XREDIS_MODULE_XREDIS_ROLE_CLIENT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_SENTINEL
+#define XREDIS_MODULE_XREDIS_SENTINEL
+#endif
+#endif
+
+/* xredis_sentinel 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_SENTINEL)
+#ifndef XREDIS_FEATURE_XREDIS_SENTINEL
+#define XREDIS_FEATURE_XREDIS_SENTINEL
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLIENT
+#define XREDIS_MODULE_XREDIS_CLIENT
+#endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE
+#define XREDIS_MODULE_XREDIS_ROLE
+#endif
 #endif
 
 /* xredis_role_client 及其直接依赖。 */

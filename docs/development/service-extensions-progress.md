@@ -10991,3 +10991,55 @@ unmeasured in the portable report; only role-setup-heap measures allocations.
 The staged-file whitespace check then found one whitespace-only blank line in
 test_role_client.c; it was removed after validation. The tested v2 and final v3
 hashes are both retained; no executable tokens changed.
+
+
+## 2026-11-11: bounded Sentinel master discovery
+
+Developed directly on master from 6f26f95a. The developing xredis_sentinel
+leaf implements multi-seed GET-MASTER-ADDR-BY-NAME, endpoint validation,
+independent target ROLE verification, bounded stale-role/transport backoff and
+re-resolution under one original deadline. Seed connect and query share their
+shorter cap. One private native candidate exists at a time; every failed or
+query connection physically retires before another factory. Factories select
+numeric/DNS/prepared/TLS and separate Sentinel/data credentials and trust.
+All-null versus unreachable, authentication/server/protocol/limit/memory and
+cancellation outcomes are typed. No peer diagnostics are copied to results.
+One allocation holds helper/service/host capacity; no new runtime, worker,
+timer or wrapper Future exists. Successful delivery transfers the native
+business Client and close duty. Ordinary commands never pass through a proxy.
+Phase transitions request another scheduled turn; only real physical release
+tails need short polling. Ready/request observation flags prevent absent native
+observations from being mistaken for success. ROLE caps are explicit.
+
+Windows/WSL roots each execute29 programs; focused, bare/TLS, feature-off and
+whole-root module-selector singles pass. Additional native auth/unsupported/
+protocol, raw/foreign-engine factory and real one-byte admission OOM cases
+pass; WSL uses ASan/UBSan/leak halt and new bare/TLS singles also pass TSan.
+Final functional totals including added negative programs and whole-root probes
+are37 Windows and41 WSL. Static/shared SDK, independent declaration consumers,
+nine exported APIs, private selected/feature-off/full client layouts and all six
+size/forbidden-symbol forms pass. All started validation jobs are terminal.
+
+Eight real modular/single/static/shared forms execute216 discovery probes
+against owned Redis8.0.5/Sentinel processes. Each verifies original master,
+unknown service and rediscovery after an actual manual failover, using RESP2/3/
+AUTO and numeric/DNS/prepared factories.144 returned native connections verify
+owned master run identity;72 unknown-service cases never contact a master.
+PID/run IDs are checked before failover; children and runtime materials retire.
+Real fixtures are plaintext IPv4. TLS and fragmented TLS writes are covered by
+local fixtures, not a real TLS/auth Sentinel matrix at this stage.
+
+The first default-dual-stack Windows-to-WSL localhost probe timed out within2s.
+Same-library IPv4 and longer-deadline controlled comparisons pass; final probes
+explicitly select the fixture listener family. Production defaults/deadlines
+are unchanged. The original failed binary, inputs and logs remain; the default
+cross-host dual-stack behavior remains unresolved. An initial local TLS fixture
+stack overflow was fixed with heap-owned multi-peer fixtures. Root-selector
+probe command include-path errors and corrected runs are also preserved.
+Seven-sample plus one-warmup cold offline measurements include fixture/engine
+construction and physical teardown; noise failures stay unqualified and do not
+prove service latency/production throughput. Persistent HA/pool-wide replacement,
+replica selection, optional Sentinel refresh/events, Cluster and full four-library
+native Linux/mixed-load/72h acceptance remain active work.
+Evidence: [portable report](../../extlibs/xredis/tests/results/sentinel-discovery-20261111.json)
+and out/service-extensions/xredis-sentinel-discovery-20261111.

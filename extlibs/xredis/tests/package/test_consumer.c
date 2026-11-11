@@ -145,8 +145,16 @@ static int testPubSubPackage(void)
 #include "../../examples/role_client/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL)
+#define main sentinelPackageExample
+#include "../../examples/sentinel/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_SENTINEL)
+    if(sentinelPackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_ROLE_CLIENT)
     if(roleClientPackageExample())return 1;
 #endif
