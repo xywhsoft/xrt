@@ -95,3 +95,11 @@ The developing `xredis_pool_shared_asking` leaf combines native ASKING groups
 with shared member selection, physical quotas and concurrent ordinary traffic.
 See [contracts](pool_shared_asking.md). It does not follow redirects or complete
 Cluster routing/refresh or production acceptance.
+
+## Bounded Cluster routes
+
+The developing `xredis_cluster_route` leaf selects an eligible snapshot master,
+follows validated MOVED/ASK, bounds provider/admission waits and redirects, and
+retains native outcomes through cancellation and physical teardown. See
+[contracts](cluster_route.md). Managed node caches, automatic topology refresh,
+bootstrap/replica policy and production performance acceptance remain open.

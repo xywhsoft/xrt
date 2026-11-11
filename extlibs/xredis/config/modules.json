@@ -187,6 +187,13 @@
         "source_roots": [
           "pool_shared_asking"
         ]
+      },
+      {
+        "name": "cluster_route",
+        "state": "retained",
+        "source_roots": [
+          "cluster_route"
+        ]
       }
     ]
   },
@@ -471,7 +478,8 @@
         "xredis_pool_asking",
         "xredis_pool_shared",
         "xredis_pool_shared_connect",
-        "xredis_pool_shared_asking"
+        "xredis_pool_shared_asking",
+        "xredis_cluster_route"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -903,7 +911,8 @@
         "xredis_pool_asking_tests",
         "xredis_pool_shared_tests",
         "xredis_pool_shared_connect_tests",
-        "xredis_pool_shared_asking_tests"
+        "xredis_pool_shared_asking_tests",
+        "xredis_cluster_route_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -939,7 +948,8 @@
         "extlibs/xredis/tests/test_pool_asking.c",
         "extlibs/xredis/tests/test_pool_shared.c",
         "extlibs/xredis/tests/test_pool_shared_connect.c",
-        "extlibs/xredis/tests/test_pool_shared_asking.c"
+        "extlibs/xredis/tests/test_pool_shared_asking.c",
+        "extlibs/xredis/tests/test_cluster_route.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -984,7 +994,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c",
-        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_route.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1036,7 +1047,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect.c": "xredis_pool_shared_connect",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_connect_tls.c": "xredis_pool_shared_connect_tests",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c": "xredis_pool_shared_asking",
-        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c": "xredis_pool_shared_asking_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c": "xredis_pool_shared_asking_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_route.c": "xredis_cluster_route"
       }
     },
     {
@@ -1577,7 +1589,8 @@
       ],
       "internal_headers": [
         "extlibs/xredis/src/internal/cluster_slot.h",
-        "extlibs/xredis/src/internal/cluster_reply.h"
+        "extlibs/xredis/src/internal/cluster_reply.h",
+        "extlibs/xredis/src/internal/cluster_topology_internal.h"
       ],
       "sources": [
         "extlibs/xredis/src/cluster_topology/cluster_topology.c"
@@ -1840,6 +1853,65 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/pool_shared_asking.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_route",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+      "depends": [
+        "xredis_cluster_topology",
+        "xredis_pool_shared_asking"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/cluster_route.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/pool_admit.h",
+        "extlibs/xredis/src/internal/cluster_reply.h",
+        "extlibs/xredis/src/internal/cluster_topology_internal.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/cluster_route/cluster_route.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_route.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_route.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/cluster_route/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_cluster_route.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/cluster_route.md",
+        "extlibs/xredis/examples/cluster_route/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_route_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_cluster_route",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_route.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/cluster_route.md"
       ]
     }
   ]

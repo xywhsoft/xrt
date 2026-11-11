@@ -4642,6 +4642,121 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_cluster_route",
+      "system": "cluster_route",
+      "description": "Native direct shared controls versus one-attempt copied-input routing controller",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_route_0_1",
+          "source": "extlibs/xredis/bench/bench_cluster_route.c",
+          "suite": "xredis_cluster_route,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_route_0_32",
+          "source": "extlibs/xredis/bench/bench_cluster_route.c",
+          "suite": "xredis_cluster_route,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_route_1_1",
+          "source": "extlibs/xredis/bench/bench_cluster_route.c",
+          "suite": "xredis_cluster_route,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_route_1_32",
+          "source": "extlibs/xredis/bench/bench_cluster_route.c",
+          "suite": "xredis_cluster_route,memory_stats",
+          "args": [
+            "20000",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "32",
+            "32",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "queries_per_sec": {
+              "unit": "queries/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

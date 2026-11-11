@@ -1,0 +1,2710 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "787dc10672d99bd7631a8dcbd8c8165c89ce8d57",
+  "scope": "Bounded nonblocking Cluster route controller over immutable SHARDS/SLOTS snapshots and authorized fixed/maintained shared pools; automatic matching-slot MOVED/ASK with one original deadline.",
+  "state": "developing",
+  "production_acceptance": false,
+  "source_inputs": 2811,
+  "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "programs": 45
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "programs": 46
+    }
+  },
+  "interop": {
+    "windows": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "685863860b7a2bafe9a979dc67a294ca3b73684b8e81c32b8024356bd86e2bfd",
+      "report_sha256": "5f326f033709e7983306c97de4ed28a675df38fd4defcc81e0a6e744eb812921",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "fixed/maintained x numeric/DNS/prepared x RESP2/3/AUTO x real SHARDS/intentional stale topology; four producers x8 INCR, source ASK or wrong-node MOVED then source ASK, exact unique values1..32 and final server counter32; retained native outcomes after engine teardown"
+    },
+    "wsl": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "685863860b7a2bafe9a979dc67a294ca3b73684b8e81c32b8024356bd86e2bfd",
+      "report_sha256": "27abe53107e7c60e769038b9c340fe86ab9af64afbbf6629565a29e79e0d8782",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "fixed/maintained x numeric/DNS/prepared x RESP2/3/AUTO x real SHARDS/intentional stale topology; four producers x8 INCR, source ASK or wrong-node MOVED then source ASK, exact unique values1..32 and final server counter32; retained native outcomes after engine teardown"
+    }
+  },
+  "delivery": {
+    "windows": {
+      "forms": {
+        "modular": {
+          "path": "delivery/windows/modular/client.exe",
+          "sha256": "5e75c0a35fc6661332f36ce34f4efba95434fb6bd48d3b29a68349afb72c6fa8"
+        },
+        "single": {
+          "path": "delivery/windows/single/client.exe",
+          "sha256": "c9b3b29f9a7edef89d8335307a9cd1ed76eb96720da844f1392d0ca97917b751"
+        },
+        "static": {
+          "path": "delivery/windows/static/client.exe",
+          "sha256": "a47749fe8f099685a7926ecaaad890b6da43e2bc42b8b710c666f5a0aa7dd0dd"
+        },
+        "shared": {
+          "path": "delivery/windows/shared/client.exe",
+          "sha256": "2adc107243e385199adbfda77341e5c81e27ff70409ad78f2f91a148d0960ce4"
+        }
+      },
+      "exports": [
+        "xredisClusterRouteCancel",
+        "xredisClusterRouteConfigInit",
+        "xredisClusterRouteCreate",
+        "xredisClusterRouteDestroy",
+        "xredisClusterRouteNextWake",
+        "xredisClusterRoutePending",
+        "xredisClusterRouteResult",
+        "xredisClusterRouteResultFuture",
+        "xredisClusterRouteStep"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "d6fa2309d8f69b779cccebf973edd701c9ac0974f7466d2cfb664cb7bf314f1e",
+        "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee"
+      }
+    },
+    "wsl": {
+      "forms": {
+        "modular": {
+          "path": "delivery/wsl/modular/client",
+          "sha256": "1657152a0d658691b2dda3ca6ba1c6a985e1bab49286c3cc72d47ba1f5496d2b"
+        },
+        "single": {
+          "path": "delivery/wsl/single/client",
+          "sha256": "53d78b6f89ded1e68b7b0a5cdfba7d5ee8b36f589bb6f7d2915ba0fdb779131a"
+        },
+        "static": {
+          "path": "delivery/wsl/static/client",
+          "sha256": "0a9579e3b6fd7a5d65d7cdf66b468668f6a8f7d130aedc9ad77947e4c5fab7bb"
+        },
+        "shared": {
+          "path": "delivery/wsl/shared/client",
+          "sha256": "f1fd50317bf2435b173af532f254ff2e1d49e9b4ba8167901f4e17ebcb8e9718"
+        }
+      },
+      "exports": [
+        "xredisClusterRouteCancel",
+        "xredisClusterRouteConfigInit",
+        "xredisClusterRouteCreate",
+        "xredisClusterRouteDestroy",
+        "xredisClusterRouteNextWake",
+        "xredisClusterRoutePending",
+        "xredisClusterRouteResult",
+        "xredisClusterRouteResultFuture",
+        "xredisClusterRouteStep"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "3d4fb243c31a9dfca8b9819872573d02a8ca5b5e618414a39950f164b351a1af",
+        "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee"
+      }
+    }
+  },
+  "layouts": {
+    "windows": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "selected-pool-current": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    },
+    "wsl": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "selected-pool-current": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    }
+  },
+  "footprint": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "prefixes": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ],
+      "kinds": {
+        "single": [
+          {
+            "path": "footprint/windows/single/xredis_single.o",
+            "sha256": "e2981f399bbcf8dce2abff26660422a6ec911c53b3b7a41b4f8ddfee112eb8f8",
+            "defined_symbols": 1362,
+            "forbidden_symbols": []
+          }
+        ],
+        "static": [
+          {
+            "path": "footprint/windows/static/libxredis.a",
+            "sha256": "496ce606c0f2eea91fb168e4cd90c6a61574ce83824758a980b5d2757864e025",
+            "defined_symbols": 239,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/static/libxrt.a",
+            "sha256": "51e3eaae704c31bde0dc9520058932c0dc39c37e126e3f6586658f517df65e06",
+            "defined_symbols": 1387,
+            "forbidden_symbols": []
+          }
+        ],
+        "shared": [
+          {
+            "path": "footprint/windows/shared/libxredis.dll.a",
+            "sha256": "eff33cf7cbb51c1119525f8791752cf74f75f75fbf3bbe9cb14e0ce53decd144",
+            "defined_symbols": 540,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/libxrt.dll.a",
+            "sha256": "1c3168e07f399913829aebddf9e0bde5578b24831340c043cc4466f13fa0a9fd",
+            "defined_symbols": 3487,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/xredis.dll",
+            "sha256": "08049f171e69347bf1e34d659143a5dc54ec9e838c1db768df6eada0e254e6b9",
+            "defined_symbols": 1324,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/windows/shared/xrt.dll",
+            "sha256": "ba3509544acdc67d1a408e6821dd259cd4768561b8671f168b41105afbb7e775",
+            "defined_symbols": 2575,
+            "forbidden_symbols": []
+          }
+        ]
+      }
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "prefixes": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ],
+      "kinds": {
+        "single": [
+          {
+            "path": "footprint/wsl/single/xredis_single.o",
+            "sha256": "f65d876f0c5766fd6a464b196ddf1cd994aee75b92999144e3eb0a46c0624053",
+            "defined_symbols": 1982,
+            "forbidden_symbols": []
+          }
+        ],
+        "static": [
+          {
+            "path": "footprint/wsl/static/libxredis.a",
+            "sha256": "68db318350698d238ded8c144788c25ae9956f34fb1aeed0b70d1b5bcaed3da1",
+            "defined_symbols": 388,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/wsl/static/libxrt.a",
+            "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+            "defined_symbols": 1656,
+            "forbidden_symbols": []
+          }
+        ],
+        "shared": [
+          {
+            "path": "footprint/wsl/shared/libxredis.so",
+            "sha256": "57e5a277e98f684d96dd70fcb75a8b63d9a494730dfcd3a5af3cd3040558d290",
+            "defined_symbols": 184,
+            "forbidden_symbols": []
+          },
+          {
+            "path": "footprint/wsl/shared/libxrt.so",
+            "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+            "defined_symbols": 1140,
+            "forbidden_symbols": []
+          }
+        ]
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "binaries": {
+        "baseline": {
+          "path": "performance/windows/baseline.exe",
+          "sha256": "8c5b92f30e31c987dea67f337f0bbbc08e1da3d71fc0a35640944e9d23d6ac03"
+        },
+        "native-current": {
+          "path": "performance/windows/native-current.exe",
+          "sha256": "deaaf74dd684c7ed799cde9b1ea6eb60e473fceb372fe7f63c3a9d18a53f74dc"
+        },
+        "current": {
+          "path": "performance/windows/current.exe",
+          "sha256": "6c67b144294c9668dab0ec80f9949f63e0a7663d8682abec725aae3d1f2344cf"
+        }
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "tail_increase": 0.1
+      },
+      "scope": "Unpinned closed-loop same binary ECHO/peer/affinities: baseline/current native-only shared calls (same CR_BENCH_BASELINE loop, no controller cleanup calls) and current controller routes in a separate binary using common native objects. Setup/topology/readiness/warm call/physical teardown excluded. Controller allocation/copy/provider references/Step clocks are included; peer and mechanical tails included in separate heap runs. Not fixed-arrival/upstream/CPU/RSS production acceptance",
+      "baseline_sources": {
+        "client": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+        "pool": "fecd86ffb249066c128f76b2b1db7f3b2ca8ed1857df9bda3cd8cc076677b7aa"
+      },
+      "raw_report_sha256": "9f2dd946b1d36d5a6fb9470d845a1204bdaafa622ac0814c1dc00cb9c849fc43",
+      "cases": [
+        {
+          "depth": 1,
+          "count": 7688,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  19873.67498,
+                  15253.096648,
+                  18278.401838,
+                  18558.666557,
+                  18303.336859,
+                  18365.924805,
+                  18717.017588
+                ],
+                "median": 18365.924805,
+                "mean": 18192.87418214286,
+                "min": 15253.096648,
+                "max": 19873.67498,
+                "mad": 192.74175200000172,
+                "relative_mad": 0.01049453017185005,
+                "range": 4620.578331999999,
+                "relative_range": 0.25158429978663954,
+                "central_range": 438.6157499999972,
+                "relative_central_range": 0.02388203995480734,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  20433.695077,
+                  19905.670734,
+                  20275.903141,
+                  18375.12551,
+                  18604.106405,
+                  18268.229796,
+                  18874.557842
+                ],
+                "median": 18874.557842,
+                "mean": 19248.184072142856,
+                "min": 18268.229796,
+                "max": 20433.695077,
+                "mad": 606.3280459999987,
+                "relative_mad": 0.03212409271123623,
+                "range": 2165.4652810000007,
+                "relative_range": 0.11472932500603374,
+                "central_range": 1900.7776309999972,
+                "relative_central_range": 0.10070580974195609,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  18990.119852,
+                  19156.543949,
+                  19887.07206,
+                  18041.358077,
+                  17754.773961,
+                  18110.94888,
+                  18229.063549
+                ],
+                "median": 18229.063549,
+                "mean": 18595.697189714287,
+                "min": 17754.773961,
+                "max": 19887.07206,
+                "mad": 474.28958799999964,
+                "relative_mad": 0.026018318863451326,
+                "range": 2132.2980989999996,
+                "relative_range": 0.11697244311362183,
+                "central_range": 1115.1858719999982,
+                "relative_central_range": 0.061176256750784905,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  44.59999,
+                  59.699989,
+                  52.899995,
+                  52.19999,
+                  52.799995,
+                  52.799995,
+                  51.899988
+                ],
+                "median": 52.799995,
+                "mean": 52.41427742857143,
+                "min": 44.59999,
+                "max": 59.699989,
+                "mad": 0.600005000000003,
+                "relative_mad": 0.011363732136717115,
+                "range": 15.099999000000004,
+                "relative_range": 0.2859848566273539,
+                "central_range": 1.0000069999999965,
+                "relative_central_range": 0.018939528308667387,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  43.799984,
+                  45.299996,
+                  44.699991,
+                  52.500051,
+                  52.299991,
+                  52.799995,
+                  51.700044
+                ],
+                "median": 51.700044,
+                "mean": 49.01429314285714,
+                "min": 43.799984,
+                "max": 52.799995,
+                "mad": 1.0999510000000043,
+                "relative_mad": 0.02127562986213328,
+                "range": 9.000011,
+                "relative_range": 0.17408130252268258,
+                "central_range": 7.800060000000002,
+                "relative_central_range": 0.15087143832991715,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  44.59999,
+                  47.699956,
+                  45.599998,
+                  53.700001,
+                  54.600008,
+                  53.600001,
+                  53.600001
+                ],
+                "median": 53.600001,
+                "mean": 50.485707857142856,
+                "min": 44.59999,
+                "max": 54.600008,
+                "mad": 1.0000070000000036,
+                "relative_mad": 0.018656846666849945,
+                "range": 10.000018000000004,
+                "relative_range": 0.18656749651926322,
+                "central_range": 8.100003000000001,
+                "relative_central_range": 0.15111945613583105,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  92.999951,
+                  143.999991,
+                  81.999984,
+                  79.899968,
+                  82.399987,
+                  80.19997,
+                  81.199978
+                ],
+                "median": 81.999984,
+                "mean": 91.8142612857143,
+                "min": 79.899968,
+                "max": 143.999991,
+                "mad": 1.8000140000000044,
+                "relative_mad": 0.021951394527101428,
+                "range": 64.100023,
+                "relative_range": 0.781707750089317,
+                "central_range": 12.799981000000002,
+                "relative_central_range": 0.15609735972631414,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  82.79999,
+                  85.900014,
+                  85.900014,
+                  82.099985,
+                  78.399957,
+                  83.199993,
+                  75.599994
+                ],
+                "median": 82.79999,
+                "mean": 81.98570671428571,
+                "min": 75.599994,
+                "max": 85.900014,
+                "mad": 3.1000240000000048,
+                "relative_mad": 0.03743990790337058,
+                "range": 10.300020000000004,
+                "relative_range": 0.12439639183531308,
+                "central_range": 7.500056999999998,
+                "relative_central_range": 0.0905804094903876,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  92.300004,
+                  92.400005,
+                  86.200016,
+                  82.599989,
+                  81.999984,
+                  81.500039,
+                  79.399964
+                ],
+                "median": 82.599989,
+                "mean": 85.20000014285714,
+                "min": 79.399964,
+                "max": 92.400005,
+                "mad": 3.2000249999999966,
+                "relative_mad": 0.038741227919533945,
+                "range": 13.000040999999996,
+                "relative_range": 0.15738550522082995,
+                "central_range": 10.799965,
+                "relative_central_range": 0.13075019901031706,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  442.09999,
+                  1172.20002,
+                  144.299993,
+                  311.599986,
+                  186.699966,
+                  119.999982,
+                  131.500012
+                ],
+                "median": 186.699966,
+                "mean": 358.3428498571429,
+                "min": 119.999982,
+                "max": 1172.20002,
+                "mad": 66.69998399999999,
+                "relative_mad": 0.35725761192693517,
+                "range": 1052.200038,
+                "relative_range": 5.635780554989496,
+                "central_range": 310.59997799999996,
+                "relative_central_range": 1.66363167950443,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  119.899982,
+                  181.999989,
+                  133.69997,
+                  120.899989,
+                  117.400021,
+                  145.600003,
+                  134.200032
+                ],
+                "median": 133.69997,
+                "mean": 136.24285514285714,
+                "min": 117.400021,
+                "max": 181.999989,
+                "mad": 12.799981000000002,
+                "relative_mad": 0.09573660338143682,
+                "range": 64.599968,
+                "relative_range": 0.48317114805635336,
+                "central_range": 25.700020999999992,
+                "relative_central_range": 0.19222159137358064,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  15970.900015,
+                  155.900023,
+                  187.799975,
+                  159.999996,
+                  105.599989,
+                  131.100009,
+                  111.399975
+                ],
+                "median": 155.900023,
+                "mean": 2403.2428545714283,
+                "min": 105.599989,
+                "max": 15970.900015,
+                "mad": 31.899951999999985,
+                "relative_mad": 0.20461800701594499,
+                "range": 15865.300025999999,
+                "relative_range": 101.7658607144657,
+                "central_range": 76.39999999999999,
+                "relative_central_range": 0.4900576570152269,
+                "qualified": false
+              }
+            }
+          },
+          "ordinary_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": 0.027694387426737466,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.00975617263535078,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 18604.056885,
+              "latency_p50_us": 52.299991,
+              "latency_p99_us": 78.300014,
+              "latency_max_us": 104.999985,
+              "checksum": 53816.0,
+              "heap_blocks_per_query": 10.0,
+              "heap_bytes_per_query": 1595.0
+            },
+            "new-fixed": {
+              "queries_per_sec": 18557.38088,
+              "latency_p50_us": 52.19999,
+              "latency_p99_us": 80.600032,
+              "latency_max_us": 176.600006,
+              "checksum": 53816.0,
+              "heap_blocks_per_query": 10.0,
+              "heap_bytes_per_query": 1595.0
+            },
+            "route": {
+              "queries_per_sec": 17374.089827,
+              "latency_p50_us": 54.000004,
+              "latency_p99_us": 80.999976,
+              "latency_max_us": 16760.499973,
+              "checksum": 53816.0,
+              "heap_blocks_per_query": 11.0,
+              "heap_bytes_per_query": 2048.0
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 19873.67498,
+                "latency_p50_us": 44.59999,
+                "latency_p99_us": 92.999951,
+                "latency_max_us": 442.09999,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 15253.096648,
+                "latency_p50_us": 59.699989,
+                "latency_p99_us": 143.999991,
+                "latency_max_us": 1172.20002,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18278.401838,
+                "latency_p50_us": 52.899995,
+                "latency_p99_us": 81.999984,
+                "latency_max_us": 144.299993,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18558.666557,
+                "latency_p50_us": 52.19999,
+                "latency_p99_us": 79.899968,
+                "latency_max_us": 311.599986,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18303.336859,
+                "latency_p50_us": 52.799995,
+                "latency_p99_us": 82.399987,
+                "latency_max_us": 186.699966,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18365.924805,
+                "latency_p50_us": 52.799995,
+                "latency_p99_us": 80.19997,
+                "latency_max_us": 119.999982,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18717.017588,
+                "latency_p50_us": 51.899988,
+                "latency_p99_us": 81.199978,
+                "latency_max_us": 131.500012,
+                "checksum": 53816.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 20433.695077,
+                "latency_p50_us": 43.799984,
+                "latency_p99_us": 82.79999,
+                "latency_max_us": 119.899982,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 19905.670734,
+                "latency_p50_us": 45.299996,
+                "latency_p99_us": 85.900014,
+                "latency_max_us": 181.999989,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 20275.903141,
+                "latency_p50_us": 44.699991,
+                "latency_p99_us": 85.900014,
+                "latency_max_us": 133.69997,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18375.12551,
+                "latency_p50_us": 52.500051,
+                "latency_p99_us": 82.099985,
+                "latency_max_us": 120.899989,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18604.106405,
+                "latency_p50_us": 52.299991,
+                "latency_p99_us": 78.399957,
+                "latency_max_us": 117.400021,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18268.229796,
+                "latency_p50_us": 52.799995,
+                "latency_p99_us": 83.199993,
+                "latency_max_us": 145.600003,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18874.557842,
+                "latency_p50_us": 51.700044,
+                "latency_p99_us": 75.599994,
+                "latency_max_us": 134.200032,
+                "checksum": 53816.0
+              }
+            ],
+            "route": [
+              {
+                "queries_per_sec": 18990.119852,
+                "latency_p50_us": 44.59999,
+                "latency_p99_us": 92.300004,
+                "latency_max_us": 15970.900015,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 19156.543949,
+                "latency_p50_us": 47.699956,
+                "latency_p99_us": 92.400005,
+                "latency_max_us": 155.900023,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 19887.07206,
+                "latency_p50_us": 45.599998,
+                "latency_p99_us": 86.200016,
+                "latency_max_us": 187.799975,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18041.358077,
+                "latency_p50_us": 53.700001,
+                "latency_p99_us": 82.599989,
+                "latency_max_us": 159.999996,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 17754.773961,
+                "latency_p50_us": 54.600008,
+                "latency_p99_us": 81.999984,
+                "latency_max_us": 105.599989,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18110.94888,
+                "latency_p50_us": 53.600001,
+                "latency_p99_us": 81.500039,
+                "latency_max_us": 131.100009,
+                "checksum": 53816.0
+              },
+              {
+                "queries_per_sec": 18229.063549,
+                "latency_p50_us": 53.600001,
+                "latency_p99_us": 79.399964,
+                "latency_max_us": 111.399975,
+                "checksum": 53816.0
+              }
+            ]
+          },
+          "route_vs_direct": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.03419917427488739
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.0024154713062163324
+            }
+          }
+        },
+        {
+          "depth": 32,
+          "count": 83975,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  227505.164421,
+                  166335.448339,
+                  224882.035679,
+                  208119.008118,
+                  211162.241001,
+                  219053.121819,
+                  184721.776795
+                ],
+                "median": 211162.241001,
+                "mean": 205968.39945314286,
+                "min": 166335.448339,
+                "max": 227505.164421,
+                "mad": 13719.794678000006,
+                "relative_mad": 0.06497276507846417,
+                "range": 61169.716082,
+                "relative_range": 0.2896811276108323,
+                "central_range": 40160.25888399998,
+                "relative_central_range": 0.1901867431109987,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  215023.119313,
+                  192050.58106,
+                  174509.316574,
+                  237457.453475,
+                  237242.578737,
+                  233377.595647,
+                  219961.877616
+                ],
+                "median": 219961.877616,
+                "mean": 215660.360346,
+                "min": 174509.316574,
+                "max": 237457.453475,
+                "mad": 17280.70112099999,
+                "relative_mad": 0.07856225500660571,
+                "range": 62948.13690099999,
+                "relative_range": 0.2861774848589542,
+                "central_range": 45191.99767700001,
+                "relative_central_range": 0.20545377302104256,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  188174.295891,
+                  175604.604723,
+                  198170.249673,
+                  197217.975941,
+                  192177.555352,
+                  201161.189361,
+                  192080.188988
+                ],
+                "median": 192177.555352,
+                "mean": 192083.722847,
+                "min": 175604.604723,
+                "max": 201161.189361,
+                "mad": 5040.420589000016,
+                "relative_mad": 0.02622793582615713,
+                "range": 25556.584638,
+                "relative_range": 0.13298423216587157,
+                "central_range": 9995.953782000026,
+                "relative_central_range": 0.05201415828029991,
+                "qualified": true
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  97.299984,
+                  101.300015,
+                  99.299999,
+                  98.699995,
+                  98.699995,
+                  96.599979,
+                  99.700002
+                ],
+                "median": 98.699995,
+                "mean": 98.79999557142857,
+                "min": 96.599979,
+                "max": 101.300015,
+                "mad": 1.0000069999999965,
+                "relative_mad": 0.010131783694619199,
+                "range": 4.700035999999997,
+                "relative_range": 0.04761941477301997,
+                "central_range": 2.400018000000003,
+                "relative_central_range": 0.02431629302514152,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  97.399985,
+                  100.000005,
+                  101.299956,
+                  97.199983,
+                  97.799988,
+                  97.500044,
+                  98.699995
+                ],
+                "median": 97.799988,
+                "mean": 98.55713657142857,
+                "min": 97.199983,
+                "max": 101.299956,
+                "mad": 0.6000049999999959,
+                "relative_mad": 0.006135021202661047,
+                "range": 4.099972999999991,
+                "relative_range": 0.04192201945873441,
+                "central_range": 2.6000200000000007,
+                "relative_central_range": 0.026585074836614507,
+                "qualified": true
+              },
+              "route": {
+                "samples": [
+                  98.199991,
+                  98.000048,
+                  98.799996,
+                  98.30005,
+                  99.299999,
+                  98.599994,
+                  97.599986
+                ],
+                "median": 98.30005,
+                "mean": 98.40000914285714,
+                "min": 97.599986,
+                "max": 99.299999,
+                "mad": 0.3000019999999921,
+                "relative_mad": 0.0030519007874359383,
+                "range": 1.7000129999999984,
+                "relative_range": 0.017294121417028765,
+                "central_range": 0.7999479999999863,
+                "relative_central_range": 0.008137818851567079,
+                "qualified": true
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  150.499982,
+                  169.200008,
+                  153.500005,
+                  162.399956,
+                  162.100012,
+                  151.59999,
+                  163.299963
+                ],
+                "median": 162.100012,
+                "mean": 158.94284514285712,
+                "min": 150.499982,
+                "max": 169.200008,
+                "mad": 7.099996000000004,
+                "relative_mad": 0.04380009546205342,
+                "range": 18.70002600000001,
+                "relative_range": 0.11536104019535796,
+                "central_range": 11.699973,
+                "relative_central_range": 0.07217749619907493,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  145.2,
+                  165.299978,
+                  165.900041,
+                  156.799972,
+                  157.200033,
+                  159.999996,
+                  158.600044
+                ],
+                "median": 158.600044,
+                "mean": 158.42858057142857,
+                "min": 145.2,
+                "max": 165.900041,
+                "mad": 1.8000720000000001,
+                "relative_mad": 0.011349757254796223,
+                "range": 20.700041,
+                "relative_range": 0.13051724626255462,
+                "central_range": 8.500006000000013,
+                "relative_central_range": 0.053593969999150906,
+                "qualified": true
+              },
+              "route": {
+                "samples": [
+                  168.300001,
+                  155.50002,
+                  161.300006,
+                  161.700009,
+                  162.500015,
+                  161.600008,
+                  155.700021
+                ],
+                "median": 161.600008,
+                "mean": 160.94286857142856,
+                "min": 155.50002,
+                "max": 168.300001,
+                "mad": 0.900006999999988,
+                "relative_mad": 0.005569349971814284,
+                "range": 12.799981000000002,
+                "relative_range": 0.07920779929664361,
+                "central_range": 6.799993999999998,
+                "relative_central_range": 0.04207916870895203,
+                "qualified": true
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  15550.399956,
+                  23862.600035,
+                  15574.10002,
+                  21926.799964,
+                  15486.499993,
+                  17397.399992,
+                  17952.400027
+                ],
+                "median": 17397.399992,
+                "mean": 18250.02856957143,
+                "min": 15486.499993,
+                "max": 23862.600035,
+                "mad": 1847.0000359999995,
+                "relative_mad": 0.10616529118427592,
+                "range": 8376.100042,
+                "relative_range": 0.48145700195728425,
+                "central_range": 6376.400008000002,
+                "relative_central_range": 0.36651453728327904,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  23865.700001,
+                  15239.199973,
+                  15227.399999,
+                  14284.299978,
+                  9923.70001,
+                  16584.599973,
+                  14627.999975
+                ],
+                "median": 15227.399999,
+                "mean": 15678.985701285714,
+                "min": 9923.70001,
+                "max": 23865.700001,
+                "mad": 943.1000210000002,
+                "relative_mad": 0.06193440909557342,
+                "range": 13941.999991,
+                "relative_range": 0.915586376657577,
+                "central_range": 2300.299995000001,
+                "relative_central_range": 0.15106321467558903,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  20832.399954,
+                  21004.499984,
+                  17929.90003,
+                  16069.400008,
+                  13060.699974,
+                  21279.100038,
+                  23965.400003
+                ],
+                "median": 20832.399954,
+                "mean": 19163.05714157143,
+                "min": 13060.699974,
+                "max": 23965.400003,
+                "mad": 2902.4999239999997,
+                "relative_mad": 0.139326238475116,
+                "range": 10904.700029,
+                "relative_range": 0.5234490530653528,
+                "central_range": 5209.70003,
+                "relative_central_range": 0.250076805433053,
+                "qualified": false
+              }
+            }
+          },
+          "ordinary_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": 0.04167239641559939,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.021591411109827652,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 207164.959564,
+              "latency_p50_us": 105.000043,
+              "latency_p99_us": 168.099999,
+              "latency_max_us": 8853.000007,
+              "checksum": 587825.0,
+              "heap_blocks_per_query": 10.00075,
+              "heap_bytes_per_query": 1595.061733
+            },
+            "new-fixed": {
+              "queries_per_sec": 214846.473364,
+              "latency_p50_us": 103.399972,
+              "latency_p99_us": 162.000011,
+              "latency_max_us": 22410.399979,
+              "checksum": 587825.0,
+              "heap_blocks_per_query": 10.00075,
+              "heap_bytes_per_query": 1595.061733
+            },
+            "route": {
+              "queries_per_sec": 170378.991058,
+              "latency_p50_us": 103.500031,
+              "latency_p99_us": 159.499992,
+              "latency_max_us": 25846.700009,
+              "checksum": 587825.0,
+              "heap_blocks_per_query": 11.00075,
+              "heap_bytes_per_query": 2048.061733
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 227505.164421,
+                "latency_p50_us": 97.299984,
+                "latency_p99_us": 150.499982,
+                "latency_max_us": 15550.399956,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 166335.448339,
+                "latency_p50_us": 101.300015,
+                "latency_p99_us": 169.200008,
+                "latency_max_us": 23862.600035,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 224882.035679,
+                "latency_p50_us": 99.299999,
+                "latency_p99_us": 153.500005,
+                "latency_max_us": 15574.10002,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 208119.008118,
+                "latency_p50_us": 98.699995,
+                "latency_p99_us": 162.399956,
+                "latency_max_us": 21926.799964,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 211162.241001,
+                "latency_p50_us": 98.699995,
+                "latency_p99_us": 162.100012,
+                "latency_max_us": 15486.499993,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 219053.121819,
+                "latency_p50_us": 96.599979,
+                "latency_p99_us": 151.59999,
+                "latency_max_us": 17397.399992,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 184721.776795,
+                "latency_p50_us": 99.700002,
+                "latency_p99_us": 163.299963,
+                "latency_max_us": 17952.400027,
+                "checksum": 587825.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 215023.119313,
+                "latency_p50_us": 97.399985,
+                "latency_p99_us": 145.2,
+                "latency_max_us": 23865.700001,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 192050.58106,
+                "latency_p50_us": 100.000005,
+                "latency_p99_us": 165.299978,
+                "latency_max_us": 15239.199973,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 174509.316574,
+                "latency_p50_us": 101.299956,
+                "latency_p99_us": 165.900041,
+                "latency_max_us": 15227.399999,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 237457.453475,
+                "latency_p50_us": 97.199983,
+                "latency_p99_us": 156.799972,
+                "latency_max_us": 14284.299978,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 237242.578737,
+                "latency_p50_us": 97.799988,
+                "latency_p99_us": 157.200033,
+                "latency_max_us": 9923.70001,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 233377.595647,
+                "latency_p50_us": 97.500044,
+                "latency_p99_us": 159.999996,
+                "latency_max_us": 16584.599973,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 219961.877616,
+                "latency_p50_us": 98.699995,
+                "latency_p99_us": 158.600044,
+                "latency_max_us": 14627.999975,
+                "checksum": 587825.0
+              }
+            ],
+            "route": [
+              {
+                "queries_per_sec": 188174.295891,
+                "latency_p50_us": 98.199991,
+                "latency_p99_us": 168.300001,
+                "latency_max_us": 20832.399954,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 175604.604723,
+                "latency_p50_us": 98.000048,
+                "latency_p99_us": 155.50002,
+                "latency_max_us": 21004.499984,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 198170.249673,
+                "latency_p50_us": 98.799996,
+                "latency_p99_us": 161.300006,
+                "latency_max_us": 17929.90003,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 197217.975941,
+                "latency_p50_us": 98.30005,
+                "latency_p99_us": 161.700009,
+                "latency_max_us": 16069.400008,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 192177.555352,
+                "latency_p50_us": 99.299999,
+                "latency_p99_us": 162.500015,
+                "latency_max_us": 13060.699974,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 201161.189361,
+                "latency_p50_us": 98.599994,
+                "latency_p99_us": 161.600008,
+                "latency_max_us": 21279.100038,
+                "checksum": 587825.0
+              },
+              {
+                "queries_per_sec": 192080.188988,
+                "latency_p50_us": 97.599986,
+                "latency_p99_us": 155.700021,
+                "latency_max_us": 23965.400003,
+                "checksum": 587825.0
+              }
+            ]
+          },
+          "route_vs_direct": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.12631426211274976
+            },
+            "latency_p99_us": {
+              "qualified": true,
+              "relative_change": 0.018915278485042597
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "69704ceddbf5fd3a81353d96342138e734a1cc362f266a2ab85bc75b5bdb25ee",
+      "binaries": {
+        "baseline": {
+          "path": "performance/wsl/baseline",
+          "sha256": "28df4d1f047fbe48053eb6bd294f774c9b20525f0f2185362ec43d56a2390496"
+        },
+        "native-current": {
+          "path": "performance/wsl/native-current",
+          "sha256": "824f7a10440019982e4e0ce3e95382018c3ba187b58f20463d8717ad8927f712"
+        },
+        "current": {
+          "path": "performance/wsl/current",
+          "sha256": "f8c337aa8db40c876a62d9251afdf42cde6018515a0401ce94c59cd6e900d6a8"
+        }
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "tail_increase": 0.1
+      },
+      "scope": "Unpinned closed-loop same binary ECHO/peer/affinities: baseline/current native-only shared calls (same CR_BENCH_BASELINE loop, no controller cleanup calls) and current controller routes in a separate binary using common native objects. Setup/topology/readiness/warm call/physical teardown excluded. Controller allocation/copy/provider references/Step clocks are included; peer and mechanical tails included in separate heap runs. Not fixed-arrival/upstream/CPU/RSS production acceptance",
+      "baseline_sources": {
+        "client": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+        "pool": "fecd86ffb249066c128f76b2b1db7f3b2ca8ed1857df9bda3cd8cc076677b7aa"
+      },
+      "raw_report_sha256": "8b99466d3dcd7b7603963c48daf2b2310ba42ba7f327933405613b18ca5f7843",
+      "cases": [
+        {
+          "depth": 1,
+          "count": 4096,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  11024.634066,
+                  11272.836873,
+                  11296.792142,
+                  11361.489631,
+                  9136.162008,
+                  8865.933241,
+                  8884.635485
+                ],
+                "median": 11024.634066,
+                "mean": 10263.211920857142,
+                "min": 8865.933241,
+                "max": 11361.489631,
+                "mad": 336.85556499999984,
+                "relative_mad": 0.030554806897297684,
+                "range": 2495.5563899999997,
+                "relative_range": 0.22636183433029328,
+                "central_range": 2412.1566569999995,
+                "relative_central_range": 0.21879698161040073,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  10774.84992,
+                  11190.53816,
+                  10890.731962,
+                  10960.604827,
+                  8793.275339,
+                  9307.540315,
+                  9098.126023
+                ],
+                "median": 10774.84992,
+                "mean": 10145.095220857142,
+                "min": 8793.275339,
+                "max": 11190.53816,
+                "mad": 415.6882399999995,
+                "relative_mad": 0.03857949234433508,
+                "range": 2397.2628210000003,
+                "relative_range": 0.22248688740900813,
+                "central_range": 1862.4788039999985,
+                "relative_central_range": 0.17285426876739257,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  10151.285228,
+                  10521.137796,
+                  10436.617897,
+                  8755.979523,
+                  8314.191933,
+                  9020.516369,
+                  8523.018687
+                ],
+                "median": 9020.516369,
+                "mean": 9388.963919,
+                "min": 8314.191933,
+                "max": 10521.137796,
+                "mad": 706.3244360000008,
+                "relative_mad": 0.07830199592867683,
+                "range": 2206.945863000001,
+                "relative_range": 0.24465848436176155,
+                "central_range": 1913.5992100000003,
+                "relative_central_range": 0.21213854414989977,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  84.5,
+                  83.4,
+                  83.1,
+                  82.7,
+                  107.4,
+                  109.9,
+                  109.9
+                ],
+                "median": 84.5,
+                "mean": 94.41428571428571,
+                "min": 82.7,
+                "max": 109.9,
+                "mad": 1.7999999999999972,
+                "relative_mad": 0.02130177514792896,
+                "range": 27.200000000000003,
+                "relative_range": 0.3218934911242604,
+                "central_range": 26.80000000000001,
+                "relative_central_range": 0.3171597633136096,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  87.2,
+                  83.8,
+                  86.0,
+                  85.4,
+                  110.6,
+                  105.2,
+                  106.6
+                ],
+                "median": 87.2,
+                "mean": 94.97142857142856,
+                "min": 83.8,
+                "max": 110.6,
+                "mad": 3.4000000000000057,
+                "relative_mad": 0.03899082568807346,
+                "range": 26.799999999999997,
+                "relative_range": 0.30733944954128434,
+                "central_range": 21.19999999999999,
+                "relative_central_range": 0.24311926605504575,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  94.6,
+                  93.0,
+                  93.3,
+                  100.9,
+                  117.2,
+                  108.5,
+                  114.3
+                ],
+                "median": 100.9,
+                "mean": 103.11428571428571,
+                "min": 93.0,
+                "max": 117.2,
+                "mad": 7.6000000000000085,
+                "relative_mad": 0.07532210109018839,
+                "range": 24.200000000000003,
+                "relative_range": 0.2398414271555996,
+                "central_range": 21.0,
+                "relative_central_range": 0.2081268582755203,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  147.4,
+                  140.3,
+                  142.9,
+                  140.4,
+                  154.8,
+                  162.2,
+                  154.5
+                ],
+                "median": 147.4,
+                "mean": 148.92857142857142,
+                "min": 140.3,
+                "max": 162.2,
+                "mad": 7.099999999999994,
+                "relative_mad": 0.048168249660786935,
+                "range": 21.899999999999977,
+                "relative_range": 0.14857530529172305,
+                "central_range": 14.400000000000006,
+                "relative_central_range": 0.09769335142469475,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  146.5,
+                  139.1,
+                  142.6,
+                  143.0,
+                  167.9,
+                  153.8,
+                  155.8
+                ],
+                "median": 146.5,
+                "mean": 149.81428571428572,
+                "min": 139.1,
+                "max": 167.9,
+                "mad": 7.300000000000011,
+                "relative_mad": 0.04982935153583626,
+                "range": 28.80000000000001,
+                "relative_range": 0.19658703071672362,
+                "central_range": 13.200000000000017,
+                "relative_central_range": 0.09010238907849841,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  151.9,
+                  140.9,
+                  144.4,
+                  200.6,
+                  175.1,
+                  157.2,
+                  162.8
+                ],
+                "median": 157.2,
+                "mean": 161.84285714285716,
+                "min": 140.9,
+                "max": 200.6,
+                "mad": 12.799999999999983,
+                "relative_mad": 0.08142493638676834,
+                "range": 59.69999999999999,
+                "relative_range": 0.37977099236641215,
+                "central_range": 30.69999999999999,
+                "relative_central_range": 0.1952926208651399,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  221.6,
+                  221.3,
+                  182.1,
+                  229.2,
+                  220.5,
+                  214.5,
+                  217.8
+                ],
+                "median": 220.5,
+                "mean": 215.28571428571428,
+                "min": 182.1,
+                "max": 229.2,
+                "mad": 2.6999999999999886,
+                "relative_mad": 0.012244897959183623,
+                "range": 47.099999999999994,
+                "relative_range": 0.21360544217687072,
+                "central_range": 7.099999999999994,
+                "relative_central_range": 0.032199546485260744,
+                "qualified": true
+              },
+              "new-fixed": {
+                "samples": [
+                  223.4,
+                  227.0,
+                  203.4,
+                  241.7,
+                  263.6,
+                  220.1,
+                  262.5
+                ],
+                "median": 227.0,
+                "mean": 234.52857142857144,
+                "min": 203.4,
+                "max": 263.6,
+                "mad": 14.699999999999989,
+                "relative_mad": 0.06475770925110128,
+                "range": 60.20000000000002,
+                "relative_range": 0.26519823788546265,
+                "central_range": 42.400000000000006,
+                "relative_central_range": 0.18678414096916302,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  268.6,
+                  246.3,
+                  230.2,
+                  444.6,
+                  293.8,
+                  199.9,
+                  1315.7
+                ],
+                "median": 268.6,
+                "mean": 428.4428571428571,
+                "min": 199.9,
+                "max": 1315.7,
+                "mad": 38.400000000000034,
+                "relative_mad": 0.14296351451973205,
+                "range": 1115.8,
+                "relative_range": 4.154132539091585,
+                "central_range": 214.40000000000003,
+                "relative_central_range": 0.7982129560685034,
+                "qualified": false
+              }
+            }
+          },
+          "ordinary_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.022656910379486916,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.006105834464043447,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 8979.006272,
+              "latency_p50_us": 108.3,
+              "latency_p99_us": 155.8,
+              "latency_max_us": 231.6,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 12.022461,
+              "heap_bytes_per_query": 2060.257812
+            },
+            "new-fixed": {
+              "queries_per_sec": 8790.691787,
+              "latency_p50_us": 111.4,
+              "latency_p99_us": 155.6,
+              "latency_max_us": 427.3,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 12.026367,
+              "heap_bytes_per_query": 2060.476562
+            },
+            "route": {
+              "queries_per_sec": 8436.174926,
+              "latency_p50_us": 115.7,
+              "latency_p99_us": 168.0,
+              "latency_max_us": 288.9,
+              "checksum": 28672.0,
+              "heap_blocks_per_query": 13.032959,
+              "heap_bytes_per_query": 2513.845703
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 11024.634066,
+                "latency_p50_us": 84.5,
+                "latency_p99_us": 147.4,
+                "latency_max_us": 221.6,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11272.836873,
+                "latency_p50_us": 83.4,
+                "latency_p99_us": 140.3,
+                "latency_max_us": 221.3,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11296.792142,
+                "latency_p50_us": 83.1,
+                "latency_p99_us": 142.9,
+                "latency_max_us": 182.1,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11361.489631,
+                "latency_p50_us": 82.7,
+                "latency_p99_us": 140.4,
+                "latency_max_us": 229.2,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 9136.162008,
+                "latency_p50_us": 107.4,
+                "latency_p99_us": 154.8,
+                "latency_max_us": 220.5,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8865.933241,
+                "latency_p50_us": 109.9,
+                "latency_p99_us": 162.2,
+                "latency_max_us": 214.5,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8884.635485,
+                "latency_p50_us": 109.9,
+                "latency_p99_us": 154.5,
+                "latency_max_us": 217.8,
+                "checksum": 28672.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 10774.84992,
+                "latency_p50_us": 87.2,
+                "latency_p99_us": 146.5,
+                "latency_max_us": 223.4,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 11190.53816,
+                "latency_p50_us": 83.8,
+                "latency_p99_us": 139.1,
+                "latency_max_us": 227.0,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10890.731962,
+                "latency_p50_us": 86.0,
+                "latency_p99_us": 142.6,
+                "latency_max_us": 203.4,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10960.604827,
+                "latency_p50_us": 85.4,
+                "latency_p99_us": 143.0,
+                "latency_max_us": 241.7,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8793.275339,
+                "latency_p50_us": 110.6,
+                "latency_p99_us": 167.9,
+                "latency_max_us": 263.6,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 9307.540315,
+                "latency_p50_us": 105.2,
+                "latency_p99_us": 153.8,
+                "latency_max_us": 220.1,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 9098.126023,
+                "latency_p50_us": 106.6,
+                "latency_p99_us": 155.8,
+                "latency_max_us": 262.5,
+                "checksum": 28672.0
+              }
+            ],
+            "route": [
+              {
+                "queries_per_sec": 10151.285228,
+                "latency_p50_us": 94.6,
+                "latency_p99_us": 151.9,
+                "latency_max_us": 268.6,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10521.137796,
+                "latency_p50_us": 93.0,
+                "latency_p99_us": 140.9,
+                "latency_max_us": 246.3,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 10436.617897,
+                "latency_p50_us": 93.3,
+                "latency_p99_us": 144.4,
+                "latency_max_us": 230.2,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8755.979523,
+                "latency_p50_us": 100.9,
+                "latency_p99_us": 200.6,
+                "latency_max_us": 444.6,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8314.191933,
+                "latency_p50_us": 117.2,
+                "latency_p99_us": 175.1,
+                "latency_max_us": 293.8,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 9020.516369,
+                "latency_p50_us": 108.5,
+                "latency_p99_us": 157.2,
+                "latency_max_us": 199.9,
+                "checksum": 28672.0
+              },
+              {
+                "queries_per_sec": 8523.018687,
+                "latency_p50_us": 114.3,
+                "latency_p99_us": 162.8,
+                "latency_max_us": 1315.7,
+                "checksum": 28672.0
+              }
+            ]
+          },
+          "route_vs_direct": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.16281744655613728
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.07303754266211593
+            }
+          }
+        },
+        {
+          "depth": 32,
+          "count": 16562,
+          "metrics": {
+            "queries_per_sec": {
+              "old-fixed": {
+                "samples": [
+                  48611.553133,
+                  49748.179802,
+                  49999.048442,
+                  53903.81084,
+                  55597.031401,
+                  54397.378195,
+                  54148.10656
+                ],
+                "median": 53903.81084,
+                "mean": 52343.586910428574,
+                "min": 48611.553133,
+                "max": 55597.031401,
+                "mad": 1693.220561000002,
+                "relative_mad": 0.03141188970898374,
+                "range": 6985.478267999999,
+                "relative_range": 0.12959154759455963,
+                "central_range": 4649.198392999999,
+                "relative_central_range": 0.08624990182605054,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  47959.047317,
+                  49959.291714,
+                  46024.642358,
+                  49353.710744,
+                  54502.960234,
+                  54339.854872,
+                  53873.144015
+                ],
+                "median": 49959.291714,
+                "mean": 50858.95017914286,
+                "min": 46024.642358,
+                "max": 54502.960234,
+                "mad": 3913.852300999999,
+                "relative_mad": 0.07834082843698978,
+                "range": 8478.317876000001,
+                "relative_range": 0.16970452512688722,
+                "central_range": 6380.807555000007,
+                "relative_central_range": 0.12772013645685704,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  48206.096647,
+                  46614.679281,
+                  47743.828238,
+                  52798.003614,
+                  53981.941825,
+                  53810.953491,
+                  53979.126628
+                ],
+                "median": 52798.003614,
+                "mean": 51019.232817714284,
+                "min": 46614.679281,
+                "max": 53981.941825,
+                "mad": 1183.9382110000006,
+                "relative_mad": 0.02242392003409132,
+                "range": 7367.262544000005,
+                "relative_range": 0.13953676350835525,
+                "central_range": 6235.298389999996,
+                "relative_central_range": 0.11809723783470166,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "old-fixed": {
+                "samples": [
+                  374.6,
+                  361.7,
+                  366.0,
+                  334.7,
+                  324.6,
+                  337.6,
+                  333.4
+                ],
+                "median": 337.6,
+                "mean": 347.5142857142857,
+                "min": 324.6,
+                "max": 374.6,
+                "mad": 13.0,
+                "relative_mad": 0.03850710900473933,
+                "range": 50.0,
+                "relative_range": 0.1481042654028436,
+                "central_range": 32.60000000000002,
+                "relative_central_range": 0.0965639810426541,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  379.6,
+                  358.1,
+                  396.3,
+                  368.0,
+                  334.3,
+                  336.4,
+                  332.7
+                ],
+                "median": 358.1,
+                "mean": 357.9142857142857,
+                "min": 332.7,
+                "max": 396.3,
+                "mad": 21.700000000000045,
+                "relative_mad": 0.060597598436191134,
+                "range": 63.60000000000002,
+                "relative_range": 0.17760402122312208,
+                "central_range": 45.30000000000001,
+                "relative_central_range": 0.12650097738061997,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  363.8,
+                  369.7,
+                  362.7,
+                  340.9,
+                  333.8,
+                  336.0,
+                  330.9
+                ],
+                "median": 340.9,
+                "mean": 348.25714285714287,
+                "min": 330.9,
+                "max": 369.7,
+                "mad": 10.0,
+                "relative_mad": 0.029334115576415375,
+                "range": 38.80000000000001,
+                "relative_range": 0.11381636843649168,
+                "central_range": 30.0,
+                "relative_central_range": 0.08800234672924612,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "old-fixed": {
+                "samples": [
+                  781.4,
+                  786.1,
+                  758.3,
+                  638.6,
+                  600.7,
+                  638.4,
+                  656.0
+                ],
+                "median": 656.0,
+                "mean": 694.2142857142857,
+                "min": 600.7,
+                "max": 786.1,
+                "mad": 55.299999999999955,
+                "relative_mad": 0.08429878048780481,
+                "range": 185.39999999999998,
+                "relative_range": 0.28262195121951217,
+                "central_range": 143.0,
+                "relative_central_range": 0.21798780487804878,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  848.4,
+                  747.7,
+                  814.7,
+                  855.5,
+                  638.9,
+                  645.7,
+                  642.0
+                ],
+                "median": 747.7,
+                "mean": 741.842857142857,
+                "min": 638.9,
+                "max": 855.5,
+                "mad": 102.0,
+                "relative_mad": 0.13641834960545673,
+                "range": 216.60000000000002,
+                "relative_range": 0.28968837769158756,
+                "central_range": 206.39999999999998,
+                "relative_central_range": 0.2760465427310418,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  763.4,
+                  843.6,
+                  856.6,
+                  671.9,
+                  647.3,
+                  658.4,
+                  649.2
+                ],
+                "median": 671.9,
+                "mean": 727.1999999999999,
+                "min": 647.3,
+                "max": 856.6,
+                "mad": 24.600000000000023,
+                "relative_mad": 0.03661259115939876,
+                "range": 209.30000000000007,
+                "relative_range": 0.3115046881976486,
+                "central_range": 194.39999999999998,
+                "relative_central_range": 0.28932876916207767,
+                "qualified": false
+              }
+            },
+            "latency_max_us": {
+              "old-fixed": {
+                "samples": [
+                  1045.7,
+                  1013.8,
+                  1046.4,
+                  851.9,
+                  790.8,
+                  927.1,
+                  1048.5
+                ],
+                "median": 1013.8,
+                "mean": 960.6,
+                "min": 790.8,
+                "max": 1048.5,
+                "mad": 34.700000000000045,
+                "relative_mad": 0.034227658315249605,
+                "range": 257.70000000000005,
+                "relative_range": 0.25419214835273235,
+                "central_range": 194.5000000000001,
+                "relative_central_range": 0.19185243637798394,
+                "qualified": false
+              },
+              "new-fixed": {
+                "samples": [
+                  2479.8,
+                  1082.8,
+                  1023.4,
+                  3239.9,
+                  908.5,
+                  843.0,
+                  1011.7
+                ],
+                "median": 1023.4,
+                "mean": 1512.7285714285715,
+                "min": 843.0,
+                "max": 3239.9,
+                "mad": 114.89999999999998,
+                "relative_mad": 0.11227281610318544,
+                "range": 2396.9,
+                "relative_range": 2.3420949775258944,
+                "central_range": 1571.3000000000002,
+                "relative_central_range": 1.535372288450264,
+                "qualified": false
+              },
+              "route": {
+                "samples": [
+                  1008.7,
+                  1114.6,
+                  1114.8,
+                  986.2,
+                  877.401,
+                  1037.8,
+                  991.3
+                ],
+                "median": 1008.7,
+                "mean": 1018.6858571428571,
+                "min": 877.401,
+                "max": 1114.8,
+                "mad": 29.09999999999991,
+                "relative_mad": 0.028849013581837918,
+                "range": 237.399,
+                "relative_range": 0.23535144245067907,
+                "central_range": 128.39999999999986,
+                "relative_central_range": 0.12729255477347065,
+                "qualified": false
+              }
+            }
+          },
+          "ordinary_regression": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": -0.07317699926093013,
+              "budget": 0.05,
+              "within_budget": null
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.13978658536585375,
+              "budget": 0.1,
+              "within_budget": null
+            }
+          },
+          "allocations": {
+            "old-fixed": {
+              "queries_per_sec": 53487.592558,
+              "latency_p50_us": 341.3,
+              "latency_p99_us": 665.0,
+              "latency_max_us": 963.2,
+              "checksum": 115934.0,
+              "heap_blocks_per_query": 10.237592,
+              "heap_bytes_per_query": 1960.331723
+            },
+            "new-fixed": {
+              "queries_per_sec": 54681.883898,
+              "latency_p50_us": 328.8,
+              "latency_p99_us": 621.0,
+              "latency_max_us": 916.1,
+              "checksum": 115934.0,
+              "heap_blocks_per_query": 10.246951,
+              "heap_bytes_per_query": 1960.855815
+            },
+            "route": {
+              "queries_per_sec": 52789.017136,
+              "latency_p50_us": 340.2,
+              "latency_p99_us": 677.6,
+              "latency_max_us": 1086.9,
+              "checksum": 115934.0,
+              "heap_blocks_per_query": 11.234211,
+              "heap_bytes_per_query": 2413.142374
+            }
+          },
+          "sample_values": {
+            "old-fixed": [
+              {
+                "queries_per_sec": 48611.553133,
+                "latency_p50_us": 374.6,
+                "latency_p99_us": 781.4,
+                "latency_max_us": 1045.7,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 49748.179802,
+                "latency_p50_us": 361.7,
+                "latency_p99_us": 786.1,
+                "latency_max_us": 1013.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 49999.048442,
+                "latency_p50_us": 366.0,
+                "latency_p99_us": 758.3,
+                "latency_max_us": 1046.4,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 53903.81084,
+                "latency_p50_us": 334.7,
+                "latency_p99_us": 638.6,
+                "latency_max_us": 851.9,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 55597.031401,
+                "latency_p50_us": 324.6,
+                "latency_p99_us": 600.7,
+                "latency_max_us": 790.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 54397.378195,
+                "latency_p50_us": 337.6,
+                "latency_p99_us": 638.4,
+                "latency_max_us": 927.1,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 54148.10656,
+                "latency_p50_us": 333.4,
+                "latency_p99_us": 656.0,
+                "latency_max_us": 1048.5,
+                "checksum": 115934.0
+              }
+            ],
+            "new-fixed": [
+              {
+                "queries_per_sec": 47959.047317,
+                "latency_p50_us": 379.6,
+                "latency_p99_us": 848.4,
+                "latency_max_us": 2479.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 49959.291714,
+                "latency_p50_us": 358.1,
+                "latency_p99_us": 747.7,
+                "latency_max_us": 1082.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 46024.642358,
+                "latency_p50_us": 396.3,
+                "latency_p99_us": 814.7,
+                "latency_max_us": 1023.4,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 49353.710744,
+                "latency_p50_us": 368.0,
+                "latency_p99_us": 855.5,
+                "latency_max_us": 3239.9,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 54502.960234,
+                "latency_p50_us": 334.3,
+                "latency_p99_us": 638.9,
+                "latency_max_us": 908.5,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 54339.854872,
+                "latency_p50_us": 336.4,
+                "latency_p99_us": 645.7,
+                "latency_max_us": 843.0,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 53873.144015,
+                "latency_p50_us": 332.7,
+                "latency_p99_us": 642.0,
+                "latency_max_us": 1011.7,
+                "checksum": 115934.0
+              }
+            ],
+            "route": [
+              {
+                "queries_per_sec": 48206.096647,
+                "latency_p50_us": 363.8,
+                "latency_p99_us": 763.4,
+                "latency_max_us": 1008.7,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 46614.679281,
+                "latency_p50_us": 369.7,
+                "latency_p99_us": 843.6,
+                "latency_max_us": 1114.6,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 47743.828238,
+                "latency_p50_us": 362.7,
+                "latency_p99_us": 856.6,
+                "latency_max_us": 1114.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 52798.003614,
+                "latency_p50_us": 340.9,
+                "latency_p99_us": 671.9,
+                "latency_max_us": 986.2,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 53981.941825,
+                "latency_p50_us": 333.8,
+                "latency_p99_us": 647.3,
+                "latency_max_us": 877.401,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 53810.953491,
+                "latency_p50_us": 336.0,
+                "latency_p99_us": 658.4,
+                "latency_max_us": 1037.8,
+                "checksum": 115934.0
+              },
+              {
+                "queries_per_sec": 53979.126628,
+                "latency_p50_us": 330.9,
+                "latency_p99_us": 649.2,
+                "latency_max_us": 991.3,
+                "checksum": 115934.0
+              }
+            ]
+          },
+          "route_vs_direct": {
+            "queries_per_sec": {
+              "qualified": false,
+              "relative_change": 0.0568204993027257
+            },
+            "latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.10137755784405522
+            }
+          }
+        }
+      ]
+    }
+  },
+  "failures": [],
+  "limitations": [
+    "Caller provides authorized retained shared node pools; persistent node-map cache, coalesced refresh, bootstrap, automatic MOVED map updates, managed asynchronous facade and replica policy remain work.",
+    "Real Cluster matrix is plaintext IPv4/default user. TLS port selection and denial policy have fixture tests; full real TLS/auth/trust matrix remains work.",
+    "COMPLETE is a terminal native outcome, not necessarily successful query. Stop snapshots are immutable; last native Future may still be pending after route stop. Failed control and uncertain delivery never authorize replay.",
+    "Create copies argument descriptors/payload once into a bounded controller allocation; a longer redirect can allocate one bounded host buffer. Native attempts copy their own wire. No zero-overhead claim.",
+    "Closed-loop local-peer depth1/32 measurements are unpinned, include caller queueing, and are not fixed-arrival/mixed-load/upstream/CPU/RSS/native Linux/72h acceptance. Heap runs include peer/mechanical tails and exclude cold setup."
+  ],
+  "initial_performance_issue": {
+    "cohort": "out/service-extensions/xredis-cluster-route-20261112",
+    "source_map_sha256": "b1c83609031e290bf1d1144e3c71427cfb23058c2d785e5b6ed6b4fbe87f97b6",
+    "source_delta_sha256": "6da2d4dd5e689dffe02076b0bd19414f683d401646df6c001fd90b785133da4f",
+    "description": "Pending returned NULL after native completion between WAIT/NextWake and handle subscription, so the sample driver could sleep up to10ms. Public Pending now retains the NATIVE-phase Future until Step consumes it, including resolved state.",
+    "regression_probe": {
+      "expected_exit": 1,
+      "observed_exit": 1,
+      "assertion": "settled native wait handle must remain observable until Step",
+      "test_sha256": "325f0517267667e642bdbe49aa88006934b3262d072fddd3946175baa7ce3539",
+      "binary_sha256": "6098ecf84d42f5a72215fc25642dc0176ad421e37620e6766ca9d65f493c1e7a",
+      "log_sha256": "a234cdbe54adf8a0fb86aad1ae84c9e7e235d39832c2614d53be891198e090e7",
+      "implementation_source_map_sha256": "b1c83609031e290bf1d1144e3c71427cfb23058c2d785e5b6ed6b4fbe87f97b6",
+      "actual_inputs_map_sha256": "75329408d208eeea3fedfe0b4aca3f92bf69e701f17f381ce36bfeb28a96e499"
+    },
+    "performance": {
+      "windows": {
+        "report_sha256": "475c7d9baca31e746cb893d94976a044208fa2fe1a133b00ede3363aa368939a",
+        "cases": [
+          {
+            "depth": 1,
+            "route_vs_direct": {
+              "queries_per_sec": {
+                "qualified": true,
+                "relative_change": -0.030714420599404657
+              },
+              "latency_p99_us": {
+                "qualified": true,
+                "relative_change": 0.033601209805729226
+              }
+            }
+          },
+          {
+            "depth": 32,
+            "route_vs_direct": {
+              "queries_per_sec": {
+                "qualified": false,
+                "relative_change": -0.9290099073417428
+              },
+              "latency_p99_us": {
+                "qualified": true,
+                "relative_change": 119.36644539522979
+              }
+            }
+          }
+        ]
+      },
+      "wsl": {
+        "report_sha256": "0dbfe9124eab7ea7991b179210e7f29c8396f40d122d8c4a2ee0c8451834ea45",
+        "cases": [
+          {
+            "depth": 1,
+            "route_vs_direct": {
+              "queries_per_sec": {
+                "qualified": true,
+                "relative_change": -0.037404667297546434
+              },
+              "latency_p99_us": {
+                "qualified": true,
+                "relative_change": 0.011103400416377474
+              }
+            }
+          },
+          {
+            "depth": 32,
+            "route_vs_direct": {
+              "queries_per_sec": {
+                "qualified": false,
+                "relative_change": -0.6349604280950877
+              },
+              "latency_p99_us": {
+                "qualified": true,
+                "relative_change": 15.840379360231474
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "performance_acceptance": false,
+  "ordinary_performance_qualification": {
+    "evaluated": 8,
+    "qualified": 0,
+    "accepted": false,
+    "reason": "No complete qualified ordinary regression matrix; unqualified samples cannot establish pass/fail. Fixed-arrival/mixed-load/native Linux/CPU/RSS/72h gates remain open."
+  },
+  "raw_evidence": "out/service-extensions/xredis-cluster-route-v2-20261112"
+}

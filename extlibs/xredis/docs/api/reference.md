@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `163` 个函数、`269` 个常量或宏、
-`122` 个公共类型。
+当前登记 `172` 个函数、`293` 个常量或宏、
+`130` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -104,6 +104,65 @@
 - `xredisrequestresult`
 - `xredisrequeststatus`
 
+## `extlibs/xredis/include/xredis/cluster_route.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_route.h)
+
+### 函数 (9)
+
+- `xredisClusterRouteCancel`
+- `xredisClusterRouteConfigInit`
+- `xredisClusterRouteCreate`
+- `xredisClusterRouteDestroy`
+- `xredisClusterRouteNextWake`
+- `xredisClusterRoutePending`
+- `xredisClusterRouteResult`
+- `xredisClusterRouteResultFuture`
+- `xredisClusterRouteStep`
+
+### 常量与宏 (26)
+
+- `XREDIS_CLUSTER_POOL_CLOSED`
+- `XREDIS_CLUSTER_POOL_DENIED`
+- `XREDIS_CLUSTER_POOL_ERROR`
+- `XREDIS_CLUSTER_POOL_MEMORY`
+- `XREDIS_CLUSTER_POOL_READY`
+- `XREDIS_CLUSTER_POOL_WAIT`
+- `XREDIS_CLUSTER_ROUTE_ADMISSION_ERROR`
+- `XREDIS_CLUSTER_ROUTE_CANCELLED`
+- `XREDIS_CLUSTER_ROUTE_CLOSED`
+- `XREDIS_CLUSTER_ROUTE_COMPLETE`
+- `XREDIS_CLUSTER_ROUTE_DONE`
+- `XREDIS_CLUSTER_ROUTE_LIMIT`
+- `XREDIS_CLUSTER_ROUTE_MEMORY`
+- `XREDIS_CLUSTER_ROUTE_MORE`
+- `XREDIS_CLUSTER_ROUTE_NO_ROUTE`
+- `XREDIS_CLUSTER_ROUTE_OVERLOADED`
+- `XREDIS_CLUSTER_ROUTE_PENDING`
+- `XREDIS_CLUSTER_ROUTE_POLICY`
+- `XREDIS_CLUSTER_ROUTE_PROTOCOL`
+- `XREDIS_CLUSTER_ROUTE_PROVIDER_ERROR`
+- `XREDIS_CLUSTER_ROUTE_STEP_ERROR`
+- `XREDIS_CLUSTER_ROUTE_TIMEOUT`
+- `XREDIS_CLUSTER_ROUTE_WAIT`
+- `XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE`
+- `XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY`
+- `XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING`
+
+### 类型 (11)
+
+- `xredisclusteraddress`
+- `xredisclusterpoolproc`
+- `xredisclusterpoolstatus`
+- `xredisclusterredirectkind`
+- `xredisclusterroute`
+- `xredisclusterrouteconfig`
+- `xredisclusterrouteresult`
+- `xredisclusterroutestatus`
+- `xredisclusterroutestep`
+- `xredisclustertopology`
+- `xredispool`
+
 ## `extlibs/xredis/include/xredis/cluster_topology.h`
 
 [查看带契约注释的公共头](../../include/xredis/cluster_topology.h)
@@ -121,7 +180,7 @@
 - `xredisClusterTopologyRelease`
 - `xredisClusterTopologyRetain`
 
-### 常量与宏 (24)
+### 常量与宏 (23)
 
 - `XREDIS_CLUSTER_ABSENT`
 - `XREDIS_CLUSTER_ASK`
@@ -146,9 +205,8 @@
 - `XREDIS_CLUSTER_SLOTS`
 - `XREDIS_CLUSTER_UNREPORTED`
 - `XREDIS_CLUSTER_VALUE`
-- `XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY`
 
-### 类型 (12)
+### 类型 (10)
 
 - `xredisclusterendpoint`
 - `xredisclusterformat`
@@ -157,10 +215,8 @@
 - `xredisclusternode`
 - `xredisclusterrange`
 - `xredisclusterredirect`
-- `xredisclusterredirectkind`
 - `xredisclusterrole`
 - `xredisclusterstatus`
-- `xredisclustertopology`
 - `xredisclustertopologyinfo`
 
 ## `extlibs/xredis/include/xredis/command.h`
@@ -242,12 +298,11 @@
 - `XREDIS_POOL_CLOSING`
 - `XREDIS_POOL_OPEN`
 
-### 类型 (7)
+### 类型 (6)
 
 - `xredislease`
 - `xredisleaseclosedresult`
 - `xredisleaseresult`
-- `xredispool`
 - `xredispoolconfig`
 - `xredispoolinfo`
 - `xredispoolstate`
@@ -312,10 +367,6 @@
 
 - `xredisSharedPoolAskingCall`
 - `xredisSharedPoolAskingCallAsync`
-
-### 常量与宏 (1)
-
-- `XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING`
 
 ## `extlibs/xredis/include/xredis/pool_shared_connect.h`
 

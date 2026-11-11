@@ -180,8 +180,16 @@ static int testPubSubPackage(void)
 #include "../../examples/pool_shared_asking/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE)
+#define main clusterRoutePackageExample
+#include "../../examples/cluster_route/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE)
+    if(clusterRoutePackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING)
     if(sharedAskingPackageExample())return 1;
 #endif

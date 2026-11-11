@@ -398,6 +398,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_cluster_route",
+      "system": "cluster_route",
+      "suite": "xredis_cluster_route",
+      "description": "Bounded Cluster route controller using existing native shared I/O; no TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

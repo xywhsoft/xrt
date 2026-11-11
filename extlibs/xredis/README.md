@@ -229,21 +229,26 @@ fence/retire all old members when the verified master endpoint changes.
 
 [Cluster topology](docs/cluster_topology.md) provides bounded immutable SHARDS/
 SLOTS snapshots, constant-time slot lookup, binary key slots and MOVED/ASK views.
-Automatic Cluster request routing/redirect execution remains subsequent work.
+Bounded request execution is available in [Cluster routes](docs/cluster_route.md);
+managed topology refresh/bootstrap remain work.
 
 [Leased ASKING groups](docs/pool_asking.md) execute an adjacent ASKING/query with
 one native request/Future and explicit control/query outcomes. The native FIFO
 and physical lease boundary contain one-shot state through timeout/cancel.
-Automatic Cluster address selection/redirect execution remains subsequent work.
+[Cluster routes](docs/cluster_route.md) provide bounded address/redirect execution.
 
 [Native shared pools](docs/pool_shared.md) multiplex ordinary calls over fixed
 ready members with one native request/Future and bounded selection, without
-per-call leases. Automatic node reconnection and Cluster routing remain work.
+per-call leases. Maintained pools and bounded Cluster routes are described below.
 
 [Automatic shared pools](docs/pool_shared_connect.md) maintain and refill shared
 node connections with bounded setup/retry and physical generation retirement.
-Accepted business calls never replay. Full Cluster routing remains work.
+Accepted business calls never replay. Managed Cluster refresh/bootstrap remain work.
 
 [Shared ASKING groups](docs/pool_shared_asking.md) execute adjacent native
 ASKING/query pairs on fixed or maintained shared pools, with one Future and
-separate control/query outcomes. Cluster routing remains subsequent work.
+separate control/query outcomes. Bounded Cluster routing is described below.
+
+[Cluster route execution](docs/cluster_route.md) selects a master and follows
+bounded MOVED/ASK redirects under one original deadline using authorized shared
+node pools. Persistent caches, refresh/bootstrap and the managed facade remain work.

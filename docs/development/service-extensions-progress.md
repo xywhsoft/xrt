@@ -11423,3 +11423,84 @@ fixed-arrival/mixed-load/CPU/RSS/72h gates remain active. All started jobs are
 terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/shared-asking-20261112.json)
 and out/service-extensions/xredis-shared-asking-20261112.
+
+## 2026-11-12: bounded automatic Cluster routes
+
+Developed directly on master from787dc106. The developing xredis_cluster_route
+leaf selects an eligible master from immutable SHARDS/SLOTS and follows validated
+matching-slot MOVED/ASK through authorized fixed/maintained shared node pools.
+All phases inherit one original entry deadline; a worker-side whitebox compares
+the redirected native group deadline exactly, including fractional arithmetic.
+ASK applies to one attempt. Denied control, malformed/mismatched redirects,
+uncertain delivery, timeout/cancel and bounded hop/wait exhaustion cannot replay
+accepted business. Parent stops preserve immutable observation metadata while
+native physical FIFO/quota duties survive controller destruction. ResultFuture
+retains the last native attempt and can still be pending after a parent stop.
+
+Create copies argument descriptors/payload once into one bounded allocation.
+Initial current/attempt hosts reserve actual length; one longer redirect can
+allocate bounded growth. No new worker/timer/proxy Future or engine pin is added.
+GetPool authorizes exact endpoint/transport/profile and transfers one retained
+shared-pool reference. Persistent node caches, coalesced refresh/bootstrap,
+MOVED map updates, managed asynchronous facade and replica policy remain work.
+Existing client/request/pool/slot/lease/connector layouts remain unchanged.
+
+The first frozen cohort passed functional/interop checks but exposed a real
+performance defect: completion between WAIT/NextWake and Pending could return
+NULL and make the caller sleep up to10ms. The old implementation fails a new
+deterministic regression at that exact window. Pending now retains the native
+handle until Step consumes it, even if already resolved. Both source maps, the
+red-probe source/binary/log identities, initial timing evidence and exact input
+delta are preserved. The corrected cohort reruns full verification and timing;
+this is a concrete code repair, not a timing-only rerun to select green samples.
+
+Corrected-cohort Windows 45 and WSL 46 logical programs pass, including
+36-program root regressions on each host, feature-off paths, exact-deadline
+whiteboxes, copied input, protocol/policy/hop limits, provider waits, cancellation,
+slow-provider deadlines, bounded/OOM host growth, retained outcomes and concurrent
+routes. WSL ASan/UBSan/leak checks and TSan pass. Modules, single headers, static/
+shared SDKs, isolated declaration consumers, root-selector examples, nine exports
+and internal-symbol exclusion pass. Size/symbol checks cover single/static/shared
+on both hosts, excluding TLS/DNS/HTTP/tasks/process dependencies in the leaf.
+
+Real owned Redis Cluster8.0.5 verifies288 corrected-cohort cases across both
+hosts/four delivery forms: fixed/maintained node pools x numeric/DNS/prepared
+connections x RESP2/3/AUTO x real SHARDS/intentional stale topology. Four producer
+threads each perform8 INCR routes; source ASK or wrong-node MOVED then source ASK
+reaches the importer automatically. Each case observes unique values1..32 and
+server counter32, totaling9216 routed increments without extra execution. All
+three owned run IDs are checked before use; physical quotas/factory/Drop duties
+retire and retained native outcomes survive engine teardown. All fixture
+processes/materials retire. Real transport remains plain IPv4/default user;
+full real TLS/auth/trust coverage remains open.
+
+After every functional/delivery job terminates, serial unpinned depth1/32
+measurements use the same ECHO payload/peer/affinities, one warmup plus seven
+samples, calibrated common counts, 3% MAD/6% central-span qualification and
+5% ordinary-throughput/10% P99 gates. Baseline/current native-only control
+binaries use the same loop without route cleanup; the controller binary shares
+current native objects and includes controller work. Unqualified cells remain
+unqualified. Values below are relative changes; route/direct includes the
+controller's real allocation, copy, provider refs, observation and Step work.
+
+| Host/depth | Ordinary rate | Ordinary P99 | Route/direct rate | Route/direct P99 |
+| --- | --- | --- | --- | --- |
+| windows/1 | +2.77% (unqualified) | +0.98% (unqualified) | -3.42% (unqualified) | -0.24% (unqualified) |
+| windows/32 | +4.17% (unqualified) | -2.16% (unqualified) | -12.63% (unqualified) | +1.89% (qualified) |
+| wsl/1 | -2.27% (unqualified) | -0.61% (unqualified) | -16.28% (unqualified) | +7.30% (unqualified) |
+| wsl/32 | -7.32% (unqualified) | +13.98% (unqualified) | +5.68% (unqualified) | -10.14% (unqualified) |
+
+All eight ordinary-throughput/P99 comparisons remain unqualified in the
+corrected cohort; no ordinary-performance regression gate is claimed passed.
+
+Separate heap observations (peer/mechanical tails included, cold setup excluded):
+
+windows depth1 old-fixed: 10.0 blocks/1595.0 bytes per query, new-fixed: 10.0 blocks/1595.0 bytes per query, route: 11.0 blocks/2048.0 bytes per query.
+wsl depth1 old-fixed: 12.022461 blocks/2060.257812 bytes per query, new-fixed: 12.026367 blocks/2060.476562 bytes per query, route: 13.032959 blocks/2513.845703 bytes per query.
+
+These are local closed-loop observations, not fixed-arrival/mixed-load/upstream/
+CPU/RSS/native Linux/72h production acceptance. No zero-overhead/full-production
+claim is made. The broader four-library goal remains active. All started jobs
+are terminal. Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-route-20261112.json),
+out/service-extensions/xredis-cluster-route-20261112 (initial cohort/red probe)
+and out/service-extensions/xredis-cluster-route-v2-20261112 (corrected cohort).

@@ -1,6 +1,7 @@
 #include <xredis/cluster_topology.h>
 #include "../internal/cluster_slot.h"
 #include "../internal/cluster_reply.h"
+#include "../internal/cluster_topology_internal.h"
 #include <xrt/memory.h>
 #include <xrt/atomic.h>
 #include <string.h>
@@ -204,6 +205,8 @@ static bool xredisClusterOutput(const xredisclustertopology* T,const void* Outpu
     if(!T || !__xredisClusterReplyOutput(T->Reply,Output,Bytes) || xrtMemRangesOverlap(T,T->Info.StorageBytes,Output,Bytes))return xredisClusterArgument("invalid Cluster topology output");
     return true;
 }
+bool __xredisClusterTopologyOutput(const xredisclustertopology* T,const void* Output,size_t Bytes)
+{return xredisClusterOutput(T,Output,Bytes);}
 XREDIS_API bool xredisClusterTopologyInfo(const xredisclustertopology* T,xredisclustertopologyinfo* I)
 {if(!xredisClusterOutput(T,I,sizeof(*I)) || I->Size!=sizeof(*I))return xredisClusterArgument("invalid Cluster topology info size");*I=T->Info;return true;}
 XREDIS_API xredisclusterstatus xredisClusterTopologyLookup(const xredisclustertopology* T,uint16 Slot,xredisclusternode* N)
