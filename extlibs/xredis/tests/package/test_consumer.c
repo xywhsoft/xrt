@@ -102,8 +102,24 @@ static xredisreadaction readReply(const xredisreadevent* Event, ptr User)
     return XREDIS_READ_NEXT;
 }
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_PUBSUB)
+static int testPubSubPackage(void)
+{
+    xbytesview Name=XRT_BYTES_LITERAL("package\0channel");size_t Required=0,Written=0;unsigned char Command[96];
+    if(!xredisPubSubCommandSize(XREDIS_PUBSUB_CMD_SUBSCRIBE,&Name,1,&Required) || !xredisPubSubCommandWrite(Command,sizeof(Command),XREDIS_PUBSUB_CMD_SUBSCRIBE,&Name,1,&Written) || Required!=Written)return 70;
+    static const char Wire[]=">3\r\n+message\r\n$3\r\na\0b\r\n$0\r\n\r\n";xredisreplyreader* Reader=NULL;xredisreply* Reply=NULL;size_t Used=0;
+    if(!xredisReplyReaderCreate(NULL,&Reader) || xredisReplyReaderFeed(Reader,(xbytesview){(cbytes)Wire,sizeof(Wire)-1},&Used,&Reply)!=XREDIS_REPLY_READY || Used!=sizeof(Wire)-1)return 71;
+    xredisReplyReaderDestroy(Reader);xredispubsubevent E;
+    if(xredisPubSubEventRead(Reply,&E)!=XREDIS_PUBSUB_EVENT || E.Kind!=XREDIS_PUBSUB_MESSAGE || E.Channel.Size!=3 || memcmp(E.Channel.Data,"a\0b",3) || E.Payload.Size)return 72;
+    if(xredisPubSubPongRead(Reply,NULL,&E)!=XREDIS_PUBSUB_OTHER)return 73;
+    xredisReplyRelease(Reply);return 0;
+}
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_PUBSUB)
+    int PubSubResult=testPubSubPackage();if(PubSubResult)return PubSubResult;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_COMMAND)
     {
         xbytesview Argument = XRT_BYTES_LITERAL("PING"); unsigned char Output[14]; size_t Written = 0;

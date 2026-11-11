@@ -188,3 +188,9 @@ OPTIN/OPTOUT queries with one queue credit, deadline and Future. Prefix and quer
 outcomes remain independent, including a prefix error followed by an executed
 query. The [runnable example](examples/caching/README.md) retains both results
 after physical shutdown; no application cache or uncertain replay is implied.
+
+The developing [Pub/Sub wire module](docs/pubsub.md) encodes all six subscription
+controls and PING, and classifies binary RESP2/RESP3 messages, ACKs and contextual
+PONG without allocating. [Offline example](examples/pubsub/README.md). Dedicated
+subscribed connection scheduling, ACK correlation, backpressure and recovery are
+still pending; ordinary Client calls continue to reject subscription mode changes.

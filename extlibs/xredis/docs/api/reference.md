@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `91` 个函数、`145` 个常量或宏、
-`63` 个公共类型。
+当前登记 `95` 个函数、`174` 个常量或宏、
+`68` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -249,6 +249,58 @@
 
 - `xrediswatchconfig`
 
+## `extlibs/xredis/include/xredis/pubsub.h`
+
+[查看带契约注释的公共头](../../include/xredis/pubsub.h)
+
+### 函数 (4)
+
+- `xredisPubSubCommandSize`
+- `xredisPubSubCommandWrite`
+- `xredisPubSubEventRead`
+- `xredisPubSubPongRead`
+
+### 常量与宏 (29)
+
+- `XREDIS_FEATURE_XREDIS_PUBSUB`
+- `XREDIS_PUBSUB_ARGUMENT`
+- `XREDIS_PUBSUB_CAPACITY`
+- `XREDIS_PUBSUB_CMD_PING`
+- `XREDIS_PUBSUB_CMD_PSUBSCRIBE`
+- `XREDIS_PUBSUB_CMD_PUNSUBSCRIBE`
+- `XREDIS_PUBSUB_CMD_SSUBSCRIBE`
+- `XREDIS_PUBSUB_CMD_SUBSCRIBE`
+- `XREDIS_PUBSUB_CMD_SUNSUBSCRIBE`
+- `XREDIS_PUBSUB_CMD_UNSUBSCRIBE`
+- `XREDIS_PUBSUB_ERROR`
+- `XREDIS_PUBSUB_EVENT`
+- `XREDIS_PUBSUB_LIMIT`
+- `XREDIS_PUBSUB_MALFORMED`
+- `XREDIS_PUBSUB_MESSAGE`
+- `XREDIS_PUBSUB_NAMES_MAX`
+- `XREDIS_PUBSUB_NAME_ABSENT`
+- `XREDIS_PUBSUB_OTHER`
+- `XREDIS_PUBSUB_OVERLAP`
+- `XREDIS_PUBSUB_PMESSAGE`
+- `XREDIS_PUBSUB_PONG`
+- `XREDIS_PUBSUB_PSUBSCRIBE`
+- `XREDIS_PUBSUB_PUNSUBSCRIBE`
+- `XREDIS_PUBSUB_SMESSAGE`
+- `XREDIS_PUBSUB_SSUBSCRIBE`
+- `XREDIS_PUBSUB_STRUCTURED`
+- `XREDIS_PUBSUB_SUBSCRIBE`
+- `XREDIS_PUBSUB_SUNSUBSCRIBE`
+- `XREDIS_PUBSUB_UNSUBSCRIBE`
+
+### 类型 (6)
+
+- `xredispubsubcommand`
+- `xredispubsuberror`
+- `xredispubsubevent`
+- `xredispubsubkind`
+- `xredispubsubstatus`
+- `xredisreplytype`
+
 ## `extlibs/xredis/include/xredis/reader.h`
 
 [查看带契约注释的公共头](../../include/xredis/reader.h)
@@ -306,7 +358,7 @@
 - `XREDIS_RESP2`
 - `XREDIS_RESP3`
 
-### 类型 (10)
+### 类型 (9)
 
 - `xredisreadaction`
 - `xredisreader`
@@ -317,7 +369,6 @@
 - `xredisreadkind`
 - `xredisreadproc`
 - `xredisreadstatus`
-- `xredisreplytype`
 
 ## `extlibs/xredis/include/xredis/reply.h`
 

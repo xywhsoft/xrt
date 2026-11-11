@@ -49,6 +49,22 @@
 #ifndef XREDIS_MODULE_XREDIS_TRACKING
 #define XREDIS_MODULE_XREDIS_TRACKING
 #endif
+#ifndef XREDIS_MODULE_XREDIS_PUBSUB
+#define XREDIS_MODULE_XREDIS_PUBSUB
+#endif
+#endif
+
+/* xredis_pubsub 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_PUBSUB)
+#ifndef XREDIS_FEATURE_XREDIS_PUBSUB
+#define XREDIS_FEATURE_XREDIS_PUBSUB
+#endif
+#ifndef XREDIS_MODULE_XREDIS_COMMAND
+#define XREDIS_MODULE_XREDIS_COMMAND
+#endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
 #endif
 
 /* xredis_tracking 及其直接依赖。 */

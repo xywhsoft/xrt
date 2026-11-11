@@ -71,4 +71,9 @@
 #endif
 #include <xredis/tracking.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_PUBSUB)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_PUBSUB"
+#endif
+#include <xredis/pubsub.h>
+
 #endif

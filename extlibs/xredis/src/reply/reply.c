@@ -1,5 +1,6 @@
 #include <xredis/reply.h>
 #include <xredis/tracking.h>
+#include <xredis/pubsub.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/number.h>
@@ -366,6 +367,102 @@ XREDIS_API bool xredisReplyReaderFinish(xredisreplyreader* Reader)
 	if (!xredisReaderFinish(Reader->Parser)) return xredisReplyParserFailure(Reader);
 	return true;
 }
+
+#if defined(XREDIS_FEATURE_XREDIS_PUBSUB)
+static bool xredisPubSubString(const xredisreplynode* N)
+{return (N->Type==XREDIS_REPLY_BULK_STRING || N->Type==XREDIS_REPLY_SIMPLE_STRING) && !(N->Flags&XREDIS_REPLY_NULL_VALUE);}
+static bool xredisPubSubWord(const xredisreplynode* N,const xredisreply* R,cstr Word,size_t Length)
+{return xredisPubSubString(N) && N->Bytes==Length && !memcmp(R->Data+N->Offset,Word,Length);}
+static xbytesview xredisPubSubView(const xredisreplynode* N,const xredisreply* R)
+{return (xbytesview){R->Data+N->Offset,N->Bytes};}
+static bool xredisPubSubNullName(const xredisreplynode* N)
+{return N->Type==XREDIS_REPLY_NULL || (N->Type==XREDIS_REPLY_BULK_STRING && (N->Flags&XREDIS_REPLY_NULL_VALUE));}
+static bool xredisPubSubOutput(const xredisreply* R,xredispubsubevent* Output)
+{
+    if(!R || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xredisReplyOverlap(R,Output,sizeof(*Output))){
+        xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_PUBSUB_ARGUMENT,"invalid Pub/Sub event output");return false;
+    }
+    return true;
+}
+static xredispubsubstatus xredisPubSubRead(const xredisreply* R,xredispubsubevent* Output)
+{
+    const xredisreplynode* Root=R->Nodes+R->Root;
+    if((Root->Type!=XREDIS_REPLY_ARRAY && Root->Type!=XREDIS_REPLY_PUSH) || !Root->ChildCount)return XREDIS_PUBSUB_OTHER;
+    const xredisreplynode* Tag=R->Nodes+Root->FirstChild;
+    static const xbytesview Tags[]={XRT_BYTES_LITERAL("message"),XRT_BYTES_LITERAL("pmessage"),XRT_BYTES_LITERAL("smessage"),
+        XRT_BYTES_LITERAL("subscribe"),XRT_BYTES_LITERAL("psubscribe"),XRT_BYTES_LITERAL("ssubscribe"),
+        XRT_BYTES_LITERAL("unsubscribe"),XRT_BYTES_LITERAL("punsubscribe"),XRT_BYTES_LITERAL("sunsubscribe"),XRT_BYTES_LITERAL("pong")};
+    _Static_assert(sizeof(Tags)/sizeof(*Tags)==XREDIS_PUBSUB_PONG+1,"tag table follows public event kinds");
+    size_t Kind;
+    for(Kind=0;Kind<sizeof(Tags)/sizeof(*Tags);++Kind)
+        if(xredisPubSubWord(Tag,R,(cstr)Tags[Kind].Data,Tags[Kind].Size))break;
+    if(Kind==sizeof(Tags)/sizeof(*Tags))return XREDIS_PUBSUB_OTHER;
+    size_t Arity=Kind==XREDIS_PUBSUB_PMESSAGE?4:Kind==XREDIS_PUBSUB_PONG?2:3;
+    if(Root->ChildCount!=Arity)return XREDIS_PUBSUB_MALFORMED;
+    xredispubsubevent E={0};E.Reply=R;E.Kind=(xredispubsubkind)Kind;E.Envelope=Root->Type;E.PayloadNode=XREDIS_REPLY_NONE;
+    const xredisreplynode* Name=R->Nodes+Tag->Next;
+    if(Kind>=XREDIS_PUBSUB_SUBSCRIBE && Kind<=XREDIS_PUBSUB_SUNSUBSCRIBE){
+        const xredisreplynode* Count=R->Nodes+Name->Next;
+        if(Count->Type!=XREDIS_REPLY_INTEGER || Count->Integer<0 || (Kind<=XREDIS_PUBSUB_SSUBSCRIBE && !Count->Integer))return XREDIS_PUBSUB_MALFORMED;
+        if(xredisPubSubNullName(Name)){
+            if(Kind<XREDIS_PUBSUB_UNSUBSCRIBE)return XREDIS_PUBSUB_MALFORMED;
+            E.Flags=XREDIS_PUBSUB_NAME_ABSENT;
+        }else {
+            if(!xredisPubSubString(Name))return XREDIS_PUBSUB_MALFORMED;
+            if(Kind==XREDIS_PUBSUB_PSUBSCRIBE || Kind==XREDIS_PUBSUB_PUNSUBSCRIBE)E.Pattern=xredisPubSubView(Name,R);
+            else E.Channel=xredisPubSubView(Name,R);
+        }
+        E.Subscriptions=(uint64)Count->Integer;
+    }else if(Kind==XREDIS_PUBSUB_PONG){
+        if(!xredisPubSubString(Name))return XREDIS_PUBSUB_MALFORMED;
+        E.Payload=xredisPubSubView(Name,R);E.PayloadNode=Tag->Next;
+    }else{
+        if(!xredisPubSubString(Name))return XREDIS_PUBSUB_MALFORMED;
+        const xredisreplynode* Channel=Name;
+        if(Kind==XREDIS_PUBSUB_PMESSAGE){E.Pattern=xredisPubSubView(Name,R);Channel=R->Nodes+Name->Next;if(!xredisPubSubString(Channel))return XREDIS_PUBSUB_MALFORMED;}
+        E.Channel=xredisPubSubView(Channel,R);E.PayloadNode=Channel->Next;const xredisreplynode* Payload=R->Nodes+E.PayloadNode;
+        if(xredisPubSubString(Payload))E.Payload=xredisPubSubView(Payload,R);
+        else {
+            if(Kind!=XREDIS_PUBSUB_MESSAGE || Root->Type!=XREDIS_REPLY_ARRAY || !xredisPubSubWord(Channel,R,"__redis__:invalidate",20))return XREDIS_PUBSUB_MALFORMED;
+            bool Null=Payload->Type==XREDIS_REPLY_NULL || ((Payload->Type==XREDIS_REPLY_ARRAY || Payload->Type==XREDIS_REPLY_BULK_STRING) && (Payload->Flags&XREDIS_REPLY_NULL_VALUE));
+            if(!Null){
+                if(Payload->Type!=XREDIS_REPLY_ARRAY)return XREDIS_PUBSUB_MALFORMED;
+                for(size_t N=Payload->FirstChild;N!=XREDIS_REPLY_NONE;N=R->Nodes[N].Next)
+                    if(R->Nodes[N].Type!=XREDIS_REPLY_BULK_STRING || (R->Nodes[N].Flags&XREDIS_REPLY_NULL_VALUE))return XREDIS_PUBSUB_MALFORMED;
+            }
+            E.Flags=XREDIS_PUBSUB_STRUCTURED;
+        }
+    }
+    *Output=E;return XREDIS_PUBSUB_EVENT;
+}
+XREDIS_API xredispubsubstatus xredisPubSubEventRead(const xredisreply* R,xredispubsubevent* Output)
+{
+    if(!xredisPubSubOutput(R,Output))return XREDIS_PUBSUB_ERROR;
+    return xredisPubSubRead(R,Output);
+}
+XREDIS_API xredispubsubstatus xredisPubSubPongRead(const xredisreply* R,const xbytesview* Expected,xredispubsubevent* Output)
+{
+    if(!xredisPubSubOutput(R,Output))return XREDIS_PUBSUB_ERROR;
+    if(Expected && (!xrtMemRangeValid(Expected,sizeof(*Expected)) || xrtMemRangesOverlap(Output,sizeof(*Output),Expected,sizeof(*Expected)) ||
+        !xrtMemRangeValid(Expected->Data,Expected->Size) || xrtMemRangesOverlap(Output,sizeof(*Output),Expected->Data,Expected->Size))){
+        xrtSetErrorInfo(XERR_ARGUMENT,"xrt.redis",XREDIS_PUBSUB_ARGUMENT,"invalid Pub/Sub expected PING payload");return XREDIS_PUBSUB_ERROR;
+    }
+    const xredisreplynode* Root=R->Nodes+R->Root;xredispubsubevent E;
+    if(Root->Type==XREDIS_REPLY_ARRAY || Root->Type==XREDIS_REPLY_PUSH){
+        xredispubsubstatus Status=xredisPubSubRead(R,&E);
+        if(Status!=XREDIS_PUBSUB_EVENT)return Status;
+        if(E.Kind!=XREDIS_PUBSUB_PONG)return XREDIS_PUBSUB_OTHER;
+    }else{
+        if(Root->Type==XREDIS_REPLY_SIMPLE_ERROR || Root->Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_PUBSUB_OTHER;
+        E=(xredispubsubevent){0};E.Reply=R;E.Kind=XREDIS_PUBSUB_PONG;E.Envelope=Root->Type;E.PayloadNode=R->Root;
+        if(!Expected){if(!xredisPubSubWord(Root,R,"PONG",4) || Root->Type!=XREDIS_REPLY_SIMPLE_STRING)return XREDIS_PUBSUB_MALFORMED;}
+        else {if(Root->Type!=XREDIS_REPLY_BULK_STRING || !xredisPubSubString(Root))return XREDIS_PUBSUB_MALFORMED;E.Payload=xredisPubSubView(Root,R);}
+    }
+    size_t Size=Expected?Expected->Size:0;
+    if(E.Payload.Size!=Size || (Size && memcmp(E.Payload.Data,Expected->Data,Size)))return XREDIS_PUBSUB_MALFORMED;
+    *Output=E;return XREDIS_PUBSUB_EVENT;
+}
+#endif
 
 #if defined(XREDIS_FEATURE_XREDIS_TRACKING)
 static bool xredisTrackingWord(const xredisreplynode* N,const xredisreply* R,cstr Word,size_t Length)

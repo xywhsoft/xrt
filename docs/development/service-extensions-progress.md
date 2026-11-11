@@ -10431,3 +10431,78 @@ soak or production acceptance is claimed. The full four-library goal remains act
 
 Evidence: [portable report](../../extlibs/xredis/tests/results/caching-20261111.json)
 and out/service-extensions/xredis-caching-20261111.
+
+
+## 2026-11-11: standalone Redis Pub/Sub wire foundation
+
+Implemented directly on master from2e3082c2. The developing xredis_pubsub leaf
+adds four APIs for caller-buffer SUBSCRIBE/PSUBSCRIBE/SSUBSCRIBE, their three
+unsubscribe variants and PING, plus immutable RESP2/RESP3 event and contextual
+PONG views. Binary, empty and duplicate names retain caller order. All ten
+event kinds validate complete shape before publishing output. Null unsubscribe
+names differ from empty names; regular channel/pattern and shard counts have
+separate domains. Attributes and legacy structured RESP2 invalidations stay on
+the original owned Reply. OTHER/malformed classification preserves all output
+and ambient error. No Core API, worker, Client or network runtime is added.
+
+Commands have a1024-name bound, preflight all spans/capacity/aliases and reject
+signed-length/encoded-size/address overflow atomically. Valid encode/decode
+uses no heap or descriptor-array copy; normal event views do not scan/copy the
+payload. Exact contextual PONG matching compares the expected bytes. Explicit
+Reply retention supports views after parser/original-owner release. Warmed
+tests verify flat malloc/calloc/realloc/backing counters under a minimal valid
+allocation budget, with no live duties. Single, static/shared SDK, isolated
+declaration consumers, runnable example, size and API assets are regenerated.
+
+Final Windows and WSL root modular22 programs pass, as do focused and single
+tests. WSL instruments the complete root/leaf/single path with ASan/UBSan and
+leak halt, plus focused TSan. All final SDK/isolated-declaration consumers pass;
+actual DLL/ELF exports expose the four new APIs and no internal hooks. Three
+size forms per platform pass; minimal single closures contain no forbidden
+Client/network/TLS/HTTP/WebSocket/task/process symbols. API docs cover95
+functions,174 constants and68 types, with zero missing entries.
+
+An independent Python encoder/parser captures312 reference records from six
+RESP2/RESP3 TCP/TLS1.2/TLS1.3 scenarios against Redis8.0.5. Eight actual C forms
+each replay all records at1/7/65536-byte fragments:7488 offline record checks,
+not7488 network scenarios. Requests match exact independent wire bytes and
+events match binary fields/count domains, including duplicate/unknown-name
+ACKs, unsubscribe-all, post-exit scalar PONG and structured invalidation/flush.
+Disposable server PID/run identity is checked before mutation; processes and
+ephemeral TLS credentials are cleaned. Python reference transports do not prove
+a native subscribed Client or TLS runtime.
+
+Initial Windows single-TU GCC -Werror reported maybe-uninitialized in a nested
+diagnostic call; initializing its scratch local did not resolve the warning.
+Both failed source/log snapshots are preserved. Direct input diagnostics remove
+the nested public size call, preserve command argument/range codes and report
+Pub/Sub LIMIT on encoded-total overflow. A candidate with explicit span/int64/
+total-overflow tests passed before applying; all final forms were then rerun.
+Earlier prototype budget0/indentation failures and noisy measurements remain
+in the raw evidence rather than being presented as successful runs.
+
+A first matched WSL32-name comparison found a joint-qualified14.5% typed
+throughput shortfall versus generic. GCC15 assembly retained one Bulk helper
+call per name; generic serialized inline. A standard C static-inline declaration
+removes that per-name call. The isolated prototype improved both32/1024-name
+paths with identical other objects. The original report, logs, sources and SDKs
+remain archived, and all final functional/size/performance forms were rerun.
+
+Performance runs serially after validation with identical shared runtime
+objects, seven samples/one warmup and unchanged3% MAD/6% central-span limits.
+One preliminary calibration selects a common iteration count targeting0.3s
+(the existing10-million iteration cap still applies); calibration is excluded
+from measurements. Caller setup is excluded, semantic checks/checksums remain
+timed, and generic descriptor assembly happens before timing. Qualified matched
+typed-versus-initial encoder throughput comparisons: windows: 1 names +27.4%, 32 names +11.9%, 1024 names +12.2%; wsl: 1 names +29.4%, 32 names +26.9%, 1024 names +28.4%.
+All raw samples, failed noise gates, current/generic comparisons, parser/owned
+view costs and heap counts remain in the report. This offline component stage
+does not qualify native Linux, upstream, network tail latency, fixed-arrival,
+CPU/RSS,72h soak or production performance.
+
+Native subscribed connection/ACK correlation, bounded registry, delivery
+backpressure and reconnect/replay remain required. The ordinary Client still
+rejects subscribe/mode commands. The full four-library goal remains active.
+
+Evidence: [portable report](../../extlibs/xredis/tests/results/pubsub-wire-20261111.json)
+and out/service-extensions/xredis-pubsub-20261111.

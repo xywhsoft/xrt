@@ -110,6 +110,13 @@
         "source_roots": [
           "pool_connect"
         ]
+      },
+      {
+        "name": "pubsub",
+        "state": "retained",
+        "source_roots": [
+          "pubsub"
+        ]
       }
     ]
   },
@@ -380,7 +387,8 @@
         "xredis_pool_transaction",
         "xredis_pool_watch",
         "xredis_pool_connect",
-        "xredis_tracking"
+        "xredis_tracking",
+        "xredis_pubsub"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -820,7 +828,8 @@
         "extlibs/xredis/tests/test_pool_sessions.c",
         "extlibs/xredis/tests/test_pool_connect.c",
         "extlibs/xredis/tests/test_tracking.c",
-        "extlibs/xredis/tests/test_caching.c"
+        "extlibs/xredis/tests/test_caching.c",
+        "extlibs/xredis/tests/test_pubsub.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -840,7 +849,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_connect.c",
         "extlibs/xredis/tests/single/test_single_xredis_tracking.c",
         "extlibs/xredis/tests/single/test_single_xredis_caching.c",
-        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -867,7 +877,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_connect.c": "xredis_pool_connect_tests",
         "extlibs/xredis/tests/single/test_single_xredis_tracking.c": "xredis_tracking",
         "extlibs/xredis/tests/single/test_single_xredis_caching.c": "xredis_tracking",
-        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c": "xredis_caching_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_caching_tls.c": "xredis_caching_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c": "xredis_pubsub"
       }
     },
     {
@@ -930,6 +941,39 @@
       "examples": [],
       "benchmarks": [],
       "docs": []
+    },
+    {
+      "name": "xredis_pubsub",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_PUBSUB",
+      "depends": [
+        "xredis_command",
+        "xredis_reply"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/pubsub.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/pubsub/pubsub.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_pubsub.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_pubsub.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/pubsub/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_pubsub.c"
+      ],
+      "docs": [
+        "extlibs/xredis/README.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/docs/pubsub.md"
+      ]
     }
   ]
 }

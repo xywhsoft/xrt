@@ -192,6 +192,21 @@
         "xredisClientDial",
         "xrtTask"
       ]
+    },
+    {
+      "name": "xredis_pubsub",
+      "system": "pubsub",
+      "suite": "xredis_pubsub",
+      "description": "Standalone Pub/Sub wire views/commands with no Client or network runtime",
+      "forbid_symbols": [
+        "xredisClient",
+        "xrtNet",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }
