@@ -34,6 +34,10 @@
 #include <xredis/command.h>
 #include <xredis/reader.h>
 #include <xredis/reply.h>
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_ROLE)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_ROLE"
+#endif
+#include <xredis/role.h>
 #include <xredis/client.h>
 #include <xredis/dial.h>
 #include <xredis/tls.h>

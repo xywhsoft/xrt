@@ -216,3 +216,5 @@ bounded jittered backoff and restores desired intent. Live edits apply increment
 deltas on the same transport; native receive remains direct. See
 [session contracts](docs/subscription_session.md). HA topology and the complete
 production/long-run gates remain open.
+
+Optional [ROLE inspection](docs/role.md) supplies bounded borrowed role/list views; discovery and role-gated initialization remain subsequent work.

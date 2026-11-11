@@ -271,6 +271,20 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_role",
+      "system": "reply",
+      "suite": "xredis_role",
+      "description": "Immutable ROLE validation/cursors over reply owner; excludes networking, threads and executors",
+      "forbid_symbols": [
+        "xredisClient",
+        "xrtNet",
+        "xrtTcp",
+        "xrtThread",
+        "xrtTask",
+        "xrtFuture"
+      ]
     }
   ]
 }

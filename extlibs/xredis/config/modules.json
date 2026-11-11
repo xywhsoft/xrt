@@ -413,7 +413,8 @@
         "xredis_subscriber",
         "xredis_subscriber_notify",
         "xredis_subscriptions",
-        "xredis_subscription_session"
+        "xredis_subscription_session",
+        "xredis_role"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -862,7 +863,8 @@
         "extlibs/xredis/tests/test_subscriber.c",
         "extlibs/xredis/tests/test_subscriber_notify.c",
         "extlibs/xredis/tests/test_subscriptions.c",
-        "extlibs/xredis/tests/test_subscription_session.c"
+        "extlibs/xredis/tests/test_subscription_session.c",
+        "extlibs/xredis/tests/test_role.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -891,7 +893,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c",
-        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c"
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c",
+        "extlibs/xredis/tests/single/test_single_xredis_role.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -927,7 +930,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions.c": "xredis_subscriptions",
         "extlibs/xredis/tests/single/test_single_xredis_subscriptions_tls.c": "xredis_subscriptions_tests",
         "extlibs/xredis/tests/single/test_single_xredis_subscription_session.c": "xredis_subscription_session",
-        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c": "xredis_subscription_session_tests"
+        "extlibs/xredis/tests/single/test_single_xredis_subscription_session_tls.c": "xredis_subscription_session_tests",
+        "extlibs/xredis/tests/single/test_single_xredis_role.c": "xredis_role"
       }
     },
     {
@@ -1247,6 +1251,38 @@
       "examples": [],
       "benchmarks": [],
       "docs": []
+    },
+    {
+      "name": "xredis_role",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_ROLE",
+      "depends": [
+        "xredis_reply"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/role.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xredis/src/reply/reply.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_role.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_role.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/role/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_role.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/role.md",
+        "extlibs/xredis/docs/api/reference.md",
+        "extlibs/xredis/examples/role/README.md"
+      ]
     }
   ]
 }

@@ -3596,6 +3596,223 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_role",
+      "system": "reply",
+      "description": "Owned ROLE validation+iteration, full parse/lifetime and cursor-only costs; no network/production tail claim",
+      "benchmarks": [
+        {
+          "name": "xredis_role_0_0",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "15500000",
+            "0",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "0",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_0_1",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "5100000",
+            "1",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_0_32",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "1000000",
+            "32",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "32",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_1_1",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "600000",
+            "1",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_2_1",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "11800000",
+            "1",
+            "2",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "1",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_role_2_32",
+          "source": "extlibs/xredis/bench/bench_role.c",
+          "suite": "xredis_role,memory_stats,time",
+          "args": [
+            "1000000",
+            "32",
+            "2",
+            "1"
+          ],
+          "smoke_args": [
+            "16",
+            "32",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "roles_per_sec": {
+              "unit": "roles/s",
+              "direction": "higher"
+            },
+            "ns_per_role": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "heap_blocks_per_role": {
+              "unit": "blocks/role",
+              "direction": "lower"
+            },
+            "heap_bytes_per_role": {
+              "unit": "bytes/role",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

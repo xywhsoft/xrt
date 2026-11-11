@@ -64,6 +64,19 @@
 #ifndef XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
 #define XREDIS_MODULE_XREDIS_SUBSCRIPTION_SESSION
 #endif
+#ifndef XREDIS_MODULE_XREDIS_ROLE
+#define XREDIS_MODULE_XREDIS_ROLE
+#endif
+#endif
+
+/* xredis_role 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_ROLE)
+#ifndef XREDIS_FEATURE_XREDIS_ROLE
+#define XREDIS_FEATURE_XREDIS_ROLE
+#endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
 #endif
 
 /* xredis_subscription_session 及其直接依赖。 */

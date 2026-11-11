@@ -135,8 +135,16 @@ static int testPubSubPackage(void)
 #include "../../examples/subscription_session/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_ROLE)
+#define main rolePackageExample
+#include "../../examples/role/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_ROLE)
+    if(rolePackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_SUBSCRIPTION_SESSION)
     if(sessionPackageExample())return 1;
 #endif

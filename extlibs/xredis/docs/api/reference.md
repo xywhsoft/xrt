@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `129` 个函数、`200` 个常量或宏、
-`90` 个公共类型。
+当前登记 `133` 个函数、`215` 个常量或宏、
+`97` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -412,6 +412,45 @@
 - `xredisreplyreaderinfo`
 - `xredisreplystatus`
 - `xredisreplyvalue`
+
+## `extlibs/xredis/include/xredis/role.h`
+
+[查看带契约注释的公共头](../../include/xredis/role.h)
+
+### 函数 (4)
+
+- `xredisRoleLimitsInit`
+- `xredisRoleMasterNext`
+- `xredisRoleRead`
+- `xredisRoleReplicaNext`
+
+### 常量与宏 (15)
+
+- `XREDIS_FEATURE_XREDIS_ROLE`
+- `XREDIS_ROLE_ERROR`
+- `XREDIS_ROLE_LIMIT`
+- `XREDIS_ROLE_LINK_CONNECT`
+- `XREDIS_ROLE_LINK_CONNECTED`
+- `XREDIS_ROLE_LINK_CONNECTING`
+- `XREDIS_ROLE_LINK_OTHER`
+- `XREDIS_ROLE_LINK_SYNC`
+- `XREDIS_ROLE_MALFORMED`
+- `XREDIS_ROLE_MASTER`
+- `XREDIS_ROLE_OTHER`
+- `XREDIS_ROLE_REPLICA`
+- `XREDIS_ROLE_SENTINEL`
+- `XREDIS_ROLE_SERVER_ERROR`
+- `XREDIS_ROLE_VALUE`
+
+### 类型 (7)
+
+- `xredisrolecursor`
+- `xredisroleinfo`
+- `xredisrolekind`
+- `xredisrolelimits`
+- `xredisrolelink`
+- `xredisrolereplica`
+- `xredisrolestatus`
 
 ## `extlibs/xredis/include/xredis/subscriber.h`
 

@@ -1,6 +1,7 @@
 #include <xredis/reply.h>
 #include <xredis/tracking.h>
 #include <xredis/pubsub.h>
+#include <xredis/role.h>
 #include <xrt/atomic.h>
 #include <xrt/memory.h>
 #include <xrt/number.h>
@@ -504,6 +505,91 @@ XREDIS_API xredistrackingstatus xredisTrackingEventRead(const xredisreply* R,xre
             if(R->Nodes[N].Type!=XREDIS_REPLY_BULK_STRING || (R->Nodes[N].Flags&XREDIS_REPLY_NULL_VALUE))return XREDIS_TRACKING_MALFORMED;
     }
     *Output=E;return XREDIS_TRACKING_EVENT;
+}
+#endif
+
+
+#if defined(XREDIS_FEATURE_XREDIS_ROLE)
+static bool xredisRoleArgument(cstr Text)
+{return xredisReplyReport(XERR_ARGUMENT,XREDIS_REPLY_ARGUMENT,Text);}
+static bool xredisRoleString(const xredisreplynode* N)
+{return (N->Type==XREDIS_REPLY_BULK_STRING || N->Type==XREDIS_REPLY_SIMPLE_STRING) && !(N->Flags&XREDIS_REPLY_NULL_VALUE);}
+static xbytesview xredisRoleView(const xredisreply* R,const xredisreplynode* N)
+{return (xbytesview){N->Bytes?R->Data+N->Offset:NULL,N->Bytes};}
+static bool xredisRoleWord(const xredisreply* R,const xredisreplynode* N,cstr Text)
+{return xredisRoleString(N) && N->Bytes==strlen(Text) && !memcmp(R->Data+N->Offset,Text,N->Bytes);}
+static bool xredisRoleArray(const xredisreplynode* N,size_t Count)
+{return N->Type==XREDIS_REPLY_ARRAY && !(N->Flags&XREDIS_REPLY_NULL_VALUE) && N->ChildCount==Count;}
+static bool xredisRoleUnsigned(const xredisreply* R,const xredisreplynode* V,int64* Output)
+{
+    if(V->Type==XREDIS_REPLY_INTEGER){if(V->Integer<0)return false;*Output=V->Integer;return true;}
+    if(!xredisRoleString(V) || !V->Bytes)return false;
+    uint64 N=0;for(size_t I=0;I<V->Bytes;++I){unsigned C=R->Data[V->Offset+I];if(C<'0' || C>'9' || N>((uint64)INT64_MAX-(C-'0'))/10)return false;N=N*10+C-'0';}*Output=(int64)N;return true;
+}
+static bool xredisRoleTuple(const xredisreply* R,size_t Node,xredisrolereplica* Output,size_t* Next)
+{
+    if(Node>=R->Count)return false;
+    const xredisreplynode* T=R->Nodes+Node;if(!xredisRoleArray(T,3))return false;
+    const xredisreplynode* H=R->Nodes+T->FirstChild;const xredisreplynode* P=R->Nodes+H->Next;const xredisreplynode* O=R->Nodes+P->Next;
+    int64 Port,Offset;if(!xredisRoleString(H) || !xredisRoleUnsigned(R,P,&Port) || Port>65535 || !xredisRoleUnsigned(R,O,&Offset))return false;
+    *Output=(xredisrolereplica){xredisRoleView(R,H),(uint16)Port,Offset};*Next=T->Next;return true;
+}
+XREDIS_API bool xredisRoleLimitsInit(xredisrolelimits* K)
+{
+    if(!K || !xrtMemRangeValid(K,sizeof(*K)))return xredisRoleArgument("invalid ROLE limits output");
+    *K=(xredisrolelimits){sizeof(*K),4096,1024u*1024u};return true;
+}
+XREDIS_API xredisrolestatus xredisRoleRead(const xredisreply* R,const xredisrolelimits* Config,xredisroleinfo* Output)
+{
+    if(!R || !Output || !xrtMemRangeValid(Output,sizeof(*Output)) || xredisReplyOverlap(R,Output,sizeof(*Output)) ||
+        (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || Config->Size!=sizeof(*Config) || xrtMemRangesOverlap(Config,sizeof(*Config),Output,sizeof(*Output))))){xredisRoleArgument("invalid ROLE arguments/limits");return XREDIS_ROLE_ERROR;}
+    xredisrolelimits K=Config?*Config:(xredisrolelimits){sizeof(K),4096,1024u*1024u};
+    const xredisreplynode* Root=R->Nodes+R->Root;
+    if(Root->Type==XREDIS_REPLY_SIMPLE_ERROR || Root->Type==XREDIS_REPLY_BULK_ERROR)return XREDIS_ROLE_SERVER_ERROR;
+    if(Root->Type!=XREDIS_REPLY_ARRAY || (Root->Flags&XREDIS_REPLY_NULL_VALUE) || !Root->ChildCount)return XREDIS_ROLE_OTHER;
+    const xredisreplynode* Word=R->Nodes+Root->FirstChild;
+    xredisrolekind Kind=xredisRoleWord(R,Word,"master")?XREDIS_ROLE_MASTER:xredisRoleWord(R,Word,"slave")?XREDIS_ROLE_REPLICA:xredisRoleWord(R,Word,"sentinel")?XREDIS_ROLE_SENTINEL:0;
+    if(!Kind)return XREDIS_ROLE_OTHER;
+    if(R->DataBytes>K.MaxPayloadBytes)return XREDIS_ROLE_LIMIT;
+    if(!xredisRoleArray(Root,Kind==XREDIS_ROLE_MASTER?3:Kind==XREDIS_ROLE_REPLICA?5:2))return XREDIS_ROLE_MALFORMED;
+    xredisroleinfo V={0};V.Kind=Kind;V.Replicas.Next=V.Monitored.Next=XREDIS_REPLY_NONE;
+    const xredisreplynode* A=R->Nodes+Word->Next;
+    if(Kind==XREDIS_ROLE_REPLICA){
+        const xredisreplynode* B=R->Nodes+A->Next;const xredisreplynode* C=R->Nodes+B->Next;const xredisreplynode* D=R->Nodes+C->Next;
+        if(!xredisRoleString(A) || B->Type!=XREDIS_REPLY_INTEGER || B->Integer<0 || B->Integer>65535 || !xredisRoleString(C) || D->Type!=XREDIS_REPLY_INTEGER || D->Integer< -1)return XREDIS_ROLE_MALFORMED;
+        V.MasterHost=xredisRoleView(R,A);V.MasterPort=(uint16)B->Integer;V.Offset=D->Integer;V.LinkText=xredisRoleView(R,C);
+        V.Link=xredisRoleWord(R,C,"connect")?XREDIS_ROLE_LINK_CONNECT:xredisRoleWord(R,C,"connecting")?XREDIS_ROLE_LINK_CONNECTING:xredisRoleWord(R,C,"sync")?XREDIS_ROLE_LINK_SYNC:xredisRoleWord(R,C,"connected")?XREDIS_ROLE_LINK_CONNECTED:XREDIS_ROLE_LINK_OTHER;
+    }else{
+        const xredisreplynode* B=A;
+        if(Kind==XREDIS_ROLE_MASTER){if(A->Type!=XREDIS_REPLY_INTEGER || A->Integer<0)return XREDIS_ROLE_MALFORMED;V.Offset=A->Integer;B=R->Nodes+A->Next;}
+        if(B->Type!=XREDIS_REPLY_ARRAY || (B->Flags&XREDIS_REPLY_NULL_VALUE))return XREDIS_ROLE_MALFORMED;
+        if(B->ChildCount>K.MaxEntries)return XREDIS_ROLE_LIMIT;
+        size_t Node=B->FirstChild;for(size_t N=0;N<B->ChildCount;++N){
+            if(Kind==XREDIS_ROLE_MASTER){xredisrolereplica Peer;size_t Next;if(!xredisRoleTuple(R,Node,&Peer,&Next))return XREDIS_ROLE_MALFORMED;Node=Next;}
+            else{const xredisreplynode* Name=R->Nodes+Node;if(!xredisRoleString(Name))return XREDIS_ROLE_MALFORMED;Node=Name->Next;}
+        }
+        xredisrolecursor Cursor={R,B->FirstChild,B->ChildCount,(uint32)Kind};if(Kind==XREDIS_ROLE_MASTER)V.Replicas=Cursor;else V.Monitored=Cursor;
+    }
+    *Output=V;return XREDIS_ROLE_VALUE;
+}
+static bool xredisRoleCursorValid(xredisrolecursor* C,ptr Output,size_t Bytes,xredisrolekind Kind)
+{
+    if(!C || !Output || !xrtMemRangeValid(C,sizeof(*C)) || !xrtMemRangeValid(Output,Bytes) || xrtMemRangesOverlap(C,sizeof(*C),Output,Bytes) || !C->Source || C->Kind!=(uint32)Kind ||
+        xredisReplyOverlap(C->Source,C,sizeof(*C)) || xredisReplyOverlap(C->Source,Output,Bytes) || C->Remaining>C->Source->Count || (!C->Remaining && C->Next!=XREDIS_REPLY_NONE))return xredisRoleArgument("invalid ROLE cursor/output");
+    return true;
+}
+XREDIS_API bool xredisRoleReplicaNext(xredisrolecursor* C,xredisrolereplica* Output)
+{
+    if(!xredisRoleCursorValid(C,Output,sizeof(*Output),XREDIS_ROLE_MASTER) || !C->Remaining)return false;
+    xredisrolereplica V;size_t Next;if(!xredisRoleTuple(C->Source,C->Next,&V,&Next) || (C->Remaining==1)!=(Next==XREDIS_REPLY_NONE))return xredisRoleArgument("invalid ROLE replica cursor chain");
+    *Output=V;C->Next=Next;--C->Remaining;return true;
+}
+XREDIS_API bool xredisRoleMasterNext(xredisrolecursor* C,xbytesview* Output)
+{
+    if(!xredisRoleCursorValid(C,Output,sizeof(*Output),XREDIS_ROLE_SENTINEL) || !C->Remaining)return false;
+    if(C->Next>=C->Source->Count)return xredisRoleArgument("invalid ROLE monitor cursor index");
+    const xredisreplynode* N=C->Source->Nodes+C->Next;if(!xredisRoleString(N) || (C->Remaining==1)!=(N->Next==XREDIS_REPLY_NONE))return xredisRoleArgument("invalid ROLE monitor cursor chain");
+    *Output=xredisRoleView(C->Source,N);C->Next=N->Next;--C->Remaining;return true;
 }
 #endif
 

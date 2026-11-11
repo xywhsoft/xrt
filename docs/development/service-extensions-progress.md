@@ -10890,3 +10890,56 @@ The full production objective remains active. Future development defaults to
 D:/GIT/xrt master per the existing mainline policy.
 Evidence: [portable report](service-extensions-mainline-final-20261111.json) and
 out/service-extensions/mainline-final-workspace-20261111.
+
+
+## 2026-11-11: immutable ROLE projection and list cursors
+
+Developed directly on master from b402a0b4. The developing
+xredis_role leaf adds four public APIs over existing immutable replies. Complete
+master/replica/Sentinel shapes, decimal/int64 bounds and entry/payload caps are
+validated before output publication. Unknown link text stays borrowed. No host
+or name payload scan/copy, heap object, reference acquisition, client/request
+field, worker or shared runtime is introduced. Existing reply allocation-overlap
+checks also protect unused source storage. Kind-specific cursors need a caller
+held live Reply reference. Managed ROLE readiness and Sentinel/Cluster HA remain
+required next stages; the old whole draft is a historical 039c589a snapshot.
+
+Windows/WSL root modular tests each execute 27 programs. Focused, new single,
+existing reply/PubSub compatibility singles and the offline four-API example
+pass. WSL uses ASan/UBSan/leak halt and the new single also passes TSan. Extra
+whole-root module-selector single-header consumers compile/run on both hosts
+without direct feature defines. Total functional programs including those
+consumers are 32 Windows and 33 WSL. All final normal metadata gates pass.
+Actual static/shared SDK and isolated declaration consumers execute all four
+APIs. DLL/ELF exports, six size forms and forbidden-symbol checks pass. Private
+reply/node/reader sizes remain 224/80/136 bytes; new caller-owned Info/Cursor
+values are 120/32 bytes on both targets.
+
+The real Redis 8.0.5 corpus supplies 8 RESP2/3 frames from disposable owned master,
+online/offline replicas and Sentinel, read by both C binaries (16 probes).
+Offline offsets are actually -1. PID/run identity and complete process/material
+cleanup are verified, including a native temporary path containing spaces.
+Initial probe compilation failed strict misleading-indentation warnings; the
+exact source/logs remain. One newline fixed the warning, then a replica-host
+assertion strengthened the final probe. The first project-drive fixture failed
+RDB loading before any C probe ran. Same binary/deadline with only runtime
+storage moved to /tmp passes; the final runner uses system temp and quotes its
+Sentinel directory. Original failures and controlled comparisons remain.
+
+Initial short Windows timing samples failed quality gates. Calibrated both
+hosts with one warmup/sample, fixed common counts for a 350 ms target before final
+measurements, then ran 7 samples plus 1 warmup serially. No 3% MAD/6% central-span
+threshold was relaxed. Windows qualifies all 6 workloads. WSL unpinned retains
+5 unqualified workloads; the one preselected lowest-allowed-CPU comparison
+still has 3 unqualified workloads. All data remain; no further retry selected a
+green result. Views/cursors have zero measured heap calls/bytes; whole parse/
+view/release retains 4 blocks/1344 bytes for the one-peer fixture. These component
+means do not qualify network tails or production throughput.
+
+Seven source identities explicitly preserve probe/fixture/docs/benchmark-only
+changes. Shipping C/headers/module selection and existing unit/SDK inputs remain
+byte-identical to the tested v1. All started jobs are terminal. Native Linux,
+CPU/RSS, upstream/fixed-arrival mixed workloads and >=72h gates remain open;
+the full four-library objective continues.
+Evidence: [portable report](../../extlibs/xredis/tests/results/role-20261111.json)
+and out/service-extensions/xredis-role-20261111.
