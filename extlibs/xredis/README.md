@@ -277,3 +277,10 @@ rules, subcommands, binary keys and complete cross-slot checks with bounded
 search/key-byte work. Unknown/incomplete rules require explicit server help;
 they are never treated as keyless. See [contracts](docs/command_keys.md) and
 the [runnable offline example](examples/command_keys/README.md).
+
+`XREDIS_MODULE_XREDIS_CLUSTER_COMMAND` adds metadata-checked asynchronous
+`xredisClusterClientCallCommand`: complete key/slot checks before native
+admission, typed refusals, explicit keyless routing and one entry deadline.
+Catalogue ownership stays with the caller and is not retained by pending work.
+See [contracts](docs/cluster_command.md) and the
+[local-peer example](examples/cluster_command/README.md).

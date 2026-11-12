@@ -20,7 +20,10 @@ eligible masters, the actual query origin and original bootstrap fallback stay
 under explicit caps. Failed cohorts advance their starting seed. All candidates
 still pass Nodes authority and exact transport/port rules. Cold node setup can
 temporarily rotate into fallback before a discovered pool becomes ready.
-Replica-read policy, key-command metadata and a synchronous facade remain work.
+The optional [command adapter](cluster_command.md) calculates complete routing
+keys from a caller-owned catalogue before admission, with explicit keyless
+policy. Automatic command metadata/cache/fallback, replica reads and a
+synchronous facade remain work.
 
 Each operation inherits one Call-entry deadline through allocation, queue,
 bootstrap, provider waits and native redirects. Cancellation stops only that

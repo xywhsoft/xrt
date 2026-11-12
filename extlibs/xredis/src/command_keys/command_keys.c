@@ -1,6 +1,7 @@
 #include <xredis/command_keys.h>
 #include "../internal/cluster_reply.h"
 #include "../internal/cluster_slot.h"
+#include "../internal/command_keys_internal.h"
 #include <xrt/memory.h>
 #include <xrt/atomic.h>
 #include <stdlib.h>
@@ -124,6 +125,10 @@ static bool xredisKeysCharge(size_t* Used,size_t N,size_t Limit)
 {if(N>Limit-*Used)return false;*Used+=N;return true;}
 static bool xredisKeysOutput(const xrediscommandcatalog* C,const void* P,size_t N)
 {return C && __xredisClusterReplyOutput(C->Reply,P,N) && !xrtMemRangesOverlap(C,C->Info.StorageBytes,P,N);}
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+bool __xredisCommandCatalogOutput(const xrediscommandcatalog* C,const void* P,size_t N)
+{return xredisKeysOutput(C,P,N);}
+#endif
 XREDIS_API bool xredisCommandKeyLimitsInit(xrediscommandkeylimits* K)
 {
     if(!xrtMemRangeValid(K,sizeof(*K)))return xredisKeysError("invalid command key limits output");

@@ -473,6 +473,21 @@
         "xrtProcess",
         "xredisClusterTopology"
       ]
+    },
+    {
+      "name": "xredis_cluster_command",
+      "system": "cluster_client",
+      "suite": "xredis_cluster_command",
+      "description": "Metadata-checked Cluster calls on existing native client; no DNS/TLS/HTTP/task process",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWs",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

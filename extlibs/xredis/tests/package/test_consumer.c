@@ -205,8 +205,16 @@ static int testPubSubPackage(void)
 #include "../../examples/command_keys/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#define main clusterCommandPackageExample
+#include "../../examples/cluster_command/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+    if(clusterCommandPackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
     if(commandKeysPackageExample())return 1;
 #endif

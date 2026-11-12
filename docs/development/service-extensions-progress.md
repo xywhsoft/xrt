@@ -11952,3 +11952,65 @@ without retry for green. All four products remain developing; the goal is active
 Work and tests use D:/GIT/xrt master. No branch operation or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/command-keys-20261112.json)
 and out/service-extensions/xredis-command-keys-20261112.
+
+## 2026-11-12 - Metadata-checked Cluster command submission
+
+New optional xredis_cluster_command routes an immutable catalogue invocation
+through the existing async client. Full-key CRC/slot checks precede admission;
+unknown/incomplete/cross-slot/arity/work/byte refusals are typed and publish no
+Future or business. Keyless commands require an explicit fallback, with NO_SLOT
+returning KEYLESS. Empty binary keys remain slot0 routing keys. Preflight refusal
+leaves client admission counters unchanged; native capacity/close/error counts
+and existing result/redirect/cancel/physical shutdown contracts are preserved.
+
+Function-entry time precedes metadata CPU and is forwarded into the shared
+admission path, original route deadline and native Entered/Timeout. No catalogue
+ref or extra copy/allocation/worker/timer/runtime is added. Warm caller budgets
+compare actual blocks/bytes against explicit Call and retain the four-block
+bound. Cold queued copies and native independent physical duties remain.
+
+Tests cover caller-poisoned warm/cold input, catalogue budget retirement while
+Future is pending, explicit keyless/default/zero timeout, empty slot0 key,
+unknown/incomplete/cross-slot, overlapping key-byte and keyword-work limits,
+client argument limits, catalogue/Reply/map/input aliases, native overload, OOM
+prefixes, MOVED/ASK, timeout/cancel/close, retained results and four producers.
+Single-only caller clock and native-owner probes check exact entry/deadline
+equality, including the configured default. Prototype runs passed before freeze.
+
+Mainline verification: Windows 51 / WSL 53 programs, root41 each; focused/single ASan/UBSan/leak and both TSan units pass.
+Leaf modular/single/static/shared, isolated minimal declarations, root single/
+static/shared, CallCommand/catalogue/client exports and private hiding, API/docs/
+maturity and minimal footprint forms pass. Both feature-excluded client and
+catalogue old/current .text match byte-for-byte. Public layouts and native
+client/pool/cache/Core sources are unchanged. This is compatibility evidence,
+not full native-I/O performance qualification.
+
+Real Redis8.0.5:288 cases/9216 INCR over4 forms/two hosts,3 factories/3 init modes,
+SHARDS/SLOTS, actual slot owner changes and migration ASK. Every case obtains
+actual COMMAND INFO, locally rejects cross-slot/keyless/incomplete invocations,
+uses explicit PING policy and derives all32 INCR slots. Identity/epoch/three-view
+convergence, direct new-map GET, original-seed policy denial, physical Drop and
+retained results/maps remain checked. No server-process-death/TLS/replica claim.
+
+windows affinity0 pipeline1: explicit/manual-meta/integrated rate 17825/18031/18028req/s; P99 95.100/94.100/94.600us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.00016100379715955349, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.005312921406667392, 'within_budget': None}}; blocks/request 14.000/14.000.
+windows affinity0 pipeline32: explicit/manual-meta/integrated rate 172801/175004/177931req/s; P99 282.000/286.600/265.200us; manual-meta/integrated gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.016723100090394682, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.07466849351030991, 'within_budget': None}}; blocks/request 14.001/14.001.
+windows affinity1 pipeline1: explicit/manual-meta/integrated rate 16170/15910/15113req/s; P99 103.700/104.900/111.600us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.05006352489797483, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.06387084863616388, 'within_budget': None}}; blocks/request 14.000/14.000.
+windows affinity1 pipeline32: explicit/manual-meta/integrated rate 176788/178792/172839req/s; P99 302.100/294.700/307.200us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.03329633625141171, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.04241594042310792, 'within_budget': None}}; blocks/request 14.001/14.001.
+wsl affinity0 pipeline1: explicit/manual-meta/integrated rate 8228/7480/7544req/s; P99 199.100/210.100/206.400us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.008562955266379513, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.017610661589719134, 'within_budget': None}}; blocks/request 16.012/16.011.
+wsl affinity0 pipeline32: explicit/manual-meta/integrated rate 57210/56974/57114req/s; P99 875.400/955.700/892.700us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.002459103472053803, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.0659202678664853, 'within_budget': None}}; blocks/request 14.176/14.213.
+wsl affinity1 pipeline1: explicit/manual-meta/integrated rate 6479/6131/6259req/s; P99 258.200/256.400/253.300us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.020830045261216013, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.012090483619344616, 'within_budget': None}}; blocks/request 16.026/16.026.
+wsl affinity1 pipeline32: explicit/manual-meta/integrated rate 44074/46162/45809req/s; P99 1349.100/1099.100/1237.800us; manual-meta/integrated gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.007654260852882344, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.12619415885724683, 'within_budget': None}}; blocks/request 14.775/14.771.
+
+Qualified valid-trace comparisons 1/16; all qualified within5% rate-loss/10% P99-increase budgets=True.
+Same binary/config/peer/key/value/queue/worker/Future; one warmup/seven rotated
+serial unpinned samples and separate global heap/pooled/direct/backing runs.
+Explicit slot omits metadata; manual composition starts its Call budget after
+evaluation. Comparisons apply to valid warm non-expiring traces. Caller FIFO
+completion includes validation/queue/head-of-line; setup/catalogue/bootstrap
+and sample buffers excluded. Noise/resolution failures remain unqualified.
+Automatic command catalogue fetch/cache replacement, authorized server-assisted
+exotic extraction, replicas/sync calls and full four-library/native Linux/TLS/
+fixed-arrival/contention/CPU/RSS/upstream/>=72h acceptance remain open.
+Work/tests directly use D:/GIT/xrt master; no branch or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-command-20261112.json)
+and out/service-extensions/xredis-cluster-command-20261112.

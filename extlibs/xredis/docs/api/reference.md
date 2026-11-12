@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `215` 个函数、`346` 个常量或宏、
-`157` 个公共类型。
+当前登记 `216` 个函数、`358` 个常量或宏、
+`158` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -151,6 +151,35 @@
 - `xredisclusterrouteconfig`
 - `xredisclusterrouteresult`
 - `xredisclusterstatus`
+
+## `extlibs/xredis/include/xredis/cluster_command.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_command.h)
+
+### 函数 (1)
+
+- `xredisClusterClientCallCommand`
+
+### 常量与宏 (13)
+
+- `XREDIS_CLUSTER_COMMAND_ACCEPTED`
+- `XREDIS_CLUSTER_COMMAND_ARGUMENTS`
+- `XREDIS_CLUSTER_COMMAND_CLOSED`
+- `XREDIS_CLUSTER_COMMAND_CROSS_SLOT`
+- `XREDIS_CLUSTER_COMMAND_ERROR`
+- `XREDIS_CLUSTER_COMMAND_KEYLESS`
+- `XREDIS_CLUSTER_COMMAND_LIMIT`
+- `XREDIS_CLUSTER_COMMAND_NO_SLOT`
+- `XREDIS_CLUSTER_COMMAND_OVERLOADED`
+- `XREDIS_CLUSTER_COMMAND_UNKNOWN`
+- `XREDIS_CLUSTER_COMMAND_UNSUPPORTED`
+- `XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND`
+- `XREDIS_FEATURE_XREDIS_COMMAND_KEYS`
+
+### 类型 (2)
+
+- `xredisclustercommandadmission`
+- `xrediscommandcatalog`
 
 ## `extlibs/xredis/include/xredis/cluster_nodes.h`
 
@@ -382,9 +411,8 @@
 - `xredisCommandCatalogRetain`
 - `xredisCommandKeyLimitsInit`
 
-### 常量与宏 (22)
+### 常量与宏 (21)
 
-- `XREDIS_FEATURE_XREDIS_COMMAND_KEYS`
 - `XREDIS_KEYS_ARGUMENTS`
 - `XREDIS_KEYS_CROSS_SLOT`
 - `XREDIS_KEYS_ERROR`
@@ -407,9 +435,8 @@
 - `XREDIS_KEY_UPDATE`
 - `XREDIS_KEY_VARIABLE`
 
-### 类型 (7)
+### 类型 (6)
 
-- `xrediscommandcatalog`
 - `xrediscommandcataloginfo`
 - `xrediscommandkey`
 - `xrediscommandkeylimits`

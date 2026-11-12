@@ -147,5 +147,11 @@ mutation, concurrent retained readers and warmed allocation/error preservation.
 Actual COMMAND/INFO and GETKEYSANDFLAGS/server-slot corpus checks are distinct
 from synthetic specifications; channels use the standard position plus server
 slot because GETKEYS excludes `not_key`. See [contracts](command_keys.md).
+The optional [Cluster command adapter](cluster_command.md) submits complete
+metadata-derived slots through the existing async client with one original
+deadline and no additional catalogue/command lifetime. Its tests distinguish
+keyless policy, unknown/incomplete/cross-slot/budget refusals from native quota,
+close, timeout/cancel and MOVED/ASK outcomes. Held-worker budgets compare actual
+caller blocks/bytes; caller-clock and native-owner probes verify exact deadlines.
 Automatic metadata fetch/cache replacement, server-assisted exotic extraction,
-client submission wiring, replica policy and final acceptance remain open.
+replica policy and final acceptance remain open.

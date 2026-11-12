@@ -511,7 +511,8 @@
         "xredis_cluster_nodes",
         "xredis_cluster_refresh",
         "xredis_cluster_client",
-        "xredis_command_keys"
+        "xredis_command_keys",
+        "xredis_cluster_command"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -948,7 +949,8 @@
         "xredis_cluster_nodes_tests",
         "xredis_cluster_refresh_tests",
         "xredis_cluster_client_tests",
-        "xredis_command_keys_tests"
+        "xredis_command_keys_tests",
+        "xredis_cluster_command_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -989,7 +991,8 @@
         "extlibs/xredis/tests/test_cluster_nodes.c",
         "extlibs/xredis/tests/test_cluster_refresh.c",
         "extlibs/xredis/tests/test_cluster_client.c",
-        "extlibs/xredis/tests/test_command_keys.c"
+        "extlibs/xredis/tests/test_command_keys.c",
+        "extlibs/xredis/tests/test_cluster_command.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -1039,7 +1042,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_client.c",
-        "extlibs/xredis/tests/single/test_single_xredis_command_keys.c"
+        "extlibs/xredis/tests/single/test_single_xredis_command_keys.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1096,7 +1100,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c": "xredis_cluster_nodes",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c": "xredis_cluster_refresh",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_client.c": "xredis_cluster_client",
-        "extlibs/xredis/tests/single/test_single_xredis_command_keys.c": "xredis_command_keys"
+        "extlibs/xredis/tests/single/test_single_xredis_command_keys.c": "xredis_command_keys",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c": "xredis_cluster_command"
       }
     },
     {
@@ -2145,7 +2150,8 @@
       ],
       "internal_headers": [
         "extlibs/xredis/src/internal/cluster_slot.h",
-        "extlibs/xredis/src/internal/cluster_reply.h"
+        "extlibs/xredis/src/internal/cluster_reply.h",
+        "extlibs/xredis/src/internal/command_keys_internal.h"
       ],
       "sources": [
         "extlibs/xredis/src/command_keys/command_keys.c"
@@ -2186,6 +2192,59 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/command_keys.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_command",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND",
+      "depends": [
+        "xredis_cluster_client",
+        "xredis_command_keys"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/cluster_command.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/command_keys_internal.h"
+      ],
+      "sources": [],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_command.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/cluster_command/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_cluster_command.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/cluster_command.md",
+        "extlibs/xredis/examples/cluster_command/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_command_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_cluster_command",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_command.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/cluster_command.md"
       ]
     }
   ]
