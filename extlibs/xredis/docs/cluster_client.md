@@ -30,7 +30,11 @@ reservations, including cold input copy and overlapping route replacement.
 Futures/cancel observers/native parser/FIFO and metadata snapshot storage have
 independent bounded duties. Caller-retained completed outcomes leave client
 quotas and remain caller-owned. Warm calls copy arguments directly into the
-route; bootstrap adds one cold queue copy. Parent Future/box/cancel observer,
+route; bootstrap adds one cold queue copy. Warm operations and their first route share one aligned allocation. Missing-slot
+replacement can retain that initial block while its new route owns separate storage.
+Completed watch cleanup avoids a second gate check once mechanical retirement
+is already observed. The measured caller warm-admission allocation bound is four;
+parent Future/cancel observer,
 route storage, native Future/wire, gates, references, heap updates and timer
 work are real costs. One preallocated min-heap and one timer serve all operations;
 ready queues and embedded posts avoid full active-request scans on completion.

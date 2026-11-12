@@ -5041,21 +5041,139 @@
     {
       "name": "xredis_cluster_client",
       "system": "cluster_client",
-      "description": "Automatic Cluster client vs direct same shared native pool: warm binary ECHO, pipeline1/32, observed FIFO completion latency including queue/validation/refs",
+      "description": "Automatic Cluster client vs direct same shared native pool: warm binary ECHO, pipeline1/32, observed FIFO completion latency including queue/validation/refs; same/cross native-worker affinity0/1",
       "benchmarks": [
         {
-          "name": "xredis_cluster_client_1_0",
+          "name": "xredis_cluster_client_1_0_a0",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "suite": "xredis_cluster_client,memory_stats",
           "args": [
             "20000",
             "0",
             "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "0",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_client_1_1_a0",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_client_32_0_a0",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "0",
+            "0",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "0",
+            "1",
+            "32",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_client_32_1_a0",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "32",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_client_1_0_a1",
+          "source": "extlibs/xredis/bench/bench_cluster_client.c",
+          "suite": "xredis_cluster_client,memory_stats",
+          "args": [
+            "20000",
+            "0",
+            "0",
+            "1",
             "1"
           ],
           "smoke_args": [
             "64",
             "0",
+            "1",
             "1",
             "1"
           ],
@@ -5071,17 +5189,19 @@
           }
         },
         {
-          "name": "xredis_cluster_client_1_1",
+          "name": "xredis_cluster_client_1_1_a1",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "suite": "xredis_cluster_client,memory_stats",
           "args": [
             "20000",
             "1",
             "0",
+            "1",
             "1"
           ],
           "smoke_args": [
             "64",
+            "1",
             "1",
             "1",
             "1"
@@ -5098,20 +5218,22 @@
           }
         },
         {
-          "name": "xredis_cluster_client_32_0",
+          "name": "xredis_cluster_client_32_0_a1",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "suite": "xredis_cluster_client,memory_stats",
           "args": [
             "20000",
             "0",
             "0",
-            "32"
+            "32",
+            "1"
           ],
           "smoke_args": [
             "64",
             "0",
             "1",
-            "32"
+            "32",
+            "1"
           ],
           "metrics": {
             "requests_per_sec": {
@@ -5125,20 +5247,22 @@
           }
         },
         {
-          "name": "xredis_cluster_client_32_1",
+          "name": "xredis_cluster_client_32_1_a1",
           "source": "extlibs/xredis/bench/bench_cluster_client.c",
           "suite": "xredis_cluster_client,memory_stats",
           "args": [
             "20000",
             "1",
             "0",
-            "32"
+            "32",
+            "1"
           ],
           "smoke_args": [
             "64",
             "1",
             "1",
-            "32"
+            "32",
+            "1"
           ],
           "metrics": {
             "requests_per_sec": {

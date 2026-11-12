@@ -98,6 +98,22 @@ static void ccResourceStop(void)
     double Due=xrtTimer()+10;for(;;){xnetenginestats I={0};testRequire(xrtNetEngineStats(E,&I) && xrtTimer()<Due,"timer occupancy visibility");if(I.ActiveTimers==1)break;xrtSleep(1);}
     xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);xredisclusteraddress Seed=nnAddress(F->Base,0);Seed.Slot=0;xredisclusterclient* C=NULL;testRequire(xredisClusterClientCreate(E,0,F->Base->Cache,&Seed,1,&K,&C)==XREDIS_ADMISSION_ACCEPTED,"cross-engine client");xfuture* Ready=xredisClusterClientReady(C);testRequire(xrtFutureWaitFor(Ready,15000)==XWAIT_OK && ((const xredisclusterclientready*)xrtFutureValue(Ready))->Status==XREDIS_CLUSTER_CLIENT_RESOURCE,"timer exhaustion lost typed resource stop");cfClose(C);testRequire(cfInfo(C).StopStatus==XREDIS_CLUSTER_CLIENT_RESOURCE,"explicit close erased resource reason");testRequire(xrtNetEngineTimerCancel(E,Timer),"cancel own occupied timer");redisPeerWait(&Done,1);testRequire(xrtNetEngineStop(E) && xrtNetEngineDestroy(E),"client progress engine pin leaked");xrtFutureDestroy(Ready);cfStop(F,C);
 }
+static void ccAdmissionAllocations(void)
+{
+    rffixture* F=rfStart(3);xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);ccbarrier B={0};testRequire(xrtNetEnginePost(F->Base->Peers[0].Engine,1,ccBlock,&B),"admission allocation barrier");redisPeerWait(&B.Entered,1);
+    xallocationbudget* Budget=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(1048576,&Budget) && xrtAllocationBudgetEnter(Budget,&S),"admission allocation accounting");xfuture* R=cfEcho(C,10000);testRequire(xrtAllocationBudgetLeave(&S),"admission allocation scope leave");
+    xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(Budget,&I) && I.LiveCount<=4 && I.LiveCount>0 && !I.Rejections,"warm admission exceeds four caller allocations");xrtAtomic32Store(&B.Continue,1,XMEMORY_RELEASE);testRequire(cfWait(R)->Route.Query.Status==XREDIS_REQUEST_OK,"coallocated admission result");xrtFutureDestroy(R);cfStop(F,C);ccBudgetDrain(Budget);xrtAllocationBudgetFree(Budget);
+}
+static void ccCopiedInputs(void)
+{
+    for(unsigned Warm=0;Warm<2;++Warm){rffixture* F=rfStart(3);if(!Warm)xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);xredisclusterclient* C=cfCreate(F,NULL);ccbarrier B={0};
+        if(Warm){cfReady(C);testRequire(xrtNetEnginePost(F->Base->Peers[0].Engine,1,ccBlock,&B),"warm copy barrier");redisPeerWait(&B.Entered,1);}else redisPeerWait(&F->Nodes[0].Queries,1);
+        unsigned char Name[]="ECHO",Payload[]="owned\0payload";xbytesview A[]={{Name,4},{Payload,13}};xfuture* R=NULL;testRequire(xredisClusterClientCall(C,1,A,2,5000,&R)==XREDIS_ADMISSION_ACCEPTED,"copied input admission");memset(Name,'?',4);memset(Payload,'?',13);memset(A,0,sizeof(A));
+        if(Warm)xrtAtomic32Store(&B.Continue,1,XMEMORY_RELEASE);else rfRelease(F,0);const xredisclusterclientresult* V=cfWait(R);xredisreplyvalue Text;
+        testRequire(V->Status==XREDIS_CLUSTER_CLIENT_COMPLETE && V->Route.Query.Status==XREDIS_REQUEST_OK && xredisReplyGet(V->Route.Query.Reply,0,&Text) && Text.Data.Size==13 && !memcmp(Text.Data.Data,"owned\0payload",13),"async command retained caller input");cfStop(F,C);xrtFutureDestroy(R);}
+    rffixture* F=rfStart(3);xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);K.Refresh.RetryDelay=K.Route.RetryDelay=K.RefreshMin=1;K.RefreshRetryMax=5;xredisclusteraddress Seed=nnAddress(F->Base,0);Seed.Slot=0;xredisclusterclient* C=NULL;
+    testRequire(xredisClusterClientCreate(F->Base->Peers[0].Engine,0,F->Base->Cache,&Seed,1,&K,&C)==XREDIS_ADMISSION_ACCEPTED,"same-worker client");xfuture* R=cfEcho(C,5000);testRequire(cfWait(R)->Route.Query.Status==XREDIS_REQUEST_OK,"same-worker progress");cfStop(F,C);xrtFutureDestroy(R);
+}
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 typedef struct ccdeadlineprobe {rffixture* Fixture;xredisclusterclient* Client;xatomic32 Done;} ccdeadlineprobe;
 static void ccInspectDeadline(xnetworker* W,ptr Data)
@@ -112,7 +128,7 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();
+{ccValidate();ccBasic();ccRedirects();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 ccDeadline();
 #endif

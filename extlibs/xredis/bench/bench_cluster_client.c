@@ -3,11 +3,18 @@
 #include <inttypes.h>
 static int cbCompare(const void* A,const void* B)
 {double X=*(const double*)A,Y=*(const double*)B;return(X>Y)-(X<Y);}
+static xredisclusterclient* cbCreate(rffixture* F,unsigned Affinity)
+{
+    xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);K.RefreshMin=1;K.RefreshRetryMax=5;K.Refresh.RetryDelay=1;K.Route.RetryDelay=1;
+    xredisclusteraddress A=nnAddress(F->Base,0);A.Slot=0;xredisclusterclient* C=NULL;
+    redisPeerRequire(xredisClusterClientCreate(F->Base->Peers[0].Engine,Affinity,F->Base->Cache,&A,1,&K,&C)==XREDIS_ADMISSION_ACCEPTED,"benchmark client affinity");return C;
+}
 int main(int Argc,char** Argv)
 {
     size_t Count=Argc>1?(size_t)strtoull(Argv[1],NULL,10):20000;unsigned Mode=Argc>2?(unsigned)strtoul(Argv[2],NULL,10):1;bool Heap=Argc>3 && strtoul(Argv[3],NULL,10)!=0;size_t Pipeline=Argc>4?(size_t)strtoull(Argv[4],NULL,10):32;
-    if(!Count || Count>1000000 || Mode>1 || !Pipeline || Pipeline>32 || Argc>5)return 2;
-    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");rffixture* F=rfStart(3);xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);
+    unsigned Affinity=Argc>5?(unsigned)strtoul(Argv[5],NULL,10):1;
+    if(!Count || Count>1000000 || Mode>1 || !Pipeline || Pipeline>32 || Affinity>1 || Argc>6)return 2;
+    double* Samples=malloc(Count*sizeof(*Samples));redisPeerRequire(Samples!=NULL,"managed benchmark samples");rffixture* F=rfStart(3);xredisclusterclient* C=cbCreate(F,Affinity);cfReady(C);
     xredisclusteraddress Address=nnAddress(F->Base,0);xredispool* Pool=NULL;redisPeerRequire(xredisClusterNodesGetPool(&Address,5000,F->Base->Cache,&Pool)==XREDIS_CLUSTER_POOL_READY,"managed benchmark shared baseline");nnReady(Pool,1);
     xfuture* Futures[32]={0};double Submitted[32]={0};const xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("managed\0route")};uint64 Sum=0;
 #if defined(XRT_FEATURE_MEMORY_STATS)
@@ -30,6 +37,7 @@ int main(int Argc,char** Argv)
     qsort(Samples,Count,sizeof(*Samples),cbCompare);printf("requests_per_sec: %.6f\nlatency_p50_us: %.6f\nlatency_p95_us: %.6f\nlatency_p99_us: %.6f\nlatency_p999_us: %.6f\nchecksum: %" PRIu64 "\n",Count/Seconds,Samples[(Count*50+99)/100-1],Samples[(Count*95+99)/100-1],Samples[(Count*99+99)/100-1],Samples[(Count*999+999)/1000-1],Sum);
 #if defined(XRT_FEATURE_MEMORY_STATS)
     if(Heap)printf("heap_blocks_per_request: %.6f\nheap_bytes_per_request: %.6f\n",(double)(After.BlockAllocCalls-Before.BlockAllocCalls)/Count,(double)(After.BlockAllocBytes-Before.BlockAllocBytes)/Count);
+    if(Heap)printf("heap_backing_allocs_per_request: %.6f\nheap_direct_blocks_per_request: %.6f\nheap_pooled_blocks_per_request: %.6f\n",(double)(After.BackingAllocCalls-Before.BackingAllocCalls)/Count,(double)(After.DirectAllocCalls-Before.DirectAllocCalls)/Count,(double)(After.PooledAllocCalls-Before.PooledAllocCalls)/Count);
 #endif
     xredisPoolRelease(Pool);cfStop(F,C);free(Samples);return 0;
 }

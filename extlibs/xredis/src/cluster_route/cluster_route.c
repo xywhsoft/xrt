@@ -65,8 +65,9 @@ bool __xredisClusterRouteConfig(const xredisclusterrouteconfig* C)
         C->MaxStorageBytes && C->MaxStorageBytes<=128u*1024u*1024u && C->Timeout>=0 && C->Timeout<=86400000 && C->RetryDelay>0 && C->RetryDelay<=60000;
 }
 size_t __xredisClusterRouteBaseBytes(void){return sizeof(xredisclusterroute);}
-xredisadmission __xredisClusterRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
-    const xbytesview* A,size_t Count,const xredisclusterrouteconfig* Config,xredisclusterroute** Out,double Entered,xredisclusterroutestatus* Failure)
+static xredisadmission xredisRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
+    const xbytesview* A,size_t Count,const xredisclusterrouteconfig* Config,xredisclusterroute** Out,double Entered,xredisclusterroutestatus* Failure,
+    size_t Prefix,ptr* Context)
 {
     if(Failure)*Failure=XREDIS_CLUSTER_ROUTE_MEMORY;
     xredisclusterrouteconfig C;
@@ -92,7 +93,8 @@ xredisadmission __xredisClusterRouteCreate(const xredisclustertopology* T,xbytes
     size_t HostCapacity=Eligible?Host.Size:1;
     size_t Bytes=sizeof(xredisclusterroute)+Count*sizeof(*A)+Payload+2*HostCapacity;
     if(Bytes>C.MaxStorageBytes){if(Failure)*Failure=XREDIS_CLUSTER_ROUTE_LIMIT;xredisRouteError(XERR_RANGE,"Cluster route storage limit");return XREDIS_ADMISSION_ERROR;}
-    xredisclusterroute* R=xrtCalloc(1,Bytes);if(!R)return XREDIS_ADMISSION_ERROR;
+    unsigned char* Block=xrtCalloc(1,Prefix+Bytes);if(!Block)return XREDIS_ADMISSION_ERROR;
+    xredisclusterroute* R=(xredisclusterroute*)(Block+Prefix);if(Prefix)C.Data=Block;
     R->Config=C;R->Entered=Entered;R->Deadline=xredisRouteDue(Entered,C.Timeout);R->StorageBytes=Bytes;R->Count=Count;R->Arguments=(xbytesview*)(R+1);
     unsigned char* P=(unsigned char*)(R->Arguments+Count);
     for(size_t I=0;I<Count;++I){R->Arguments[I]=(xbytesview){P,A[I].Size};if(A[I].Size)memcpy(P,A[I].Data,A[I].Size);P+=A[I].Size;}
@@ -100,7 +102,17 @@ xredisadmission __xredisClusterRouteCreate(const xredisclustertopology* T,xbytes
     if(!Eligible)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_NO_ROUTE);
     else {memcpy(R->Host,Host.Data,Host.Size);R->Result.Address.Host=(xbytesview){R->Host,Host.Size};R->Result.Address.Port=Port;R->Due=R->Deadline;}
     if(R->Phase!=XCR_DONE && xrtTimer()>=R->Deadline)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_TIMEOUT);
+    if(Context)*Context=Block;
     *Out=R;return XREDIS_ADMISSION_ACCEPTED;
+}
+xredisadmission __xredisClusterRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
+    const xbytesview* A,size_t Count,const xredisclusterrouteconfig* C,xredisclusterroute** Out,double Entered,xredisclusterroutestatus* Failure)
+{return xredisRouteCreate(T,Origin,Slot,A,Count,C,Out,Entered,Failure,0,NULL);}
+xredisadmission __xredisClusterRouteCreateContext(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
+    const xbytesview* A,size_t Count,const xredisclusterrouteconfig* C,size_t Prefix,ptr* Context,xredisclusterroute** Out,double Entered)
+{
+    if(!Prefix || Prefix>128u*1024u*1024u || Prefix%_Alignof(max_align_t) || !Context){xredisRouteError(XERR_ARGUMENT,"invalid Cluster route context prefix");return XREDIS_ADMISSION_ERROR;}
+    return xredisRouteCreate(T,Origin,Slot,A,Count,C,Out,Entered,NULL,Prefix,Context);
 }
 XREDIS_API xredisadmission xredisClusterRouteCreate(const xredisclustertopology* T,xbytesview Origin,uint16 Slot,
     const xbytesview* A,size_t Count,const xredisclusterrouteconfig* Config,xredisclusterroute** Out)
@@ -196,5 +208,7 @@ XREDIS_API xfuture* xredisClusterRouteResultFuture(xredisclusterroute* R)
 XREDIS_API bool xredisClusterRouteCancel(xredisclusterroute* R)
 {if(!R)return xredisRouteError(XERR_ARGUMENT,"Cluster route is NULL");xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_CANCELLED);return true;}
 XREDIS_API void xredisClusterRouteDestroy(xredisclusterroute* R)
-{if(!R)return;if(R->Phase!=XCR_DONE)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_CANCELLED);xrtFutureDestroy(R->Future);xrtFree(R->HostHeap);xrtFree(R);}
+{if(!R)return;__xredisClusterRouteUnit(R);xrtFree(R);}
+void __xredisClusterRouteUnit(xredisclusterroute* R)
+{if(!R)return;if(R->Phase!=XCR_DONE)xredisRouteFinish(R,XREDIS_CLUSTER_ROUTE_CANCELLED);xrtFutureDestroy(R->Future);xrtFree(R->HostHeap);}
 #endif

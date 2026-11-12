@@ -11783,3 +11783,53 @@ functionality/delivery. Development compile/namespace corrections are preserved.
 All jobs are terminal, all work/testing is D:/GIT/xrt master, no branch or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-client-20261112.json)
 and out/service-extensions/xredis-cluster-client-v4-20261112.
+
+## 2026-11-12 - Aligned Cluster operation/route coallocation
+
+Warm Call now owns its operation and first route in one aligned allocation.
+Private route Unit releases native/host duties without freeing an interior
+pointer; public route Destroy keeps standalone ownership. Missing-slot replacement
+uses a separate route while the first embedded tail remains in its parent block.
+Cold construction/copies, caller-retained outcomes, exact original deadlines,
+cancellation, quotas and independent native physical duties remain explicit.
+Retired-watch cleanup avoids a redundant gate check after retirement is observed.
+No Core/new shared runtime/public/native struct or native client/pool/cache change.
+
+Held-worker caller budgets prove warm admission5->4 allocation blocks; Windows
+requested live bytes1443->1451 because of alignment padding. Added explicit warm/
+bootstrap input-overwrite tests, same-worker progress and four-allocation bound.
+Prototype NULL-context Timeout access was diagnosed with GDB and corrected before
+freeze; logs retained. Full constructor/call OOM and exact native-deadline checks
+exercise the changed allocation order and ownership. No zero-overhead claim.
+
+Mainline verification: Windows 47 / WSL 48 programs; root selector39 per host.
+Focused/single WSL ASan/UBSan/leak and TSan, feature-off/root single, isolated
+declarations, all11 exports/private hiding, native layouts, three footprint
+forms and API/docs/maturity passed. Real Redis8.0.5:288 cases/9216 exactly counted
+INCR across4 forms/two hosts, SHARDS/SLOTS,3 factories,3 setup modes, actual owner
+changes and migration ASK. Identity/epoch/three-view convergence, new-map direct
+route, ephemeral ASK, one generation/node, physical Drop and retained results
+checked. Real TLS/auth/trust/replicas/native Linux/72h acceptance stays open.
+
+windows affinity0 pipeline1: old/current median 18663/17685req/s, P99 84.200/87.100us; gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.05241492514272783, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.034442066099262814, 'within_budget': None}}; heap blocks 15.000/14.000, backing allocations 0.001/0.001 per request.
+windows affinity0 pipeline32: old/current median 176615/178598req/s, P99 277.500/285.900us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.011229274597823746, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.030270286324810103, 'within_budget': None}}; heap blocks 15.001/14.001, backing allocations 0.001/0.000 per request.
+windows affinity1 pipeline1: old/current median 16265/16236req/s, P99 94.400/99.100us; gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.0018130932124267307, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.04978850640074017, 'within_budget': None}}; heap blocks 15.000/14.000, backing allocations 0.002/0.001 per request.
+windows affinity1 pipeline32: old/current median 182901/184317req/s, P99 258.600/256.700us; gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.007741712024909919, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.007347308868805413, 'within_budget': None}}; heap blocks 15.001/14.001, backing allocations 0.001/0.001 per request.
+wsl affinity0 pipeline1: old/current median 7814/7837req/s, P99 175.400/171.400us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.0029890520091828687, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.022805017103762815, 'within_budget': None}}; heap blocks 17.022/16.025, backing allocations 0.004/0.003 per request.
+wsl affinity0 pipeline32: old/current median 62752/63512req/s, P99 714.300/705.700us; gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.012104301687414054, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.012039759204815814, 'within_budget': None}}; heap blocks 15.198/14.195, backing allocations 0.002/0.002 per request.
+wsl affinity1 pipeline1: old/current median 6559/6567req/s, P99 206.900/207.200us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.0013185729105971156, 'within_budget': True}, 'latency_p99_us': {'qualified': True, 'relative_change': 0.0014499758337360724, 'within_budget': True}}; heap blocks 17.026/16.021, backing allocations 0.004/0.004 per request.
+wsl affinity1 pipeline32: old/current median 49062/49075req/s, P99 850.800/909.600us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.0002572857699179032, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.06911142454160801, 'within_budget': None}}; heap blocks 15.736/14.786, backing allocations 0.002/0.002 per request.
+
+Qualified same-function comparisons: 5/16; all qualified within5% throughput-loss/10% P99-increase budgets=True.
+Only client/route objects swap; all other objects, benchmark, flags, peer/payload/
+API/affinity/pipeline/queue semantics match. One warmup/seven alternating samples,
+serial Windows then WSL, noise/resolution gates, heap/direct/pooled/backing flows
+retained. Unqualified results are not acceptance. Setup/bootstrap/sample buffers
+excluded; per-process first-window costs and caller-observed FIFO head-of-line
+effects remain. These local unpinned observations are not full fixed-arrival/
+contention/mixed-load/upstream/CPU/RSS/native Linux/endurance qualification.
+Seed evolution, replicas, key-command metadata, synchronous Cluster facade and
+full four-library production acceptance remain open; the goal stays active.
+All jobs terminal. Work/tests directly on D:/GIT/xrt master; no branch or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/client-coalloc-20261112.json)
+and out/service-extensions/xredis-client-coalloc-20261112.
