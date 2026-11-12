@@ -12069,3 +12069,72 @@ upstream/>=72h performance/production acceptance remain open. Goal stays active.
 Work/tests directly use D:/GIT/xrt master; all jobs terminal, no branch or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-sync-20261112.json)
 and out/service-extensions/xredis-cluster-sync-20261112.
+
+## 2026-11-12 - Bounded RPC stream framing
+
+New independent xrpc_frame supports strict Content-Length/ASCII/CRLF/UTF-8 media
+headers and an explicit uint32-be profile. The serialized reader publishes only
+complete opaque bodies, preserves coalesced suffixes and makes EOF/truncation/
+protocol/unsupported/quota/OOM failures explicit and sticky. Complete current
+bodies borrow caller bytes; fragments copy into reusable bounded storage.
+Whole headers parse caller bytes, fragmented headers append/scan once then parse
+once. Prefix/full writers preflight all spans before writing. No JSON, Future,
+network, lock, thread, callback or new shared runtime. A production process/
+stdio adapter, bidirectional runtime, WebSocket and negotiation remain open.
+
+Tests cover independent wire bytes and every split, coalesced/empty/binary frames,
+header/media grammar, length-digit transitions through1GiB without body allocation,
+body/head/line/field/old+new reservation caps, reserve after borrowed/partial/failed
+frames, poisoned copies, aliases/wrapped capacities, constructor and buffer OOM,
+EOF/sticky failures,12000 mutations and10000 warmed zero-requested-heap cycles
+per profile. Initial prototype include/warning/fixture-encoder errors and an
+empty-first-header-line MORE bug were corrected before source freeze; logs kept.
+
+Windows/WSL each pass 23/23 programs, including20 full root programs/host, focused and selected single.
+WSL focused/single ASan/UBSan/leak pass. TSan is not applicable to this serialized
+unique-owner pure reader (no concurrent mutable API contract). Leaf four forms,
+isolated declarations, pure frame static/shared and encode-only static consumers,
+root single/static/shared,11 exports/private hiding, API/docs/maturity and all
+minimal footprint artifact symbol inventories pass. Core/old runtimes unchanged.
+
+An existing consumer forced XRPC_MODULE_XRPC and broke partial package linking
+on both hosts. It now honors feature selection, retaining root checks and an
+independent encode-only path. Only that consumer changed after successful formal
+unit/root/single/sanitizer tests. Both source maps and failed link logs remain;
+exact source-equivalence records prove unchanged runtime, headers, tests, tools
+and fixtures. New delivery/size/performance runs use the revised consumer map.
+
+Real stdin/stdout:432 Python/C cases over4 build forms/two hosts, two profiles,
+1/7/4096-byte reads, UTF-8 and NUL string ids, exact huge numeric ids, notifications,
+empty/malformed JSON, mixed batches, coalescing, truncation, limits and hostile
+headers. Child processes are terminal. This finite synchronous fixture is not
+production pipe backpressure/cancel/close or bidirectional runtime acceptance.
+
+windows: 2/16 batch-average CPU metrics satisfy original noise/resolution gates; cold storage {'base_bytes': 168.0, 'reserved_storage_bytes': 4392.0, 'reserved_peak_bytes': 4392.0, 'timer_min_positive_ns': 99.942553788}.
+windows format1 mode0: 1620412006frames/s; 0.617ns/frame; global blocks/frame 0.000.
+windows format1 mode1: 8950864frames/s; 111.721ns/frame; global blocks/frame 0.000.
+windows format1 mode2: 7591874frames/s; 131.720ns/frame; global blocks/frame 0.000.
+windows format1 mode3: 42963272frames/s; 23.276ns/frame; global blocks/frame 0.000.
+windows format2 mode0: 2119784799frames/s; 0.472ns/frame; global blocks/frame 0.000.
+windows format2 mode1: 57207860frames/s; 17.480ns/frame; global blocks/frame 0.000.
+windows format2 mode2: 26422636frames/s; 37.846ns/frame; global blocks/frame 0.000.
+windows format2 mode3: 51518168frames/s; 19.411ns/frame; global blocks/frame 0.000.
+wsl: 10/16 batch-average CPU metrics satisfy original noise/resolution gates; cold storage {'base_bytes': 168.0, 'reserved_storage_bytes': 4392.0, 'reserved_peak_bytes': 4392.0, 'timer_min_positive_ns': 99.999851955}.
+wsl format1 mode0: 2121732222frames/s; 0.471ns/frame; global blocks/frame 0.000.
+wsl format1 mode1: 10432418frames/s; 95.855ns/frame; global blocks/frame 0.000.
+wsl format1 mode2: 7594320frames/s; 131.677ns/frame; global blocks/frame 0.000.
+wsl format1 mode3: 60789533frames/s; 16.450ns/frame; global blocks/frame 0.000.
+wsl format2 mode0: 2135351337frames/s; 0.468ns/frame; global blocks/frame 0.000.
+wsl format2 mode1: 54808044frames/s; 18.245ns/frame; global blocks/frame 0.000.
+wsl format2 mode2: 30131404frames/s; 33.188ns/frame; global blocks/frame 0.000.
+wsl format2 mode3: 70873039frames/s; 14.110ns/frame; global blocks/frame 0.000.
+
+One warmup/seven rotated unpinned serial samples and separate heap runs. Modes
+are known-layout volatile-byte cost control0, complete borrowed1, two body chunks2
+and writer3 with256-byte body. Setup/reserve excluded; raw omits safety work and
+has no parity/regression acceptance. Batch averages are not individual P99 or
+end-to-end/native Linux/fixed-arrival/contention/upstream/CPU/RSS/>=72h evidence.
+All four products remain developing; full goal and production/performance gates
+remain active. Work/tests use D:/GIT/xrt master; all jobs terminal, no branch/push.
+Evidence: [portable report](../../extlibs/xrpc/tests/results/frame-20261112.json)
+and out/service-extensions/xrpc-frame-20261112.

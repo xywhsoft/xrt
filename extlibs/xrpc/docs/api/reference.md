@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `83` 个函数、`161` 个常量或宏、
-`79` 个公共类型。
+当前登记 `94` 个函数、`173` 个常量或宏、
+`85` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -155,6 +155,48 @@
 
 - `XRPC_BUILD_SHARED`
 - `XRPC_USE_SHARED`
+
+## `extlibs/xrpc/include/xrpc/frame.h`
+
+[查看带契约注释的公共头](../../include/xrpc/frame.h)
+
+### 函数 (11)
+
+- `xrpcFrameConfigInit`
+- `xrpcFrameHeaderSize`
+- `xrpcFrameHeaderWrite`
+- `xrpcFrameReaderCreate`
+- `xrpcFrameReaderDestroy`
+- `xrpcFrameReaderEnd`
+- `xrpcFrameReaderFeed`
+- `xrpcFrameReaderInfo`
+- `xrpcFrameReaderReserve`
+- `xrpcFrameReaderReset`
+- `xrpcFrameWrite`
+
+### 常量与宏 (12)
+
+- `XRPC_FEATURE_XRPC_FRAME`
+- `XRPC_FRAME_CONTENT_LENGTH`
+- `XRPC_FRAME_END`
+- `XRPC_FRAME_ERROR`
+- `XRPC_FRAME_LIMIT`
+- `XRPC_FRAME_MEMORY`
+- `XRPC_FRAME_MORE`
+- `XRPC_FRAME_PROTOCOL`
+- `XRPC_FRAME_READY`
+- `XRPC_FRAME_TRUNCATED`
+- `XRPC_FRAME_UINT32_BE`
+- `XRPC_FRAME_UNSUPPORTED`
+
+### 类型 (6)
+
+- `xrpcframeconfig`
+- `xrpcframeformat`
+- `xrpcframeinfo`
+- `xrpcframereader`
+- `xrpcframestatus`
+- `xrpcframeview`
 
 ## `extlibs/xrpc/include/xrpc/http_client.h`
 

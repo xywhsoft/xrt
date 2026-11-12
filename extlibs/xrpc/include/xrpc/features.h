@@ -52,6 +52,16 @@
 #ifndef XRPC_MODULE_XRPC_HTTP_SERVER_TLS
 #define XRPC_MODULE_XRPC_HTTP_SERVER_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_FRAME
+#define XRPC_MODULE_XRPC_FRAME
+#endif
+#endif
+
+/* xrpc_frame 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_FRAME)
+#ifndef XRPC_FEATURE_XRPC_FRAME
+#define XRPC_FEATURE_XRPC_FRAME
+#endif
 #endif
 
 /* xrpc_http_server_tls 及其直接依赖。 */

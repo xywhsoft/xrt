@@ -238,3 +238,10 @@ factory deadlines and request deadlines/cancellation remain independent. See
 [HTTP dial](docs/http_dial.md) and the runnable [dial example](examples/http_dial/main.c).
 The optional TLS module composes with numeric, DNS and prepared setup.
 Remaining recovery/transport features and full acceptance remain pending.
+
+Optional [stream framing](docs/frame.md) supplies explicit Content-Length and
+uint32 big-endian profiles, incremental bounded buffers, complete-input borrowed
+views, atomic writers and typed EOF/failure. [The example](examples/frame/README.md)
+uses five-byte fragments; independent stdin/stdout tests compose the production
+framer with dispatch. A production process adapter and bidirectional runtime
+remain required; the framing leaf adds no thread, Future, JSON or transport.

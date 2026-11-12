@@ -103,6 +103,23 @@
       "system": "http_server_tls",
       "suite": "xrpc_http_server_tls",
       "description": "Production HTTP TLS server/executor and actual Core identity/cipher dependency closure"
+    },
+    {
+      "name": "xrpc_frame",
+      "system": "frame",
+      "suite": "xrpc_frame",
+      "description": "Bounded Content-Length/uint32 stream framing without JSON, futures, workers or I/O",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtJson",
+        "xrtFuture",
+        "xrtTask",
+        "xrtExecutor",
+        "xrtProcess",
+        "xrtHttp",
+        "xrtWebSocket"
+      ]
     }
   ]
 }

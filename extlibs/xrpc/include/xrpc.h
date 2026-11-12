@@ -58,4 +58,8 @@
 #error "XRPC_FEATURE_XRPC requires http_server_tls"
 #endif
 #include <xrpc/http_server_tls.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_FRAME)
+#error "XRPC_FEATURE_XRPC requires frame"
+#endif
+#include <xrpc/frame.h>
 #endif

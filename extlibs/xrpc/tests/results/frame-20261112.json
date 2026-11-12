@@ -1,0 +1,1671 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "2a05dc50710809fab23c884905a7d5ea969389bf",
+  "scope": "Independent bounded Content-Length and explicit uint32-be stream framing, incremental head/body ownership, borrowed whole bodies, reusable fragmented buffers, old+new reservations, atomic prefix/frame writers and explicit EOF; plus selected-feature package-consumer correction.",
+  "state": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "source_inputs": 2641,
+  "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+  "source_equivalence": {
+    "old_source_map_sha256": "70e4c105c503a94a3ac2ecf9a3c5000dcd49d777bd116c18308967750454f86a",
+    "new_source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+    "changed": [
+      {
+        "path": "extlibs/xrpc/tests/package/test_consumer.c",
+        "old_sha256": "64d6c99eb1fa7b9b89e2a62b9041df31b17cd9e4763fd83f33a0687d078adb66",
+        "new_sha256": "6c911bad19b32a190da6028b51d390ce6bd9cd5764821f181c5895a7e4a8020a"
+      }
+    ],
+    "runtime_headers_tools_manifests_unit_tests_examples_and_stdio_peer_unchanged": true,
+    "scope": "Only the package verification consumer changed after complete Windows/WSL unit/root/single/sanitizer passes. Original source map, consumer snapshot, failed static link logs and receipts remain. Runtime/headers/tools/unit/single/example/stdio C bytes are identical. No unchanged functional tests are rerun. New package/interop/size/performance runs use the current source map.",
+    "reason": "Pre-existing consumer forced XRPC_MODULE_XRPC and referenced absent leaf APIs. It now honors selected feature defines; codec/method/pending/call/server checks remain conditional and root retains them all."
+  },
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "70e4c105c503a94a3ac2ecf9a3c5000dcd49d777bd116c18308967750454f86a",
+      "programs": 23,
+      "tsan": "Not applicable: unique serialized reader owners, no refs/callbacks/locks/threads; no supported concurrent mutable reader entries.",
+      "runtime_source_equivalent_to_current": true
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "70e4c105c503a94a3ac2ecf9a3c5000dcd49d777bd116c18308967750454f86a",
+      "programs": 23,
+      "tsan": "Not applicable: unique serialized reader owners, no refs/callbacks/locks/threads; no supported concurrent mutable reader entries.",
+      "runtime_source_equivalent_to_current": true
+    }
+  },
+  "delivery": {
+    "windows": {
+      "builds": {
+        "complete": true,
+        "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+        "forms": {
+          "modular": {
+            "path": "delivery/windows/modular/peer.exe",
+            "sha256": "df0ebaee48ef8275eef7bae9706861a8920e53c6f85e347d4bbb07a5e9e04b17"
+          },
+          "single": {
+            "path": "delivery/windows/single/peer.exe",
+            "sha256": "7dc49316ad7dbf5b86dc96ea43b826e640d13fbbfe531e3db48607d855e3b926"
+          },
+          "static": {
+            "path": "delivery/windows/static/peer.exe",
+            "sha256": "0c4e5795b46b3d334935786cfa28aab3e2efdf32c3b57c4ba3781dfb42d09f8e"
+          },
+          "shared": {
+            "path": "delivery/windows/shared/peer.exe",
+            "sha256": "b50d8dccf3f1562ff851d1154b1343bcf82e24124a64ea1db62dc8372df0a96b"
+          }
+        },
+        "stdio_cases": 216
+      },
+      "exports": {
+        "api": [
+          "xrpcFrameConfigInit",
+          "xrpcFrameHeaderSize",
+          "xrpcFrameHeaderWrite",
+          "xrpcFrameReaderCreate",
+          "xrpcFrameReaderDestroy",
+          "xrpcFrameReaderEnd",
+          "xrpcFrameReaderFeed",
+          "xrpcFrameReaderInfo",
+          "xrpcFrameReaderReserve",
+          "xrpcFrameReaderReset",
+          "xrpcFrameWrite"
+        ],
+        "exports": [
+          "xrpcDecode",
+          "xrpcDecodeConfigInit",
+          "xrpcDispatch",
+          "xrpcDispatchConfigInit",
+          "xrpcEncodeConfigInit",
+          "xrpcEncodeSize",
+          "xrpcEncodeWrite",
+          "xrpcFrameConfigInit",
+          "xrpcFrameHeaderSize",
+          "xrpcFrameHeaderWrite",
+          "xrpcFrameReaderCreate",
+          "xrpcFrameReaderDestroy",
+          "xrpcFrameReaderEnd",
+          "xrpcFrameReaderFeed",
+          "xrpcFrameReaderInfo",
+          "xrpcFrameReaderReserve",
+          "xrpcFrameReaderReset",
+          "xrpcFrameWrite",
+          "xrpcReplyAbort",
+          "xrpcReplyError",
+          "xrpcReplyResult"
+        ]
+      }
+    },
+    "wsl": {
+      "builds": {
+        "complete": true,
+        "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+        "forms": {
+          "modular": {
+            "path": "delivery/wsl/modular/peer",
+            "sha256": "cc1cd5e72c2673efe88f27e4a548016b4ccdcfefc691448a4652c217cca721bd"
+          },
+          "single": {
+            "path": "delivery/wsl/single/peer",
+            "sha256": "67475815890b0ca8b35ce5a851d96f5f5d4b384e19c13ceb366d02bdcaea326e"
+          },
+          "static": {
+            "path": "delivery/wsl/static/peer",
+            "sha256": "2a75c91acd2eaf6186ac4714e8629a48c8a37c0aa5a31c41dff9b70dec3dc232"
+          },
+          "shared": {
+            "path": "delivery/wsl/shared/peer",
+            "sha256": "c1ca226f5d5c74d0bc568187760e3f62476bd920ce803bd49db13c1483d7d3e5"
+          }
+        },
+        "stdio_cases": 216
+      },
+      "exports": {
+        "api": [
+          "xrpcFrameConfigInit",
+          "xrpcFrameHeaderSize",
+          "xrpcFrameHeaderWrite",
+          "xrpcFrameReaderCreate",
+          "xrpcFrameReaderDestroy",
+          "xrpcFrameReaderEnd",
+          "xrpcFrameReaderFeed",
+          "xrpcFrameReaderInfo",
+          "xrpcFrameReaderReserve",
+          "xrpcFrameReaderReset",
+          "xrpcFrameWrite"
+        ],
+        "exports": [
+          "xrpcDecode",
+          "xrpcDecodeConfigInit",
+          "xrpcDispatch",
+          "xrpcDispatchConfigInit",
+          "xrpcEncodeConfigInit",
+          "xrpcEncodeSize",
+          "xrpcEncodeWrite",
+          "xrpcFrameConfigInit",
+          "xrpcFrameHeaderSize",
+          "xrpcFrameHeaderWrite",
+          "xrpcFrameReaderCreate",
+          "xrpcFrameReaderDestroy",
+          "xrpcFrameReaderEnd",
+          "xrpcFrameReaderFeed",
+          "xrpcFrameReaderInfo",
+          "xrpcFrameReaderReserve",
+          "xrpcFrameReaderReset",
+          "xrpcFrameWrite",
+          "xrpcReplyAbort",
+          "xrpcReplyError",
+          "xrpcReplyResult"
+        ]
+      }
+    }
+  },
+  "interop": {
+    "windows": {
+      "report": "windows-stdio.json",
+      "sha256": "f8965e00555e1f811ba765f5638c01d20f1cd94565fa48e330367e4b2d736070",
+      "cases": 216,
+      "all_processes_terminal": true
+    },
+    "wsl": {
+      "report": "wsl-stdio.json",
+      "sha256": "38205bda3983924ef9d2fcca4b14389182761d8f2d8e098230d41eef1ae79219",
+      "cases": 216,
+      "all_processes_terminal": true
+    }
+  },
+  "measure": {
+    "windows": {
+      "builds": {
+        "complete": true,
+        "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+        "root_packages": {
+          "static": [
+            {
+              "path": "root-packages/windows/static/libxrpc.a",
+              "sha256": "dd83a89fffecc7dadfb6d9a285cc888d3931601c3fdcf616dfcf8c00068766aa"
+            },
+            {
+              "path": "root-packages/windows/static/libxrt.a",
+              "sha256": "eb929ee24fb3d6d011795e361adde2412ef8234706ad9686331081e83828d80d"
+            },
+            {
+              "path": "root-packages/windows/static/packages.json",
+              "sha256": "7a74c4addd3747153d5212708f3eb1e99c1e88d34fc56825c09dac16c60d64ae"
+            },
+            {
+              "path": "root-packages/windows/static/test_package_xrpc.exe",
+              "sha256": "939e9fffa38aa2f10e95e337ff93ba3b3719a9f1fcc714cab80beb845e96dc10"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/windows/shared/libxrpc.dll.a",
+              "sha256": "9fe90e46c5d3131483d57e88504a05cb5644c33aaae790a83dcc6f184c4c86b3"
+            },
+            {
+              "path": "root-packages/windows/shared/libxrt.dll.a",
+              "sha256": "c7c30094c7c4577b6685ccf3e98c2ec82b3d30368fa36ee7b1a03174f6671302"
+            },
+            {
+              "path": "root-packages/windows/shared/packages.json",
+              "sha256": "84af6b2eb7f3f93ecccc9ce5b64169aab003617b2dcaeb6c69ddd415d4ce2b19"
+            },
+            {
+              "path": "root-packages/windows/shared/test_package_xrpc.exe",
+              "sha256": "5161494f164ed68cdff0996154a5d175d934ff7a7dc1dbd29e5ab386d0a32dbb"
+            },
+            {
+              "path": "root-packages/windows/shared/xrpc.dll",
+              "sha256": "ed7b95a258197fe522eae28c14f0013f25a10cf710627d06e036d434435f3d5b"
+            },
+            {
+              "path": "root-packages/windows/shared/xrt.dll",
+              "sha256": "d5712abb601b6b6a4f5dacc337c9512745c486cc7e0b70d530b00b452438d785"
+            }
+          ]
+        },
+        "root_single_sha256": "cf7b45babc04881f1d60e7a8ebae07007d40306ceb4ce7d6d7a03b8fdc89acca",
+        "footprint": {
+          "single": [
+            {
+              "path": "footprint/windows/single/xrpc_single.o",
+              "sha256": "19bf1ddd961702e03d0bc2d1760223b070f9caf8ef5aa41cb5f40ce0fc27f6d4",
+              "defined_symbols": 203,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/static/libxrpc.a",
+              "sha256": "15d466022f7ecf57c13cf3d60c8b6ac69bbaac0aada82fe53b0bf7214ab3fb7a",
+              "defined_symbols": 25,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/static/libxrt.a",
+              "sha256": "b2a76197c32944cfd285211500baa84216fdb03d8ff811d5f1b0f2a504fa8872",
+              "defined_symbols": 217,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/shared/libxrpc.dll.a",
+              "sha256": "9ba60e4541d0050fdd373f4fe8b4738b5408599edbedda5279d9f05455cb8370",
+              "defined_symbols": 85,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/libxrt.dll.a",
+              "sha256": "62787215deb63e460f750bb32f417dda1f975d711144e8fb23cfba682fdae0fc",
+              "defined_symbols": 477,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrpc.dll",
+              "sha256": "37455ce01c320c6f253b69967380c34a2a970d1690d42bd3de979462c031c069",
+              "defined_symbols": 601,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrt.dll",
+              "sha256": "aa7ec7d901800dda557a3a38e31a1cd212c258cb0249b58bd790bf1da1cae9c5",
+              "defined_symbols": 894,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "size": {
+        "suite": "xrpc_frame",
+        "description": "Bounded Content-Length/uint32 stream framing without JSON, futures, workers or I/O",
+        "forbid_symbols": [
+          "xrtNet",
+          "xrtTls",
+          "xrtJson",
+          "xrtFuture",
+          "xrtTask",
+          "xrtExecutor",
+          "xrtProcess",
+          "xrtHttp",
+          "xrtWebSocket"
+        ],
+        "kinds": {
+          "single": {
+            "text": 33032,
+            "data": 2376,
+            "bss": 11040,
+            "members": 1,
+            "load": 35408,
+            "file": 57997,
+            "path": "out/size/gnu/native/xrpc_frame/single/xrpc_single.o",
+            "compile_seconds": 1.5220423000282608,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 8888,
+            "data": 0,
+            "bss": 0,
+            "members": 1,
+            "load": 8888,
+            "file": 12488,
+            "path": "release/gnu/native/xrpc_frame/static/libxrpc.a"
+          },
+          "shared": {
+            "text": 17691,
+            "data": 144,
+            "bss": 272,
+            "members": 1,
+            "load": 17835,
+            "file": 50426,
+            "path": "release/gnu/native/xrpc_frame/shared/xrpc.dll"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "builds": {
+        "complete": true,
+        "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+        "root_packages": {
+          "static": [
+            {
+              "path": "root-packages/wsl/static/libxrpc.a",
+              "sha256": "9b936fbd24da30c17083260869bff8636a53955b94d4012b306b885b31be11f8"
+            },
+            {
+              "path": "root-packages/wsl/static/libxrt.a",
+              "sha256": "81b40c222a43664b9a444036d74db9478ce1cb91210fcbff78e0b046779cd808"
+            },
+            {
+              "path": "root-packages/wsl/static/packages.json",
+              "sha256": "5d051d8dc20ad7416a5b22669ceef2560d2ad76db10cbbffb8c1d5c22901c0fb"
+            },
+            {
+              "path": "root-packages/wsl/static/test_package_xrpc",
+              "sha256": "a8338bc80f67c9e0538bf44ebe25c9f70dfd20602673bd9bea743a872dee81c2"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/wsl/shared/libxrpc.so",
+              "sha256": "ef55bbdb4fdb557c64adc3c106d0608ee6ad8474942d1980b06d3ade4a4e7348"
+            },
+            {
+              "path": "root-packages/wsl/shared/libxrt.so",
+              "sha256": "1dbab4c4235f5de96683595d47179b76403e8e258b0e61610a30ab1c15ae0e5a"
+            },
+            {
+              "path": "root-packages/wsl/shared/packages.json",
+              "sha256": "fd72bb836b3b891bf097197838d1e7605737c56c6fd89334514b326eebade0cf"
+            },
+            {
+              "path": "root-packages/wsl/shared/test_package_xrpc",
+              "sha256": "20ba846fe0fe374cf0352da67ec252e702bb841917c5e37f102a259991bff47d"
+            }
+          ]
+        },
+        "root_single_sha256": "9fabdd1d8592d587380d79790eaf890cda470f4e0b07822750ef7ccfb90fc8c7",
+        "footprint": {
+          "single": [
+            {
+              "path": "footprint/wsl/single/xrpc_single.o",
+              "sha256": "32ddcf81b18143786da168f8aa4147b3b3a63a0c4a49e225ccf2ad2a59c78b8c",
+              "defined_symbols": 218,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/static/libxrpc.a",
+              "sha256": "fdc20b6a06c73bc8740ed57e954fa2a7828ae8b2195d1e4f1dc95bf5c3fe28fa",
+              "defined_symbols": 43,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/static/libxrt.a",
+              "sha256": "9698b2a54c6a25fdcf24e687bb20092d0a092d5f6319a60514f3abbc532ed6a9",
+              "defined_symbols": 173,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/shared/libxrpc.so",
+              "sha256": "b5449bd2c0ac16dd6a568eaa0793cb6870b1ceef930011b7d67b9e3b8a6a8ea7",
+              "defined_symbols": 32,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/shared/libxrt.so",
+              "sha256": "3d9a2305dd1fc6831bbdbbebcf1676f466c1063f3d7eab43a43ca46a2b1bbe7d",
+              "defined_symbols": 178,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "size": {
+        "suite": "xrpc_frame",
+        "description": "Bounded Content-Length/uint32 stream framing without JSON, futures, workers or I/O",
+        "forbid_symbols": [
+          "xrtNet",
+          "xrtTls",
+          "xrtJson",
+          "xrtFuture",
+          "xrtTask",
+          "xrtExecutor",
+          "xrtProcess",
+          "xrtHttp",
+          "xrtWebSocket"
+        ],
+        "kinds": {
+          "single": {
+            "text": 34530,
+            "data": 2416,
+            "bss": 10892,
+            "members": 1,
+            "load": 36946,
+            "file": 70528,
+            "path": "out/size/gnu/x64/xrpc_frame/single/xrpc_single.o",
+            "compile_seconds": 0.9396320680000372,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 9317,
+            "data": 0,
+            "bss": 0,
+            "members": 1,
+            "load": 9317,
+            "file": 15400,
+            "path": "release/gnu/x64/xrpc_frame/static/libxrpc.a"
+          },
+          "shared": {
+            "text": 11697,
+            "data": 616,
+            "bss": 8,
+            "members": 1,
+            "load": 12313,
+            "file": 24776,
+            "path": "release/gnu/x64/xrpc_frame/shared/libxrpc.so"
+          }
+        }
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "flags": [
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DXRT_FEATURE_MEMORY_STATS",
+        "-DXRT_FEATURE_TIME",
+        "-DXRPC_FEATURE_XRPC_FRAME",
+        "-I",
+        "D:\\GIT\\xrt\\include",
+        "-O2",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-I",
+        "D:\\GIT\\xrt\\extlibs\\xrpc\\include"
+      ],
+      "platform": "Windows-10-10.0.19045-SP0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "binary": {
+        "path": "performance/windows/frame.exe",
+        "sha256": "13a938d3f220528a420689fdc1fb4d6ad338dbf3342df152e9f19d8ed45f1d74"
+      },
+      "cold": {
+        "base_bytes": 168.0,
+        "reserved_storage_bytes": 4392.0,
+        "reserved_peak_bytes": 4392.0,
+        "timer_min_positive_ns": 99.942553788
+      },
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "scope": "Pure framing closed CPU loops, payload256. Content-Length/uint32; mode0 known-layout volatile-byte control omits parsing/validation and is only a cost reference,1 whole input borrowed,2 two body fragments buffered,3 full writer. Constructor/reserve/sample setup excluded, separate global allocation runs. Batch average ns/frame and rate are not per-frame P99, end-to-end throughput, contention, fixed-arrival, peer/upstream, CPU/RSS or production/native Linux/72h acceptance. No same-function parity/regression decision against the raw control.",
+      "raw_report": "windows-performance.json",
+      "raw_sha256": "5c299bccf5053270e1eb35fa435e02f222af3c19112f2763a41b79c5929f9c39",
+      "cases": [
+        {
+          "format": 1,
+          "mode": 0,
+          "count": 100000000,
+          "allocations": {
+            "log": "windows-perf-f1-m0-heap.log",
+            "log_sha256": "82e304ca875e66a0c549d881d40585b29e6489c13bd89e09bde4ebd2675f6bbf",
+            "values": {
+              "frames_per_sec": 2173896490.357848,
+              "ns_per_frame": 0.460004,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                1165433249.283384,
+                1346338967.314758,
+                2137382389.514068,
+                1474289134.43698,
+                1620412005.943547,
+                2119537686.670049,
+                1941785277.61846
+              ],
+              "median": 1620412005.943547,
+              "mean": 1686454101.540178,
+              "min": 1165433249.283384,
+              "max": 2137382389.514068,
+              "mad": 321373271.6749129,
+              "relative_mad": 0.19832812303052583,
+              "range": 971949140.2306838,
+              "relative_range": 0.5998160570679857,
+              "central_range": 773198719.3552909,
+              "relative_central_range": 0.47716180608342645,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                0.85805,
+                0.742755,
+                0.467862,
+                0.678293,
+                0.617127,
+                0.471801,
+                0.51499
+              ],
+              "median": 0.617127,
+              "mean": 0.6215539999999999,
+              "min": 0.467862,
+              "max": 0.85805,
+              "mad": 0.12562800000000007,
+              "relative_mad": 0.20356911948432022,
+              "range": 0.390188,
+              "relative_range": 0.6322653197802073,
+              "central_range": 0.27095400000000003,
+              "relative_central_range": 0.439057114661974,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 1,
+          "count": 1582946,
+          "allocations": {
+            "log": "windows-perf-f1-m1-heap.log",
+            "log_sha256": "426ffc1af973090571637917b835f1edd75af90e91baeede2e64a62b97cdedc3",
+            "values": {
+              "frames_per_sec": 10779347.205794,
+              "ns_per_frame": 92.769996,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                6903074.130629,
+                8950864.128187,
+                7311424.178085,
+                9643583.417811,
+                8189029.740578,
+                9529533.23032,
+                9848215.348055
+              ],
+              "median": 8950864.128187,
+              "mean": 8625103.453380715,
+              "min": 6903074.130629,
+              "max": 9848215.348055,
+              "mad": 761834.3876090003,
+              "relative_mad": 0.08511294291798283,
+              "range": 2945141.217425999,
+              "relative_range": 0.3290342893432501,
+              "central_range": 2332159.2397260005,
+              "relative_central_range": 0.26055129497294466,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                144.862996,
+                111.721057,
+                136.772259,
+                103.695894,
+                122.114589,
+                104.936934,
+                101.54124
+              ],
+              "median": 111.721057,
+              "mean": 117.94928128571428,
+              "min": 101.54124,
+              "max": 144.862996,
+              "mad": 10.179817,
+              "relative_mad": 0.09111815868337157,
+              "range": 43.32175600000001,
+              "relative_range": 0.3877671511826102,
+              "central_range": 33.076364999999996,
+              "relative_central_range": 0.2960620485357563,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 2,
+          "count": 1077895,
+          "allocations": {
+            "log": "windows-perf-f1-m2-heap.log",
+            "log_sha256": "a0f6321a887ab5dd2706e8aa44413bdf7f6bed0910a7dbbfde1ca6f09176cd6d",
+            "values": {
+              "frames_per_sec": 8033419.083331,
+              "ns_per_frame": 124.479999,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                6444624.341461,
+                6808094.714992,
+                7132317.37537,
+                7591873.789927,
+                7971505.375781,
+                8081377.955796,
+                8479463.617331
+              ],
+              "median": 7591873.789927,
+              "mean": 7501322.452951143,
+              "min": 6444624.341461,
+              "max": 8479463.617331,
+              "mad": 489504.16586899944,
+              "relative_mad": 0.06447738455800993,
+              "range": 2034839.27587,
+              "relative_range": 0.26802859638813437,
+              "central_range": 1273283.2408039998,
+              "relative_central_range": 0.16771659751422752,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                155.168082,
+                146.883973,
+                140.206885,
+                131.719787,
+                125.44682,
+                123.741274,
+                117.931988
+              ],
+              "median": 131.719787,
+              "mean": 134.442687,
+              "min": 117.931988,
+              "max": 155.168082,
+              "mad": 8.487098000000003,
+              "relative_mad": 0.06443297695280971,
+              "range": 37.236093999999994,
+              "relative_range": 0.2826917264905689,
+              "central_range": 23.142698999999993,
+              "relative_central_range": 0.17569645022277475,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 3,
+          "count": 6541648,
+          "allocations": {
+            "log": "windows-perf-f1-m3-heap.log",
+            "log_sha256": "78b27c974357568935ff9e75c67300c5f06d6acf89543643e44c2a2084371523",
+            "values": {
+              "frames_per_sec": 51626236.37664,
+              "ns_per_frame": 19.369996,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                39555517.659903,
+                42963272.368647,
+                39479627.853264,
+                48273284.880238,
+                41122939.19072,
+                46154792.681866,
+                43157003.761537
+              ],
+              "median": 42963272.368647,
+              "mean": 42958062.628024995,
+              "min": 39479627.853264,
+              "max": 48273284.880238,
+              "mad": 3191520.313218996,
+              "relative_mad": 0.07428485162475773,
+              "range": 8793657.026974,
+              "relative_range": 0.20467847401193964,
+              "central_range": 6599275.021963,
+              "relative_central_range": 0.1536027089682048,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                25.280923,
+                23.275694,
+                25.329519,
+                20.715392,
+                24.317328,
+                21.666222,
+                23.17121
+              ],
+              "median": 23.275694,
+              "mean": 23.39375542857143,
+              "min": 20.715392,
+              "max": 25.329519,
+              "mad": 1.6094720000000002,
+              "relative_mad": 0.06914818522704415,
+              "range": 4.614127,
+              "relative_range": 0.19823799883260193,
+              "central_range": 3.614701,
+              "relative_central_range": 0.15529938656179273,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 0,
+          "count": 100000000,
+          "allocations": {
+            "log": "windows-perf-f2-m0-heap.log",
+            "log_sha256": "82e304ca875e66a0c549d881d40585b29e6489c13bd89e09bde4ebd2675f6bbf",
+            "values": {
+              "frames_per_sec": 2173896490.357848,
+              "ns_per_frame": 0.460004,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                2195129445.731102,
+                2118958318.523073,
+                2151009469.79489,
+                2119784798.943735,
+                2117199707.690626,
+                2135419780.797615,
+                1802422095.209226
+              ],
+              "median": 2119784798.943735,
+              "mean": 2091417659.527181,
+              "min": 1802422095.209226,
+              "max": 2195129445.731102,
+              "mad": 15634981.853880167,
+              "relative_mad": 0.007375740151392209,
+              "range": 392707350.5218761,
+              "relative_range": 0.1852581218232897,
+              "central_range": 33809762.10426402,
+              "relative_central_range": 0.01594962003742599,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                0.455554,
+                0.47193,
+                0.464898,
+                0.471746,
+                0.472322,
+                0.468292,
+                0.554809
+              ],
+              "median": 0.471746,
+              "mean": 0.4799358571428572,
+              "min": 0.455554,
+              "max": 0.554809,
+              "mad": 0.0034540000000000126,
+              "relative_mad": 0.0073217366972905176,
+              "range": 0.09925499999999998,
+              "relative_range": 0.21039924026912785,
+              "central_range": 0.007424000000000042,
+              "relative_central_range": 0.015737282351095803,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 1,
+          "count": 8880994,
+          "allocations": {
+            "log": "windows-perf-f2-m1-heap.log",
+            "log_sha256": "e4100c9d7508f93a15f334ecb878a859961135033255814e372858017c4f372a",
+            "values": {
+              "frames_per_sec": 61425054.905765,
+              "ns_per_frame": 16.280002,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                59028047.153411,
+                56837597.718044,
+                61422759.856005,
+                59005927.834201,
+                57207860.305184,
+                55819324.017561,
+                52097474.727685
+              ],
+              "median": 57207860.305184,
+              "mean": 57345570.23029871,
+              "min": 52097474.727685,
+              "max": 61422759.856005,
+              "mad": 1798067.5290170014,
+              "relative_mad": 0.03143042790667118,
+              "range": 9325285.128320001,
+              "relative_range": 0.16300706019370162,
+              "central_range": 3208723.1358499974,
+              "relative_central_range": 0.05608885070569984,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                16.941099,
+                17.593988,
+                16.28061,
+                16.94745,
+                17.480115,
+                17.914943,
+                19.194788
+              ],
+              "median": 17.480115,
+              "mean": 17.478998999999998,
+              "min": 16.28061,
+              "max": 19.194788,
+              "mad": 0.5326650000000015,
+              "relative_mad": 0.030472625609156544,
+              "range": 2.9141779999999997,
+              "relative_range": 0.16671389175643292,
+              "central_range": 0.9738439999999997,
+              "relative_central_range": 0.05571153279025908,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 2,
+          "count": 3574832,
+          "allocations": {
+            "log": "windows-perf-f2-m2-heap.log",
+            "log_sha256": "f8cb6d153cb754163197f4d532debfb4edaf4524295dbbbef5c8376b316a7ed2",
+            "values": {
+              "frames_per_sec": 22899014.95365,
+              "ns_per_frame": 43.670001,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                25275780.566382,
+                26422635.695105,
+                28307451.581242,
+                28990773.60984,
+                25646479.484536,
+                27254299.51307,
+                21382262.238184
+              ],
+              "median": 26422635.695105,
+              "mean": 26182811.812622715,
+              "min": 21382262.238184,
+              "max": 28990773.60984,
+              "mad": 1146855.128723003,
+              "relative_mad": 0.04340426677931554,
+              "range": 7608511.371655997,
+              "relative_range": 0.28795429265467004,
+              "central_range": 3031671.0148600005,
+              "relative_central_range": 0.11473764577625543,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                39.563565,
+                37.846338,
+                35.326387,
+                34.493733,
+                38.991706,
+                36.691459,
+                46.767736
+              ],
+              "median": 37.846338,
+              "mean": 38.52584628571429,
+              "min": 34.493733,
+              "max": 46.767736,
+              "mad": 1.717226999999994,
+              "relative_mad": 0.04537366336473542,
+              "range": 12.274003,
+              "relative_range": 0.3243115093460297,
+              "central_range": 4.237178,
+              "relative_central_range": 0.11195741051617727,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 3,
+          "count": 4608295,
+          "allocations": {
+            "log": "windows-perf-f2-m3-heap.log",
+            "log_sha256": "54429834bed605f0372b08c0d7b973c1dbe81cb1ca3d88c3c610872943dd8cd1",
+            "values": {
+              "frames_per_sec": 38550501.730298,
+              "ns_per_frame": 25.94,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                51374411.643876,
+                52744893.801514,
+                48640979.071276,
+                56618316.457846,
+                52209647.760593,
+                51518168.254702,
+                48896866.90278
+              ],
+              "median": 51518168.254702,
+              "mean": 51714754.84179814,
+              "min": 48640979.071276,
+              "max": 56618316.457846,
+              "mad": 1226725.546811998,
+              "relative_mad": 0.023811513265517472,
+              "range": 7977337.386569999,
+              "relative_range": 0.15484512855990212,
+              "central_range": 3848026.8987340033,
+              "relative_central_range": 0.07469261872257654,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                19.464943,
+                18.959181,
+                20.558797,
+                17.662129,
+                19.153548,
+                19.410628,
+                20.451208
+              ],
+              "median": 19.410628,
+              "mean": 19.380062000000002,
+              "min": 17.662129,
+              "max": 20.558797,
+              "mad": 0.45144699999999816,
+              "relative_mad": 0.02325772252190904,
+              "range": 2.8966679999999982,
+              "relative_range": 0.14923102951640713,
+              "central_range": 1.4920270000000002,
+              "relative_central_range": 0.07686649808548185,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "796ebd279ec5103e8e4ee967410242c9f5b06d4808ee2af394e2217c5ebda220",
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "flags": [
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-m64",
+        "-DXRT_FEATURE_MEMORY_STATS",
+        "-DXRT_FEATURE_TIME",
+        "-DXRPC_FEATURE_XRPC_FRAME",
+        "-I",
+        "/mnt/d/GIT/xrt/include",
+        "-pthread",
+        "-O2",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-I",
+        "/mnt/d/GIT/xrt/extlibs/xrpc/include"
+      ],
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "binary": {
+        "path": "performance/wsl/frame",
+        "sha256": "b97336a8303df6e3d3f2f3669452e5f1e1ec4e829638b81fcf1835d499528b6a"
+      },
+      "cold": {
+        "base_bytes": 168.0,
+        "reserved_storage_bytes": 4392.0,
+        "reserved_peak_bytes": 4392.0,
+        "timer_min_positive_ns": 99.999851955
+      },
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "scope": "Pure framing closed CPU loops, payload256. Content-Length/uint32; mode0 known-layout volatile-byte control omits parsing/validation and is only a cost reference,1 whole input borrowed,2 two body fragments buffered,3 full writer. Constructor/reserve/sample setup excluded, separate global allocation runs. Batch average ns/frame and rate are not per-frame P99, end-to-end throughput, contention, fixed-arrival, peer/upstream, CPU/RSS or production/native Linux/72h acceptance. No same-function parity/regression decision against the raw control.",
+      "raw_report": "wsl-performance.json",
+      "raw_sha256": "c8b3b6640c0587be5d009846f956396787be25e76fafa4dce0c67a98f9a925c2",
+      "cases": [
+        {
+          "format": 1,
+          "mode": 0,
+          "count": 100000000,
+          "allocations": {
+            "log": "wsl-perf-f1-m0-heap.log",
+            "log_sha256": "5ced337a472102d2c469bc5ef407cdf66cff77f06b46713e84f4b0f10aec42b6",
+            "values": {
+              "frames_per_sec": 2173913038.221416,
+              "ns_per_frame": 0.46,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                2133793094.621249,
+                1799360474.895822,
+                2132164338.702036,
+                2125443641.194202,
+                1716428798.243546,
+                2121732222.073055,
+                2018684907.12581
+              ],
+              "median": 2121732222.073055,
+              "mean": 2006801068.1222458,
+              "min": 1716428798.243546,
+              "max": 2133793094.621249,
+              "mad": 12060872.548193932,
+              "relative_mad": 0.005684446143919972,
+              "range": 417364296.37770295,
+              "relative_range": 0.19670922279245678,
+              "central_range": 332803863.80621386,
+              "relative_central_range": 0.1568547907902559,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                0.468649,
+                0.555753,
+                0.469007,
+                0.47049,
+                0.582605,
+                0.471313,
+                0.495372
+              ],
+              "median": 0.471313,
+              "mean": 0.5018841428571429,
+              "min": 0.468649,
+              "max": 0.582605,
+              "mad": 0.0026639999999999997,
+              "relative_mad": 0.005652294759533473,
+              "range": 0.11395600000000006,
+              "relative_range": 0.24178412222875256,
+              "central_range": 0.08674600000000005,
+              "relative_central_range": 0.1840517872411753,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 1,
+          "count": 1461418,
+          "allocations": {
+            "log": "wsl-perf-f1-m1-heap.log",
+            "log_sha256": "a7571a0eefd16657a9bf1d78507429d90bce0f8b8688b89cd37e0716f582fc66",
+            "values": {
+              "frames_per_sec": 9862905.613339,
+              "ns_per_frame": 101.39,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                10516068.140493,
+                10358664.445074,
+                9334149.904905,
+                10506141.775728,
+                10559233.499556,
+                10432418.044966,
+                9911648.044447
+              ],
+              "median": 10432418.044966,
+              "mean": 10231189.122167,
+              "min": 9334149.904905,
+              "max": 10559233.499556,
+              "mad": 83650.09552700073,
+              "relative_mad": 0.008018284463529984,
+              "range": 1225083.5946509987,
+              "relative_range": 0.11743045470097355,
+              "central_range": 604420.0960460007,
+              "relative_central_range": 0.05793672123191557,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                95.092575,
+                96.537542,
+                107.133484,
+                95.18242,
+                94.703844,
+                95.855054,
+                100.891395
+              ],
+              "median": 95.855054,
+              "mean": 97.91375914285713,
+              "min": 94.703844,
+              "max": 107.133484,
+              "mad": 0.762478999999999,
+              "relative_mad": 0.007954499717876108,
+              "range": 12.429639999999992,
+              "relative_range": 0.12967120127020107,
+              "central_range": 5.798820000000006,
+              "relative_central_range": 0.06049571470691578,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 2,
+          "count": 1118234,
+          "allocations": {
+            "log": "wsl-perf-f1-m2-heap.log",
+            "log_sha256": "12d1e9448586b089d1edf71a2d731f2d27b325fcba82121b5f6e6efbc7a42bf0",
+            "values": {
+              "frames_per_sec": 6578081.831515,
+              "ns_per_frame": 152.02,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                8049939.436164,
+                7676119.032683,
+                7957629.749367,
+                7594319.933806,
+                7578914.590637,
+                7478715.43518,
+                7318433.720596
+              ],
+              "median": 7594319.933806,
+              "mean": 7664867.414061857,
+              "min": 7318433.720596,
+              "max": 8049939.436164,
+              "mad": 115604.49862600025,
+              "relative_mad": 0.01522249518503804,
+              "range": 731505.7155680005,
+              "relative_range": 0.09632274146256517,
+              "central_range": 478914.3141869996,
+              "relative_central_range": 0.0630621725659884,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            },
+            "ns_per_frame": {
+              "samples": [
+                124.224537,
+                130.274165,
+                125.66556,
+                131.67736,
+                131.945015,
+                133.712803,
+                136.641259
+              ],
+              "median": 131.67736,
+              "mean": 130.59152842857142,
+              "min": 124.224537,
+              "max": 136.641259,
+              "mad": 2.035443000000015,
+              "relative_mad": 0.015457805350897186,
+              "range": 12.416721999999993,
+              "relative_range": 0.09429655940854216,
+              "central_range": 8.047243000000009,
+              "relative_central_range": 0.061113337934478706,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 1,
+          "mode": 3,
+          "count": 5784805,
+          "allocations": {
+            "log": "wsl-perf-f1-m3-heap.log",
+            "log_sha256": "b9ad3a10ca81e207ab5ee4b0175b8034d6cf719324f4f349359bb037bdb530c4",
+            "values": {
+              "frames_per_sec": 49726504.248287,
+              "ns_per_frame": 20.11,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                61386946.052941,
+                54819647.656412,
+                60724827.364271,
+                62665116.910176,
+                62036772.24129,
+                60343494.258033,
+                60789533.330996
+              ],
+              "median": 60789533.330996,
+              "mean": 60395191.116302714,
+              "min": 54819647.656412,
+              "max": 62665116.910176,
+              "mad": 597412.7219450027,
+              "relative_mad": 0.009827558943282555,
+              "range": 7845469.2537640035,
+              "relative_range": 0.12905954074438789,
+              "central_range": 1693277.9832570031,
+              "relative_central_range": 0.027854762003800694,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                16.290108,
+                18.241635,
+                16.467729,
+                15.957841,
+                16.119472,
+                16.571795,
+                16.4502
+              ],
+              "median": 16.4502,
+              "mean": 16.585539999999998,
+              "min": 15.957841,
+              "max": 18.241635,
+              "mad": 0.1600919999999988,
+              "relative_mad": 0.009731918152970712,
+              "range": 2.2837939999999985,
+              "relative_range": 0.1388307740939319,
+              "central_range": 0.45232300000000336,
+              "relative_central_range": 0.027496504601767967,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 0,
+          "count": 100000000,
+          "allocations": {
+            "log": "wsl-perf-f2-m0-heap.log",
+            "log_sha256": "f0d95221f924ac5633a8ce39a5beff99533352386a522307f58949941cc7f4c5",
+            "values": {
+              "frames_per_sec": 2127659533.521144,
+              "ns_per_frame": 0.47,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                2140026193.92553,
+                2105050392.703552,
+                2151638903.34607,
+                2135351337.155802,
+                2130229447.021047,
+                2147581822.86794,
+                1944651295.924138
+              ],
+              "median": 2135351337.155802,
+              "mean": 2107789913.2777255,
+              "min": 1944651295.924138,
+              "max": 2151638903.34607,
+              "mad": 12230485.712137938,
+              "relative_mad": 0.005727622194682224,
+              "range": 206987607.42193174,
+              "relative_range": 0.0969337475385341,
+              "central_range": 42531430.16438794,
+              "relative_central_range": 0.019917766891249855,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                0.467284,
+                0.475048,
+                0.464762,
+                0.468307,
+                0.469433,
+                0.46564,
+                0.514231
+              ],
+              "median": 0.468307,
+              "mean": 0.4749578571428571,
+              "min": 0.464762,
+              "max": 0.514231,
+              "mad": 0.002666999999999975,
+              "relative_mad": 0.0056949821377856305,
+              "range": 0.049468999999999985,
+              "relative_range": 0.10563369755310083,
+              "central_range": 0.009408000000000027,
+              "relative_central_range": 0.02008938580888184,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 1,
+          "count": 8301051,
+          "allocations": {
+            "log": "wsl-perf-f2-m1-heap.log",
+            "log_sha256": "968cf73579403db66bc6925e6e43157cabc06b134721c635998a76d66b401dda",
+            "values": {
+              "frames_per_sec": 54914881.979084,
+              "ns_per_frame": 18.21,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                53132302.4864,
+                56037521.10572,
+                56454756.51731,
+                56087916.772772,
+                54492365.768937,
+                54808043.550272,
+                54747786.096779
+              ],
+              "median": 54808043.550272,
+              "mean": 55108670.32831286,
+              "min": 53132302.4864,
+              "max": 56454756.51731,
+              "mad": 1229477.5554479957,
+              "relative_mad": 0.022432429180221924,
+              "range": 3322454.03091,
+              "relative_range": 0.060619825406877006,
+              "central_range": 1595551.003835,
+              "relative_central_range": 0.029111621223470614,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                18.820942,
+                17.845186,
+                17.713299,
+                17.829152,
+                18.351194,
+                18.245497,
+                18.265579
+              ],
+              "median": 18.245497,
+              "mean": 18.152978428571426,
+              "min": 17.713299,
+              "max": 18.820942,
+              "mad": 0.40031099999999853,
+              "relative_mad": 0.021940262849512872,
+              "range": 1.1076429999999995,
+              "relative_range": 0.06070774613593696,
+              "central_range": 0.522041999999999,
+              "relative_central_range": 0.028612100837812147,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 2,
+          "count": 3609239,
+          "allocations": {
+            "log": "wsl-perf-f2-m2-heap.log",
+            "log_sha256": "94191c17d768ae89e7d372a35a3fabadadd81d168665148627f2ebd627f76572",
+            "values": {
+              "frames_per_sec": 27609055.758539,
+              "ns_per_frame": 36.22,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                28514492.299346,
+                30131403.708802,
+                30280273.234321,
+                26915657.723828,
+                30216010.242031,
+                30432262.72011,
+                29378828.055475
+              ],
+              "median": 30131403.708802,
+              "mean": 29409846.854844715,
+              "min": 26915657.723828,
+              "max": 30432262.72011,
+              "mad": 300859.0113079995,
+              "relative_mad": 0.00998489861991104,
+              "range": 3516604.996282,
+              "relative_range": 0.11670896683962745,
+              "central_range": 1765780.9349749982,
+              "relative_central_range": 0.05860267752674189,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                35.069886,
+                33.187966,
+                33.024801,
+                37.153095,
+                33.095038,
+                32.859864,
+                34.038117
+              ],
+              "median": 33.187966,
+              "mean": 34.06125242857143,
+              "min": 32.859864,
+              "max": 37.153095,
+              "mad": 0.3281020000000012,
+              "relative_mad": 0.009886173801672607,
+              "range": 4.293230999999999,
+              "relative_range": 0.1293610762407072,
+              "central_range": 2.0450850000000003,
+              "relative_central_range": 0.061621281641664936,
+              "noise_qualified": false,
+              "resolution_qualified": true,
+              "qualified": false
+            }
+          }
+        },
+        {
+          "format": 2,
+          "mode": 3,
+          "count": 7731958,
+          "allocations": {
+            "log": "wsl-perf-f2-m3-heap.log",
+            "log_sha256": "4b8ca0b6222c58165c97a5f0993e300f9ec8941a6bdd079691140aeba2cae1b1",
+            "values": {
+              "frames_per_sec": 55370985.596948,
+              "ns_per_frame": 18.06,
+              "checksum": 3760000.0,
+              "heap_blocks_per_frame": 0.0,
+              "heap_bytes_per_frame": 0.0
+            }
+          },
+          "metrics": {
+            "frames_per_sec": {
+              "samples": [
+                71505800.199702,
+                70873039.225233,
+                70698650.658806,
+                70489563.526764,
+                71289815.409918,
+                62062505.421628,
+                71447653.853561
+              ],
+              "median": 70873039.225233,
+              "mean": 69766718.32794456,
+              "min": 62062505.421628,
+              "max": 71505800.199702,
+              "mad": 416776.18468499184,
+              "relative_mad": 0.005880602683913216,
+              "range": 9443294.778073996,
+              "relative_range": 0.13324241321249689,
+              "central_range": 958090.3267969936,
+              "relative_central_range": 0.013518403292290078,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            },
+            "ns_per_frame": {
+              "samples": [
+                13.98488,
+                14.109738,
+                14.144542,
+                14.186497,
+                14.027249,
+                16.112788,
+                13.996261
+              ],
+              "median": 14.109738,
+              "mean": 14.365993571428572,
+              "min": 13.98488,
+              "max": 16.112788,
+              "mad": 0.0824890000000007,
+              "relative_mad": 0.005846246046524797,
+              "range": 2.127907999999998,
+              "relative_range": 0.1508113049299709,
+              "central_range": 0.19023599999999874,
+              "relative_central_range": 0.01348260329142885,
+              "noise_qualified": true,
+              "resolution_qualified": true,
+              "qualified": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "retained_failures": [
+    {
+      "platform": "windows",
+      "label": "package-static",
+      "log": "windows-package-static.log",
+      "reason": "Old verification consumer forced root-module code into a selected package; fixed consumer-only, with original runtime bytes preserved.",
+      "resolved": true
+    },
+    {
+      "platform": "windows",
+      "label": "finalize",
+      "log": "windows-finalize.log",
+      "reason": "Evidence export target tests/results directory did not exist. Created directory and exported completed evidence; no source, binaries, samples or tests changed/repeated.",
+      "resolved": true
+    },
+    {
+      "platform": "wsl",
+      "label": "package-static",
+      "log": "wsl-package-static.log",
+      "reason": "Old verification consumer forced root-module code into a selected package; fixed consumer-only, with original runtime bytes preserved.",
+      "resolved": true
+    }
+  ],
+  "current_cohort_failures": [],
+  "raw_evidence": "out/service-extensions/xrpc-frame-20261112",
+  "limitations": [
+    "Framing is a real utility component, not a production stdio/process adapter, asynchronous bidirectional/pending-call runtime, websocket transport, authentication or negotiated deadline/cancellation. All these remain required product work.",
+    "Bodies are opaque; complete framing does not validate JSON. Borrowed and reader-buffered views have distinct documented lifetimes. No retained payload object, callback, lock, timer, Engine or Future is created.",
+    "Logical storage includes state and both reusable capacities plus conservative old+new replacement reservations; caller/native buffers, allocator metadata/pools/RSS and later JSON/result copies are outside this bound. Fragmented bodies copy once per input chunk plus actual realloc movement. No universal zero-copy/overhead claim.",
+    "Real native stdin/stdout fixtures compose production framing and existing synchronous dispatch with independent Python bytes/JSON/decimal checks. Finite process fixtures do not establish production pipe cancellation/close/backpressure, full bidirectional runtime or physical process-adapter ownership.",
+    "One warmup/seven rotated serial unpinned CPU-loop observations with original3% MAD/6% central-range gates; separate heap runs. Raw known-layout control omits header parsing/validation and has no same-function parity/regression gate. Batch-average ns/frame and throughput are not individual P99 or end-to-end transport performance.",
+    "No pinned upstream comparison, mixed/fixed-arrival/contention/CPU/RSS/native Linux deployment or>=72h production/performance acceptance. WSL is explicitly not native Linux qualification. All four libraries remain incomplete/developing."
+  ],
+  "prototype_failures": [
+    {
+      "log": "dev-build.log",
+      "sha256": "955f5e2edcb795f142955c4c30954ddddb47b232cc110761969eecede9443228"
+    },
+    {
+      "log": "dev-build-2.log",
+      "sha256": "4906dbb67722cd1159de5aa70db34bd0587afafa3843a1e819802df288768085"
+    },
+    {
+      "log": "dev-build-3.log",
+      "sha256": "16b9ce606d777dcc8876587ec941939751ebd33d0f23286b88c5e89419b70e44"
+    },
+    {
+      "log": "dev-peer-build.log",
+      "sha256": "286fc476ea1a8b037b3eff40496304c50ef4b116226de5b309ffb537d0c37da9"
+    }
+  ],
+  "prototype_notes": "Initial error include/strict-warning and test indentation failures were corrected. First-empty-line framing incorrectly returned MORE and was corrected to immediate PROTOCOL before freeze. The stdio fixture initially called the existing encoder with wrong argument order; corrected before freeze. All failed logs remain.",
+  "noise_qualification": {
+    "evaluated_metrics": 32,
+    "qualified_metrics": 12,
+    "full_performance_acceptance": false
+  },
+  "unchanged_core_and_existing_runtime": true
+}

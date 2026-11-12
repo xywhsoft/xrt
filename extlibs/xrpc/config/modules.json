@@ -131,6 +131,13 @@
         "source_roots": [
           "http_server_tls"
         ]
+      },
+      {
+        "name": "frame",
+        "state": "retained",
+        "source_roots": [
+          "frame"
+        ]
       }
     ]
   },
@@ -196,7 +203,8 @@
         "xrpc_http_server",
         "xrpc_http_dial",
         "xrpc_http_tls",
-        "xrpc_http_server_tls"
+        "xrpc_http_server_tls",
+        "xrpc_frame"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -699,7 +707,8 @@
         "xrpc_http_server_tests",
         "xrpc_http_tls_tests",
         "xrpc_http_server_tls_tests",
-        "xrpc_http_measure_tests"
+        "xrpc_http_measure_tests",
+        "xrpc_frame_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -719,7 +728,8 @@
         "extlibs/xrpc/tests/test_http_server.c",
         "extlibs/xrpc/tests/test_http_dial.c",
         "extlibs/xrpc/tests/test_http_tls.c",
-        "extlibs/xrpc/tests/test_http_server_tls.c"
+        "extlibs/xrpc/tests/test_http_server_tls.c",
+        "extlibs/xrpc/tests/test_frame.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -736,7 +746,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -758,7 +769,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server.c": "xrpc_http_server_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c": "xrpc_http_dial_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c": "xrpc_http_tls_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c": "xrpc_http_server_tls_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c": "xrpc_http_server_tls_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame"
       }
     },
     {
@@ -1098,6 +1110,58 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/http_measurement.md"
+      ]
+    },
+    {
+      "name": "xrpc_frame",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_FRAME",
+      "depends": [
+        "core"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/frame.h",
+        "extlibs/xrpc/include/xrpc/export.h"
+      ],
+      "internal_headers": [],
+      "sources": [
+        "extlibs/xrpc/src/frame/frame.c"
+      ],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/frame/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_frame.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/frame.md",
+        "extlibs/xrpc/examples/frame/README.md",
+        "extlibs/xrpc/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xrpc_frame_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_frame",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_frame.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/frame.md"
       ]
     }
   ]

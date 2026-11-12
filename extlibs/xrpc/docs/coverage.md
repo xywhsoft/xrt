@@ -264,3 +264,13 @@ remains pending.
 
 Credential negotiation/lifecycle, mTLS and final native/comparator/72-hour
 production qualification remain pending.
+
+
+## Explicit stream framing
+
+The [frame leaf](frame.md) handles Content-Length and explicit binary32 lengths,
+strict ASCII/CRLF/media rules, coalescing/fragmentation, body/header/field/line and
+old+new storage bounds, borrowed/copied views, sticky EOF/failure and atomic
+writers. Independent bytes/all split points, quota/alias/mutation/no-heap tests
+and real Python/C stdin/stdout checks accompany it. This is no declaration of a
+production stdio adapter or full bidirectional runtime; those remain required.
