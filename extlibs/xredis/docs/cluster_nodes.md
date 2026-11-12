@@ -3,6 +3,10 @@
 The developing xredis_cluster_nodes leaf supplies a thread-safe GetPool adapter
 for bounded Cluster routes. One cache owns one immutable credentials/session/
 transport policy; Authorize checks every lookup, including hits, outside gates.
+Admission combines the close seal and active lookup count in one atomic word;
+only an admitted scope can access policy/data. Close seals that word before
+retiring nodes and waits for all admitted scopes plus its scan before Drop.
+CAS contention is bounded to32 attempts, then returns WAIT without calling policy.
 An exact copied host/port/TLS key shares one maintained native node pool across
 all slots and MOVED/ASK reasons. Per-node factory callbacks run on pool workers;
 different nodes may call concurrently. All must be nonblocking. Stable copied
@@ -21,8 +25,8 @@ checked aggregate bounds: MaxNodes times the configured per-node limits, with
 MaxConnections enforcing the product. Retained caller results have independent
 storage obligations. A hostile collision chain still has at most MaxNodes
 entries; hashing is not cryptographic and no constant-time adversarial claim is
-made. Warm lookup validates/scans/hashes the address, calls policy, takes two
-cache gates and a pool ref; it allocates no storage. Misses allocate ordinary
+made. Warm lookup validates/scans/hashes the address, calls policy, uses bounded atomic admission,
+one lookup gate and a pool ref; it allocates no storage. Misses allocate ordinary
 native pool/connector/Future state. These are real costs, not zero overhead.
 
 Explicit Retire fences the endpoint and closes its native pool. Accepted work

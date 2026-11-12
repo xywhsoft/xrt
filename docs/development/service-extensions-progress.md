@@ -11603,3 +11603,71 @@ The broader four-library goal stays active. All started jobs are terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-nodes-20261112.json),
 out/service-extensions/xredis-cluster-nodes-20261112 (initial cohort/diagnosis)
 and out/service-extensions/xredis-cluster-nodes-v2-20261112 (corrected cohort).
+
+## 2026-11-12: bounded atomic admission for Cluster node lookups
+
+Developed directly on master from fb9ef58f. A private atomic word combines the
+close seal with the admitted lookup count. Successful admission protects policy/
+data until End; sealing prevents every subsequent admission. Saturation or32
+failed CAS attempts return WAIT without invoking policy. Warm lookup now needs
+one map gate, with an atomic release at End. The map gate still protects entry
+selection/ref transfer/reuse; this is not a lock-free cache. Close marks a
+separate protected scan duty and waits for it, all admitted scopes and physical
+node retirement before one context Drop/engine unpin. Info.APIs snapshots the
+atomic count plus the scan duty. Public signatures/layouts and cache/slot storage
+sizes/offsets remain unchanged; the atomic word fits existing alignment padding.
+No native client/pool/Core source or runtime is added/changed.
+
+New deterministic coverage holds8 admitted authorization callbacks, rejects a
+ninth without invoking policy, physically retires the warm node, verifies Closed
+and Drop remain pending, rejects post-seal lookups, then releases all8 and checks
+exactly one Drop and zero API duties. Existing policy reentry/close, capacity,
+coalesced creation, busy MAY_HAVE_EXECUTED retirement/no replay, zero caller heap,
+constructor/miss OOM and retained-outcome cases continue to pass.
+Windows 45 and WSL 46 logical programs pass, including37-program root regressions,
+feature-off routes, single headers and examples. WSL ASan/UBSan/leak and TSan
+checks pass. Modules/single/static/shared, isolated declarations, root-selector
+examples,9 unchanged exports/private exclusion, native and cache layouts, and
+both-host single/static/shared symbol gates pass. Real owned Redis Cluster8.0.5
+runs144 cached cases across2 hosts/four forms: numeric/DNS/prepared x RESP2/3/AUTO
+x SHARDS/stale topology,4 producers x8 INCR, unique1..32 and final counter32,
+4608 increments total. Owned identities precede writes, one native generation
+per node and exact physical context retirement hold, retained outcomes outlive
+engines, and all fixture processes/materials retire. Real transport remains plain
+IPv4/default user; full TLS/auth/trust/native Linux acceptance remains open.
+
+The exploratory1/8-thread cohort and formal inputs are canonically identical;
+all exploratory samples remain preserved. Formal timing follows all functional
+jobs, records environment/clock/binary/source identities, measures1/2/4/8 callers
+with common counts, one warmup/seven alternated samples, and swaps only the old/
+current cache implementation object. The authority/key/profile/limits/peers/
+thread warmup/work remain identical.3% MAD/6% central-span qualification and5%
+throughput/10% P99 budgets apply; latency gates additionally require the observed
+minimum positive clock step (including call overhead) to fit within10% of both
+medians. This prevents precise sub-tick tail claims from quantized samples.
+No timing-only rerun chooses green data. Formal qualified comparisons follow.
+
+| Host/threads | Throughput change | P99 change | Current lookup rate | Current P99 ns | Heap blocks/bytes per lookup |
+| --- | --- | --- | --- | --- | --- |
+| windows/1 | +1.07% (unqualified) | +0.00% (unqualified) | 4874730.83 | 200.0 | 0.0/0.0 |
+| windows/2 | +15.64% (unqualified) | -26.92% (unqualified) | 4579211.11 | 1900.01 | 0.0/0.0 |
+| windows/4 | +17.63% (qualified) | -19.59% (unqualified) | 3776014.07 | 7800.0 | 0.0/0.0 |
+| windows/8 | +28.22% (qualified) | -27.07% (unqualified) | 3310366.38 | 26400.03 | 0.0/0.0 |
+| wsl/1 | +0.64% (unqualified) | +0.00% (unqualified) | 6722103.26 | 200.0 | 0.0/0.0 |
+| wsl/2 | +46.52% (unqualified) | -43.75% (unqualified) | 5606663.93 | 900.0 | 0.0/0.0 |
+| wsl/4 | +34.47% (qualified) | -3.23% (unqualified) | 5023293.47 | 12000.0 | 0.0/0.0 |
+| wsl/8 | +46.23% (qualified) | -17.45% (unqualified) | 4014744.09 | 24600.0 | 0.0/0.0 |
+
+4/16 comparisons qualify; unqualified observations do not establish pass/fail.
+
+Atomic admission/end, one lookup gate, policy/hash/ref work and contention remain
+real costs. Throughput includes start skew; per-call latency includes contention
+and clocks. Setup/handles/per-thread warmup are outside the loop; heap samples
+include peer/thread mechanical tails. Native I/O sources/layouts remain unchanged;
+this stage does not add a native-I/O performance claim. These local unpinned
+observations are not fixed-arrival/mixed-load/upstream/CPU/RSS/native Linux/72h
+production acceptance. No zero-overhead/full-production claim is made. Automatic
+topology refresh/coalescing/bootstrap, persistent MOVED maps, replica policy and
+the managed async facade remain work; the full four-library goal stays active.
+All started jobs are terminal. Evidence: [portable report](../../extlibs/xredis/tests/results/nodes-admission-20261112.json)
+and out/service-extensions/xredis-nodes-admission-20261112 (including prototype1).

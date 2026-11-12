@@ -51,6 +51,23 @@ static void ntCloseDuringPolicy(void)
     xfuture* Closed=xredisClusterNodesClosed(F->Cache);xredisClusterNodesClose(F->Cache);testRequire(xrtFutureState(Closed)==XFUTURE_PENDING && !xrtAtomic32Load(&F->Drops,XMEMORY_ACQUIRE),"close escaped authorization duty");
     xrtAtomic32Store(&F->Continue,1,XMEMORY_RELEASE);testRequire(xrtThreadWaitFor(T,10000)==XWAIT_OK && W.Status==XREDIS_CLUSTER_POOL_CLOSED && xrtFutureWaitFor(Closed,10000)==XWAIT_OK,"held authorization retirement");xrtThreadDestroy(T);xrtFutureDestroy(Closed);testRequire(!xrtAtomic32Load(&F->Calls,XMEMORY_ACQUIRE),"close started a factory");xredisClusterNodesRelease(F->Cache);nnStop(F);
 }
+static void ntSealManyCallers(void)
+{
+    nnfixture* F=nnStart();xredisclusternodesconfig C;nnConfig(F,&C);C.MaxLookups=8;nnCreate(F,&C);xredisclusteraddress A=nnAddress(F,0);xredispool* P=NULL;
+    testRequire(xredisClusterNodesGetPool(&A,5000,F->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"seal stress warm node");nnReady(P,1);
+    uint32 Base=xrtAtomic32Load(&F->Auth,XMEMORY_ACQUIRE);xrtAtomic32Store(&F->Block,1,XMEMORY_RELEASE);xrtAtomic32Store(&F->Go,1,XMEMORY_RELEASE);ntwork W[8]={0};xthread* T[8];
+    for(size_t I=0;I<8;++I){W[I].F=F;xredisClusterNodesRetain(F->Cache);T[I]=xrtThreadCreate(ntLookup,&W[I],0);testRequire(T[I]!=NULL,"many admitted policy callers");}
+    redisPeerWait(&F->Auth,Base+8);testRequire(nnInfo(F->Cache).APIs==8,"exact admitted caller bound");xredispool* Out=(void*)(uintptr_t)1;
+    testRequire(xredisClusterNodesGetPool(&A,5000,F->Cache,&Out)==XREDIS_CLUSTER_POOL_WAIT && Out==(void*)(uintptr_t)1 && xrtAtomic32Load(&F->Auth,XMEMORY_ACQUIRE)==Base+8,"saturated admission invoked policy");
+    xfuture* Closed=xredisClusterNodesClosed(F->Cache);xredisClusterNodesClose(F->Cache);xfuture* NodeClosed=xredisPoolClosed(P);testRequire(xrtFutureWaitFor(NodeClosed,10000)==XWAIT_OK,"node physical close while callers held");xrtFutureDestroy(NodeClosed);xredisPoolRelease(P);
+    double Due=xrtTimer()+5;while(nnInfo(F->Cache).Nodes){testRequire(xrtTimer()<Due,"held callers blocked physical node retirement");xrtSleep(1);}
+    testRequire(xrtFutureState(Closed)==XFUTURE_PENDING && !xrtAtomic32Load(&F->Drops,XMEMORY_ACQUIRE),"seal dropped data before all admitted scopes ended");
+    testRequire(xredisClusterNodesGetPool(&A,5000,F->Cache,&Out)==XREDIS_CLUSTER_POOL_CLOSED && xrtAtomic32Load(&F->Auth,XMEMORY_ACQUIRE)==Base+8,"sealed admission called policy");
+    xrtAtomic32Store(&F->Continue,1,XMEMORY_RELEASE);
+    for(size_t I=0;I<8;++I){testRequire(xrtThreadWaitFor(T[I],10000)==XWAIT_OK && W[I].Status==XREDIS_CLUSTER_POOL_CLOSED,"admitted caller close result");xrtThreadDestroy(T[I]);xredisClusterNodesRelease(F->Cache);}
+    testRequire(xrtFutureWaitFor(Closed,10000)==XWAIT_OK && xrtAtomic32Load(&F->AuthExited,XMEMORY_ACQUIRE)==Base+8 && xrtAtomic32Load(&F->Drops,XMEMORY_ACQUIRE)==1 && !nnInfo(F->Cache).APIs,"last admitted caller did not finish close exactly once");
+    xrtFutureDestroy(Closed);xredisClusterNodesRelease(F->Cache);nnStop(F);
+}
 static void ntRoute(void)
 {
     nnfixture* F=nnStart();xrtAtomic32Store(&F->Nodes[0].Redirect,1,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[0].Target,1,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[1].Redirect,2,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[1].Target,2,XMEMORY_RELEASE);
@@ -96,4 +113,4 @@ static void ntOOM(void)
     testRequire(Fail && OK,"cache miss OOM coverage");nnStop(F);
 }
 int main(void)
-{ntValidation();ntBasic();ntCapacity();ntConcurrent();ntPolicy();ntCloseDuringPolicy();ntCloseSetupAndBusy();ntRoute();ntOOM();puts("[PASS] bounded Cluster node pools: lazy/coalesced setup, per-hit authority, quotas, physical retirement, no hot allocations, OOM and retained outcomes");return 0;}
+{ntValidation();ntBasic();ntCapacity();ntConcurrent();ntPolicy();ntCloseDuringPolicy();ntSealManyCallers();ntCloseSetupAndBusy();ntRoute();ntOOM();puts("[PASS] bounded Cluster node pools: lazy/coalesced setup, per-hit authority, quotas, physical retirement, no hot allocations, OOM and retained outcomes");return 0;}

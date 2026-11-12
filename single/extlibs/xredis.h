@@ -11443,11 +11443,11 @@ struct xredisclusternodepool {
     bool Opening,Retiring,ObservedClosed;
 };
 struct xredisclusternodes {
-    xatomic32 References;xmutex Gate;xnetengine* Engine;uint64 Affinity;
+    xatomic32 References,Admission;xmutex Gate;xnetengine* Engine;uint64 Affinity;
     xredisclusternodesconfig Config;xredisclusternodesinfo Info;
     xpromise* Promise;xfuture* Closed;
     xredisclusternodepool **Buckets,*Slots,*Free;
-    size_t BucketCount,StorageBytes;bool Finishing;
+    size_t BucketCount,StorageBytes;bool Finishing,Scanning;
 };
 static bool xredisNodesError(xerrkind K,cstr S)
 {xrtSetErrorInfo(K,"xrt.redis",K==XERR_STATE?XREDIS_CLIENT_STATE:XREDIS_CLIENT_ARGUMENT,S);return false;}
@@ -11468,10 +11468,28 @@ static uint64 xredisNodesHash(const xredisclusteraddress* A)
 {uint64 H=14695981039346656037ull;for(size_t I=0;I<A->Host.Size;++I){H^=A->Host.Data[I];H*=1099511628211ull;}H^=A->Port;H*=1099511628211ull;H^=A->Tls;return H;}
 static xredisclusternodepool* xredisNodesFind(xredisclusternodes* C,const xredisclusteraddress* A,uint64 H)
 {for(xredisclusternodepool* N=C->Buckets[H&(C->BucketCount-1)];N;N=N->Next)if(N->Hash==H && N->Address.Port==A->Port && N->Address.Tls==A->Tls && N->Address.Host.Size==A->Host.Size && !memcmp(N->Address.Host.Data,A->Host.Data,A->Host.Size))return N;return NULL;}
+#define XREDIS_NODES_SEALED 0x80000000u
+#define XREDIS_NODES_USERS 0x7fffffffu
+/* The seal bit and admitted caller count share one modification order. A
+ * successful increment protects policy/data through End; Close atomically
+ * prevents every later admission. Saturation/contended retries transfer no
+ * lifetime and never call policy. MaxLookups<=65536 leaves the seal bit free. */
+static xredisclusterpoolstatus xredisNodesBegin(xredisclusternodes* C)
+{
+    uint32 S=xrtAtomic32Load(&C->Admission,XMEMORY_ACQUIRE);
+    for(unsigned I=0;I<32;++I){
+        if(S&XREDIS_NODES_SEALED)return XREDIS_CLUSTER_POOL_CLOSED;
+        if((S&XREDIS_NODES_USERS)>=C->Config.MaxLookups)break;
+        if(xrtAtomic32CompareExchange(&C->Admission,&S,S+1,XMEMORY_ACQ_REL,XMEMORY_ACQUIRE))return XREDIS_CLUSTER_POOL_READY;
+    }
+    xrtMutexLock(&C->Gate);xredisclusterpoolstatus Result=C->Info.State==XREDIS_CLUSTER_NODES_OPEN?XREDIS_CLUSTER_POOL_WAIT:XREDIS_CLUSTER_POOL_CLOSED;
+    if(Result==XREDIS_CLUSTER_POOL_WAIT)++C->Info.Waits;
+    xrtMutexUnlock(&C->Gate);return Result;
+}
 static void xredisNodesFinish(xredisclusternodes* C)
 {
     xrtMutexLock(&C->Gate);
-    if(C->Info.State!=XREDIS_CLUSTER_NODES_CLOSING || C->Info.Nodes || C->Info.APIs || C->Finishing){xrtMutexUnlock(&C->Gate);return;}
+    if(C->Info.State!=XREDIS_CLUSTER_NODES_CLOSING || C->Info.Nodes || (xrtAtomic32Load(&C->Admission,XMEMORY_ACQUIRE)&XREDIS_NODES_USERS) || C->Scanning || C->Finishing){xrtMutexUnlock(&C->Gate);return;}
     C->Finishing=true;xnetengine* E=C->Engine;C->Engine=NULL;xredispoolconnectdrop Drop=C->Config.Drop;ptr Data=C->Config.Data;
     C->Config.Drop=NULL;C->Config.Data=NULL;C->Config.Connect=NULL;C->Config.Authorize=NULL;xpromise* P=C->Promise;C->Promise=NULL;xrtMutexUnlock(&C->Gate);
     if(Drop)Drop(Data);
@@ -11479,10 +11497,17 @@ static void xredisNodesFinish(xredisclusternodes* C)
     xrtMutexLock(&C->Gate);C->Info.State=XREDIS_CLUSTER_NODES_CLOSED;xrtMutexUnlock(&C->Gate);
     xrtPromiseResolve(P,NULL);xrtPromiseDestroy(P);xredisClusterNodesRelease(C); /* active lifetime */
 }
-static void xredisNodesEndLocked(xredisclusternodes* C)
-{--C->Info.APIs;bool Finish=C->Info.State==XREDIS_CLUSTER_NODES_CLOSING && !C->Info.APIs && !C->Info.Nodes;xrtMutexUnlock(&C->Gate);if(Finish)xredisNodesFinish(C);}
 static void xredisNodesEnd(xredisclusternodes* C)
-{xrtMutexLock(&C->Gate);xredisNodesEndLocked(C);}
+{
+    uint32 Previous=xrtAtomic32FetchSub(&C->Admission,1,XMEMORY_ACQ_REL);
+    if(Previous==(XREDIS_NODES_SEALED|1u))xredisNodesFinish(C);
+}
+static void xredisNodesEndLocked(xredisclusternodes* C)
+{
+    uint32 Previous=xrtAtomic32FetchSub(&C->Admission,1,XMEMORY_ACQ_REL);
+    xrtMutexUnlock(&C->Gate);
+    if(Previous==(XREDIS_NODES_SEALED|1u))xredisNodesFinish(C);
+}
 /* Gate held; caller releases the detached pool/Future outside it. The Watch
  * release right is already retired (or was never transferred on READY). */
 static void xredisNodesUnlink(xredisclusternodepool* N,xredispool** P,xfuture** F)
@@ -11525,7 +11550,7 @@ XREDIS_API xredisadmission xredisClusterNodesCreate(xnetengine* E,uint64 Affinit
     size_t Bytes=Base+K.MaxNodes*Each;
     if(!xrtNetEnginePin(E))return XREDIS_ADMISSION_ERROR;
     xredisclusternodes* C=xrtCalloc(1,Bytes);if(!C || !xrtMutexInit(&C->Gate)){xrtFree(C);xrtNetEngineUnpin(E);return XREDIS_ADMISSION_ERROR;}
-    xrtAtomic32Init(&C->References,1);C->StorageBytes=Bytes;C->Engine=E;C->Affinity=Affinity;C->Config=K;C->BucketCount=Buckets;
+    xrtAtomic32Init(&C->References,1);xrtAtomic32Init(&C->Admission,0);C->StorageBytes=Bytes;C->Engine=E;C->Affinity=Affinity;C->Config=K;C->BucketCount=Buckets;
     if(!(C->Promise=xrtPromiseCreate(&C->Closed,NULL))){C->Engine=NULL;xrtNetEngineUnpin(E);xredisClusterNodesRelease(C);return XREDIS_ADMISSION_ERROR;}
     C->Buckets=(xredisclusternodepool**)(C+1);C->Slots=(xredisclusternodepool*)(C->Buckets+Buckets);unsigned char* Host=(unsigned char*)(C->Slots+K.MaxNodes);
     for(size_t I=0;I<K.MaxNodes;++I){xredisclusternodepool* N=&C->Slots[I];N->Cache=C;N->Address.Host.Data=Host+I*K.MaxHostBytes;N->FreeNext=C->Free;C->Free=N;}
@@ -11538,7 +11563,7 @@ XREDIS_API xredisclusterpoolstatus xredisClusterNodesGetPool(const xrediscluster
     xredisclusternodes* C=Data;double Entered=xrtTimer();
     if(!C || !xredisNodesAddress(A,C->Config.MaxHostBytes) || !xredisNodesOutput(C,Out,sizeof(*Out)) || Remaining<0 || Remaining>86400000 ||
         xrtMemRangesOverlap(A,sizeof(*A),Out,sizeof(*Out)) || xrtMemRangesOverlap(A->Host.Data,A->Host.Size,Out,sizeof(*Out))){xredisNodesError(XERR_ARGUMENT,"invalid Cluster node lookup");return XREDIS_CLUSTER_POOL_ERROR;}
-    xrtMutexLock(&C->Gate);if(C->Info.State!=XREDIS_CLUSTER_NODES_OPEN){xrtMutexUnlock(&C->Gate);return XREDIS_CLUSTER_POOL_CLOSED;}if(C->Info.APIs>=C->Config.MaxLookups){++C->Info.Waits;xrtMutexUnlock(&C->Gate);return XREDIS_CLUSTER_POOL_WAIT;}++C->Info.APIs;xrtMutexUnlock(&C->Gate);
+    xredisclusterpoolstatus Began=xredisNodesBegin(C);if(Began!=XREDIS_CLUSTER_POOL_READY)return Began;
     if(!Remaining){xrtMutexLock(&C->Gate);++C->Info.Waits;xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_WAIT;}
     bool Allowed=C->Config.Authorize(A,C->Config.Data);uint64 H=xredisNodesHash(A);xrtMutexLock(&C->Gate);
     if(!Allowed){++C->Info.Denied;xredisNodesEndLocked(C);return XREDIS_CLUSTER_POOL_DENIED;}
@@ -11577,13 +11602,13 @@ XREDIS_API bool xredisClusterNodesRetire(xredisclusternodes* C,const xredisclust
     if(P){xredisPoolClose(P);xredisPoolRelease(P);}return true;
 }
 XREDIS_API bool xredisClusterNodesInfo(xredisclusternodes* C,xredisclusternodesinfo* Out)
-{if(!xredisNodesOutput(C,Out,sizeof(*Out)) || Out->Size!=sizeof(*Out))return xredisNodesError(XERR_ARGUMENT,"invalid Cluster node info output");xrtMutexLock(&C->Gate);*Out=C->Info;xrtMutexUnlock(&C->Gate);return true;}
+{if(!xredisNodesOutput(C,Out,sizeof(*Out)) || Out->Size!=sizeof(*Out))return xredisNodesError(XERR_ARGUMENT,"invalid Cluster node info output");xrtMutexLock(&C->Gate);*Out=C->Info;Out->APIs=(xrtAtomic32Load(&C->Admission,XMEMORY_ACQUIRE)&XREDIS_NODES_USERS)+(C->Scanning?1u:0u);xrtMutexUnlock(&C->Gate);return true;}
 XREDIS_API bool xredisClusterNodesClose(xredisclusternodes* C)
 {
     if(!C)return xredisNodesError(XERR_ARGUMENT,"Cluster node cache is NULL");
-    xrtMutexLock(&C->Gate);if(C->Info.State!=XREDIS_CLUSTER_NODES_OPEN){xrtMutexUnlock(&C->Gate);return true;}C->Info.State=XREDIS_CLUSTER_NODES_CLOSING;++C->Info.APIs;xrtMutexUnlock(&C->Gate);
+    xrtMutexLock(&C->Gate);if(C->Info.State!=XREDIS_CLUSTER_NODES_OPEN){xrtMutexUnlock(&C->Gate);return true;}xrtAtomic32FetchOr(&C->Admission,XREDIS_NODES_SEALED,XMEMORY_ACQ_REL);C->Info.State=XREDIS_CLUSTER_NODES_CLOSING;C->Scanning=true;xrtMutexUnlock(&C->Gate);
     for(size_t I=0;I<C->Config.MaxNodes;++I){xredispool* P=NULL;xrtMutexLock(&C->Gate);xredisclusternodepool* N=&C->Slots[I];N->Retiring=true;if(N->Pool){P=N->Pool;xredisPoolRetain(P);}xrtMutexUnlock(&C->Gate);if(P){xredisPoolClose(P);xredisPoolRelease(P);}}
-    xredisNodesEnd(C);return true;
+    xrtMutexLock(&C->Gate);C->Scanning=false;xrtMutexUnlock(&C->Gate);xredisNodesFinish(C);return true;
 }
 XREDIS_API xfuture* xredisClusterNodesClosed(xredisclusternodes* C)
 {if(!C){xredisNodesError(XERR_ARGUMENT,"Cluster node cache is NULL");return NULL;}return xrtFutureRef(C->Closed);}

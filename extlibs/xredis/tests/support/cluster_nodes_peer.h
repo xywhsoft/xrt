@@ -6,7 +6,7 @@ typedef struct nnfixture nnfixture;
 typedef struct nnnode {nnfixture* Owner;size_t Index;xatomic32 Redirect,Target,Prefixes,Installed;} nnnode;
 struct nnfixture {
     redisconnectpeer Peers[3];nnnode Nodes[3];xredisclusternodes* Cache;
-    xatomic32 Calls,Auth,Drops,Deny,Block,Entered,Continue,CloseInAuth,Go,HoldBusiness,Business;
+    xatomic32 Calls,Auth,Drops,Deny,Block,Entered,Continue,CloseInAuth,Go,HoldBusiness,Business,AuthExited;
     xfuture* ClientClosed[1024];
 };
 static bool nnCommand(redispeer* P,xredisreply* Reply,ptr Data)
@@ -26,9 +26,9 @@ static bool nnAuthorize(const xredisclusteraddress* A,ptr Data)
     xredisclusternodesinfo I={0};I.Size=sizeof(I);redisPeerRequire(xredisClusterNodesInfo(F->Cache,&I),"authorization outside gate/reentrant info");
     if(xrtAtomic32Load(&F->CloseInAuth,XMEMORY_ACQUIRE))xredisClusterNodesClose(F->Cache);
     if(xrtAtomic32Load(&F->Block,XMEMORY_ACQUIRE)){xrtAtomic32Store(&F->Entered,1,XMEMORY_RELEASE);while(!xrtAtomic32Load(&F->Continue,XMEMORY_ACQUIRE))xrtSleep(1);}
-    if(A->Tls || xrtAtomic32Load(&F->Deny,XMEMORY_ACQUIRE) || A->Host.Size!=9 || memcmp(A->Host.Data,"127.0.0.1",9))return false;
-    for(unsigned N=0;N<3;++N)if(A->Port==F->Peers[N].Address.Port)return true;
-    return false;
+    bool Allowed=!A->Tls && !xrtAtomic32Load(&F->Deny,XMEMORY_ACQUIRE) && A->Host.Size==9 && !memcmp(A->Host.Data,"127.0.0.1",9),Known=false;
+    if(Allowed)for(unsigned N=0;N<3;++N)if(A->Port==F->Peers[N].Address.Port){Known=true;break;}
+    xrtAtomic32FetchAdd(&F->AuthExited,1,XMEMORY_RELEASE);return Allowed && Known;
 }
 static bool nnConnect(const xredisclusteraddress* A,xnetengine* E,size_t Slot,uint64 Attempt,int64 Timeout,ptr Data,xredisclient** Out)
 {
