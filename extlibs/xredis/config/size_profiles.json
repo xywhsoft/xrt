@@ -458,6 +458,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_command_keys",
+      "system": "command_keys",
+      "suite": "xredis_command_keys",
+      "description": "Immutable command key metadata and CRC only; no I/O, workers, TLS or topology",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWs",
+        "xrtTask",
+        "xrtProcess",
+        "xredisClusterTopology"
+      ]
     }
   ]
 }

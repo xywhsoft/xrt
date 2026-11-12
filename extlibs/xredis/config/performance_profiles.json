@@ -5276,6 +5276,113 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_command_keys",
+      "system": "command_keys",
+      "description": "Bounded metadata extraction versus explicitly preselected-key CRC reference; no network or equivalent-client parity claim",
+      "benchmarks": [
+        {
+          "name": "xredis_command_keys_0",
+          "source": "extlibs/xredis/bench/bench_command_keys.c",
+          "suite": "xredis_command_keys,time,memory_stats",
+          "args": [
+            "1000000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_command_keys_1",
+          "source": "extlibs/xredis/bench/bench_command_keys.c",
+          "suite": "xredis_command_keys,time,memory_stats",
+          "args": [
+            "1000000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_command_keys_2",
+          "source": "extlibs/xredis/bench/bench_command_keys.c",
+          "suite": "xredis_command_keys,time,memory_stats",
+          "args": [
+            "1000",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "8",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_command_keys_3",
+          "source": "extlibs/xredis/bench/bench_command_keys.c",
+          "suite": "xredis_command_keys,time,memory_stats",
+          "args": [
+            "1000000",
+            "3",
+            "0"
+          ],
+          "smoke_args": [
+            "1000",
+            "3",
+            "1"
+          ],
+          "metrics": {
+            "operations_per_sec": {
+              "unit": "operations/s",
+              "direction": "higher"
+            },
+            "ns_per_operation": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

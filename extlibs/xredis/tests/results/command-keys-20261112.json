@@ -1,0 +1,1724 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "6157159447a2794e061ff8ddd08cdeccdbca6801",
+  "scope": "Immutable COMMAND/COMMAND INFO catalogue and complete bounded routing-key extraction/Cluster slot validation. This leaf does not automatically fetch metadata, invoke a server fallback, or submit Cluster business.",
+  "state": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "source_inputs": 2858,
+  "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61",
+  "validation_source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264",
+  "source_equivalence": {
+    "complete": true,
+    "changed_paths": [
+      "extlibs/xredis/tests/interop/run_redis_command_keys.py"
+    ],
+    "all_compiled_c_headers_manifests_unchanged": true,
+    "previous_source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264",
+    "current_source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61",
+    "reason": "Original interop corpus directory was shared across native hosts/reports. All C binaries remain exactly validated; repair only runner output isolation and rerun both real corpora with preserved binaries. Original Windows aggregate corpora overwritten by WSL; original reports and isolated pre-fix RESP3 single-row witnesses retained. Earlier dev2 aggregate was also overwritten by dev3."
+  },
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264",
+      "programs": 46
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264",
+      "programs": 47
+    }
+  },
+  "delivery": {
+    "windows": {
+      "leaf": {
+        "complete": true,
+        "forms": {
+          "modular": {
+            "path": "delivery/windows/modular/probe.exe",
+            "sha256": "4dc526fc1e4e422cea332a15e2e9fc150f47dd46179907d60621b27d807a1777"
+          },
+          "single": {
+            "path": "delivery/windows/single/probe.exe",
+            "sha256": "7a62e17aee84c69492175b2da929102a99aeec45b0e2debb63f7376c4c76a19f"
+          },
+          "static": {
+            "path": "delivery/windows/static/probe.exe",
+            "sha256": "12eeba2393344e40409a74b4c525542329971473cbef19bb7b1802a4cb378dc4"
+          },
+          "shared": {
+            "path": "delivery/windows/shared/probe.exe",
+            "sha256": "2002b31fe8037eab8d4f65d41927904aca440a55c7b2e464450d4c641ab41c2a"
+          }
+        },
+        "consumers": {
+          "static": {
+            "path": "declarations/windows/static/consumer.exe",
+            "sha256": "cebf7dea83a8a32ac89045d683286aefcd4f90c1a37627f52f75f4bbf40035a5"
+          },
+          "shared": {
+            "path": "declarations/windows/shared/consumer.exe",
+            "sha256": "10295bf8c7b711f4a7ba1659477ccef560d5896abc6ef3212cd09ef77b45f9fc"
+          }
+        },
+        "source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264"
+      },
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "a2ddf4a5478ac50a0545a80fef3ce683eb27365115e09c41b08299c6e9f576ac",
+        "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61"
+      },
+      "root_packages": {
+        "complete": true,
+        "forms": {
+          "static": [
+            {
+              "path": "root-packages/windows/static/libxredis.a",
+              "sha256": "70e6b19528dc3e5bd5cafb3664196aa0e87da930595ac834bd2969b530fb1636"
+            },
+            {
+              "path": "root-packages/windows/static/libxrt.a",
+              "sha256": "82bb538c2880e1fe888884eb4b47203569595f5f1c017d0042608acb3189663c"
+            },
+            {
+              "path": "root-packages/windows/static/packages.json",
+              "sha256": "1b9a9e980b7a0ecf08e74872f7ca8d12db2139b4b46f82adcf06128fad3af0e1"
+            },
+            {
+              "path": "root-packages/windows/static/test_package_xredis.exe",
+              "sha256": "0d7132f086600fadb97f78d4326db01fb0452f88f0d72564eb153ee027b4e013"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/windows/shared/libxredis.dll.a",
+              "sha256": "a98237736e042224c5ab2988a2944c667f173dbcf187ea5dede9ea11e15ab1ab"
+            },
+            {
+              "path": "root-packages/windows/shared/libxrt.dll.a",
+              "sha256": "b0153ec94796d724c27f943beda0ddab3305a9c43db61a843c26eadca7935f69"
+            },
+            {
+              "path": "root-packages/windows/shared/packages.json",
+              "sha256": "a1872fd7f11c4238c3e45ab2706c6339040bc7e4edd299227ff41b19cf4b7a89"
+            },
+            {
+              "path": "root-packages/windows/shared/test_package_xredis.exe",
+              "sha256": "d92091a035ad94c3feba4b2d25acfe60962fe3a1c7742a7ad7ab5a6778bd08d5"
+            },
+            {
+              "path": "root-packages/windows/shared/xredis.dll",
+              "sha256": "1f56e4960ec2fe751a3289a1811eeccebf00e4985619b10eecb0c9f3799f7c44"
+            },
+            {
+              "path": "root-packages/windows/shared/xrt.dll",
+              "sha256": "1ed8238e688368518c5d22bb36122fdbc239b0dcfe25cec23a5b5a1d8e03963c"
+            }
+          ]
+        }
+      },
+      "new_exports": [
+        "xredisCommandCatalogCreate",
+        "xredisCommandCatalogEvaluate",
+        "xredisCommandCatalogInfo",
+        "xredisCommandCatalogRelease",
+        "xredisCommandCatalogRetain",
+        "xredisCommandKeyLimitsInit"
+      ],
+      "internal_exports": false
+    },
+    "wsl": {
+      "leaf": {
+        "complete": true,
+        "forms": {
+          "modular": {
+            "path": "delivery/wsl/modular/probe",
+            "sha256": "0483422f7b7d13ce2e26860cd194e4e78847cc61508d462d53568c8a366e5f61"
+          },
+          "single": {
+            "path": "delivery/wsl/single/probe",
+            "sha256": "0a079a509507b3c8754c6e2b0280116a59e8a7b9b3cfbf40f312ef26e80e777c"
+          },
+          "static": {
+            "path": "delivery/wsl/static/probe",
+            "sha256": "ab6c8b22f805cabf1cfb309e940f6e234fa5a7aeddf7685dfc8a8ac8fb0d0bdc"
+          },
+          "shared": {
+            "path": "delivery/wsl/shared/probe",
+            "sha256": "c8dcaecbe35346cc9905e4fbcb5ff706948a419dc78887a498acf6b0491dcbee"
+          }
+        },
+        "consumers": {
+          "static": {
+            "path": "declarations/wsl/static/consumer",
+            "sha256": "a37a63da00b244a3e43058d9a49729fdc137e7ca35189f481284c511cbd1bd4c"
+          },
+          "shared": {
+            "path": "declarations/wsl/shared/consumer",
+            "sha256": "5260e07f580e4bc8473c415c3b202b893a5a375a94dbac51eb51bcd43425200e"
+          }
+        },
+        "source_map_sha256": "f4a00cfcdac25f427355287ae4a90871948bfe6c85cc9aae1a9a74ad10287264"
+      },
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "48ba0c58294ad970e98b21defab6fc8c7e080073a5909caee9b913cc6adb4b98",
+        "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61"
+      },
+      "root_packages": {
+        "complete": true,
+        "forms": {
+          "static": [
+            {
+              "path": "root-packages/wsl/static/libxredis.a",
+              "sha256": "656fe35df6316dc696e49e54936b0aad9aff8d9286191677ec3d3aa04c5154e8"
+            },
+            {
+              "path": "root-packages/wsl/static/libxrt.a",
+              "sha256": "c0c78ac63a137742990e08318b94b6b4e7a5d314def44543fe3f7dd9a1d8eccc"
+            },
+            {
+              "path": "root-packages/wsl/static/packages.json",
+              "sha256": "7f2f456ad81b12c3aa8491b5ce613adedb85242c306c5c1929799588df34ae52"
+            },
+            {
+              "path": "root-packages/wsl/static/test_package_xredis",
+              "sha256": "bed80f1b5881cb439745fa39ff45e761c4913c7d4dd57dd6bb2917ac2a7c9779"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/wsl/shared/libxredis.so",
+              "sha256": "2604c97de489c20028664062f6d2f8c03ae33726e20c4bf66da422b5e4ca9fc7"
+            },
+            {
+              "path": "root-packages/wsl/shared/libxrt.so",
+              "sha256": "2725faffef65e39554d7f3f06008c7851dce304038eb93665b7bad5537964a0f"
+            },
+            {
+              "path": "root-packages/wsl/shared/packages.json",
+              "sha256": "904296d0e1cc119a4da8ce20383fbab7a23eec89f9c19b30ffc8e7092153abfe"
+            },
+            {
+              "path": "root-packages/wsl/shared/test_package_xredis",
+              "sha256": "28cb4971c10e807d28e97af651bd13370579ddb55c54d03c152f9e69d0657711"
+            }
+          ]
+        }
+      },
+      "new_exports": [
+        "xredisCommandCatalogCreate",
+        "xredisCommandCatalogEvaluate",
+        "xredisCommandCatalogInfo",
+        "xredisCommandCatalogRelease",
+        "xredisCommandCatalogRetain",
+        "xredisCommandKeyLimitsInit"
+      ],
+      "internal_exports": false
+    }
+  },
+  "interop": {
+    "windows": {
+      "report_sha256": "931754187eba29938f072272da926ece7f001fd2d1da202a860f1e269b08f6b5",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "118b6bf1c739a3bb66483384ebc99707c188c46946f66af88f264c73b61ae969",
+      "matrix": [
+        {
+          "mode": "full",
+          "protocol": 2,
+          "corpus": "full-2.bin",
+          "corpus_sha256": "c2b7537e29ba03fcc0d13141fb5f83f943460c8f75e0f511b2b28c9c53c7f522",
+          "invocations": 216,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/modular/probe.exe",
+              "sha256": "4dc526fc1e4e422cea332a15e2e9fc150f47dd46179907d60621b27d807a1777",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/single/probe.exe",
+              "sha256": "7a62e17aee84c69492175b2da929102a99aeec45b0e2debb63f7376c4c76a19f",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/static/probe.exe",
+              "sha256": "12eeba2393344e40409a74b4c525542329971473cbef19bb7b1802a4cb378dc4",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/shared/probe.exe",
+              "sha256": "2002b31fe8037eab8d4f65d41927904aca440a55c7b2e464450d4c641ab41c2a",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            }
+          ]
+        },
+        {
+          "mode": "partial",
+          "protocol": 2,
+          "corpus": "partial-2.bin",
+          "corpus_sha256": "6749232395afb7f343772b8049e7d9a00bf5204830c63c73a7c4deb3e55b6ad7",
+          "invocations": 7,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/modular/probe.exe",
+              "sha256": "4dc526fc1e4e422cea332a15e2e9fc150f47dd46179907d60621b27d807a1777",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/single/probe.exe",
+              "sha256": "7a62e17aee84c69492175b2da929102a99aeec45b0e2debb63f7376c4c76a19f",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/static/probe.exe",
+              "sha256": "12eeba2393344e40409a74b4c525542329971473cbef19bb7b1802a4cb378dc4",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/shared/probe.exe",
+              "sha256": "2002b31fe8037eab8d4f65d41927904aca440a55c7b2e464450d4c641ab41c2a",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            }
+          ]
+        },
+        {
+          "mode": "full",
+          "protocol": 3,
+          "corpus": "full-3.bin",
+          "corpus_sha256": "4f6353d35aede1d7a53826ed5f2fa13d116d206d0c4155dd09a8921a135b80cc",
+          "invocations": 216,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/modular/probe.exe",
+              "sha256": "4dc526fc1e4e422cea332a15e2e9fc150f47dd46179907d60621b27d807a1777",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/single/probe.exe",
+              "sha256": "7a62e17aee84c69492175b2da929102a99aeec45b0e2debb63f7376c4c76a19f",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/static/probe.exe",
+              "sha256": "12eeba2393344e40409a74b4c525542329971473cbef19bb7b1802a4cb378dc4",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/shared/probe.exe",
+              "sha256": "2002b31fe8037eab8d4f65d41927904aca440a55c7b2e464450d4c641ab41c2a",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            }
+          ]
+        },
+        {
+          "mode": "partial",
+          "protocol": 3,
+          "corpus": "partial-3.bin",
+          "corpus_sha256": "17bee1cc94a8b59bed0b57182e09179778cf5f397910cf6c7c8074dbed29d526",
+          "invocations": 7,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/modular/probe.exe",
+              "sha256": "4dc526fc1e4e422cea332a15e2e9fc150f47dd46179907d60621b27d807a1777",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/single/probe.exe",
+              "sha256": "7a62e17aee84c69492175b2da929102a99aeec45b0e2debb63f7376c4c76a19f",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/static/probe.exe",
+              "sha256": "12eeba2393344e40409a74b4c525542329971473cbef19bb7b1802a4cb378dc4",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/windows/shared/probe.exe",
+              "sha256": "2002b31fe8037eab8d4f65d41927904aca440a55c7b2e464450d4c641ab41c2a",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            }
+          ]
+        }
+      ],
+      "logical_invocations": 216,
+      "getkeysandflags_oracles": 208,
+      "not_key_standard_and_server_slot_cases": 1,
+      "c_evaluations": 1784,
+      "business_executions": 0,
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "all_corpus_hashes_verified": true
+    },
+    "wsl": {
+      "report_sha256": "e16e887feed475450462facde121499d3d7967e7d18ba7a22894fe5db18cc39c",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "118b6bf1c739a3bb66483384ebc99707c188c46946f66af88f264c73b61ae969",
+      "matrix": [
+        {
+          "mode": "full",
+          "protocol": 2,
+          "corpus": "full-2.bin",
+          "corpus_sha256": "3fda2ad06162d50ea926769999f575ed10f74bcae5198fe473f68bb7566e7c3f",
+          "invocations": 216,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/modular/probe",
+              "sha256": "0483422f7b7d13ce2e26860cd194e4e78847cc61508d462d53568c8a366e5f61",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/single/probe",
+              "sha256": "0a079a509507b3c8754c6e2b0280116a59e8a7b9b3cfbf40f312ef26e80e777c",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/static/probe",
+              "sha256": "ab6c8b22f805cabf1cfb309e940f6e234fa5a7aeddf7685dfc8a8ac8fb0d0bdc",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/shared/probe",
+              "sha256": "c8dcaecbe35346cc9905e4fbcb5ff706948a419dc78887a498acf6b0491dcbee",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            }
+          ]
+        },
+        {
+          "mode": "partial",
+          "protocol": 2,
+          "corpus": "partial-2.bin",
+          "corpus_sha256": "266e6caabd8c66b90e23259c05b65e94796bb9c118997e551bc4dd831b436a76",
+          "invocations": 7,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/modular/probe",
+              "sha256": "0483422f7b7d13ce2e26860cd194e4e78847cc61508d462d53568c8a366e5f61",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/single/probe",
+              "sha256": "0a079a509507b3c8754c6e2b0280116a59e8a7b9b3cfbf40f312ef26e80e777c",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/static/probe",
+              "sha256": "ab6c8b22f805cabf1cfb309e940f6e234fa5a7aeddf7685dfc8a8ac8fb0d0bdc",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/shared/probe",
+              "sha256": "c8dcaecbe35346cc9905e4fbcb5ff706948a419dc78887a498acf6b0491dcbee",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            }
+          ]
+        },
+        {
+          "mode": "full",
+          "protocol": 3,
+          "corpus": "full-3.bin",
+          "corpus_sha256": "09a462c416016f849196f4ea118898d2ff9d30536c6ab369088735501affc7cd",
+          "invocations": 216,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/modular/probe",
+              "sha256": "0483422f7b7d13ce2e26860cd194e4e78847cc61508d462d53568c8a366e5f61",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/single/probe",
+              "sha256": "0a079a509507b3c8754c6e2b0280116a59e8a7b9b3cfbf40f312ef26e80e777c",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/static/probe",
+              "sha256": "ab6c8b22f805cabf1cfb309e940f6e234fa5a7aeddf7685dfc8a8ac8fb0d0bdc",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/shared/probe",
+              "sha256": "c8dcaecbe35346cc9905e4fbcb5ff706948a419dc78887a498acf6b0491dcbee",
+              "commands": 394,
+              "specifications": 243,
+              "invocations": 216
+            }
+          ]
+        },
+        {
+          "mode": "partial",
+          "protocol": 3,
+          "corpus": "partial-3.bin",
+          "corpus_sha256": "d75a4f035b9c4afc1eecaf96deff647401834013472c83ea85be93652ec08b81",
+          "invocations": 7,
+          "probes": [
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/modular/probe",
+              "sha256": "0483422f7b7d13ce2e26860cd194e4e78847cc61508d462d53568c8a366e5f61",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/single/probe",
+              "sha256": "0a079a509507b3c8754c6e2b0280116a59e8a7b9b3cfbf40f312ef26e80e777c",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/static/probe",
+              "sha256": "ab6c8b22f805cabf1cfb309e940f6e234fa5a7aeddf7685dfc8a8ac8fb0d0bdc",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            },
+            {
+              "probe": "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/delivery/wsl/shared/probe",
+              "sha256": "c8dcaecbe35346cc9905e4fbcb5ff706948a419dc78887a498acf6b0491dcbee",
+              "commands": 10,
+              "specifications": 10,
+              "invocations": 7
+            }
+          ]
+        }
+      ],
+      "logical_invocations": 216,
+      "getkeysandflags_oracles": 208,
+      "not_key_standard_and_server_slot_cases": 1,
+      "c_evaluations": 1784,
+      "business_executions": 0,
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "all_corpus_hashes_verified": true
+    }
+  },
+  "footprint": {
+    "windows": {
+      "profile": {
+        "suite": "xredis_command_keys",
+        "description": "Immutable command key metadata and CRC only; no I/O, workers, TLS or topology",
+        "forbid_symbols": [
+          "xrtNet",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWs",
+          "xrtTask",
+          "xrtProcess",
+          "xredisClusterTopology"
+        ],
+        "kinds": {
+          "single": {
+            "text": 84444,
+            "data": 2376,
+            "bss": 11040,
+            "members": 1,
+            "load": 86820,
+            "file": 119681,
+            "path": "out/size/gnu/native/xredis_command_keys/single/xredis_single.o",
+            "compile_seconds": 2.7558143999776803,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 33204,
+            "data": 0,
+            "bss": 0,
+            "members": 3,
+            "load": 33204,
+            "file": 46258,
+            "path": "release/gnu/native/xredis_command_keys/static/libxredis.a"
+          },
+          "shared": {
+            "text": 42783,
+            "data": 144,
+            "bss": 272,
+            "members": 1,
+            "load": 42927,
+            "file": 78754,
+            "path": "release/gnu/native/xredis_command_keys/shared/xredis.dll"
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/windows/single/xredis_single.o",
+              "sha256": "5ac8904b3d164c05f32588b2a10e7fada3be08b2c672cb142d0d8b0b519cce78",
+              "defined_symbols": 281,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/static/libxredis.a",
+              "sha256": "6512592fe7fd72066e5ea3cd00aeb1308753e0544291ce7c30dd3b0bdd674633",
+              "defined_symbols": 75,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/static/libxrt.a",
+              "sha256": "b5cda91eb9d80847174648bffc65eb0ce5d56c3a6b92be7d73945f269ce8eca7",
+              "defined_symbols": 283,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/shared/libxredis.dll.a",
+              "sha256": "eebcfa3b2797290d1a7fe1707a7c6a4bcb2f75047180868760814fe4df072ca0",
+              "defined_symbols": 183,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/libxrt.dll.a",
+              "sha256": "796a7d36a60f8b74be51c014cd06316fd097e57b294285a7dd5d94e63a8d1139",
+              "defined_symbols": 701,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xredis.dll",
+              "sha256": "b604c4da0b6976ccf64689076691e0c09c3bb846405bfd34b04c9cbcd9cff850",
+              "defined_symbols": 688,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrt.dll",
+              "sha256": "23e3a49174489cfd67c5fc19c9ff41a8590bfd14c5cdda4a255403ded7d659a3",
+              "defined_symbols": 960,
+              "forbidden_symbols": []
+            }
+          ]
+        },
+        "forbidden": [
+          "xrtNet",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWs",
+          "xrtTask",
+          "xrtProcess",
+          "xredisClusterTopology"
+        ]
+      }
+    },
+    "wsl": {
+      "profile": {
+        "suite": "xredis_command_keys",
+        "description": "Immutable command key metadata and CRC only; no I/O, workers, TLS or topology",
+        "forbid_symbols": [
+          "xrtNet",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWs",
+          "xrtTask",
+          "xrtProcess",
+          "xredisClusterTopology"
+        ],
+        "kinds": {
+          "single": {
+            "text": 85896,
+            "data": 2680,
+            "bss": 10892,
+            "members": 1,
+            "load": 88576,
+            "file": 144560,
+            "path": "out/size/gnu/x64/xredis_command_keys/single/xredis_single.o",
+            "compile_seconds": 1.6294640040000559,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 33498,
+            "data": 240,
+            "bss": 0,
+            "members": 3,
+            "load": 33738,
+            "file": 60180,
+            "path": "release/gnu/x64/xredis_command_keys/static/libxredis.a"
+          },
+          "shared": {
+            "text": 38458,
+            "data": 1008,
+            "bss": 8,
+            "members": 1,
+            "load": 39466,
+            "file": 51424,
+            "path": "release/gnu/x64/xredis_command_keys/shared/libxredis.so"
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/wsl/single/xredis_single.o",
+              "sha256": "54854fa5e4054131a0498a5e4ecee0751b50bc5573a7689620bf24e9e7e6db56",
+              "defined_symbols": 380,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/static/libxredis.a",
+              "sha256": "206e410bfc464fab2b5a3ef9d7cc65d3bc17ca97f00eb7edc3d9bf45fbd60903",
+              "defined_symbols": 148,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/static/libxrt.a",
+              "sha256": "71b7a4694eb6ca87d487cb6755094feeeecbd7cf3cd048534d5cb72d2d643ce8",
+              "defined_symbols": 232,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/shared/libxredis.so",
+              "sha256": "ab879981aa6e22b671bdac16f1ba7760af4e185fa85c061a1db37718648e3f39",
+              "defined_symbols": 66,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/shared/libxrt.so",
+              "sha256": "f69131407613e1cf68753b71e4611f6e8ba0464810a61853d2846d7aefe63741",
+              "defined_symbols": 222,
+              "forbidden_symbols": []
+            }
+          ]
+        },
+        "forbidden": [
+          "xrtNet",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWs",
+          "xrtTask",
+          "xrtProcess",
+          "xredisClusterTopology"
+        ]
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "report": {
+        "schema": 2,
+        "product": "xredis",
+        "generated_at": "2026-11-12T06:44:16.920735+00:00",
+        "platform": "win32",
+        "machine": "amd64",
+        "platform_release": "10",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0xfff/0xfff",
+        "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "arch": "native",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 7,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "6157159447a2794e061ff8ddd08cdeccdbca6801",
+        "source_dirty": true,
+        "source_fingerprint": "afc52c5b1e87f38749a357a97ad33de6409017bac90cdde5206a9f2f031442d2",
+        "benchmark_fingerprint": "8f6eed094260c8fe2bb88793490d950e54e657508040327c7eb4b65b866a86fb",
+        "profiles": {
+          "xredis_command_keys": {
+            "description": "Bounded metadata extraction versus explicitly preselected-key CRC reference; no network or equivalent-client parity claim",
+            "benchmarks": {
+              "xredis_command_keys_0": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "0",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      12405254.864,
+                      12255547.78,
+                      12666597.426,
+                      13809198.306,
+                      11127245.615,
+                      13733660.386,
+                      13604202.068
+                    ],
+                    "median": 12666597.426,
+                    "mean": 12800243.777857142,
+                    "min": 11127245.615,
+                    "max": 13809198.306,
+                    "mad": 937604.6419999991,
+                    "relative_mad": 0.07402182373582282,
+                    "range": 2681952.6909999996,
+                    "relative_range": 0.21173426460170816,
+                    "central_range": 1478112.6060000006,
+                    "relative_central_range": 0.11669373836465058,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      80.611,
+                      81.596,
+                      78.948,
+                      72.416,
+                      89.87,
+                      72.814,
+                      73.507
+                    ],
+                    "median": 78.948,
+                    "mean": 78.53742857142856,
+                    "min": 72.416,
+                    "max": 89.87,
+                    "mad": 5.440999999999988,
+                    "relative_mad": 0.06891878198307733,
+                    "range": 17.454000000000008,
+                    "relative_range": 0.22108223134214938,
+                    "central_range": 8.78200000000001,
+                    "relative_central_range": 0.11123777676445269,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_1": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "1",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      10305825.371,
+                      10177329.796,
+                      10314244.074,
+                      10237258.705,
+                      10282913.803,
+                      10420769.842,
+                      10277080.364
+                    ],
+                    "median": 10282913.803,
+                    "mean": 10287917.422142858,
+                    "min": 10177329.796,
+                    "max": 10420769.842,
+                    "mad": 31330.270999999717,
+                    "relative_mad": 0.0030468281267571487,
+                    "range": 243440.0460000001,
+                    "relative_range": 0.023674228012003508,
+                    "central_range": 76985.36899999902,
+                    "relative_central_range": 0.007486727057610737,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      97.032,
+                      98.258,
+                      96.953,
+                      97.682,
+                      97.249,
+                      95.962,
+                      97.304
+                    ],
+                    "median": 97.249,
+                    "mean": 97.2057142857143,
+                    "min": 95.962,
+                    "max": 98.258,
+                    "mad": 0.29599999999999227,
+                    "relative_mad": 0.0030437330975124914,
+                    "range": 2.2959999999999923,
+                    "relative_range": 0.023609497269894728,
+                    "central_range": 0.7289999999999992,
+                    "relative_central_range": 0.007496221040833317,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_2": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000",
+                  "2",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      51694.815,
+                      51555.427,
+                      51258.919,
+                      29889.558,
+                      51268.905,
+                      49236.102,
+                      51228.721
+                    ],
+                    "median": 51258.919,
+                    "mean": 48018.920999999995,
+                    "min": 29889.558,
+                    "max": 51694.815,
+                    "mad": 296.50800000000163,
+                    "relative_mad": 0.0057845152762585885,
+                    "range": 21805.257,
+                    "relative_range": 0.42539439819243946,
+                    "central_range": 2319.3250000000044,
+                    "relative_central_range": 0.0452472476058265,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      19344.3,
+                      19396.6,
+                      19508.8,
+                      33456.5,
+                      19505.0,
+                      20310.3,
+                      19520.3
+                    ],
+                    "median": 19508.8,
+                    "mean": 21577.399999999998,
+                    "min": 19344.3,
+                    "max": 33456.5,
+                    "mad": 112.20000000000073,
+                    "relative_mad": 0.005751250717624904,
+                    "range": 14112.2,
+                    "relative_range": 0.7233761174444354,
+                    "central_range": 913.7000000000007,
+                    "relative_central_range": 0.0468352743377348,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_3": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "3",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      29857965.643,
+                      30312215.843,
+                      29885359.746,
+                      29040389.343,
+                      27558914.034,
+                      30316075.398,
+                      30236052.839
+                    ],
+                    "median": 29885359.746,
+                    "mean": 29600996.120857142,
+                    "min": 27558914.034,
+                    "max": 30316075.398,
+                    "mad": 426856.09699999914,
+                    "relative_mad": 0.014283117239608656,
+                    "range": 2757161.3639999963,
+                    "relative_range": 0.0922579278761745,
+                    "central_range": 1271826.5,
+                    "relative_central_range": 0.04255684090168021,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      33.492,
+                      32.99,
+                      33.461,
+                      34.435,
+                      36.286,
+                      32.986,
+                      33.073
+                    ],
+                    "median": 33.461,
+                    "mean": 33.81757142857143,
+                    "min": 32.986,
+                    "max": 36.286,
+                    "mad": 0.47099999999999653,
+                    "relative_mad": 0.014076088580735679,
+                    "range": 3.3000000000000043,
+                    "relative_range": 0.09862227668031452,
+                    "central_range": 1.4450000000000003,
+                    "relative_central_range": 0.04318460297062253,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report_sha256": "f85fddf105baf0c4afa0c0f84d7c2bda43fa66e67166cb4c957ad24a61c1e844",
+      "evaluated": 8,
+      "noise_qualified": 6,
+      "allocations": {
+        "complete": true,
+        "records": {
+          "0": {
+            "values": {
+              "operations_per_sec": 11198210.609,
+              "ns_per_operation": 89.3,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/windows/xredis_command_keys_0.exe",
+            "sha256": "3fc76c75e2fc74275e96a61f6f3a52d4e724a419cc4fe34c328399e15e6cefce",
+            "log": "windows-allocation-0.log",
+            "log_sha256": "cd63d602c0b00bd7b4d37832aaac3208a0ce627b0d91b0fd3ea8a8f52a5d865b"
+          },
+          "1": {
+            "values": {
+              "operations_per_sec": 10266942.038,
+              "ns_per_operation": 97.4,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/windows/xredis_command_keys_1.exe",
+            "sha256": "3fc76c75e2fc74275e96a61f6f3a52d4e724a419cc4fe34c328399e15e6cefce",
+            "log": "windows-allocation-1.log",
+            "log_sha256": "b76d5bf59859374eeb35f6afafa0395d137e5f9fb3036e5ec6ece759413bf792"
+          },
+          "2": {
+            "values": {
+              "operations_per_sec": 52614.271,
+              "ns_per_operation": 19006.25,
+              "checksum": 1280.0,
+              "heap_blocks_per_operation": 1.0,
+              "heap_bytes_per_operation": 3176.0
+            },
+            "binary": "performance/windows/xredis_command_keys_2.exe",
+            "sha256": "3fc76c75e2fc74275e96a61f6f3a52d4e724a419cc4fe34c328399e15e6cefce",
+            "log": "windows-allocation-2.log",
+            "log_sha256": "a57a75ad548be06866ad7c6303cd3ddf20ecb120c0c589cebf2c4c4838bf27c1"
+          },
+          "3": {
+            "values": {
+              "operations_per_sec": 30395120.438,
+              "ns_per_operation": 32.9,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/windows/xredis_command_keys_3.exe",
+            "sha256": "3fc76c75e2fc74275e96a61f6f3a52d4e724a419cc4fe34c328399e15e6cefce",
+            "log": "windows-allocation-3.log",
+            "log_sha256": "8a0bf49150e58a7b7479f78493e21ca90e22da5959b344ba07d5ac2fb6bc3d26"
+          }
+        },
+        "scope": "Separate globally instrumented processes. BlockAllocCalls/BlockAllocBytes deltas, not full native allocation/RSS accounting. Constructor budget units separately cover logical ownership."
+      },
+      "full_acceptance": false
+    },
+    "wsl": {
+      "report": {
+        "schema": 2,
+        "product": "xredis",
+        "generated_at": "2026-11-12T06:51:51.262223+00:00",
+        "platform": "linux",
+        "machine": "x86_64",
+        "platform_release": "6.18.33.2-microsoft-standard-WSL2",
+        "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+        "cpu_count": 12,
+        "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+        "power_policy": "unknown",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "arch": "x64",
+        "optimization": "-O2",
+        "cflags": [
+          "-O2"
+        ],
+        "ldflags": [],
+        "policy": "baseline-unpinned",
+        "repeats": 7,
+        "warmups": 1,
+        "max_relative_mad": 0.03,
+        "max_relative_central_range": 0.06,
+        "source_revision": "6157159447a2794e061ff8ddd08cdeccdbca6801",
+        "source_dirty": true,
+        "source_fingerprint": "afc52c5b1e87f38749a357a97ad33de6409017bac90cdde5206a9f2f031442d2",
+        "benchmark_fingerprint": "8f6eed094260c8fe2bb88793490d950e54e657508040327c7eb4b65b866a86fb",
+        "profiles": {
+          "xredis_command_keys": {
+            "description": "Bounded metadata extraction versus explicitly preselected-key CRC reference; no network or equivalent-client parity claim",
+            "benchmarks": {
+              "xredis_command_keys_0": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "0",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      12690708.995,
+                      12275375.211,
+                      13043216.546,
+                      11792438.09,
+                      13310367.625,
+                      12461896.971,
+                      14061492.736
+                    ],
+                    "median": 12690708.995,
+                    "mean": 12805070.882,
+                    "min": 11792438.09,
+                    "max": 14061492.736,
+                    "mad": 415333.784,
+                    "relative_mad": 0.03272739010591425,
+                    "range": 2269054.6459999997,
+                    "relative_range": 0.1787965232591798,
+                    "central_range": 1034992.4140000008,
+                    "relative_central_range": 0.0815551293791211,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      78.798,
+                      81.464,
+                      76.668,
+                      84.8,
+                      75.129,
+                      80.245,
+                      71.116
+                    ],
+                    "median": 78.798,
+                    "mean": 78.31714285714285,
+                    "min": 71.116,
+                    "max": 84.8,
+                    "mad": 2.665999999999997,
+                    "relative_mad": 0.03383334602401072,
+                    "range": 13.683999999999997,
+                    "relative_range": 0.1736592299296936,
+                    "central_range": 6.334999999999994,
+                    "relative_central_range": 0.08039544150866765,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_1": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "1",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      10184293.654,
+                      10170683.081,
+                      9584647.94,
+                      9504780.591,
+                      10004590.807,
+                      10049431.849,
+                      10298490.098
+                    ],
+                    "median": 10049431.849,
+                    "mean": 9970988.288571429,
+                    "min": 9504780.591,
+                    "max": 10298490.098,
+                    "mad": 134861.8049999997,
+                    "relative_mad": 0.013419843731107998,
+                    "range": 793709.5069999993,
+                    "relative_range": 0.07898053531045936,
+                    "central_range": 599645.7139999997,
+                    "relative_central_range": 0.059669613467717514,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      98.19,
+                      98.322,
+                      104.334,
+                      105.21,
+                      99.954,
+                      99.508,
+                      97.102
+                    ],
+                    "median": 99.508,
+                    "mean": 100.37428571428572,
+                    "min": 97.102,
+                    "max": 105.21,
+                    "mad": 1.3179999999999978,
+                    "relative_mad": 0.013245166217791513,
+                    "range": 8.10799999999999,
+                    "relative_range": 0.08148088595891778,
+                    "central_range": 6.1440000000000055,
+                    "relative_central_range": 0.0617437793946216,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_2": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000",
+                  "2",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      32173.476,
+                      44759.748,
+                      52923.488,
+                      54962.262,
+                      54195.836,
+                      41941.553,
+                      51502.317
+                    ],
+                    "median": 51502.317,
+                    "mean": 47494.09714285714,
+                    "min": 32173.476,
+                    "max": 54962.262,
+                    "mad": 3459.9449999999997,
+                    "relative_mad": 0.06718037559358736,
+                    "range": 22788.786000000004,
+                    "relative_range": 0.4424807916894303,
+                    "central_range": 12254.283000000003,
+                    "relative_central_range": 0.23793653788430533,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      31081.503,
+                      22341.502,
+                      18895.202,
+                      18194.302,
+                      18451.602,
+                      23842.703,
+                      19416.602
+                    ],
+                    "median": 19416.602,
+                    "mean": 21746.202285714284,
+                    "min": 18194.302,
+                    "max": 31081.503,
+                    "mad": 1222.2999999999993,
+                    "relative_mad": 0.06295128261886397,
+                    "range": 12887.201000000001,
+                    "relative_range": 0.6637207169411002,
+                    "central_range": 5391.101000000002,
+                    "relative_central_range": 0.2776541951058173,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              },
+              "xredis_command_keys_3": {
+                "source": "extlibs/xredis/bench/bench_command_keys.c",
+                "inputs": [],
+                "suite": "xredis_command_keys,time,memory_stats",
+                "args": [
+                  "1000000",
+                  "3",
+                  "0"
+                ],
+                "facts": {},
+                "metrics": {
+                  "operations_per_sec": {
+                    "samples": [
+                      35243535.296,
+                      35035598.621,
+                      34929497.255,
+                      34958559.075,
+                      35523981.21,
+                      33484126.866,
+                      35180302.746
+                    ],
+                    "median": 35035598.621,
+                    "mean": 34907943.00985714,
+                    "min": 33484126.866,
+                    "max": 35523981.21,
+                    "mad": 144704.125,
+                    "relative_mad": 0.004130202727955268,
+                    "range": 2039854.3440000005,
+                    "relative_range": 0.05822233454796264,
+                    "central_range": 314038.0409999937,
+                    "relative_central_range": 0.008963398753282963,
+                    "direction": "higher",
+                    "unit": "operations/s",
+                    "limit": 0.05,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  },
+                  "ns_per_operation": {
+                    "samples": [
+                      28.374,
+                      28.542,
+                      28.629,
+                      28.605,
+                      28.15,
+                      29.865,
+                      28.425
+                    ],
+                    "median": 28.542,
+                    "mean": 28.655714285714286,
+                    "min": 28.15,
+                    "max": 29.865,
+                    "mad": 0.11700000000000088,
+                    "relative_mad": 0.004099222198864862,
+                    "range": 1.7149999999999999,
+                    "relative_range": 0.06008688949618106,
+                    "central_range": 0.25500000000000256,
+                    "relative_central_range": 0.008934202228295234,
+                    "direction": "lower",
+                    "unit": "ns",
+                    "limit": 0.1,
+                    "max_relative_mad": 0.03,
+                    "max_relative_central_range": 0.06
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report_sha256": "b0b71161d8c61942edd78ddd1c9bea9f64068ccfa7532c8c55f2df2f16df7a55",
+      "evaluated": 8,
+      "noise_qualified": 3,
+      "allocations": {
+        "complete": true,
+        "records": {
+          "0": {
+            "values": {
+              "operations_per_sec": 14409221.896,
+              "ns_per_operation": 69.4,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/wsl/xredis_command_keys_0",
+            "sha256": "e4e84b0e1cc627ee56b9232a65b9f501603ed053a49b100348134a505272caa3",
+            "log": "wsl-allocation-0.log",
+            "log_sha256": "1f41fb6a8d3a7412e62fec957c599659df5f1406e94577e3b6f2940685c7fb19"
+          },
+          "1": {
+            "values": {
+              "operations_per_sec": 10395010.404,
+              "ns_per_operation": 96.2,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/wsl/xredis_command_keys_1",
+            "sha256": "e4e84b0e1cc627ee56b9232a65b9f501603ed053a49b100348134a505272caa3",
+            "log": "wsl-allocation-1.log",
+            "log_sha256": "c8d583f91b0c6cdf7817622dad487bc65d52d01cfc48f5d1d8d7028772c178f6"
+          },
+          "2": {
+            "values": {
+              "operations_per_sec": 56612.169,
+              "ns_per_operation": 17664.047,
+              "checksum": 1280.0,
+              "heap_blocks_per_operation": 1.0,
+              "heap_bytes_per_operation": 3176.0
+            },
+            "binary": "performance/wsl/xredis_command_keys_2",
+            "sha256": "e4e84b0e1cc627ee56b9232a65b9f501603ed053a49b100348134a505272caa3",
+            "log": "wsl-allocation-2.log",
+            "log_sha256": "20beab3626bbf9fa9f2c0ec8d11c16461266942110b0c5508b24961416bfcfe7"
+          },
+          "3": {
+            "values": {
+              "operations_per_sec": 36231883.97,
+              "ns_per_operation": 27.6,
+              "checksum": 6780924.0,
+              "heap_blocks_per_operation": 0.0,
+              "heap_bytes_per_operation": 0.0
+            },
+            "binary": "performance/wsl/xredis_command_keys_3",
+            "sha256": "e4e84b0e1cc627ee56b9232a65b9f501603ed053a49b100348134a505272caa3",
+            "log": "wsl-allocation-3.log",
+            "log_sha256": "ff32064d8f692160854b94bbe8d1f99083e06f8e50317e0ab22690d837362e5e"
+          }
+        },
+        "scope": "Separate globally instrumented processes. BlockAllocCalls/BlockAllocBytes deltas, not full native allocation/RSS accounting. Constructor budget units separately cover logical ownership."
+      },
+      "full_acceptance": false
+    }
+  },
+  "excluded": {
+    "windows": {
+      "complete": true,
+      "scope": "Existing Cluster client selection, key metadata feature disabled, identical Reply .text with baseline/current source and the same current headers/flags. No native client/pool/Core change.",
+      "defines": [
+        "XRT_FEATURE_ATOMIC",
+        "XRT_FEATURE_QUEUE",
+        "XRT_FEATURE_QUEUE_MPSC",
+        "XRT_FEATURE_NUMBER_INTEGER",
+        "XRT_FEATURE_NUMBER_FLOAT",
+        "XRT_FEATURE_TIME",
+        "XRT_FEATURE_WAIT",
+        "XRT_FEATURE_THREAD",
+        "XRT_FEATURE_SYNC",
+        "XRT_FEATURE_MUTEX",
+        "XRT_FEATURE_COND",
+        "XRT_FEATURE_CANCEL",
+        "XRT_FEATURE_FUTURE",
+        "XRT_FEATURE_NET",
+        "XRT_FEATURE_NET_SOCKET",
+        "XRT_FEATURE_NET_BUFFER",
+        "XRT_FEATURE_NET_PORT",
+        "XRT_FEATURE_NET_PORT_SELECT",
+        "XRT_FEATURE_NET_PORT_IOCP",
+        "XRT_FEATURE_NET_ENGINE",
+        "XRT_FEATURE_NET_TCP",
+        "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+        "XREDIS_FEATURE_XREDIS_POOL",
+        "XREDIS_FEATURE_XREDIS_COMMAND",
+        "XREDIS_FEATURE_XREDIS_READER",
+        "XREDIS_FEATURE_XREDIS_REPLY",
+        "XREDIS_FEATURE_XREDIS_CLIENT",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+        "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_NODES",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
+      ],
+      "records": {
+        "old": {
+          "source_sha256": "741b370a7e7a8b1be318fb2e5f549a37136203809abb77b2c3a2fccfc49879bf",
+          "object_sha256": "6fe728774a0c584c14762c5808a83429e1a4a59992f057ab4a827f6f698da7a9",
+          "text_sha256": "f6fd571d5093e45594c9c3f418e2c0b752bfd5a02ea47c588fb4e57011d93f3e",
+          "text_bytes": 5456
+        },
+        "current": {
+          "source_sha256": "bfb76e982db2adc58b80b6d542f5768a4acf443d92ff80fac2e79035edcf2135",
+          "object_sha256": "aff8b6f66ef491459a10f25d34dac55216ad4105eaa8793c7c6c3e5669d1c07f",
+          "text_sha256": "f6fd571d5093e45594c9c3f418e2c0b752bfd5a02ea47c588fb4e57011d93f3e",
+          "text_bytes": 5456
+        }
+      }
+    },
+    "wsl": {
+      "complete": true,
+      "scope": "Existing Cluster client selection, key metadata feature disabled, identical Reply .text with baseline/current source and the same current headers/flags. No native client/pool/Core change.",
+      "defines": [
+        "XRT_FEATURE_ATOMIC",
+        "XRT_FEATURE_QUEUE",
+        "XRT_FEATURE_QUEUE_MPSC",
+        "XRT_FEATURE_NUMBER_INTEGER",
+        "XRT_FEATURE_NUMBER_FLOAT",
+        "XRT_FEATURE_TIME",
+        "XRT_FEATURE_WAIT",
+        "XRT_FEATURE_THREAD",
+        "XRT_FEATURE_SYNC",
+        "XRT_FEATURE_MUTEX",
+        "XRT_FEATURE_COND",
+        "XRT_FEATURE_CANCEL",
+        "XRT_FEATURE_FUTURE",
+        "XRT_FEATURE_NET",
+        "XRT_FEATURE_NET_SOCKET",
+        "XRT_FEATURE_NET_BUFFER",
+        "XRT_FEATURE_NET_PORT",
+        "XRT_FEATURE_NET_PORT_SELECT",
+        "XRT_FEATURE_NET_PORT_EPOLL",
+        "XRT_FEATURE_NET_ENGINE",
+        "XRT_FEATURE_NET_TCP",
+        "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+        "XREDIS_FEATURE_XREDIS_POOL",
+        "XREDIS_FEATURE_XREDIS_COMMAND",
+        "XREDIS_FEATURE_XREDIS_READER",
+        "XREDIS_FEATURE_XREDIS_REPLY",
+        "XREDIS_FEATURE_XREDIS_CLIENT",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+        "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+        "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_NODES",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH",
+        "XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
+      ],
+      "records": {
+        "old": {
+          "source_sha256": "741b370a7e7a8b1be318fb2e5f549a37136203809abb77b2c3a2fccfc49879bf",
+          "object_sha256": "d8c8db9d24e5ea0fcc63a00b1ac2f09b5ba73bc6533385d20feefebb033d3e7f",
+          "text_sha256": "2d8d842e35a1e98c6faf7455e606f57c647ef076acbeeacdc48bce005c219861",
+          "text_bytes": 5305
+        },
+        "current": {
+          "source_sha256": "bfb76e982db2adc58b80b6d542f5768a4acf443d92ff80fac2e79035edcf2135",
+          "object_sha256": "da54a172636f66c3a1ab24444ea3778ed40fa76ab61f6990089f3dc2bc0badba",
+          "text_sha256": "2d8d842e35a1e98c6faf7455e606f57c647ef076acbeeacdc48bce005c219861",
+          "text_bytes": 5305
+        }
+      }
+    }
+  },
+  "failures": [
+    {
+      "kind": "measurement harness artifact path; recovered without repeating samples",
+      "receipt": "windows-finish-receipts.json",
+      "label": "measure",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-X",
+        "utf8",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xredis-command-keys-20261112\\measure.py"
+      ],
+      "exit_code": 1,
+      "seconds": 324.468,
+      "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61",
+      "log": "windows-measure.log",
+      "log_sha256": "27059d3205053e90e550592c30a2d9d2262e79f184c2a54b57651e2894d09400",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "kind": "performance noise qualification",
+      "receipt": "windows-measure-receipts.json",
+      "label": "performance",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-X",
+        "utf8",
+        "tools/measure_performance.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--config",
+        "extlibs/xredis/config/performance_profiles.json",
+        "--profiles",
+        "xredis_command_keys",
+        "--repeats",
+        "7",
+        "--warmups",
+        "1",
+        "--report",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xredis-command-keys-20261112\\windows-performance.json"
+      ],
+      "exit_code": 1,
+      "seconds": 41.922,
+      "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61",
+      "log": "windows-performance.log",
+      "log_sha256": "0f7d2ebd5ffd2d9fe1068a67954c0679bfb2b2239ad500b94c3c28225653c461",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "kind": "performance noise qualification",
+      "receipt": "wsl-measure-receipts.json",
+      "label": "performance",
+      "command": [
+        "/usr/bin/python3",
+        "-X",
+        "utf8",
+        "tools/measure_performance.py",
+        "--compiler",
+        "/usr/bin/gcc",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xredis/config/modules.json",
+        "--config",
+        "extlibs/xredis/config/performance_profiles.json",
+        "--profiles",
+        "xredis_command_keys",
+        "--repeats",
+        "7",
+        "--warmups",
+        "1",
+        "--report",
+        "/mnt/d/GIT/xrt/out/service-extensions/xredis-command-keys-20261112/wsl-performance.json"
+      ],
+      "exit_code": 1,
+      "seconds": 55.143,
+      "source_map_sha256": "be8c85f7750505dadb8764a8e17549b557cd8a8b50c17575e5d820728b970a61",
+      "log": "wsl-performance.log",
+      "log_sha256": "a719d7f2d92ba5f3c4e297a681a6687eb1ba3f24e9bddeb0605ff8eb781c90ee",
+      "programs": 0,
+      "binaries": []
+    }
+  ],
+  "limitations": [
+    "Application-owned immutable metadata snapshot for the selected server. Application coordinates replacement and holds references across readers. No network, worker, new shared runtime, automatic refresh, credential handling or implicit business replay is introduced.",
+    "Only full OK/NONE publishes outputs. Complete supported extraction includes not_key routing arguments and overlapping specification occurrences. Unsupported/incomplete/future rules require authorized server assistance; unknown commands are distinct. Arity/index/count validation is not full business grammar validation. Variable access flags are possibilities and do not authorize replica reads.",
+    "Warm paths perform argument/span validation, hash lookup, bounded keyword scans, CRC over all selected routing key bytes and an optional second extraction pass. They have real CPU/scan/function costs even though requested heap is zero. Constructor retains Reply and allocates one index block; retained metadata/old snapshots/allocator overhead remain real storage.",
+    "Raw benchmark mode knows four key positions in advance and omits metadata/argument validation. It is an algorithm cost reference, not functionally equivalent client performance or zero-overhead evidence. Samples are unpinned serial closed-loop CPU batches; ns/op is an average, not P99. No upstream client/end-to-end/native Linux/mixed-load/CPU/RSS/72h acceptance.",
+    "Real Redis oracle uses owned plaintext WSL fixtures and offline native Windows/WSL C parsers. Business invocations are arguments to COMMAND GETKEYSANDFLAGS, never executed. SPUBLISH not_key is excluded by that server oracle; it uses the public standard position and actual server CLUSTER KEYSLOT, recorded separately. No C transport/TLS/Cluster failover claim.",
+    "Original development and first Windows formal aggregate corpus files were overwritten by the shared evidence directory. Original reports/hashes and isolated pre-fix RESP3 row witnesses are retained, but those original aggregate bytes are not claimed retained. Final runner refuses existing reports, uses report-specific corpus directories and both hosts reran their complete oracle matrices with unchanged C binaries.",
+    "Automatic metadata fetch/cache publication, server-assisted exotic command extraction, Cluster submission wiring, replicas/synchronous Cluster facade and full four-library completion remain open."
+  ],
+  "unchanged_native_sources": {
+    "extlibs/xredis/src/client/client.c": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+    "extlibs/xredis/src/pool/pool.c": "fecd86ffb249066c128f76b2b1db7f3b2ca8ed1857df9bda3cd8cc076677b7aa",
+    "extlibs/xredis/src/cluster_client/cluster_client.c": "caa149a40e8e017f6f887a3feab342790ca89c3fbc144878fdcf24afde56d845",
+    "extlibs/xredis/src/cluster_nodes/cluster_nodes.c": "642fd3746757e4501965908e9e37674d689a8a46f164cd077e541f356946313b"
+  },
+  "development_corrections": [
+    {
+      "log": "dev-build-1.log",
+      "issue": "Initial dense statement formatting failed -Werror=misleading-indentation. Split guarded statements; warnings remain errors. Initial source inputs/hashes retained.",
+      "sha256": "2f2c897492e1ab8d2a5e02749cb64a109387c14825d24df2af3ba6d8aa99efb8"
+    },
+    {
+      "log": "dev-real-1.log",
+      "issue": "GETKEYSANDFLAGS excludes not_key channels. Split SPUBLISH standard-position/server-slot evidence from actual key extraction, without weakening cross-slot checks.",
+      "sha256": "0b6d4d796797a1ac7a648d6beaa23fab3b2970833e6e105d9c073043bd817961"
+    },
+    {
+      "log": "dev-real-2.log",
+      "issue": "Actual RESP3 COMMAND uses Sets for specification and empty-child collections. Added non-positional Set handling and authentic-shaped synthetic fixtures; positional command rows still require arrays.",
+      "sha256": "a13cdea887d6d68a74ce3a835f7c7a1054331f73f04b454defe332d76f1818f3"
+    },
+    {
+      "log": "source-equivalence.json",
+      "issue": "Shared corpus directory caused cross-host/development aggregate overwrites. Only runner evidence isolation changed after compilation; both complete real matrices reran with unchanged verified binaries and independently hashed report-specific corpora.",
+      "sha256": "ed6a663caedc5a6da510d8bdff26e06cc6d06add9959dfe9441366e2dd66534d"
+    }
+  ],
+  "raw_evidence": "out/service-extensions/xredis-command-keys-20261112"
+}

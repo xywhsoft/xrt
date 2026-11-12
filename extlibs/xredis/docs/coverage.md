@@ -132,3 +132,20 @@ posts/watches. It automatically bootstraps, refreshes after current-generation
 MOVED and isolates ASK; it preserves deadlines, quotas and old maps on failure.
 See [contracts](cluster_client.md). Replica policy,
 synchronous calls and full production/performance acceptance remain open.
+
+## Command key specifications
+
+The developing `xredis_command_keys` leaf owns a bounded immutable metadata
+catalogue and evaluates every routing key before a caller submits business.
+It accepts positional command rows with RESP2 arrays/RESP3 set collections,
+legacy non-movable metadata, nested/partial subcommands, index/keyword searches,
+range/key-count rules, and typed incomplete/unknown/variable flags. Binary keys
+and `not_key` routing arguments share the Cluster CRC/hash-tag calculation.
+Late failures, short capacity and cross-slot results publish no partial output.
+Tests separately cover constructor/caller quotas, alias/wrapped spans, collisions,
+mutation, concurrent retained readers and warmed allocation/error preservation.
+Actual COMMAND/INFO and GETKEYSANDFLAGS/server-slot corpus checks are distinct
+from synthetic specifications; channels use the standard position plus server
+slot because GETKEYS excludes `not_key`. See [contracts](command_keys.md).
+Automatic metadata fetch/cache replacement, server-assisted exotic extraction,
+client submission wiring, replica policy and final acceptance remain open.

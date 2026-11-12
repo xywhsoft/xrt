@@ -64,7 +64,7 @@ static bool xredisReplyOverlap(const xredisreply* Reply, const void* Data, size_
 		(Reply->Data != Reply->InlineData && xrtMemRangesOverlap(Reply->Data, Reply->DataCapacity, Data, Bytes)));
 }
 
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY)
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY) || defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
 bool __xredisClusterReplyOutput(const xredisreply* Reply,const void* Output,size_t Bytes)
 {return Reply && Output && xrtMemRangeValid(Output,Bytes) && !xredisReplyOverlap(Reply,Output,Bytes);}
 #endif

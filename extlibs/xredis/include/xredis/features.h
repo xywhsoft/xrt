@@ -103,6 +103,19 @@
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
 #endif
+#ifndef XREDIS_MODULE_XREDIS_COMMAND_KEYS
+#define XREDIS_MODULE_XREDIS_COMMAND_KEYS
+#endif
+#endif
+
+/* xredis_command_keys 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_COMMAND_KEYS)
+#ifndef XREDIS_FEATURE_XREDIS_COMMAND_KEYS
+#define XREDIS_FEATURE_XREDIS_COMMAND_KEYS
+#endif
+#ifndef XREDIS_MODULE_XREDIS_REPLY
+#define XREDIS_MODULE_XREDIS_REPLY
+#endif
 #endif
 
 /* xredis_cluster_client 及其直接依赖。 */

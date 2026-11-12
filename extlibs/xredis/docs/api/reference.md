@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `209` 个函数、`324` 个常量或宏、
-`150` 个公共类型。
+当前登记 `215` 个函数、`346` 个常量或宏、
+`157` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -368,6 +368,54 @@
 ### 类型 (1)
 
 - `xrediscommanderror`
+
+## `extlibs/xredis/include/xredis/command_keys.h`
+
+[查看带契约注释的公共头](../../include/xredis/command_keys.h)
+
+### 函数 (6)
+
+- `xredisCommandCatalogCreate`
+- `xredisCommandCatalogEvaluate`
+- `xredisCommandCatalogInfo`
+- `xredisCommandCatalogRelease`
+- `xredisCommandCatalogRetain`
+- `xredisCommandKeyLimitsInit`
+
+### 常量与宏 (22)
+
+- `XREDIS_FEATURE_XREDIS_COMMAND_KEYS`
+- `XREDIS_KEYS_ARGUMENTS`
+- `XREDIS_KEYS_CROSS_SLOT`
+- `XREDIS_KEYS_ERROR`
+- `XREDIS_KEYS_LIMIT`
+- `XREDIS_KEYS_MALFORMED`
+- `XREDIS_KEYS_MEMORY`
+- `XREDIS_KEYS_NONE`
+- `XREDIS_KEYS_OK`
+- `XREDIS_KEYS_SERVER_ERROR`
+- `XREDIS_KEYS_UNKNOWN`
+- `XREDIS_KEYS_UNSUPPORTED`
+- `XREDIS_KEY_ACCESS`
+- `XREDIS_KEY_DELETE`
+- `XREDIS_KEY_INSERT`
+- `XREDIS_KEY_NOT_KEY`
+- `XREDIS_KEY_OW`
+- `XREDIS_KEY_RM`
+- `XREDIS_KEY_RO`
+- `XREDIS_KEY_RW`
+- `XREDIS_KEY_UPDATE`
+- `XREDIS_KEY_VARIABLE`
+
+### 类型 (7)
+
+- `xrediscommandcatalog`
+- `xrediscommandcataloginfo`
+- `xrediscommandkey`
+- `xrediscommandkeylimits`
+- `xrediscommandkeyresult`
+- `xrediskeyflag`
+- `xrediskeysstatus`
 
 ## `extlibs/xredis/include/xredis/dial.h`
 

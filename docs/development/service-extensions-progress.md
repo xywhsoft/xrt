@@ -11889,3 +11889,66 @@ Migration05dc625d and verificationf0e0955c remain mainline ancestors. All work
 and tests use D:/GIT/xrt master; old worktree untouched, no branch or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-seeds-20261112.json)
 and out/service-extensions/xredis-cluster-seeds-20261112.
+
+## 2026-11-12 - Immutable command key specifications
+
+New xredis_command_keys parses COMMAND/COMMAND INFO into one retained immutable
+Reply plus one bounded command/specification/hash allocation. Modern/legacy
+rows, nested/partial subcommands, actual RESP3 Set collections, index/forward/
+reverse keyword search, relative/negative/factored ranges and key-count rules
+are supported. Unknown/incomplete/future rules remain typed server-assistance
+requirements; they are never guessed as keyless. All routing keys, including
+not_key, participate in binary CRC/hash-tag and cross-slot validation. Access
+flags are possible metadata and do not authorize replica reads. No I/O or new
+shared runtime. Automatic metadata fetch/fallback/Cluster submission is pending.
+
+Constructor caps include retained Reply and hash work. Warm reads allocate no
+storage or references, but validate descriptors and scan/hash arguments/keys.
+An optional caller vector adds a second extraction pass without repeated CRC.
+Search/key-occurrence/key-byte caps include hash collisions and overlapping
+specifications. Failure never publishes partial key/output arrays.
+
+Tests cover192 independent command-grammar models, literal modern/legacy/
+nested/unknown/variable/binary cases, malformed late rows/duplicates, capacity/
+aliases/wrapped spans, exact retained-byte caps, OOM prefixes,80 colliding names,
+7000 mutations,10000 zero-requested-heap/error-preserving evaluations, four
+12000-cycle retained readers and single-only refcount overflow rollback.
+
+Mainline validation: Windows 46 / WSL 47 programs, root40 each; memory/UB/leak and TSan checks pass.
+Both native hosts pass leaf modular/single/static/shared, isolated declaration
+consumers, root single/static/shared,6 exports/private hiding, API/docs/maturity
+and three footprint forms. Feature-excluded existing Cluster Reply .text is
+byte-identical to baseline on both hosts; native client/pool/cache are unchanged.
+
+Owned Redis8.0.5 COMMAND/INFO RESP2/3:394 commands/subcommands,243 specifications
+per full catalogue;216 logical checks per runner,208 actual GETKEYSANDFLAGS
+oracles and one standard not_key position/server-slot check. Full+partial/null
+corpora over8 forms produce3568 C evaluations, with zero business executions.
+Actual RESP3 Set and not_key oracle differences corrected with failed logs kept.
+An initial shared corpus directory overwrote original aggregate files, including
+the Windows formal archive; those original aggregate bytes are not claimed kept.
+Only runner isolation changed after compilation. Complete real matrices reran
+with the same binaries; all final report-specific corpus hashes are verified.
+The source-equivalence ledger connects unchanged C/headers/manifests to those
+reruns. Original reports and isolated RESP3 row witnesses remain available.
+
+windows: 6/8 average-CPU metrics pass original3% MAD/6% central-range gates.
+windows xredis_command_keys_0: 12666597 operations/s; 78.948 ns/op; global BlockAllocCalls/op 0.000.
+windows xredis_command_keys_1: 10282914 operations/s; 97.249 ns/op; global BlockAllocCalls/op 0.000.
+windows xredis_command_keys_2: 51259 operations/s; 19508.800 ns/op; global BlockAllocCalls/op 1.000.
+windows xredis_command_keys_3: 29885360 operations/s; 33.461 ns/op; global BlockAllocCalls/op 0.000.
+wsl: 3/8 average-CPU metrics pass original3% MAD/6% central-range gates.
+wsl xredis_command_keys_0: 12690709 operations/s; 78.798 ns/op; global BlockAllocCalls/op 0.000.
+wsl xredis_command_keys_1: 10049432 operations/s; 99.508 ns/op; global BlockAllocCalls/op 0.000.
+wsl xredis_command_keys_2: 51502 operations/s; 19416.602 ns/op; global BlockAllocCalls/op 1.000.
+wsl xredis_command_keys_3: 35035599 operations/s; 28.542 ns/op; global BlockAllocCalls/op 0.000.
+
+One warmup/seven serial unpinned samples per mode, separate global allocation
+runs, exact flags/source/compiler/CPU/power metadata and size artifacts retained.
+Raw mode knows four key positions and omits validation, so it is a cost reference,
+not same-function parity. These batch averages are not P99/end-to-end/native
+Linux/contention/CPU/RSS/upstream/72h acceptance. Noise failures are retained
+without retry for green. All four products remain developing; the goal is active.
+Work and tests use D:/GIT/xrt master. No branch operation or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/command-keys-20261112.json)
+and out/service-extensions/xredis-command-keys-20261112.

@@ -270,3 +270,10 @@ duties. Replica policy and synchronous Cluster calls remain work.
 Cluster refresh automatically retains bounded discovered masters, query origin
 and explicit bootstrap fallbacks; failed cohorts rotate start candidates.
 See [metadata seed contracts](docs/cluster_refresh.md).
+
+Select `XREDIS_MODULE_XREDIS_COMMAND_KEYS` for an immutable COMMAND/COMMAND INFO
+catalogue and allocation-free key extraction. It supports legacy and modern
+rules, subcommands, binary keys and complete cross-slot checks with bounded
+search/key-byte work. Unknown/incomplete rules require explicit server help;
+they are never treated as keyless. See [contracts](docs/command_keys.md) and
+the [runnable offline example](examples/command_keys/README.md).

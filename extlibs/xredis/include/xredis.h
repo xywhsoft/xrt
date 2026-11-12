@@ -159,4 +159,9 @@
 #endif
 #include <xredis/cluster_client.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_COMMAND_KEYS)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_COMMAND_KEYS"
+#endif
+#include <xredis/command_keys.h>
+
 #endif
