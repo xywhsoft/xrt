@@ -5647,6 +5647,20 @@ XREDIS_API void xredisClusterRefreshRelease(xredisclusterrefresh* Refresh);
  * OVERLOADED. Output changes only on ACCEPTED. */
 XREDIS_API xredisadmission xredisClusterRefreshStart(xredisclusterrefresh* Refresh,bool Force,xfuture** Future);
 XREDIS_API bool xredisClusterRefreshInvalidate(xredisclusterrefresh* Refresh);
+/* Replace future query candidates with up to MaxSeeds distinct eligible
+ * masters from Map, then its actual query origin and distinct original explicit
+ * seeds as fallback (total <=2*MaxSeeds+1). SHARDS uses Map.Origin.Tls and its explicit port; SLOTS keeps
+ * its query transport. SOURCE uses the copied query host. Unknown/unhealthy/
+ * unavailable/oversize endpoints are skipped. Every later lookup still runs
+ * Nodes authorization. No policy/I/O/allocation here; bounded preallocated
+ * hash/plan storage and two passes avoid partial replacement.
+ * Requires no active cohort/creation/driver phase; otherwise OVERLOADED.
+ * Concurrent Close is included in Busy and can return CLOSED. Does not change
+ * topology, generation or demand epoch; existing outcomes remain immutable.
+ * A failed cohort advances the next start candidate; successful query origin
+ * is preferred when it remains an eligible discovered master. */
+XREDIS_API xredisadmission xredisClusterRefreshDiscover(xredisclusterrefresh* Refresh,
+    const xredisclustermap* Map);
 /* Start/Invalidate/Snapshot/Info/Close are thread-safe. Step/Pending/NextWake
  * have ONE caller-serialized driver; no worker blocking. Step makes one bounded
  * phase. BUSY reports another active Step/publication, not permission to spin.

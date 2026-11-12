@@ -24,8 +24,26 @@ Generations increase on publication. Invalidation advances a local demand
 epoch, not a Redis configuration epoch. A refresh racing newer demand can
 publish STALE but cannot clear Dirty. OK certifies demand at publication only;
 later invalidation can stale it. Failed replacement retains the previous view.
-Fully managed MOVED notification wiring, seed selection from refreshed maps,
-replica policy and async scheduling remain work.
+The asynchronous client wires MOVED demand and automatically discovers future
+metadata seeds from each published map. Replica policy and final acceptance
+remain work.
+
+Discover runs only with no active cohort/phase, otherwise OVERLOADED. One
+constructor-preallocated address arena, hash and index plan select at most
+MaxSeeds distinct eligible masters, preserve the actual query origin and all
+distinct original bootstrap seeds (total<=2*MaxSeeds+1). SHARDS explicitly selects
+the query transport's port; SLOTS preserves query transport. SOURCE uses the
+copied query host. Unknown/unhealthy/unavailable/oversize candidates are skipped.
+Every later lookup still authorizes the exact address. Planning is bounded and
+allocates no storage, with no partial replacement or epoch/map mutation. Close
+includes the Busy phase. Failed cohorts advance the next start candidate, so a
+small MaxAttempts does not permanently starve later seeds. Successful query
+origin is preferred when eligible; other discovered masters precede fallback.
+This adds bounded cold constructor storage and bounded metadata-phase CPU work.
+The host arena reserves (MaxSeeds+1)*MaxHostBytes regardless of initial seed
+count (17KiB with defaults), plus address/hash/plan storage and original hosts.
+Zero-wait cohorts still record the actual provider address and advance the next
+start; native observations retain their last accepted query origin separately.
 
 Controller/seed/result allocation has a control cap, reserving two operation
 boxes for the active and last result (including creation overlap). Per-map caps include the

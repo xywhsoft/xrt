@@ -62,7 +62,7 @@ static void ccBudgetDrain(xallocationbudget* B)
 static void ccOOM(void)
 {
     rffixture* F=rfStart(3);xredisclusteraddress Seed=nnAddress(F->Base,0);Seed.Slot=0;unsigned Accepted=0,Failed=0;
-    for(size_t Limit=1;Limit<=32768;Limit+=509){xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&Scope),"managed constructor budget");xredisclusterclient* C=(void*)(uintptr_t)1;xredisadmission A=xredisClusterClientCreate(F->Base->Peers[0].Engine,1,F->Base->Cache,&Seed,1,&K,&C);testRequire(xrtAllocationBudgetLeave(&Scope),"constructor budget leave");
+    for(size_t Limit=1;Limit<=65536;Limit+=1019){xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&Scope),"managed constructor budget");xredisclusterclient* C=(void*)(uintptr_t)1;xredisadmission A=xredisClusterClientCreate(F->Base->Peers[0].Engine,1,F->Base->Cache,&Seed,1,&K,&C);testRequire(xrtAllocationBudgetLeave(&Scope),"constructor budget leave");
         if(A==XREDIS_ADMISSION_ACCEPTED){++Accepted;cfClose(C);xredisClusterClientRelease(C);}else {++Failed;testRequire(C==(void*)(uintptr_t)1,"constructor failure changed output");xrtClearError();}ccBudgetDrain(B);xrtAllocationBudgetFree(B);}
     testRequire(Accepted && Failed && !xrtAtomic32Load(&F->Base->Drops,XMEMORY_ACQUIRE),"constructor OOM consumed shared Nodes/context");xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);Accepted=Failed=0;
     for(size_t Limit=1;Limit<=8192;Limit+=127){xallocationbudget* B=NULL;xallocationscope Scope={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&Scope),"managed call budget");xbytesview A[]={XRT_BYTES_LITERAL("ECHO"),XRT_BYTES_LITERAL("managed\0route")};xfuture* R=(void*)(uintptr_t)1;xredisadmission S=xredisClusterClientCall(C,1,A,2,5000,&R);testRequire(xrtAllocationBudgetLeave(&Scope),"managed call budget leave");
@@ -114,6 +114,12 @@ static void ccCopiedInputs(void)
     rffixture* F=rfStart(3);xredisclusterclientconfig K;xredisClusterClientConfigInit(&K);K.Refresh.RetryDelay=K.Route.RetryDelay=K.RefreshMin=1;K.RefreshRetryMax=5;xredisclusteraddress Seed=nnAddress(F->Base,0);Seed.Slot=0;xredisclusterclient* C=NULL;
     testRequire(xredisClusterClientCreate(F->Base->Peers[0].Engine,0,F->Base->Cache,&Seed,1,&K,&C)==XREDIS_ADMISSION_ACCEPTED,"same-worker client");xfuture* R=cfEcho(C,5000);testRequire(cfWait(R)->Route.Query.Status==XREDIS_REQUEST_OK,"same-worker progress");cfStop(F,C);xrtFutureDestroy(R);
 }
+static void ccSeedEvolution(void)
+{
+    rffixture* F=rfStart(3);xrtAtomic32Store(&F->Nodes[0].Target,1,XMEMORY_RELEASE);xredisclusterclient* C=cfCreate(F,NULL);cfReady(C);xrtAtomic32Store(&F->Nodes[0].Mode,RF_DENIED,XMEMORY_RELEASE);testRequire(xredisClusterClientInvalidate(C),"evolved seed demand");double Due=xrtTimer()+10;
+    while(cfInfo(C).Generation<2 || cfInfo(C).Dirty){testRequire(xrtTimer()<Due,"metadata stranded on original seed");xrtSleep(1);}xredisclustermap* Map=NULL;bool Stale=true;testRequire(xredisClusterClientSnapshot(C,&Map,&Stale)==XREDIS_CLUSTER_VALUE && !Stale,"evolved seed snapshot");xredisclustermapinfo M={0};M.Size=sizeof(M);testRequire(xredisClusterMapInfo(Map,&M) && M.Origin.Port==F->Base->Peers[1].Address.Port && xrtAtomic32Load(&F->Nodes[1].Queries,XMEMORY_ACQUIRE)>=1,"automatic seed discovery origin");
+    xrtAtomic32Store(&F->Nodes[1].Mode,RF_DENIED,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[0].Mode,RF_NORMAL,XMEMORY_RELEASE);testRequire(xredisClusterClientInvalidate(C),"bootstrap fallback demand");Due=xrtTimer()+10;while(cfInfo(C).Generation<3 || cfInfo(C).Dirty){testRequire(xrtTimer()<Due,"bootstrap fallback stranded");xrtSleep(1);}xfuture* R=cfEcho(C,5000);testRequire(cfWait(R)->Route.Query.Status==XREDIS_REQUEST_OK,"business after seed evolution");cfStop(F,C);testRequire(xredisClusterMapInfo(Map,&M) && M.Generation==2,"retained evolved map changed");xredisClusterMapRelease(Map);xrtFutureDestroy(R);
+}
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 typedef struct ccdeadlineprobe {rffixture* Fixture;xredisclusterclient* Client;xatomic32 Done;} ccdeadlineprobe;
 static void ccInspectDeadline(xnetworker* W,ptr Data)
@@ -128,7 +134,7 @@ static void ccDeadline(void)
 }
 #endif
 int main(void)
-{ccValidate();ccBasic();ccRedirects();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();
+{ccValidate();ccBasic();ccRedirects();ccQueueBounds();ccStops();ccConcurrent();ccRefreshFailure();ccMissing();ccOOM();ccReentry();ccResourceStop();ccAdmissionAllocations();ccCopiedInputs();ccSeedEvolution();
 #if defined(XREDIS_CLUSTER_CLIENT_WHITEBOX)
 ccDeadline();
 #endif

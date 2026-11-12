@@ -220,6 +220,7 @@ static void xredisClusterDriveRefresh(xredisclusterclient* C)
     if(S==XREDIS_REFRESH_DONE){
         const xredisclusterrefreshresult* R=xrtFutureValue(C->RefreshFuture);if(!R){xredisClusterStop(C,XREDIS_CLUSTER_CLIENT_INTERNAL);return;}
         xredisclustermap* Map=NULL;bool Dirty=true;if(R->Published)xredisClusterRefreshSnapshot(C->Refresh,&Map,&Dirty);
+        if(Map)(void)xredisClusterRefreshDiscover(C->Refresh,Map);
         xredisclustermap* Old=NULL;xrtMutexLock(&C->Gate);C->Info.LastRefresh=R->Status;++C->Info.RefreshCompleted;
         if(Map){Old=C->Map;C->Map=Map;C->Info.Generation=R->Generation;C->Info.Epoch=R->Epoch;C->Info.Dirty=Dirty || C->Invalidation;C->Backoff=C->Config.RefreshMin;}
         else {++C->Info.RefreshFailures;C->Info.Dirty=true;C->Backoff=C->Backoff>C->Config.RefreshRetryMax/2?C->Config.RefreshRetryMax:C->Backoff*2;}

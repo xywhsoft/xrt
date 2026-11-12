@@ -11833,3 +11833,59 @@ full four-library production acceptance remain open; the goal stays active.
 All jobs terminal. Work/tests directly on D:/GIT/xrt master; no branch or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/client-coalloc-20261112.json)
 and out/service-extensions/xredis-client-coalloc-20261112.
+
+## 2026-11-12 - Bounded Cluster metadata seed evolution
+
+Each published async-client map now refreshes the metadata seed plan using
+eligible distinct masters, actual query origin and original bootstrap fallback.
+A preallocated hash/index plan and copied host arena avoid allocation and
+partial publication. Every later cache lookup still authorizes the exact
+address. SHARDS selects explicit TCP/TLS ports, SLOTS preserves query transport,
+SOURCE uses the copied query host, and unknown/unhealthy/replica/unavailable
+endpoints are excluded. Bounds: <=MaxSeeds masters, <=2*MaxSeeds+1 total.
+This genuinely adds constructor storage (default host arena17KiB) and metadata
+CPU/copy work; warm-loop measurements exclude those cold costs.
+Failed cohorts advance the next start candidate. Actual provider seed tracking
+also preserves origin/progress when MaxWaits=0; accepted native query origin
+remains separate. No native/Core/new shared runtime/public struct changes.
+
+Tests cover SHARDS/SLOTS discovery, exhausted-budget zero-allocation selection,
+original seed failure, non-bootstrap query-origin fallback, bootstrap fallback,
+active-cohort rejection, immutable retained maps/results, small attempt limits,
+zero-wait/full-cache cursor progression, TLS/SOURCE/unknown/replica fixtures,
+constructor/cohort/call OOM, original deadlines and physical retirement.
+Development constructor-budget and cold-readiness assertion corrections are
+recorded with failed logs. No policy or protocol fallback was relaxed.
+
+Mainline verification: Windows 49 / WSL 51 programs; root selector39 per host.
+Focused and both single-header WSL ASan/UBSan/leak and TSan, feature-off/root
+single, all delivery forms, isolated declarations,12 relevant exports/private
+hiding, native/cache layouts, footprints and API/docs/maturity passed.
+Real Redis8.0.5:288 cases/9216 exactly counted INCR across4 forms/two hosts,
+3 factories/3 setup modes/SHARDS/SLOTS/migration ASK/actual owner-change MOVED.
+Every case then denies the original seed at the cache authorization gate and
+refreshes from a discovered endpoint. This is policy fault injection with owned
+pools retained for administration, not server-process death or replica failover.
+
+windows refresh-only cold constructor old/current: {'old': {'control_reserved_bytes': 2865, 'constructor_live_bytes': 673, 'constructor_live_blocks': 3}, 'current': {'control_reserved_bytes': 21661, 'constructor_live_bytes': 19453, 'constructor_live_blocks': 3}}.
+windows affinity0 pipeline1: old/current median 19163/19521req/s, P99 72.600/71.700us; gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.018697047855330107, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.012395996687106003, 'within_budget': None}}.
+windows affinity0 pipeline32: old/current median 183807/183924req/s, P99 237.700/234.700us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.000632334643586141, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': -0.01262080321529313, 'within_budget': None}}.
+windows affinity1 pipeline1: old/current median 13952/14218req/s, P99 94.300/96.600us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.01909666721444414, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.024390419005213326, 'within_budget': None}}.
+windows affinity1 pipeline32: old/current median 175710/175935req/s, P99 250.100/244.600us; gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.0012843330248393237, 'within_budget': None}, 'latency_p99_us': {'qualified': True, 'relative_change': -0.0219911409510527, 'within_budget': True}}.
+wsl refresh-only cold constructor old/current: {'old': {'control_reserved_bytes': 2937, 'constructor_live_bytes': 953, 'constructor_live_blocks': 3}, 'current': {'control_reserved_bytes': 21733, 'constructor_live_bytes': 19733, 'constructor_live_blocks': 3}}.
+wsl affinity0 pipeline1: old/current median 7231/7250req/s, P99 180.100/181.900us; gates {'requests_per_sec': {'qualified': False, 'relative_change': 0.0025318087080090645, 'within_budget': None}, 'latency_p99_us': {'qualified': True, 'relative_change': 0.009994447529150463, 'within_budget': True}}.
+wsl affinity0 pipeline32: old/current median 60301/61700req/s, P99 730.800/713.000us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.02319942221762772, 'within_budget': True}, 'latency_p99_us': {'qualified': True, 'relative_change': -0.024356869184455343, 'within_budget': True}}.
+wsl affinity1 pipeline1: old/current median 5956/6043req/s, P99 213.600/229.300us; gates {'requests_per_sec': {'qualified': True, 'relative_change': 0.014659955327762875, 'within_budget': True}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.07350187265917607, 'within_budget': None}}.
+wsl affinity1 pipeline32: old/current median 47497/44063req/s, P99 995.800/1177.300us; gates {'requests_per_sec': {'qualified': False, 'relative_change': -0.07229676392528506, 'within_budget': None}, 'latency_p99_us': {'qualified': False, 'relative_change': 0.18226551516368739, 'within_budget': None}}.
+
+Qualified same-function comparisons: 7/16; all qualified within5% rate-loss/10% P99-increase budgets=True.
+Only client/refresh objects swap. One warmup/seven alternating serial samples
+per host/case, clock/noise gates, heap/pooled/direct/backing flows and cold
+storage retained. Unqualified results remain unqualified. This does not prove
+native Linux/fixed-arrival/contention/mixed-load/upstream/CPU/RSS/72h acceptance.
+Real TLS/auth/trust recovery, replicas, command-key metadata, synchronous
+Cluster calls and full four-library production acceptance remain open.
+Migration05dc625d and verificationf0e0955c remain mainline ancestors. All work
+and tests use D:/GIT/xrt master; old worktree untouched, no branch or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-seeds-20261112.json)
+and out/service-extensions/xredis-cluster-seeds-20261112.

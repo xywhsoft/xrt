@@ -3034,6 +3034,20 @@ XREDIS_API void xredisClusterRefreshRelease(xredisclusterrefresh* Refresh);
  * OVERLOADED. Output changes only on ACCEPTED. */
 XREDIS_API xredisadmission xredisClusterRefreshStart(xredisclusterrefresh* Refresh,bool Force,xfuture** Future);
 XREDIS_API bool xredisClusterRefreshInvalidate(xredisclusterrefresh* Refresh);
+/* Replace future query candidates with up to MaxSeeds distinct eligible
+ * masters from Map, then its actual query origin and distinct original explicit
+ * seeds as fallback (total <=2*MaxSeeds+1). SHARDS uses Map.Origin.Tls and its explicit port; SLOTS keeps
+ * its query transport. SOURCE uses the copied query host. Unknown/unhealthy/
+ * unavailable/oversize endpoints are skipped. Every later lookup still runs
+ * Nodes authorization. No policy/I/O/allocation here; bounded preallocated
+ * hash/plan storage and two passes avoid partial replacement.
+ * Requires no active cohort/creation/driver phase; otherwise OVERLOADED.
+ * Concurrent Close is included in Busy and can return CLOSED. Does not change
+ * topology, generation or demand epoch; existing outcomes remain immutable.
+ * A failed cohort advances the next start candidate; successful query origin
+ * is preferred when it remains an eligible discovered master. */
+XREDIS_API xredisadmission xredisClusterRefreshDiscover(xredisclusterrefresh* Refresh,
+    const xredisclustermap* Map);
 /* Start/Invalidate/Snapshot/Info/Close are thread-safe. Step/Pending/NextWake
  * have ONE caller-serialized driver; no worker blocking. Step makes one bounded
  * phase. BUSY reports another active Step/publication, not permission to spin.
@@ -11925,11 +11939,12 @@ enum {XRF_RESOLVE,XRF_NATIVE,XRF_BACKOFF};
 struct xredisclustermap {xatomic32 References;xredisclustermapinfo Info;size_t Bytes;};
 typedef struct xredisrefreshwork {
     xredisclusterrefreshresult Result;xfuture* Future;xpromise* Promise;
-    double Entered,Deadline,Due;size_t Seed,AttemptSeed;unsigned Phase;bool Done;
+    double Entered,Deadline,Due;size_t Seed,AttemptSeed,ProviderSeed;unsigned Phase;bool Done;
 } xredisrefreshwork;
 struct xredisclusterrefresh {
     xatomic32 References;xmutex Gate;xredisclusterrefreshconfig Config;
-    xredisclusternodes* Nodes;xredisclusteraddress* Seeds;size_t Count,Bytes;
+    xredisclusternodes* Nodes;xredisclusteraddress *Seeds,*Bootstrap;size_t Count,BootCount,Cursor,Bytes,Buckets;
+    uint32* Plan;uint16* Hash;unsigned char* SeedHosts;
     xredisclusterrefreshinfo Info;xredisrefreshwork* Work;xredisclustermap* Current;
     xfuture *Last,*Closed;xpromise* Promise;bool Finishing;
 };
@@ -11979,7 +11994,9 @@ static void xredisRefreshPublish(xredisclusterrefresh* C,xredisrefreshwork* W)
             OldMap=C->Current;C->Current=M;xredisClusterMapRetain(M);C->Info.PublishedEpoch=W->Result.Epoch;C->Info.Dirty=C->Info.PublishedEpoch!=C->Info.DesiredEpoch;}
     }
     if(!W->Result.Published){Unpublished=W->Result.Map;W->Result.Map=NULL;}
-    xredisclusteraddress A=C->Seeds[W->Result.Attempts?W->AttemptSeed:W->Seed];unsigned char* Host=(unsigned char*)(W+1);memcpy(Host,A.Host.Data,A.Host.Size);W->Result.Origin=A;W->Result.Origin.Host=(xbytesview){Host,A.Host.Size};
+    size_t Last=W->Result.ProviderCalls?W->ProviderSeed:W->Seed;
+    xredisclusteraddress A=C->Seeds[W->Result.Attempts?W->AttemptSeed:Last];unsigned char* Host=(unsigned char*)(W+1);memcpy(Host,A.Host.Data,A.Host.Size);W->Result.Origin=A;W->Result.Origin.Host=(xbytesview){Host,A.Host.Size};
+    C->Cursor=W->Result.Published?W->AttemptSeed:(Last+1)%C->Count;
     C->Work=NULL;C->Info.Active=false;++C->Info.Completed;C->Info.LastStatus=W->Result.Status;OldLast=C->Last;C->Last=W->Future;W->Future=NULL;xpromise* P=W->Promise;W->Promise=NULL;xrtMutexUnlock(&C->Gate);
     xredisClusterMapRelease(Unpublished);xredisClusterMapRelease(OldMap);xrtFutureDestroy(OldLast);xrtPromiseResolveOwned(P,W,xredisRefreshPayloadFree,NULL);xrtPromiseDestroy(P);
     xrtMutexLock(&C->Gate);C->Info.Busy=false;xrtMutexUnlock(&C->Gate);xredisRefreshMaybeClose(C);
@@ -11998,12 +12015,13 @@ XREDIS_API xredisadmission xredisClusterRefreshCreate(xredisclusternodes* Nodes,
     if(K.Size!=sizeof(K) || !Count || !K.MaxSeeds || K.MaxSeeds>1024 || Count>K.MaxSeeds || !K.MaxHostBytes || K.MaxHostBytes>65536 || !K.MaxControlBytes || K.MaxControlBytes>128u*1024u*1024u ||
         K.MaxSnapshotBytes<sizeof(xredisclustermap) || K.MaxSnapshotBytes>128u*1024u*1024u || !K.MaxAttempts || K.MaxAttempts>1024 || K.MaxWaits>65536 || K.Timeout<0 || K.Timeout>86400000 || K.RetryDelay<=0 || K.RetryDelay>60000 ||
         (K.Format!=XREDIS_CLUSTER_SHARDS && K.Format!=XREDIS_CLUSTER_LEGACY_SLOTS) || K.Limits.Size!=sizeof(K.Limits) || K.Limits.MaxNodes>65535 || K.Limits.MaxShards>XREDIS_CLUSTER_SLOTS || K.Limits.MaxRanges>XREDIS_CLUSTER_SLOTS || !xrtMemRangeValid(A,Count*sizeof(*A)) || xrtMemRangesOverlap(A,Count*sizeof(*A),Out,sizeof(*Out))){xredisRefreshError(XERR_ARGUMENT,"invalid Cluster refresh bounds");return XREDIS_ADMISSION_ERROR;}
-    size_t Base=sizeof(xredisclusterrefresh)+Count*sizeof(*A),Bytes=Base;
+    size_t Buckets=4;while(Buckets<4*K.MaxSeeds)Buckets*=2;
+    size_t Base=sizeof(xredisclusterrefresh)+(Count+2*K.MaxSeeds+1)*sizeof(*A)+(2*K.MaxSeeds+1)*sizeof(uint32)+Buckets*sizeof(uint16)+(K.MaxSeeds+1)*K.MaxHostBytes,Bytes=Base;
     if(Base>K.MaxControlBytes || Overhead>K.MaxControlBytes-Base){xredisRefreshError(XERR_RANGE,"Cluster refresh control limit");return XREDIS_ADMISSION_ERROR;}
     for(size_t I=0;I<Count;++I){if(!A[I].Port || A[I].Slot || A[I].Reason || A[I].Host.Size>K.MaxHostBytes || !xredisRefreshHost(A[I].Host) || xrtMemRangesOverlap(A[I].Host.Data,A[I].Host.Size,Out,sizeof(*Out)) || A[I].Host.Size>K.MaxControlBytes-Bytes-Overhead){xredisRefreshError(XERR_ARGUMENT,"invalid Cluster refresh seed/storage");return XREDIS_ADMISSION_ERROR;}Bytes+=A[I].Host.Size;}
-    xredisclusterrefresh* C=xrtCalloc(1,Bytes);if(!C || !xrtMutexInit(&C->Gate)){xrtFree(C);return XREDIS_ADMISSION_ERROR;}xrtAtomic32Init(&C->References,1);C->Config=K;C->Bytes=Bytes;C->Count=Count;C->Seeds=(xredisclusteraddress*)(C+1);
+    xredisclusterrefresh* C=xrtCalloc(1,Bytes);if(!C || !xrtMutexInit(&C->Gate)){xrtFree(C);return XREDIS_ADMISSION_ERROR;}xrtAtomic32Init(&C->References,1);C->Config=K;C->Bytes=Bytes;C->Count=C->BootCount=Count;C->Buckets=Buckets;C->Bootstrap=(xredisclusteraddress*)(C+1);C->Seeds=C->Bootstrap+Count;C->Plan=(uint32*)(C->Seeds+2*K.MaxSeeds+1);C->Hash=(uint16*)(C->Plan+2*K.MaxSeeds+1);C->SeedHosts=(unsigned char*)(C->Hash+Buckets);
     if(!(C->Promise=xrtPromiseCreate(&C->Closed,NULL))){xredisClusterRefreshRelease(C);return XREDIS_ADMISSION_ERROR;}
-    unsigned char* Host=(unsigned char*)(C->Seeds+Count);for(size_t I=0;I<Count;++I){C->Seeds[I]=A[I];memcpy(Host,A[I].Host.Data,A[I].Host.Size);C->Seeds[I].Host.Data=Host;Host+=A[I].Host.Size;}
+    unsigned char* Host=C->SeedHosts+(K.MaxSeeds+1)*K.MaxHostBytes;for(size_t I=0;I<Count;++I){C->Bootstrap[I]=A[I];memcpy(Host,A[I].Host.Data,A[I].Host.Size);C->Bootstrap[I].Host.Data=Host;C->Seeds[I]=C->Bootstrap[I];Host+=A[I].Host.Size;}
     C->Nodes=Nodes;xredisClusterNodesRetain(Nodes);C->Info.Size=sizeof(C->Info);C->Info.DesiredEpoch=1;C->Info.Dirty=true;C->Info.Seeds=Count;C->Info.ControlBytes=Bytes+Overhead;xredisClusterRefreshRetain(C);*Out=C;return XREDIS_ADMISSION_ACCEPTED;
 }
 XREDIS_API xredisadmission xredisClusterRefreshStart(xredisclusterrefresh* C,bool Force,xfuture** Out)
@@ -12020,7 +12038,36 @@ XREDIS_API xredisadmission xredisClusterRefreshStart(xredisclusterrefresh* C,boo
     xrtMutexLock(&C->Gate);bool Closing=C->Info.Closing,Advance=Force && !C->Info.Dirty,Limit=Advance && C->Info.DesiredEpoch==UINT64_MAX;
     if(Closing || Limit || !W || !W->Promise){xrtMutexUnlock(&C->Gate);if(W){xrtPromiseDestroy(W->Promise);xrtFutureDestroy(W->Future);xrtFree(W);}xrtMutexLock(&C->Gate);C->Info.Busy=false;xrtMutexUnlock(&C->Gate);xredisRefreshMaybeClose(C);if(Limit)xredisRefreshError(XERR_RANGE,"Cluster refresh epoch limit");return Closing?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ERROR;}
     if(Advance)++C->Info.DesiredEpoch;
-    C->Info.Dirty=true;W->Entered=E;W->Deadline=xredisRefreshDeadline(E,C->Config.Timeout);W->Due=W->Deadline;W->Result.Size=sizeof(W->Result);W->Result.Epoch=C->Info.DesiredEpoch;C->Work=W;C->Info.Active=true;C->Info.Busy=false;++C->Info.Started;*Out=xrtFutureRef(W->Future);xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_ACCEPTED;
+    C->Info.Dirty=true;W->Entered=E;W->Deadline=xredisRefreshDeadline(E,C->Config.Timeout);W->Due=W->Deadline;W->Seed=C->Cursor;W->Result.Size=sizeof(W->Result);W->Result.Epoch=C->Info.DesiredEpoch;C->Work=W;C->Info.Active=true;C->Info.Busy=false;++C->Info.Started;*Out=xrtFutureRef(W->Future);xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_ACCEPTED;
+}
+static bool xredisRefreshSeedEqual(const xredisclusteraddress* A,const xredisclusteraddress* B)
+{return A->Port==B->Port && A->Tls==B->Tls && A->Host.Size==B->Host.Size && !memcmp(A->Host.Data,B->Host.Data,A->Host.Size);}
+static bool xredisRefreshCandidate(const xredisclustermapinfo* M,size_t Index,size_t Max,xredisclusteraddress* A)
+{
+    xredisclusternode N={0};if(!xredisClusterTopologyNode(M->Topology,Index,&N))return false;
+    xredisclustertopologyinfo T={0};T.Size=sizeof(T);if(!xredisClusterTopologyInfo(M->Topology,&T))return false;
+    *A=(xredisclusteraddress){N.Endpoint==XREDIS_CLUSTER_ENDPOINT_SOURCE?M->Origin.Host:N.Host,T.Format==XREDIS_CLUSTER_LEGACY_SLOTS?N.Port:M->Origin.Tls?N.TlsPort:N.Port,0,M->Origin.Tls,0};
+    return N.Role==XREDIS_CLUSTER_MASTER && (N.Health==XREDIS_CLUSTER_ONLINE || N.Health==XREDIS_CLUSTER_UNREPORTED) && N.Endpoint!=XREDIS_CLUSTER_ENDPOINT_UNKNOWN && A->Port && A->Host.Size<=Max && xredisRefreshHost(A->Host);
+}
+static xredisclusteraddress xredisRefreshPlanned(xredisclusterrefresh* C,const xredisclustermapinfo* M,uint32 Code)
+{xredisclusteraddress A={0};if(Code&0x80000000u)A=C->Bootstrap[Code&0x7fffffffu];else if(Code&0x40000000u){A=M->Origin;A.Slot=0;A.Reason=0;}else (void)xredisRefreshCandidate(M,Code,C->Config.MaxHostBytes,&A);return A;}
+static bool xredisRefreshPlanAdd(xredisclusterrefresh* C,const xredisclustermapinfo* M,uint32 Code,const xredisclusteraddress* A,size_t* Count)
+{
+    uint64 H=14695981039346656037ull;for(size_t I=0;I<A->Host.Size;++I){H^=A->Host.Data[I];H*=1099511628211ull;}H^=A->Port;H*=1099511628211ull;H^=A->Tls;size_t Bucket=(size_t)H&(C->Buckets-1);
+    while(C->Hash[Bucket]){xredisclusteraddress B=xredisRefreshPlanned(C,M,C->Plan[C->Hash[Bucket]-1]);if(xredisRefreshSeedEqual(A,&B))return false;Bucket=(Bucket+1)&(C->Buckets-1);}
+    C->Plan[*Count]=Code;C->Hash[Bucket]=(uint16)(*Count+1);++*Count;return true;
+}
+XREDIS_API xredisadmission xredisClusterRefreshDiscover(xredisclusterrefresh* C,const xredisclustermap* Map)
+{
+    if(!C || !Map){xredisRefreshError(XERR_ARGUMENT,"invalid Cluster seed discovery");return XREDIS_ADMISSION_ERROR;}
+    xrtMutexLock(&C->Gate);if(C->Info.Closing){xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_CLOSED;}if(C->Info.Busy || C->Work){xrtMutexUnlock(&C->Gate);return XREDIS_ADMISSION_OVERLOADED;}C->Info.Busy=true;xrtMutexUnlock(&C->Gate);
+    xredisclustermapinfo M={0};M.Size=sizeof(M);xredisClusterMapInfo(Map,&M);xredisclustertopologyinfo T={0};T.Size=sizeof(T);xredisClusterTopologyInfo(M.Topology,&T);memset(C->Hash,0,C->Buckets*sizeof(*C->Hash));size_t Count=0;
+    for(size_t I=0;I<T.Nodes;++I){xredisclusteraddress A;if(xredisRefreshCandidate(&M,I,C->Config.MaxHostBytes,&A) && xredisRefreshSeedEqual(&A,&M.Origin)){xredisRefreshPlanAdd(C,&M,(uint32)I,&A,&Count);break;}}
+    for(size_t I=0;I<T.Nodes && Count<C->Config.MaxSeeds;++I){xredisclusteraddress A;if(xredisRefreshCandidate(&M,I,C->Config.MaxHostBytes,&A))xredisRefreshPlanAdd(C,&M,(uint32)I,&A,&Count);}
+    size_t Discovered=Count;if(M.Origin.Port && M.Origin.Host.Size<=C->Config.MaxHostBytes && xredisRefreshHost(M.Origin.Host))xredisRefreshPlanAdd(C,&M,0x40000000u,&M.Origin,&Count);for(size_t I=0;I<C->BootCount;++I)xredisRefreshPlanAdd(C,&M,0x80000000u|(uint32)I,&C->Bootstrap[I],&Count);
+    xrtMutexLock(&C->Gate);bool Closing=C->Info.Closing;xrtMutexUnlock(&C->Gate);
+    if(!Closing){unsigned char* Host=C->SeedHosts;for(size_t I=0;I<Count;++I){xredisclusteraddress A=xredisRefreshPlanned(C,&M,C->Plan[I]);C->Seeds[I]=A;if(I<Discovered || C->Plan[I]==0x40000000u){memcpy(Host,A.Host.Data,A.Host.Size);C->Seeds[I].Host.Data=Host;Host+=A.Host.Size;}}}
+    xrtMutexLock(&C->Gate);Closing=C->Info.Closing;if(!Closing){C->Count=Count;C->Cursor=0;C->Info.Seeds=Count;}C->Info.Busy=false;xrtMutexUnlock(&C->Gate);xredisRefreshMaybeClose(C);return Closing?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ACCEPTED;
 }
 XREDIS_API bool xredisClusterRefreshInvalidate(xredisclusterrefresh* C)
 {
@@ -12033,7 +12080,7 @@ static void xredisRefreshWait(xredisclusterrefresh* C,xredisrefreshwork* W)
 {if(W->Result.Waits>=C->Config.MaxWaits){xredisRefreshStop(W,XREDIS_REFRESH_OVERLOADED);return;}++W->Result.Waits;W->Due=fmin(W->Deadline,xredisRefreshDeadline(xrtTimer(),C->Config.RetryDelay));W->Phase=XRF_BACKOFF;}
 static void xredisRefreshResolve(xredisclusterrefresh* C,xredisrefreshwork* W)
 {
-    double Ms=(W->Deadline-xrtTimer())*1000.;int64 Remaining=Ms<=0?0:Ms>=86400000.?86400000:(int64)ceil(Ms);xredispool* P=NULL;++W->Result.ProviderCalls;
+    double Ms=(W->Deadline-xrtTimer())*1000.;int64 Remaining=Ms<=0?0:Ms>=86400000.?86400000:(int64)ceil(Ms);xredispool* P=NULL;W->ProviderSeed=W->Seed;++W->Result.ProviderCalls;
     W->Result.Provider=xredisClusterNodesGetPool(&C->Seeds[W->Seed],Remaining,C->Nodes,&P);
     xrtMutexLock(&C->Gate);bool Closing=C->Info.Closing;xrtMutexUnlock(&C->Gate);
     if(Closing || xrtTimer()>=W->Deadline){if(P)xredisPoolRelease(P);xredisRefreshStop(W,Closing?XREDIS_REFRESH_CLOSED:XREDIS_REFRESH_TIMEOUT);return;}
@@ -12330,6 +12377,7 @@ static void xredisClusterDriveRefresh(xredisclusterclient* C)
     if(S==XREDIS_REFRESH_DONE){
         const xredisclusterrefreshresult* R=xrtFutureValue(C->RefreshFuture);if(!R){xredisClusterStop(C,XREDIS_CLUSTER_CLIENT_INTERNAL);return;}
         xredisclustermap* Map=NULL;bool Dirty=true;if(R->Published)xredisClusterRefreshSnapshot(C->Refresh,&Map,&Dirty);
+        if(Map)(void)xredisClusterRefreshDiscover(C->Refresh,Map);
         xredisclustermap* Old=NULL;xrtMutexLock(&C->Gate);C->Info.LastRefresh=R->Status;++C->Info.RefreshCompleted;
         if(Map){Old=C->Map;C->Map=Map;C->Info.Generation=R->Generation;C->Info.Epoch=R->Epoch;C->Info.Dirty=Dirty || C->Invalidation;C->Backoff=C->Config.RefreshMin;}
         else {++C->Info.RefreshFailures;C->Info.Dirty=true;C->Backoff=C->Backoff>C->Config.RefreshRetryMax/2?C->Config.RefreshRetryMax:C->Backoff*2;}

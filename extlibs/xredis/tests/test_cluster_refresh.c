@@ -87,7 +87,7 @@ static void frBudgetZero(xallocationbudget* B)
 static void frConstructorOOM(void)
 {
     rffixture* F=rfStart(3);unsigned Failed=0,Accepted=0;uint32 Auth=xrtAtomic32Load(&F->Base->Auth,XMEMORY_ACQUIRE);
-    for(size_t Limit=1;Limit<=8192;Limit+=127){xredisclusterrefreshconfig C;xredisClusterRefreshConfigInit(&C);xredisclusteraddress A=nnAddress(F->Base,0);A.Slot=0;xallocationbudget* B=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&S),"refresh constructor OOM scope");xredisclusterrefresh* Out=(void*)(uintptr_t)1;
+    for(size_t Limit=1;Limit<=32768;Limit+=509){xredisclusterrefreshconfig C;xredisClusterRefreshConfigInit(&C);xredisclusteraddress A=nnAddress(F->Base,0);A.Slot=0;xallocationbudget* B=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(Limit,&B) && xrtAllocationBudgetEnter(B,&S),"refresh constructor OOM scope");xredisclusterrefresh* Out=(void*)(uintptr_t)1;
         xredisadmission Status=xredisClusterRefreshCreate(F->Base->Cache,&A,1,&C,&Out);testRequire(xrtAllocationBudgetLeave(&S),"constructor OOM leave");
         if(Status==XREDIS_ADMISSION_ACCEPTED){++Accepted;F->Refresh=Out;rfClose(F);xredisClusterRefreshRelease(Out);}else{++Failed;testRequire(Out==(void*)(uintptr_t)1,"failed constructor changed output");xrtClearError();}frBudgetZero(B);xrtAllocationBudgetFree(B);}
     testRequire(Failed && Accepted && xrtAtomic32Load(&F->Base->Auth,XMEMORY_ACQUIRE)==Auth,"constructor OOM ownership/inline policy");Failed=Accepted=0;
@@ -97,6 +97,22 @@ static void frConstructorOOM(void)
     testRequire(Failed && Accepted && xrtAtomic32Load(&F->Base->Auth,XMEMORY_ACQUIRE)==Auth,"cohort OOM/no inline policy");F->Refresh=NULL;nnClose(F->Base);xredisClusterNodesRelease(F->Base->Cache);nnStop(F->Base);xrtFree(F);
 }
 #if defined(XREDIS_REFRESH_WHITEBOX)
+#include "support/cluster_topology_fixture.h"
+static void frDiscoveryTransport(void)
+{
+    const cstr Wire[]={CT_SHARDS2,CT_SLOTS};
+    rffixture* F=rfStart(3);rfCreate(F,1,NULL);
+    for(unsigned Kind=0;Kind<2;++Kind){xredisreplyreader* Reader=NULL;xredisreply* Reply=NULL;size_t Used=0,Bytes=strlen(Wire[Kind]);
+        testRequire(xredisReplyReaderCreate(NULL,&Reader) && xredisReplyReaderFeed(Reader,(xbytesview){(cbytes)Wire[Kind],Bytes},&Used,&Reply)==XREDIS_REPLY_READY && Used==Bytes,"discovery transport fixture reply");xredisReplyReaderDestroy(Reader);
+        xredisclustertopology* Topology=NULL;testRequire(xredisClusterTopologyCreate(Reply,Kind?XREDIS_CLUSTER_LEGACY_SLOTS:XREDIS_CLUSTER_SHARDS,NULL,&Topology)==XREDIS_CLUSTER_VALUE,"discovery transport topology");xredisReplyRelease(Reply);
+        xredisclustermap Map={0};Map.Info.Size=sizeof(Map.Info);Map.Info.Topology=Topology;Map.Info.Origin=(xredisclusteraddress){XRT_BYTES_LITERAL("query.example"),9000,0,false,0};
+        for(unsigned Tls=0;Tls<2;++Tls){Map.Info.Origin.Tls=Tls!=0;testRequire(xredisClusterRefreshDiscover(F->Refresh,&Map)==XREDIS_ADMISSION_ACCEPTED && rfInfo(F).Seeds==3,"discovery retained unknown or replica endpoint");
+            xredisclusteraddress A=F->Refresh->Seeds[0];cstr Host=Kind?"query.example":"::1";uint16 Port=Kind?6378:Tls?6380:6379;
+            testRequire(A.Tls==(Tls!=0) && A.Port==Port && A.Host.Size==strlen(Host) && !memcmp(A.Host.Data,Host,A.Host.Size),"discovery changed explicit transport/port or SOURCE host");}
+        xredisClusterTopologyRelease(Topology);
+    }
+    rfStop(F);
+}
 static void frParseDeadline(void)
 {
     rffixture* F=rfStart(3);rfCreate(F,1,NULL);xrtAtomic32Store(&F->Nodes[0].Mode,RF_HOLD,XMEMORY_RELEASE);xfuture* R=rfBegin(F,false);rfHeld(F,0);rfRelease(F,0);xfuture* Native=xredisClusterRefreshPending(F->Refresh);testRequire(Native && xrtFutureWaitFor(Native,5000)==XWAIT_OK,"metadata ready before parse clock probe");xrtFutureDestroy(Native);
@@ -115,9 +131,34 @@ static void frDeadlineExact(void)
     testRequire(xrtNetEnginePost(F->Base->Peers[0].Engine,0,frInspectDeadline,&Probe),"metadata deadline owner probe");redisPeerWait(&Probe.Done,1);rfClose(F);rfRelease(F,1);rfStop(F);xrtFutureDestroy(R);
 }
 #endif
+static void frDiscover(void)
+{
+    for(unsigned Legacy=0;Legacy<2;++Legacy){rffixture* F=rfStart(3);xrtAtomic32Store(&F->Nodes[0].Target,1,XMEMORY_RELEASE);xredisclusterrefreshconfig K;xredisClusterRefreshConfigInit(&K);K.MaxSeeds=1;K.Format=Legacy?XREDIS_CLUSTER_LEGACY_SLOTS:XREDIS_CLUSTER_SHARDS;rfCreate(F,1,&K);xfuture* First=rfBegin(F,false);const xredisclusterrefreshresult* V=rfDrive(F,First);testRequire(V->Status==XREDIS_REFRESH_OK,"discover bootstrap");xredisclusterrefreshresult Frozen=*V;uint32 Auth=xrtAtomic32Load(&F->Base->Auth,XMEMORY_ACQUIRE);
+        xallocationbudget* B=NULL;xallocationscope S={0};testRequire(xrtAllocationBudgetCreate(1,&B) && xrtAllocationBudgetEnter(B,&S),"discover exhausted budget");testRequire(xredisClusterRefreshDiscover(F->Refresh,V->Map)==XREDIS_ADMISSION_ACCEPTED,"discover map with no allocation");testRequire(xrtAllocationBudgetLeave(&S),"discover budget leave");xallocationbudgetinfo I={0};I.Size=sizeof(I);testRequire(xrtAllocationBudgetInfo(B,&I) && !I.PeakBytes && !I.Rejections,"discovery allocated");xrtAllocationBudgetFree(B);xredisclusterrefreshinfo Info=rfInfo(F);testRequire(Info.Seeds==2 && !Info.Dirty && Info.DesiredEpoch==1 && Info.Generation==1 && xrtAtomic32Load(&F->Base->Auth,XMEMORY_ACQUIRE)==Auth,"discovery changed epoch/map or invoked policy");
+        xredisclusteraddress A=nnAddress(F->Base,1);xredispool* P=NULL;testRequire(xredisClusterNodesGetPool(&A,5000,F->Base->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"prewarm discovered seed");nnReady(P,1);xredisPoolRelease(P);xrtAtomic32Store(&F->Nodes[0].Mode,RF_DENIED,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[1].Target,2,XMEMORY_RELEASE);xfuture* Next=rfBegin(F,true);
+        testRequire(xredisClusterRefreshDiscover(F->Refresh,V->Map)==XREDIS_ADMISSION_OVERLOADED,"discovery changed active cohort candidates");const xredisclusterrefreshresult* N=rfDrive(F,Next);testRequire(N->Status==XREDIS_REFRESH_OK && N->Origin.Port==F->Base->Peers[1].Address.Port && xrtAtomic32Load(&F->Nodes[0].Queries,XMEMORY_ACQUIRE)==1,"discovery reused failed original seed");
+        testRequire(xredisClusterRefreshDiscover(F->Refresh,N->Map)==XREDIS_ADMISSION_ACCEPTED && rfInfo(F).Seeds==3,"last successful non-bootstrap origin lost");A=nnAddress(F->Base,2);P=NULL;testRequire(xredisClusterNodesGetPool(&A,5000,F->Base->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"prewarm next discovered seed");nnReady(P,1);xredisPoolRelease(P);xrtAtomic32Store(&F->Nodes[2].Mode,RF_DROP,XMEMORY_RELEASE);xfuture* Origin=rfBegin(F,true);N=rfDrive(F,Origin);testRequire(N->Status==XREDIS_REFRESH_OK && N->Origin.Port==F->Base->Peers[1].Address.Port && N->Attempts==2,"actual query origin fallback lost");
+        xrtAtomic32Store(&F->Nodes[1].Mode,RF_DROP,XMEMORY_RELEASE);xrtAtomic32Store(&F->Nodes[0].Mode,RF_NORMAL,XMEMORY_RELEASE);xfuture* Fallback=rfBegin(F,true);N=rfDrive(F,Fallback);testRequire(N->Status==XREDIS_REFRESH_OK && N->Origin.Port==F->Base->Peers[0].Address.Port && N->Attempts==2,"original bootstrap fallback lost");rfStop(F);testRequire(!memcmp(V,&Frozen,sizeof(Frozen)),"seed discovery mutated retained outcome");xrtFutureDestroy(First);xrtFutureDestroy(Next);xrtFutureDestroy(Origin);xrtFutureDestroy(Fallback);}
+}
+static void frCohortCursor(void)
+{
+    rffixture* F=rfStart(3);xredisclusterrefreshconfig K;xredisClusterRefreshConfigInit(&K);K.MaxAttempts=1;rfCreate(F,3,&K);
+    for(unsigned I=0;I<3;++I){xredisclusteraddress A=nnAddress(F->Base,I);xredispool* P=NULL;testRequire(xredisClusterNodesGetPool(&A,5000,F->Base->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"prewarm cohort cursor");nnReady(P,1);xredisPoolRelease(P);if(I<2)xrtAtomic32Store(&F->Nodes[I].Mode,RF_DROP,XMEMORY_RELEASE);}
+    xfuture* Saved[3];for(unsigned I=0;I<3;++I){Saved[I]=rfBegin(F,false);const xredisclusterrefreshresult* R=rfDrive(F,Saved[I]);testRequire(R->Status==(I<2?XREDIS_REFRESH_TRANSPORT:XREDIS_REFRESH_OK) && R->Origin.Port==F->Base->Peers[I].Address.Port && R->Attempts==1 && R->Epoch==1,"failed cohort restarted at first seed");}
+    rfStop(F);for(unsigned I=0;I<3;++I)xrtFutureDestroy(Saved[I]);
+}
+static void frZeroWaitCursor(void)
+{
+    rffixture* F=rfStart(1);xredisclusteraddress A=nnAddress(F->Base,2);xredispool* P=NULL;
+    testRequire(xredisClusterNodesGetPool(&A,5000,F->Base->Cache,&P)==XREDIS_CLUSTER_POOL_READY,"fill cache before zero-wait refresh");nnReady(P,1);xredisPoolRelease(P);
+    xredisclusterrefreshconfig K;xredisClusterRefreshConfigInit(&K);K.MaxWaits=0;rfCreate(F,2,&K);xfuture* Saved[3];
+    for(unsigned I=0;I<3;++I){Saved[I]=rfBegin(F,false);const xredisclusterrefreshresult* R=rfDrive(F,Saved[I]);testRequire(R->Status==XREDIS_REFRESH_OVERLOADED && R->ProviderCalls==1 && !R->Attempts && !R->Waits && R->Origin.Port==F->Base->Peers[I%2].Address.Port,"zero-wait cohort lost provider origin or starved next seed");}
+    for(unsigned I=0;I<3;++I)testRequire(!xrtAtomic32Load(&F->Nodes[I].Queries,XMEMORY_ACQUIRE),"zero-wait cache admission sent metadata");
+    rfStop(F);for(unsigned I=0;I<3;++I)xrtFutureDestroy(Saved[I]);
+}
 int main(void)
-{frValidate();frBasic();frColdSeeds();frInvalidation();frFailures();frSeedRetry();frStops();frConcurrent();frKeepOldAndOOM();frCloseProvider();frConstructorOOM();
+{frValidate();frBasic();frColdSeeds();frInvalidation();frFailures();frSeedRetry();frStops();frConcurrent();frKeepOldAndOOM();frCloseProvider();frConstructorOOM();frDiscover();frCohortCursor();frZeroWaitCursor();
 #if defined(XREDIS_REFRESH_WHITEBOX)
-frParseDeadline();frDeadlineExact();
+frDiscoveryTransport();frParseDeadline();frDeadlineExact();
 #endif
 puts("[PASS] Cluster refresh: real metadata queries, coalesced futures, immutable generations, invalidation epochs, deadlines/close, seed failover and OOM");return 0;}

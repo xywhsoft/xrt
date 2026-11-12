@@ -118,8 +118,10 @@ The developing `xredis_cluster_refresh` leaf performs bounded SHARDS/SLOTS reads
 through authorized cached pools, coalesces callers, tracks local invalidation
 epochs and publishes immutable maps. Explicit seeds and one serialized phase
 driver provide bootstrap without a new worker/timer. Failures preserve the old
-view. See [contracts](cluster_refresh.md). Automatic MOVED invalidation wiring,
-refreshed seed selection, replica policy, the complete managed facade and
+view. Published maps can replace metadata candidates using bounded, allocation-free
+master discovery, copied query-origin and original bootstrap fallbacks. The async
+client wires MOVED invalidation and discovery automatically. See
+[contracts](cluster_refresh.md). Replica policy, the complete managed facade and
 production/performance acceptance remain open.
 
 ## Asynchronous Cluster clients
@@ -128,5 +130,5 @@ The developing `xredis_cluster_client` leaf composes metadata and routes with
 a bounded ready queue, preallocated deadline heap, one timer and existing XRT
 posts/watches. It automatically bootstraps, refreshes after current-generation
 MOVED and isolates ASK; it preserves deadlines, quotas and old maps on failure.
-See [contracts](cluster_client.md). Replica policy, refreshed seed selection,
+See [contracts](cluster_client.md). Replica policy,
 synchronous calls and full production/performance acceptance remain open.

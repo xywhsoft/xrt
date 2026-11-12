@@ -14,8 +14,13 @@ generation invalidates once per generation and triggers coalesced refresh.
 Late MOVED from superseded generations cannot dirty newer maps. ASK affects
 only that route and uses adjacent native ASKING/query. Missing slots request
 one fresh map before a terminal no-route outcome. Metadata failures preserve
-the previous map and retry at bounded exponential intervals. Seed evolution,
-replica-read policy, key-command metadata and a synchronous facade remain work.
+the previous map and retry at bounded exponential intervals. Each publication
+updates future metadata seeds through allocation-free bounded discovery:
+eligible masters, the actual query origin and original bootstrap fallback stay
+under explicit caps. Failed cohorts advance their starting seed. All candidates
+still pass Nodes authority and exact transport/port rules. Cold node setup can
+temporarily rotate into fallback before a discovered pool becomes ready.
+Replica-read policy, key-command metadata and a synchronous facade remain work.
 
 Each operation inherits one Call-entry deadline through allocation, queue,
 bootstrap, provider waits and native redirects. Cancellation stops only that
