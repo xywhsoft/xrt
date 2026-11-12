@@ -21,7 +21,9 @@ per-offer traces. Performance acceptance remains open.
 The client supports [immutable bounded request headers](docs/http_headers.md),
 including explicit Authorization transport with owned-copy erasure. Server
 authorization is explicit; challenge/refresh negotiation and richer response metadata remain pending.
-Remaining client/server runtime, bidirectional transport, WebSocket/framed stdio,
+The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
+notification/batch admission in both directions, a shared business executor and
+independent retained wire/results. Automatic bidirectional transport, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into

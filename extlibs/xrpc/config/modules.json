@@ -138,6 +138,13 @@
         "source_roots": [
           "frame"
         ]
+      },
+      {
+        "name": "duplex",
+        "state": "retained",
+        "source_roots": [
+          "duplex"
+        ]
       }
     ]
   },
@@ -204,7 +211,8 @@
         "xrpc_http_dial",
         "xrpc_http_tls",
         "xrpc_http_server_tls",
-        "xrpc_frame"
+        "xrpc_frame",
+        "xrpc_duplex"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -708,7 +716,8 @@
         "xrpc_http_tls_tests",
         "xrpc_http_server_tls_tests",
         "xrpc_http_measure_tests",
-        "xrpc_frame_tests"
+        "xrpc_frame_tests",
+        "xrpc_duplex_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -729,7 +738,8 @@
         "extlibs/xrpc/tests/test_http_dial.c",
         "extlibs/xrpc/tests/test_http_tls.c",
         "extlibs/xrpc/tests/test_http_server_tls.c",
-        "extlibs/xrpc/tests/test_frame.c"
+        "extlibs/xrpc/tests/test_frame.c",
+        "extlibs/xrpc/tests/test_duplex.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -747,7 +757,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -770,7 +781,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_dial.c": "xrpc_http_dial_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_tls.c": "xrpc_http_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c": "xrpc_http_server_tls_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame"
+        "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame",
+        "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c": "xrpc_duplex_tests"
       }
     },
     {
@@ -1162,6 +1174,66 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/frame.md"
+      ]
+    },
+    {
+      "name": "xrpc_duplex",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_DUPLEX",
+      "depends": [
+        "xrpc_call",
+        "xrpc_pending",
+        "xrpc_server",
+        "xrpc_encode",
+        "xrpc_result_quota"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/duplex.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_call_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_pending_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_result_quota.h",
+        "extlibs/xrpc/src/internal/xrpc_server_internal.h"
+      ],
+      "sources": [
+        "extlibs/xrpc/src/duplex/duplex.c"
+      ],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/duplex/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_duplex.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/duplex.md",
+        "extlibs/xrpc/examples/duplex/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_duplex_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_duplex",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_duplex.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/duplex.md"
       ]
     }
   ]

@@ -62,4 +62,8 @@
 #error "XRPC_FEATURE_XRPC requires frame"
 #endif
 #include <xrpc/frame.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_DUPLEX)
+#error "XRPC_FEATURE_XRPC requires duplex"
+#endif
+#include <xrpc/duplex.h>
 #endif

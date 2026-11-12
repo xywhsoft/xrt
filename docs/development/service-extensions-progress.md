@@ -12138,3 +12138,60 @@ All four products remain developing; full goal and production/performance gates
 remain active. Work/tests use D:/GIT/xrt master; all jobs terminal, no branch/push.
 Evidence: [portable report](../../extlibs/xrpc/tests/results/frame-20261112.json)
 and out/service-extensions/xrpc-frame-20261112.
+
+
+## 2026-11-13 — bounded bidirectional xrpc message runtime
+
+- Continued directly on `D:/GIT/xrt` master from `8055423f`; no branch/worktree
+  operation or remote push. Added developing `xrpc_duplex` (16 public APIs), using
+  the existing shared Server executor and native call/batch Futures, with no new
+  shared runtime/thread/engine. Concurrent bounded Call/Notify/Batch admission,
+  never-reused string IDs, complete-document role admission, strict full-group
+  response correlation/reordering, exact API-entry deadlines, no replay, local
+  cancellation and conservative send uncertainty are implemented. Partial-send
+  stops close the channel. Output/result refs and quota ledgers outlive endpoints;
+  close/retirement includes captured native cancellation and incoming Watch duties.
+- Owner work rotates fairly across completions, submitted calls, stop scans and
+  close, including MaxWork=1. Request/response quotas and copied handler contexts
+  are real bounds; impossible reply sizes become LIMIT instead of infinite retry.
+  The pending table gains only a private non-removing preflight, and the private
+  quota supports charging borrowed immutable Server reply payload without another
+  payload copy. Existing leaf behavior remains covered.
+- Current evidence: Windows 32 and WSL2 33 successful program executions, including
+  21 root regression programs/host, focused and single ASan/UBSan/leak checks,
+  applicable TSan over four concurrent producers/cancel/close/executor completion,
+  4096 admission allocation-budget prefixes, constructor thresholds, reentry,
+  malformed/request-context/response-group boundaries and physical retained wire.
+  Two-peer runnable examples pass modular/single/static/shared and declaration
+  consumers; root single/static/shared and selected pending static pass. Both
+  hosts have three dependency footprints without network/TLS/HTTP/WebSocket/
+  process symbols. The root DLL has exactly 110 public RPC exports and no new
+  private helper export.
+- Three corrected formal failures remain in raw evidence: explicit thread suite
+  selected unrelated Core thread_tour without its thread_key dependency on both
+  hosts; the extension example command removes that redundant suite. Benchmark
+  compilation also exposed a missing memory_stats public include, now corrected.
+  Original/current source maps and exact changed snapshots are retained. Across
+  these cohorts every production runtime/header/generated/unit/tool/manifest byte
+  is identical; only example command documentation and the benchmark include
+  changed. Passing library evidence was retained, corrected examples and the
+  actual benchmark were rerun. Initial exploratory indentation errors were fixed
+  before the frozen runtime cohort.
+- Closed pipeline1 benchmark, one warmup/seven rotated unpinned samples: native
+  producer/prebuilt snapshot cost reference 746.960/772.074 ns per call on
+  Windows/WSL; duplex plus synthetic peer decode/encode 5905.545/6255.011 ns; two
+  endpoints/shared executor/in-process transfer 13896.274/23764.423 ns. Separate
+  allocation runs report 4/8/14 blocks per call respectively. Modes have different
+  semantics and are not parity comparisons. Default fixed endpoint+pending bytes
+  are 4328144/4328216; this is a material high-connection-count optimization gap.
+  Process CPU includes all threads; Windows effective CPU-clock resolution,
+  contention, fixed-arrival tails, network/production and native Linux qualification
+  remain unproven. Raw noisy samples are retained, with no release acceptance.
+- Source-bound report: `extlibs/xrpc/tests/results/duplex-20261113.json`; complete
+  raw inputs/logs/binaries/footprints/measurements and source equivalence under
+  `out/service-extensions/xrpc-duplex-20261113/` (2650 canonical source hashes).
+  Automatic TCP/stdio/WebSocket adapters, independent transport peers, remote
+  deadline/cancellation negotiation, credential lifecycle/mTLS, large-window scan/
+  admission-gate/default-memory optimization and all final four-product native
+  >=72h/performance/fault acceptance gates remain open. This is real duplex
+  runtime progress, not production completion of xrpc or the four-library goal.

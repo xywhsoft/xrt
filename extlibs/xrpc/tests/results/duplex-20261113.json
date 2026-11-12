@@ -1,0 +1,261 @@
+{
+  "schema": 1,
+  "feature": "xrpc bounded bidirectional message runtime",
+  "state": "developing",
+  "base": {
+    "revision": "8055423f8c3545c5c6326a7f536df30f35b67294",
+    "branch": "master",
+    "initial_worktree": "clean verified before any source edits",
+    "initial_index": "empty",
+    "previous_goal_turn": "no progress (architecture inspection only); this turn implements the actual duplex runtime",
+    "scope": "bounded concurrent bidirectional message runtime; transport adapters remain pending",
+    "exploratory_failures": [
+      "initial Windows modular compile failed on misleading indentation (corrected); no exploratory run failure"
+    ],
+    "canonical_expected_paths": " M extlibs/xrpc/README.md\n M extlibs/xrpc/config/modules.json\n M extlibs/xrpc/config/performance_profiles.json\n M extlibs/xrpc/config/size_profiles.json\n M extlibs/xrpc/docs/api/reference.md\n M extlibs/xrpc/docs/coverage.md\n M extlibs/xrpc/include/xrpc.h\n M extlibs/xrpc/include/xrpc/features.h\n M extlibs/xrpc/src/internal/xrpc_result_quota.h\n M extlibs/xrpc/src/pending/pending.c\n M extlibs/xrpc/src/result_quota/result_quota.c\n M extlibs/xrpc/tests/package/test_consumer.c\n M single/extlibs/xrpc.h\n M single/extlibs/xrpc_decl.h\n?? extlibs/xrpc/bench/bench_duplex.c\n?? extlibs/xrpc/docs/duplex.md\n?? extlibs/xrpc/examples/duplex/README.md\n?? extlibs/xrpc/examples/duplex/main.c\n?? extlibs/xrpc/include/xrpc/duplex.h\n?? extlibs/xrpc/src/duplex/duplex.c\n?? extlibs/xrpc/src/internal/xrpc_pending_internal.h\n?? extlibs/xrpc/tests/single/test_single_xrpc_duplex.c\n?? extlibs/xrpc/tests/test_duplex.c"
+  },
+  "branch": "master",
+  "production_acceptance": false,
+  "pushed": false,
+  "source_inputs": 2650,
+  "source_map_sha256": "8fae38148a7abd80857ea2d317418f7ad3ca8e4f895a69039dbd8cc81e07f3aa",
+  "source_equivalence": {
+    "original_map_sha256": "e1ea828ec258988a009adb5afc091bdc460271efeed9bdecfb29570f6e58b979",
+    "intermediate_map_sha256": "c7fd5a44bec77e8cdf2a940c92f852bb6a1b4d68363aae95761849782b409b1d",
+    "current_map_sha256": "8fae38148a7abd80857ea2d317418f7ad3ca8e4f895a69039dbd8cc81e07f3aa",
+    "changed_paths": [
+      "extlibs/xrpc/bench/bench_duplex.c",
+      "extlibs/xrpc/examples/duplex/README.md"
+    ],
+    "changes": [
+      {
+        "path": "extlibs/xrpc/examples/duplex/README.md",
+        "reason": "Remove redundant explicit thread suite that selected unrelated Core thread_tour without thread_key. Both failed example logs and original doc retained.",
+        "prior": "frozen-inputs-v1/extlibs/xrpc/examples/duplex/README.md"
+      },
+      {
+        "path": "extlibs/xrpc/bench/bench_duplex.c",
+        "reason": "Benchmark-only missing public memory_stats header, exposed at Windows benchmark compile. Failed log retained; benchmark rebuilt/reexecuted after correction.",
+        "prior": "frozen-inputs-v2/extlibs/xrpc/bench/bench_duplex.c"
+      }
+    ],
+    "equivalence": "Every production runtime/header/generated/unit-test/tool/manifest byte is identical across all three cohorts. Existing passing library tests/packages/exports/footprints remain applicable. Only corrected benchmark is rebuilt and measured; no old failed benchmark run is presented as evidence."
+  },
+  "raw_directory": "out/service-extensions/xrpc-duplex-20261113",
+  "all_processes_terminal": true,
+  "public_api_count": 16,
+  "root_public_api_count": 110,
+  "verification": {
+    "programs": {
+      "windows": 32,
+      "wsl": 33
+    },
+    "root_regression_programs_per_host": 21,
+    "linux_environment": "WSL2 x64; not native Linux production qualification",
+    "sanitizers": [
+      "WSL modular ASan/UBSan/leak",
+      "WSL single ASan/UBSan/leak",
+      "WSL single TSan with four producers/cancel/admission-close/server completion concurrency"
+    ],
+    "forms": [
+      "modular",
+      "single",
+      "static",
+      "shared"
+    ],
+    "declarations": [
+      "static",
+      "shared"
+    ],
+    "root_package_forms": [
+      "single",
+      "static",
+      "shared"
+    ],
+    "footprints": "Three selected-module artifacts per host; net/TLS/HTTP/WebSocket/process symbols absent",
+    "old_leaf": "xrpc_pending selected static consumer and unchanged complete pending tests"
+  },
+  "performance": {
+    "summary": {
+      "windows": [
+        {
+          "mode": 0,
+          "ns_per_call": 746.960203,
+          "calls_per_sec": 1338759.409625,
+          "process_cpu_ns_per_call": 753.595928,
+          "heap_blocks_per_call": 4.0,
+          "heap_bytes_per_call": 392.0,
+          "noise_qualified": {
+            "calls_per_sec": true,
+            "ns_per_call": false,
+            "process_cpu_ns_per_call": false
+          }
+        },
+        {
+          "mode": 1,
+          "ns_per_call": 5905.545191,
+          "calls_per_sec": 169332.376217,
+          "process_cpu_ns_per_call": 5668.273217,
+          "heap_blocks_per_call": 8.0,
+          "heap_bytes_per_call": 1258.202,
+          "noise_qualified": {
+            "calls_per_sec": false,
+            "ns_per_call": false,
+            "process_cpu_ns_per_call": false
+          }
+        },
+        {
+          "mode": 2,
+          "ns_per_call": 13896.273549,
+          "calls_per_sec": 71961.738265,
+          "process_cpu_ns_per_call": 21565.109378,
+          "heap_blocks_per_call": 14.0,
+          "heap_bytes_per_call": 2359.303,
+          "noise_qualified": {
+            "calls_per_sec": false,
+            "ns_per_call": false,
+            "process_cpu_ns_per_call": false
+          }
+        }
+      ],
+      "wsl": [
+        {
+          "mode": 0,
+          "ns_per_call": 772.073995,
+          "calls_per_sec": 1295212.643169,
+          "process_cpu_ns_per_call": 772.015769,
+          "heap_blocks_per_call": 4.0,
+          "heap_bytes_per_call": 600.0,
+          "noise_qualified": {
+            "calls_per_sec": true,
+            "ns_per_call": true,
+            "process_cpu_ns_per_call": true
+          }
+        },
+        {
+          "mode": 1,
+          "ns_per_call": 6255.010671,
+          "calls_per_sec": 159871.829581,
+          "process_cpu_ns_per_call": 6255.070805,
+          "heap_blocks_per_call": 8.0,
+          "heap_bytes_per_call": 1466.202,
+          "noise_qualified": {
+            "calls_per_sec": true,
+            "ns_per_call": true,
+            "process_cpu_ns_per_call": true
+          }
+        },
+        {
+          "mode": 2,
+          "ns_per_call": 23764.42284,
+          "calls_per_sec": 42079.709099,
+          "process_cpu_ns_per_call": 30234.68661,
+          "heap_blocks_per_call": 14.0,
+          "heap_bytes_per_call": 2775.303,
+          "noise_qualified": {
+            "calls_per_sec": false,
+            "ns_per_call": false,
+            "process_cpu_ns_per_call": false
+          }
+        }
+      ]
+    },
+    "resources": {
+      "windows": {
+        "fixed_owned_bytes": 4328144,
+        "admitted_control_bytes": 176,
+        "admitted_wire_bytes": 155,
+        "admitted_result_bytes": 64
+      },
+      "wsl": {
+        "fixed_owned_bytes": 4328216,
+        "admitted_control_bytes": 176,
+        "admitted_wire_bytes": 155,
+        "admitted_result_bytes": 64
+      }
+    },
+    "samples": "One warmup/seven rotated samples, no CPU affinity or noise retry; heap runs separate",
+    "release_acceptance": false,
+    "scope": "Closed pipeline1 CPU loops. Mode0 native producer with prebuilt immutable response snapshot is a cost reference omitting admission/encoding/queues/association/business. Mode1 duplex plus synthetic peer decode-encode. Mode2 two duplex endpoints/shared executor, in-process transfer, busy owner scheduling. All process threads included in CPU, separate global allocation runs. Average ns/call and rate are not per-call tail latency, network/transport throughput, fixed-arrival/contention, peer/upstream, native Linux/72h or same-function parity acceptance. Windows CPU clock effective resolution not independently qualified."
+  },
+  "preserved_failures": [
+    {
+      "receipt": "windows-performance-receipts.json",
+      "label": "duplex-bench-build",
+      "log": "windows-duplex-bench-build.log",
+      "exit_code": 1,
+      "resolution": "Benchmark-only missing memory_stats include corrected and actual benchmark rebuilt"
+    },
+    {
+      "receipt": "windows-validate-receipts.json",
+      "label": "example",
+      "log": "windows-example.log",
+      "exit_code": 1,
+      "resolution": "Redundant explicit thread suite selected unrelated Core thread_tour missing thread_key. Extension example command corrected; original command still exposes that Core configuration issue. No Core source/manifest modification."
+    },
+    {
+      "receipt": "wsl-validate-receipts.json",
+      "label": "example",
+      "log": "wsl-example.log",
+      "exit_code": 1,
+      "resolution": "Redundant explicit thread suite selected unrelated Core thread_tour missing thread_key. Extension example command corrected; original command still exposes that Core configuration issue. No Core source/manifest modification."
+    }
+  ],
+  "exploratory_failures": [
+    "initial Windows modular compile failed on misleading indentation (corrected); no exploratory run failure"
+  ],
+  "current_runtime_failures": [],
+  "known_limitations": [
+    "Only the complete bidirectional message state machine is delivered here; automatic TCP/stdio/WebSocket adapters and independent transport peer interoperability remain required.",
+    "Negotiated remote cancellation/deadline, credential lifecycle/mTLS and four-product final acceptance remain open.",
+    "Encoding is serialized under the endpoint admission gate; owner/concurrent submit tail-latency scalability needs measurement and optimization.",
+    "Default exact-ID pending storage is several MiB per endpoint; high connection-count resource profiles/default tuning are not accepted.",
+    "Owner deadline/cancel scan and Info minimum-deadline inspection are O(live calls), bounded across Step turns; no large-window/10k-connection performance claim.",
+    "Watch-registration failure fallback is implemented safely but not forced by a dedicated Core interposition test in this stage.",
+    "Result/output/context faults, long mixed traffic, process/RSS/handle baselines, fixed-arrival tails and native Windows/Linux >=72h acceptance remain required.",
+    "Drained covers endpoint/context references; shared Server worker join and quiescing all external API/cancel callers remain the application duties before code unload."
+  ],
+  "gates": {
+    "windows": {
+      "validation": {
+        "path": "windows-validation.json",
+        "sha256": "7d204d020ce131287bdcc099be57be8eff52d84c37f42b6fa01d98a4b08a26f6"
+      },
+      "delivery": {
+        "path": "windows-delivery.json",
+        "sha256": "e9c964f441ee244f220fa2aa1835547fa965e7a275819f6fd7d6f02e2f498588"
+      },
+      "measure": {
+        "path": "windows-measure.json",
+        "sha256": "7c7f2cbb73d040ec6fcd34e66e66bffe5ae4f7d05f7345e1b3f88481b2acd083"
+      },
+      "performance": {
+        "path": "windows-performance.json",
+        "sha256": "57a7f895a8be6d67270b1097c164f4010e7445f4caae6ca6fa95cef8676d33a2"
+      }
+    },
+    "wsl": {
+      "validation": {
+        "path": "wsl-validation.json",
+        "sha256": "3e3387893618be4ed29d6352da09a360041c853a710b290c7184050f8e78c600"
+      },
+      "delivery": {
+        "path": "wsl-delivery.json",
+        "sha256": "91302258bbfe89da07f5b3ff71705d161a1ecb9c1dc69972482420c8709864eb"
+      },
+      "measure": {
+        "path": "wsl-measure.json",
+        "sha256": "08d23113a65dc613598f47566b50f3e5c0eda74565ee2272eeae8fb4730754dd"
+      },
+      "performance": {
+        "path": "wsl-performance.json",
+        "sha256": "bcc6be1bfae3eb17678af80ef98a95e79bd719d5899c5c08025aec9d8fb61bb3"
+      }
+    }
+  },
+  "artifact_index": {
+    "path": "artifacts.json",
+    "sha256": "a37eb9d43bc9ecfbbe3315b3bd648925f5749d479ff01dfab7d2da1bbfe4b0a8",
+    "files": 351
+  }
+}

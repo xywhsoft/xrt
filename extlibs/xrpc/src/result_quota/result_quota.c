@@ -24,19 +24,23 @@ void xrpcResultQuotaRelease(xrpcresultquota* Q)
 {if(Q && xrtAtomic32FetchSub(&Q->References,1,XMEMORY_ACQ_REL)==1){xrtMutexUnit(&Q->Gate);xrtFree(Q);}}
 void xrpcResultQuotaInfo(xrpcresultquota* Q,size_t* Blocks,size_t* Bytes,uint64* Rejected)
 {xrtMutexLock(&Q->Gate);*Blocks=Q->Blocks;*Bytes=Q->Bytes;*Rejected=Q->Rejected;xrtMutexUnlock(&Q->Gate);}
-ptr xrpcResultQuotaAlloc(xrpcresultquota* Q,size_t Bytes,bool* Limited)
+bool xrpcResultQuotaFits(xrpcresultquota* Q,size_t Charge)
+{return Charge<=SIZE_MAX-sizeof(xrpcresultallocation) && Q->MaxBlocks && Charge+sizeof(xrpcresultallocation)<=Q->MaxBytes;}
+ptr xrpcResultQuotaAllocCharged(xrpcresultquota* Q,size_t Allocation,size_t Bytes,bool* Limited)
 {
     *Limited=false;
-    if(Bytes>SIZE_MAX-sizeof(xrpcresultallocation)){xrtMutexLock(&Q->Gate);++Q->Rejected;xrtMutexUnlock(&Q->Gate);*Limited=true;return NULL;}
+    if(Allocation>Bytes || Bytes>SIZE_MAX-sizeof(xrpcresultallocation)){xrtMutexLock(&Q->Gate);++Q->Rejected;xrtMutexUnlock(&Q->Gate);*Limited=true;return NULL;}
     Bytes+=sizeof(xrpcresultallocation);xrtMutexLock(&Q->Gate);
     bool OK=Q->Blocks<Q->MaxBlocks && Bytes<=Q->MaxBytes-Q->Bytes;
     if(OK){++Q->Blocks;Q->Bytes+=Bytes;xrtAtomic32FetchAdd(&Q->References,1,XMEMORY_RELAXED);}
     else ++Q->Rejected;
     xrtMutexUnlock(&Q->Gate);if(!OK){*Limited=true;return NULL;}
-    xrpcresultallocation* A=xrtMalloc(Bytes);
+    xrpcresultallocation* A=xrtMalloc(Allocation+sizeof(xrpcresultallocation));
     if(!A){xrtMutexLock(&Q->Gate);--Q->Blocks;Q->Bytes-=Bytes;xrtMutexUnlock(&Q->Gate);xrpcResultQuotaRelease(Q);return NULL;}
     A->Meta.Quota=Q;A->Meta.Bytes=Bytes;return A+1;
 }
+ptr xrpcResultQuotaAlloc(xrpcresultquota* Q,size_t Bytes,bool* Limited)
+{return xrpcResultQuotaAllocCharged(Q,Bytes,Bytes,Limited);}
 void xrpcResultQuotaFree(ptr Value)
 {
     if(!Value)return;

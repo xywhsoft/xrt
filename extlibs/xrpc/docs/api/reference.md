@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `94` 个函数、`173` 个常量或宏、
-`85` 个公共类型。
+当前登记 `110` 个函数、`183` 个常量或宏、
+`92` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -137,6 +137,57 @@
 - `xrpcoutgoing`
 - `xrpcreply`
 
+## `extlibs/xrpc/include/xrpc/duplex.h`
+
+[查看带契约注释的公共头](../../include/xrpc/duplex.h)
+
+### 函数 (16)
+
+- `xrpcDuplexBatch`
+- `xrpcDuplexCall`
+- `xrpcDuplexClose`
+- `xrpcDuplexConfigInit`
+- `xrpcDuplexCreate`
+- `xrpcDuplexDestroy`
+- `xrpcDuplexInfo`
+- `xrpcDuplexNext`
+- `xrpcDuplexNotify`
+- `xrpcDuplexOutputRelease`
+- `xrpcDuplexOutputRetain`
+- `xrpcDuplexOutputWire`
+- `xrpcDuplexReceive`
+- `xrpcDuplexSent`
+- `xrpcDuplexStarted`
+- `xrpcDuplexStep`
+
+### 常量与宏 (13)
+
+- `XRPC_DUPLEX_ACCEPTED`
+- `XRPC_DUPLEX_ARGUMENT`
+- `XRPC_DUPLEX_CLOSED`
+- `XRPC_DUPLEX_ERROR`
+- `XRPC_DUPLEX_LIMIT`
+- `XRPC_DUPLEX_MEMORY`
+- `XRPC_DUPLEX_OVERLOADED`
+- `XRPC_DUPLEX_PROTOCOL`
+- `XRPC_DUPLEX_STATE`
+- `XRPC_FEATURE_XRPC_DUPLEX`
+- `XRPC_FEATURE_XRPC_PENDING`
+- `XRPC_FEATURE_XRPC_RESULT_QUOTA`
+- `XRPC_FEATURE_XRPC_SERVER`
+
+### 类型 (9)
+
+- `xrpcduplex`
+- `xrpcduplexadmission`
+- `xrpcduplexconfig`
+- `xrpcduplexerror`
+- `xrpcduplexinfo`
+- `xrpcduplexitem`
+- `xrpcduplexoutput`
+- `xrpcresponseconfig`
+- `xrpcserver`
+
 ## `extlibs/xrpc/include/xrpc/encode.h`
 
 [查看带契约注释的公共头](../../include/xrpc/encode.h)
@@ -215,7 +266,7 @@
 - `xrpcHttpRelease`
 - `xrpcHttpRetain`
 
-### 常量与宏 (18)
+### 常量与宏 (17)
 
 - `XRPC_ADMISSION_ACCEPTED`
 - `XRPC_ADMISSION_CLOSED`
@@ -223,7 +274,6 @@
 - `XRPC_ADMISSION_OVERLOADED`
 - `XRPC_FEATURE_XRPC_HTTP_CLIENT`
 - `XRPC_FEATURE_XRPC_ID`
-- `XRPC_FEATURE_XRPC_RESULT_QUOTA`
 - `XRPC_HTTP_ALLOCATION`
 - `XRPC_HTTP_ARGUMENT`
 - `XRPC_HTTP_CLOSED`
@@ -236,7 +286,7 @@
 - `XRPC_HTTP_RESPONSE`
 - `XRPC_HTTP_STATE`
 
-### 类型 (8)
+### 类型 (7)
 
 - `xrpcadmission`
 - `xrpchttpclient`
@@ -245,7 +295,6 @@
 - `xrpchttpinfo`
 - `xrpchttpitem`
 - `xrpchttpstate`
-- `xrpcresponseconfig`
 
 ## `extlibs/xrpc/include/xrpc/http_dial.h`
 
@@ -280,10 +329,9 @@
 - `xrpcHttpServerStart`
 - `xrpcHttpServerWaitFor`
 
-### 常量与宏 (15)
+### 常量与宏 (14)
 
 - `XRPC_FEATURE_XRPC_HTTP_SERVER`
-- `XRPC_FEATURE_XRPC_SERVER`
 - `XRPC_HTTP_AUTH_ALLOW`
 - `XRPC_HTTP_AUTH_ERROR`
 - `XRPC_HTTP_AUTH_FORBIDDEN`
@@ -424,9 +472,8 @@
 - `xrpcPendingTakeId`
 - `xrpcPendingTakeToken`
 
-### 常量与宏 (12)
+### 常量与宏 (11)
 
-- `XRPC_FEATURE_XRPC_PENDING`
 - `XRPC_PENDING_ARGUMENT`
 - `XRPC_PENDING_DUPLICATE`
 - `XRPC_PENDING_ERROR`
@@ -534,9 +581,8 @@
 - `XRPC_SERVER_STATE`
 - `XRPC_SERVER_TIMEOUT`
 
-### 类型 (7)
+### 类型 (6)
 
-- `xrpcserver`
 - `xrpcserveradmission`
 - `xrpcservercall`
 - `xrpcservercontext`

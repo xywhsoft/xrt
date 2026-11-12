@@ -120,6 +120,19 @@
         "xrtHttp",
         "xrtWebSocket"
       ]
+    },
+    {
+      "name": "xrpc_duplex",
+      "system": "duplex",
+      "suite": "xrpc_duplex",
+      "description": "Bidirectional messages using the existing Core executor/Future and independent quota ledgers; no transport runtime",
+      "forbid_symbols": [
+        "xrtNet",
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ]
     }
   ]
 }

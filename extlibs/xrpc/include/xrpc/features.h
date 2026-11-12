@@ -55,6 +55,31 @@
 #ifndef XRPC_MODULE_XRPC_FRAME
 #define XRPC_MODULE_XRPC_FRAME
 #endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
+#endif
+#endif
+
+/* xrpc_duplex 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_DUPLEX)
+#ifndef XRPC_FEATURE_XRPC_DUPLEX
+#define XRPC_FEATURE_XRPC_DUPLEX
+#endif
+#ifndef XRPC_MODULE_XRPC_CALL
+#define XRPC_MODULE_XRPC_CALL
+#endif
+#ifndef XRPC_MODULE_XRPC_PENDING
+#define XRPC_MODULE_XRPC_PENDING
+#endif
+#ifndef XRPC_MODULE_XRPC_SERVER
+#define XRPC_MODULE_XRPC_SERVER
+#endif
+#ifndef XRPC_MODULE_XRPC_ENCODE
+#define XRPC_MODULE_XRPC_ENCODE
+#endif
+#ifndef XRPC_MODULE_XRPC_RESULT_QUOTA
+#define XRPC_MODULE_XRPC_RESULT_QUOTA
+#endif
 #endif
 
 /* xrpc_frame 及其直接依赖。 */

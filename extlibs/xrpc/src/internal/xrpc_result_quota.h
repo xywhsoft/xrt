@@ -9,6 +9,9 @@ bool xrpcResultQuotaCreate(size_t Blocks,size_t Bytes,xrpcresultquota** Result);
 void xrpcResultQuotaRelease(xrpcresultquota* Quota);
 void xrpcResultQuotaInfo(xrpcresultquota* Quota,size_t* Blocks,size_t* Bytes,uint64* Rejected);
 ptr xrpcResultQuotaAlloc(xrpcresultquota* Quota,size_t Bytes,bool* Limited);
+/* Charge retained external bytes as well as actual metadata allocation. */
+bool xrpcResultQuotaFits(xrpcresultquota* Quota,size_t Charge);
+ptr xrpcResultQuotaAllocCharged(xrpcresultquota* Quota,size_t Allocation,size_t Charge,bool* Limited);
 void xrpcResultQuotaFree(ptr Value);
 xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfig* Config,
     xrpcmessage* Scratch,size_t Capacity,xrpcresponses** Result,xrpcresultquota* Quota);

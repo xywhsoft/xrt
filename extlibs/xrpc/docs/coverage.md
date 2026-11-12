@@ -274,3 +274,17 @@ old+new storage bounds, borrowed/copied views, sticky EOF/failure and atomic
 writers. Independent bytes/all split points, quota/alias/mutation/no-heap tests
 and real Python/C stdin/stdout checks accompany it. This is no declaration of a
 production stdio adapter or full bidirectional runtime; those remain required.
+
+
+## Bidirectional message runtime
+
+The developing [duplex runtime](duplex.md) implements complete-document role
+validation, two peers calling simultaneously, mixed notification/call batches
+and reordered response maps, fresh IDs, no partial correlation, exact entry
+deadlines, cooperative cancellation, partial-send retirement, retained wire and
+result quotas, bounded owner scheduling, shared executor offloading, concurrent
+submission/close and physical endpoint retirement. Tests independently exercise
+invalid/missing/duplicate/unsent/batch-shape response rejection, late reply
+ignore, context copying and malformed-document no-handler behavior. Automatic
+TCP/stdio/WebSocket adapters, negotiated cancellation/deadline, independent peer
+interop and production performance/endurance remain required.

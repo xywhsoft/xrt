@@ -4231,6 +4231,100 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_duplex",
+      "system": "duplex",
+      "description": "Closed pipeline1 native cost reference, synthetic-peer runtime, and two endpoints/shared-executor; no production parity or tail acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_duplex_m0",
+          "source": "extlibs/xrpc/bench/bench_duplex.c",
+          "suite": "xrpc_duplex,memory_stats",
+          "args": [
+            "20000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_m1",
+          "source": "extlibs/xrpc/bench/bench_duplex.c",
+          "suite": "xrpc_duplex,memory_stats",
+          "args": [
+            "20000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_duplex_m2",
+          "source": "extlibs/xrpc/bench/bench_duplex.c",
+          "suite": "xrpc_duplex,memory_stats",
+          "args": [
+            "20000",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

@@ -221,7 +221,7 @@ XRPC_API xrpcpendingstatus xrpcPendingTakeFirst(xrpcpending* P,xrpcpendingcall* 
 	if(!xrpcPendingOutput(P,Call,sizeof(*Call)))return XRPC_PENDING_ERROR;
 	return P->Count?xrpcPendingTake(P,xrpcPendingHeap(P)[0],Call):XRPC_PENDING_MISSING;
 }
-XRPC_API bool xrpcPendingTakeBatch(xrpcpending* P,const xstrview* Ids,size_t Count,xrpcpendingresolution* Resolutions)
+static bool xrpcPendingProbe(xrpcpending* P,const xstrview* Ids,size_t Count,xrpcpendingresolution* Resolutions)
 {
 	if(!P || Count>SIZE_MAX/sizeof(*Ids) || Count>SIZE_MAX/sizeof(*Resolutions))goto Argument;
 	size_t InputBytes=Count*sizeof(*Ids),OutputBytes=Count*sizeof(*Resolutions);
@@ -237,14 +237,25 @@ XRPC_API bool xrpcPendingTakeBatch(xrpcpending* P,const xstrview* Ids,size_t Cou
 		if(Slot){xrpcpendingentry* E=xrpcPendingEntry(P,Slot);Resolutions[Index].Status=XRPC_PENDING_MATCHED;
 			Resolutions[Index].Call=(xrpcpendingcall){{E->Serial,(size_t)Slot-1u},E->Deadline,E->User};}
 	}
+
+	return true;
+Argument:
+	xrpcPendingReport(XERR_ARGUMENT,XRPC_PENDING_ARGUMENT,"invalid RPC pending batch spans/overlap");return false;
+}
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+bool xrpcPendingProbeBatch(xrpcpending* P,const xstrview* Ids,size_t Count,xrpcpendingresolution* Resolutions)
+{return xrpcPendingProbe(P,Ids,Count,Resolutions);}
+#endif
+XRPC_API bool xrpcPendingTakeBatch(xrpcpending* P,const xstrview* Ids,size_t Count,xrpcpendingresolution* Resolutions)
+{
+    if(!xrpcPendingProbe(P,Ids,Count,Resolutions))return false;
 	/* All failable work is complete. No insert/callback can reuse a slot here. */
 	for(size_t Index=0;Index<Count;++Index)if(Resolutions[Index].Status==XRPC_PENDING_MATCHED){
 		xrpcpendingtoken Token=Resolutions[Index].Call.Token;uint32 Slot=(uint32)(Token.Slot+1u);
 		if(xrpcPendingEntry(P,Slot)->Serial==Token.Serial)xrpcPendingTake(P,Slot,&Resolutions[Index].Call);
 		else Resolutions[Index]=(xrpcpendingresolution){XRPC_PENDING_REPEATED,{{0,0},0,NULL}};
 	}
-	return true;
-Argument:
-	xrpcPendingReport(XERR_ARGUMENT,XRPC_PENDING_ARGUMENT,"invalid RPC pending batch spans/overlap");return false;
+    return true;
 }
+
 #endif

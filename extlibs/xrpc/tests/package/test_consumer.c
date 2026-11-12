@@ -108,6 +108,13 @@ int main(void)
 		memcmp(Served->Wire.Data,"{\"jsonrpc\":\"2.0\",\"result\":true,\"id\":1e9999}",Served->Wire.Size))return 18;
 	xrtFutureDestroy(ServerFuture);
 #endif
+#if defined(XRPC_FEATURE_XRPC_DUPLEX)
+    xrpcduplex* Duplex=NULL;xfuture* DuplexFuture=NULL;xfutureresult DuplexResult;
+    if(!xrpcDuplexCreate(NULL,&Duplex) || xrpcDuplexCall(Duplex,XRT_STR_LITERAL("echo"),(xstrview){0},0,&DuplexFuture)!=XRPC_DUPLEX_ACCEPTED ||
+       !xrpcDuplexStep(Duplex) || !xrtFutureResult(DuplexFuture,&DuplexResult) || DuplexResult.State!=XFUTURE_RESOLVED || !DuplexResult.Value ||
+       ((const xrpccallresult*)DuplexResult.Value)->Status!=XRPC_CALL_TIMEOUT || !xrpcDuplexClose(Duplex,XRPC_CALL_CLOSED) || !xrpcDuplexStep(Duplex) || !xrpcDuplexDestroy(Duplex))return 19;
+    xrtFutureDestroy(DuplexFuture);
+#endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;
