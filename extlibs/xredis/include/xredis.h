@@ -169,4 +169,14 @@
 #endif
 #include <xredis/cluster_command.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC"
+#endif
+#include <xredis/cluster_client_sync.h>
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
+#endif
+#include <xredis/cluster_command_sync.h>
+
 #endif

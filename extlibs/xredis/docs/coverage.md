@@ -131,7 +131,8 @@ a bounded ready queue, preallocated deadline heap, one timer and existing XRT
 posts/watches. It automatically bootstraps, refreshes after current-generation
 MOVED and isolates ASK; it preserves deadlines, quotas and old maps on failure.
 See [contracts](cluster_client.md). Replica policy,
-synchronous calls and full production/performance acceptance remain open.
+full production/performance acceptance remain open; optional synchronous calls
+are covered below.
 
 ## Command key specifications
 
@@ -155,3 +156,14 @@ close, timeout/cancel and MOVED/ASK outcomes. Held-worker budgets compare actual
 caller blocks/bytes; caller-clock and native-owner probes verify exact deadlines.
 Automatic metadata fetch/cache replacement, server-assisted exotic extraction,
 replica policy and final acceptance remain open.
+
+## Synchronous Cluster calls
+
+Optional [synchronous facades](cluster_sync.md) cover explicit slots and metadata
+routing without a second runtime. Both dependent Engines' workers are refused
+before admission. Actual wait outcomes remain separate from admission and typed
+Redis results, and accepted Futures transfer even on native wait failure.
+Tests cover cold/default/zero calls, local refusals, MOVED/ASK, overload/Close,
+full output aliases, physical retirement, OOM and concurrent callers. Single-only
+clock/native-owner probes verify original deadlines; wait interposition verifies
+pending Future ownership. Final production/performance qualification remains open.

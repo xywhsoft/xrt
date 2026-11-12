@@ -166,6 +166,35 @@
 #ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
 #define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
 #endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
+#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC
+#endif
+#endif
+
+/* xredis_cluster_command_sync 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_COMMAND_SYNC)
+#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
+#define XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
+#define XREDIS_MODULE_XREDIS_CLUSTER_COMMAND
+#endif
+#endif
+
+/* xredis_cluster_client_sync 及其直接依赖。 */
+#if defined(XREDIS_MODULE_ALL) || defined(XREDIS_MODULE_XREDIS_CLUSTER_CLIENT_SYNC)
+#ifndef XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC
+#define XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC
+#endif
+#ifndef XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
+#endif
 #endif
 
 /* xredis_cluster_command 及其直接依赖。 */
@@ -3326,6 +3355,73 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/cluster_client_sync.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_CLUSTER_CLIENT_SYNC_H
+#define XREDIS_CLUSTER_CLIENT_SYNC_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+#error "Synchronous Cluster calls require the asynchronous client"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+/* ACCEPTED transfers Future even when the native wait fails. Wait is the actual
+ * XRT wait result, not a Redis operation status. Inspect the Future's immutable
+ * xredisclusterclientresult after XWAIT_OK. Destroy Future exactly once. */
+typedef struct xredisclusterwait {xwaitresult Wait;xfuture* Future;} xredisclusterwait;
+XRT_EXTERN_C_BEGIN
+/* Blocking explicit-slot facade. Uses the existing async operation and one
+ * function-entry deadline, including validation and worker checks. No second
+ * relative timeout, thread, timer, command copy or result allocation is added.
+ * All workers of either progress Engine or Nodes Engine are refused before
+ * admission (ERROR/XERR_STATE), including workers other than the selected one.
+ * An unrelated Engine worker may call, subject to application dependencies.
+ * Only ACCEPTED changes Result. Refusals preserve it and all input ownership.
+ * ACCEPTED means admitted, not successful Redis execution. Result.Wait records
+ * platform wait failure; in that case Future may still be pending, and caller
+ * retains it for later wait/cancel/destruction. Do not silently retry business.
+ * Timeout/default/zero and resource/status semantics match Call. Close from
+ * another thread can interrupt the operation. Local timeout/close does not join
+ * outstanding native FIFO duties; Nodes/Engines retain physical ownership.
+ * Result must be disjoint from Client/current map/input descriptors and bytes.
+ * Keep a stable Client owner through return. No external cancellation token is
+ * introduced; use asynchronous Call for independently cancellable submissions. */
+XREDIS_API xredisadmission xredisClusterClientCallSync(xredisclusterclient* Client,
+    uint16 Slot,const xbytesview* Arguments,size_t Count,int64 Timeout,
+    xredisclusterwait* Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* public: extlibs/xredis/include/xredis/cluster_command_sync.h */
+/* ========================================================================== */
+
+#ifndef XREDIS_CLUSTER_COMMAND_SYNC_H
+#define XREDIS_CLUSTER_COMMAND_SYNC_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC) && (!defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) || !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND))
+#error "Synchronous metadata routing requires Cluster sync and command routing"
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+XRT_EXTERN_C_BEGIN
+/* Blocking CallCommand with the same typed preflight decisions and one original
+ * entry deadline through metadata and native work. Catalogue is borrowed only
+ * for preflight/admission; the facade retains no catalogue reference. Result is
+ * published only on ACCEPTED and also disjoint from Catalogue/retained Reply.
+ * All progress/Nodes Engine workers are refused before metadata/admission.
+ * Wait/Future ownership, native wait failure and physical retirement follow
+ * CallSync. There is no automatic metadata fetch, exotic-command server query,
+ * replica inference, independently cancellable wait or new replay policy. */
+XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommandSync(
+    xredisclusterclient* Client,const xrediscommandcatalog* Catalogue,
+    const xbytesview* Arguments,size_t Count,uint16 KeylessSlot,int64 Timeout,
+    xredisclusterwait* Result);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xredis/include/xredis.h */
 /* ========================================================================== */
 
@@ -3463,6 +3559,14 @@ XRT_EXTERN_C_END
 
 #if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
 #error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC"
+#endif
+
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC"
 #endif
 
 #endif
@@ -3846,6 +3950,25 @@ xredisadmission __xredisClusterRouteCreateContext(const xredisclustertopology* T
 void __xredisClusterRouteUnit(xredisclusterroute* Route);
 xredisadmission __xredisClusterRouteRetryMissing(xredisclusterroute* Previous,
     const xredisclustertopology* Topology,xbytesview Origin,const xredisclusterrouteconfig* Config,xredisclusterroute** Route,xredisclusterroutestatus* Failure);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xredis/src/internal/cluster_nodes_internal.h */
+/* ========================================================================== */
+
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES) || \
+	defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT) || \
+	defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC) || \
+	defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+#ifndef XREDIS_CLUSTER_NODES_INTERNAL_H
+#define XREDIS_CLUSTER_NODES_INTERNAL_H
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+/* Stable cache owner. Gate protects Engine pointer and its existing pin through
+ * the Current query, including a concurrent physical close. No callback. */
+bool __xredisClusterNodesCurrent(xredisclusternodes* Cache);
 #endif
 #endif
 #endif
@@ -11951,6 +12074,13 @@ XREDIS_API void xredisClusterNodesRelease(xredisclusternodes* C)
 {if(!C || xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;xrtPromiseDestroy(C->Promise);xrtFutureDestroy(C->Closed);xrtMutexUnit(&C->Gate);xrtFree(C);}
 static bool xredisNodesOutput(xredisclusternodes* C,const void* P,size_t N)
 {return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->StorageBytes,P,N);}
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+bool __xredisClusterNodesCurrent(xredisclusternodes* C)
+{
+    xrtMutexLock(&C->Gate);bool Current=C->Engine && xrtNetEngineCurrent(C->Engine);
+    xrtMutexUnlock(&C->Gate);return Current;
+}
+#endif
 static bool xredisNodesAddress(const xredisclusteraddress* A,size_t Max)
 {
     if(!xrtMemRangeValid(A,sizeof(*A)) || !A->Host.Size || A->Host.Size>Max || !xrtMemRangeValid(A->Host.Data,A->Host.Size) || !A->Port || A->Slot>=XREDIS_CLUSTER_SLOTS ||
@@ -12633,13 +12763,13 @@ XREDIS_API xredisadmission xredisClusterClientCreate(xnetengine* E,uint64 Affini
 }
 static bool xredisClusterClientOutput(xredisclusterclient* C,const void* P,size_t N)
 {return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->Bytes,P,N);}
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND) || defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 static xredisadmission xredisClusterClientCallAt(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xfuture** Out,double E)
 #else
 XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xfuture** Out)
 #endif
 {
-#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if !defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
     double E=xrtTimer();
 #endif
     if(!xredisClusterClientOutput(C,Out,sizeof(*Out)) || Slot>=XREDIS_CLUSTER_SLOTS || Timeout< -1 || Timeout>86400000 || !Count || Count>C->Config.Route.MaxArguments || !xrtMemRangeValid(A,Count*sizeof(*A)) || xrtMemRangesOverlap(A,Count*sizeof(*A),Out,sizeof(*Out))){xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster call");return XREDIS_ADMISSION_ERROR;}
@@ -12665,12 +12795,13 @@ XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* C,uint16
     --C->Info.Requests;C->Info.CommandBytes-=Wire;C->Info.StorageBytes-=Reservation;if(Closing)xredisClusterWakeLocked(C);xrtMutexUnlock(&C->Gate);
     if(O){xrtCancelUnwatch(O->Cancel);xrtCancelDestroy(O->Token);xrtPromiseDestroy(O->Promise);xrtFutureDestroy(O->Future);xredisClusterOperationFree(O,NULL);}return Closing?XREDIS_ADMISSION_CLOSED:XREDIS_ADMISSION_ERROR;
 }
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND) || defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
 XREDIS_API xredisadmission xredisClusterClientCall(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xfuture** Out)
 {return xredisClusterClientCallAt(C,Slot,A,Count,Timeout,Out,xrtTimer());}
-XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommand(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out)
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+static xredisclustercommandadmission xredisClusterClientCallCommandAt(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out,double Entered)
 {
-    double Entered=xrtTimer();
     if(!xredisClusterClientOutput(C,Out,sizeof(*Out)) || !__xredisCommandCatalogOutput(Catalogue,Out,sizeof(*Out)) ||
         (KeylessSlot>=XREDIS_CLUSTER_SLOTS && KeylessSlot!=XREDIS_CLUSTER_COMMAND_NO_SLOT) || Timeout< -1 || Timeout>86400000){xredisClusterClientError(XERR_ARGUMENT,"invalid metadata-routed Cluster call");return XREDIS_CLUSTER_COMMAND_ERROR;}
     if(Count>C->Config.Route.MaxArguments)return XREDIS_CLUSTER_COMMAND_LIMIT;
@@ -12690,6 +12821,45 @@ XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommand(xrediscl
     xredisadmission Admission=xredisClusterClientCallAt(C,Keys.HasSlot?Keys.Slot:KeylessSlot,A,Count,Timeout,Out,Entered);
     switch(Admission){case XREDIS_ADMISSION_ACCEPTED:return XREDIS_CLUSTER_COMMAND_ACCEPTED;case XREDIS_ADMISSION_OVERLOADED:return XREDIS_CLUSTER_COMMAND_OVERLOADED;case XREDIS_ADMISSION_CLOSED:return XREDIS_CLUSTER_COMMAND_CLOSED;default:return XREDIS_CLUSTER_COMMAND_ERROR;}
 }
+XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommand(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xfuture** Out)
+{return xredisClusterClientCallCommandAt(C,Catalogue,A,Count,KeylessSlot,Timeout,Out,xrtTimer());}
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+static bool xredisClusterSyncOutput(xredisclusterclient* C,const xbytesview* A,size_t Count,xredisclusterwait* Out)
+{
+    if(!xredisClusterClientOutput(C,Out,sizeof(*Out)))return xredisClusterClientError(XERR_ARGUMENT,"invalid Cluster sync output");
+    /* Count above the client cap is left to the original admission path, so a
+     * metadata invocation preserves its typed LIMIT without reading inputs. */
+    if(Count<=C->Config.Route.MaxArguments){
+        if(!xrtMemRangeValid(A,Count*sizeof(*A)) || xrtMemRangesOverlap(A,Count*sizeof(*A),Out,sizeof(*Out)))return xredisClusterClientError(XERR_ARGUMENT,"Cluster sync output aliases descriptors");
+        for(size_t I=0;I<Count;++I)if(xrtMemRangesOverlap(A[I].Data,A[I].Size,Out,sizeof(*Out)))return xredisClusterClientError(XERR_ARGUMENT,"Cluster sync output aliases argument bytes");
+    }
+    xrtMutexLock(&C->Gate);
+    bool Valid=__xredisClusterMapOutput(C->Map,Out,sizeof(*Out));
+    /* Finish sets Finished under this gate before releasing Nodes/Engine.
+     * Nodes' gate has no callbacks into Client; no inverse lock order exists. */
+    bool Worker=!C->Finished && (xrtNetEngineCurrent(C->Engine) || __xredisClusterNodesCurrent(C->Nodes));
+    xrtMutexUnlock(&C->Gate);
+    if(!Valid)return xredisClusterClientError(XERR_ARGUMENT,"Cluster sync output aliases map");
+    if(Worker)return xredisClusterClientError(XERR_STATE,"sync Cluster call cannot block either engine's workers");
+    return true;
+}
+XREDIS_API xredisadmission xredisClusterClientCallSync(xredisclusterclient* C,uint16 Slot,const xbytesview* A,size_t Count,int64 Timeout,xredisclusterwait* Out)
+{
+    double Entered=xrtTimer();if(!xredisClusterSyncOutput(C,A,Count,Out))return XREDIS_ADMISSION_ERROR;
+    xfuture* F=NULL;xredisadmission S=xredisClusterClientCallAt(C,Slot,A,Count,Timeout,&F,Entered);
+    if(S==XREDIS_ADMISSION_ACCEPTED){xwaitresult W=xrtFutureWait(F);*Out=(xredisclusterwait){W,F};}return S;
+}
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+XREDIS_API xredisclustercommandadmission xredisClusterClientCallCommandSync(xredisclusterclient* C,const xrediscommandcatalog* Catalogue,const xbytesview* A,size_t Count,uint16 KeylessSlot,int64 Timeout,xredisclusterwait* Out)
+{
+    double Entered=xrtTimer();
+    if(!xredisClusterSyncOutput(C,A,Count,Out))return XREDIS_CLUSTER_COMMAND_ERROR;
+    if(!__xredisCommandCatalogOutput(Catalogue,Out,sizeof(*Out)))return xredisClusterClientError(XERR_ARGUMENT,"Cluster sync output aliases catalogue"),XREDIS_CLUSTER_COMMAND_ERROR;
+    xfuture* F=NULL;xredisclustercommandadmission S=xredisClusterClientCallCommandAt(C,Catalogue,A,Count,KeylessSlot,Timeout,&F,Entered);
+    if(S==XREDIS_CLUSTER_COMMAND_ACCEPTED){xwaitresult W=xrtFutureWait(F);*Out=(xredisclusterwait){W,F};}return S;
+}
+#endif
 #endif
 XREDIS_API xfuture* xredisClusterClientReady(xredisclusterclient* C)
 {if(!C){xredisClusterClientError(XERR_ARGUMENT,"Cluster client is NULL");return NULL;}return xrtFutureRef(C->ReadyFuture);}

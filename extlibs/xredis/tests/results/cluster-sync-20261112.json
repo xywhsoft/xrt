@@ -1,0 +1,3731 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "673a09fe96d8f1bc3fd16af28bab2ca2d058622c",
+  "scope": "Optional explicit-slot and metadata-routed synchronous Cluster facades; one original entry budget, both dependent Engine worker guards, actual native wait outcomes and success-only owned Future transfer; existing async/native physical duties.",
+  "state": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "source_inputs": 2879,
+  "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+      "programs": 52
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+      "programs": 54
+    }
+  },
+  "delivery": {
+    "windows": {
+      "leaf": {
+        "complete": true,
+        "forms": {
+          "modular": {
+            "path": "delivery/windows/modular/client.exe",
+            "sha256": "20e9bd326e905107b5763c7fb1c354d91f2acdc746c68e9bad26fdbef4accec6"
+          },
+          "single": {
+            "path": "delivery/windows/single/client.exe",
+            "sha256": "784ba0844cff2519276915f7790b04b732be3dcd93fa766f4ab79e6001b98506"
+          },
+          "static": {
+            "path": "delivery/windows/static/client.exe",
+            "sha256": "da8f4f0f58f5b2269f9e5b816030a9e12401bfa0b574a807ba6f2af6b3b278e4"
+          },
+          "shared": {
+            "path": "delivery/windows/shared/client.exe",
+            "sha256": "917334195e167e12eb107ee54ab9bbc49f67ea5d4d11254a98e04f247b9a10ee"
+          }
+        },
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084"
+      },
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "db7a34ad50d648bf10f21e3066e6ab5492579c50429ca29212ba048a17d91f8a",
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084"
+      },
+      "root_packages": {
+        "complete": true,
+        "forms": {
+          "static": [
+            {
+              "path": "root-packages/windows/static/libxredis.a",
+              "sha256": "a8ae0e052732b191d06a8c37edecb4ba7ecda6cda2664417168881c8753d56f0"
+            },
+            {
+              "path": "root-packages/windows/static/libxrt.a",
+              "sha256": "d15adc7aed621cf4faf1178263e6d56d1a770e34e5ac53f1ba4e45c277b7fcfa"
+            },
+            {
+              "path": "root-packages/windows/static/packages.json",
+              "sha256": "1b9a9e980b7a0ecf08e74872f7ca8d12db2139b4b46f82adcf06128fad3af0e1"
+            },
+            {
+              "path": "root-packages/windows/static/test_package_xredis.exe",
+              "sha256": "6f14a13b352189f584b6953dce7c182b0b2a25c557cdb997827042867a54f023"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/windows/shared/libxredis.dll.a",
+              "sha256": "1b4310a62d65f6ed02b562a6b24a029dc9b7880ee0c5f7bcf2697612513346e0"
+            },
+            {
+              "path": "root-packages/windows/shared/libxrt.dll.a",
+              "sha256": "cbda82829395833c972e9c47884e7820f1361d6b29a348557186a661fcabcc50"
+            },
+            {
+              "path": "root-packages/windows/shared/packages.json",
+              "sha256": "a1872fd7f11c4238c3e45ab2706c6339040bc7e4edd299227ff41b19cf4b7a89"
+            },
+            {
+              "path": "root-packages/windows/shared/test_package_xredis.exe",
+              "sha256": "f6ca57a2120dbcb82b35decc67fd95e51327dea44d6f84b93afe0e13a5216e25"
+            },
+            {
+              "path": "root-packages/windows/shared/xredis.dll",
+              "sha256": "98e505930c1e2bf0bbdcfa95c40b435a2deb021ad81a2ae98a40f5692c44f120"
+            },
+            {
+              "path": "root-packages/windows/shared/xrt.dll",
+              "sha256": "1ed8238e688368518c5d22bb36122fdbc239b0dcfe25cec23a5b5a1d8e03963c"
+            }
+          ]
+        }
+      },
+      "exports": {
+        "new_api": [
+          "xredisClusterClientCall",
+          "xredisClusterClientCallCommand",
+          "xredisClusterClientCallCommandSync",
+          "xredisClusterClientCallSync",
+          "xredisClusterClientClose",
+          "xredisClusterClientClosed",
+          "xredisClusterClientConfigInit",
+          "xredisClusterClientCreate",
+          "xredisClusterClientInfo",
+          "xredisClusterClientInvalidate",
+          "xredisClusterClientReady",
+          "xredisClusterClientRelease",
+          "xredisClusterClientRetain",
+          "xredisClusterClientSnapshot",
+          "xredisClusterRefreshDiscover",
+          "xredisCommandCatalogCreate",
+          "xredisCommandCatalogEvaluate",
+          "xredisCommandCatalogInfo",
+          "xredisCommandCatalogRelease",
+          "xredisCommandCatalogRetain",
+          "xredisCommandKeyLimitsInit"
+        ],
+        "exports": [
+          "xredisClientCall",
+          "xredisClientCallAsync",
+          "xredisClientClose",
+          "xredisClientClosed",
+          "xredisClientConfigInit",
+          "xredisClientConnect",
+          "xredisClientConnectInit",
+          "xredisClientDial",
+          "xredisClientDialAddresses",
+          "xredisClientDialConfigInit",
+          "xredisClientInfo",
+          "xredisClientInitConfigInit",
+          "xredisClientReady",
+          "xredisClientRelease",
+          "xredisClientRetain",
+          "xredisClientTakePush",
+          "xredisClusterClientCall",
+          "xredisClusterClientCallCommand",
+          "xredisClusterClientCallCommandSync",
+          "xredisClusterClientCallSync",
+          "xredisClusterClientClose",
+          "xredisClusterClientClosed",
+          "xredisClusterClientConfigInit",
+          "xredisClusterClientCreate",
+          "xredisClusterClientInfo",
+          "xredisClusterClientInvalidate",
+          "xredisClusterClientReady",
+          "xredisClusterClientRelease",
+          "xredisClusterClientRetain",
+          "xredisClusterClientSnapshot",
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterMapInfo",
+          "xredisClusterMapRelease",
+          "xredisClusterMapRetain",
+          "xredisClusterNodesClose",
+          "xredisClusterNodesClosed",
+          "xredisClusterNodesConfigInit",
+          "xredisClusterNodesCreate",
+          "xredisClusterNodesGetPool",
+          "xredisClusterNodesInfo",
+          "xredisClusterNodesRelease",
+          "xredisClusterNodesRetain",
+          "xredisClusterNodesRetire",
+          "xredisClusterRedirectRead",
+          "xredisClusterRefreshClose",
+          "xredisClusterRefreshClosed",
+          "xredisClusterRefreshConfigInit",
+          "xredisClusterRefreshCreate",
+          "xredisClusterRefreshDiscover",
+          "xredisClusterRefreshInfo",
+          "xredisClusterRefreshInvalidate",
+          "xredisClusterRefreshNextWake",
+          "xredisClusterRefreshPending",
+          "xredisClusterRefreshRelease",
+          "xredisClusterRefreshRetain",
+          "xredisClusterRefreshSnapshot",
+          "xredisClusterRefreshStart",
+          "xredisClusterRefreshStep",
+          "xredisClusterRouteCancel",
+          "xredisClusterRouteConfigInit",
+          "xredisClusterRouteCreate",
+          "xredisClusterRouteDestroy",
+          "xredisClusterRouteNextWake",
+          "xredisClusterRoutePending",
+          "xredisClusterRouteResult",
+          "xredisClusterRouteResultFuture",
+          "xredisClusterRouteStep",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain",
+          "xredisCommandCatalogCreate",
+          "xredisCommandCatalogEvaluate",
+          "xredisCommandCatalogInfo",
+          "xredisCommandCatalogRelease",
+          "xredisCommandCatalogRetain",
+          "xredisCommandKeyLimitsInit",
+          "xredisCommandSize",
+          "xredisCommandWrite",
+          "xredisLeaseAbort",
+          "xredisLeaseAskingCall",
+          "xredisLeaseAskingCallAsync",
+          "xredisLeaseCall",
+          "xredisLeaseCallAsync",
+          "xredisLeaseClosed",
+          "xredisLeaseRelease",
+          "xredisLeaseRetain",
+          "xredisLeaseReturn",
+          "xredisPoolAcquire",
+          "xredisPoolAcquireAsync",
+          "xredisPoolClose",
+          "xredisPoolClosed",
+          "xredisPoolConfigInit",
+          "xredisPoolConnect",
+          "xredisPoolConnectConfigInit",
+          "xredisPoolConnectInfo",
+          "xredisPoolCreate",
+          "xredisPoolInfo",
+          "xredisPoolRelease",
+          "xredisPoolRetain",
+          "xredisReaderConfigInit",
+          "xredisReaderCreate",
+          "xredisReaderDestroy",
+          "xredisReaderFeed",
+          "xredisReaderFinish",
+          "xredisReaderInfo",
+          "xredisReaderReset",
+          "xredisReplyDouble",
+          "xredisReplyGet",
+          "xredisReplyInfo",
+          "xredisReplyReaderConfigInit",
+          "xredisReplyReaderCreate",
+          "xredisReplyReaderDestroy",
+          "xredisReplyReaderFeed",
+          "xredisReplyReaderFinish",
+          "xredisReplyReaderInfo",
+          "xredisReplyReaderReset",
+          "xredisReplyRelease",
+          "xredisReplyRetain",
+          "xredisSharedPoolAskingCall",
+          "xredisSharedPoolAskingCallAsync",
+          "xredisSharedPoolCall",
+          "xredisSharedPoolCallAsync",
+          "xredisSharedPoolConnect",
+          "xredisSharedPoolCreate"
+        ],
+        "internal_exports": false
+      }
+    },
+    "wsl": {
+      "leaf": {
+        "complete": true,
+        "forms": {
+          "modular": {
+            "path": "delivery/wsl/modular/client",
+            "sha256": "fca13600315414ffb04a57e24c8aa277459d933137613ad65b40f2c4aac2d186"
+          },
+          "single": {
+            "path": "delivery/wsl/single/client",
+            "sha256": "ec720197895bd213a64da9829ca78d927505643e61206c560424fe52eb6666fb"
+          },
+          "static": {
+            "path": "delivery/wsl/static/client",
+            "sha256": "b60d3b687787e82956cb57eb3930239f7eada87c36da62d22660566b1492021c"
+          },
+          "shared": {
+            "path": "delivery/wsl/shared/client",
+            "sha256": "8310b95c5a36b88fd3600018afdeba099f2585104d57ce0af584b725c00aeb07"
+          }
+        },
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084"
+      },
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "5aece0485e9b2870e76e8337be2c7c3e26268232dd610132ed2563bb0900287d",
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084"
+      },
+      "root_packages": {
+        "complete": true,
+        "forms": {
+          "static": [
+            {
+              "path": "root-packages/wsl/static/libxredis.a",
+              "sha256": "a1597337fac491cc2f8cd15b58fc953f12ad02912bde690c1be21b9459aa9510"
+            },
+            {
+              "path": "root-packages/wsl/static/libxrt.a",
+              "sha256": "c0c78ac63a137742990e08318b94b6b4e7a5d314def44543fe3f7dd9a1d8eccc"
+            },
+            {
+              "path": "root-packages/wsl/static/packages.json",
+              "sha256": "7f2f456ad81b12c3aa8491b5ce613adedb85242c306c5c1929799588df34ae52"
+            },
+            {
+              "path": "root-packages/wsl/static/test_package_xredis",
+              "sha256": "aaaf200be539af454fb573645a34b0031cc2202f7550bffcf42eaaef98591b4f"
+            }
+          ],
+          "shared": [
+            {
+              "path": "root-packages/wsl/shared/libxredis.so",
+              "sha256": "28ff7c09507132d348bf4e95517da3ba2279bb880f88433ef782a4a8ce34f971"
+            },
+            {
+              "path": "root-packages/wsl/shared/libxrt.so",
+              "sha256": "2725faffef65e39554d7f3f06008c7851dce304038eb93665b7bad5537964a0f"
+            },
+            {
+              "path": "root-packages/wsl/shared/packages.json",
+              "sha256": "904296d0e1cc119a4da8ce20383fbab7a23eec89f9c19b30ffc8e7092153abfe"
+            },
+            {
+              "path": "root-packages/wsl/shared/test_package_xredis",
+              "sha256": "aedfdf88f9201dfec4ec8889f0f6a560ae50c928506b2dcd895a13cd629e0e8a"
+            }
+          ]
+        }
+      },
+      "exports": {
+        "new_api": [
+          "xredisClusterClientCall",
+          "xredisClusterClientCallCommand",
+          "xredisClusterClientCallCommandSync",
+          "xredisClusterClientCallSync",
+          "xredisClusterClientClose",
+          "xredisClusterClientClosed",
+          "xredisClusterClientConfigInit",
+          "xredisClusterClientCreate",
+          "xredisClusterClientInfo",
+          "xredisClusterClientInvalidate",
+          "xredisClusterClientReady",
+          "xredisClusterClientRelease",
+          "xredisClusterClientRetain",
+          "xredisClusterClientSnapshot",
+          "xredisClusterRefreshDiscover",
+          "xredisCommandCatalogCreate",
+          "xredisCommandCatalogEvaluate",
+          "xredisCommandCatalogInfo",
+          "xredisCommandCatalogRelease",
+          "xredisCommandCatalogRetain",
+          "xredisCommandKeyLimitsInit"
+        ],
+        "exports": [
+          "xredisClientCall",
+          "xredisClientCallAsync",
+          "xredisClientClose",
+          "xredisClientClosed",
+          "xredisClientConfigInit",
+          "xredisClientConnect",
+          "xredisClientConnectInit",
+          "xredisClientDial",
+          "xredisClientDialAddresses",
+          "xredisClientDialConfigInit",
+          "xredisClientInfo",
+          "xredisClientInitConfigInit",
+          "xredisClientReady",
+          "xredisClientRelease",
+          "xredisClientRetain",
+          "xredisClientTakePush",
+          "xredisClusterClientCall",
+          "xredisClusterClientCallCommand",
+          "xredisClusterClientCallCommandSync",
+          "xredisClusterClientCallSync",
+          "xredisClusterClientClose",
+          "xredisClusterClientClosed",
+          "xredisClusterClientConfigInit",
+          "xredisClusterClientCreate",
+          "xredisClusterClientInfo",
+          "xredisClusterClientInvalidate",
+          "xredisClusterClientReady",
+          "xredisClusterClientRelease",
+          "xredisClusterClientRetain",
+          "xredisClusterClientSnapshot",
+          "xredisClusterKeySlot",
+          "xredisClusterLimitsInit",
+          "xredisClusterMapInfo",
+          "xredisClusterMapRelease",
+          "xredisClusterMapRetain",
+          "xredisClusterNodesClose",
+          "xredisClusterNodesClosed",
+          "xredisClusterNodesConfigInit",
+          "xredisClusterNodesCreate",
+          "xredisClusterNodesGetPool",
+          "xredisClusterNodesInfo",
+          "xredisClusterNodesRelease",
+          "xredisClusterNodesRetain",
+          "xredisClusterNodesRetire",
+          "xredisClusterRedirectRead",
+          "xredisClusterRefreshClose",
+          "xredisClusterRefreshClosed",
+          "xredisClusterRefreshConfigInit",
+          "xredisClusterRefreshCreate",
+          "xredisClusterRefreshDiscover",
+          "xredisClusterRefreshInfo",
+          "xredisClusterRefreshInvalidate",
+          "xredisClusterRefreshNextWake",
+          "xredisClusterRefreshPending",
+          "xredisClusterRefreshRelease",
+          "xredisClusterRefreshRetain",
+          "xredisClusterRefreshSnapshot",
+          "xredisClusterRefreshStart",
+          "xredisClusterRefreshStep",
+          "xredisClusterRouteCancel",
+          "xredisClusterRouteConfigInit",
+          "xredisClusterRouteCreate",
+          "xredisClusterRouteDestroy",
+          "xredisClusterRouteNextWake",
+          "xredisClusterRoutePending",
+          "xredisClusterRouteResult",
+          "xredisClusterRouteResultFuture",
+          "xredisClusterRouteStep",
+          "xredisClusterTopologyCreate",
+          "xredisClusterTopologyInfo",
+          "xredisClusterTopologyLookup",
+          "xredisClusterTopologyNode",
+          "xredisClusterTopologyRange",
+          "xredisClusterTopologyRelease",
+          "xredisClusterTopologyRetain",
+          "xredisCommandCatalogCreate",
+          "xredisCommandCatalogEvaluate",
+          "xredisCommandCatalogInfo",
+          "xredisCommandCatalogRelease",
+          "xredisCommandCatalogRetain",
+          "xredisCommandKeyLimitsInit",
+          "xredisCommandSize",
+          "xredisCommandWrite",
+          "xredisLeaseAbort",
+          "xredisLeaseAskingCall",
+          "xredisLeaseAskingCallAsync",
+          "xredisLeaseCall",
+          "xredisLeaseCallAsync",
+          "xredisLeaseClosed",
+          "xredisLeaseRelease",
+          "xredisLeaseRetain",
+          "xredisLeaseReturn",
+          "xredisPoolAcquire",
+          "xredisPoolAcquireAsync",
+          "xredisPoolClose",
+          "xredisPoolClosed",
+          "xredisPoolConfigInit",
+          "xredisPoolConnect",
+          "xredisPoolConnectConfigInit",
+          "xredisPoolConnectInfo",
+          "xredisPoolCreate",
+          "xredisPoolInfo",
+          "xredisPoolRelease",
+          "xredisPoolRetain",
+          "xredisReaderConfigInit",
+          "xredisReaderCreate",
+          "xredisReaderDestroy",
+          "xredisReaderFeed",
+          "xredisReaderFinish",
+          "xredisReaderInfo",
+          "xredisReaderReset",
+          "xredisReplyDouble",
+          "xredisReplyGet",
+          "xredisReplyInfo",
+          "xredisReplyReaderConfigInit",
+          "xredisReplyReaderCreate",
+          "xredisReplyReaderDestroy",
+          "xredisReplyReaderFeed",
+          "xredisReplyReaderFinish",
+          "xredisReplyReaderInfo",
+          "xredisReplyReaderReset",
+          "xredisReplyRelease",
+          "xredisReplyRetain",
+          "xredisSharedPoolAskingCall",
+          "xredisSharedPoolAskingCallAsync",
+          "xredisSharedPoolCall",
+          "xredisSharedPoolCallAsync",
+          "xredisSharedPoolConnect",
+          "xredisSharedPoolCreate"
+        ],
+        "internal_exports": false
+      }
+    }
+  },
+  "interop": {
+    "windows": {
+      "report": "windows-real-shared.json",
+      "sha256": "b421886750745cead3407ba710f0c5a4a47d193b44a064d41d6b6124bf502bee",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "forms": 4,
+      "cases": 144,
+      "exact_incr_effects": 4608,
+      "complete": true,
+      "processes_terminal": true,
+      "runtime_material_removed": true
+    },
+    "wsl": {
+      "report": "wsl-real-shared.json",
+      "sha256": "74bcb7de3ca900e46149eb4a9686e183cd98867432cd941eb6ffa3d786d324a5",
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "forms": 4,
+      "cases": 144,
+      "exact_incr_effects": 4608,
+      "complete": true,
+      "processes_terminal": true,
+      "runtime_material_removed": true
+    }
+  },
+  "footprint": {
+    "windows": {
+      "profiles": {
+        "xredis_cluster_client_sync": {
+          "suite": "xredis_cluster_client_sync",
+          "description": "Synchronous native Cluster facade; no additional runtime, DNS/TLS/HTTP/task/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtNetResolver",
+            "xrtNetDial",
+            "xrtHttp",
+            "xrtWs",
+            "xrtTask",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 471652,
+              "data": 2384,
+              "bss": 11136,
+              "members": 1,
+              "load": 474036,
+              "file": 657673,
+              "path": "out/size/gnu/native/xredis_cluster_client_sync/single/xredis_single.o",
+              "compile_seconds": 11.39637999999104,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 132524,
+              "data": 0,
+              "bss": 0,
+              "members": 15,
+              "load": 132524,
+              "file": 208418,
+              "path": "release/gnu/native/xredis_cluster_client_sync/static/libxredis.a"
+            },
+            "shared": {
+              "text": 151446,
+              "data": 144,
+              "bss": 272,
+              "members": 1,
+              "load": 151590,
+              "file": 216825,
+              "path": "release/gnu/native/xredis_cluster_client_sync/shared/xredis.dll"
+            }
+          }
+        },
+        "xredis_cluster_command_sync": {
+          "suite": "xredis_cluster_command_sync",
+          "description": "Synchronous native Cluster facade; no additional runtime, DNS/TLS/HTTP/task/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtNetResolver",
+            "xrtNetDial",
+            "xrtHttp",
+            "xrtWs",
+            "xrtTask",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 487504,
+              "data": 2384,
+              "bss": 11136,
+              "members": 1,
+              "load": 489888,
+              "file": 676715,
+              "path": "out/size/gnu/native/xredis_cluster_command_sync/single/xredis_single.o",
+              "compile_seconds": 11.80216990003828,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 148496,
+              "data": 0,
+              "bss": 0,
+              "members": 16,
+              "load": 148496,
+              "file": 229852,
+              "path": "release/gnu/native/xredis_cluster_command_sync/static/libxredis.a"
+            },
+            "shared": {
+              "text": 167683,
+              "data": 144,
+              "bss": 272,
+              "members": 1,
+              "load": 167827,
+              "file": 234529,
+              "path": "release/gnu/native/xredis_cluster_command_sync/shared/xredis.dll"
+            }
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+        "profiles": {
+          "xredis_cluster_client_sync": {
+            "prefixes": [
+              "xrtTls",
+              "xrtNetResolver",
+              "xrtNetDial",
+              "xrtHttp",
+              "xrtWs",
+              "xrtTask",
+              "xrtProcess",
+              "xrtTls",
+              "xrtHttp",
+              "xrtWebSocket",
+              "xrtProcess",
+              "xredisCommandCatalog",
+              "xredisClusterClientCallCommand"
+            ],
+            "kinds": {
+              "single": [
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/single/xredis_single.o",
+                  "sha256": "5048409673fb9cb23daefdf884ed981496bc2c12418a6a5793c4ce77bfc41fd0",
+                  "defined_symbols": 1469,
+                  "forbidden_symbols": []
+                }
+              ],
+              "static": [
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/static/libxredis.a",
+                  "sha256": "7c5e900a8573e18c926da32e56076ee84339524883fc074bf326b7ef3ae66d51",
+                  "defined_symbols": 380,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/static/libxrt.a",
+                  "sha256": "567fe4b3091e6e3dde02b5c620994926d75067ebf21c6ca45b452c74ad5f09af",
+                  "defined_symbols": 1387,
+                  "forbidden_symbols": []
+                }
+              ],
+              "shared": [
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/shared/libxredis.dll.a",
+                  "sha256": "ee17a8afd528b07bd61cea99e27d38874fadccda32823378dadbe80b1d88bf32",
+                  "defined_symbols": 834,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/shared/libxrt.dll.a",
+                  "sha256": "adb3b638eae83fcd39e421cf599563c5486680f15df4b567a34a3009189ed525",
+                  "defined_symbols": 3487,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/shared/xredis.dll",
+                  "sha256": "d838d510ce21be20afab4e0c1576a349e6f1df830808f907842c54c35460784c",
+                  "defined_symbols": 1500,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_client_sync/shared/xrt.dll",
+                  "sha256": "646fd03c756300b1a31ca74833cafc7d223f055bd085d715635bc5fb627ad830",
+                  "defined_symbols": 2575,
+                  "forbidden_symbols": []
+                }
+              ]
+            }
+          },
+          "xredis_cluster_command_sync": {
+            "prefixes": [
+              "xrtTls",
+              "xrtNetResolver",
+              "xrtNetDial",
+              "xrtHttp",
+              "xrtWs",
+              "xrtTask",
+              "xrtProcess",
+              "xrtTls",
+              "xrtHttp",
+              "xrtWebSocket",
+              "xrtProcess"
+            ],
+            "kinds": {
+              "single": [
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/single/xredis_single.o",
+                  "sha256": "3b7e8ed6e7ef44d27281eaae2bbd1e0dfdb5c2f515b8f7508491f2f73f5ec796",
+                  "defined_symbols": 1499,
+                  "forbidden_symbols": []
+                }
+              ],
+              "static": [
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/static/libxredis.a",
+                  "sha256": "6f5e827c2680bc83872848762f46bf5c84e6b748d4ea58079495f5e70439d90e",
+                  "defined_symbols": 419,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/static/libxrt.a",
+                  "sha256": "854e81ef2e31fe693499b58e72f2ec14ebb24d998a929ef8ad9ce1557aef312f",
+                  "defined_symbols": 1387,
+                  "forbidden_symbols": []
+                }
+              ],
+              "shared": [
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/shared/libxredis.dll.a",
+                  "sha256": "eb360d1ef72f2a5504dbcb8c7b096e409ed08fd6b0d4ef127807296d2bce6ebd",
+                  "defined_symbols": 890,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/shared/libxrt.dll.a",
+                  "sha256": "d57ca826e04f524c7329b9599653ce6fb1878e27393dcab77ba9d3f696655d39",
+                  "defined_symbols": 3487,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/shared/xredis.dll",
+                  "sha256": "c20df395e9b6fd91cdbb4ba656ac226b2404f4e02c7f99c99a1388c613dd224d",
+                  "defined_symbols": 1539,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/windows/xredis_cluster_command_sync/shared/xrt.dll",
+                  "sha256": "125a96f913a4f9f7ec30b5cab2b3a1afc11405d4bffb7c52f598e54f65c824aa",
+                  "defined_symbols": 2575,
+                  "forbidden_symbols": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "wsl": {
+      "profiles": {
+        "xredis_cluster_client_sync": {
+          "suite": "xredis_cluster_client_sync",
+          "description": "Synchronous native Cluster facade; no additional runtime, DNS/TLS/HTTP/task/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtNetResolver",
+            "xrtNetDial",
+            "xrtHttp",
+            "xrtWs",
+            "xrtTask",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 488821,
+              "data": 4640,
+              "bss": 10908,
+              "members": 1,
+              "load": 493461,
+              "file": 849824,
+              "path": "out/size/gnu/x64/xredis_cluster_client_sync/single/xredis_single.o",
+              "compile_seconds": 8.719881046999944,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 138024,
+              "data": 216,
+              "bss": 0,
+              "members": 15,
+              "load": 138240,
+              "file": 270108,
+              "path": "release/gnu/x64/xredis_cluster_client_sync/static/libxredis.a"
+            },
+            "shared": {
+              "text": 157544,
+              "data": 2048,
+              "bss": 8,
+              "members": 1,
+              "load": 159592,
+              "file": 180872,
+              "path": "release/gnu/x64/xredis_cluster_client_sync/shared/libxredis.so"
+            }
+          }
+        },
+        "xredis_cluster_command_sync": {
+          "suite": "xredis_cluster_command_sync",
+          "description": "Synchronous native Cluster facade; no additional runtime, DNS/TLS/HTTP/task/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtNetResolver",
+            "xrtNetDial",
+            "xrtHttp",
+            "xrtWs",
+            "xrtTask",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 504586,
+              "data": 4896,
+              "bss": 10908,
+              "members": 1,
+              "load": 509482,
+              "file": 872136,
+              "path": "out/size/gnu/x64/xredis_cluster_command_sync/single/xredis_single.o",
+              "compile_seconds": 8.868931094000118,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 153697,
+              "data": 456,
+              "bss": 0,
+              "members": 16,
+              "load": 154153,
+              "file": 295506,
+              "path": "release/gnu/x64/xredis_cluster_command_sync/static/libxredis.a"
+            },
+            "shared": {
+              "text": 174250,
+              "data": 2320,
+              "bss": 8,
+              "members": 1,
+              "load": 176570,
+              "file": 206776,
+              "path": "release/gnu/x64/xredis_cluster_command_sync/shared/libxredis.so"
+            }
+          }
+        }
+      },
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+        "profiles": {
+          "xredis_cluster_client_sync": {
+            "prefixes": [
+              "xrtTls",
+              "xrtNetResolver",
+              "xrtNetDial",
+              "xrtHttp",
+              "xrtWs",
+              "xrtTask",
+              "xrtProcess",
+              "xrtTls",
+              "xrtHttp",
+              "xrtWebSocket",
+              "xrtProcess",
+              "xredisCommandCatalog",
+              "xredisClusterClientCallCommand"
+            ],
+            "kinds": {
+              "single": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_client_sync/single/xredis_single.o",
+                  "sha256": "656f71f1d10a464faf8e06f551e9f6e5d2c544c39e26041ac85d10d34adc9f4c",
+                  "defined_symbols": 2152,
+                  "forbidden_symbols": []
+                }
+              ],
+              "static": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_client_sync/static/libxredis.a",
+                  "sha256": "7435134d1e2a92dee61c777134323262e074403a0930edfd1879a78a280811d0",
+                  "defined_symbols": 577,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/wsl/xredis_cluster_client_sync/static/libxrt.a",
+                  "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+                  "defined_symbols": 1656,
+                  "forbidden_symbols": []
+                }
+              ],
+              "shared": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_client_sync/shared/libxredis.so",
+                  "sha256": "748b64c4027d6b7cda0cbb95623c6a2f5e48d2005304ac68c9906acfeef9b1e5",
+                  "defined_symbols": 288,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/wsl/xredis_cluster_client_sync/shared/libxrt.so",
+                  "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+                  "defined_symbols": 1140,
+                  "forbidden_symbols": []
+                }
+              ]
+            }
+          },
+          "xredis_cluster_command_sync": {
+            "prefixes": [
+              "xrtTls",
+              "xrtNetResolver",
+              "xrtNetDial",
+              "xrtHttp",
+              "xrtWs",
+              "xrtTask",
+              "xrtProcess",
+              "xrtTls",
+              "xrtHttp",
+              "xrtWebSocket",
+              "xrtProcess"
+            ],
+            "kinds": {
+              "single": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_command_sync/single/xredis_single.o",
+                  "sha256": "fa371e1d17ffb5608bf6a906c47a31e681e7b517a3dc36590363cb850b7ab278",
+                  "defined_symbols": 2205,
+                  "forbidden_symbols": []
+                }
+              ],
+              "static": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_command_sync/static/libxredis.a",
+                  "sha256": "a5b752c7f7db31ea6d42688d12a26cdf6434637203310994954b03d7dcfbb90a",
+                  "defined_symbols": 631,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/wsl/xredis_cluster_command_sync/static/libxrt.a",
+                  "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+                  "defined_symbols": 1656,
+                  "forbidden_symbols": []
+                }
+              ],
+              "shared": [
+                {
+                  "path": "footprint/wsl/xredis_cluster_command_sync/shared/libxredis.so",
+                  "sha256": "3e529e9d7caa2ab6b2f6468c213af8e34ac5469dc1cdb08b11c73f1c1a70af60",
+                  "defined_symbols": 317,
+                  "forbidden_symbols": []
+                },
+                {
+                  "path": "footprint/wsl/xredis_cluster_command_sync/shared/libxrt.so",
+                  "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+                  "defined_symbols": 1140,
+                  "forbidden_symbols": []
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "excluded": {
+    "windows": {
+      "complete": true,
+      "records": {
+        "cluster_client": {
+          "defines": [
+            "XRT_FEATURE_ATOMIC",
+            "XRT_FEATURE_QUEUE",
+            "XRT_FEATURE_QUEUE_MPSC",
+            "XRT_FEATURE_NUMBER_INTEGER",
+            "XRT_FEATURE_NUMBER_FLOAT",
+            "XRT_FEATURE_TIME",
+            "XRT_FEATURE_WAIT",
+            "XRT_FEATURE_THREAD",
+            "XRT_FEATURE_SYNC",
+            "XRT_FEATURE_MUTEX",
+            "XRT_FEATURE_COND",
+            "XRT_FEATURE_CANCEL",
+            "XRT_FEATURE_FUTURE",
+            "XRT_FEATURE_NET",
+            "XRT_FEATURE_NET_SOCKET",
+            "XRT_FEATURE_NET_BUFFER",
+            "XRT_FEATURE_NET_PORT",
+            "XRT_FEATURE_NET_PORT_SELECT",
+            "XRT_FEATURE_NET_PORT_IOCP",
+            "XRT_FEATURE_NET_ENGINE",
+            "XRT_FEATURE_NET_TCP",
+            "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL",
+            "XREDIS_FEATURE_XREDIS_COMMAND",
+            "XREDIS_FEATURE_XREDIS_READER",
+            "XREDIS_FEATURE_XREDIS_REPLY",
+            "XREDIS_FEATURE_XREDIS_CLIENT",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_NODES",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
+          ],
+          "records": {
+            "old": {
+              "source_sha256": "2d1ddb97566baa40007890a7124fe8e38f219e14a64d58e4bb6d8cc8db35769f",
+              "object_sha256": "765b70829b78633cbf54830c692b44855e5bec72ba1e03711392e807b3b5550c",
+              "text_sha256": "fd0f1012af580aced361645bdded26595c416ad51b6523d3bd69cb093f16133e",
+              "text_bytes": 13632
+            },
+            "current": {
+              "source_sha256": "d26586459196829e8c28e3e6f0d7695ac38bc688c202ea388be189bfc2fd5410",
+              "object_sha256": "7d2cfe2085146ab567b202a7d54c337ed05c4d214f5603ca58b29abb52bdedcc",
+              "text_sha256": "fd0f1012af580aced361645bdded26595c416ad51b6523d3bd69cb093f16133e",
+              "text_bytes": 13632
+            }
+          }
+        },
+        "cluster_nodes": {
+          "defines": [
+            "XRT_FEATURE_ATOMIC",
+            "XRT_FEATURE_QUEUE",
+            "XRT_FEATURE_QUEUE_MPSC",
+            "XRT_FEATURE_NUMBER_INTEGER",
+            "XRT_FEATURE_NUMBER_FLOAT",
+            "XRT_FEATURE_TIME",
+            "XRT_FEATURE_WAIT",
+            "XRT_FEATURE_THREAD",
+            "XRT_FEATURE_SYNC",
+            "XRT_FEATURE_MUTEX",
+            "XRT_FEATURE_COND",
+            "XRT_FEATURE_CANCEL",
+            "XRT_FEATURE_FUTURE",
+            "XRT_FEATURE_NET",
+            "XRT_FEATURE_NET_SOCKET",
+            "XRT_FEATURE_NET_BUFFER",
+            "XRT_FEATURE_NET_PORT",
+            "XRT_FEATURE_NET_PORT_SELECT",
+            "XRT_FEATURE_NET_PORT_IOCP",
+            "XRT_FEATURE_NET_ENGINE",
+            "XRT_FEATURE_NET_TCP",
+            "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL",
+            "XREDIS_FEATURE_XREDIS_COMMAND",
+            "XREDIS_FEATURE_XREDIS_READER",
+            "XREDIS_FEATURE_XREDIS_REPLY",
+            "XREDIS_FEATURE_XREDIS_CLIENT",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_NODES"
+          ],
+          "records": {
+            "old": {
+              "source_sha256": "b439c0fffc94bea36802a205ed06f1c695c7e7d32715f3eea854fe0f3ab94171",
+              "object_sha256": "e2cb65a398c30ef1194b5b4904a60130290f1d3fe3069b3ae51a14075b759cab",
+              "text_sha256": "acebf0774e0d0bc0bb497bfc1ca5d33c4f63342fc559b1d9c0a76b51d820856b",
+              "text_bytes": 6720
+            },
+            "current": {
+              "source_sha256": "ccfcc5e8a8fe3dff7caf1f1cddffcb284f5eaa60a08cc357d1cab08278a4f3f0",
+              "object_sha256": "92244490957dbcae0a5188b975307a8e73865c98d5e1072ff6b6d5275eb72821",
+              "text_sha256": "acebf0774e0d0bc0bb497bfc1ca5d33c4f63342fc559b1d9c0a76b51d820856b",
+              "text_bytes": 6720
+            }
+          }
+        }
+      },
+      "scope": "Old/current client and node-cache .text under their own feature-excluded leaf selections, same current headers/compiler/flags. Public structures/native client/pool/Core unchanged; this is code compatibility, not full I/O performance evidence."
+    },
+    "wsl": {
+      "complete": true,
+      "records": {
+        "cluster_client": {
+          "defines": [
+            "XRT_FEATURE_ATOMIC",
+            "XRT_FEATURE_QUEUE",
+            "XRT_FEATURE_QUEUE_MPSC",
+            "XRT_FEATURE_NUMBER_INTEGER",
+            "XRT_FEATURE_NUMBER_FLOAT",
+            "XRT_FEATURE_TIME",
+            "XRT_FEATURE_WAIT",
+            "XRT_FEATURE_THREAD",
+            "XRT_FEATURE_SYNC",
+            "XRT_FEATURE_MUTEX",
+            "XRT_FEATURE_COND",
+            "XRT_FEATURE_CANCEL",
+            "XRT_FEATURE_FUTURE",
+            "XRT_FEATURE_NET",
+            "XRT_FEATURE_NET_SOCKET",
+            "XRT_FEATURE_NET_BUFFER",
+            "XRT_FEATURE_NET_PORT",
+            "XRT_FEATURE_NET_PORT_SELECT",
+            "XRT_FEATURE_NET_PORT_EPOLL",
+            "XRT_FEATURE_NET_ENGINE",
+            "XRT_FEATURE_NET_TCP",
+            "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL",
+            "XREDIS_FEATURE_XREDIS_COMMAND",
+            "XREDIS_FEATURE_XREDIS_READER",
+            "XREDIS_FEATURE_XREDIS_REPLY",
+            "XREDIS_FEATURE_XREDIS_CLIENT",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_NODES",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
+          ],
+          "records": {
+            "old": {
+              "source_sha256": "2d1ddb97566baa40007890a7124fe8e38f219e14a64d58e4bb6d8cc8db35769f",
+              "object_sha256": "bef30c625f55ae2ad36f11600a0ea513475d87f6781fa8eacbd13c89bcabe1f8",
+              "text_sha256": "6d342bf6fdffdc5ccf9375c04aff26b34b1d2c48b5ade23b5640f3597be24305",
+              "text_bytes": 13516
+            },
+            "current": {
+              "source_sha256": "d26586459196829e8c28e3e6f0d7695ac38bc688c202ea388be189bfc2fd5410",
+              "object_sha256": "9878c45b9d68d91b294e0604a949884dda6f8e7dbe62ee0a1fafdd454ae57951",
+              "text_sha256": "6d342bf6fdffdc5ccf9375c04aff26b34b1d2c48b5ade23b5640f3597be24305",
+              "text_bytes": 13516
+            }
+          }
+        },
+        "cluster_nodes": {
+          "defines": [
+            "XRT_FEATURE_ATOMIC",
+            "XRT_FEATURE_QUEUE",
+            "XRT_FEATURE_QUEUE_MPSC",
+            "XRT_FEATURE_NUMBER_INTEGER",
+            "XRT_FEATURE_NUMBER_FLOAT",
+            "XRT_FEATURE_TIME",
+            "XRT_FEATURE_WAIT",
+            "XRT_FEATURE_THREAD",
+            "XRT_FEATURE_SYNC",
+            "XRT_FEATURE_MUTEX",
+            "XRT_FEATURE_COND",
+            "XRT_FEATURE_CANCEL",
+            "XRT_FEATURE_FUTURE",
+            "XRT_FEATURE_NET",
+            "XRT_FEATURE_NET_SOCKET",
+            "XRT_FEATURE_NET_BUFFER",
+            "XRT_FEATURE_NET_PORT",
+            "XRT_FEATURE_NET_PORT_SELECT",
+            "XRT_FEATURE_NET_PORT_EPOLL",
+            "XRT_FEATURE_NET_ENGINE",
+            "XRT_FEATURE_NET_TCP",
+            "XREDIS_FEATURE_XREDIS_POOL_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL",
+            "XREDIS_FEATURE_XREDIS_COMMAND",
+            "XREDIS_FEATURE_XREDIS_READER",
+            "XREDIS_FEATURE_XREDIS_REPLY",
+            "XREDIS_FEATURE_XREDIS_CLIENT",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY",
+            "XREDIS_FEATURE_XREDIS_POOL_ASKING",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_CONNECT",
+            "XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE",
+            "XREDIS_FEATURE_XREDIS_CLUSTER_NODES"
+          ],
+          "records": {
+            "old": {
+              "source_sha256": "b439c0fffc94bea36802a205ed06f1c695c7e7d32715f3eea854fe0f3ab94171",
+              "object_sha256": "036936c980fe0d8976df0435a35bfef3c24a86effff3aeca5a590d64674f884d",
+              "text_sha256": "389d46bb3d26b4ea52092843f42399413697a859ae88ae0594cbd2e3f22a25aa",
+              "text_bytes": 6832
+            },
+            "current": {
+              "source_sha256": "ccfcc5e8a8fe3dff7caf1f1cddffcb284f5eaa60a08cc357d1cab08278a4f3f0",
+              "object_sha256": "177e71f4435b3302fb90994ba8a6a373be5ad53c846ba1c709a42a5ce5d3349f",
+              "text_sha256": "389d46bb3d26b4ea52092843f42399413697a859ae88ae0594cbd2e3f22a25aa",
+              "text_bytes": 6832
+            }
+          }
+        }
+      },
+      "scope": "Old/current client and node-cache .text under their own feature-excluded leaf selections, same current headers/compiler/flags. Public structures/native client/pool/Core unchanged; this is code compatibility, not full I/O performance evidence."
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+      "binary": {
+        "path": "performance/windows/calls.exe",
+        "sha256": "f3239c7f149a5cbbe0ae77a718613549b389425932418dc6bc033dba22dfb82b"
+      },
+      "objects": {
+        "src__core__core.o": "c506e169c463374461ef11ff30cba17d2fcd0969f9d3c9dcfc2d6a3d5d83ad29",
+        "src__core__ownership.o": "591f32727754ae1451749d35d7b5555acfaa222ab3adb08b3d242d28238b9eff",
+        "src__core__ownership_scope.o": "42081185e24cbd0497f77ced1016b598a8562547abf48e47413f131b83fdd168",
+        "src__memory__allocator.o": "9d374c4af651b51673fa7d903ab121e19d9a4e2ca372583bb8312b333b637b8d",
+        "src__memory__heap.o": "405a42fc0d235af40473b3f10f2816f7d4a00626ede6c9db9da6bcf8d86d51da",
+        "src__core__error.o": "06c1b45aee93fcfad0f972516af657b2e5dc127bf1b5f2241591ad6c2ac2d653",
+        "src__core__atomic.o": "3b38945b3afea5521045eb0ef6aca3c535a983b1e191aeb044246678572bb059",
+        "src__containers__queue.o": "56b92180f220233ca7b5149373ece9623939a2b001028b3462eb3b0ac8db2153",
+        "src__containers__queue_mpsc.o": "1874aa088a8e7d26f4ff21748228f239d6d2c73dd65e14518e717cf017c4802c",
+        "src__memory__stats.o": "ba7caae23ca8e95a28d9d845b811ad39d4e74b78cf35feb1f4e35c2a84041003",
+        "src__text__number_integer.o": "129c8c15e10bf146bedce50e0894e2aba7132d08c5193a9a1b07f4f56e36b5f7",
+        "src__text__number_float_core.o": "f5f969170ef10577410b6e249a9effc8a71aadd6287dbc1f8c8bdf1de8370db9",
+        "src__text__number_float.o": "0ca2193dec6220579a7c51c2c10739f5eaa17d6063cd25b3a0b0774f348f1547",
+        "src__system__time.o": "8fa145336ab356ad97c4238bb1a156a1cb2d10a6a5f7a6f43931301517d64245",
+        "src__concurrency__wait.o": "d230dc9cad3bcc89b675214519a538eb794b3799f6c9b3534d59f9b261edbb48",
+        "src__concurrency__thread.o": "1618c2c50d25c2f8537a4bc17206540d10a42e4fcdf784b83a82244d5a638510",
+        "src__concurrency__sync.o": "41bf432745d345dbe71befff98914c23f2b42732adad68cd1624fe6d771f9934",
+        "src__concurrency__mutex.o": "97cf1d13415113685d6001fdbda88fde7700060d0c05d77a593af07b608450a3",
+        "src__concurrency__cond.o": "83cc0a444d20a787f072783b1e88ea1036999aa87ed588a74ba341f47b461d1c",
+        "src__concurrency__cancel.o": "08c233096699698bad8131eb294f0388a5b76fc82730999832ea7806d40cdfb2",
+        "src__concurrency__future.o": "ee4f304795ad4d66353142b6f1ba798554bfd072dae6bb312bc6be804654d885",
+        "src__network__net.o": "13e500386632f5ad1279c6ecfc8f4a578cc61120580c422ea44c6e81c1d04024",
+        "src__network__address.o": "4a7fc39be6635d35474e73696eb818fea379d03fca9640f2ded4dd44fd67de98",
+        "src__network__socket.o": "c7eeff41fd57582448672a52f8011f676cc1d5c24357ab960cf77f9abcdc2240",
+        "src__network__buffer.o": "35d599fd77b09051c51fa605f24c4022565d7d19058ab9f64d84d1f43e3042fc",
+        "src__network__buffer_ownership.o": "fcb256cc5c2af709964a0d9823dcb5de82654ade2ac400d56c02ac200a4cbf33",
+        "src__network__port.o": "60ecfeb537fdec9e3a1dea156f216b44f95703bb65898feda204ac4e5a1eb81b",
+        "src__network__port_select.o": "da4f1e90654c3eb028bb214ab32870867bb90029232b96313ff7df0e2ed22da6",
+        "src__network__port_iocp.o": "7ffe9bb9e1a6460952b7048ae87f0c77dfd0c9032513758f580a7f09f7d047f2",
+        "src__network__engine.o": "86c6bfe047867b84ab3a6681186f86e626070cd18b416849fbcae583aeaf41b1",
+        "src__network__tcp.o": "509233fac1f756aefc536510273eee2ea1b8061826a2ac04d27978213799a545",
+        "src__network__tcp_ownership.o": "da81a221bc1cb15b0775b577e118b51fbee112a6c6e1e473af6f29ecbe3b82fd",
+        "extlibs__xredis__src__pool_connect__pool_connect.o": "d4f8467cf38bd1cfe430ab8d1be89295c9f10246712032f764110278af87c486",
+        "extlibs__xredis__src__pool__pool.o": "25028a0c28b45277f4dff97fd885d0751642ba25b1a4fe11a9ef0e0f47120ea0",
+        "extlibs__xredis__src__command__command.o": "c286c64150b75aff113fe60406cd128910ebe3478931861c4116354b6c207c16",
+        "extlibs__xredis__src__reader__reader.o": "2f9929daf5b82f6e4b6864f8450029632714b7ae029cd24893ca8a41516c05d6",
+        "extlibs__xredis__src__reply__reply.o": "e6cd569153a947c3b4a2f72ed1eedd5f18961ac4952da25b9696ca27f31c3987",
+        "extlibs__xredis__src__client__client.o": "79920378b07de421c3a59c8a8ce05e50eedff73b48916ef32533307272e3b0c4",
+        "extlibs__xredis__src__cluster_topology__cluster_topology.o": "47723ce8befc67d8b6c7375b34dcad3fb9119c5153a9d4af4c8a530410ae95f7",
+        "extlibs__xredis__src__pool_asking__pool_asking.o": "a00fbaaa878585d761a38263b4a362fcb983f2e69341a24d51abfe7ce0130fd9",
+        "extlibs__xredis__src__pool_shared__pool_shared.o": "67490152161b131c006e1df025a1d9a9a1e09dc13c6ea8d94883dcae52283302",
+        "extlibs__xredis__src__pool_shared_connect__pool_shared_connect.o": "36651065112a5c73ad312aad7b74c06d031cbf1a3be16192194204aebca59e1e",
+        "extlibs__xredis__src__pool_shared_asking__pool_shared_asking.o": "61d93dfc217584a2539cfee7af2416f2ae484d7bed787a28d9350f7461b93212",
+        "extlibs__xredis__src__cluster_route__cluster_route.o": "5864c8ffe7ae3c1c553663760907dcfdfe5ea579b99cfd42367888da4dac2df9",
+        "extlibs__xredis__src__cluster_nodes__cluster_nodes.o": "12f871058f2e3487ffa934495ad1d18d7962e3a3fe6754eaf10295380f69fff0",
+        "extlibs__xredis__src__cluster_refresh__cluster_refresh.o": "2447bc6ad3a4f883387beafd2a548438b910857365cba7f2986f1f6ac13dcbc2",
+        "extlibs__xredis__src__cluster_client__cluster_client.o": "31cf1ec510969c74c5131742301c884de134a833084eff48e0ebb6de94ba2f06",
+        "extlibs__xredis__src__command_keys__command_keys.o": "4c26079919fb5ea688909f742456bf0f65a1ca52e53f9a125d4707e7b889c6f2"
+      },
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "clock_min_positive_ns": 99.942553788,
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "p99_increase": 0.1
+      },
+      "scope": "Same binary GET, native engines, original operation budgets, Future and validated caller completion. Mode0 explicit async+Wait,1 explicit sync,2 metadata async+Wait,3 metadata sync. Both pairs compare same-function valid warm non-expiring traces; sync adds worker/full-output validation. One caller and one outstanding request, affinity0/1. Setup/bootstrap/catalogue/sample storage excluded. One warmup/seven rotated samples and separate global heap flow runs. Unpinned local closed-loop observations; no fixed-arrival/contention/mixed-load/upstream/TLS/CPU/RSS/native Linux/72h qualification",
+      "raw_report": "windows-performance.json",
+      "raw_sha256": "16c42f42fc385dc8db2509efb9fcac0726983fb5476eb90b8ff62bf6287e4ffc",
+      "cases": [
+        {
+          "affinity": 0,
+          "pipeline": 1,
+          "count": 5113,
+          "allocations": {
+            "0": {
+              "log": "windows-perf-a0-p1-m0-heap.log",
+              "log_sha256": "ea9c77d7bad8119eea28d5ecb7e5c06a65d0a08626518ad8eceda5c93b2fddad",
+              "values": {
+                "requests_per_sec": 18046.55326,
+                "latency_p50_us": 50.89998,
+                "latency_p95_us": 72.899973,
+                "latency_p99_us": 99.099998,
+                "latency_p999_us": 167.700055,
+                "checksum": 5113.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000782,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "1": {
+              "log": "windows-perf-a0-p1-m1-heap.log",
+              "log_sha256": "55bb7bcbaeba554ee823410d66369859705a547b4b656ec409ca312533f660ba",
+              "values": {
+                "requests_per_sec": 17896.526366,
+                "latency_p50_us": 52.200048,
+                "latency_p95_us": 69.000002,
+                "latency_p99_us": 91.900001,
+                "latency_p999_us": 169.400009,
+                "checksum": 5113.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000782,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "2": {
+              "log": "windows-perf-a0-p1-m2-heap.log",
+              "log_sha256": "28d54ab3c41497d66b1f897644401dd63f3e600d5cb07b92116f7e5674d058c7",
+              "values": {
+                "requests_per_sec": 18023.403988,
+                "latency_p50_us": 51.700044,
+                "latency_p95_us": 66.899986,
+                "latency_p99_us": 93.600014,
+                "latency_p999_us": 178.000017,
+                "checksum": 5113.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000782,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "3": {
+              "log": "windows-perf-a0-p1-m3-heap.log",
+              "log_sha256": "7c31fd6a7fe35ee7628af599414185285bdef99beb7b561ed4086749ea511d18",
+              "values": {
+                "requests_per_sec": 17955.96942,
+                "latency_p50_us": 51.599985,
+                "latency_p95_us": 70.800015,
+                "latency_p99_us": 97.500044,
+                "latency_p999_us": 159.699994,
+                "checksum": 5113.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000782,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            }
+          },
+          "metrics": {
+            "requests_per_sec": {
+              "0": {
+                "samples": [
+                  15556.788821,
+                  15243.975156,
+                  16297.370108,
+                  16178.654364,
+                  15422.551673,
+                  17874.478719,
+                  18429.163422
+                ],
+                "median": 16178.654364,
+                "mean": 16428.997466142857,
+                "min": 15243.975156,
+                "max": 18429.163422,
+                "mad": 756.102691,
+                "relative_mad": 0.04673458459452877,
+                "range": 3185.188266000001,
+                "relative_range": 0.19687596967814183,
+                "central_range": 2451.927045999999,
+                "relative_central_range": 0.15155321269832642,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  14650.068795,
+                  14244.553887,
+                  15749.709912,
+                  16596.564871,
+                  15867.863186,
+                  16380.207918,
+                  18206.530353
+                ],
+                "median": 15867.863186,
+                "mean": 15956.499846,
+                "min": 14244.553887,
+                "max": 18206.530353,
+                "mad": 728.7016849999982,
+                "relative_mad": 0.04592311368319093,
+                "range": 3961.9764659999983,
+                "relative_range": 0.24968557010849426,
+                "central_range": 1946.4960759999994,
+                "relative_central_range": 0.12266907353457436,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  15620.360176,
+                  15549.876541,
+                  15791.289372,
+                  15579.128903,
+                  15841.384151,
+                  18162.719925,
+                  18119.5051
+                ],
+                "median": 15791.289372,
+                "mean": 16380.609166857143,
+                "min": 15549.876541,
+                "max": 18162.719925,
+                "mad": 212.16046899999856,
+                "relative_mad": 0.013435284732112283,
+                "range": 2612.8433840000016,
+                "relative_range": 0.1654610540310224,
+                "central_range": 2540.376196999998,
+                "relative_central_range": 0.16087199323346033,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  14187.313606,
+                  15142.437532,
+                  14825.145628,
+                  15830.632974,
+                  14209.270624,
+                  16996.869557,
+                  17937.713718
+                ],
+                "median": 15142.437532,
+                "mean": 15589.911948428573,
+                "min": 14187.313606,
+                "max": 17937.713718,
+                "mad": 933.1669079999992,
+                "relative_mad": 0.06162593743761328,
+                "range": 3750.4001119999994,
+                "relative_range": 0.24767479503048342,
+                "central_range": 2787.598933000001,
+                "relative_central_range": 0.1840918232027745,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "0": {
+                "samples": [
+                  62.399951,
+                  63.099957,
+                  56.600024,
+                  59.199985,
+                  62.100007,
+                  50.799979,
+                  49.900031
+                ],
+                "median": 59.199985,
+                "mean": 57.728562000000004,
+                "min": 49.900031,
+                "max": 63.099957,
+                "mad": 3.1999660000000034,
+                "relative_mad": 0.0540534934257163,
+                "range": 13.199926000000005,
+                "relative_range": 0.22297177946920096,
+                "central_range": 11.599972000000001,
+                "relative_central_range": 0.19594552262133177,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  62.600011,
+                  63.799962,
+                  61.2,
+                  56.299963,
+                  60.799997,
+                  57.40003,
+                  50.499977
+                ],
+                "median": 60.799997,
+                "mean": 58.94284857142857,
+                "min": 50.499977,
+                "max": 63.799962,
+                "mad": 2.999965000000003,
+                "relative_mad": 0.04934153203987828,
+                "range": 13.299985,
+                "relative_range": 0.21874976408304758,
+                "central_range": 6.300048000000004,
+                "relative_central_range": 0.1036192156391061,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  62.000006,
+                  62.200008,
+                  60.999999,
+                  61.800005,
+                  60.499995,
+                  50.699979,
+                  52.399992
+                ],
+                "median": 60.999999,
+                "mean": 58.65714057142857,
+                "min": 50.699979,
+                "max": 62.200008,
+                "mad": 1.0000069999999965,
+                "relative_mad": 0.01639355764579597,
+                "range": 11.500028999999998,
+                "relative_range": 0.18852506866434535,
+                "central_range": 9.600014000000002,
+                "relative_central_range": 0.15737728126848005,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  63.49996,
+                  63.899963,
+                  64.400025,
+                  61.1,
+                  66.40004,
+                  51.199982,
+                  51.099982
+                ],
+                "median": 63.49996,
+                "mean": 60.22856457142858,
+                "min": 51.099982,
+                "max": 66.40004,
+                "mad": 2.39996,
+                "relative_mad": 0.03779466947695715,
+                "range": 15.300058000000007,
+                "relative_range": 0.24094594705256517,
+                "central_range": 13.200043,
+                "relative_central_range": 0.20787482385815678,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p95_us": {
+              "0": {
+                "samples": [
+                  80.19997,
+                  84.1,
+                  84.400002,
+                  80.300029,
+                  89.09998,
+                  76.900003,
+                  71.099959
+                ],
+                "median": 80.300029,
+                "mean": 80.87142042857143,
+                "min": 71.099959,
+                "max": 89.09998,
+                "mad": 3.7999709999999993,
+                "relative_mad": 0.04732216223732621,
+                "range": 18.000021000000004,
+                "relative_range": 0.22415958280662646,
+                "central_range": 7.4999990000000025,
+                "relative_central_range": 0.09339970474979534,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  80.40003,
+                  82.199986,
+                  79.999969,
+                  79.199963,
+                  80.100028,
+                  79.900026,
+                  72.300027
+                ],
+                "median": 79.999969,
+                "mean": 79.157147,
+                "min": 72.300027,
+                "max": 82.199986,
+                "mad": 0.400061000000008,
+                "relative_mad": 0.00500076443779632,
+                "range": 9.899958999999996,
+                "relative_range": 0.12374953545294494,
+                "central_range": 1.2000670000000042,
+                "relative_central_range": 0.015000843312826837,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  80.40003,
+                  82.600047,
+                  81.49998,
+                  82.599989,
+                  82.100043,
+                  72.70003,
+                  69.200003
+                ],
+                "median": 81.49998,
+                "mean": 78.72858885714285,
+                "min": 69.200003,
+                "max": 82.600047,
+                "mad": 1.100009,
+                "relative_mad": 0.013497046256943868,
+                "range": 13.400044000000008,
+                "relative_range": 0.16441775813932727,
+                "central_range": 9.899958999999996,
+                "relative_central_range": 0.12147191937961208,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  83.799998,
+                  82.599989,
+                  91.099995,
+                  80.09997,
+                  97.699987,
+                  76.099997,
+                  72.999974
+                ],
+                "median": 82.599989,
+                "mean": 83.48570142857143,
+                "min": 72.999974,
+                "max": 97.699987,
+                "mad": 6.499991999999992,
+                "relative_mad": 0.07869240757404934,
+                "range": 24.700013,
+                "relative_range": 0.2990316742051866,
+                "central_range": 14.999998000000005,
+                "relative_central_range": 0.18159806292468159,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "0": {
+                "samples": [
+                  99.099998,
+                  102.100021,
+                  103.600032,
+                  100.300007,
+                  105.099985,
+                  103.30003,
+                  96.200034
+                ],
+                "median": 102.100021,
+                "mean": 101.38572957142857,
+                "min": 96.200034,
+                "max": 105.099985,
+                "mad": 1.8000140000000044,
+                "relative_mad": 0.017629908224994436,
+                "range": 8.899951000000001,
+                "relative_range": 0.08716894387318493,
+                "central_range": 4.500033999999999,
+                "relative_central_range": 0.04407476076816869,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "1": {
+                "samples": [
+                  100.100006,
+                  100.000005,
+                  99.800003,
+                  98.199991,
+                  96.69998,
+                  100.300007,
+                  93.700015
+                ],
+                "median": 99.800003,
+                "mean": 98.40000099999999,
+                "min": 93.700015,
+                "max": 100.300007,
+                "mad": 0.5000039999999899,
+                "relative_mad": 0.005010059969637375,
+                "range": 6.599992,
+                "relative_range": 0.06613218238079611,
+                "central_range": 3.400025999999997,
+                "relative_central_range": 0.034068395769487066,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  98.899996,
+                  102.100021,
+                  99.199999,
+                  102.100021,
+                  100.900012,
+                  98.699995,
+                  95.799973
+                ],
+                "median": 99.199999,
+                "mean": 99.671431,
+                "min": 95.799973,
+                "max": 102.100021,
+                "mad": 1.7000129999999984,
+                "relative_mad": 0.017137227995334944,
+                "range": 6.300048000000004,
+                "relative_range": 0.06350854902730396,
+                "central_range": 3.400025999999997,
+                "relative_central_range": 0.03427445599066989,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "3": {
+                "samples": [
+                  105.800049,
+                  100.500009,
+                  107.700005,
+                  98.999997,
+                  111.500034,
+                  120.099983,
+                  99.899946
+                ],
+                "median": 105.800049,
+                "mean": 106.35714614285715,
+                "min": 98.999997,
+                "max": 120.099983,
+                "mad": 5.699984999999998,
+                "relative_mad": 0.053875069566366625,
+                "range": 21.099986,
+                "relative_range": 0.19943266755953962,
+                "central_range": 11.600088,
+                "relative_central_range": 0.10964161273687122,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "0": {
+                "samples": [
+                  173.799985,
+                  164.29997,
+                  174.100045,
+                  178.499962,
+                  174.399989,
+                  169.300009,
+                  184.000004
+                ],
+                "median": 174.100045,
+                "mean": 174.05713771428572,
+                "min": 164.29997,
+                "max": 184.000004,
+                "mad": 4.399917000000016,
+                "relative_mad": 0.02527234843621101,
+                "range": 19.700033999999988,
+                "relative_range": 0.11315352618088059,
+                "central_range": 9.199953000000022,
+                "relative_central_range": 0.052842909948702325,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "1": {
+                "samples": [
+                  168.700004,
+                  154.700014,
+                  174.300047,
+                  165.899983,
+                  164.800033,
+                  161.799951,
+                  171.599968
+                ],
+                "median": 165.899983,
+                "mean": 165.97142857142856,
+                "min": 154.700014,
+                "max": 174.300047,
+                "mad": 4.100031999999999,
+                "relative_mad": 0.024713878361277464,
+                "range": 19.600032999999996,
+                "relative_range": 0.11814367093696446,
+                "central_range": 9.800016999999997,
+                "relative_central_range": 0.0590718384823463,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  167.899998,
+                  178.000017,
+                  162.200013,
+                  173.899985,
+                  152.099994,
+                  162.900018,
+                  171.100022
+                ],
+                "median": 167.899998,
+                "mean": 166.87143528571428,
+                "min": 152.099994,
+                "max": 178.000017,
+                "mad": 5.699984999999998,
+                "relative_mad": 0.033948690100639535,
+                "range": 25.900023000000004,
+                "relative_range": 0.15425862601856613,
+                "central_range": 11.699971999999974,
+                "relative_central_range": 0.06968416997836994,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  171.700027,
+                  165.199977,
+                  167.699996,
+                  156.299968,
+                  205.499993,
+                  232.500024,
+                  181.499985
+                ],
+                "median": 171.700027,
+                "mean": 182.91428142857143,
+                "min": 156.299968,
+                "max": 232.500024,
+                "mad": 9.799958000000004,
+                "relative_mad": 0.05707604227691824,
+                "range": 76.20005599999999,
+                "relative_range": 0.4437975772712021,
+                "central_range": 40.300016,
+                "relative_central_range": 0.23471176274188937,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "regression": {
+            "0-1-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -0.01920995226225719,
+              "within_budget": null
+            },
+            "2-3-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -0.041089224870421104,
+              "within_budget": null
+            },
+            "0-1-latency_p99_us": {
+              "qualified": true,
+              "relative_change": -0.022527106042416922,
+              "within_budget": true
+            },
+            "2-3-latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.06653276276746722,
+              "within_budget": null
+            }
+          }
+        },
+        {
+          "affinity": 1,
+          "pipeline": 1,
+          "count": 5442,
+          "allocations": {
+            "0": {
+              "log": "windows-perf-a1-p1-m0-heap.log",
+              "log_sha256": "ca5bf71f4485fb9b74add3fea1bf8025caa3184b7a47c21494bd7a4b5c1470cf",
+              "values": {
+                "requests_per_sec": 9709.700995,
+                "latency_p50_us": 82.199986,
+                "latency_p95_us": 123.000005,
+                "latency_p99_us": 566.299947,
+                "latency_p999_us": 2547.800017,
+                "checksum": 5442.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000919,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "1": {
+              "log": "windows-perf-a1-p1-m1-heap.log",
+              "log_sha256": "8c82de971ee2924315c0722b83540a4090ade9b340ec4be92dae0dcfa0d0509b",
+              "values": {
+                "requests_per_sec": 13452.642102,
+                "latency_p50_us": 67.400048,
+                "latency_p95_us": 105.69999,
+                "latency_p99_us": 122.500001,
+                "latency_p999_us": 348.300033,
+                "checksum": 5442.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000919,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "2": {
+              "log": "windows-perf-a1-p1-m2-heap.log",
+              "log_sha256": "707c023c70288d2fecd762f31a6bc4d33ce25f6544a4c453beb4e83d1fb7fc59",
+              "values": {
+                "requests_per_sec": 16096.529485,
+                "latency_p50_us": 57.999976,
+                "latency_p95_us": 77.200006,
+                "latency_p99_us": 104.299979,
+                "latency_p999_us": 171.000022,
+                "checksum": 5442.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000919,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            },
+            "3": {
+              "log": "windows-perf-a1-p1-m3-heap.log",
+              "log_sha256": "ae6c63dd4442ea1ae90c8c0a27b9dd8fbb8f409c7e5f070eaf86179d3491e64a",
+              "values": {
+                "requests_per_sec": 15258.935044,
+                "latency_p50_us": 58.70004,
+                "latency_p95_us": 91.800001,
+                "latency_p99_us": 113.100046,
+                "latency_p999_us": 178.000017,
+                "checksum": 5442.0,
+                "heap_blocks_per_request": 14.0,
+                "heap_bytes_per_request": 3051.0,
+                "heap_backing_allocs_per_request": 0.000919,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 14.0
+              }
+            }
+          },
+          "metrics": {
+            "requests_per_sec": {
+              "0": {
+                "samples": [
+                  14316.61448,
+                  15439.217653,
+                  14845.655108,
+                  13740.186256,
+                  15303.557108,
+                  15450.601373,
+                  11923.565606
+                ],
+                "median": 14845.655108,
+                "mean": 14431.342512000001,
+                "min": 11923.565606,
+                "max": 15450.601373,
+                "mad": 593.5625449999989,
+                "relative_mad": 0.03998223996731144,
+                "range": 3527.0357669999994,
+                "relative_range": 0.23758033857996314,
+                "central_range": 1699.0313969999988,
+                "relative_central_range": 0.11444637401581745,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  12446.017514,
+                  10380.264451,
+                  9891.908811,
+                  13025.102882,
+                  14902.807242,
+                  12623.805269,
+                  14555.908383
+                ],
+                "median": 12623.805269,
+                "mean": 12546.544936,
+                "min": 9891.908811,
+                "max": 14902.807242,
+                "mad": 1932.1031139999996,
+                "relative_mad": 0.15305235409045975,
+                "range": 5010.898431000001,
+                "relative_range": 0.3969404093475011,
+                "central_range": 4175.643932000001,
+                "relative_central_range": 0.3307753758095459,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  15621.689863,
+                  15735.623027,
+                  11502.352677,
+                  13711.331376,
+                  15904.156561,
+                  12294.9903,
+                  13114.605554
+                ],
+                "median": 13711.331376,
+                "mean": 13983.53562257143,
+                "min": 11502.352677,
+                "max": 15904.156561,
+                "mad": 1910.3584869999995,
+                "relative_mad": 0.13932698689959805,
+                "range": 4401.803883999999,
+                "relative_range": 0.32103402385160174,
+                "central_range": 3440.632727,
+                "relative_central_range": 0.25093352590270007,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  15794.707118,
+                  13486.494175,
+                  12994.914743,
+                  14503.796651,
+                  14648.926444,
+                  14472.465085,
+                  14881.969735
+                ],
+                "median": 14503.796651,
+                "mean": 14397.61056442857,
+                "min": 12994.914743,
+                "max": 15794.707118,
+                "mad": 378.173084,
+                "relative_mad": 0.026074075161135545,
+                "range": 2799.792375000001,
+                "relative_range": 0.19303858447346353,
+                "central_range": 1395.4755600000008,
+                "relative_central_range": 0.09621450118054338,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "0": {
+                "samples": [
+                  62.800013,
+                  57.600031,
+                  60.899998,
+                  67.49999,
+                  58.299978,
+                  57.800033,
+                  76.900003
+                ],
+                "median": 60.899998,
+                "mean": 63.114292285714285,
+                "min": 57.600031,
+                "max": 76.900003,
+                "mad": 3.0999649999999974,
+                "relative_mad": 0.05090254682766981,
+                "range": 19.299971999999997,
+                "relative_range": 0.3169125227229071,
+                "central_range": 9.699956999999998,
+                "relative_central_range": 0.15927680326032193,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  72.80003,
+                  76.600001,
+                  88.699977,
+                  71.599963,
+                  60.499995,
+                  73.599978,
+                  60.199993
+                ],
+                "median": 72.80003,
+                "mean": 71.999991,
+                "min": 60.199993,
+                "max": 88.699977,
+                "mad": 3.7999709999999993,
+                "relative_mad": 0.05219738233624353,
+                "range": 28.499984000000005,
+                "relative_range": 0.39148313537782886,
+                "central_range": 16.100006000000008,
+                "relative_central_range": 0.22115383743660555,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  57.999976,
+                  57.300029,
+                  82.699989,
+                  69.300004,
+                  58.199978,
+                  72.600029,
+                  67.400048
+                ],
+                "median": 67.400048,
+                "mean": 66.50000757142857,
+                "min": 57.300029,
+                "max": 82.699989,
+                "mad": 9.200069999999997,
+                "relative_mad": 0.13649945768584612,
+                "range": 25.39996,
+                "relative_range": 0.3768537375522344,
+                "central_range": 14.60005300000001,
+                "relative_central_range": 0.21661784276474122,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  58.900041,
+                  65.799977,
+                  71.899965,
+                  65.000029,
+                  63.600019,
+                  60.999999,
+                  59.699989
+                ],
+                "median": 63.600019,
+                "mean": 63.70000271428571,
+                "min": 58.900041,
+                "max": 71.899965,
+                "mad": 2.6000200000000007,
+                "relative_mad": 0.04088080539724368,
+                "range": 12.999923999999993,
+                "relative_range": 0.20440125969144746,
+                "central_range": 6.099987999999996,
+                "relative_central_range": 0.09591173235341323,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p95_us": {
+              "0": {
+                "samples": [
+                  99.4,
+                  90.099988,
+                  93.900017,
+                  99.199999,
+                  92.800008,
+                  90.400048,
+                  119.599979
+                ],
+                "median": 93.900017,
+                "mean": 97.91429128571428,
+                "min": 90.099988,
+                "max": 119.599979,
+                "mad": 3.800029000000009,
+                "relative_mad": 0.040468885112129524,
+                "range": 29.49999100000001,
+                "relative_range": 0.314163851535831,
+                "central_range": 8.999952000000008,
+                "relative_central_range": 0.09584611683297146,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  107.800006,
+                  118.300028,
+                  124.000013,
+                  107.499945,
+                  91.499998,
+                  112.200039,
+                  100.799953
+                ],
+                "median": 107.800006,
+                "mean": 108.871426,
+                "min": 91.499998,
+                "max": 124.000013,
+                "mad": 7.000052999999994,
+                "relative_mad": 0.06493555297204709,
+                "range": 32.50001499999999,
+                "relative_range": 0.30148435242202115,
+                "central_range": 17.500074999999995,
+                "relative_central_range": 0.16233834903497127,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  85.000007,
+                  87.100023,
+                  113.899994,
+                  99.800003,
+                  80.600032,
+                  100.300007,
+                  109.400018
+                ],
+                "median": 99.800003,
+                "mean": 96.58572628571429,
+                "min": 80.600032,
+                "max": 113.899994,
+                "mad": 12.69998000000001,
+                "relative_mad": 0.12725430479195488,
+                "range": 33.29996200000001,
+                "relative_range": 0.33366694387774726,
+                "central_range": 24.400011000000006,
+                "relative_central_range": 0.2444890808269816,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  80.000027,
+                  106.700056,
+                  107.800006,
+                  91.499998,
+                  91.299997,
+                  98.999997,
+                  90.799993
+                ],
+                "median": 91.499998,
+                "mean": 95.30001057142856,
+                "min": 80.000027,
+                "max": 107.800006,
+                "mad": 7.499998999999988,
+                "relative_mad": 0.08196720397742509,
+                "range": 27.799978999999993,
+                "relative_range": 0.30382491374480675,
+                "central_range": 15.900063000000003,
+                "relative_central_range": 0.17377118412614612,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "0": {
+                "samples": [
+                  112.799986,
+                  112.600042,
+                  115.100003,
+                  119.100034,
+                  110.69997,
+                  110.400026,
+                  180.099974
+                ],
+                "median": 112.799986,
+                "mean": 122.97143357142856,
+                "min": 110.400026,
+                "max": 180.099974,
+                "mad": 2.300016999999997,
+                "relative_mad": 0.020390224161907226,
+                "range": 69.699948,
+                "relative_range": 0.6179074171161688,
+                "central_range": 8.400064,
+                "relative_central_range": 0.0744686617248339,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  237.700006,
+                  374.800002,
+                  232.200022,
+                  127.900043,
+                  109.300017,
+                  148.399966,
+                  120.400044
+                ],
+                "median": 148.399966,
+                "mean": 192.95715714285714,
+                "min": 109.300017,
+                "max": 374.800002,
+                "mad": 39.09994900000001,
+                "relative_mad": 0.2634768056483248,
+                "range": 265.49998500000004,
+                "relative_range": 1.7890838667712365,
+                "central_range": 117.29996200000001,
+                "relative_central_range": 0.7904311918777663,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  108.900014,
+                  109.899964,
+                  165.59998,
+                  115.700008,
+                  107.999949,
+                  174.199988,
+                  136.899995
+                ],
+                "median": 115.700008,
+                "mean": 131.31427114285714,
+                "min": 107.999949,
+                "max": 174.199988,
+                "mad": 7.700058999999996,
+                "relative_mad": 0.06655193143979728,
+                "range": 66.20003899999999,
+                "relative_range": 0.5721697011464337,
+                "central_range": 56.69996599999999,
+                "relative_central_range": 0.49006017354812964,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  105.000043,
+                  125.099963,
+                  127.099978,
+                  109.200017,
+                  113.999995,
+                  115.100003,
+                  111.799978
+                ],
+                "median": 113.999995,
+                "mean": 115.32856814285715,
+                "min": 105.000043,
+                "max": 127.099978,
+                "mad": 4.799977999999996,
+                "relative_mad": 0.042105072022152246,
+                "range": 22.099934999999988,
+                "relative_range": 0.19385908744995986,
+                "central_range": 15.899946,
+                "relative_central_range": 0.13947321664356213,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "0": {
+                "samples": [
+                  189.499988,
+                  228.999997,
+                  195.599976,
+                  377.500022,
+                  208.200014,
+                  250.699988,
+                  411.999994
+                ],
+                "median": 228.999997,
+                "mean": 266.07142557142856,
+                "min": 189.499988,
+                "max": 411.999994,
+                "mad": 33.40002100000001,
+                "relative_mad": 0.1458516219980562,
+                "range": 222.500006,
+                "relative_range": 0.9716157594534816,
+                "central_range": 181.900046,
+                "relative_central_range": 0.7943233553841488,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  959.19997,
+                  3029.899963,
+                  1872.9,
+                  187.699974,
+                  216.200016,
+                  316.10002,
+                  200.600014
+                ],
+                "median": 316.10002,
+                "mean": 968.942851,
+                "min": 187.699974,
+                "max": 3029.899963,
+                "mad": 128.40004599999997,
+                "relative_mad": 0.40620068926284786,
+                "range": 2842.1999889999997,
+                "relative_range": 8.991457795542056,
+                "central_range": 1672.299986,
+                "relative_central_range": 5.29041404679443,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  197.099987,
+                  193.600019,
+                  429.500011,
+                  169.900013,
+                  221.800001,
+                  874.899968,
+                  421.699951
+                ],
+                "median": 221.800001,
+                "mean": 358.3571357142857,
+                "min": 169.900013,
+                "max": 874.899968,
+                "mad": 51.89998800000001,
+                "relative_mad": 0.23399453456269373,
+                "range": 704.999955,
+                "relative_range": 3.178539007310464,
+                "central_range": 235.89999199999997,
+                "relative_central_range": 1.0635707436268225,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  175.699999,
+                  256.099971,
+                  219.999987,
+                  179.599971,
+                  169.700012,
+                  216.500019,
+                  189.699989
+                ],
+                "median": 189.699989,
+                "mean": 201.0428497142857,
+                "min": 169.700012,
+                "max": 256.099971,
+                "mad": 19.999977,
+                "relative_mad": 0.10542951059422571,
+                "range": 86.399959,
+                "relative_range": 0.4554557934107208,
+                "central_range": 44.29998800000001,
+                "relative_central_range": 0.23352657126406062,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "regression": {
+            "0-1-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -0.14966330706434727,
+              "within_budget": null
+            },
+            "2-3-requests_per_sec": {
+              "qualified": false,
+              "relative_change": 0.057796376826477536,
+              "within_budget": null
+            },
+            "0-1-latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.3156026987450158,
+              "within_budget": null
+            },
+            "2-3-latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.014693283340135976,
+              "within_budget": null
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "6910cb0057e6f8c45af904259c22e867c3b9b84c1ea6e0495a0edde520954084",
+      "binary": {
+        "path": "performance/wsl/calls",
+        "sha256": "6e6fcc971b5e6799e8a76251ff271d05ea6c78d10d1bee6445c3d1f75db54c6f"
+      },
+      "objects": {
+        "src__core__core.o": "0798c0eff264c6a4b16c110be24d84c43ef0933c0de826553e9de07a61ca3d3a",
+        "src__core__ownership.o": "94a13b6ebe8a235cfae488329cb857eac006ecf0f9444b25f3b7ed333735729e",
+        "src__core__ownership_scope.o": "c2e7c29c92e8ca9b6ff103b405c5cc4b875e026dd337a358e1998e882673dda7",
+        "src__memory__allocator.o": "a3b695625d8701099946de214973b46274941e2abb7ef11259d51d965ede8f9c",
+        "src__memory__heap.o": "12ba71b1f7c3d82bf8a61f005905653aa591208b0a99ed3056d6d7b9bfc91d11",
+        "src__core__error.o": "f5aa15c101f53174abd84a8de75d41df36d003c0b5e5c05a77eb15201736b705",
+        "src__core__atomic.o": "665f54a5dfc12efe2351f890d3ec900dec306fc2c53b3c6f4e776e27509080c1",
+        "src__containers__queue.o": "48fc5b48976c96ab7bd364b6f5873b72f50dd5ae8c12ae311bd1eeffada28b6c",
+        "src__containers__queue_mpsc.o": "9c1e50c84c582264653488777a6596a80e44b679ec9d4862ebc45a29a40bca1e",
+        "src__memory__stats.o": "8b86a5ffa7f28c7ab8d459fcfc8978842403ef7e3a126228919f9875747d63e6",
+        "src__text__number_integer.o": "2a6c41be8e8e7273e1a1d0b111da1027f820455617f0eb2cef44ad58d0733529",
+        "src__text__number_float_core.o": "2d3f87acd00d9cb167fea2cbc0f533e74d8b5f0a0e8f24c6b93adbcf7f12fcdb",
+        "src__text__number_float.o": "013113cd0ecb4111c156dfca62ee5fa64071c6492622a4d0cafa96ed57aa0a04",
+        "src__system__time.o": "d5f425769963b53137a8c60669939997e20060896a5a45a69c0a748d912e4e71",
+        "src__concurrency__wait.o": "8041898c7e94ea9f68f4bc915c1a0d655ef37f45a6f80ccbedc6716a9894610b",
+        "src__concurrency__thread.o": "c1fe98bd093c5e45104c679f0325f94c04c40b32f0689a02156c6525512ff66a",
+        "src__concurrency__sync.o": "0af162bb9b7a62f16ba5404ed5728d222df0c0bdf096513c7feb886da76f7ee4",
+        "src__concurrency__mutex.o": "a50a214c177d1fff968dfec9ced53993ba7e400ab30e2aeefc044c01a642e54d",
+        "src__concurrency__cond.o": "2d158594a87da175c4efd98317a0ce384523ebfcd24135d6fcc2efa6ca3c662e",
+        "src__concurrency__cancel.o": "e767ba5750d5bb83d623b6eaa33a6ec8bc8d4270874f57d8de35a23ac8255a2f",
+        "src__concurrency__future.o": "73cfcd9c01c4e85a82e22a88af5cd222d5cf1ab9698d3e7957e40bfedf00802f",
+        "src__network__net.o": "5842581a58e4a226538de85bb05c2524c39c470c050399e079b36af8add72456",
+        "src__network__address.o": "116e1ee492d37f103373fa308fb65f1f7abc7853f7b015bec5bb7867dbcae68b",
+        "src__network__socket.o": "ffec0b84d01bef4a440af24e683e309a7b306722f8c05f1bba2222dd69d2b18f",
+        "src__network__buffer.o": "ed3c4dedf66a8a3ff18bc9505bb245238b5bbc681962b9c64599c1ab25c250dc",
+        "src__network__buffer_ownership.o": "930cdb7212cc97baa0606219859157a5e0091effad56ba7860c75cd3bd6c47e2",
+        "src__network__port.o": "28bc91eae72fe6252fdba1058be8f131a8940081455a206ccd20d048a18b47e8",
+        "src__network__port_select.o": "634be787972e36d91dc6614e682ffbe26feb76e8d9321cd2e9b994aa0ff160e9",
+        "src__network__port_epoll.o": "ef2084132f38db1d5bf76956bd155d6fcfb4c4c1fcf1cdb60a7f8bea1c8481bb",
+        "src__network__engine.o": "312b02ab7e4231e388d9f35306c052805cbc2f2bd561783fb7fe99eb32e72bbb",
+        "src__network__tcp.o": "23173b321accdbfe6d195e24f172125a8cca7e34e31bd82f0c5a198e0517ace0",
+        "src__network__tcp_ownership.o": "0ada42898e6504c32669e7e1f5a8bb6d9e57f209194d69a23393f0c8f8c2eb66",
+        "extlibs__xredis__src__pool_connect__pool_connect.o": "84faba78fb3a3ce514312fbaff687609d9c81658a3fdc80ed2e23ba49a818162",
+        "extlibs__xredis__src__pool__pool.o": "4b3feaeb2f16111145fb61efc4570f0f2d97b7fba122e1171ae9117dd07c8098",
+        "extlibs__xredis__src__command__command.o": "29e308f055161bfea4016876c50cdec196c94adae821e68e746e2c4c37987e6f",
+        "extlibs__xredis__src__reader__reader.o": "20ad61cea3d4a587ad8c8817b1606d6e75aac157e96f21085ed356947dda46bb",
+        "extlibs__xredis__src__reply__reply.o": "610ce05f50ef761e434f5376025f23a84a7c4aea00176a489186c037463e33df",
+        "extlibs__xredis__src__client__client.o": "4f4edc000c1a1fd83f2d1166ccf8fc7646e52e48cee6afea72ece2cba1f3fc60",
+        "extlibs__xredis__src__cluster_topology__cluster_topology.o": "8b5cd121b5093aeca6588bfb517909834ea80eab09a5dbc6148b3946545a7b9e",
+        "extlibs__xredis__src__pool_asking__pool_asking.o": "6def84c16aefb97d9a53ae463acd291246894c85cec8925c73956db460b3bcac",
+        "extlibs__xredis__src__pool_shared__pool_shared.o": "25a74ea725d30d1e680e8703edac6fbdb68cf1e5299cd2a03fe05ce0e40b75c7",
+        "extlibs__xredis__src__pool_shared_connect__pool_shared_connect.o": "75c1f24988545d92cc56f794e6e5cfba64db592256aafb132ffcdd210612168d",
+        "extlibs__xredis__src__pool_shared_asking__pool_shared_asking.o": "e264983af0ae26d15b5b98d3c5d6019712f7487168700b6f303ca2c1f4463b0b",
+        "extlibs__xredis__src__cluster_route__cluster_route.o": "fe01ca7f6250a2d9ec8a1acf48a200b4ad5b95702b4c19eebe53fdb5a4f2af85",
+        "extlibs__xredis__src__cluster_nodes__cluster_nodes.o": "af717174c03e30a48470885ea016d8d1f7d5878169d9239540b6200cd3b609f6",
+        "extlibs__xredis__src__cluster_refresh__cluster_refresh.o": "57825433dcf774845ffb6c803a2b794ce869eb751d2bb7cd28b363edfda8c499",
+        "extlibs__xredis__src__cluster_client__cluster_client.o": "ddfe2e5ea65748cf9702caa89b985dc19ae549c3a65732f949b8cc9b8479a53e",
+        "extlibs__xredis__src__command_keys__command_keys.o": "d7731778a6d10a11bc135cef3af9073ef95fb4c1e8bffbebd08627e6247b5a26"
+      },
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "clock_min_positive_ns": 99.999851955,
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06,
+        "throughput_loss": 0.05,
+        "p99_increase": 0.1
+      },
+      "scope": "Same binary GET, native engines, original operation budgets, Future and validated caller completion. Mode0 explicit async+Wait,1 explicit sync,2 metadata async+Wait,3 metadata sync. Both pairs compare same-function valid warm non-expiring traces; sync adds worker/full-output validation. One caller and one outstanding request, affinity0/1. Setup/bootstrap/catalogue/sample storage excluded. One warmup/seven rotated samples and separate global heap flow runs. Unpinned local closed-loop observations; no fixed-arrival/contention/mixed-load/upstream/TLS/CPU/RSS/native Linux/72h qualification",
+      "raw_report": "wsl-performance.json",
+      "raw_sha256": "579dc99fbcaa2d48217632cafd2edbc5090305ddd320e1845ff544dd1c4b709a",
+      "cases": [
+        {
+          "affinity": 0,
+          "pipeline": 1,
+          "count": 2020,
+          "allocations": {
+            "0": {
+              "log": "wsl-perf-a0-p1-m0-heap.log",
+              "log_sha256": "207117589d70fa5b75f3570ea48f0b0f845400cc261bc101b9626a26fd71fe4e",
+              "values": {
+                "requests_per_sec": 6261.00711,
+                "latency_p50_us": 155.8,
+                "latency_p95_us": 197.2,
+                "latency_p99_us": 226.1,
+                "latency_p999_us": 295.0,
+                "checksum": 2020.0,
+                "heap_blocks_per_request": 16.046535,
+                "heap_bytes_per_request": 3869.605941,
+                "heap_backing_allocs_per_request": 0.003465,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.046535
+              }
+            },
+            "1": {
+              "log": "wsl-perf-a0-p1-m1-heap.log",
+              "log_sha256": "93558d2f4af9615f0f85ab93a1e1c74b8160590cd5124ff87077fad61fd5cc8e",
+              "values": {
+                "requests_per_sec": 6357.161043,
+                "latency_p50_us": 153.6,
+                "latency_p95_us": 196.7,
+                "latency_p99_us": 231.0,
+                "latency_p999_us": 314.9,
+                "checksum": 2020.0,
+                "heap_blocks_per_request": 16.043564,
+                "heap_bytes_per_request": 3869.439604,
+                "heap_backing_allocs_per_request": 0.003465,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.043564
+              }
+            },
+            "2": {
+              "log": "wsl-perf-a0-p1-m2-heap.log",
+              "log_sha256": "db10c461a293820f11d0e0b9abe478a23d6d3c1d9c184f9a80e443166e4f21a8",
+              "values": {
+                "requests_per_sec": 6397.74392,
+                "latency_p50_us": 153.4,
+                "latency_p95_us": 189.0,
+                "latency_p99_us": 217.9,
+                "latency_p999_us": 269.4,
+                "checksum": 2020.0,
+                "heap_blocks_per_request": 16.044059,
+                "heap_bytes_per_request": 3869.467327,
+                "heap_backing_allocs_per_request": 0.003465,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.044059
+              }
+            },
+            "3": {
+              "log": "wsl-perf-a0-p1-m3-heap.log",
+              "log_sha256": "9610406baa045ebe7d6f7a99b9adf05dba5fdd6bf17004ed342a0b85c41356c6",
+              "values": {
+                "requests_per_sec": 6502.768968,
+                "latency_p50_us": 150.2,
+                "latency_p95_us": 185.3,
+                "latency_p99_us": 214.2,
+                "latency_p999_us": 304.9,
+                "checksum": 2020.0,
+                "heap_blocks_per_request": 16.039604,
+                "heap_bytes_per_request": 3869.217822,
+                "heap_backing_allocs_per_request": 0.003465,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.039604
+              }
+            }
+          },
+          "metrics": {
+            "requests_per_sec": {
+              "0": {
+                "samples": [
+                  6859.632685,
+                  6559.817225,
+                  5570.205641,
+                  6570.276525,
+                  3145.103042,
+                  6223.540306,
+                  6110.514998
+                ],
+                "median": 6223.540306,
+                "mean": 5862.727203142857,
+                "min": 3145.103042,
+                "max": 6859.632685,
+                "mad": 346.73621900000035,
+                "relative_mad": 0.05571366167030659,
+                "range": 3714.5296429999994,
+                "relative_range": 0.5968515443563353,
+                "central_range": 1000.0708840000007,
+                "relative_central_range": 0.16069163768986133,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  7386.274915,
+                  6037.605862,
+                  5474.052959,
+                  5942.579916,
+                  3162.277078,
+                  5552.133557,
+                  5602.237773
+                ],
+                "median": 5602.237773,
+                "mean": 5593.880294285715,
+                "min": 3162.277078,
+                "max": 7386.274915,
+                "mad": 340.34214299999985,
+                "relative_mad": 0.060751106395426434,
+                "range": 4223.997837,
+                "relative_range": 0.7539840342653018,
+                "central_range": 563.5529030000007,
+                "relative_central_range": 0.10059424926875568,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  6822.293563,
+                  6190.703519,
+                  6099.799938,
+                  5789.466846,
+                  3577.89672,
+                  5899.977259,
+                  5644.889487
+                ],
+                "median": 5899.977259,
+                "mean": 5717.8610474285715,
+                "min": 3577.89672,
+                "max": 6822.293563,
+                "mad": 255.08777199999986,
+                "relative_mad": 0.04323538223997074,
+                "range": 3244.396843,
+                "relative_range": 0.5498998895378624,
+                "central_range": 545.8140319999993,
+                "relative_central_range": 0.09251120945718874,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  6415.117645,
+                  6760.811321,
+                  6438.357782,
+                  5433.852751,
+                  6023.343701,
+                  4948.096416,
+                  6301.036033
+                ],
+                "median": 6301.036033,
+                "mean": 6045.802235571428,
+                "min": 4948.096416,
+                "max": 6760.811321,
+                "mad": 277.69233200000053,
+                "relative_mad": 0.04407090049091305,
+                "range": 1812.7149049999998,
+                "relative_range": 0.2876852148609193,
+                "central_range": 1004.5050309999997,
+                "relative_central_range": 0.15941902660755655,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "0": {
+                "samples": [
+                  142.3,
+                  149.2,
+                  166.0,
+                  148.6,
+                  184.1,
+                  156.7,
+                  159.8
+                ],
+                "median": 156.7,
+                "mean": 158.1,
+                "min": 142.3,
+                "max": 184.1,
+                "mad": 8.099999999999994,
+                "relative_mad": 0.05169112954690488,
+                "range": 41.79999999999998,
+                "relative_range": 0.26675175494575615,
+                "central_range": 17.400000000000006,
+                "relative_central_range": 0.11104020421186986,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  131.5,
+                  161.7,
+                  168.0,
+                  163.8,
+                  192.2,
+                  169.3,
+                  169.2
+                ],
+                "median": 168.0,
+                "mean": 165.1,
+                "min": 131.5,
+                "max": 192.2,
+                "mad": 4.199999999999989,
+                "relative_mad": 0.024999999999999932,
+                "range": 60.69999999999999,
+                "relative_range": 0.36130952380952375,
+                "central_range": 7.600000000000023,
+                "relative_central_range": 0.045238095238095376,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  139.1,
+                  156.2,
+                  159.7,
+                  169.0,
+                  172.7,
+                  164.6,
+                  166.3
+                ],
+                "median": 164.6,
+                "mean": 161.08571428571426,
+                "min": 139.1,
+                "max": 172.7,
+                "mad": 4.900000000000006,
+                "relative_mad": 0.029769137302551676,
+                "range": 33.599999999999994,
+                "relative_range": 0.20413122721749694,
+                "central_range": 12.800000000000011,
+                "relative_central_range": 0.07776427703523701,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  150.5,
+                  144.6,
+                  152.5,
+                  175.1,
+                  161.9,
+                  176.0,
+                  154.6
+                ],
+                "median": 154.6,
+                "mean": 159.31428571428572,
+                "min": 144.6,
+                "max": 176.0,
+                "mad": 7.300000000000011,
+                "relative_mad": 0.047218628719275624,
+                "range": 31.400000000000006,
+                "relative_range": 0.203104786545925,
+                "central_range": 24.599999999999994,
+                "relative_central_range": 0.15912031047865458,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p95_us": {
+              "0": {
+                "samples": [
+                  178.7,
+                  190.8,
+                  230.1,
+                  184.7,
+                  712.3,
+                  194.2,
+                  203.9
+                ],
+                "median": 194.2,
+                "mean": 270.6714285714285,
+                "min": 178.7,
+                "max": 712.3,
+                "mad": 9.700000000000017,
+                "relative_mad": 0.049948506694129854,
+                "range": 533.5999999999999,
+                "relative_range": 2.747682801235839,
+                "central_range": 45.400000000000006,
+                "relative_central_range": 0.23377960865087544,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  173.2,
+                  201.6,
+                  231.5,
+                  201.9,
+                  762.4,
+                  230.3,
+                  232.2
+                ],
+                "median": 230.3,
+                "mean": 290.4428571428571,
+                "min": 173.2,
+                "max": 762.4,
+                "mad": 28.400000000000006,
+                "relative_mad": 0.12331741207121148,
+                "range": 589.2,
+                "relative_range": 2.5584020842379505,
+                "central_range": 30.599999999999994,
+                "relative_central_range": 0.13287016934433343,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  185.1,
+                  201.6,
+                  200.0,
+                  215.1,
+                  422.7,
+                  206.3,
+                  244.1
+                ],
+                "median": 206.3,
+                "mean": 239.27142857142857,
+                "min": 185.1,
+                "max": 422.7,
+                "mad": 8.799999999999983,
+                "relative_mad": 0.04265632573921465,
+                "range": 237.6,
+                "relative_range": 1.1517207949587978,
+                "central_range": 44.099999999999994,
+                "relative_central_range": 0.2137663596703829,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  201.4,
+                  185.7,
+                  187.3,
+                  238.7,
+                  204.6,
+                  333.0,
+                  193.4
+                ],
+                "median": 201.4,
+                "mean": 220.58571428571426,
+                "min": 185.7,
+                "max": 333.0,
+                "mad": 14.099999999999994,
+                "relative_mad": 0.07000993048659382,
+                "range": 147.3,
+                "relative_range": 0.7313803376365442,
+                "central_range": 51.39999999999998,
+                "relative_central_range": 0.2552135054617675,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "0": {
+                "samples": [
+                  204.9,
+                  221.9,
+                  404.0,
+                  214.1,
+                  2753.9,
+                  235.2,
+                  260.2
+                ],
+                "median": 235.2,
+                "mean": 613.4571428571428,
+                "min": 204.9,
+                "max": 2753.9,
+                "mad": 25.0,
+                "relative_mad": 0.10629251700680273,
+                "range": 2549.0,
+                "relative_range": 10.837585034013607,
+                "central_range": 189.9,
+                "relative_central_range": 0.8073979591836735,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  196.1,
+                  246.9,
+                  476.2,
+                  272.1,
+                  2428.2,
+                  370.3,
+                  370.6
+                ],
+                "median": 370.3,
+                "mean": 622.9142857142857,
+                "min": 196.1,
+                "max": 2428.2,
+                "mad": 105.89999999999998,
+                "relative_mad": 0.2859843370240345,
+                "range": 2232.1,
+                "relative_range": 6.027815284904132,
+                "central_range": 229.29999999999998,
+                "relative_central_range": 0.6192276532541182,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  234.9,
+                  309.6,
+                  226.9,
+                  280.4,
+                  1978.7,
+                  273.1,
+                  448.2
+                ],
+                "median": 280.4,
+                "mean": 535.9714285714286,
+                "min": 226.9,
+                "max": 1978.7,
+                "mad": 45.49999999999997,
+                "relative_mad": 0.162268188302425,
+                "range": 1751.8,
+                "relative_range": 6.247503566333809,
+                "central_range": 213.29999999999998,
+                "relative_central_range": 0.7606990014265336,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  261.9,
+                  227.8,
+                  220.0,
+                  341.0,
+                  267.2,
+                  643.9,
+                  235.4
+                ],
+                "median": 261.9,
+                "mean": 313.88571428571424,
+                "min": 220.0,
+                "max": 643.9,
+                "mad": 34.099999999999966,
+                "relative_mad": 0.13020236731576926,
+                "range": 423.9,
+                "relative_range": 1.6185567010309279,
+                "central_range": 113.19999999999999,
+                "relative_central_range": 0.43222604047346314,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "0": {
+                "samples": [
+                  265.3,
+                  301.6,
+                  1192.3,
+                  275.4,
+                  9069.2,
+                  327.2,
+                  399.9
+                ],
+                "median": 327.2,
+                "mean": 1690.1285714285716,
+                "min": 265.3,
+                "max": 9069.2,
+                "mad": 61.89999999999998,
+                "relative_mad": 0.18918092909535447,
+                "range": 8803.900000000001,
+                "relative_range": 26.9067848410758,
+                "central_range": 916.9,
+                "relative_central_range": 2.8022616136919316,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  247.8,
+                  331.7,
+                  1793.3,
+                  373.9,
+                  7701.4,
+                  993.8,
+                  848.1
+                ],
+                "median": 848.1,
+                "mean": 1755.7142857142858,
+                "min": 247.8,
+                "max": 7701.4,
+                "mad": 516.4000000000001,
+                "relative_mad": 0.6088904610305389,
+                "range": 7453.599999999999,
+                "relative_range": 8.78858625162127,
+                "central_range": 1461.6,
+                "relative_central_range": 1.7233816766890695,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  455.2,
+                  580.9,
+                  381.8,
+                  423.1,
+                  14006.6,
+                  368.2,
+                  789.6
+                ],
+                "median": 455.2,
+                "mean": 2429.342857142857,
+                "min": 368.2,
+                "max": 14006.6,
+                "mad": 87.0,
+                "relative_mad": 0.19112478031634447,
+                "range": 13638.4,
+                "relative_range": 29.96133567662566,
+                "central_range": 407.8,
+                "relative_central_range": 0.8958699472759227,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  418.8,
+                  338.7,
+                  274.0,
+                  509.8,
+                  423.8,
+                  1376.8,
+                  350.1
+                ],
+                "median": 418.8,
+                "mean": 527.4285714285714,
+                "min": 274.0,
+                "max": 1376.8,
+                "mad": 80.10000000000002,
+                "relative_mad": 0.19126074498567341,
+                "range": 1102.8,
+                "relative_range": 2.63323782234957,
+                "central_range": 171.10000000000002,
+                "relative_central_range": 0.40854823304680044,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "regression": {
+            "0-1-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -0.09983104510482788,
+              "within_budget": null
+            },
+            "2-3-requests_per_sec": {
+              "qualified": false,
+              "relative_change": 0.06797632539823995,
+              "within_budget": null
+            },
+            "0-1-latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.5744047619047621,
+              "within_budget": null
+            },
+            "2-3-latency_p99_us": {
+              "qualified": false,
+              "relative_change": -0.06597717546362336,
+              "within_budget": null
+            }
+          }
+        },
+        {
+          "affinity": 1,
+          "pipeline": 1,
+          "count": 1696,
+          "allocations": {
+            "0": {
+              "log": "wsl-perf-a1-p1-m0-heap.log",
+              "log_sha256": "1c5b10a3973ae4883f2aa45abe6ef5169f7976bf547eb1a91d44306bbd3258f1",
+              "values": {
+                "requests_per_sec": 6626.817016,
+                "latency_p50_us": 136.0,
+                "latency_p95_us": 213.8,
+                "latency_p99_us": 241.9,
+                "latency_p999_us": 279.3,
+                "checksum": 1696.0,
+                "heap_blocks_per_request": 16.017099,
+                "heap_bytes_per_request": 3867.957547,
+                "heap_backing_allocs_per_request": 0.004127,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.017099
+              }
+            },
+            "1": {
+              "log": "wsl-perf-a1-p1-m1-heap.log",
+              "log_sha256": "74f05f2f1b23cf26196db9983d0904e6559c652f1c9b5eff33132458a3d53309",
+              "values": {
+                "requests_per_sec": 5978.16894,
+                "latency_p50_us": 157.7,
+                "latency_p95_us": 227.8,
+                "latency_p99_us": 252.1,
+                "latency_p999_us": 451.2,
+                "checksum": 1696.0,
+                "heap_blocks_per_request": 16.018868,
+                "heap_bytes_per_request": 3868.056604,
+                "heap_backing_allocs_per_request": 0.004127,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.018868
+              }
+            },
+            "2": {
+              "log": "wsl-perf-a1-p1-m2-heap.log",
+              "log_sha256": "bb3ef2bb4884cb034dad1e249feca8d84dbade9e9f1143caf8c9594dae833d23",
+              "values": {
+                "requests_per_sec": 6589.416943,
+                "latency_p50_us": 134.7,
+                "latency_p95_us": 217.9,
+                "latency_p99_us": 246.0,
+                "latency_p999_us": 299.7,
+                "checksum": 1696.0,
+                "heap_blocks_per_request": 16.017099,
+                "heap_bytes_per_request": 3867.957547,
+                "heap_backing_allocs_per_request": 0.004127,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.017099
+              }
+            },
+            "3": {
+              "log": "wsl-perf-a1-p1-m3-heap.log",
+              "log_sha256": "2503f3e6867ba5afcee7ab2d5433e78b7c471b20c86d25faa49cfec3c8420208",
+              "values": {
+                "requests_per_sec": 5922.660227,
+                "latency_p50_us": 158.1,
+                "latency_p95_us": 238.1,
+                "latency_p99_us": 274.3,
+                "latency_p999_us": 441.5,
+                "checksum": 1696.0,
+                "heap_blocks_per_request": 16.022995,
+                "heap_bytes_per_request": 3868.287736,
+                "heap_backing_allocs_per_request": 0.004127,
+                "heap_direct_blocks_per_request": 0.0,
+                "heap_pooled_blocks_per_request": 16.022995
+              }
+            }
+          },
+          "metrics": {
+            "requests_per_sec": {
+              "0": {
+                "samples": [
+                  5843.901037,
+                  5587.298947,
+                  5641.422448,
+                  6120.922918,
+                  5506.988796,
+                  5657.087792,
+                  4969.519077
+                ],
+                "median": 5641.422448,
+                "mean": 5618.163002142857,
+                "min": 4969.519077,
+                "max": 6120.922918,
+                "mad": 134.43365200000062,
+                "relative_mad": 0.023829743870299964,
+                "range": 1151.4038410000003,
+                "relative_range": 0.2040981421996143,
+                "central_range": 336.912241,
+                "relative_central_range": 0.05972115084546492,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "1": {
+                "samples": [
+                  5641.020921,
+                  5485.873444,
+                  5475.517756,
+                  6070.778302,
+                  5461.767342,
+                  5826.346739,
+                  5814.561471
+                ],
+                "median": 5641.020921,
+                "mean": 5682.266567857143,
+                "min": 5461.767342,
+                "max": 6070.778302,
+                "mad": 173.5405499999997,
+                "relative_mad": 0.030764032332153746,
+                "range": 609.0109599999996,
+                "relative_range": 0.10796112415268945,
+                "central_range": 350.8289829999994,
+                "relative_central_range": 0.06219246266113953,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  5558.386859,
+                  4502.454883,
+                  5601.175227,
+                  5673.221777,
+                  5607.238135,
+                  5678.800881,
+                  5814.4677
+                ],
+                "median": 5607.238135,
+                "mean": 5490.820780285714,
+                "min": 4502.454883,
+                "max": 5814.4677,
+                "mad": 65.98364200000015,
+                "relative_mad": 0.011767583329150002,
+                "range": 1312.0128169999998,
+                "relative_range": 0.23398557104441578,
+                "central_range": 120.41402199999993,
+                "relative_central_range": 0.021474747299991378,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "3": {
+                "samples": [
+                  4618.740195,
+                  4927.727181,
+                  5584.200963,
+                  5398.464655,
+                  5420.421455,
+                  5864.092776,
+                  5803.3875
+                ],
+                "median": 5420.421455,
+                "mean": 5373.862103571429,
+                "min": 4618.740195,
+                "max": 5864.092776,
+                "mad": 382.9660450000001,
+                "relative_mad": 0.07065244800231131,
+                "range": 1245.352581,
+                "relative_range": 0.22975198355678417,
+                "central_range": 875.6603189999996,
+                "relative_central_range": 0.16154838258789964,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "0": {
+                "samples": [
+                  168.0,
+                  175.9,
+                  174.5,
+                  160.2,
+                  178.6,
+                  170.5,
+                  190.3
+                ],
+                "median": 174.5,
+                "mean": 174.0,
+                "min": 160.2,
+                "max": 190.3,
+                "mad": 4.099999999999994,
+                "relative_mad": 0.023495702005730628,
+                "range": 30.100000000000023,
+                "relative_range": 0.1724928366762179,
+                "central_range": 10.599999999999994,
+                "relative_central_range": 0.0607449856733524,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  173.2,
+                  176.7,
+                  178.6,
+                  161.3,
+                  177.0,
+                  167.9,
+                  168.3
+                ],
+                "median": 173.2,
+                "mean": 171.85714285714286,
+                "min": 161.3,
+                "max": 178.6,
+                "mad": 4.899999999999977,
+                "relative_mad": 0.028290993071593405,
+                "range": 17.299999999999983,
+                "relative_range": 0.09988452655889137,
+                "central_range": 9.099999999999994,
+                "relative_central_range": 0.052540415704387965,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  177.7,
+                  211.2,
+                  176.4,
+                  169.8,
+                  173.5,
+                  172.1,
+                  170.7
+                ],
+                "median": 173.5,
+                "mean": 178.77142857142857,
+                "min": 169.8,
+                "max": 211.2,
+                "mad": 2.9000000000000057,
+                "relative_mad": 0.01671469740634009,
+                "range": 41.39999999999998,
+                "relative_range": 0.2386167146974062,
+                "central_range": 7.0,
+                "relative_central_range": 0.040345821325648415,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "3": {
+                "samples": [
+                  196.9,
+                  193.6,
+                  176.3,
+                  180.6,
+                  181.3,
+                  169.5,
+                  170.2
+                ],
+                "median": 180.6,
+                "mean": 181.20000000000002,
+                "min": 169.5,
+                "max": 196.9,
+                "mad": 10.400000000000006,
+                "relative_mad": 0.05758582502768553,
+                "range": 27.400000000000006,
+                "relative_range": 0.1517165005537099,
+                "central_range": 23.400000000000006,
+                "relative_central_range": 0.1295681063122924,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p95_us": {
+              "0": {
+                "samples": [
+                  211.7,
+                  218.2,
+                  210.3,
+                  196.9,
+                  220.1,
+                  233.2,
+                  272.1
+                ],
+                "median": 218.2,
+                "mean": 223.21428571428572,
+                "min": 196.9,
+                "max": 272.1,
+                "mad": 7.899999999999977,
+                "relative_mad": 0.03620531622364793,
+                "range": 75.20000000000002,
+                "relative_range": 0.3446379468377636,
+                "central_range": 22.899999999999977,
+                "relative_central_range": 0.10494958753437204,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  217.3,
+                  228.8,
+                  224.2,
+                  200.6,
+                  228.5,
+                  214.9,
+                  223.6
+                ],
+                "median": 223.6,
+                "mean": 219.70000000000002,
+                "min": 200.6,
+                "max": 228.8,
+                "mad": 5.200000000000017,
+                "relative_mad": 0.023255813953488448,
+                "range": 28.200000000000017,
+                "relative_range": 0.12611806797853317,
+                "central_range": 13.599999999999994,
+                "relative_central_range": 0.06082289803220033,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  224.5,
+                  306.2,
+                  209.0,
+                  220.2,
+                  222.5,
+                  228.2,
+                  227.6
+                ],
+                "median": 224.5,
+                "mean": 234.02857142857144,
+                "min": 209.0,
+                "max": 306.2,
+                "mad": 3.6999999999999886,
+                "relative_mad": 0.016481069042316207,
+                "range": 97.19999999999999,
+                "relative_range": 0.43296213808463246,
+                "central_range": 8.0,
+                "relative_central_range": 0.035634743875278395,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "3": {
+                "samples": [
+                  315.8,
+                  262.1,
+                  211.9,
+                  226.1,
+                  222.7,
+                  208.8,
+                  225.0
+                ],
+                "median": 225.0,
+                "mean": 238.91428571428574,
+                "min": 208.8,
+                "max": 315.8,
+                "mad": 13.099999999999994,
+                "relative_mad": 0.058222222222222196,
+                "range": 107.0,
+                "relative_range": 0.47555555555555556,
+                "central_range": 50.20000000000002,
+                "relative_central_range": 0.22311111111111118,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "0": {
+                "samples": [
+                  242.3,
+                  244.6,
+                  237.0,
+                  216.2,
+                  248.6,
+                  322.8,
+                  534.5
+                ],
+                "median": 244.6,
+                "mean": 292.2857142857143,
+                "min": 216.2,
+                "max": 534.5,
+                "mad": 7.599999999999994,
+                "relative_mad": 0.031071136549468498,
+                "range": 318.3,
+                "relative_range": 1.3013082583810303,
+                "central_range": 85.80000000000001,
+                "relative_central_range": 0.3507767784137368,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  254.1,
+                  284.7,
+                  263.4,
+                  228.3,
+                  269.3,
+                  261.4,
+                  253.9
+                ],
+                "median": 261.4,
+                "mean": 259.3,
+                "min": 228.3,
+                "max": 284.7,
+                "mad": 7.499999999999972,
+                "relative_mad": 0.028691660290742053,
+                "range": 56.39999999999998,
+                "relative_range": 0.21576128538638095,
+                "central_range": 15.400000000000006,
+                "relative_central_range": 0.05891354246365726,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "2": {
+                "samples": [
+                  258.0,
+                  502.1,
+                  230.3,
+                  241.1,
+                  260.0,
+                  264.9,
+                  258.5
+                ],
+                "median": 258.5,
+                "mean": 287.84285714285716,
+                "min": 230.3,
+                "max": 502.1,
+                "mad": 6.399999999999977,
+                "relative_mad": 0.024758220502901267,
+                "range": 271.8,
+                "relative_range": 1.051450676982592,
+                "central_range": 23.799999999999983,
+                "relative_central_range": 0.09206963249516434,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  584.9,
+                  389.9,
+                  237.4,
+                  267.3,
+                  249.3,
+                  235.6,
+                  265.2
+                ],
+                "median": 265.2,
+                "mean": 318.5142857142857,
+                "min": 235.6,
+                "max": 584.9,
+                "mad": 27.799999999999983,
+                "relative_mad": 0.10482654600301654,
+                "range": 349.29999999999995,
+                "relative_range": 1.3171191553544495,
+                "central_range": 152.49999999999997,
+                "relative_central_range": 0.5750377073906485,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "0": {
+                "samples": [
+                  321.7,
+                  290.6,
+                  299.6,
+                  269.8,
+                  297.9,
+                  485.7,
+                  1081.301
+                ],
+                "median": 299.6,
+                "mean": 435.2287142857143,
+                "min": 269.8,
+                "max": 1081.301,
+                "mad": 22.099999999999966,
+                "relative_mad": 0.07376502002670215,
+                "range": 811.501,
+                "relative_range": 2.708614819759679,
+                "central_range": 195.09999999999997,
+                "relative_central_range": 0.6512016021361814,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "1": {
+                "samples": [
+                  358.6,
+                  471.2,
+                  342.4,
+                  289.8,
+                  570.0,
+                  410.2,
+                  343.1
+                ],
+                "median": 358.6,
+                "mean": 397.90000000000003,
+                "min": 289.8,
+                "max": 570.0,
+                "mad": 51.599999999999966,
+                "relative_mad": 0.14389291689905176,
+                "range": 280.2,
+                "relative_range": 0.7813720022308979,
+                "central_range": 128.8,
+                "relative_central_range": 0.35917456776352485,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "2": {
+                "samples": [
+                  309.2,
+                  1069.8,
+                  264.3,
+                  317.3,
+                  315.6,
+                  396.3,
+                  302.5
+                ],
+                "median": 315.6,
+                "mean": 425.0,
+                "min": 264.3,
+                "max": 1069.8,
+                "mad": 13.100000000000023,
+                "relative_mad": 0.04150823827629918,
+                "range": 805.5,
+                "relative_range": 2.5522813688212924,
+                "central_range": 93.80000000000001,
+                "relative_central_range": 0.29721166032953106,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "3": {
+                "samples": [
+                  3744.4,
+                  992.3,
+                  269.0,
+                  333.5,
+                  310.9,
+                  280.0,
+                  369.0
+                ],
+                "median": 333.5,
+                "mean": 899.8714285714286,
+                "min": 269.0,
+                "max": 3744.4,
+                "mad": 53.5,
+                "relative_mad": 0.16041979010494753,
+                "range": 3475.4,
+                "relative_range": 10.420989505247377,
+                "central_range": 712.3,
+                "relative_central_range": 2.1358320839580207,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "regression": {
+            "0-1-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -7.117477971219088e-05,
+              "within_budget": null
+            },
+            "2-3-requests_per_sec": {
+              "qualified": false,
+              "relative_change": -0.03331705832750398,
+              "within_budget": null
+            },
+            "0-1-latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.06868356500408823,
+              "within_budget": null
+            },
+            "2-3-latency_p99_us": {
+              "qualified": false,
+              "relative_change": 0.0259187620889747,
+              "within_budget": null
+            }
+          }
+        }
+      ]
+    }
+  },
+  "failures": [],
+  "limitations": [
+    "Both synchronous APIs use the existing operation/Future/native pools. ACCEPTED reports admission, not successful execution; even XWAIT_ERROR transfers the accepted possibly-pending Future. Native-wait failure is injected only in caller-side selected single tests, not a claimed real OS wait failure.",
+    "Explicit-slot selection does not require a catalogue. Metadata calls preserve complete typed preflight and explicit keyless policy. No automatic catalogue acquisition/replacement, authorized exotic-command assistance, replica policy or new accepted-business replay is implemented.",
+    "Operation entry precedes sync gates/aliases/metadata and propagates through native deadlines. No second wait timeout. Other threads can Close; cancellation uses existing async APIs. Blocking is refused on both active progress and node-cache Engines, including other workers. Application dependencies on unrelated Engines remain caller-owned.",
+    "Local timeout/close outcomes do not join native FIFO/writes. Separate Nodes/Engine physical retirement remains required. Caller-held outcomes survive all those owners.",
+    "Real Redis tests are owned plaintext IPv4 Cluster; no real TLS/auth/trust/replica/process-death acceptance. Original seed denial is policy injection with administrative pools retained. Windows clients use WSL-hosted Redis; WSL is not native Linux production acceptance.",
+    "Performance compares one outstanding valid warm binary GET with explicit async+Wait/sync and metadata async+Wait/sync on the same binary/config/peers/native Engines/Future. Sync adds both-Engine checks and full output-span validation. Setup/bootstrap/catalogue/sample buffers are excluded. Separate global heap samples include overlapping native tails. No zero-overhead claim.",
+    "One warmup/seven rotated serial unpinned samples, original3% MAD/6% central-range noise gates and measured clock-resolution bounds. No retries for noise qualification. Closed-loop observations do not establish fixed-arrival/contention/upstream/TLS/CPU/RSS/native Linux or>=72h production/performance acceptance. All four products remain developing."
+  ],
+  "prototype": [
+    {
+      "log": "dev-modular.log",
+      "sha256": "306894571f934493c4050215edc39c36cdfaca72fe83d00e331e774f2231dec9",
+      "exit_code": 1,
+      "reason": "Test-owned catalogue pointer was const-qualified but Release takes a mutable owner; corrected test declaration before freeze."
+    },
+    {
+      "log": "dev-modular-2.log",
+      "sha256": "fc8af6ee5310d1fdebc83e56c073cc87b7d5ba71f4ac36e8c09dc2cc7d0b05d6",
+      "exit_code": 0
+    },
+    {
+      "log": "dev-modular-3.log",
+      "sha256": "fc8af6ee5310d1fdebc83e56c073cc87b7d5ba71f4ac36e8c09dc2cc7d0b05d6",
+      "exit_code": 0
+    }
+  ],
+  "raw_evidence": "out/service-extensions/xredis-cluster-sync-20261112",
+  "performance_qualification": {
+    "evaluated": 16,
+    "qualified": 1,
+    "all_qualified_within_budget": true,
+    "full_acceptance": false
+  },
+  "unchanged_core_and_native": true,
+  "evidence_archive_repair": {
+    "scope": "Evidence inventory parsing only; no canonical source or test rerun.",
+    "cause": "The common git helper strips leading whitespace, so initial-status first-row parsing omitted the leading e in extlibs/xredis/README.md. Its frozen source hash and full Git patch were already retained; only its convenience snapshot was missing.",
+    "repair": "Copied README bytes after all jobs completed, verified against the original frozen SHA256. Original status inventory and patch remain unchanged. Commit path comparison parses the first row with its missing status-column blank restored.",
+    "path": "extlibs/xredis/README.md",
+    "sha256": "4bae7948ef61a98ed9b88a331320954d5bef1ed51b72635c283b39df9bbaf6d3",
+    "late_archive_copy": true
+  }
+}

@@ -1,5 +1,6 @@
 #include <xredis/cluster_client.h>
 #include <xredis/cluster_command.h>
+#include <xredis/cluster_command_sync.h>
 #include <xredis/pool_shared_connect.h>
 #include <xredis/dial.h>
 #include <xrt.h>
@@ -75,7 +76,12 @@ static int32 rrProduce(ptr Data)
 {
     rrproducer* P=Data;const xbytesview A[]={XRT_BYTES_LITERAL("INCR"),XRT_BYTES_LITERAL("xrt-owned:asking:{fixed}\0counter")};
     for(unsigned N=0;N<8;++N){xfuture* F=NULL;
-#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+        xredisclusterwait W={0};
+        if(N&1)rrRequire(xredisClusterClientCallCommandSync(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&W)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"synchronous metadata INCR route");
+        else rrRequire(xredisClusterClientCallSync(P->Client,P->Slot,A,2,10000,&W)==XREDIS_ADMISSION_ACCEPTED,"synchronous explicit INCR route");
+        rrRequire(W.Wait==XWAIT_OK,"synchronous native wait");F=W.Future;
+#elif defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
         rrRequire(xredisClusterClientCallCommand(P->Client,P->Catalogue,A,2,XREDIS_CLUSTER_COMMAND_NO_SLOT,10000,&F)==XREDIS_CLUSTER_COMMAND_ACCEPTED,"metadata-selected INCR route");
 #else
         rrRequire(xredisClusterClientCall(P->Client,P->Slot,A,2,10000,&F)==XREDIS_ADMISSION_ACCEPTED,"managed route call");
@@ -164,6 +170,9 @@ int main(int Argc,char** Argv)
     for(size_t I=0;I<Cases;++I){xredisclustermapinfo M={0};M.Size=sizeof(M);rrRequire(xredisClusterMapInfo(Maps[I],&M) && M.Generation==Generations[I],"retained managed map after engine teardown");xredisClusterMapRelease(Maps[I]);}
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND)
     puts("[PASS] metadata command routing: actual COMMAND INFO, complete key preflight, explicit keyless policy and unchanged native duties");
+#endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC)
+    puts("[PASS] synchronous Cluster routing: explicit and metadata calls, actual wait outcomes, four producers and exactly32 unique INCR effects per case");
 #endif
     puts("[PASS] real Cluster client: 36 SHARDS/SLOTS numeric/DNS/prepared RESP2/3/AUTO migrating ASK/actual-owner-change MOVED cases; automatic bootstrap/refresh, denied original seed with discovered endpoint recovery, four producers, exactly32 INCR executions, new-map direct routes and retained native outcomes");return 0;
 }

@@ -12014,3 +12014,58 @@ fixed-arrival/contention/CPU/RSS/upstream/>=72h acceptance remain open.
 Work/tests directly use D:/GIT/xrt master; no branch or push.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-command-20261112.json)
 and out/service-extensions/xredis-cluster-command-20261112.
+
+## 2026-11-12 - Synchronous native Cluster facades
+
+Optional explicit-slot and metadata-routed synchronous APIs reuse the original
+async operation/Future/native pools. All workers of both active dependent
+Engines are refused before admission. The original function-entry timestamp
+precedes worker/output checks and metadata, and reaches native deadlines.
+Admission, actual native wait and typed Redis outcomes remain separate.
+Only ACCEPTED publishes the complete {Wait,Future}; even wait failure transfers
+the accepted possibly-pending Future for later wait/cancel/cleanup. No second
+relative timeout, runtime object, worker, timer, queue, copy or result allocation.
+
+Tests cover cold/default/zero calls, both Engines/all their workers and unrelated
+worker success, overload/closed metadata after Engine teardown, full-span aliases,
+no-allocation typed preflight refusals, actual MOVED/ASK, held native timeout/Close,
+OOM prefixes and four concurrent callers. Held-worker budgets compare actual
+async+Wait/sync blocks and bytes and retain the four-allocation bound. Selected
+single caller-clock/native-owner probes verify exact original/default deadlines;
+caller-only native-wait injection proves pending Future transfer and continued
+progress. This is not a claimed real OS wait failure. Initial test-owner const
+compilation failure was corrected before freeze; its failed log is retained.
+
+Mainline verification: Windows 52 / WSL 54 programs.
+Focused/single WSL ASan/UBSan/leak and two TSan units, full root and feature-off
+client/command suites, root/leaf single/static/shared, isolated declarations,
+both new exports/private hiding, API/docs/maturity and both minimal footprint
+profiles pass. Explicit-slot minimal builds contain no command catalogue/routing
+symbols. Feature-excluded client/node-cache old/current .text matches exactly.
+Core/native client/pool and existing public layouts remain unchanged.
+
+Real Redis8.0.5:288 cases/9216 INCR over4 forms/two hosts retain actual owned
+node identities/epochs, three-view convergence, SHARDS/SLOTS, three factories/
+init modes, real owner-change MOVED/migration ASK, discovered seed policy
+recovery and physical Drop/outcomes. Four producers alternate both synchronous
+APIs, check actual wait outcomes and prove exactly32 unique INCR effects/case.
+Plaintext owned WSL servers do not qualify real TLS/replicas/process-death/native
+Linux or production. Local stop still leaves native physical duties to Nodes.
+
+windows affinity0: explicit async+Wait/sync, metadata async+Wait/sync rate [16179, 15868, 15791, 15142]req/s; P99 [102.1, 99.8, 99.2, 105.8]us; gates {'0-1-requests_per_sec': {'qualified': False, 'relative_change': -0.01920995226225719, 'within_budget': None}, '2-3-requests_per_sec': {'qualified': False, 'relative_change': -0.041089224870421104, 'within_budget': None}, '0-1-latency_p99_us': {'qualified': True, 'relative_change': -0.022527106042416922, 'within_budget': True}, '2-3-latency_p99_us': {'qualified': False, 'relative_change': 0.06653276276746722, 'within_budget': None}}; global blocks/request [14.0, 14.0, 14.0, 14.0].
+windows affinity1: explicit async+Wait/sync, metadata async+Wait/sync rate [14846, 12624, 13711, 14504]req/s; P99 [112.8, 148.4, 115.7, 114.0]us; gates {'0-1-requests_per_sec': {'qualified': False, 'relative_change': -0.14966330706434727, 'within_budget': None}, '2-3-requests_per_sec': {'qualified': False, 'relative_change': 0.057796376826477536, 'within_budget': None}, '0-1-latency_p99_us': {'qualified': False, 'relative_change': 0.3156026987450158, 'within_budget': None}, '2-3-latency_p99_us': {'qualified': False, 'relative_change': -0.014693283340135976, 'within_budget': None}}; global blocks/request [14.0, 14.0, 14.0, 14.0].
+wsl affinity0: explicit async+Wait/sync, metadata async+Wait/sync rate [6224, 5602, 5900, 6301]req/s; P99 [235.2, 370.3, 280.4, 261.9]us; gates {'0-1-requests_per_sec': {'qualified': False, 'relative_change': -0.09983104510482788, 'within_budget': None}, '2-3-requests_per_sec': {'qualified': False, 'relative_change': 0.06797632539823995, 'within_budget': None}, '0-1-latency_p99_us': {'qualified': False, 'relative_change': 0.5744047619047621, 'within_budget': None}, '2-3-latency_p99_us': {'qualified': False, 'relative_change': -0.06597717546362336, 'within_budget': None}}; global blocks/request [16.046535, 16.043564, 16.044059, 16.039604].
+wsl affinity1: explicit async+Wait/sync, metadata async+Wait/sync rate [5641, 5641, 5607, 5420]req/s; P99 [244.6, 261.4, 258.5, 265.2]us; gates {'0-1-requests_per_sec': {'qualified': False, 'relative_change': -7.117477971219088e-05, 'within_budget': None}, '2-3-requests_per_sec': {'qualified': False, 'relative_change': -0.03331705832750398, 'within_budget': None}, '0-1-latency_p99_us': {'qualified': False, 'relative_change': 0.06868356500408823, 'within_budget': None}, '2-3-latency_p99_us': {'qualified': False, 'relative_change': 0.0259187620889747, 'within_budget': None}}; global blocks/request [16.017099, 16.018868, 16.017099, 16.022995].
+
+Qualified same-valid-trace comparisons 1/16; all qualified within5% throughput-loss/10% P99-increase budgets=True.
+Same binary/config/native Engines/peers/binary command/Future; one outstanding
+request, one warmup/seven rotated unpinned serial samples and separate global
+heap/pooled/direct/backing runs. No retries for noise. Sync adds worker/full-output
+validation. Setup/bootstrap/catalogue/sample buffers excluded; queue and observed
+completion remain included. Noise/resolution failures remain unqualified.
+Automatic catalogue acquisition/replacement, authorized exotic-key assistance,
+replicas and full four-library/native Linux/TLS/fixed-arrival/contention/CPU/RSS/
+upstream/>=72h performance/production acceptance remain open. Goal stays active.
+Work/tests directly use D:/GIT/xrt master; all jobs terminal, no branch or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-sync-20261112.json)
+and out/service-extensions/xredis-cluster-sync-20261112.

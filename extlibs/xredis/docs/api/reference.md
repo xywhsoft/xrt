@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `216` 个函数、`358` 个常量或宏、
-`158` 个公共类型。
+当前登记 `218` 个函数、`360` 个常量或宏、
+`159` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -152,6 +152,22 @@
 - `xredisclusterrouteresult`
 - `xredisclusterstatus`
 
+## `extlibs/xredis/include/xredis/cluster_client_sync.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_client_sync.h)
+
+### 函数 (1)
+
+- `xredisClusterClientCallSync`
+
+### 常量与宏 (1)
+
+- `XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC`
+
+### 类型 (1)
+
+- `xredisclusterwait`
+
 ## `extlibs/xredis/include/xredis/cluster_command.h`
 
 [查看带契约注释的公共头](../../include/xredis/cluster_command.h)
@@ -180,6 +196,18 @@
 
 - `xredisclustercommandadmission`
 - `xrediscommandcatalog`
+
+## `extlibs/xredis/include/xredis/cluster_command_sync.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_command_sync.h)
+
+### 函数 (1)
+
+- `xredisClusterClientCallCommandSync`
+
+### 常量与宏 (1)
+
+- `XREDIS_FEATURE_XREDIS_CLUSTER_COMMAND_SYNC`
 
 ## `extlibs/xredis/include/xredis/cluster_nodes.h`
 

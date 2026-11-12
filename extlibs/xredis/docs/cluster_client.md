@@ -22,8 +22,8 @@ still pass Nodes authority and exact transport/port rules. Cold node setup can
 temporarily rotate into fallback before a discovered pool becomes ready.
 The optional [command adapter](cluster_command.md) calculates complete routing
 keys from a caller-owned catalogue before admission, with explicit keyless
-policy. Automatic command metadata/cache/fallback, replica reads and a
-synchronous facade remain work.
+policy. Automatic command metadata/cache/fallback and replica reads remain work;
+optional synchronous facades are described below.
 
 Each operation inherits one Call-entry deadline through allocation, queue,
 bootstrap, provider waits and native redirects. Cancellation stops only that
@@ -54,3 +54,7 @@ retirement and factory release. Retained results/maps survive client teardown;
 pending native work can retain independent resources. Code remains loaded until
 all results are destroyed. Production/native-Linux/TLS/auth/trust/upstream/
 fixed-arrival/mixed-load/CPU/RSS/72h performance acceptance remains open.
+
+The optional [synchronous facade](cluster_sync.md) shares the original entry
+deadline and native operation. It refuses both dependent Engines' workers and
+returns an owned Future plus the actual native wait status on accepted calls.

@@ -44,3 +44,7 @@ composition captures its Call deadline after evaluation. These distinctions
 prevent a broad same-function or zero-overhead claim. Full real TLS/auth/trust,
 automatic command metadata/cache policy and server-assisted exotic extraction,
 replica policy, sync facade and native/performance/72h acceptance remain open.
+
+The optional [synchronous facade](cluster_sync.md) shares the original entry
+deadline and native operation. It refuses both dependent Engines' workers and
+returns an owned Future plus the actual native wait status on accepted calls.

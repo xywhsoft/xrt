@@ -1,4 +1,5 @@
 #include <xredis/cluster_nodes.h>
+#include "../internal/cluster_nodes_internal.h"
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <math.h>
@@ -28,6 +29,13 @@ XREDIS_API void xredisClusterNodesRelease(xredisclusternodes* C)
 {if(!C || xrtAtomic32FetchSub(&C->References,1,XMEMORY_ACQ_REL)!=1)return;xrtPromiseDestroy(C->Promise);xrtFutureDestroy(C->Closed);xrtMutexUnit(&C->Gate);xrtFree(C);}
 static bool xredisNodesOutput(xredisclusternodes* C,const void* P,size_t N)
 {return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->StorageBytes,P,N);}
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT_SYNC)
+bool __xredisClusterNodesCurrent(xredisclusternodes* C)
+{
+    xrtMutexLock(&C->Gate);bool Current=C->Engine && xrtNetEngineCurrent(C->Engine);
+    xrtMutexUnlock(&C->Gate);return Current;
+}
+#endif
 static bool xredisNodesAddress(const xredisclusteraddress* A,size_t Max)
 {
     if(!xrtMemRangeValid(A,sizeof(*A)) || !A->Host.Size || A->Host.Size>Max || !xrtMemRangeValid(A->Host.Data,A->Host.Size) || !A->Port || A->Slot>=XREDIS_CLUSTER_SLOTS ||

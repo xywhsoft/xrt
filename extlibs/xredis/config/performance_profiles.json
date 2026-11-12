@@ -5738,6 +5738,229 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_cluster_sync",
+      "system": "cluster_client",
+      "description": "One outstanding binary request, modes explicit async+Wait0/sync1 and metadata async+Wait2/sync3; same native engine affinity0/1 and absolute budget semantics. Setup excluded; completion includes all validation and queue wait.",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_sync_a0_m0",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "0",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "0",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a0_m1",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "1",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a0_m2",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "2",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a0_m3",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "3",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a1_m0",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "0",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "0",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a1_m1",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "1",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a1_m2",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "2",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "2",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_sync_a1_m3",
+          "source": "extlibs/xredis/bench/bench_cluster_sync.c",
+          "suite": "xredis_cluster_command_sync,memory_stats",
+          "args": [
+            "10000",
+            "3",
+            "0",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "3",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "requests_per_sec": {
+              "unit": "requests/s",
+              "direction": "higher"
+            },
+            "latency_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

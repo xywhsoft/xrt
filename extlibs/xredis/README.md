@@ -284,3 +284,10 @@ admission, typed refusals, explicit keyless routing and one entry deadline.
 Catalogue ownership stays with the caller and is not retained by pending work.
 See [contracts](docs/cluster_command.md) and the
 [local-peer example](examples/cluster_command/README.md).
+
+Optional [synchronous Cluster facades](docs/cluster_sync.md) provide explicit-slot
+and metadata-routed blocking calls on the existing async runtime. Both dependent
+Engines refuse worker blocking. Admission, actual native wait and typed Redis
+outcome remain separate; an accepted Future transfers even after wait failure.
+Runnable [explicit](examples/cluster_sync/README.md) and
+[metadata](examples/cluster_command_sync/README.md) examples own local peers.
