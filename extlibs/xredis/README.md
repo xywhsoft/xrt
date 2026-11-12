@@ -252,3 +252,7 @@ separate control/query outcomes. Bounded Cluster routing is described below.
 [Cluster route execution](docs/cluster_route.md) selects a master and follows
 bounded MOVED/ASK redirects under one original deadline using authorized shared
 node pools. Persistent caches, refresh/bootstrap and the managed facade remain work.
+
+[Maintained Cluster nodes](docs/cluster_nodes.md) cache authorized node pools with
+bounded aggregate quotas, coalesced setup, allocation-free hits and explicit
+physical retirement. Automatic topology refresh/bootstrap remains work.

@@ -11504,3 +11504,102 @@ claim is made. The broader four-library goal remains active. All started jobs
 are terminal. Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-route-20261112.json),
 out/service-extensions/xredis-cluster-route-20261112 (initial cohort/red probe)
 and out/service-extensions/xredis-cluster-route-v2-20261112 (corrected cohort).
+
+## 2026-11-12: bounded maintained Cluster node cache
+
+Developed directly on master from e9da7004. The developing xredis_cluster_nodes
+leaf supplies a concurrent Route.GetPool adapter with exact copied host/port/TLS
+keys, immutable per-cache profile, per-lookup authority and one maintained shared
+pool per node. Concurrent creation coalesces; opening/retiring/full/concurrency-
+limited lookups return WAIT under the caller's original route deadline. Native
+maintenance has its own bounded attempts/retries and can outlive one route.
+MaxNodes/host/storage/connections/lookups are checked; aggregate native request,
+command-byte and connecting bounds use checked products. One preallocation holds
+buckets/slots/host storage. Warm lookup takes two cache gates and one pool ref;
+its validation/hash/callback/synchronization costs remain real. No native client/
+request/pool/slot/lease/connector header or existing hot I/O path changes.
+
+Explicit Retire fences the endpoint and closes accepted native work with typed,
+possibly uncertain outcomes, never replay. Retained selected pools can reject
+later admission CLOSED. A slot reuses only after native physical PoolClosed
+notification release; capacity alone does not cause LRU aborts of busy calls.
+Close includes in-flight authorizations/constructors, closes current/racing pools,
+drops context once outside gates and releases the engine pin. Retained closed
+metadata/Futures hold no context/engine/pool. Join the engine before unloading
+callback code; mechanical reference tails can still be returning.
+
+Corrected-cohort Windows 45 and WSL 46 logical programs pass, including37-program
+root regressions, feature-off routes, single headers, examples, bounded/copy/
+quota/capacity checks, per-hit denied authority,12 concurrent creators,1-byte
+warm-lookup allocation scopes, held authorization/concurrency limits, held setup,
+sent busy retirement with MAY_HAVE_EXECUTED and no extra query, constructor/miss
+OOM with zero final live budget, retained results and reentrant physical Drop.
+WSL ASan/UBSan/leak checks and TSan pass. Modules/single/static/shared, isolated
+static/shared declarations, root-selector examples,9 exports/internal exclusion,
+unchanged native layouts and both-host single/static/shared symbol gates pass.
+
+Owned Redis Cluster8.0.5 verifies144 cached maintained cases across2 hosts/four
+forms: numeric/DNS/prepared x RESP2/3/AUTO x SHARDS/stale topology. All3 actual
+owned run IDs precede writes. Four producers each run8 INCR routes; automatic
+source ASK or wrong-node MOVED then ASK yields unique1..32 and final counter32,
+total4608 routed increments. Each node has one factory generation; cache/native
+quotas and Drop duties retire, retained native outcomes survive cache/engine
+teardown, and all fixtures/materials retire. The real matrix prewarms3 nodes;
+lazy/coalesced setup is covered by local fixtures. Full real TLS/auth/trust and
+native Linux acceptance remain open.
+
+Initial WSL single-header validation failed a process-wide allocation assertion.
+Isolation retained20 diagnostic rounds: every calling-thread budget had zero
+peak bytes/rejections while process-wide counters still observed parallel work.
+The corrected test enforces zero peak/live bytes and zero rejections under a
+1-byte caller budget, retaining process-wide observations rather than attributing
+other workers' mechanical allocations to GetPool. The test hook also now installs
+on its listener owner before any request, establishing explicit publication.
+Exactly2 test inputs change between cohorts; all production inputs are identical.
+Initial failure, commands, binary/source/log hashes, diagnostic observations and
+exact source delta remain preserved. Corrected verification uses a new frozen map.
+
+After functional/delivery jobs terminate, serial unpinned native ECHO controls
+compare baseline/current with identical native-only loops, common calibrated
+counts, one warmup plus seven samples,3% MAD/6% central-span qualification and
+5% throughput/10% P99 limits. Unqualified results do not establish a passed gate.
+
+| Host/depth | Native ordinary rate | Native ordinary P99 |
+| --- | --- | --- |
+| windows/1 | +1.41% (qualified) | -0.66% (qualified) |
+| windows/32 | +13.15% (unqualified) | -3.33% (unqualified) |
+| wsl/1 | -0.18% (qualified) | +1.39% (qualified) |
+| wsl/32 | +0.43% (qualified) | -2.33% (qualified) |
+
+Warm lookup1/2/4/8-thread workloads compare against the same authority plus a
+known-pool retain/release. The baseline intentionally omits cache lookup work;
+this measures validation/hash/gate/ref costs, not equivalent-feature superiority.
+Throughput includes barrier wake skew; P99 includes lookup contention and clocks.
+Setup/handles/per-thread prewarming are outside the loop; heap runs include
+thread/peer mechanical tails. Raw medians and qualification follow.
+
+| Host/threads | Cache lookups/s | Cache P99 ns | Rate vs direct | P99 vs direct | Cache heap blocks/bytes per lookup |
+| --- | --- | --- | --- | --- | --- |
+| windows/1 | 3105589.64 qualified | 200.0 qualified | -23.61% (qualified) | +100.00% (qualified) | 0.0/0.0 |
+| windows/2 | 2730826.75 unqualified | 2600.02 unqualified | -32.05% (unqualified) | +1200.00% (unqualified) | 0.0/0.0 |
+| windows/4 | 2272044.89 qualified | 9500.01 qualified | -46.46% (qualified) | +3066.65% (unqualified) | 0.0/0.0 |
+| windows/8 | 1934584.0 qualified | 35399.98 qualified | -52.22% (qualified) | +6979.94% (qualified) | 0.0/0.0 |
+| wsl/1 | 6711745.62 unqualified | 200.0 qualified | -58.63% (unqualified) | +100.00% (qualified) | 0.0/0.0 |
+| wsl/2 | 3897383.69 unqualified | 1600.0 unqualified | -79.07% (unqualified) | +700.00% (unqualified) | 0.0/0.0 |
+| wsl/4 | 3730955.05 qualified | 13700.0 unqualified | -86.96% (unqualified) | +6749.99% (unqualified) | 0.0/0.0 |
+| wsl/8 | 2763983.95 qualified | 27200.0 unqualified | -92.13% (qualified) | +8966.67% (unqualified) | 0.0/0.0 |
+
+6/8 native ordinary comparisons qualify; complete performance acceptance remains open.
+
+Cache gate contention is a concrete follow-up: Windows qualified1-thread to8-thread
+lookup throughput falls and P99 rises. Admission/lookup synchronization needs
+optimization before claiming concurrent scale or production performance.
+
+These are local closed-loop observations, not fixed-arrival/mixed-load/upstream/
+CPU/RSS/native Linux/72h acceptance. No zero-overhead/full-production claim is made.
+Automatic topology refresh/coalescing/bootstrap, persistent MOVED slot maps,
+replica policy and a fully managed asynchronous client facade remain work.
+The broader four-library goal stays active. All started jobs are terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-nodes-20261112.json),
+out/service-extensions/xredis-cluster-nodes-20261112 (initial cohort/diagnosis)
+and out/service-extensions/xredis-cluster-nodes-v2-20261112 (corrected cohort).

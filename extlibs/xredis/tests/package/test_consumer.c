@@ -185,8 +185,16 @@ static int testPubSubPackage(void)
 #include "../../examples/cluster_route/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
+#define main clusterNodesPackageExample
+#include "../../examples/cluster_nodes/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
+    if(clusterNodesPackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_ROUTE)
     if(clusterRoutePackageExample())return 1;
 #endif

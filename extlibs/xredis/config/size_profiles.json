@@ -413,6 +413,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_cluster_nodes",
+      "system": "cluster_nodes",
+      "suite": "xredis_cluster_nodes",
+      "description": "Bounded maintained Cluster node cache; no TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

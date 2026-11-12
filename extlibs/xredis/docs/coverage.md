@@ -103,3 +103,11 @@ follows validated MOVED/ASK, bounds provider/admission waits and redirects, and
 retains native outcomes through cancellation and physical teardown. See
 [contracts](cluster_route.md). Managed node caches, automatic topology refresh,
 bootstrap/replica policy and production performance acceptance remain open.
+
+## Maintained Cluster nodes
+
+The developing `xredis_cluster_nodes` leaf supplies a bounded concurrent node-pool
+cache and Route.GetPool adapter. It checks authority on every lookup, coalesces
+creation, bounds aggregate native quotas, and joins physical pools/constructors
+before context Drop. See [contracts](cluster_nodes.md). Managed refresh/bootstrap,
+replica policy and full production/performance acceptance remain open.

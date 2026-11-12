@@ -48,7 +48,8 @@ Future. Endpoint views borrow Route; native reply/cause views also borrow that
 Future. Address is the current candidate, AttemptAddress identifies the native
 observation. Before DONE copy views before the next Step.
 
-Node pool caches, coalesced refresh, persistent MOVED-map updates, seed/bootstrap,
+[Maintained node caches](cluster_nodes.md) provide a bounded GetPool adapter.
+Coalesced refresh, persistent MOVED-map updates, seed/bootstrap,
 replica policy and a fully managed asynchronous facade remain subsequent work.
 The provider receives validated MOVED/ASK reason so those layers can reuse this
 executor; the input topology is never mutated. The broader four-library

@@ -144,4 +144,9 @@
 #include <xredis/pool_shared_asking.h>
 
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_NODES"
+#endif
+#include <xredis/cluster_nodes.h>
+
 #endif
