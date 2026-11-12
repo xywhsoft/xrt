@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `181` 个函数、`297` 个常量或宏、
-`136` 个公共类型。
+当前登记 `197` 个函数、`315` 个常量或宏、
+`144` 个公共类型。
 
 ## `extlibs/xredis/include/xredis/client.h`
 
@@ -143,6 +143,65 @@
 - `xredispoolconfig`
 - `xredispoolconnectdrop`
 
+## `extlibs/xredis/include/xredis/cluster_refresh.h`
+
+[查看带契约注释的公共头](../../include/xredis/cluster_refresh.h)
+
+### 函数 (16)
+
+- `xredisClusterMapInfo`
+- `xredisClusterMapRelease`
+- `xredisClusterMapRetain`
+- `xredisClusterRefreshClose`
+- `xredisClusterRefreshClosed`
+- `xredisClusterRefreshConfigInit`
+- `xredisClusterRefreshCreate`
+- `xredisClusterRefreshInfo`
+- `xredisClusterRefreshInvalidate`
+- `xredisClusterRefreshNextWake`
+- `xredisClusterRefreshPending`
+- `xredisClusterRefreshRelease`
+- `xredisClusterRefreshRetain`
+- `xredisClusterRefreshSnapshot`
+- `xredisClusterRefreshStart`
+- `xredisClusterRefreshStep`
+
+### 常量与宏 (18)
+
+- `XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH`
+- `XREDIS_REFRESH_BUSY`
+- `XREDIS_REFRESH_CLOSED`
+- `XREDIS_REFRESH_DONE`
+- `XREDIS_REFRESH_IDLE`
+- `XREDIS_REFRESH_LIMIT`
+- `XREDIS_REFRESH_MEMORY`
+- `XREDIS_REFRESH_MORE`
+- `XREDIS_REFRESH_OK`
+- `XREDIS_REFRESH_OVERLOADED`
+- `XREDIS_REFRESH_POLICY`
+- `XREDIS_REFRESH_PROTOCOL`
+- `XREDIS_REFRESH_SERVER`
+- `XREDIS_REFRESH_STALE`
+- `XREDIS_REFRESH_STEP_ERROR`
+- `XREDIS_REFRESH_TIMEOUT`
+- `XREDIS_REFRESH_TRANSPORT`
+- `XREDIS_REFRESH_WAIT`
+
+### 类型 (12)
+
+- `xredisclusterformat`
+- `xredisclusterlimits`
+- `xredisclustermap`
+- `xredisclustermapinfo`
+- `xredisclusterrefresh`
+- `xredisclusterrefreshconfig`
+- `xredisclusterrefreshinfo`
+- `xredisclusterrefreshresult`
+- `xredisclusterrefreshstatus`
+- `xredisclusterrefreshstep`
+- `xredisclusterstatus`
+- `xredisclustertopology`
+
 ## `extlibs/xredis/include/xredis/cluster_route.h`
 
 [查看带契约注释的公共头](../../include/xredis/cluster_route.h)
@@ -187,7 +246,7 @@
 - `XREDIS_FEATURE_XREDIS_CLUSTER_TOPOLOGY`
 - `XREDIS_FEATURE_XREDIS_POOL_SHARED_ASKING`
 
-### 类型 (8)
+### 类型 (7)
 
 - `xredisclusterpoolproc`
 - `xredisclusterredirectkind`
@@ -196,7 +255,6 @@
 - `xredisclusterrouteresult`
 - `xredisclusterroutestatus`
 - `xredisclusterroutestep`
-- `xredisclustertopology`
 
 ## `extlibs/xredis/include/xredis/cluster_topology.h`
 
@@ -241,17 +299,14 @@
 - `XREDIS_CLUSTER_UNREPORTED`
 - `XREDIS_CLUSTER_VALUE`
 
-### 类型 (10)
+### 类型 (7)
 
 - `xredisclusterendpoint`
-- `xredisclusterformat`
 - `xredisclusterhealth`
-- `xredisclusterlimits`
 - `xredisclusternode`
 - `xredisclusterrange`
 - `xredisclusterredirect`
 - `xredisclusterrole`
-- `xredisclusterstatus`
 - `xredisclustertopologyinfo`
 
 ## `extlibs/xredis/include/xredis/command.h`

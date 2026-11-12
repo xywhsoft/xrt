@@ -1,0 +1,1441 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "63f303415a8a38affb2d893a81c8a15c39b21499",
+  "scope": "Bounded coalesced explicit-seed Cluster SHARDS/SLOTS metadata refresh, immutable generation/origin maps, local invalidation epochs, original-deadline transport failover and explicit phase/physical lifetime contracts.",
+  "state": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "source_inputs": 2833,
+  "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+      "programs": 46
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+      "programs": 47
+    }
+  },
+  "interop": {
+    "windows": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "metadata_outcomes_retained": 216,
+      "maps_retained": 144,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "b97ffdc1f7a430169892b48b06e95534e3b7976500758d79434f59568f138c6c",
+      "report_sha256": "4d1f6f7bddcaae40f1464d966d0dac3c7f615a31fb85f162bc8c63a1289a2526",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "4 forms x numeric/DNS/prepared x RESP2/3/AUTO x SHARDS/SLOTS x fresh/invalidation-raced demand. Each case: coalesced start, retained map; 4 producers x8 INCR, unique1..32 and final32; automatic ASK or intentional-stale-hint MOVED+ASK. Verify all actual owned run IDs before writes; one generation/node; physical Drop; retained metadata/maps/native results after engine teardown."
+    },
+    "wsl": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "metadata_outcomes_retained": 216,
+      "maps_retained": 144,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "b97ffdc1f7a430169892b48b06e95534e3b7976500758d79434f59568f138c6c",
+      "report_sha256": "a5744e8606edcd93d419d1bf7adba9bdc05fb1716ce0323aeffc7ea6052cf07a",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "4 forms x numeric/DNS/prepared x RESP2/3/AUTO x SHARDS/SLOTS x fresh/invalidation-raced demand. Each case: coalesced start, retained map; 4 producers x8 INCR, unique1..32 and final32; automatic ASK or intentional-stale-hint MOVED+ASK. Verify all actual owned run IDs before writes; one generation/node; physical Drop; retained metadata/maps/native results after engine teardown."
+    }
+  },
+  "delivery": {
+    "windows": {
+      "forms": {
+        "modular": {
+          "path": "delivery/windows/modular/client.exe",
+          "sha256": "30e909cd6323a7d1fcc0b001d9c64d1148c43582298892d0d8d79a9b1518efb3"
+        },
+        "single": {
+          "path": "delivery/windows/single/client.exe",
+          "sha256": "6bfde278b6b8e09de4a6b1fa9222ade932a51c241f742ec3c3b77c7bf52b7699"
+        },
+        "static": {
+          "path": "delivery/windows/static/client.exe",
+          "sha256": "731d9610c40d0319da912446155fab31db48f47741ea20d1b7ed1123cf7ce838"
+        },
+        "shared": {
+          "path": "delivery/windows/shared/client.exe",
+          "sha256": "8d0c74adde3ede15af046638a613cb17d568b89f94c46ae310c73bb3e416334b"
+        }
+      },
+      "exports": [
+        "xredisClusterMapInfo",
+        "xredisClusterMapRelease",
+        "xredisClusterMapRetain",
+        "xredisClusterRefreshClose",
+        "xredisClusterRefreshClosed",
+        "xredisClusterRefreshConfigInit",
+        "xredisClusterRefreshCreate",
+        "xredisClusterRefreshInfo",
+        "xredisClusterRefreshInvalidate",
+        "xredisClusterRefreshNextWake",
+        "xredisClusterRefreshPending",
+        "xredisClusterRefreshRelease",
+        "xredisClusterRefreshRetain",
+        "xredisClusterRefreshSnapshot",
+        "xredisClusterRefreshStart",
+        "xredisClusterRefreshStep"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "4489868ee144409c6b1c221a9acdc980423826c7963d3f3cedb26f9c2a8b9f2f",
+        "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0"
+      }
+    },
+    "wsl": {
+      "forms": {
+        "modular": {
+          "path": "delivery/wsl/modular/client",
+          "sha256": "2e1a7b56aeacbd41a91ee49e1c13eba1dd88fa66632614ee8e889665fccb7ba3"
+        },
+        "single": {
+          "path": "delivery/wsl/single/client",
+          "sha256": "60020c14c97a1ca1917b673611b3f226064165d31d42b289b134d13a2c7f3313"
+        },
+        "static": {
+          "path": "delivery/wsl/static/client",
+          "sha256": "87549287e7a3e8208b5ce253629da40c1f8c7be1055f53c40bdc6abe96ef3918"
+        },
+        "shared": {
+          "path": "delivery/wsl/shared/client",
+          "sha256": "ec60bded62f8eb3e076e59ac3e2a6bef4e45a5196b0f91b6b2028b456f6f76e9"
+        }
+      },
+      "exports": [
+        "xredisClusterMapInfo",
+        "xredisClusterMapRelease",
+        "xredisClusterMapRetain",
+        "xredisClusterRefreshClose",
+        "xredisClusterRefreshClosed",
+        "xredisClusterRefreshConfigInit",
+        "xredisClusterRefreshCreate",
+        "xredisClusterRefreshInfo",
+        "xredisClusterRefreshInvalidate",
+        "xredisClusterRefreshNextWake",
+        "xredisClusterRefreshPending",
+        "xredisClusterRefreshRelease",
+        "xredisClusterRefreshRetain",
+        "xredisClusterRefreshSnapshot",
+        "xredisClusterRefreshStart",
+        "xredisClusterRefreshStep"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "4ad34ef788d499656f662a419d3f23c929e4c91bb98ea992f3f16b3e80ef7e6f",
+        "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0"
+      }
+    }
+  },
+  "layouts": {
+    "windows": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    },
+    "wsl": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    }
+  },
+  "cache_layouts": {
+    "windows": {
+      "selected-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "selected-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      }
+    },
+    "wsl": {
+      "selected-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "selected-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      }
+    }
+  },
+  "footprint": {
+    "windows": {
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+        "prefixes": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/windows/single/xredis_single.o",
+              "sha256": "8c0757dd7ffcf0cc0839498580c458228a3de9fa12e3004da6727063f8132455",
+              "defined_symbols": 1425,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/static/libxredis.a",
+              "sha256": "82c7c9850a0529f1f1df7753f00144943b1e156ac72f142330740c4d1a1dbf09",
+              "defined_symbols": 328,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/static/libxrt.a",
+              "sha256": "3069a990825c228dc11ea33d959ca362dac62cbbf37f38da02cc06cc28862cb6",
+              "defined_symbols": 1387,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/shared/libxredis.dll.a",
+              "sha256": "e293740fa14b2366c28eb51dfae357fd1ee23e2330603497845a5e6934dcfa72",
+              "defined_symbols": 743,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/libxrt.dll.a",
+              "sha256": "a00c6af54e42916bdc993ec65fb9d3526a0cae530ace4a061be930fb474ede2b",
+              "defined_symbols": 3487,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xredis.dll",
+              "sha256": "2aab64fe94cfd79ecdebcf0bf237f77ca1de9547c49b004cca429b7c60d4f446",
+              "defined_symbols": 1420,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrt.dll",
+              "sha256": "85385fcbacacee07a533c6e6ab76c3ea4bf12209e3b72ab3f50ada3f9cdb46aa",
+              "defined_symbols": 2575,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "sizes": {
+        "suite": "xredis_cluster_refresh",
+        "description": "Coalesced metadata refresh and immutable topology views; no TLS/DNS/HTTP/tasks",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": {
+            "text": 448076,
+            "data": 2384,
+            "bss": 11136,
+            "members": 1,
+            "load": 450460,
+            "file": 628805,
+            "path": "out/size/gnu/native/xredis_cluster_refresh/single/xredis_single.o",
+            "compile_seconds": 9.896601499989629,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 112700,
+            "data": 0,
+            "bss": 0,
+            "members": 14,
+            "load": 112700,
+            "file": 176134,
+            "path": "release/gnu/native/xredis_cluster_refresh/static/libxredis.a"
+          },
+          "shared": {
+            "text": 130540,
+            "data": 144,
+            "bss": 272,
+            "members": 1,
+            "load": 130684,
+            "file": 191469,
+            "path": "release/gnu/native/xredis_cluster_refresh/shared/xredis.dll"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+        "prefixes": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/wsl/single/xredis_single.o",
+              "sha256": "0a10ba5856794e03206c2626f400d2ebd7bee8f9e81e37bedb1a3d440725aa08",
+              "defined_symbols": 2082,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/static/libxredis.a",
+              "sha256": "f136549a94334af6cf7229435dc4e5cacf1476211a419a09df7865ac66448f1b",
+              "defined_symbols": 498,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/static/libxrt.a",
+              "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+              "defined_symbols": 1656,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/shared/libxredis.so",
+              "sha256": "3b1302420f3875777e2e12e6b45c139c2d8b54551ed8b1d59cad7db71d3b907c",
+              "defined_symbols": 243,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/shared/libxrt.so",
+              "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+              "defined_symbols": 1140,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "sizes": {
+        "suite": "xredis_cluster_refresh",
+        "description": "Coalesced metadata refresh and immutable topology views; no TLS/DNS/HTTP/tasks",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": {
+            "text": 464637,
+            "data": 4640,
+            "bss": 10908,
+            "members": 1,
+            "load": 469277,
+            "file": 812424,
+            "path": "out/size/gnu/x64/xredis_cluster_refresh/single/xredis_single.o",
+            "compile_seconds": 8.234498231000003,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 117123,
+            "data": 216,
+            "bss": 0,
+            "members": 14,
+            "load": 117339,
+            "file": 229402,
+            "path": "release/gnu/x64/xredis_cluster_refresh/static/libxredis.a"
+          },
+          "shared": {
+            "text": 134282,
+            "data": 1824,
+            "bss": 8,
+            "members": 1,
+            "load": 136106,
+            "file": 161848,
+            "path": "release/gnu/x64/xredis_cluster_refresh/shared/libxredis.so"
+          }
+        }
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+      "binary_sha256": "91692a93dab81b7d8eacaa9d9b9a4c4aebdc6760fa0d8a1f890bd31e543c9ec6",
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "observed_clock_step_ns": 99.942553788,
+      "scope": "Single caller warm current-map acquisition vs direct Retain/Release of the identical retained map. Direct ref is a lower-bound control with fewer semantics, not an equivalent baseline or a feature-speedup comparison. Per-call clocks/validation/ref and gate costs included; setup/query/initial map/sample buffer excluded. One warmup and seven alternating serial unpinned samples. Global heap samples may include asynchronous peer mechanical tails. No real-I/O or concurrent/fixed-arrival/production claim.",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "count": 3325253,
+      "metrics": {
+        "snapshots_per_sec": {
+          "direct": {
+            "samples": [
+              15106367.998509,
+              15319567.197169,
+              14876858.068467,
+              15147084.077294,
+              13533738.162636,
+              13360197.675324,
+              14392336.8471
+            ],
+            "median": 14876858.068467,
+            "mean": 14533735.718071286,
+            "min": 13360197.675324,
+            "max": 15319567.197169,
+            "mad": 442709.1287019998,
+            "relative_mad": 0.029758241065723844,
+            "range": 1959369.5218449999,
+            "relative_range": 0.13170586913093438,
+            "central_range": 1613345.9146579988,
+            "relative_central_range": 0.10844668324675678,
+            "noise_qualified": false,
+            "resolution_qualified": true,
+            "qualified": false
+          },
+          "snapshot": {
+            "samples": [
+              11677150.133101,
+              11660627.564744,
+              11201640.807651,
+              6988115.853087,
+              7244850.338101,
+              9542478.014105,
+              9859203.496547
+            ],
+            "median": 9859203.496547,
+            "mean": 9739152.315333713,
+            "min": 6988115.853087,
+            "max": 11677150.133101,
+            "mad": 1801424.068196999,
+            "relative_mad": 0.18271496970601261,
+            "range": 4689034.280014,
+            "relative_range": 0.4755997055600126,
+            "central_range": 4415777.226643,
+            "relative_central_range": 0.44788376953468323,
+            "noise_qualified": false,
+            "resolution_qualified": true,
+            "qualified": false
+          }
+        },
+        "latency_p50_ns": {
+          "direct": {
+            "samples": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "median": 0.0,
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          },
+          "snapshot": {
+            "samples": [
+              100.000761,
+              0.0,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761
+            ],
+            "median": 100.000761,
+            "mean": 85.71493799999999,
+            "min": 0.0,
+            "max": 100.000761,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 100.000761,
+            "relative_range": 1.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          }
+        },
+        "latency_p99_ns": {
+          "direct": {
+            "samples": [
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761
+            ],
+            "median": 100.000761,
+            "mean": 100.000761,
+            "min": 100.000761,
+            "max": 100.000761,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          },
+          "snapshot": {
+            "samples": [
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761,
+              100.000761
+            ],
+            "median": 100.000761,
+            "mean": 100.000761,
+            "min": 100.000761,
+            "max": 100.000761,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          }
+        }
+      },
+      "raw_report_sha256": "9872878568a559d375d92a1eda7494204977aa124432ce52e90b443a37aaa87f",
+      "sample_values": {
+        "direct": [
+          {
+            "snapshots_per_sec": 15106367.998509,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 15319567.197169,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 14876858.068467,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 15147084.077294,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 13533738.162636,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 13360197.675324,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 14392336.8471,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          }
+        ],
+        "snapshot": [
+          {
+            "snapshots_per_sec": 11677150.133101,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 11660627.564744,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 11201640.807651,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 6988115.853087,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 7244850.338101,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 9542478.014105,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          },
+          {
+            "snapshots_per_sec": 9859203.496547,
+            "latency_p50_ns": 100.000761,
+            "latency_p99_ns": 100.000761,
+            "checksum": 3325253.0
+          }
+        ]
+      },
+      "allocations": {
+        "direct": {
+          "snapshots_per_sec": 14735475.138403,
+          "latency_p50_ns": 0.0,
+          "latency_p99_ns": 100.000761,
+          "checksum": 3325253.0,
+          "heap_blocks_per_snapshot": 0.0,
+          "heap_bytes_per_snapshot": 0.0
+        },
+        "snapshot": {
+          "snapshots_per_sec": 10765977.436064,
+          "latency_p50_ns": 100.000761,
+          "latency_p99_ns": 100.000761,
+          "checksum": 3325253.0,
+          "heap_blocks_per_snapshot": 0.0,
+          "heap_bytes_per_snapshot": 0.0
+        }
+      }
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+      "binary_sha256": "379aba827324100c87fb6e052dd721dced9c9520f7080c0961513b611777f4d5",
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "observed_clock_step_ns": 99.999965641,
+      "scope": "Single caller warm current-map acquisition vs direct Retain/Release of the identical retained map. Direct ref is a lower-bound control with fewer semantics, not an equivalent baseline or a feature-speedup comparison. Per-call clocks/validation/ref and gate costs included; setup/query/initial map/sample buffer excluded. One warmup and seven alternating serial unpinned samples. Global heap samples may include asynchronous peer mechanical tails. No real-I/O or concurrent/fixed-arrival/production claim.",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "count": 3180829,
+      "metrics": {
+        "snapshots_per_sec": {
+          "direct": {
+            "samples": [
+              17088460.498524,
+              16937258.21676,
+              16891494.849304,
+              17000970.881918,
+              16882135.195292,
+              17017634.068272,
+              16859853.911714
+            ],
+            "median": 16937258.21676,
+            "mean": 16953972.517397713,
+            "min": 16859853.911714,
+            "max": 17088460.498524,
+            "mad": 63712.66515799984,
+            "relative_mad": 0.0037616870654397874,
+            "range": 228606.58681000024,
+            "relative_range": 0.013497260529675705,
+            "central_range": 135498.8729799986,
+            "relative_central_range": 0.008000047660955998,
+            "noise_qualified": true,
+            "resolution_qualified": true,
+            "qualified": true
+          },
+          "snapshot": {
+            "samples": [
+              13168904.095844,
+              12957435.928004,
+              13189955.303677,
+              13160420.685263,
+              12473912.347055,
+              12593048.220129,
+              12820531.268091
+            ],
+            "median": 12957435.928004,
+            "mean": 12909172.549723286,
+            "min": 12473912.347055,
+            "max": 13189955.303677,
+            "mad": 211468.16784000024,
+            "relative_mad": 0.016320217133620463,
+            "range": 716042.9566220008,
+            "relative_range": 0.055261161282261655,
+            "central_range": 575855.8757150006,
+            "relative_central_range": 0.044442116396689525,
+            "noise_qualified": true,
+            "resolution_qualified": true,
+            "qualified": true
+          }
+        },
+        "latency_p50_ns": {
+          "direct": {
+            "samples": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "median": 0.0,
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          },
+          "snapshot": {
+            "samples": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "median": 0.0,
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          }
+        },
+        "latency_p99_ns": {
+          "direct": {
+            "samples": [
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022
+            ],
+            "median": 100.000022,
+            "mean": 100.00002200000002,
+            "min": 100.000022,
+            "max": 100.000022,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          },
+          "snapshot": {
+            "samples": [
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022,
+              100.000022
+            ],
+            "median": 100.000022,
+            "mean": 100.00002200000002,
+            "min": 100.000022,
+            "max": 100.000022,
+            "mad": 0.0,
+            "relative_mad": 0.0,
+            "range": 0.0,
+            "relative_range": 0.0,
+            "central_range": 0.0,
+            "relative_central_range": 0.0,
+            "noise_qualified": true,
+            "resolution_qualified": false,
+            "qualified": false
+          }
+        }
+      },
+      "raw_report_sha256": "556a7f79390fcac1a6760d474130d2df6c8464a04dde8824b70b17425d0f8951",
+      "sample_values": {
+        "direct": [
+          {
+            "snapshots_per_sec": 17088460.498524,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 16937258.21676,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 16891494.849304,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 17000970.881918,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 16882135.195292,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 17017634.068272,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 16859853.911714,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          }
+        ],
+        "snapshot": [
+          {
+            "snapshots_per_sec": 13168904.095844,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 12957435.928004,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 13189955.303677,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 13160420.685263,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 12473912.347055,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 12593048.220129,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          },
+          {
+            "snapshots_per_sec": 12820531.268091,
+            "latency_p50_ns": 0.0,
+            "latency_p99_ns": 100.000022,
+            "checksum": 3180829.0
+          }
+        ]
+      },
+      "allocations": {
+        "direct": {
+          "snapshots_per_sec": 16805028.63919,
+          "latency_p50_ns": 0.0,
+          "latency_p99_ns": 100.000022,
+          "checksum": 3180829.0,
+          "heap_blocks_per_snapshot": 0.0,
+          "heap_bytes_per_snapshot": 0.0
+        },
+        "snapshot": {
+          "snapshots_per_sec": 12686317.370295,
+          "latency_p50_ns": 0.0,
+          "latency_p99_ns": 100.000022,
+          "checksum": 3180829.0,
+          "heap_blocks_per_snapshot": 0.0,
+          "heap_bytes_per_snapshot": 0.0
+        }
+      }
+    }
+  },
+  "failures": [],
+  "limitations": [
+    "Caller-serialized Step/Pending/NextWake driver; no new worker/timer. Explicit seeds only. Local demand epoch is not a Redis configuration epoch. A stale-at-publication map cannot clear newer demand.",
+    "Close releases coordinator references and publishes immutable outcomes; pending native FIFO duties/resources remain independent. The owner closes Nodes and joins its engine. Observer cancellation never cancels the shared cohort.",
+    "Control cap covers coordinator/seeds/two workboxes; per-map cap includes topology/retained Reply reservation. Future/native wire/parser limits remain independently bounded. Caller-retained old maps/outcomes are caller-owned storage.",
+    "Performance compares single-caller warm Snapshot acquisition with a lower-bound direct reference control of the identical map. They have different semantics; no equivalent-feature speedup claim. Per-call clock/gate/ref/validation costs remain. No zero-overhead or lock-free claim.",
+    "Unpinned serial local microbenchmarks and WSL are not concurrent/fixed-arrival/mixed-load/native Linux/upstream/CPU/RSS/72h production acceptance. Clock floors and noise qualification are recorded before any tail conclusion.",
+    "Real metadata queries use prewarmed verified owned plaintext IPv4/default-user Redis 8 pools. Cold bootstrap is fixture-tested; full real TLS/auth/trust and server-topology changes are not validated here.",
+    "Automatic MOVED invalidation wiring, refreshed seed selection, replica policy, fully managed asynchronous facade and full four-library production acceptance remain open."
+  ],
+  "development_corrections": {
+    "earlier_raw_evidence": "out/service-extensions/xredis-cluster-refresh-20261112",
+    "correction": {
+      "earlier_evidence": "out/service-extensions/xredis-cluster-refresh-20261112",
+      "earlier_source_map_sha256": "815617185718f2bd29684a0d76e9925e2b136c380d1f77f4d6b006975d1eb28e",
+      "corrected_source_map_sha256": "774f8f81484780711c591ad56274587276dd1255262fd0ee9bcae3ed8df6dee0",
+      "changed_inputs": [
+        "extlibs/xredis/src/cluster_refresh/cluster_refresh.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c",
+        "extlibs/xredis/tests/test_cluster_refresh.c",
+        "single/extlibs/xredis.h"
+      ],
+      "earlier_all_functional_jobs_complete": true,
+      "correction": "Check total deadline after a successful native reply parse before publication. Add deterministic TLS clock regression to the shipped single-header test; new timeout map is released without generation publication. All formal functionality/delivery is rerun against corrected frozen source; focused and single WSL remain ASan/UBSan/leak, root/feature-off now normal O2, plus TSan. Earlier full ASan root baseline is preserved."
+    },
+    "red_probe": {
+      "source_map_sha256": "815617185718f2bd29684a0d76e9925e2b136c380d1f77f4d6b006975d1eb28e",
+      "expected_exit_code": 1,
+      "observed_failure": "[FAIL] parse crossing original deadline published a successful map",
+      "artifacts": {
+        "parse-deadline-red.c": "d1826ffed76b3f9d9b37a99fde3ffb9eda83afcf30294157f4d9f5b5c73a54f2",
+        "parse-deadline-red.exe": "955d8fb28e7ba0f688ad136d16cdb5a793fbea96be312f3bc4698b4acd89e415",
+        "parse-deadline-red-build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "parse-deadline-red-run.log": "80e4154cb1331f1d8a678745e71726abe3eac9a860b050141aa012d82bf00961"
+      },
+      "mechanism": "Single-header-only TLS clock wrapper: first refresh Step time is real, second would jump beyond original deadline after native read/parse. Old success path skips second clock check. No wall-clock sleep or production hook. All other threads use real time."
+    },
+    "earlier_validation": {
+      "windows": {
+        "complete": true,
+        "source_map_sha256": "815617185718f2bd29684a0d76e9925e2b136c380d1f77f4d6b006975d1eb28e",
+        "programs": 46
+      },
+      "wsl": {
+        "complete": true,
+        "source_map_sha256": "815617185718f2bd29684a0d76e9925e2b136c380d1f77f4d6b006975d1eb28e",
+        "programs": 47
+      }
+    },
+    "earlier_prototype_issues": [
+      "Compile diagnostics corrected before initial freeze.",
+      "SHARDS fixture required ip/replication-offset; corrected fixture, no parser relaxation.",
+      "Controlled exact seed failover now prewarms seeds; cold bootstrap tested separately, no production rotation change."
+    ]
+  },
+  "raw_evidence": "out/service-extensions/xredis-cluster-refresh-v2-20261112"
+}

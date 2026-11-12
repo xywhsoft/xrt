@@ -201,6 +201,13 @@
         "source_roots": [
           "cluster_nodes"
         ]
+      },
+      {
+        "name": "cluster_refresh",
+        "state": "retained",
+        "source_roots": [
+          "cluster_refresh"
+        ]
       }
     ]
   },
@@ -487,7 +494,8 @@
         "xredis_pool_shared_connect",
         "xredis_pool_shared_asking",
         "xredis_cluster_route",
-        "xredis_cluster_nodes"
+        "xredis_cluster_nodes",
+        "xredis_cluster_refresh"
       ],
       "public_headers": [
         "extlibs/xredis/include/xredis.h",
@@ -921,7 +929,8 @@
         "xredis_pool_shared_connect_tests",
         "xredis_pool_shared_asking_tests",
         "xredis_cluster_route_tests",
-        "xredis_cluster_nodes_tests"
+        "xredis_cluster_nodes_tests",
+        "xredis_cluster_refresh_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -959,7 +968,8 @@
         "extlibs/xredis/tests/test_pool_shared_connect.c",
         "extlibs/xredis/tests/test_pool_shared_asking.c",
         "extlibs/xredis/tests/test_cluster_route.c",
-        "extlibs/xredis/tests/test_cluster_nodes.c"
+        "extlibs/xredis/tests/test_cluster_nodes.c",
+        "extlibs/xredis/tests/test_cluster_refresh.c"
       ],
       "single_tests": [
         "extlibs/xredis/tests/single/test_single_xredis_command.c",
@@ -1006,7 +1016,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_route.c",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1060,7 +1071,8 @@
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking.c": "xredis_pool_shared_asking",
         "extlibs/xredis/tests/single/test_single_xredis_pool_shared_asking_tls.c": "xredis_pool_shared_asking_tests",
         "extlibs/xredis/tests/single/test_single_xredis_cluster_route.c": "xredis_cluster_route",
-        "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c": "xredis_cluster_nodes"
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_nodes.c": "xredis_cluster_nodes",
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c": "xredis_cluster_refresh"
       }
     },
     {
@@ -1979,6 +1991,63 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xredis/docs/cluster_nodes.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_refresh",
+      "state": "developing",
+      "feature": "XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH",
+      "depends": [
+        "xredis_cluster_nodes"
+      ],
+      "public_headers": [
+        "extlibs/xredis/include/xredis/cluster_refresh.h"
+      ],
+      "internal_headers": [
+        "extlibs/xredis/src/internal/pool_admit.h",
+        "extlibs/xredis/src/internal/cluster_topology_internal.h"
+      ],
+      "sources": [
+        "extlibs/xredis/src/cluster_refresh/cluster_refresh.c"
+      ],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_refresh.c"
+      ],
+      "single_tests": [
+        "extlibs/xredis/tests/single/test_single_xredis_cluster_refresh.c"
+      ],
+      "examples": [
+        "extlibs/xredis/examples/cluster_refresh/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xredis/bench/bench_cluster_refresh.c"
+      ],
+      "docs": [
+        "extlibs/xredis/docs/cluster_refresh.md",
+        "extlibs/xredis/examples/cluster_refresh/README.md",
+        "extlibs/xredis/docs/api/reference.md"
+      ]
+    },
+    {
+      "name": "xredis_cluster_refresh_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xredis_cluster_refresh",
+        "memory_stats",
+        "thread"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xredis/tests/test_cluster_refresh.c"
+      ],
+      "single_tests": [],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xredis/docs/cluster_refresh.md"
       ]
     }
   ]

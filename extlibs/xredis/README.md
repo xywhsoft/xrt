@@ -230,7 +230,7 @@ fence/retire all old members when the verified master endpoint changes.
 [Cluster topology](docs/cluster_topology.md) provides bounded immutable SHARDS/
 SLOTS snapshots, constant-time slot lookup, binary key slots and MOVED/ASK views.
 Bounded request execution is available in [Cluster routes](docs/cluster_route.md);
-managed topology refresh/bootstrap remain work.
+coalesced metadata fetching is described below.
 
 [Leased ASKING groups](docs/pool_asking.md) execute an adjacent ASKING/query with
 one native request/Future and explicit control/query outcomes. The native FIFO
@@ -243,7 +243,7 @@ per-call leases. Maintained pools and bounded Cluster routes are described below
 
 [Automatic shared pools](docs/pool_shared_connect.md) maintain and refill shared
 node connections with bounded setup/retry and physical generation retirement.
-Accepted business calls never replay. Managed Cluster refresh/bootstrap remain work.
+Accepted business calls never replay. Coalesced metadata fetching is described below.
 
 [Shared ASKING groups](docs/pool_shared_asking.md) execute adjacent native
 ASKING/query pairs on fixed or maintained shared pools, with one Future and
@@ -251,8 +251,13 @@ separate control/query outcomes. Bounded Cluster routing is described below.
 
 [Cluster route execution](docs/cluster_route.md) selects a master and follows
 bounded MOVED/ASK redirects under one original deadline using authorized shared
-node pools. Persistent caches, refresh/bootstrap and the managed facade remain work.
+node pools. Maintained node pools and coalesced refresh are described below; the managed facade remains work.
 
 [Maintained Cluster nodes](docs/cluster_nodes.md) cache authorized node pools with
 bounded aggregate quotas, coalesced setup, allocation-free hits and explicit
-physical retirement. Automatic topology refresh/bootstrap remains work.
+physical retirement. Coalesced metadata fetching is described below.
+
+[Cluster metadata refresh](docs/cluster_refresh.md) fetches SHARDS or explicit SLOTS,
+coalesces concurrent demands, publishes bounded immutable generation/origin maps,
+and retains old views through failure. Explicit-seed bootstrap and invalidation
+are caller-driven; full automatic MOVED wiring and the managed facade remain work.

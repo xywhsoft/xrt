@@ -11671,3 +11671,50 @@ topology refresh/coalescing/bootstrap, persistent MOVED maps, replica policy and
 the managed async facade remain work; the full four-library goal stays active.
 All started jobs are terminal. Evidence: [portable report](../../extlibs/xredis/tests/results/nodes-admission-20261112.json)
 and out/service-extensions/xredis-nodes-admission-20261112 (including prototype1).
+
+## 2026-11-12 - Coalesced Cluster metadata refresh on master
+
+Implemented developing xredis_cluster_refresh: bounded copied explicit seeds,
+authorized maintained pools, SHARDS/default or explicit SLOTS, concurrent cohort
+Future coalescing/fresh reuse, immutable retained generation/origin maps, local
+invalidation epochs, stale-at-publication fencing, one original deadline and
+bounded transport-only metadata retry. Failed replacement preserves the old
+view. One serialized phase driver; no new worker/timer or business replay.
+Close publishes an immutable result and includes active provider/driver phases;
+physical native duties remain independent. Owners separately close Nodes and
+join engines. Start/constructor OOM preserves outputs/ownership. Unit coverage
+includes cold seeds, controlled failover, parser caps/OOM, concurrent observers,
+cancelled observers, close during policy, immutable late-native observations,
+allocation-free snapshot acquisition and exact native deadline whitebox checks.
+
+Mainline verification: Windows 46 / WSL 47 programs; root selector38 programs per host.
+WSL ASan/UBSan/leak and TSan, root single-header, feature-off, API/docs/maturity,
+unchanged native client/pool/cache layouts, all16 exports with no private exports,
+isolated declaration static/shared consumers and three footprint forms passed.
+Real Redis8.0.5:288 cases across4 forms/two hosts,9216 INCR executions verified
+unique1..32/final32 per case. SHARDS/SLOTS x numeric/DNS/prepared x RESP2/3/AUTO x
+fresh/invalidation-raced demand; all3 actual owned run IDs verified before writes.
+Prewarmed cache generation/Drop and retained metadata/maps/native outcomes after
+engine teardown checked; real cold bootstrap/server topology changes not claimed.
+
+windows: warm Snapshot median 9859203/s (noise qualified=False), P99 100.001ns (qualified=False); conservative observed clock floor 99.943ns.
+wsl: warm Snapshot median 12957436/s (noise qualified=True), P99 100.000ns (qualified=False); conservative observed clock floor 100.000ns.
+
+Direct map Retain/Release is a lower-bound control with fewer semantics, not an
+equivalent-feature baseline. Warm acquisition includes gate/ref/validation and
+per-call clocks; setup/native query and sample-buffer allocation are outside.
+Seven alternating serial unpinned samples, noise/resolution gates and separate
+heap runs retained. This does not establish concurrent/fixed-arrival/mixed-load/
+native Linux/upstream/CPU/RSS/72h or full production performance acceptance.
+Review found and reproduced successful parsing crossing the original deadline.
+Corrected post-parse deadline check, added deterministic caller-thread clock
+regression and reran corrected-source functionality/delivery. Earlier full ASan
+root baseline and compile/fixture/controlled-retry corrections and all logs
+are preserved; formal failures, if any, are recorded in the report.
+Automatic MOVED invalidation wiring, refreshed seed selection, replica policy
+and the managed async facade remain open; the four-library goal stays active.
+All new work/testing was performed in D:/GIT/xrt master. Both prior migration
+and verification commits05dc625d/f0e0955c are ancestors; no branch was created,
+switched or merged in this stage. No push. All started jobs are terminal.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-refresh-20261112.json)
+and out/service-extensions/xredis-cluster-refresh-v2-20261112.

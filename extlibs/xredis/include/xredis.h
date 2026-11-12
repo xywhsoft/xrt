@@ -149,4 +149,9 @@
 #endif
 #include <xredis/cluster_nodes.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH"
+#endif
+#include <xredis/cluster_refresh.h>
+
 #endif

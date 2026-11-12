@@ -111,3 +111,13 @@ cache and Route.GetPool adapter. It checks authority on every lookup, coalesces
 creation, bounds aggregate native quotas, and joins physical pools/constructors
 before context Drop. See [contracts](cluster_nodes.md). Managed refresh/bootstrap,
 replica policy and full production/performance acceptance remain open.
+
+## Coalesced Cluster refresh
+
+The developing `xredis_cluster_refresh` leaf performs bounded SHARDS/SLOTS reads
+through authorized cached pools, coalesces callers, tracks local invalidation
+epochs and publishes immutable maps. Explicit seeds and one serialized phase
+driver provide bootstrap without a new worker/timer. Failures preserve the old
+view. See [contracts](cluster_refresh.md). Automatic MOVED invalidation wiring,
+refreshed seed selection, replica policy, the complete managed facade and
+production/performance acceptance remain open.

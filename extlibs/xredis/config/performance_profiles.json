@@ -4980,6 +4980,63 @@
           }
         }
       ]
+    },
+    {
+      "name": "xredis_cluster_refresh",
+      "system": "cluster_refresh",
+      "description": "Warm snapshot acquisition versus direct same-Map retain/release; refresh/network setup excluded",
+      "benchmarks": [
+        {
+          "name": "xredis_cluster_refresh_0",
+          "source": "extlibs/xredis/bench/bench_cluster_refresh.c",
+          "suite": "xredis_cluster_refresh,memory_stats",
+          "args": [
+            "200000",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "256",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "snapshots_per_sec": {
+              "unit": "snapshots/s",
+              "direction": "higher"
+            },
+            "latency_p99_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xredis_cluster_refresh_1",
+          "source": "extlibs/xredis/bench/bench_cluster_refresh.c",
+          "suite": "xredis_cluster_refresh,memory_stats",
+          "args": [
+            "200000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "256",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "snapshots_per_sec": {
+              "unit": "snapshots/s",
+              "direction": "higher"
+            },
+            "latency_p99_ns": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

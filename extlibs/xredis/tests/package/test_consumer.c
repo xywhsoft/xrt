@@ -190,8 +190,16 @@ static int testPubSubPackage(void)
 #include "../../examples/cluster_nodes/main.c"
 #undef main
 #endif
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH)
+#define main clusterRefreshPackageExample
+#include "../../examples/cluster_refresh/main.c"
+#undef main
+#endif
 int main(void)
 {
+#if defined(XREDIS_FEATURE_XREDIS_CLUSTER_REFRESH)
+    if(clusterRefreshPackageExample())return 1;
+#endif
 #if defined(XREDIS_FEATURE_XREDIS_CLUSTER_NODES)
     if(clusterNodesPackageExample())return 1;
 #endif
