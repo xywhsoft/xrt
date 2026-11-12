@@ -1,0 +1,3158 @@
+{
+  "schema": 1,
+  "date": "2026-11-12",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "ed27125c391dcaef15f73edcd6d10c6e06f53561",
+  "scope": "Asynchronous explicit-seed Cluster client: automatic bootstrap, generation-coalesced MOVED refresh, ephemeral native ASK, bounded request/byte admission, ready queues, one preallocated deadline heap/one timer, original entry deadlines, per-operation cancellation and explicit logical/physical ownership.",
+  "state": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "source_inputs": 2846,
+  "source_map_sha256": "1a48e4c4601a7848e80ab11326cd83a0dbea5b4c3cddccaa1bb5b15359c98138",
+  "validation": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022",
+      "programs": 47
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022",
+      "programs": 48
+    }
+  },
+  "interop": {
+    "windows": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "retained_parent_results": 576,
+      "retained_maps": 144,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "e62d7a144f18d09b7499fb353a8e3d29f52b7aee3b7f5e399ac27a4492b406ed",
+      "report_sha256": "21c6251d8395486e0e43b445d074958dde97bd2f204792a2810472fafd78467e",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "4 forms x numeric/DNS/prepared x RESP2/3/AUTO x SHARDS/SLOTS x migrating ASK/actual-owner-change MOVED. Verify all3 actual owned run IDs before writes, then actual MYID. Bootstrap old map before SETSLOT NODE changes; four producers x8 INCR, unique1..32/final32; at least one real MOVED, automatic refresh and later direct GET. ASK leaves map generation unchanged. Delete only owned keys before restoring slot owner/migration. One generation/node, exact Drop, retained parent/native outcomes/maps after engines stop."
+    },
+    "wsl": {
+      "cases": 144,
+      "routed_increments": 4608,
+      "retained_parent_results": 576,
+      "retained_maps": 144,
+      "server_version": "Redis server v=8.0.5 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=d47fc40702b1fad8",
+      "server_sha256": "0f3f5d696b7dabd9af484c2d8844dbb0c9bc7722ddf794f63b911a9795509293",
+      "runner_sha256": "e62d7a144f18d09b7499fb353a8e3d29f52b7aee3b7f5e399ac27a4492b406ed",
+      "report_sha256": "9b53c7d1627e8f0739bd749bb853df1bdebed7ee5ad2bdd0cf59f197ce57d4cc",
+      "processes_terminal": true,
+      "runtime_material_removed": true,
+      "matrix": "4 forms x numeric/DNS/prepared x RESP2/3/AUTO x SHARDS/SLOTS x migrating ASK/actual-owner-change MOVED. Verify all3 actual owned run IDs before writes, then actual MYID. Bootstrap old map before SETSLOT NODE changes; four producers x8 INCR, unique1..32/final32; at least one real MOVED, automatic refresh and later direct GET. ASK leaves map generation unchanged. Delete only owned keys before restoring slot owner/migration. One generation/node, exact Drop, retained parent/native outcomes/maps after engines stop."
+    }
+  },
+  "delivery": {
+    "windows": {
+      "forms": {
+        "modular": {
+          "path": "delivery/windows/modular/client.exe",
+          "sha256": "30de2ebc84c19279f5aa95cb1ad9d64b1174f2ad6ed7aaccbd0acabd26835389"
+        },
+        "single": {
+          "path": "delivery/windows/single/client.exe",
+          "sha256": "122e21423d98c20e32b25babbe8505756720d765b0da5ae9b9b6ceb97d6fb45c"
+        },
+        "static": {
+          "path": "delivery/windows/static/client.exe",
+          "sha256": "37ad17a43ab7c113350aecd4cc76e1a584f60a3d59d77cdba3922e8f4259ce3f"
+        },
+        "shared": {
+          "path": "delivery/windows/shared/client.exe",
+          "sha256": "f002cce0fb4435757e2e414059a957910145445e8049ef82961b65c8a2cf6947"
+        }
+      },
+      "exports": [
+        "xredisClusterClientCall",
+        "xredisClusterClientClose",
+        "xredisClusterClientClosed",
+        "xredisClusterClientConfigInit",
+        "xredisClusterClientCreate",
+        "xredisClusterClientInfo",
+        "xredisClusterClientInvalidate",
+        "xredisClusterClientReady",
+        "xredisClusterClientRelease",
+        "xredisClusterClientRetain",
+        "xredisClusterClientSnapshot"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "5720559560999309d38153eb2dbecbd629a6972016e7b30773abe8c22bcb31ba",
+        "source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022"
+      }
+    },
+    "wsl": {
+      "forms": {
+        "modular": {
+          "path": "delivery/wsl/modular/client",
+          "sha256": "18bbee9c8c53b6530b522a6d5cde9507564ec1211ad183d4926408329be18725"
+        },
+        "single": {
+          "path": "delivery/wsl/single/client",
+          "sha256": "b66679dd2d49bccedddeb1ea406e9607be5989d798c8b66bfdedafb545566304"
+        },
+        "static": {
+          "path": "delivery/wsl/static/client",
+          "sha256": "2b80ed73f995478bc62500e8b003b9bce2eb3d98d25ad85eb52fa2cb712840c4"
+        },
+        "shared": {
+          "path": "delivery/wsl/shared/client",
+          "sha256": "608b1dadf41f2179aa8685862c41cdaa26bbc80c1b1af54e10147526de8e89eb"
+        }
+      },
+      "exports": [
+        "xredisClusterClientCall",
+        "xredisClusterClientClose",
+        "xredisClusterClientClosed",
+        "xredisClusterClientConfigInit",
+        "xredisClusterClientCreate",
+        "xredisClusterClientInfo",
+        "xredisClusterClientInvalidate",
+        "xredisClusterClientReady",
+        "xredisClusterClientRelease",
+        "xredisClusterClientRetain",
+        "xredisClusterClientSnapshot"
+      ],
+      "internal_exports": false,
+      "isolated_declaration_consumers": [
+        "static",
+        "shared"
+      ],
+      "root_single": {
+        "complete": true,
+        "binary_sha256": "a256fb2b3c9cf37228731117495ce08985971b3773f2c61fe1e6f41f8306b985",
+        "source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8"
+      }
+    }
+  },
+  "layouts": {
+    "windows": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 776,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 440,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 888,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 448,
+        "slot": 208,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 792,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 448,
+        "slot": 184,
+        "lease": 200,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    },
+    "wsl": {
+      "selected-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "selected-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "selected-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "feature-off-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 848,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112
+      },
+      "feature-off-pool-baseline": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "feature-off-pool-current": {
+        "pool": 512,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16
+      },
+      "full-client-baseline": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-client-current": {
+        "request": 104,
+        "wire_offset": 104,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 960,
+        "owner": 80,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "full-pool-baseline": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "full-pool-current": {
+        "pool": 520,
+        "slot": 208,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-client-baseline": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-client-current": {
+        "request": 104,
+        "wire_offset": 102,
+        "sensitivity_offset": 101,
+        "sensitivity_size": 1,
+        "client": 864,
+        "owner": 56,
+        "client_config": 232,
+        "client_info": 112,
+        "asking_result": 56
+      },
+      "delivery-pool-baseline": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      },
+      "delivery-pool-current": {
+        "pool": 520,
+        "slot": 184,
+        "lease": 272,
+        "quota": 40,
+        "pool_config": 56,
+        "pool_info": 104,
+        "lease_result": 16,
+        "connect_state": 200,
+        "connect_entry": 128
+      }
+    }
+  },
+  "cache_layouts": {
+    "windows": {
+      "selected-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "selected-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-baseline": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-current": {
+        "cache": 448,
+        "slot": 152,
+        "gate": 8,
+        "config": 48,
+        "info": 232,
+        "public_config": 184,
+        "public_info": 152
+      }
+    },
+    "wsl": {
+      "selected-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "selected-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "full-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-baseline": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      },
+      "delivery-current": {
+        "cache": 520,
+        "slot": 152,
+        "gate": 8,
+        "config": 120,
+        "info": 304,
+        "public_config": 184,
+        "public_info": 152
+      }
+    }
+  },
+  "footprint": {
+    "windows": {
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8",
+        "prefixes": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/windows/single/xredis_single.o",
+              "sha256": "44021377c8fa456e3abb6248e8b1e61fc5226fb4954df0154d059bd973306777",
+              "defined_symbols": 1460,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/static/libxredis.a",
+              "sha256": "ad50749dbf663d128c46500888a7980d5d33070a97065f2a92f1e4d21bf8a62e",
+              "defined_symbols": 369,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/static/libxrt.a",
+              "sha256": "9c515574b4b30860008f515fefc29fd4c56b0c4acc6684640eff52e77383e7bb",
+              "defined_symbols": 1387,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/shared/libxredis.dll.a",
+              "sha256": "7d1a456cd7e0b8fe132a38b9d3e39741394865aef8694ed2d43b137a78c93399",
+              "defined_symbols": 820,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/libxrt.dll.a",
+              "sha256": "c45f95607976f8417abc23cb4a5b8b135aae5978548e9bfbd2c7414783ca1e1c",
+              "defined_symbols": 3487,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xredis.dll",
+              "sha256": "0569bcd7900d0b726758532fd7ddc0f5687d594dbca80a2045f3b8964b9a2af0",
+              "defined_symbols": 1489,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/windows/shared/xrt.dll",
+              "sha256": "ceaddc02c95eb572e72d53cf89896409c8c91496d0a8016747ba9027c1feec2d",
+              "defined_symbols": 2575,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "sizes": {
+        "suite": "xredis_cluster_client",
+        "description": "Asynchronous Cluster client, coalesced refresh and bounded queues; no TLS/DNS/HTTP/tasks",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": {
+            "text": 465480,
+            "data": 2384,
+            "bss": 11136,
+            "members": 1,
+            "load": 467864,
+            "file": 650454,
+            "path": "out/size/gnu/native/xredis_cluster_client/single/xredis_single.o",
+            "compile_seconds": 10.961905100033619,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 128052,
+            "data": 0,
+            "bss": 0,
+            "members": 15,
+            "load": 128052,
+            "file": 201914,
+            "path": "release/gnu/native/xredis_cluster_client/static/libxredis.a"
+          },
+          "shared": {
+            "text": 146757,
+            "data": 144,
+            "bss": 272,
+            "members": 1,
+            "load": 146901,
+            "file": 210519,
+            "path": "release/gnu/native/xredis_cluster_client/shared/xredis.dll"
+          }
+        }
+      }
+    },
+    "wsl": {
+      "symbols": {
+        "complete": true,
+        "source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8",
+        "prefixes": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess",
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": [
+            {
+              "path": "footprint/wsl/single/xredis_single.o",
+              "sha256": "a7229345b2731c1149063e894df94eb301274b3f49f7300926193dfcadcea291",
+              "defined_symbols": 2135,
+              "forbidden_symbols": []
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/static/libxredis.a",
+              "sha256": "7b30ea038cddadc0faac6ca405cc2ad5971a0868603db69a45aecca75b1054ab",
+              "defined_symbols": 559,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/static/libxrt.a",
+              "sha256": "c5a125e874f7efec7d44752f6e934848247aee2b30008bc998c94acf4a508758",
+              "defined_symbols": 1656,
+              "forbidden_symbols": []
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/shared/libxredis.so",
+              "sha256": "2002bec9256e1c831a1b25bd03288f25b7a750335ee2efdcf731a9786e3dff13",
+              "defined_symbols": 277,
+              "forbidden_symbols": []
+            },
+            {
+              "path": "footprint/wsl/shared/libxrt.so",
+              "sha256": "6b838ede1b7050b7e05dde65187c276a37d4836b3023b0f8a1a89a96549b81eb",
+              "defined_symbols": 1140,
+              "forbidden_symbols": []
+            }
+          ]
+        }
+      },
+      "sizes": {
+        "suite": "xredis_cluster_client",
+        "description": "Asynchronous Cluster client, coalesced refresh and bounded queues; no TLS/DNS/HTTP/tasks",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtNetResolver",
+          "xrtNetDial",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtTask",
+          "xrtProcess"
+        ],
+        "kinds": {
+          "single": {
+            "text": 483065,
+            "data": 4640,
+            "bss": 10908,
+            "members": 1,
+            "load": 487705,
+            "file": 841792,
+            "path": "out/size/gnu/x64/xredis_cluster_client/single/xredis_single.o",
+            "compile_seconds": 8.514690754,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 133196,
+            "data": 216,
+            "bss": 0,
+            "members": 15,
+            "load": 133412,
+            "file": 262384,
+            "path": "release/gnu/x64/xredis_cluster_client/static/libxredis.a"
+          },
+          "shared": {
+            "text": 152213,
+            "data": 2024,
+            "bss": 8,
+            "members": 1,
+            "load": 154237,
+            "file": 176168,
+            "path": "release/gnu/x64/xredis_cluster_client/shared/libxredis.so"
+          }
+        }
+      }
+    }
+  },
+  "performance": {
+    "windows": {
+      "complete": true,
+      "source_map_sha256": "1a48e4c4601a7848e80ab11326cd83a0dbea5b4c3cddccaa1bb5b15359c98138",
+      "binary_sha256": "b41e9efd3d3a51beb00833d8ab4660f86d665a1013505047fac16061eb0acdbf",
+      "compiler": "gcc.exe (GCC) 16.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0xfff/0xfff",
+      "power_policy": "381b4222-f694-41f0-9685-ff5bb260df2e",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "observed_clock_step_ns": 99.942553788,
+      "scope": "Same established maintained pool/engine/peer/13-byte binary ECHO and one caller at pipeline1/32. Direct asynchronous native shared-pool calls know the exact node and have fewer semantics than automatic Cluster calls: this is a lower-bound cost control, not an equivalent-feature speedup/regression or Hiredis comparison. Call-entry to caller-observed FIFO completion latency includes admission, copies, queue, route/native wire, validation/wait and pipeline head-of-line delay. Setup/metadata bootstrap/sample storage outside loops; no per-process request/allocator priming, so cold first-window costs remain. One warmup and seven alternating serial unpinned samples; separate heap runs include peer mechanical tails. Not fixed-arrival/mixed-load/native Linux/CPU/RSS/72h acceptance.",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "raw_report_sha256": "a646745566ac6accdd95e68df633f3bab97b9b8dc540a208cd82b84b9225a88f",
+      "cases": [
+        {
+          "pipeline": 1,
+          "count": 4478,
+          "metrics": {
+            "requests_per_sec": {
+              "native": {
+                "samples": [
+                  18538.366926,
+                  18778.185102,
+                  10235.702304,
+                  16074.844592,
+                  12076.379459,
+                  14273.920293,
+                  14695.689615
+                ],
+                "median": 14695.689615,
+                "mean": 14953.298327285713,
+                "min": 10235.702304,
+                "max": 18778.185102,
+                "mad": 2619.3101559999996,
+                "relative_mad": 0.1782366275160337,
+                "range": 8542.482798,
+                "relative_range": 0.5812917271524722,
+                "central_range": 6461.987466999999,
+                "relative_central_range": 0.4397199203502638,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  12509.372251,
+                  14138.729415,
+                  13686.969411,
+                  11677.852944,
+                  10052.408111,
+                  12822.164764,
+                  8378.622425
+                ],
+                "median": 12509.372251,
+                "mean": 11895.159903000002,
+                "min": 8378.622425,
+                "max": 14138.729415,
+                "mad": 1177.5971599999993,
+                "relative_mad": 0.09413719060969362,
+                "range": 5760.10699,
+                "relative_range": 0.46046331298035653,
+                "central_range": 3634.5612999999994,
+                "relative_central_range": 0.2905470576039059,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p50_us": {
+              "native": {
+                "samples": [
+                  51.499985,
+                  50.699979,
+                  77.900011,
+                  55.100012,
+                  80.599973,
+                  68.599998,
+                  63.200016
+                ],
+                "median": 63.200016,
+                "mean": 63.94285342857143,
+                "min": 50.699979,
+                "max": 80.599973,
+                "mad": 11.700030999999996,
+                "relative_mad": 0.18512702591720856,
+                "range": 29.899994000000007,
+                "relative_range": 0.4731010511136581,
+                "central_range": 26.400026000000004,
+                "relative_central_range": 0.4177218246273863,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  69.500005,
+                  68.100053,
+                  69.500005,
+                  82.79999,
+                  90.300047,
+                  74.099982,
+                  100.400008
+                ],
+                "median": 74.099982,
+                "mean": 79.24287000000001,
+                "min": 68.100053,
+                "max": 100.400008,
+                "mad": 5.9999289999999945,
+                "relative_mad": 0.08097072142338704,
+                "range": 32.299955,
+                "relative_range": 0.4358969344958815,
+                "central_range": 20.800042000000005,
+                "relative_central_range": 0.2807023893743997,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p95_us": {
+              "native": {
+                "samples": [
+                  73.099975,
+                  69.500005,
+                  176.400004,
+                  95.899974,
+                  127.699983,
+                  95.70003,
+                  101.199956
+                ],
+                "median": 95.899974,
+                "mean": 105.64284671428571,
+                "min": 69.500005,
+                "max": 176.400004,
+                "mad": 22.799999,
+                "relative_mad": 0.23774770783566634,
+                "range": 106.899999,
+                "relative_range": 1.1147031072187776,
+                "central_range": 54.600008,
+                "relative_central_range": 0.5693433034715943,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  97.899989,
+                  92.500006,
+                  100.200006,
+                  113.799993,
+                  148.699968,
+                  104.899984,
+                  201.000017
+                ],
+                "median": 104.899984,
+                "mean": 122.71428042857143,
+                "min": 92.500006,
+                "max": 201.000017,
+                "mad": 8.900008999999997,
+                "relative_mad": 0.0848428060770724,
+                "range": 108.50001100000001,
+                "relative_range": 1.034318661097222,
+                "central_range": 50.79997900000001,
+                "relative_central_range": 0.48427060770571717,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "native": {
+                "samples": [
+                  89.200039,
+                  85.999956,
+                  425.199978,
+                  132.400019,
+                  223.300012,
+                  131.899957,
+                  157.799979
+                ],
+                "median": 132.400019,
+                "mean": 177.97142,
+                "min": 85.999956,
+                "max": 425.199978,
+                "mad": 43.19997999999998,
+                "relative_mad": 0.32628379003480346,
+                "range": 339.200022,
+                "relative_range": 2.561933333257301,
+                "central_range": 134.099973,
+                "relative_central_range": 1.0128395298795239,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  153.500005,
+                  108.000007,
+                  118.300028,
+                  141.799974,
+                  324.000022,
+                  127.499981,
+                  434.200047
+                ],
+                "median": 141.799974,
+                "mean": 201.0428662857143,
+                "min": 108.000007,
+                "max": 434.200047,
+                "mad": 23.499945999999994,
+                "relative_mad": 0.16572602474525133,
+                "range": 326.20004,
+                "relative_range": 2.3004238350565567,
+                "central_range": 205.699994,
+                "relative_central_range": 1.4506349204267133,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "native": {
+                "samples": [
+                  172.599975,
+                  176.400004,
+                  1368.900004,
+                  322.700012,
+                  430.600019,
+                  335.499994,
+                  411.299989
+                ],
+                "median": 335.499994,
+                "mean": 459.71428528571425,
+                "min": 172.599975,
+                "max": 1368.900004,
+                "mad": 95.10002499999996,
+                "relative_mad": 0.2834576056654116,
+                "range": 1196.300029,
+                "relative_range": 3.565722951995045,
+                "central_range": 254.20001499999998,
+                "relative_central_range": 0.7576751700329388,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  406.50001,
+                  221.499999,
+                  192.100008,
+                  329.700008,
+                  1063.800009,
+                  235.299987,
+                  1504.899992
+                ],
+                "median": 329.700008,
+                "mean": 564.8285732857142,
+                "min": 192.100008,
+                "max": 1504.899992,
+                "mad": 108.20000900000002,
+                "relative_mad": 0.32817715005939585,
+                "range": 1312.7999840000002,
+                "relative_range": 3.981801492707274,
+                "central_range": 842.30001,
+                "relative_central_range": 2.5547467078011112,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "sample_values": {
+            "native": [
+              {
+                "requests_per_sec": 18538.366926,
+                "latency_p50_us": 51.499985,
+                "latency_p95_us": 73.099975,
+                "latency_p99_us": 89.200039,
+                "latency_p999_us": 172.599975,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 18778.185102,
+                "latency_p50_us": 50.699979,
+                "latency_p95_us": 69.500005,
+                "latency_p99_us": 85.999956,
+                "latency_p999_us": 176.400004,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 10235.702304,
+                "latency_p50_us": 77.900011,
+                "latency_p95_us": 176.400004,
+                "latency_p99_us": 425.199978,
+                "latency_p999_us": 1368.900004,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 16074.844592,
+                "latency_p50_us": 55.100012,
+                "latency_p95_us": 95.899974,
+                "latency_p99_us": 132.400019,
+                "latency_p999_us": 322.700012,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 12076.379459,
+                "latency_p50_us": 80.599973,
+                "latency_p95_us": 127.699983,
+                "latency_p99_us": 223.300012,
+                "latency_p999_us": 430.600019,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 14273.920293,
+                "latency_p50_us": 68.599998,
+                "latency_p95_us": 95.70003,
+                "latency_p99_us": 131.899957,
+                "latency_p999_us": 335.499994,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 14695.689615,
+                "latency_p50_us": 63.200016,
+                "latency_p95_us": 101.199956,
+                "latency_p99_us": 157.799979,
+                "latency_p999_us": 411.299989,
+                "checksum": 4478.0
+              }
+            ],
+            "client": [
+              {
+                "requests_per_sec": 12509.372251,
+                "latency_p50_us": 69.500005,
+                "latency_p95_us": 97.899989,
+                "latency_p99_us": 153.500005,
+                "latency_p999_us": 406.50001,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 14138.729415,
+                "latency_p50_us": 68.100053,
+                "latency_p95_us": 92.500006,
+                "latency_p99_us": 108.000007,
+                "latency_p999_us": 221.499999,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 13686.969411,
+                "latency_p50_us": 69.500005,
+                "latency_p95_us": 100.200006,
+                "latency_p99_us": 118.300028,
+                "latency_p999_us": 192.100008,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 11677.852944,
+                "latency_p50_us": 82.79999,
+                "latency_p95_us": 113.799993,
+                "latency_p99_us": 141.799974,
+                "latency_p999_us": 329.700008,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 10052.408111,
+                "latency_p50_us": 90.300047,
+                "latency_p95_us": 148.699968,
+                "latency_p99_us": 324.000022,
+                "latency_p999_us": 1063.800009,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 12822.164764,
+                "latency_p50_us": 74.099982,
+                "latency_p95_us": 104.899984,
+                "latency_p99_us": 127.499981,
+                "latency_p999_us": 235.299987,
+                "checksum": 4478.0
+              },
+              {
+                "requests_per_sec": 8378.622425,
+                "latency_p50_us": 100.400008,
+                "latency_p95_us": 201.000017,
+                "latency_p99_us": 434.200047,
+                "latency_p999_us": 1504.899992,
+                "checksum": 4478.0
+              }
+            ]
+          },
+          "allocations": {
+            "native": {
+              "requests_per_sec": 16851.209615,
+              "latency_p50_us": 54.600008,
+              "latency_p95_us": 86.200016,
+              "latency_p99_us": 105.400046,
+              "latency_p999_us": 247.099961,
+              "checksum": 4478.0,
+              "heap_blocks_per_request": 10.0,
+              "heap_bytes_per_request": 1602.0
+            },
+            "client": {
+              "requests_per_sec": 12637.847219,
+              "latency_p50_us": 74.999989,
+              "latency_p95_us": 109.599961,
+              "latency_p99_us": 132.799963,
+              "latency_p999_us": 265.099981,
+              "checksum": 4478.0,
+              "heap_blocks_per_request": 15.0,
+              "heap_bytes_per_request": 3045.0
+            }
+          }
+        },
+        {
+          "pipeline": 32,
+          "count": 41697,
+          "metrics": {
+            "requests_per_sec": {
+              "native": {
+                "samples": [
+                  278210.915047,
+                  296963.490211,
+                  286882.73639,
+                  251936.485701,
+                  288555.561295,
+                  295362.056982,
+                  284687.425528
+                ],
+                "median": 286882.73639,
+                "mean": 283228.3815934286,
+                "min": 251936.485701,
+                "max": 296963.490211,
+                "mad": 8479.320592000033,
+                "relative_mad": 0.02955674746657778,
+                "range": 45027.00451000003,
+                "relative_range": 0.1569526457973703,
+                "central_range": 17151.14193500002,
+                "relative_central_range": 0.0597845034205337,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  169166.137552,
+                  174787.389619,
+                  171079.214157,
+                  171386.223808,
+                  169398.498622,
+                  172097.269603,
+                  162350.569304
+                ],
+                "median": 171079.214157,
+                "mean": 170037.9003807143,
+                "min": 162350.569304,
+                "max": 174787.389619,
+                "mad": 1680.7155349999957,
+                "relative_mad": 0.009824194851968381,
+                "range": 12436.82031499999,
+                "relative_range": 0.07269626749387963,
+                "central_range": 2931.132050999993,
+                "relative_central_range": 0.017133186316311243,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p50_us": {
+              "native": {
+                "samples": [
+                  107.800006,
+                  102.199963,
+                  106.199994,
+                  107.900007,
+                  104.499981,
+                  100.70001,
+                  105.399988
+                ],
+                "median": 105.399988,
+                "mean": 104.95713557142858,
+                "min": 100.70001,
+                "max": 107.900007,
+                "mad": 2.400018000000003,
+                "relative_mad": 0.02277057185243705,
+                "range": 7.199996999999996,
+                "relative_range": 0.06831117476028552,
+                "central_range": 5.600042999999999,
+                "relative_central_range": 0.05313134381002017,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  180.300034,
+                  174.999994,
+                  180.399977,
+                  180.399977,
+                  181.899988,
+                  180.699979,
+                  193.100015
+                ],
+                "median": 180.399977,
+                "mean": 181.68570914285715,
+                "min": 174.999994,
+                "max": 193.100015,
+                "mad": 0.3000020000000063,
+                "relative_mad": 0.0016629824736618802,
+                "range": 18.100021000000027,
+                "relative_range": 0.10033272343488174,
+                "central_range": 1.5999539999999968,
+                "relative_central_range": 0.008868925742712244,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p95_us": {
+              "native": {
+                "samples": [
+                  162.499957,
+                  144.499994,
+                  153.400004,
+                  178.499962,
+                  155.599962,
+                  154.300011,
+                  158.299983
+                ],
+                "median": 155.599962,
+                "mean": 158.15712471428574,
+                "min": 144.499994,
+                "max": 178.499962,
+                "mad": 2.7000209999999925,
+                "relative_mad": 0.01735232428912799,
+                "range": 33.999968000000024,
+                "relative_range": 0.2185088451371217,
+                "central_range": 9.099953,
+                "relative_central_range": 0.05848300271435798,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  262.50002,
+                  249.59998,
+                  253.500009,
+                  243.60005,
+                  251.099991,
+                  240.299967,
+                  245.90001
+                ],
+                "median": 249.59998,
+                "mean": 249.50000385714287,
+                "min": 240.299967,
+                "max": 262.50002,
+                "mad": 3.9000290000000177,
+                "relative_mad": 0.015625117437910122,
+                "range": 22.200052999999997,
+                "relative_range": 0.08894252715885634,
+                "central_range": 9.899958999999996,
+                "relative_central_range": 0.03966330045379009,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p99_us": {
+              "native": {
+                "samples": [
+                  190.299994,
+                  172.999979,
+                  184.100005,
+                  376.600015,
+                  187.900034,
+                  190.299994,
+                  193.500018
+                ],
+                "median": 190.299994,
+                "mean": 213.67143414285715,
+                "min": 172.999979,
+                "max": 376.600015,
+                "mad": 3.2000240000000133,
+                "relative_mad": 0.016815681034651076,
+                "range": 203.600036,
+                "relative_range": 1.0698898708320506,
+                "central_range": 9.400013000000001,
+                "relative_central_range": 0.0493957608847849,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  319.700048,
+                  310.500036,
+                  310.199976,
+                  292.100012,
+                  305.900001,
+                  299.700012,
+                  286.099967
+                ],
+                "median": 305.900001,
+                "mean": 303.4571502857143,
+                "min": 286.099967,
+                "max": 319.700048,
+                "mad": 6.19998899999996,
+                "relative_mad": 0.02026802543227177,
+                "range": 33.60008099999999,
+                "relative_range": 0.10984008136698238,
+                "central_range": 18.40002400000003,
+                "relative_central_range": 0.06015045420022745,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "native": {
+                "samples": [
+                  311.299984,
+                  267.700001,
+                  249.000033,
+                  1390.899997,
+                  267.900003,
+                  332.200027,
+                  303.09998
+                ],
+                "median": 303.09998,
+                "mean": 446.0142892857143,
+                "min": 249.000033,
+                "max": 1390.899997,
+                "mad": 35.19997699999999,
+                "relative_mad": 0.11613322112393405,
+                "range": 1141.899964,
+                "relative_range": 3.7674036270144255,
+                "central_range": 64.50002599999999,
+                "relative_central_range": 0.21280115557909304,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  389.499997,
+                  400.799967,
+                  416.099967,
+                  472.200045,
+                  394.999981,
+                  375.500007,
+                  367.800007
+                ],
+                "median": 394.999981,
+                "mean": 402.41428157142855,
+                "min": 367.800007,
+                "max": 472.200045,
+                "mad": 19.49997400000001,
+                "relative_mad": 0.04936702515942655,
+                "range": 104.400038,
+                "relative_range": 0.2643039063842385,
+                "central_range": 40.59996000000001,
+                "relative_central_range": 0.10278471380483437,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "sample_values": {
+            "native": [
+              {
+                "requests_per_sec": 278210.915047,
+                "latency_p50_us": 107.800006,
+                "latency_p95_us": 162.499957,
+                "latency_p99_us": 190.299994,
+                "latency_p999_us": 311.299984,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 296963.490211,
+                "latency_p50_us": 102.199963,
+                "latency_p95_us": 144.499994,
+                "latency_p99_us": 172.999979,
+                "latency_p999_us": 267.700001,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 286882.73639,
+                "latency_p50_us": 106.199994,
+                "latency_p95_us": 153.400004,
+                "latency_p99_us": 184.100005,
+                "latency_p999_us": 249.000033,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 251936.485701,
+                "latency_p50_us": 107.900007,
+                "latency_p95_us": 178.499962,
+                "latency_p99_us": 376.600015,
+                "latency_p999_us": 1390.899997,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 288555.561295,
+                "latency_p50_us": 104.499981,
+                "latency_p95_us": 155.599962,
+                "latency_p99_us": 187.900034,
+                "latency_p999_us": 267.900003,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 295362.056982,
+                "latency_p50_us": 100.70001,
+                "latency_p95_us": 154.300011,
+                "latency_p99_us": 190.299994,
+                "latency_p999_us": 332.200027,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 284687.425528,
+                "latency_p50_us": 105.399988,
+                "latency_p95_us": 158.299983,
+                "latency_p99_us": 193.500018,
+                "latency_p999_us": 303.09998,
+                "checksum": 41697.0
+              }
+            ],
+            "client": [
+              {
+                "requests_per_sec": 169166.137552,
+                "latency_p50_us": 180.300034,
+                "latency_p95_us": 262.50002,
+                "latency_p99_us": 319.700048,
+                "latency_p999_us": 389.499997,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 174787.389619,
+                "latency_p50_us": 174.999994,
+                "latency_p95_us": 249.59998,
+                "latency_p99_us": 310.500036,
+                "latency_p999_us": 400.799967,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 171079.214157,
+                "latency_p50_us": 180.399977,
+                "latency_p95_us": 253.500009,
+                "latency_p99_us": 310.199976,
+                "latency_p999_us": 416.099967,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 171386.223808,
+                "latency_p50_us": 180.399977,
+                "latency_p95_us": 243.60005,
+                "latency_p99_us": 292.100012,
+                "latency_p999_us": 472.200045,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 169398.498622,
+                "latency_p50_us": 181.899988,
+                "latency_p95_us": 251.099991,
+                "latency_p99_us": 305.900001,
+                "latency_p999_us": 394.999981,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 172097.269603,
+                "latency_p50_us": 180.699979,
+                "latency_p95_us": 240.299967,
+                "latency_p99_us": 299.700012,
+                "latency_p999_us": 375.500007,
+                "checksum": 41697.0
+              },
+              {
+                "requests_per_sec": 162350.569304,
+                "latency_p50_us": 193.100015,
+                "latency_p95_us": 245.90001,
+                "latency_p99_us": 286.099967,
+                "latency_p999_us": 367.800007,
+                "checksum": 41697.0
+              }
+            ]
+          },
+          "allocations": {
+            "native": {
+              "requests_per_sec": 273403.767752,
+              "latency_p50_us": 112.000038,
+              "latency_p95_us": 157.799979,
+              "latency_p99_us": 197.500049,
+              "latency_p999_us": 256.599975,
+              "checksum": 41697.0,
+              "heap_blocks_per_request": 10.001511,
+              "heap_bytes_per_request": 1602.136988
+            },
+            "client": {
+              "requests_per_sec": 146326.159553,
+              "latency_p50_us": 206.4,
+              "latency_p95_us": 308.40002,
+              "latency_p99_us": 375.600008,
+              "latency_p999_us": 474.200002,
+              "checksum": 41697.0,
+              "heap_blocks_per_request": 15.001511,
+              "heap_bytes_per_request": 3045.136988
+            }
+          }
+        }
+      ]
+    },
+    "wsl": {
+      "complete": true,
+      "source_map_sha256": "1a48e4c4601a7848e80ab11326cd83a0dbea5b4c3cddccaa1bb5b15359c98138",
+      "binary_sha256": "48921a804203fd5978bdcd8e7709f14bed0529282e471315e1776ddf5eac9746",
+      "compiler": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+      "cpu": "AMD Ryzen 5 5600 6-Core Processor",
+      "affinity": "0,1,2,3,4,5,6,7,8,9,10,11",
+      "power_policy": "unknown",
+      "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+      "observed_clock_step_ns": 99.999965641,
+      "scope": "Same established maintained pool/engine/peer/13-byte binary ECHO and one caller at pipeline1/32. Direct asynchronous native shared-pool calls know the exact node and have fewer semantics than automatic Cluster calls: this is a lower-bound cost control, not an equivalent-feature speedup/regression or Hiredis comparison. Call-entry to caller-observed FIFO completion latency includes admission, copies, queue, route/native wire, validation/wait and pipeline head-of-line delay. Setup/metadata bootstrap/sample storage outside loops; no per-process request/allocator priming, so cold first-window costs remain. One warmup and seven alternating serial unpinned samples; separate heap runs include peer mechanical tails. Not fixed-arrival/mixed-load/native Linux/CPU/RSS/72h acceptance.",
+      "limits": {
+        "relative_mad": 0.03,
+        "relative_central_range": 0.06
+      },
+      "raw_report_sha256": "e7aa9c6912277bb8dad3309e3a93e38606a10c17da1123325a1bf21033241034",
+      "cases": [
+        {
+          "pipeline": 1,
+          "count": 2051,
+          "metrics": {
+            "requests_per_sec": {
+              "native": {
+                "samples": [
+                  9474.111604,
+                  9539.805548,
+                  9179.111684,
+                  9141.570393,
+                  9425.988939,
+                  9366.802335,
+                  9294.678468
+                ],
+                "median": 9366.802335,
+                "mean": 9346.009853,
+                "min": 9141.570393,
+                "max": 9539.805548,
+                "mad": 107.3092689999994,
+                "relative_mad": 0.011456339651689618,
+                "range": 398.2351550000003,
+                "relative_range": 0.0425155929160536,
+                "central_range": 294.9999200000002,
+                "relative_central_range": 0.031494197213674864,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  6570.404422,
+                  6526.353752,
+                  6394.234631,
+                  6523.582523,
+                  6386.720086,
+                  6409.543251,
+                  6426.004294
+                ],
+                "median": 6426.004294,
+                "mean": 6462.406137,
+                "min": 6386.720086,
+                "max": 6570.404422,
+                "mad": 39.284208000000035,
+                "relative_mad": 0.006113318043792772,
+                "range": 183.68433599999935,
+                "relative_range": 0.028584533653596613,
+                "central_range": 132.11912099999972,
+                "relative_central_range": 0.020560073562876414,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p50_us": {
+              "native": {
+                "samples": [
+                  102.8,
+                  103.1,
+                  105.9,
+                  107.0,
+                  104.0,
+                  104.9,
+                  104.7
+                ],
+                "median": 104.7,
+                "mean": 104.62857142857142,
+                "min": 102.8,
+                "max": 107.0,
+                "mad": 1.2000000000000028,
+                "relative_mad": 0.011461318051575959,
+                "range": 4.200000000000003,
+                "relative_range": 0.04011461318051578,
+                "central_range": 2.8000000000000114,
+                "relative_central_range": 0.02674307545367728,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  152.1,
+                  153.5,
+                  156.9,
+                  153.8,
+                  155.1,
+                  156.1,
+                  155.5
+                ],
+                "median": 155.1,
+                "mean": 154.71428571428572,
+                "min": 152.1,
+                "max": 156.9,
+                "mad": 1.299999999999983,
+                "relative_mad": 0.008381689232752954,
+                "range": 4.800000000000011,
+                "relative_range": 0.030947775628626766,
+                "central_range": 2.5999999999999943,
+                "relative_central_range": 0.016763378465506087,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p95_us": {
+              "native": {
+                "samples": [
+                  131.1,
+                  130.5,
+                  142.9,
+                  138.2,
+                  136.8,
+                  133.1,
+                  140.1
+                ],
+                "median": 136.8,
+                "mean": 136.1,
+                "min": 130.5,
+                "max": 142.9,
+                "mad": 3.700000000000017,
+                "relative_mad": 0.027046783625731118,
+                "range": 12.400000000000006,
+                "relative_range": 0.0906432748538012,
+                "central_range": 9.0,
+                "relative_central_range": 0.06578947368421052,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  184.501,
+                  185.1,
+                  189.0,
+                  186.1,
+                  192.6,
+                  189.7,
+                  188.8
+                ],
+                "median": 188.8,
+                "mean": 187.97157142857142,
+                "min": 184.501,
+                "max": 192.6,
+                "mad": 2.700000000000017,
+                "relative_mad": 0.014300847457627209,
+                "range": 8.09899999999999,
+                "relative_range": 0.042897245762711804,
+                "central_range": 4.599999999999994,
+                "relative_central_range": 0.024364406779660987,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p99_us": {
+              "native": {
+                "samples": [
+                  156.4,
+                  149.5,
+                  167.8,
+                  163.8,
+                  157.4,
+                  155.5,
+                  166.3
+                ],
+                "median": 157.4,
+                "mean": 159.52857142857144,
+                "min": 149.5,
+                "max": 167.8,
+                "mad": 6.400000000000006,
+                "relative_mad": 0.040660736975857724,
+                "range": 18.30000000000001,
+                "relative_range": 0.11626429479034314,
+                "central_range": 10.800000000000011,
+                "relative_central_range": 0.06861499364675992,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  204.4,
+                  206.7,
+                  213.8,
+                  206.6,
+                  235.1,
+                  207.9,
+                  221.0
+                ],
+                "median": 207.9,
+                "mean": 213.64285714285714,
+                "min": 204.4,
+                "max": 235.1,
+                "mad": 3.5,
+                "relative_mad": 0.016835016835016835,
+                "range": 30.69999999999999,
+                "relative_range": 0.1476671476671476,
+                "central_range": 14.400000000000006,
+                "relative_central_range": 0.06926406926406929,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "native": {
+                "samples": [
+                  200.001,
+                  170.7,
+                  233.1,
+                  247.7,
+                  196.3,
+                  187.3,
+                  211.3
+                ],
+                "median": 200.001,
+                "mean": 206.6287142857143,
+                "min": 170.7,
+                "max": 247.7,
+                "mad": 12.700999999999993,
+                "relative_mad": 0.06350468247658758,
+                "range": 77.0,
+                "relative_range": 0.38499807500962496,
+                "central_range": 45.79999999999998,
+                "relative_central_range": 0.2289988550057249,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  235.0,
+                  238.7,
+                  292.3,
+                  245.9,
+                  531.8,
+                  249.6,
+                  243.3
+                ],
+                "median": 245.9,
+                "mean": 290.9428571428571,
+                "min": 235.0,
+                "max": 531.8,
+                "mad": 7.200000000000017,
+                "relative_mad": 0.02928019520130141,
+                "range": 296.79999999999995,
+                "relative_range": 1.2069947132980885,
+                "central_range": 53.60000000000002,
+                "relative_central_range": 0.21797478649857674,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "sample_values": {
+            "native": [
+              {
+                "requests_per_sec": 9474.111604,
+                "latency_p50_us": 102.8,
+                "latency_p95_us": 131.1,
+                "latency_p99_us": 156.4,
+                "latency_p999_us": 200.001,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9539.805548,
+                "latency_p50_us": 103.1,
+                "latency_p95_us": 130.5,
+                "latency_p99_us": 149.5,
+                "latency_p999_us": 170.7,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9179.111684,
+                "latency_p50_us": 105.9,
+                "latency_p95_us": 142.9,
+                "latency_p99_us": 167.8,
+                "latency_p999_us": 233.1,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9141.570393,
+                "latency_p50_us": 107.0,
+                "latency_p95_us": 138.2,
+                "latency_p99_us": 163.8,
+                "latency_p999_us": 247.7,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9425.988939,
+                "latency_p50_us": 104.0,
+                "latency_p95_us": 136.8,
+                "latency_p99_us": 157.4,
+                "latency_p999_us": 196.3,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9366.802335,
+                "latency_p50_us": 104.9,
+                "latency_p95_us": 133.1,
+                "latency_p99_us": 155.5,
+                "latency_p999_us": 187.3,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 9294.678468,
+                "latency_p50_us": 104.7,
+                "latency_p95_us": 140.1,
+                "latency_p99_us": 166.3,
+                "latency_p999_us": 211.3,
+                "checksum": 2051.0
+              }
+            ],
+            "client": [
+              {
+                "requests_per_sec": 6570.404422,
+                "latency_p50_us": 152.1,
+                "latency_p95_us": 184.501,
+                "latency_p99_us": 204.4,
+                "latency_p999_us": 235.0,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6526.353752,
+                "latency_p50_us": 153.5,
+                "latency_p95_us": 185.1,
+                "latency_p99_us": 206.7,
+                "latency_p999_us": 238.7,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6394.234631,
+                "latency_p50_us": 156.9,
+                "latency_p95_us": 189.0,
+                "latency_p99_us": 213.8,
+                "latency_p999_us": 292.3,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6523.582523,
+                "latency_p50_us": 153.8,
+                "latency_p95_us": 186.1,
+                "latency_p99_us": 206.6,
+                "latency_p999_us": 245.9,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6386.720086,
+                "latency_p50_us": 155.1,
+                "latency_p95_us": 192.6,
+                "latency_p99_us": 235.1,
+                "latency_p999_us": 531.8,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6409.543251,
+                "latency_p50_us": 156.1,
+                "latency_p95_us": 189.7,
+                "latency_p99_us": 207.9,
+                "latency_p999_us": 249.6,
+                "checksum": 2051.0
+              },
+              {
+                "requests_per_sec": 6426.004294,
+                "latency_p50_us": 155.5,
+                "latency_p95_us": 188.8,
+                "latency_p99_us": 221.0,
+                "latency_p999_us": 243.3,
+                "checksum": 2051.0
+              }
+            ]
+          },
+          "allocations": {
+            "native": {
+              "requests_per_sec": 9308.751452,
+              "latency_p50_us": 105.0,
+              "latency_p95_us": 137.5,
+              "latency_p99_us": 167.3,
+              "latency_p999_us": 196.9,
+              "checksum": 2051.0,
+              "heap_blocks_per_request": 12.019015,
+              "heap_bytes_per_request": 2067.064846
+            },
+            "client": {
+              "requests_per_sec": 6394.970309,
+              "latency_p50_us": 156.4,
+              "latency_p95_us": 188.1,
+              "latency_p99_us": 217.2,
+              "latency_p999_us": 255.5,
+              "checksum": 2051.0,
+              "heap_blocks_per_request": 17.029254,
+              "heap_bytes_per_request": 3862.638225
+            }
+          }
+        },
+        {
+          "pipeline": 32,
+          "count": 14579,
+          "metrics": {
+            "requests_per_sec": {
+              "native": {
+                "samples": [
+                  62138.750848,
+                  62679.333553,
+                  58220.146119,
+                  63569.621896,
+                  61563.680926,
+                  61381.721885,
+                  63663.059891
+                ],
+                "median": 62138.750848,
+                "mean": 61888.04501685714,
+                "min": 58220.146119,
+                "max": 63663.059891,
+                "mad": 757.0289630000043,
+                "relative_mad": 0.012182880290783477,
+                "range": 5442.913772,
+                "relative_range": 0.0875929061611509,
+                "central_range": 2187.900010999998,
+                "relative_central_range": 0.035209912995385194,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  48142.99882,
+                  49422.449573,
+                  47195.495032,
+                  48969.141957,
+                  47938.329429,
+                  48784.519264,
+                  48077.176588
+                ],
+                "median": 48142.99882,
+                "mean": 48361.44438042858,
+                "min": 47195.495032,
+                "max": 49422.449573,
+                "mad": 641.5204440000016,
+                "relative_mad": 0.013325311254468331,
+                "range": 2226.954540999999,
+                "relative_range": 0.046257079857577495,
+                "central_range": 1030.8125280000022,
+                "relative_central_range": 0.02141147317918577,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p50_us": {
+              "native": {
+                "samples": [
+                  502.7,
+                  499.9,
+                  520.3,
+                  497.9,
+                  506.1,
+                  506.2,
+                  499.4
+                ],
+                "median": 502.7,
+                "mean": 504.64285714285717,
+                "min": 497.9,
+                "max": 520.3,
+                "mad": 3.400000000000034,
+                "relative_mad": 0.00676347722299589,
+                "range": 22.399999999999977,
+                "relative_range": 0.044559379351501845,
+                "central_range": 6.800000000000011,
+                "relative_central_range": 0.013526954445991668,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              },
+              "client": {
+                "samples": [
+                  634.3,
+                  632.5,
+                  639.6,
+                  634.4,
+                  643.8,
+                  634.1,
+                  627.9
+                ],
+                "median": 634.3,
+                "mean": 635.2285714285715,
+                "min": 627.9,
+                "max": 643.8,
+                "mad": 1.7999999999999545,
+                "relative_mad": 0.002837773924010649,
+                "range": 15.899999999999977,
+                "relative_range": 0.025067002995428,
+                "central_range": 7.100000000000023,
+                "relative_central_range": 0.011193441589153435,
+                "noise_qualified": true,
+                "resolution_qualified": true,
+                "qualified": true
+              }
+            },
+            "latency_p95_us": {
+              "native": {
+                "samples": [
+                  644.4,
+                  640.1,
+                  787.4,
+                  580.6,
+                  668.6,
+                  673.8,
+                  567.3
+                ],
+                "median": 644.4,
+                "mean": 651.7428571428571,
+                "min": 567.3,
+                "max": 787.4,
+                "mad": 29.399999999999977,
+                "relative_mad": 0.04562383612662939,
+                "range": 220.10000000000002,
+                "relative_range": 0.34155803848541283,
+                "central_range": 93.19999999999993,
+                "relative_central_range": 0.1446306641837367,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  827.0,
+                  766.1,
+                  906.2,
+                  777.4,
+                  814.6,
+                  788.8,
+                  765.1
+                ],
+                "median": 788.8,
+                "mean": 806.4571428571428,
+                "min": 765.1,
+                "max": 906.2,
+                "mad": 23.699999999999932,
+                "relative_mad": 0.03004563894523318,
+                "range": 141.10000000000002,
+                "relative_range": 0.17887931034482762,
+                "central_range": 60.89999999999998,
+                "relative_central_range": 0.07720588235294115,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p99_us": {
+              "native": {
+                "samples": [
+                  705.4,
+                  705.4,
+                  856.2,
+                  681.0,
+                  732.3,
+                  722.3,
+                  624.2
+                ],
+                "median": 705.4,
+                "mean": 718.1142857142858,
+                "min": 624.2,
+                "max": 856.2,
+                "mad": 24.399999999999977,
+                "relative_mad": 0.03459030337397218,
+                "range": 232.0,
+                "relative_range": 0.3288914091295719,
+                "central_range": 51.299999999999955,
+                "relative_central_range": 0.07272469520839234,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  1350.9,
+                  825.7,
+                  1082.4,
+                  844.7,
+                  1095.3,
+                  890.8,
+                  1518.2
+                ],
+                "median": 1082.4,
+                "mean": 1086.857142857143,
+                "min": 825.7,
+                "max": 1518.2,
+                "mad": 237.70000000000005,
+                "relative_mad": 0.21960458240946049,
+                "range": 692.5,
+                "relative_range": 0.6397819660014782,
+                "central_range": 506.20000000000005,
+                "relative_central_range": 0.46766444937176643,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            },
+            "latency_p999_us": {
+              "native": {
+                "samples": [
+                  785.8,
+                  753.6,
+                  910.8,
+                  761.0,
+                  834.9,
+                  770.0,
+                  712.3
+                ],
+                "median": 770.0,
+                "mean": 789.7714285714285,
+                "min": 712.3,
+                "max": 910.8,
+                "mad": 16.399999999999977,
+                "relative_mad": 0.02129870129870127,
+                "range": 198.5,
+                "relative_range": 0.2577922077922078,
+                "central_range": 81.29999999999995,
+                "relative_central_range": 0.10558441558441553,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              },
+              "client": {
+                "samples": [
+                  1464.3,
+                  911.3,
+                  1230.3,
+                  945.0,
+                  1205.6,
+                  980.3,
+                  1661.9
+                ],
+                "median": 1205.6,
+                "mean": 1199.814285714286,
+                "min": 911.3,
+                "max": 1661.9,
+                "mad": 258.70000000000005,
+                "relative_mad": 0.21458195089581955,
+                "range": 750.6000000000001,
+                "relative_range": 0.6225945587259457,
+                "central_range": 519.3,
+                "relative_central_range": 0.4307398805573988,
+                "noise_qualified": false,
+                "resolution_qualified": true,
+                "qualified": false
+              }
+            }
+          },
+          "sample_values": {
+            "native": [
+              {
+                "requests_per_sec": 62138.750848,
+                "latency_p50_us": 502.7,
+                "latency_p95_us": 644.4,
+                "latency_p99_us": 705.4,
+                "latency_p999_us": 785.8,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 62679.333553,
+                "latency_p50_us": 499.9,
+                "latency_p95_us": 640.1,
+                "latency_p99_us": 705.4,
+                "latency_p999_us": 753.6,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 58220.146119,
+                "latency_p50_us": 520.3,
+                "latency_p95_us": 787.4,
+                "latency_p99_us": 856.2,
+                "latency_p999_us": 910.8,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 63569.621896,
+                "latency_p50_us": 497.9,
+                "latency_p95_us": 580.6,
+                "latency_p99_us": 681.0,
+                "latency_p999_us": 761.0,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 61563.680926,
+                "latency_p50_us": 506.1,
+                "latency_p95_us": 668.6,
+                "latency_p99_us": 732.3,
+                "latency_p999_us": 834.9,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 61381.721885,
+                "latency_p50_us": 506.2,
+                "latency_p95_us": 673.8,
+                "latency_p99_us": 722.3,
+                "latency_p999_us": 770.0,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 63663.059891,
+                "latency_p50_us": 499.4,
+                "latency_p95_us": 567.3,
+                "latency_p99_us": 624.2,
+                "latency_p999_us": 712.3,
+                "checksum": 14579.0
+              }
+            ],
+            "client": [
+              {
+                "requests_per_sec": 48142.99882,
+                "latency_p50_us": 634.3,
+                "latency_p95_us": 827.0,
+                "latency_p99_us": 1350.9,
+                "latency_p999_us": 1464.3,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 49422.449573,
+                "latency_p50_us": 632.5,
+                "latency_p95_us": 766.1,
+                "latency_p99_us": 825.7,
+                "latency_p999_us": 911.3,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 47195.495032,
+                "latency_p50_us": 639.6,
+                "latency_p95_us": 906.2,
+                "latency_p99_us": 1082.4,
+                "latency_p999_us": 1230.3,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 48969.141957,
+                "latency_p50_us": 634.4,
+                "latency_p95_us": 777.4,
+                "latency_p99_us": 844.7,
+                "latency_p999_us": 945.0,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 47938.329429,
+                "latency_p50_us": 643.8,
+                "latency_p95_us": 814.6,
+                "latency_p99_us": 1095.3,
+                "latency_p999_us": 1205.6,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 48784.519264,
+                "latency_p50_us": 634.1,
+                "latency_p95_us": 788.8,
+                "latency_p99_us": 890.8,
+                "latency_p999_us": 980.3,
+                "checksum": 14579.0
+              },
+              {
+                "requests_per_sec": 48077.176588,
+                "latency_p50_us": 627.9,
+                "latency_p95_us": 765.1,
+                "latency_p99_us": 1518.2,
+                "latency_p999_us": 1661.9,
+                "checksum": 14579.0
+              }
+            ]
+          },
+          "allocations": {
+            "native": {
+              "requests_per_sec": 61154.498011,
+              "latency_p50_us": 506.3,
+              "latency_p95_us": 683.2,
+              "latency_p99_us": 768.5,
+              "latency_p999_us": 890.2,
+              "checksum": 14579.0,
+              "heap_blocks_per_request": 10.195144,
+              "heap_bytes_per_request": 1964.957679
+            },
+            "client": {
+              "requests_per_sec": 48649.694509,
+              "latency_p50_us": 638.0,
+              "latency_p95_us": 775.0,
+              "latency_p99_us": 912.3,
+              "latency_p999_us": 955.4,
+              "checksum": 14579.0,
+              "heap_blocks_per_request": 15.704987,
+              "heap_bytes_per_request": 3788.508883
+            }
+          }
+        }
+      ]
+    }
+  },
+  "failures": [],
+  "limitations": [
+    "Cluster APIs are asynchronous with explicit slot/all-command-keys responsibility. Complete key-command metadata, replica-read policy, refreshed seed selection, synchronous Cluster facade and complete production acceptance remain open.",
+    "Shared Nodes is borrowed/retained, never closed by Client. Closed retires client posts/watches/timer and progress-engine pin; pending native FIFO/resources remain independently owned by Nodes. Its owner closes Nodes and joins engines. Keep code loaded through all retained result destruction.",
+    "Warm admission copies once into Route; bootstrap adds a temporary input copy and missing-slot retry can overlap two route objects. Parent Future/box/cancel observer, route storage, native Future/wire, references, gates, heap and timer work remain real costs. Caller-retained results leave client quotas and remain caller-owned. No zero-overhead claim.",
+    "Request/encoded-command/controller reservations and metadata/native limits are independent. Map refs borrowed during concurrent Call construction can retain prior views until admission finishes. Footprint single combines XRT/product; static/shared primary rows are product-only, with separate core artifacts inventoried by symbol checks.",
+    "Performance compares one caller at pipeline1/32 on the identical warmed maintained pool/peer/engine. Direct native knows the exact endpoint and has fewer semantics; it is a lower-bound cost control, not equivalent-feature regression/speedup, Hiredis or full performance acceptance. Caller-observed FIFO completion includes queue/validation and head-of-line delay.",
+    "Unpinned serial local closed-loop samples, separate global heap runs and WSL do not establish fixed-arrival/mixed-load/concurrent/native Linux/CPU/RSS/upstream/TLS/72h production acceptance. Per-process first-window allocator/request costs remain in measured loops. Noise and clock qualification are recorded without rerunning for green.",
+    "Real Redis tests are owned prewarmed plaintext IPv4/default-user pools; actual slot ownership changes and automatic MOVED refresh are covered. TLS/auth/trust, replica failover and cold-real connection bootstrap remain separate acceptance work."
+  ],
+  "unchanged_native_sources": {
+    "extlibs/xredis/src/client/client.c": "f1cfb657e758cad60a15fb4a9699a234340643aba4846b1466d514d4db36e201",
+    "extlibs/xredis/src/pool/pool.c": "fecd86ffb249066c128f76b2b1db7f3b2ca8ed1857df9bda3cd8cc076677b7aa",
+    "extlibs/xredis/src/cluster_nodes/cluster_nodes.c": "642fd3746757e4501965908e9e37674d689a8a46f164cd077e541f356946313b"
+  },
+  "development_corrections": [
+    "Manifest owner-key integration corrected before prototype build.",
+    "GCC indentation diagnostics corrected; test assertion helper corrected.",
+    "Single-header static helper namespace collision with topology Output fixed without changing behavior.",
+    "Resource saturation fixture uses actual xnetenginestats fields; no Size field was assumed after correction."
+  ],
+  "correction": {
+    "earlier_evidence": "out/service-extensions/xredis-cluster-client-20261112",
+    "earlier_source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+    "corrected_source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022",
+    "changed_inputs": [
+      "extlibs/xredis/include/xredis.h",
+      "single/extlibs/xredis.h",
+      "single/extlibs/xredis_decl.h"
+    ],
+    "correction": "Give root-required Refresh and Client independent properly grouped feature guards. Before correction, absence of Client incorrectly rejected feature-off leaf builds even when root was unselected. No source/runtime/public layout change. Both earlier host pipelines are terminal; focused/root passed and feature-off failed. Rerun all target functionality/delivery on corrected frozen inputs.",
+    "earlier_receipts": {
+      "windows": [
+        {
+          "label": "focused",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_client_tests,memory_stats",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 3.093,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "windows-focused.log",
+          "log_sha256": "95080e8b31bc93ce82a347190d14247cc7d9cf646f422586b8f2e020624e0d47",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_client_tests,memory_stats\\test_cluster_client.exe",
+              "sha256": "2a895d557636e739c567e1a10f1e747285d2841fc2565ac8a1f918aa923a98e1",
+              "preserved": "validated-binaries/windows/focused/test_cluster_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_client_tests,memory_stats\\test_memory_stats.exe",
+              "sha256": "2207b5e7c5c1126e59f50645d868e96293dc1039d936c73c3da5a236e7ef8a1f",
+              "preserved": "validated-binaries/windows/focused/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_cluster_client_tests,memory_stats\\test_memory_stats_threads.exe",
+              "sha256": "6c5a65736566246e26f914db34248bc7dd2489f1414fb97bd8002832a8f8d82a",
+              "preserved": "validated-binaries/windows/focused/test_memory_stats_threads.exe"
+            }
+          ]
+        },
+        {
+          "label": "root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 219.875,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "windows-root.log",
+          "log_sha256": "5c40fd42474fcb8426eec80f7b8a505ba81fc5afd013e32a06b124df36b47ebc",
+          "programs": 39,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_command.exe",
+              "sha256": "e74e10dc88177c91779d7afbe2782fe329449a327ab55811b487feb42c3475bf",
+              "preserved": "validated-binaries/windows/root/test_command.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_reader.exe",
+              "sha256": "6d4ce90e4485e1ebf01d7aa9f7fb32f0ccdedfdd6076d6e08adff41c70d66483",
+              "preserved": "validated-binaries/windows/root/test_reader.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_reply.exe",
+              "sha256": "9142f6c95af07067d5e3355c0dae1684492019725d6278630ef4abefc13bae6d",
+              "preserved": "validated-binaries/windows/root/test_reply.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_client.exe",
+              "sha256": "4f4631ee4807a297cec18ed5dc1b92f02af68eff4c039f20d5dff90ea87a0303",
+              "preserved": "validated-binaries/windows/root/test_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_client_init.exe",
+              "sha256": "b94b03a96941103632ff7dd85f1567e8c19d01f7d2e06c15cb8226530436acc2",
+              "preserved": "validated-binaries/windows/root/test_client_init.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_openloop.exe",
+              "sha256": "87f37e94b98a6296f8e22bf9c1e74bec3daaadad8b4d71b3ad47cf5f6a254c97",
+              "preserved": "validated-binaries/windows/root/test_openloop.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_dial.exe",
+              "sha256": "7e8b9e1aafd7d336efff95cdb467f8dce9566f56acea55f2e29936bf8c350b3e",
+              "preserved": "validated-binaries/windows/root/test_dial.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls.exe",
+              "sha256": "7b889369f4442486c8ada8ae34a46de52d0f00826e32c3e351cab6a4f9cd0ae9",
+              "preserved": "validated-binaries/windows/root/test_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls_openloop.exe",
+              "sha256": "4a2893938871b7639a884cfb0aafd95ff1ef9481224c1497b543d7fec931081c",
+              "preserved": "validated-binaries/windows/root/test_tls_openloop.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tls_auth.exe",
+              "sha256": "50309aca41b3b938efda2d26a896e3db55b5102150fb1df4ebcbc2f6f9f3d124",
+              "preserved": "validated-binaries/windows/root/test_tls_auth.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_transaction.exe",
+              "sha256": "c73d2c6c0d59267a66ea08956f938b86941d61c286250ae318d2fd01d0d78f99",
+              "preserved": "validated-binaries/windows/root/test_transaction.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_watch.exe",
+              "sha256": "cf8188d637bfedbd78e2aced95f81ed81c675818efd8b8755efe770377faaf20",
+              "preserved": "validated-binaries/windows/root/test_watch.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool.exe",
+              "sha256": "bc50b185e86b69d7b2f85e640b48a93754e9e719f7b1406abc36657416a1c807",
+              "preserved": "validated-binaries/windows/root/test_pool.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_sessions.exe",
+              "sha256": "43a20bbd09458400fbdc2f3be8713d6e175730adf0a7df61487cfb6f7a1eaa29",
+              "preserved": "validated-binaries/windows/root/test_pool_sessions.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_connect.exe",
+              "sha256": "6fd2c564bde55a88683faa5ba12d3f6a5159b5161743afb822a6686104d5b156",
+              "preserved": "validated-binaries/windows/root/test_pool_connect.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_tracking.exe",
+              "sha256": "0962cb82ee4b62d43379140c61ec33b5cd5f985b930263b86915d87eab2fce8d",
+              "preserved": "validated-binaries/windows/root/test_tracking.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_caching.exe",
+              "sha256": "b9b54f658c27dc9b7c99b146b7823c717575d44eb12b8729fa4760b18f5b510c",
+              "preserved": "validated-binaries/windows/root/test_caching.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pubsub.exe",
+              "sha256": "d365f0a662313df8316d062b862a4faba62fa341917090bf5e920a2c744d2537",
+              "preserved": "validated-binaries/windows/root/test_pubsub.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriber.exe",
+              "sha256": "6ecc4e1013c309bb4e5f491032782a01dc9e51dac6e2948b5b0985216c54357e",
+              "preserved": "validated-binaries/windows/root/test_subscriber.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriber_notify.exe",
+              "sha256": "32a04ae6c93dbe43420dda6f9cf1d81ba85fd9b1d7ae528daa68f8eb75af1bd8",
+              "preserved": "validated-binaries/windows/root/test_subscriber_notify.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscriptions.exe",
+              "sha256": "466dd048667fe0629f6ec6f71e52fde00798da7a2bc9aa25e0c2f6927d5a9538",
+              "preserved": "validated-binaries/windows/root/test_subscriptions.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_subscription_session.exe",
+              "sha256": "20ed8d54fb51d52c80bacb7722b1141c631c50bc1f8c8cb7b718410a1ba8eda9",
+              "preserved": "validated-binaries/windows/root/test_subscription_session.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_role.exe",
+              "sha256": "30657cb91bafe3c8124a975d82dd5d59be0d03cc39de3c82d7a93c1cae23f094",
+              "preserved": "validated-binaries/windows/root/test_role.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_role_client.exe",
+              "sha256": "f682eba257dc9fc003a6a4e967a3445ae0644ce7ecc7ed33026bbf29371ce009",
+              "preserved": "validated-binaries/windows/root/test_role_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_sentinel.exe",
+              "sha256": "fed8648e795cfed3c53b13e8b525475ce9a7897fe702c8821c2944a23c988203",
+              "preserved": "validated-binaries/windows/root/test_sentinel.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_sentinel_pool.exe",
+              "sha256": "f57192d6915e7b1e7ab5b0d604bc8eccd36cea807fccffe8dc13ba2e9950cc55",
+              "preserved": "validated-binaries/windows/root/test_sentinel_pool.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_topology.exe",
+              "sha256": "91bf59f91f7c2e6c603476834e1b9c17b7c6093a4eccb4d963f42c25db0342ba",
+              "preserved": "validated-binaries/windows/root/test_cluster_topology.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_asking.exe",
+              "sha256": "1a362a63d807ca63f8b6f46a56a6b0d5e3643c5414d9b8bb6533c5dbf325ce1a",
+              "preserved": "validated-binaries/windows/root/test_pool_asking.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_shared.exe",
+              "sha256": "0715b5865d11c1be474c1a90961d85a902666f4c6791b48dfedcacb6e027b5d6",
+              "preserved": "validated-binaries/windows/root/test_pool_shared.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_shared_connect.exe",
+              "sha256": "49f9a8d9e851bcd3c1f2c18da543156420afb9a80d92a54748972dc318155e8e",
+              "preserved": "validated-binaries/windows/root/test_pool_shared_connect.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_pool_shared_asking.exe",
+              "sha256": "380a4598c82a55e42cee7c23719d5ceb87d9d358a71832fed4772fcdfeaa3ff7",
+              "preserved": "validated-binaries/windows/root/test_pool_shared_asking.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_route.exe",
+              "sha256": "affc0542d273f07de2478ec72b75274b50eb922a6bb75827e2004222e0b307bf",
+              "preserved": "validated-binaries/windows/root/test_cluster_route.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_nodes.exe",
+              "sha256": "f7b9071b2a581cd8817c7201768d85a41e037443e1b848851c9e4c3567120b79",
+              "preserved": "validated-binaries/windows/root/test_cluster_nodes.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_refresh.exe",
+              "sha256": "82172e349f2e450f948a227ff2aebea7bb8949d5d6f606fb5e092039cb150de9",
+              "preserved": "validated-binaries/windows/root/test_cluster_refresh.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_cluster_client.exe",
+              "sha256": "6d8d35b211305b9c8777e23ca8813f8dab0dd13aa25cc76b4c38ae582db379e3",
+              "preserved": "validated-binaries/windows/root/test_cluster_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_time.exe",
+              "sha256": "c1376106f83e07c1237f6385000e7b98cb425312e17b62aae1985ce21bad4dca",
+              "preserved": "validated-binaries/windows/root/test_time.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_time_property.exe",
+              "sha256": "c5bd6b17a6ef46e9d4a24f69d3770a59af97d0cde2a8638294985274ebe6a1be",
+              "preserved": "validated-binaries/windows/root/test_time_property.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_atomic.exe",
+              "sha256": "9a60c8e3f8e14baf3018110c015631b5ea67cc9475e342b4061ea496f9a0653d",
+              "preserved": "validated-binaries/windows/root/test_atomic.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xredis_tests,time,atomic\\test_atomic_threads.exe",
+              "sha256": "4a8a74c1ac2f4cf50d04128e456dab42089e463d4b4072a1f3c6635d6583a2e5",
+              "preserved": "validated-binaries/windows/root/test_atomic_threads.exe"
+            }
+          ]
+        },
+        {
+          "label": "feature-off",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_refresh_tests,memory_stats",
+            "--cflag=-O2"
+          ],
+          "exit_code": 1,
+          "seconds": 36.156,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "windows-feature-off.log",
+          "log_sha256": "8fe2c7197c97ea6d38b564042cd44cf1472538bccdba747c2a44e7d4d568d965",
+          "programs": 0,
+          "binaries": []
+        }
+      ],
+      "wsl": [
+        {
+          "label": "focused",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_client_tests,memory_stats",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 51.359,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "wsl-focused.log",
+          "log_sha256": "cce9b31b3e89ac9318b5f2ebf7af5241346259880c5862060ce8854aa6008df1",
+          "programs": 3,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_cluster_client_tests,memory_stats/test_cluster_client",
+              "sha256": "7422e200744a2368d7e38d5cf2864bab306aea34a3c7b150ce0912a97e3e3d0c",
+              "preserved": "validated-binaries/wsl/focused/test_cluster_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_client_tests,memory_stats/test_memory_stats",
+              "sha256": "75dd354b8e6daf308b77fd287db6948084b45a9b56af29067ba891e0fc848ebe",
+              "preserved": "validated-binaries/wsl/focused/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/xredis_cluster_client_tests,memory_stats/test_memory_stats_threads",
+              "sha256": "ecce834755aaeecf2e770c663699216ebbcbb46d94cc219bde143d85f31d8621",
+              "preserved": "validated-binaries/wsl/focused/test_memory_stats_threads"
+            }
+          ]
+        },
+        {
+          "label": "root",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_tests,time,atomic",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 331.409,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "wsl-root.log",
+          "log_sha256": "7c9158ece4c281cb66b7d9db606d85159cc24e714e3cdd9cf7b1ac3a7b8559b2",
+          "programs": 39,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_command",
+              "sha256": "a8d19d174e2875cbe8644d9836f9ce6bb8cc1de5726a5cd378079f241c2189c5",
+              "preserved": "validated-binaries/wsl/root/test_command"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reader",
+              "sha256": "4fc40928030542e0a97ad1b47f6cbe5e09e6ec32e54004d7d4016bddedd02efb",
+              "preserved": "validated-binaries/wsl/root/test_reader"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_reply",
+              "sha256": "32e0412236198c132eb8b24c1d3168a2fff99e0af7db204bb888023bee0e80fb",
+              "preserved": "validated-binaries/wsl/root/test_reply"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client",
+              "sha256": "7c759882a733a90ba5f509ff2ec0ce22b6cf67908254f817cf10f1b53f60f9e2",
+              "preserved": "validated-binaries/wsl/root/test_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_client_init",
+              "sha256": "562ff7e2b07debe0008a928dec939b33bfe85b173496fbc0bb486eb9bce80d07",
+              "preserved": "validated-binaries/wsl/root/test_client_init"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_openloop",
+              "sha256": "860078026ba5a1f999d6bb959d23c05f6518523648c29224d74c42c4bc19fe07",
+              "preserved": "validated-binaries/wsl/root/test_openloop"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_dial",
+              "sha256": "6f183a48779889d27417581e077254fcaef5da55f94789591da34066e57087c5",
+              "preserved": "validated-binaries/wsl/root/test_dial"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls",
+              "sha256": "5089873e27960f398c2b667b182006997d0652f4d039b5b57aaad648639c9c3c",
+              "preserved": "validated-binaries/wsl/root/test_tls"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_openloop",
+              "sha256": "78fc1b92914fb8b72528f30af25a48ebbdca0b76580f8b84857cfc96205e9f83",
+              "preserved": "validated-binaries/wsl/root/test_tls_openloop"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tls_auth",
+              "sha256": "67aaaab332405a495248577002b348c0cf1dae238c91b1c24e2f56bb3ef19a53",
+              "preserved": "validated-binaries/wsl/root/test_tls_auth"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_transaction",
+              "sha256": "b7a5b41938d885ea366965104925a8eeb0964629abb15eb43b6272e9c586e361",
+              "preserved": "validated-binaries/wsl/root/test_transaction"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_watch",
+              "sha256": "74dce22bd5401e0a194809c286ff0343ee8af596910106e7ceacd4c3398b72b6",
+              "preserved": "validated-binaries/wsl/root/test_watch"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool",
+              "sha256": "7f8848ac83e2400c7134ce9c3a419136687b68513dda27e852831bae75236b02",
+              "preserved": "validated-binaries/wsl/root/test_pool"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_sessions",
+              "sha256": "5983219a9af97a0cd03f062163bbded20f86cb5abfc4b3e76759ccf541e54411",
+              "preserved": "validated-binaries/wsl/root/test_pool_sessions"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_connect",
+              "sha256": "3632ea29a98d3235cfa68d09eb6ecbf5a45f4ef7b25aafc53fa9a750583bf3c9",
+              "preserved": "validated-binaries/wsl/root/test_pool_connect"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_tracking",
+              "sha256": "62886682bea65f9ffc8fab7c5b7eccde61b1adb96fe6c9bcf6b0d41c2f4e95fa",
+              "preserved": "validated-binaries/wsl/root/test_tracking"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_caching",
+              "sha256": "d52d6e15844869b3c383cfd9240b01a04424bcb8e31e1e215543a9c4f6017001",
+              "preserved": "validated-binaries/wsl/root/test_caching"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pubsub",
+              "sha256": "f35aa56ba2f9d3cb4de00d714eed4bdc91189d0662b7e010ba80ac0e4f47aaaf",
+              "preserved": "validated-binaries/wsl/root/test_pubsub"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriber",
+              "sha256": "6812dfb40c116f93f7cae961b461d3d0007dd327b331d1a51f70784c220a96cc",
+              "preserved": "validated-binaries/wsl/root/test_subscriber"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriber_notify",
+              "sha256": "d3289d3be242d70895ceef7d5b66f07825734c0ad0204471377f63d3304f5cd0",
+              "preserved": "validated-binaries/wsl/root/test_subscriber_notify"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscriptions",
+              "sha256": "d8e68353935eeb535d24ef06cd3326d57fdcc264fb58a79e2c66df5d1d11e401",
+              "preserved": "validated-binaries/wsl/root/test_subscriptions"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_subscription_session",
+              "sha256": "1ca36e4747a294348168c8bf347fdae0b7d0b5f7b4e8f23d9f4583146ec49e81",
+              "preserved": "validated-binaries/wsl/root/test_subscription_session"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_role",
+              "sha256": "ff5814fac5e4d442d8c92ed91ae7bc7f08f99e896c010f71f27b0e7f937cc5ec",
+              "preserved": "validated-binaries/wsl/root/test_role"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_role_client",
+              "sha256": "a316b1121c2935206d9ad03b5394dfa2771d6770a2ff9617ba76bb29f5a716c0",
+              "preserved": "validated-binaries/wsl/root/test_role_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_sentinel",
+              "sha256": "4fbedd6987c149ee01d7686d5173a08c42c3de6224d6234aef4001ace84b5732",
+              "preserved": "validated-binaries/wsl/root/test_sentinel"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_sentinel_pool",
+              "sha256": "3f777d0cfba3ea7d00b02bfe64a1294af3213d07ebf85ccc05fc771ce501461a",
+              "preserved": "validated-binaries/wsl/root/test_sentinel_pool"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_topology",
+              "sha256": "c74d64e62c6818f7fb3d525d34188e70527b31d4e088bf160ec530a6658644a6",
+              "preserved": "validated-binaries/wsl/root/test_cluster_topology"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_asking",
+              "sha256": "b143f3141142c07324a0f9d4e0a36b3a5f8729755871b2253a0837c095d8f391",
+              "preserved": "validated-binaries/wsl/root/test_pool_asking"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_shared",
+              "sha256": "0ff67d7bf62a6afba31793c17a6d740cd680b0039367c327033ad6e717b213d2",
+              "preserved": "validated-binaries/wsl/root/test_pool_shared"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_shared_connect",
+              "sha256": "0467a501f9219007090d499f789109ba7089aac427885bc299c8669c896c806c",
+              "preserved": "validated-binaries/wsl/root/test_pool_shared_connect"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_pool_shared_asking",
+              "sha256": "05116ba0c63d235e94a7ae27dd204226e8a6b0ddffea74b1c7bd139b4f2df997",
+              "preserved": "validated-binaries/wsl/root/test_pool_shared_asking"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_route",
+              "sha256": "13064224b1d2f06316fcb2350e430b6723424e7a66bc3a32039bd952405c7207",
+              "preserved": "validated-binaries/wsl/root/test_cluster_route"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_nodes",
+              "sha256": "39d209df617886efce55619b616574280d0483d924dccca0c727084b59b4084f",
+              "preserved": "validated-binaries/wsl/root/test_cluster_nodes"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_refresh",
+              "sha256": "e8d208f63c503121fe0ebcc0a608407f2d8bc8fc80f9fa7a7f6a991c8517fb2d",
+              "preserved": "validated-binaries/wsl/root/test_cluster_refresh"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_cluster_client",
+              "sha256": "5c4d9549385884c7b6ceb3ab650a230c161123804c0bd23ee22cd7f76774f17e",
+              "preserved": "validated-binaries/wsl/root/test_cluster_client"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time",
+              "sha256": "69fbc188babaebecf4d6b3664569460408137882fd6266200e6ef980a1b1619a",
+              "preserved": "validated-binaries/wsl/root/test_time"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_time_property",
+              "sha256": "1d4567aa9697cd85113c5278d312b4a686456a8c532306785eb35e9a82e46644",
+              "preserved": "validated-binaries/wsl/root/test_time_property"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic",
+              "sha256": "e0b342b5a648bb0ddc5a18e114b4db4901711ef3c1560e5f371fcf6eac848168",
+              "preserved": "validated-binaries/wsl/root/test_atomic"
+            },
+            {
+              "path": "out/gcc/x64/xredis_tests,time,atomic/test_atomic_threads",
+              "sha256": "510405e2e6f80f1ef89f844b1fdf7cc51e86fc4f52079de7fbb737dcc92f3cd9",
+              "preserved": "validated-binaries/wsl/root/test_atomic_threads"
+            }
+          ]
+        },
+        {
+          "label": "feature-off",
+          "command": [
+            "/usr/bin/python3",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xredis/config/modules.json",
+            "--no-examples",
+            "--no-single",
+            "--jobs",
+            "3",
+            "--suite",
+            "xredis_cluster_refresh_tests,memory_stats",
+            "--cflag=-O2"
+          ],
+          "exit_code": 1,
+          "seconds": 23.724,
+          "source_map_sha256": "b5ad13dd1f0ab3828f1df0e52eeedd7cb5ceb432c2dc644e1e80aea9bc2dfee3",
+          "log": "wsl-feature-off.log",
+          "log_sha256": "f6e81e6864fd95046e32780ffe0c82ef287de744d1c47def2dbc698e1b2d5e53",
+          "programs": 0,
+          "binaries": []
+        }
+      ]
+    }
+  },
+  "functional_reuse": {
+    "original_source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022",
+    "current_source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8",
+    "changed_inputs": [
+      "extlibs/xredis/tests/interop/redis_cluster_client.c"
+    ],
+    "unconsumed_by_reused_checks": [
+      "extlibs/xredis/tests/interop/redis_cluster_client.c"
+    ],
+    "reason": "Only the standalone real-Cluster probe changed: diagnostic tags and correct owned-fixture epoch/slot-view convergence. Production sources, public/private/generated headers, manifests, ordinary test/example sources and tools are byte-identical. Validation does not compile/run the standalone interop probe. Preserve original receipts/source identity; rerun all four interop delivery forms on both hosts.",
+    "reused": {
+      "windows": {
+        "validation_report_sha256": "337d9d558f8df8e56af746451a9fe9f8d8b81d5a63337260fe2ae9d2b953ff3d",
+        "receipt_sha256": "254923a54cbfe10744f75276efcb6ddf4841f865a1a6b23f954565c7d5a140a8",
+        "raw_evidence": "D:/GIT/xrt/out/service-extensions/xredis-cluster-client-v2-20261112"
+      },
+      "wsl": {
+        "validation_report_sha256": "0dbcf507f83477ade09758e635dcf2fe5b5deb00692149a605954e9b3bf15e2a",
+        "receipt_sha256": "34f3adab2a2bf140f0214689b8b7743643051b2aadf09e8b807c2047bae34ff4",
+        "raw_evidence": "D:/GIT/xrt/out/service-extensions/xredis-cluster-client-v2-20261112"
+      }
+    }
+  },
+  "interop_fixture_correction": {
+    "earlier_evidence": "D:/GIT/xrt/out/service-extensions/xredis-cluster-client-v2-20261112",
+    "reason": "Manual slot restoration lacked a unique newer owner config epoch; subsequent Redis gossip produced artificial MOVED loops during an expected ASK case. Client correctly stopped at its redirect cap. The fixture now verifies actual cluster_my_epoch is strictly highest for each new owner, assigns the slot and checks all three actual SLOTS views before business. Client production code/limits unchanged.",
+    "failed_report_sha256": "25ca2effb55bffc51424fbcbe3b60d0c41779763d03d03f8a0d933cfe1045fa7",
+    "diagnostic_report_sha256": "2f29bc0f48a7a804b5e375b020af73abdaba22e64480c6428b38970c779929e9",
+    "diagnostic_failure": "[case] 0 factory=0 protocol=0 stale=0 format=0\n[case] 1 factory=0 protocol=0 stale=0 format=1\n[case] 2 factory=0 protocol=0 stale=1 format=0\n[case] 3 factory=0 protocol=0 stale=1 format=1\n[case] 4 factory=0 protocol=1 stale=0 format=0\n[case] 5 factory=0 protocol=1 stale=0 format=1\n[case] 6 factory=0 protocol=1 stale=1 format=0\n[case] 7 factory=0 protocol=1 stale=1 format=1\n[case] 8 factory=0 protocol=2 stale=0 format=0\ncase=8 sequence=0 stale=0 generation=1 parent=0 route=6 query=1 observed=1 delivery=2 attempts=9 moved=9 asks=0\nreply=MOVED 6056 127.0.0.1:34290\n[FAIL] real Cluster client: managed native outcome\ncase=8 sequence=0 stale=0 generation=1 parent=0 route=6 query=1 observed=1 delivery=2 attempts=9 moved=9 asks=0\nreply=MOVED 6056 127.0.0.1:34290\n[FAIL] real Cluster client: managed native outcome\n",
+    "corrected_diagnostic_sha256": "db80df2b23f44ee3304e5596b45427b6628701c8f10e3bf2304eae9503eac351",
+    "corrected_diagnostic_cases": 36,
+    "all_prior_fixture_processes_terminal": true
+  },
+  "benchmark_correction": {
+    "original_source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8",
+    "current_source_map_sha256": "1a48e4c4601a7848e80ab11326cd83a0dbea5b4c3cddccaa1bb5b15359c98138",
+    "changed_inputs": [
+      "extlibs/xredis/bench/bench_cluster_client.c"
+    ],
+    "reason": "Only benchmark native control switched from implicit-sync Call to CallAsync. Runtime, headers, ordinary tests, real-interop probe/runner, examples and tools are byte-identical. Functional/delivery/layout/footprint jobs do not compile/run the benchmark. Preserve their source identities; rerun registered performance smoke and all measurements. Prior pipeline32 native control did not provide asynchronous window32 and its comparisons are invalid.",
+    "previous_functional_reuse": {
+      "original_source_map_sha256": "a4df432ef973deb45da3bdf6d25b67b53f2b92eb76262dea63b483aa6dd0a022",
+      "current_source_map_sha256": "58cbe8eeebde6128812f1089225ef9744f99ed700733876971c8953da754b1d8",
+      "changed_inputs": [
+        "extlibs/xredis/tests/interop/redis_cluster_client.c"
+      ],
+      "unconsumed_by_reused_checks": [
+        "extlibs/xredis/tests/interop/redis_cluster_client.c"
+      ],
+      "reason": "Only the standalone real-Cluster probe changed: diagnostic tags and correct owned-fixture epoch/slot-view convergence. Production sources, public/private/generated headers, manifests, ordinary test/example sources and tools are byte-identical. Validation does not compile/run the standalone interop probe. Preserve original receipts/source identity; rerun all four interop delivery forms on both hosts.",
+      "reused": {
+        "windows": {
+          "validation_report_sha256": "337d9d558f8df8e56af746451a9fe9f8d8b81d5a63337260fe2ae9d2b953ff3d",
+          "receipt_sha256": "254923a54cbfe10744f75276efcb6ddf4841f865a1a6b23f954565c7d5a140a8",
+          "raw_evidence": "D:/GIT/xrt/out/service-extensions/xredis-cluster-client-v2-20261112"
+        },
+        "wsl": {
+          "validation_report_sha256": "0dbcf507f83477ade09758e635dcf2fe5b5deb00692149a605954e9b3bf15e2a",
+          "receipt_sha256": "34f3adab2a2bf140f0214689b8b7743643051b2aadf09e8b807c2047bae34ff4",
+          "raw_evidence": "D:/GIT/xrt/out/service-extensions/xredis-cluster-client-v2-20261112"
+        }
+      }
+    },
+    "invalid_performance": {
+      "windows": {
+        "report_sha256": "02d17332a1e9689ea5434ad6c8c23a83ed68ab5d41a40f1a1baf06b9f3d67072",
+        "scope": "Same established maintained pool/engine/peer/13-byte binary ECHO and one caller at pipeline1/32. Direct native shared-pool calls know the exact node and have fewer semantics than automatic Cluster calls: this is a lower-bound cost control, not an equivalent-feature speedup/regression or Hiredis comparison. Call-entry to caller-observed FIFO completion latency includes admission, copies, queue, route/native wire, validation/wait and pipeline head-of-line delay. Setup/metadata bootstrap/sample storage outside loops; no per-process request/allocator priming, so cold first-window costs remain. One warmup and seven alternating serial unpinned samples; separate heap runs include peer mechanical tails. Not fixed-arrival/mixed-load/native Linux/CPU/RSS/72h acceptance.",
+        "all_comparisons_disqualified": true
+      },
+      "wsl": {
+        "report_sha256": "044d80b5362c4388de13c616a2a2121a7a798a7da8e62b2dcbd8452d51b72a6f",
+        "scope": "Same established maintained pool/engine/peer/13-byte binary ECHO and one caller at pipeline1/32. Direct native shared-pool calls know the exact node and have fewer semantics than automatic Cluster calls: this is a lower-bound cost control, not an equivalent-feature speedup/regression or Hiredis comparison. Call-entry to caller-observed FIFO completion latency includes admission, copies, queue, route/native wire, validation/wait and pipeline head-of-line delay. Setup/metadata bootstrap/sample storage outside loops; no per-process request/allocator priming, so cold first-window costs remain. One warmup and seven alternating serial unpinned samples; separate heap runs include peer mechanical tails. Not fixed-arrival/mixed-load/native Linux/CPU/RSS/72h acceptance.",
+        "all_comparisons_disqualified": true
+      }
+    }
+  },
+  "raw_evidence": "out/service-extensions/xredis-cluster-client-v4-20261112"
+}

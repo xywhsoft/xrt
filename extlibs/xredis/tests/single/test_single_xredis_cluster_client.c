@@ -1,0 +1,10 @@
+#define XREDIS_CLUSTER_CLIENT_WHITEBOX
+#define XREDIS_MODULE_XREDIS_CLUSTER_CLIENT
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#include <xredis/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XREDIS_IMPLEMENTATION
+#include "../../../../single/extlibs/xredis.h"
+#include "../test_cluster_client.c"

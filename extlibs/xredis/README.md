@@ -261,3 +261,8 @@ physical retirement. Coalesced metadata fetching is described below.
 coalesces concurrent demands, publishes bounded immutable generation/origin maps,
 and retains old views through failure. Explicit-seed bootstrap and invalidation
 are caller-driven; full automatic MOVED wiring and the managed facade remain work.
+
+[Asynchronous Cluster clients](docs/cluster_client.md) drive explicit-seed bootstrap,
+coalesced MOVED refresh and native routes on an existing worker. Admission bounds
+requests and bytes; parent cancellation and close preserve independent physical
+duties. Seed evolution, replica policy and synchronous Cluster calls remain work.

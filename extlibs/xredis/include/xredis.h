@@ -154,4 +154,9 @@
 #endif
 #include <xredis/cluster_refresh.h>
 
+#if defined(XREDIS_FEATURE_XREDIS) && !defined(XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT)
+#error "XREDIS_FEATURE_XREDIS requires XREDIS_FEATURE_XREDIS_CLUSTER_CLIENT"
+#endif
+#include <xredis/cluster_client.h>
+
 #endif

@@ -11718,3 +11718,68 @@ and verification commits05dc625d/f0e0955c are ancestors; no branch was created,
 switched or merged in this stage. No push. All started jobs are terminal.
 Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-refresh-20261112.json)
 and out/service-extensions/xredis-cluster-refresh-v2-20261112.
+
+## 2026-11-12 - Asynchronous Cluster clients on master
+
+Implemented developing xredis_cluster_client: existing-worker automatic explicit-
+seed bootstrap, bounded request/command/controller reservations, generation-
+coalesced full-map MOVED refresh, ephemeral ASK, one preallocated deadline heap/
+one timer and bounded ready-queue phases without scanning active requests on
+ordinary completion. Warm admission copies directly into its route; bootstrap
+adds one cold copy. Native route construction inherits original Call entry time.
+Missing slots request one fresh map before no-route, without business replay.
+Each parent has an independent cancellation token, typed immutable outcome and
+retained native observations. Close retires own watches/posts/timer/progress pin;
+shared Nodes/FIFO duties remain independently owned. Resource exhaustion stops
+with a typed first reason; repeated explicit Close does not erase that reason.
+No new shared runtime/Core or native client/pool/cache layout/source change.
+
+Mainline: Windows 47 / WSL 48 programs; root selector39 programs per host.
+Focused/single WSL ASan/UBSan/leak and TSan, root single, feature-off, API/docs/
+maturity, native layouts, isolated declarations, all11 exports/private hiding
+and three footprint forms passed. Tests include queue-inclusive deadlines,
+quotas, per-operation cancellation/close,8 producers/128 calls, metadata failure/
+recovery, old maps, missing slots, constructor/call OOM, policy Close reentry,
+exhausted-timer typed stop on a separate engine and exact native deadline probe.
+
+Real Redis8.0.5:288 cases across4 forms/two hosts and9216 exactly counted INCR.
+SHARDS/SLOTS x numeric/DNS/prepared x RESP2/3/AUTO x migrating ASK/real slot-owner
+change after bootstrap. Actual run IDs verified before writes, MYID before
+SETSLOT administration. Real MOVED automatically refreshes and next GET routes
+directly; ASK does not change generation. Only owned keys deleted before restore.
+One cache generation/node, physical Drop and retained results/maps after engine
+teardown checked. Real TLS/auth/trust/replicas/cold connection acceptance open.
+
+windows pipeline1: native/client median 14696/12509req/s (qualified=False/False), P99 132.400/141.800us (qualified=False/False); heap blocks/request 10.000/15.000.
+windows pipeline32: native/client median 286883/171079req/s (qualified=True/True), P99 190.300/305.900us (qualified=True/False); heap blocks/request 10.002/15.002.
+wsl pipeline1: native/client median 9367/6426req/s (qualified=True/True), P99 157.400/207.900us (qualified=False/False); heap blocks/request 12.019/17.029.
+wsl pipeline32: native/client median 62139/48143req/s (qualified=True/True), P99 705.400/1082.400us (qualified=False/False); heap blocks/request 10.195/15.705.
+
+Same established pool/engine/peer/binary ECHO, one caller, pipeline1/32. Direct
+native knows the exact endpoint and provides fewer semantics; this is a lower-
+bound control, not an equivalent-feature speedup or Hiredis acceptance. Latency
+includes caller-observed FIFO waiting/queue/validation/head-of-line delay. First-
+window allocator/request costs remain. Setup/bootstrap/sample buffers excluded.
+Seven alternating serial unpinned samples, noise/resolution gates and separate
+heap runs retained; no rerun merely for green. This is not fixed-arrival/mixed-
+load/concurrent/native Linux/CPU/RSS/upstream/TLS/72h production acceptance.
+Replica policy, refreshed seed selection, command-key metadata, synchronous
+Cluster facade and full four-library acceptance remain work; goal stays active.
+Performance review found an implicit-sync native control in the initial
+pipeline32 comparison. Switched benchmark to CallAsync; all earlier performance
+comparisons are explicitly invalidated and preserved. Runtime/headers/tests/
+fixtures unchanged; exact-input proof reuses their completed records and
+reruns registered benchmark smoke plus every performance sample.
+WSL real diagnostics reproduced artificial MOVED loops after fixture slot
+restoration. Added unique highest actual owner config epoch and three-node
+view convergence before business; runtime code/limits remained unchanged.
+Only the standalone probe changed, so exact-input proof reuses V2 ordinary
+validation/Windows layout/root-single records with their original identities.
+All four real delivery forms rerun on both hosts; failed diagnostics retained.
+Initial feature-off builds exposed a misgrouped umbrella feature guard; full
+root/focused had passed. Corrected only umbrella and generated headers, retained
+both failed host cohorts and source identities, then reran corrected-source
+functionality/delivery. Development compile/namespace corrections are preserved.
+All jobs are terminal, all work/testing is D:/GIT/xrt master, no branch or push.
+Evidence: [portable report](../../extlibs/xredis/tests/results/cluster-client-20261112.json)
+and out/service-extensions/xredis-cluster-client-v4-20261112.

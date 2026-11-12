@@ -1,7 +1,7 @@
 #ifndef XREDIS_TEST_CLUSTER_REFRESH_PEER_H
 #define XREDIS_TEST_CLUSTER_REFRESH_PEER_H
 #include "cluster_nodes_peer.h"
-enum {RF_NORMAL,RF_HOLD,RF_DROP,RF_BAD,RF_DENIED};
+enum {RF_NORMAL,RF_HOLD,RF_DROP,RF_BAD,RF_DENIED,RF_PARTIAL};
 typedef struct rffixture rffixture;
 typedef struct rfnode {rffixture* Owner;size_t Index;xatomic32 Mode,Queries,Shards,Slots,Target,Installed;xatomicptr LastPeer,Client;} rfnode;
 struct rffixture {nnfixture* Base;xredisclusterrefresh* Refresh;rfnode Nodes[3];xatomic32 Action;};
@@ -16,8 +16,8 @@ static bool rfCommand(redispeer* P,xredisreply* Reply,ptr Data)
     else if(Mode==RF_BAD)redisPeerSend(P,"+not-a-topology\r\n",17);
     else if(Mode==RF_DENIED)redisPeerSend(P,"-NOPERM metadata\r\n",18);
     else {char Wire[350];int Count;
-        if(Shards)Count=snprintf(Wire,sizeof(Wire),"*1\r\n%%2\r\n$5\r\nslots\r\n*2\r\n:0\r\n:16383\r\n$5\r\nnodes\r\n*1\r\n%%7\r\n$2\r\nid\r\n$1\r\na\r\n$8\r\nendpoint\r\n$0\r\n\r\n$2\r\nip\r\n$9\r\n127.0.0.1\r\n$18\r\nreplication-offset\r\n:0\r\n$4\r\nport\r\n:%u\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$6\r\nhealth\r\n$6\r\nonline\r\n",(unsigned)F->Base->Peers[Target].Address.Port);
-        else Count=snprintf(Wire,sizeof(Wire),"*1\r\n*3\r\n:0\r\n:16383\r\n*2\r\n$0\r\n\r\n:%u\r\n",(unsigned)F->Base->Peers[Target].Address.Port);
+        if(Shards)Count=snprintf(Wire,sizeof(Wire),"*1\r\n%%2\r\n$5\r\nslots\r\n*2\r\n:%u\r\n:16383\r\n$5\r\nnodes\r\n*1\r\n%%7\r\n$2\r\nid\r\n$1\r\na\r\n$8\r\nendpoint\r\n$0\r\n\r\n$2\r\nip\r\n$9\r\n127.0.0.1\r\n$18\r\nreplication-offset\r\n:0\r\n$4\r\nport\r\n:%u\r\n$4\r\nrole\r\n$6\r\nmaster\r\n$6\r\nhealth\r\n$6\r\nonline\r\n",Mode==RF_PARTIAL?2u:0u,(unsigned)F->Base->Peers[Target].Address.Port);
+        else Count=snprintf(Wire,sizeof(Wire),"*1\r\n*3\r\n:%u\r\n:16383\r\n*2\r\n$0\r\n\r\n:%u\r\n",Mode==RF_PARTIAL?2u:0u,(unsigned)F->Base->Peers[Target].Address.Port);
         redisPeerRequire(Count>0 && (size_t)Count<sizeof(Wire),"refresh wire bounds");if(Mode==RF_HOLD)P->Blocked=true;redisPeerSend(P,Wire,(size_t)Count);}
     xrtAtomicPtrStore(&N->LastPeer,P,XMEMORY_RELEASE);xrtAtomic32FetchAdd(&N->Queries,1,XMEMORY_RELEASE);return true;
 }

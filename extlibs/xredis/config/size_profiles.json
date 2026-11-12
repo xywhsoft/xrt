@@ -443,6 +443,21 @@
         "xrtTask",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xredis_cluster_client",
+      "system": "cluster_client",
+      "suite": "xredis_cluster_client",
+      "description": "Asynchronous Cluster client, coalesced refresh and bounded queues; no TLS/DNS/HTTP/tasks",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtNetResolver",
+        "xrtNetDial",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtTask",
+        "xrtProcess"
+      ]
     }
   ]
 }

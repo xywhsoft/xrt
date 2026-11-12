@@ -121,3 +121,12 @@ driver provide bootstrap without a new worker/timer. Failures preserve the old
 view. See [contracts](cluster_refresh.md). Automatic MOVED invalidation wiring,
 refreshed seed selection, replica policy, the complete managed facade and
 production/performance acceptance remain open.
+
+## Asynchronous Cluster clients
+
+The developing `xredis_cluster_client` leaf composes metadata and routes with
+a bounded ready queue, preallocated deadline heap, one timer and existing XRT
+posts/watches. It automatically bootstraps, refreshes after current-generation
+MOVED and isolates ASK; it preserves deadlines, quotas and old maps on failure.
+See [contracts](cluster_client.md). Replica policy, refreshed seed selection,
+synchronous calls and full production/performance acceptance remain open.

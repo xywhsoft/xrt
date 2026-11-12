@@ -1,6 +1,7 @@
 #include <xredis/cluster_refresh.h>
 #include "../internal/pool_admit.h"
 #include "../internal/cluster_topology_internal.h"
+#include "../internal/cluster_refresh_internal.h"
 #include <xrt/memory.h>
 #include <xrt/sync.h>
 #include <math.h>
@@ -28,12 +29,12 @@ XREDIS_API bool xredisClusterMapRetain(xredisclustermap* M)
 {if(!M)return xredisRefreshError(XERR_ARGUMENT,"Cluster map is NULL");xrtAtomic32FetchAdd(&M->References,1,XMEMORY_RELAXED);return true;}
 XREDIS_API void xredisClusterMapRelease(xredisclustermap* M)
 {if(!M || xrtAtomic32FetchSub(&M->References,1,XMEMORY_ACQ_REL)!=1)return;xredisClusterTopologyRelease(M->Info.Topology);xrtFree(M);}
-static bool xredisRefreshMapOutput(const xredisclustermap* M,const void* P,size_t N)
+bool __xredisClusterMapOutput(const xredisclustermap* M,const void* P,size_t N)
 {return xrtMemRangeValid(P,N) && (!M || (!xrtMemRangesOverlap(M,M->Bytes,P,N) && __xredisClusterTopologyOutput(M->Info.Topology,P,N)));}
 XREDIS_API bool xredisClusterMapInfo(const xredisclustermap* M,xredisclustermapinfo* Out)
-{if(!M || !xredisRefreshMapOutput(M,Out,sizeof(*Out)) || Out->Size!=sizeof(*Out))return xredisRefreshError(XERR_ARGUMENT,"invalid Cluster map info output");*Out=M->Info;return true;}
+{if(!M || !__xredisClusterMapOutput(M,Out,sizeof(*Out)) || Out->Size!=sizeof(*Out))return xredisRefreshError(XERR_ARGUMENT,"invalid Cluster map info output");*Out=M->Info;return true;}
 static bool xredisRefreshOutput(xredisclusterrefresh* C,const void* P,size_t N)
-{return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->Bytes,P,N) && xredisRefreshMapOutput(C->Current,P,N);}
+{return C && xrtMemRangeValid(P,N) && !xrtMemRangesOverlap(C,C->Bytes,P,N) && __xredisClusterMapOutput(C->Current,P,N);}
 XREDIS_API bool xredisClusterRefreshRetain(xredisclusterrefresh* C)
 {if(!C)return xredisRefreshError(XERR_ARGUMENT,"Cluster refresh is NULL");xrtAtomic32FetchAdd(&C->References,1,XMEMORY_RELAXED);return true;}
 XREDIS_API void xredisClusterRefreshRelease(xredisclusterrefresh* C)
