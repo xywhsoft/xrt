@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "stage": "native TCP and Dial infinite connection deadline",
+  "parent_revision": "47f13052209a5f4d32ba13ba317b303e4538237c",
+  "development": {
+    "path": "D:/GIT/xrt",
+    "branch": "master",
+    "branch_operations": false,
+    "pushed": false
+  },
+  "production_acceptance": false,
+  "gap": "Both config validators accept XRT_WAIT_FOREVER=-1, but startup tried to schedule an infinite absolute timer. Engine scheduling rejects it, causing an untimed connection to fail. Independently reproduced in native TCP and native Dial, after finite and zero cases pass.",
+  "fix": "Schedule connection/deadline timers only for positive timeout. Zero and -1 skip timer creation; finite timeout behavior and hot IO are unchanged. No new API, feature flag, layout, runtime or thread.",
+  "verification": {
+    "windows": {
+      "native_programs": 9,
+      "work_in_progress_rpc_integration_programs": 1,
+      "primary_programs": 10,
+      "backends": [
+        "select",
+        "IOCP"
+      ],
+      "asan_ubsan_leak_halt": false,
+      "stream_lifecycle_timeout_cases": [
+        30000,
+        0,
+        -1
+      ],
+      "stream_untimed_with_full_worker_timer_quota": true,
+      "dial_lifecycle_timeout_cases": [
+        30000,
+        0,
+        -1
+      ],
+      "native_tcp_dial_edges_stress_oom": true,
+      "stream_and_dial_minimal_singles": true
+    },
+    "wsl": {
+      "native_programs": 9,
+      "work_in_progress_rpc_integration_programs": 1,
+      "primary_programs": 10,
+      "backends": [
+        "select",
+        "epoll"
+      ],
+      "asan_ubsan_leak_halt": true,
+      "stream_lifecycle_timeout_cases": [
+        30000,
+        0,
+        -1
+      ],
+      "stream_untimed_with_full_worker_timer_quota": true,
+      "dial_lifecycle_timeout_cases": [
+        30000,
+        0,
+        -1
+      ],
+      "native_tcp_dial_edges_stress_oom": true,
+      "stream_and_dial_minimal_singles": true
+    }
+  },
+  "negative_controls": [
+    {
+      "log": "native-core-infinite-before.log",
+      "log_sha256": "fcd195e920b179ea45b5759bda15532cd067f387c29351c392b84a986e35ab1e",
+      "binary": "core-infinite/before.exe",
+      "binary_sha256": "313d8fe6972ee5ed73a8c6adf3275a8dedb420f2ab88d4567565fc287cd9981b",
+      "test": "core-infinite/test-before.c",
+      "test_sha256": "889277b976b76b9394ea42c7310d3518d2601e1a2cb646ac279c9c388c067f99",
+      "expected_failure": true,
+      "observation": "Finite and zero lifecycle pass; accepted -1 configuration fails before successful connection."
+    },
+    {
+      "log": "core-dial-infinite-before.log",
+      "log_sha256": "11c1614538cd99808180bcfd1832a083d25faacfaecb43de5c7b1496241315b7",
+      "binary": "core-infinite/dial-before.exe",
+      "binary_sha256": "62949d2fc12ea0502f28d0a952a3ec770c07f2b6db1b6edc0ec4a29179e0d871",
+      "test": "core-infinite/dial-test-before.c",
+      "test_sha256": "3899cd433a6be68779b3f34295b7679ec46cc51260687c109e59f91863a29d71",
+      "expected_failure": true,
+      "observation": "Finite and zero lifecycle pass; accepted -1 configuration fails before successful connection."
+    }
+  ],
+  "source_identity": {
+    "final_map_sha256": "7feaa265e7b4cc5dd30f4160c04dab65582a54e89c10bd9fa0b3c4af6c2dd66b",
+    "tcp_stream_cohort_sha256": "f882e20b90f3de4d71b36eb9a3bb49e083bc30f34ed2f157d21bc7d5faa3a8d7",
+    "canonical_files": {
+      "src/network/tcp.c": "7f681ee0327278b364cb2cdbf3e4e31b903d1d89622c5cdc9433a847704099fa",
+      "src/network/tcp_dial.c": "0bf1ab46ace901f247942d18e33adf3d5a0bd783e583dc3e1b2680ac20bed429",
+      "tests/network/test_net_tcp.c": "554ec95994a0a5a7bbf5e84d9079575ad990ac49324c87c8657f09cb3cb8e172",
+      "tests/network/test_net_tcp_dial.c": "3899cd433a6be68779b3f34295b7679ec46cc51260687c109e59f91863a29d71",
+      "single/xrt.h": "8420f7d91f0dec7622d655f02da93ffa7389986605f93dc173bb4478ace3a6c7",
+      "docs/api/tcp.md": "05eb3115231863017dbed475a556300f660e1987c59de286505846b8c47746b9"
+    },
+    "native_stream_reuse_proof": "Core TCP source/test/includes/config/tools unchanged. Only later changed Dial source/test and unselected Dial branch of the single header, plus unrelated uncommitted RPC fixture. net_tcp closure excludes native Dial, actual TCP-single macros exclude NET_TCP_DIAL.",
+    "macro_proof": {
+      "command": [
+        "E:/software/w64devkit/bin/gcc.exe",
+        "-std=c11",
+        "-DXRT_FEATURE_ATOMIC",
+        "-DXRT_FEATURE_QUEUE",
+        "-DXRT_FEATURE_QUEUE_MPSC",
+        "-DXRT_FEATURE_TIME",
+        "-DXRT_FEATURE_WAIT",
+        "-DXRT_FEATURE_THREAD",
+        "-DXRT_FEATURE_SYNC",
+        "-DXRT_FEATURE_MUTEX",
+        "-DXRT_FEATURE_NET",
+        "-DXRT_FEATURE_NET_SOCKET",
+        "-DXRT_FEATURE_NET_BUFFER",
+        "-DXRT_FEATURE_NET_PORT",
+        "-DXRT_FEATURE_NET_PORT_SELECT",
+        "-DXRT_FEATURE_NET_PORT_IOCP",
+        "-DXRT_FEATURE_NET_ENGINE",
+        "-DXRT_FEATURE_NET_TCP",
+        "-I",
+        "D:\\GIT\\xrt\\include",
+        "-E",
+        "-dM",
+        "D:\\GIT\\xrt\\tests\\single\\test_single_net_tcp.c"
+      ],
+      "log": "core-infinite/windows-tcp-single-macros.txt",
+      "sha256": "aa7e41b8bb72c1046f1c08cb00ad313f4b6518bddb2ff2e965a0328aa34ac5e3"
+    }
+  },
+  "scope_limits": [
+    "Native Core standalone programs are self-contained in this commit. The separately identified RPC infinity integration uses in-progress uncommitted TCP dial assets, which are not included in this Core commit.",
+    "Initial RPC 65-endpoint fixture accidentally reused the same endpoint and Core deduplicated it; corrected to distinct ports with an explicit list-count assertion. No production validation was relaxed.",
+    "Core fix has no hot IO change; no throughput/tail/72h production acceptance is claimed. Optional io_uring and other OS backends are not validated here."
+  ],
+  "evidence": {
+    "directory": "out/service-extensions/xrpc-tcp-dial-20261113/",
+    "selected_receipts": "core-selected-receipts.json",
+    "receipts_sha256": "cd622a6d6b31ce0dc49ac80a1e7ee1a7ab5b63c1f3689b7629ce82949459539d",
+    "source_maps": [
+      "before-core-source.json",
+      "core-native-source.json",
+      "core-stream-fixed-source.json",
+      "source.json"
+    ]
+  }
+}

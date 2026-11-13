@@ -1144,7 +1144,7 @@ static void __xrtNetDialStartTask(xnetworker* pWorker, ptr pData)
 	(void)pWorker;
 	pDial->Started = true;
 	if ( __xrtNetDialCanDrive(pDial) &&
-		 (pDial->Config.Timeout != 0) ) {
+		 (pDial->Config.Timeout > 0) ) {
 		if ( __xrtNetDialResourceAdd(pDial) ) {
 			pDial->DeadlineTimer = __xrtNetEngineSchedule(
 				pDial->Engine,

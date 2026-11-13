@@ -461,8 +461,14 @@ static void testTcpSendBuffer(
 
 
 
+static void testTcpTimeoutQuota(xnetworker* Worker, uint64 Id,
+	xnetresult Result, ptr Data)
+{
+	(void)Worker; (void)Id; (void)Result; (void)Data;
+}
+
 /* 覆盖 select fallback 的完整 TCP 生命周期和关键边界。 */
-int main(void)
+static int testTcpLifecycle(int64 ConnectTimeout)
 {
 	xnetengineconfig EngineConfig;
 	xnetlistenconfig ListenConfig;
@@ -475,6 +481,7 @@ int main(void)
 	xnetstreamstats ServerStats;
 	xnetengine* pEngine;
 	xnetlistener* pListener;
+	uint64 TimerBlocker = 0;
 	xnetaddr Address;
 	xnetaddr ClientLocal;
 	xnetaddr ClientRemote;
@@ -511,9 +518,16 @@ int main(void)
 	xrtNetEngineConfigInit(&EngineConfig);
 	EngineConfig.Backend = TEST_TCP_BACKEND;
 	EngineConfig.Workers = 2;
+	if (ConnectTimeout <= 0) EngineConfig.TimerLimit = 1;
 	pEngine = xrtNetEngineCreate(&EngineConfig);
 	testRequire((pEngine != NULL) && xrtNetEngineStart(pEngine),
 		"TCP select engine start failed");
+	if (ConnectTimeout <= 0) {
+		TimerBlocker = xrtNetEngineAfter(pEngine, 1, 60000,
+			testTcpTimeoutQuota, NULL);
+		testRequire(TimerBlocker != 0,
+			"fill connect Worker timer quota before untimed connect");
+	}
 
 	xrtNetListenConfigInit(&ListenConfig);
 	testRequire(xrtNetAddrLoopback(
@@ -537,6 +551,7 @@ int main(void)
 		 (Address.Port != 0), "TCP dynamic listener port missing");
 
 	xrtNetStreamConfigInit(&StreamConfig);
+	StreamConfig.ConnectTimeout = ConnectTimeout;
 	StreamConfig.ReadSize = 256;
 	StreamConfig.ReadLimit = 256;
 	StreamConfig.WriteHighWater = 1;
@@ -871,8 +886,19 @@ int main(void)
 	xrtNetStreamDestroy(Context.Client.Stream);
 	xrtNetStreamDestroy(Context.Server.Stream);
 	xrtNetListenerDestroy(pListener);
+	if (TimerBlocker) testRequire(xrtNetEngineTimerCancel(pEngine, TimerBlocker),
+		"untimed connect consumed or lost the independent timer credit");
 	testRequire(xrtNetEngineDestroy(pEngine),
 		"TCP select engine destroy failed");
 	printf("[PASS] network TCP %s lifecycle\n", TEST_TCP_BACKEND_NAME);
 	return 0;
+}
+
+int main(void)
+{
+	int Result = testTcpLifecycle(30000);
+	if (Result) return Result;
+	Result = testTcpLifecycle(0);
+	if (Result) return Result;
+	return testTcpLifecycle(XRT_WAIT_FOREVER);
 }

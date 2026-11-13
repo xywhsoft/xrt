@@ -2665,7 +2665,7 @@ static void __xrtNetStreamStartConnect(
 		return;
 	}
 	pStream->BuffersReady = true;
-	if ( pStream->Config.ConnectTimeout != 0 ) {
+	if ( pStream->Config.ConnectTimeout > 0 ) {
 		xrtNetStreamRef(pStream);
 		pStream->ConnectTimer = xrtNetEngineAfter(
 			pStream->Engine,

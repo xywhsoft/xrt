@@ -201,7 +201,7 @@ static void testDialListenerClose(xnetlistener* pListener, ptr pData)
 
 
 /* 验证双栈交错、失败回退、发布顺序、统计和完整回收。 */
-int main(void)
+static int testDialLifecycle(int64 Timeout)
 {
 	testdialcontext Context;
 	xnetengineconfig EngineConfig;
@@ -257,6 +257,7 @@ int main(void)
 		xrtNetListenerLocal(pListener, &Address),
 		"dial listener create failed");
 	xrtNetDialConfigInit(&DialConfig);
+	DialConfig.Timeout = Timeout;
 	DialConfig.Affinity = 0;
 	DialConfig.FallbackDelay = 1;
 	DialConfig.MaxAttempts = 2;
@@ -316,4 +317,13 @@ int main(void)
 		"managed TCP dial engine destroy failed");
 	printf("[PASS] managed TCP dial fallback lifecycle\n");
 	return 0;
+}
+
+int main(void)
+{
+	int Result = testDialLifecycle(30000);
+	if (Result) return Result;
+	Result = testDialLifecycle(0);
+	if (Result) return Result;
+	return testDialLifecycle(XRT_WAIT_FOREVER);
 }

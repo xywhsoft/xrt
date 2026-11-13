@@ -163945,7 +163945,7 @@ static void __xrtNetStreamStartConnect(
 		return;
 	}
 	pStream->BuffersReady = true;
-	if ( pStream->Config.ConnectTimeout != 0 ) {
+	if ( pStream->Config.ConnectTimeout > 0 ) {
 		xrtNetStreamRef(pStream);
 		pStream->ConnectTimer = xrtNetEngineAfter(
 			pStream->Engine,
@@ -253936,7 +253936,7 @@ static void __xrtNetDialStartTask(xnetworker* pWorker, ptr pData)
 	(void)pWorker;
 	pDial->Started = true;
 	if ( __xrtNetDialCanDrive(pDial) &&
-		 (pDial->Config.Timeout != 0) ) {
+		 (pDial->Config.Timeout > 0) ) {
 		if ( __xrtNetDialResourceAdd(pDial) ) {
 			pDial->DeadlineTimer = __xrtNetEngineSchedule(
 				pDial->Engine,

@@ -12528,3 +12528,27 @@ and out/service-extensions/xrpc-frame-20261112.
   out/service-extensions/xrpc-duplex-tls-20261113/. Framed DNS/prepared dial,
   stdio/WebSocket/negotiation/credentials/recovery, broader optimization and all
   four-product native >=72h acceptance remain required. The long-term goal is active.
+
+
+### 2026-11-14 - Native TCP/Dial infinite timeout fix on master
+
+- RPC DNS infinity tests exposed accepted -1 timeout configs failing in Core.
+  Independent native TCP and native Dial lifecycles each pass finite30000/zero,
+  then fail on -1 with original startup scheduling. Preserve both old binaries,
+  test sources and failing logs. No protocol workaround or new shared runtime.
+- Native TCP connect and Dial deadline startup now schedule timers only when
+  timeout>0. Zero/-1 are untimed, finite behavior and hot IO are unchanged.
+  Clarify signed ConnectTimeout and both policies in Core API documentation.
+- Both hosts pass9 native programs: TCP select/IOCP-or-epoll/minimal-single and
+  Dial's4 canonical cases/additional-backend/minimal-single. Each lifecycle
+  modular lifecycle exercises30000/0/-1; untimed TCP additionally succeeds with its Worker timer
+  quota already full. WSL uses ASan/UBSan/leak halt. One extra in-progress RPC
+  integration per host now passes infinity; it is not part of this Core commit.
+- Reuse earlier TCP stream results only after proving unchanged native TCP
+  closure and actual TCP-single feature exclusion of the later changed Dial
+  branch. Retain RPC fixture failures, including duplicated endpoints silently
+  deduplicated by Core; corrected to65 distinct ports with exact count assertion.
+- Report: docs/development/tcp-connect-infinite-20261114.json. Exact source maps,
+  commands, logs and preserved binaries are under
+  out/service-extensions/xrpc-tcp-dial-20261113/. No performance/72h gate claimed;
+  RPC DNS delivery, other extension work and full acceptance remain in progress.

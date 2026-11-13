@@ -499,7 +499,9 @@ typedef enum xnetstreamreadmode {
 
 ### `xnetstreamconfig`
 
-所有字节容量都是硬边界，ConnectTimeout 使用毫秒。
+所有字节容量都是硬边界，ConnectTimeout 使用毫秒。正数设置原生 TCP 建连
+定时器；`0` 和 `XRT_WAIT_FOREVER`（`-1`）均不设置该定时器，不占用 Timer
+配额；小于 `-1` 的配置无效。扩展层可另行定义从 API 入口计时的整体截止时间。
 
 ```c
 typedef struct xnetstreamconfig {
@@ -522,7 +524,7 @@ typedef struct xnetstreamconfig {
 | `WriteHighWater` | `size_t` | WriteHighWater |
 | `WriteLowWater` | `size_t` | WriteLowWater |
 | `WriteLimit` | `size_t` | WriteLimit |
-| `ConnectTimeout` | `uint64` | ConnectTimeout |
+| `ConnectTimeout` | `int64` | ConnectTimeout |
 | `ReadMode` | `xnetstreamreadmode` | ReadMode |
 | `NoDelay` | `bool` | NoDelay |
 | `KeepAlive` | `bool` | KeepAlive |
@@ -2477,7 +2479,7 @@ WebSocket、RPC 等组合库复制配置前复用同一口径。成功不修改�
 `false` 并发布具体参数错误。上层库不应复制 XRT 私有校验逻辑，否则默认值和边界会
 随底层演进发生分叉。
 
-Dial 的默认总超时为 30 秒、候选间隔为 250 毫秒、最多尝试 8 个地址。`Timeout` 从 API 调用时开始计算，包含排队、DNS 和所有连接候选；零表示不设置总截止时间。单个候选仍受 `Stream.ConnectTimeout` 约束。`FallbackDelay == 0` 会立即并发启动所有允许的候选，适合调用方明确控制地址数量的低延迟场景。
+Dial 的默认总超时为 30 秒、候选间隔为 250 毫秒、最多尝试 8 个地址。`Timeout` 从 API 调用时开始计算，包含排队、DNS 和所有连接候选；`0` 和 `XRT_WAIT_FOREVER`（`-1`）表示不设置总截止 Timer。单个候选仍受 `Stream.ConnectTimeout` 约束。`FallbackDelay == 0` 会立即并发启动所有允许的候选，适合调用方明确控制地址数量的低延迟场景。
 
 Resolver 返回顺序决定首选地址族；Dial 保持各地址族内部顺序，并交错 IPv6/IPv4 候选。第一个候选立即启动，仍未成功时按 `FallbackDelay` 逐个增加并发候选；候选同步失败会立即补充下一个地址。`MaxAttempts` 是复制到 Dial 内的硬上限，既限制连接放大，也限制每次操作的地址内存。
 
