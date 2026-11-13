@@ -19,12 +19,21 @@ but does not prescribe the connection runtime or these transport policies.
 
 `xrpcDuplexCall`, `xrpcDuplexNotify` and `xrpcDuplexBatch` are concurrent bounded
 caller-thread admission. Inputs are validated, encoded and copied before return;
-ACCEPTED alone writes the independent native Future. A single endpoint gate
-serializes construction/publication: encoding can occupy this gate, so concurrent
-submit latency is part of the performance cost, not claimed zero overhead.
+ACCEPTED alone writes the independent native Future. The endpoint gate reserves
+operation/ID-range/workspace counters and publishes the completed constructor.
+Validation/encoding/quoting/copying, quota allocation and native Future construction
+run outside that gate. Concurrent constructors reserve their aggregate temporary
+workspace before allocating it; the configured total is never multiplied by the
+producer count. This removes encoder work from the gate, not the measured costs
+of validation, allocation, native quota locks or ordinary gate contention.
 Timeout starts before lock acquisition, validation or encoding and is passed
 unchanged to the native call producer. Fresh monotonically allocated string IDs
-never repeat within the endpoint; exhaustion refuses admission. Ordinary calls
+never repeat within the endpoint; exhaustion refuses admission. Reserved ranges
+are consumed even after construction failure. A successful constructor reserved
+before a racing Close can return ACCEPTED after it; the owner completes it without
+sending. Failed construction returns all operation/ID-count/workspace credits.
+Cross-thread wire order follows construction publication, with same-thread
+sequential order preserved. Ordinary calls
 and batch maps use the existing native typed `xrpccallresult` and
 `xrpcbatchcallresult`. Dropping the observer does not cancel accepted work.
 Native `xrtFutureCancel` is supported from any thread; raw cancel-token requests
@@ -54,7 +63,10 @@ scan, not one timer per call or a new scheduler; Info computes the minimum live
 deadline in O(live calls). Large pending windows therefore still require measured
 optimization. Executor completions signal the owner, with no normal polling.
 Retained wire-credit stalls and exceptional registration failures retry at a
-1 ms scheduling hint; this is backpressure retry, not a business deadline reset.
+1 ms scheduling hint; closing with only physical references remaining also uses
+that hint. A Wake can execute before its final constructor/Watch/cancellation pin
+retires, so a signal-only adapter must not be stranded at INFINITY waiting for
+another signal that will never come. This hint never resets a business deadline.
 
 ## Transport contract
 
@@ -121,8 +133,14 @@ response IDs including not-yet-attached calls; MaxIncoming bounds borrowed-serve
 jobs. MaxControlBytes charges request/job metadata and quota prefixes, retaining
 credit through captured native cancellation tails. Native Core call/Future/cancel
 control blocks have the independently finite MaxOperations bound; they are not
-misreported as bytes in that metadata ledger. Pending storage derives finite
-ID/key/message limits from the configured response decoder.
+misreported as bytes in that metadata ledger. The private pending table stores only locally issued nonzero decimal uint64
+string values: at most 22 raw token bytes, 20 decoded digits and a 21-byte exact
+comparison key. After complete response validation, other ID types/values are
+unknown. Escaped equivalent decimal strings are canonicalized in bounded private
+scratch; retained response bytes are unchanged. Leading-zero/sign/fraction/
+exponent strings and overflowing values cannot alias issued IDs. Unknown long
+string/huge numeric IDs no longer require a large key slot per pending call.
+Inbound server request IDs still use the shared Server's full lossless codec.
 
 MaxOutputs/MaxOutputBytes charge physically retained output objects plus wire
 bytes and quota prefixes, even after logical completion or endpoint destruction.
@@ -138,7 +156,9 @@ MaxResults/MaxResultBytes charge native preallocated result boxes/maps and retai
 response snapshots through their physical final reference. Extra immutable refs
 do not double charge a block. Retained results own no endpoint/server references.
 Temporary encoding descriptors and ID text are one caller-thread allocation,
-serialized under the gate and bounded by MaxTemporaryBytes. Each request allocates
+reserved across concurrent constructors under MaxTemporaryBytes. Constructing,
+TemporaryBytes and PeakTemporaryBytes are exposed in Info; reservations can be
+visible before construction succeeds, so Operations includes Constructing. Each request allocates
 its own metadata, encoded output, native producer/Future/result/cancel machinery;
 receive does a classification scan, response-mode snapshot scan, two exact-ID
 preflights for atomic probe/removal, and one input snapshot copy. Outgoing Size
@@ -180,5 +200,17 @@ two endpoints and the existing shared executor with in-process message transfer.
 Busy owner scheduling CPU is included. These are not fixed-arrival/network/tail
 or same-function parity tests; an unpinned baseline cannot establish release
 performance. Current source-bound evidence is in
-`tests/results/duplex-20261113.json` with raw files under
-`out/service-extensions/xrpc-duplex-20261113/`.
+`tests/results/duplex-admission-20261113.json` with raw files under
+`out/service-extensions/xrpc-duplex-admission-20261113/`. The original runtime
+baseline remains at `tests/results/duplex-20261113.json`.
+
+The admission update also uses `tests/interop/duplex_admission.c`: it compiles
+one actual production TU with public encoder/atomic-call interposition and no
+production hooks. Paused encoding permits owner work and another bounded producer;
+a matched old-source build demonstrates the former gate blockage. Additional
+cases force encoder refusal, retain the original deadline across construction,
+hold the real constructor pin after Wake, and exercise the uint64 ID boundary.
+The regular modular/single tests exercise actual shipping objects without that
+interposition. Info gained three size_t fields; recompile consumers for its
+checked Size/layout change. Large-window scans, general contention/tail latency,
+transport adapters and final native production qualification remain open.

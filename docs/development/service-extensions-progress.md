@@ -12195,3 +12195,65 @@ and out/service-extensions/xrpc-frame-20261112.
   admission-gate/default-memory optimization and all final four-product native
   >=72h/performance/fault acceptance gates remain open. This is real duplex
   runtime progress, not production completion of xrpc or the four-library goal.
+
+
+## 2026-11-13 — xrpc concurrent admission and compact generated-ID storage
+
+- Continued on master from `5e6a00ba`, preserving this stage's uncommitted work
+  across the user-requested pause/resume. No branch/worktree, Core runtime change
+  or remote push. Outgoing admission now reserves operation/ID ranges and aggregate
+  temporary bytes under the endpoint gate, then performs encoding/allocation/native
+  Future construction outside it. Constructor references preserve close/rollback
+  duties; a pre-Close reservation can publish afterward and finishes without send.
+  Failure refunds every resource credit but never reuses a reserved ID range.
+  Info exposes constructing/current/peak workspace, with a physical-retirement
+  retry hint when Wake precedes the final reference decrement. Its checked public
+  layout gained three size_t fields: consumers must recompile.
+- The private pending table needs only a 21-byte comparison key for our own
+  nonzero decimal uint64 string IDs, instead of 4096 bytes per slot. Complete
+  response validation remains in place; escaped equivalents match, original
+  response bytes are retained, and arbitrary valid unknown IDs are ignored.
+  Numeric/null/leading-zero/sign/fraction/exponent/overflow strings cannot alias
+  issued IDs. Shared Server inbound ID handling remains fully lossless.
+- Source-bound verification: Windows 35 and WSL2 37 successful program executions,
+  including 21 root regression programs per host, modular/single ASan/UBSan/leak,
+  applicable single/actual-TU TSan, 4096 ordinary admission allocation-budget
+  prefixes, constructor thresholds, four producers and close/cancel races.
+  Runnable examples pass modular/single/static/shared and declaration consumers;
+  root single/static/shared and selected pending static pass. Three dependency
+  footprints per host exclude network/TLS/HTTP/WebSocket/process symbols. The root
+  DLL still exports exactly 110 public RPC functions with no private helper leak.
+- A production-TU probe interposes only public encoder/atomic calls, without
+  production hooks. Under held encoding, the matched old implementation blocks
+  owner and other-producer progress (0/0); current allows both (1/1), counts
+  aggregate workspace refusal and retains the constructor through Close. Forced
+  encoder refusal, original-deadline expiry after held construction, actual
+  post-Wake constructor-reference retirement and the uint64 no-wrap boundary pass.
+  The normal sender test was corrected to handle cancellation between selection
+  and Started, including bounded later selection retirement. Exploratory stale
+  object selection and a test-only sentinel cleanup fault are retained in raw
+  evidence; formal compilation uses fingerprinted/fresh objects and all passes.
+- Matched old/current code and respective headers use identical unchanged
+  dependency objects and benchmark/config. Default fixed requested storage is
+  4328144 -> 161549 bytes on Windows and 4328216 -> 161621 on WSL (about 96.3%
+  less), with the same 1024 ID/256 message limits. This is not an RSS measurement.
+  Ordinary synthetic duplex and two-endpoint/shared-executor allocation counts
+  stay 8 and 14 blocks/call; native producer cost reference stays 4.
+- One warmup/seven rotated unpinned samples, without noise retries: Windows
+  synthetic/two-endpoint average cost is 5204.599 -> 5126.387 and
+  13309.646 -> 13250.399 ns/call. WSL is 5763.624 -> 5926.132 and
+  22663.833 -> 22858.781 ns/call: qualified throughput changes are about
+  +1.53%/+0.45% on Windows, -2.74%/-0.85% on WSL. All are within the planned
+  5% average-throughput guard, but CPU-clock/noise, request-level tails, fixed
+  arrivals, actual transports/contended workloads/native Linux and production
+  acceptance remain open. TSan's visible GCC standalone-fence warning remains a
+  tool limitation. The initial benchmark identity precheck was corrected for
+  CRLF checkout vs LF git blobs; both raw and normalized hashes are retained.
+- Report: `extlibs/xrpc/tests/results/duplex-admission-20261113.json`; raw source
+  hashes (2651 inputs), exact baseline overlay, logs/binaries/probes/measurements
+  and receipt identity under `out/service-extensions/xrpc-duplex-admission-20261113/`.
+  Incoming Server snapshot admission still has its existing gate section; stop
+  scans/Info minimum inspection remain O(live calls). Automatic TCP/stdio/WS,
+  independent transport peers, negotiated remote deadline/cancel, credentials/
+  mTLS, broader faults/recovery, P99/connection scaling and all four-product
+  native >=72h acceptance remain required. The full goal remains active.

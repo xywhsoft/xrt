@@ -1960,6 +1960,8 @@ typedef struct xrpcduplexinfo {
     bool Closing,Drained,Selected,Started;
     xrpccallstatus Reason;
     size_t Operations,PendingCalls,Incoming,ControlBlocks,ControlBytes;
+    /* Outgoing constructors are included in Operations and PendingCalls. */
+    size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     size_t Outputs,OutputBytes,Results,ResultBytes,OwnedBytes;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     uint64 ControlRefusals,OutputRefusals,ResultRefusals;
@@ -1970,14 +1972,21 @@ typedef struct xrpcduplexinfo {
 } xrpcduplexinfo;
 XRT_EXTERN_C_BEGIN
 /* 128 operations/1024 request IDs/64 incoming jobs; 2 MiB control metadata,
- * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB temporary encoding scratch,
+ * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB aggregate concurrent encoding workspace,
  * 16 MiB endpoint/pending fixed storage, 64 owner units/Step, 5000 ms incoming document deadline. No new thread,
  * engine, timer, listener or shared runtime. NULL Server is client-only. */
 XRPC_API bool xrpcDuplexConfigInit(xrpcduplexconfig* Config);
 XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Result);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
- * lock/validation/encoding. Fresh string IDs never repeat in one endpoint.
+ * lock/validation/encoding. Only counter/range reservation and publication hold
+ * the endpoint gate; encoding and native construction run outside it. Temporary
+ * descriptor storage is an aggregate reservation across all constructors.
+ * A reservation before a racing Close can still return ACCEPTED afterward;
+ * owner then completes without sending. Construction failure rolls back all
+ * credits but consumes its never-reused ID range. Cross-thread wire order is
+ * construction publication order; same-thread sequential order is preserved.
+ * Fresh string IDs never repeat in one endpoint.
  * Dropping a Future does not cancel. Use native FutureCancel from any thread.
  * Batch has 1..Encode.MaxMessages items; notification indices are SIZE_MAX.
  * Success Future holds native call/batch result, independent of endpoint/server.
@@ -2029,7 +2038,9 @@ XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
  * Owner Step drives typed completion; no forced interruption/rollback. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
- * not a global atomic snapshot. Drained proves no endpoint callback/context
+ * not a global atomic snapshot. Closing with only physical pins remaining has
+ * a bounded retry deadline so a pre-retirement Wake cannot strand drain.
+ * Drained proves no endpoint callback/context
  * duties; retained independent output/results do not delay it. */
 XRPC_API bool xrpcDuplexInfo(xrpcduplex* Duplex,xrpcduplexinfo* Info);
 /* NULL succeeds. Stop concurrent API entries first. Requires Close + Drained;
@@ -2179,7 +2190,8 @@ xrpcresponsestatus xrpcResponsesReadQuota(xstrview Input,const xrpcresponseconfi
 /* ========================================================================== */
 
 #if defined(XRPC_FEATURE_XRPC_METHODS) || \
-	defined(XRPC_FEATURE_XRPC_ID)
+	defined(XRPC_FEATURE_XRPC_ID) || \
+	defined(XRPC_FEATURE_XRPC_DUPLEX)
 #ifndef XRPC_INTERNAL_STRING_H
 #define XRPC_INTERNAL_STRING_H
 
@@ -6504,6 +6516,7 @@ struct xrpcduplex {
     xrpcduplexjob *Jobs,*ReadyHead,*ReadyTail,*CancelScan,*FallbackHead,*FallbackTail;
     xrpcduplexoutput *OutputHead,*OutputTail,*Selection;
     size_t Operations,PendingCalls,Incoming,Live,ScanLeft,OwnedBytes,FixedBytes;
+    size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     uint64 Serial,SelectionSerial,SelectedToken;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     bool Closing,Busy,More,CancelStarted;
@@ -6511,6 +6524,8 @@ struct xrpcduplex {
     xrpccallstatus Reason;
     xrpcmessage* Scratch;
     xrpcpendingresolution* Resolutions;
+    xstrview* CorrelationIds;
+    char* CorrelationText;
 };
 static bool xrpcDuplexReport(xerrkind Kind,xrpcduplexerror Code,cstr Text)
 {xrtSetErrorInfo(Kind,"xrt.rpc",(int32)Code,Text);return false;}
@@ -6561,18 +6576,19 @@ XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Resul
     if(!xrpcEncodeSize(&Check,1,false,&C.Encode,&N) ||
        xrpcDecode(XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":null}"),&C.Response.Decode,&M,1,&Doc)!=XRPC_DECODE_DONE)return false;
     size_t Count=C.Response.Decode.MaxMessages;
-    if(Count>(SIZE_MAX-sizeof(xrpcduplex))/(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)))
+    if(Count>(SIZE_MAX-sizeof(xrpcduplex))/(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u))
         return xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex storage overflow");
-    size_t Bytes=sizeof(xrpcduplex)+Count*(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution));
+    size_t Bytes=sizeof(xrpcduplex)+Count*(sizeof(xrpcmessage)+sizeof(xrpcpendingresolution)+sizeof(xstrview)+24u);
     xrpcduplex* D=xrtCalloc(1,Bytes);if(!D)goto Memory;
     D->Config=C;D->OwnedBytes=Bytes;D->Scratch=(xrpcmessage*)(D+1);D->Resolutions=(xrpcpendingresolution*)(D->Scratch+Count);
+    D->CorrelationIds=(xstrview*)(D->Resolutions+Count);D->CorrelationText=(char*)(D->CorrelationIds+Count);
     if(!xrtMutexInit(&D->Gate)){xrtFree(D);return false;}
     xrtAtomic32Init(&D->References,1);
     xrpcpendingconfig P;xrpcPendingConfigInit(&P);P.MaxCalls=C.MaxPendingCalls;
-    P.Id.MaxInputBytes=C.Response.Decode.MaxIdBytes;P.Id.MaxStringBytes=C.Response.Decode.MaxStringBytes;
-    /* Our own IDs are <=22 bytes. Unknown peer IDs are still validated under
-     * response limits, but comparison scratch is independently finite. */
-    P.Id.MaxKeyBytes=P.Id.MaxInputBytes>512?P.Id.MaxInputBytes:512;
+    /* Only our canonical nonzero uint64 decimal string IDs enter this table.
+     * Peer IDs are fully validated by the response codec, then filtered below.
+     * The comparison key is one type byte plus at most twenty digits. */
+    P.Id.MaxInputBytes=22;P.Id.MaxStringBytes=20;P.Id.MaxKeyBytes=21;
     if(Bytes>=C.MaxFixedBytes){xrpcDuplexReport(XERR_RANGE,XRPC_DUPLEX_LIMIT,"RPC duplex fixed-storage limit");goto Failed;}
     P.MaxOwnedBytes=C.MaxFixedBytes-Bytes;
     if(!xrpcPendingCreate(&P,&D->Pending))goto Failed;
@@ -6605,6 +6621,14 @@ static xrpcduplexoutput* xrpcDuplexOutputCreate(xrpcduplex* D,size_t Allocation,
     xrpcduplexoutput* O=xrpcResultQuotaAllocCharged(D->Wire,sizeof(*O)+Allocation,sizeof(*O)+Charge,Limited);
     if(O){memset(O,0,sizeof(*O));xrtAtomic32Init(&O->References,1);}return O;
 }
+static void xrpcDuplexConstructionReturn(xrpcduplex* D)
+{
+    /* Wake can race the owner seeing the final constructor pin. Closing Info
+     * supplies a retry hint until the last physical reference has retired. */
+    xerror* Error=xrtTakeError();xrpcDuplexWake(D);
+    xrtAtomic32FetchSub(&D->References,1,XMEMORY_RELEASE);
+    xrtClearError();xrtSetErrorTake(Error);
+}
 static xrpcduplexadmission xrpcDuplexSubmit(xrpcduplex* D,const xrpcduplexitem* Items,
     size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {
@@ -6618,17 +6642,28 @@ static xrpcduplexadmission xrpcDuplexSubmit(xrpcduplex* D,const xrpcduplexitem* 
            xrtMemRangesOverlap(Future,sizeof(*Future),V->Params.Data,V->Params.Size))goto Argument;
         if(!V->Notify)++Replies;
     }
-    if(Count>SIZE_MAX/(sizeof(xrpcoutgoing)+24u) || Count> (SIZE_MAX-sizeof(xrpcduplexrequest))/(sizeof(xrpcduplexentry)+sizeof(size_t)))goto Argument;
+    if(Count>SIZE_MAX/(sizeof(xrpcoutgoing)+24u) || Count>(SIZE_MAX-sizeof(xrpcduplexrequest))/(sizeof(xrpcduplexentry)+sizeof(size_t)))goto Argument;
     size_t TempBytes=Count*(sizeof(xrpcoutgoing)+24u),Bytes=sizeof(xrpcduplexrequest)+Count*(sizeof(xrpcduplexentry)+sizeof(size_t));
+    /* Only reservation/publication are serialized. JSON scans, quoting, copies,
+     * allocator/quota locks and native Future construction do not hold Gate. */
     xrtMutexLock(&D->Gate);
     if(D->Closing){xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_CLOSED;}
     if(D->Operations==D->Config.MaxOperations || Replies>D->Config.MaxPendingCalls-D->PendingCalls ||
-       Replies>UINT64_MAX-D->Serial || TempBytes>D->Config.MaxTemporaryBytes)goto Overloaded;
-    bool Limited=false;xrpcduplexrequest* R=xrpcResultQuotaAlloc(D->Control,Bytes,&Limited);
-    if(!R){if(Limited)goto Overloaded;xrtMutexUnlock(&D->Gate);goto Memory;}
+       Replies>UINT64_MAX-D->Serial || TempBytes>D->Config.MaxTemporaryBytes-D->TemporaryBytes){
+        ++D->Rejected;xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_OVERLOADED;}
+    uint64 Serial=D->Serial;D->Serial+=Replies; /* Gaps on rollback; never reuse. */
+    ++D->Operations;D->PendingCalls+=Replies;++D->Constructing;D->TemporaryBytes+=TempBytes;
+    if(D->TemporaryBytes>D->PeakTemporaryBytes)D->PeakTemporaryBytes=D->TemporaryBytes;
+    xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED); /* Constructor pin. */
+    xrtMutexUnlock(&D->Gate);
+    bool Limited=false;xrpcduplexadmission Result=XRPC_DUPLEX_ERROR;
+    xrpcduplexrequest* R=xrpcResultQuotaAlloc(D->Control,Bytes,&Limited);
+    xrpcduplexoutput* O=NULL;xrpcoutgoing* V=NULL;
+    if(!R){if(Limited)Result=XRPC_DUPLEX_OVERLOADED;else goto Memory;goto Rollback;}
     memset(R,0,Bytes);R->Duplex=D;R->Count=Count;R->Replies=Replies;R->Batch=Batch;xrtAtomic32Init(&R->References,1);
-    xrpcoutgoing* V=xrtMalloc(TempBytes);if(!V){xrpcResultQuotaFree(R);xrtMutexUnlock(&D->Gate);goto Memory;}
-    memset(V,0,Count*sizeof(*V));char* Ids=(char*)(V+Count);uint64 Serial=D->Serial;
+    xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED); /* Request/context pin. */
+    V=xrtMalloc(TempBytes);if(!V)goto Memory;
+    memset(V,0,Count*sizeof(*V));char* Ids=(char*)(V+Count);
     for(size_t I=0;I<Count;++I){V[I].Kind=Items[I].Notify?XRPC_MESSAGE_NOTIFICATION:XRPC_MESSAGE_CALL;
         V[I].Method=Items[I].Method;V[I].Params=Items[I].Params;
         R->Entries[I].Request=R;R->Entries[I].Index=I;
@@ -6636,26 +6671,32 @@ static xrpcduplexadmission xrpcDuplexSubmit(xrpcduplex* D,const xrpcduplexitem* 
         xrpcDuplexMap(R)[I]=SIZE_MAX;
     }
     size_t WireBytes=0;
-    if(!xrpcEncodeSize(V,Count,Batch,&D->Config.Encode,&WireBytes)){xrtFree(V);xrpcResultQuotaFree(R);xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_ERROR;}
-    xrpcduplexoutput* O=xrpcDuplexOutputCreate(D,WireBytes,WireBytes,&Limited);
-    if(!O){xrtFree(V);xrpcResultQuotaFree(R);if(Limited)goto Overloaded;xrtMutexUnlock(&D->Gate);goto Memory;}
-    if(!xrpcEncodeWrite(O+1,WireBytes,V,Count,Batch,&D->Config.Encode,NULL)){
-        xrtFree(V);xrpcDuplexOutputRelease(O);xrpcResultQuotaFree(R);xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_ERROR;}
-    xrtFree(V);O->Wire=(xstrview){(cstr)(O+1),WireBytes};O->Request=R;R->Output=O;
+    if(!xrpcEncodeSize(V,Count,Batch,&D->Config.Encode,&WireBytes))goto Rollback;
+    O=xrpcDuplexOutputCreate(D,WireBytes,WireBytes,&Limited);
+    if(!O){if(Limited){Result=XRPC_DUPLEX_OVERLOADED;goto Rollback;}goto Memory;}
+    if(!xrpcEncodeWrite(O+1,WireBytes,V,Count,Batch,&D->Config.Encode,NULL))goto Rollback;
+    xrtFree(V);V=NULL;O->Wire=(xstrview){(cstr)(O+1),WireBytes};O->Request=R;R->Output=O;
     xrpccallconfig C;xrpcCallConfigInit(&C);C.Timeout=Timeout;C.Wake=xrpcDuplexCallWake;C.Drop=xrpcDuplexDrop;C.User=R;
     xfuture* F=NULL;
     if(!xrpcCallCreateQuota(&C,Batch?Count:0,&R->Call,&F,Entered,D->Results,&Limited)){
-        xrpcDuplexOutputRelease(O);xrpcResultQuotaFree(R);if(Limited)goto Overloaded;xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_ERROR;}
-    xrtAtomic32FetchAdd(&R->References,1,XMEMORY_RELAXED);xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED);
-    D->Serial=Serial;++D->Operations;D->PendingCalls+=Replies;++D->Accepted;
+        if(Limited)Result=XRPC_DUPLEX_OVERLOADED;
+        goto Rollback;}
+    xrtAtomic32FetchAdd(&R->References,1,XMEMORY_RELAXED); /* Native context owns one R reference. */
+    xrtMutexLock(&D->Gate);
+    --D->Constructing;D->TemporaryBytes-=TempBytes;++D->Accepted;
+    /* A successful reservation precedes a racing Close. Publish even if it has
+     * closed meanwhile: owner completes CLOSED without sending/replaying it. */
     if(D->SubmitTail)D->SubmitTail->SubmitNext=R;else D->SubmitHead=R;D->SubmitTail=R;
-    *Future=F;xrtMutexUnlock(&D->Gate);xrpcDuplexWake(D);return XRPC_DUPLEX_ACCEPTED;
-Overloaded:
-    ++D->Rejected;xrtMutexUnlock(&D->Gate);return XRPC_DUPLEX_OVERLOADED;
+    *Future=F;xrtMutexUnlock(&D->Gate);xrpcDuplexConstructionReturn(D);return XRPC_DUPLEX_ACCEPTED;
+Memory:
+    xrpcDuplexReport(XERR_MEMORY,XRPC_DUPLEX_MEMORY,"RPC duplex admission allocation failed");
+Rollback:
+    xrtFree(V);xrpcDuplexOutputRelease(O);if(R)xrpcDuplexDrop(R);
+    xrtMutexLock(&D->Gate);--D->Operations;D->PendingCalls-=Replies;--D->Constructing;D->TemporaryBytes-=TempBytes;
+    if(Result==XRPC_DUPLEX_OVERLOADED)++D->Rejected;
+    xrtMutexUnlock(&D->Gate);xrpcDuplexConstructionReturn(D);return Result;
 Argument:
     xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex admission spans/count/timeout");return XRPC_DUPLEX_ERROR;
-Memory:
-    xrpcDuplexReport(XERR_MEMORY,XRPC_DUPLEX_MEMORY,"RPC duplex admission allocation failed");return XRPC_DUPLEX_ERROR;
 }
 XRPC_API xrpcduplexadmission xrpcDuplexCall(xrpcduplex* D,xstrview Method,xstrview Params,int64 Timeout,xfuture** F)
 {double Entered=xrtTimer();xrpcduplexitem Item={false,Method,Params};return xrpcDuplexSubmit(D,&Item,1,false,Timeout,F,Entered);}
@@ -6725,13 +6766,30 @@ static void xrpcDuplexJobRetire(xrpcduplex* D,xrpcduplexjob* J)
 }
 static xrpcduplexadmission xrpcDuplexProtocol(xrpcduplex* D)
 {++D->ProtocolFailures;xrpcDuplexSeal(D,XRPC_CALL_PROTOCOL);return XRPC_DUPLEX_PROTOCOL;}
+static xstrview xrpcDuplexCorrelationId(const xrpcmessage* M,char* Text)
+{
+    /* The complete response is already valid. Only canonical nonzero uint64
+     * string values can equal an ID we issue; other valid IDs are unknown.
+     * Interpret escapes without changing the retained original response bytes. */
+    if(M->Id.Kind!=XRPC_VALUE_STRING)return XRT_STR_LITERAL("null");
+    xstrview Raw=M->Id.Raw;xrpcstringiterator It={Raw,1,{0},0,0};unsigned char Byte;
+    uint64 Value=0;size_t Digits=0;
+    while(xrpcStringNext(&It,&Byte)){
+        if(Byte<'0' || Byte>'9' || (!Digits && Byte=='0') || Digits==20 || Value>(UINT64_MAX-(Byte-'0'))/10u)
+            return XRT_STR_LITERAL("null");
+        Value=Value*10u+(Byte-'0');++Digits;
+    }
+    if(!Digits)return XRT_STR_LITERAL("null");
+    return Raw.Size==Digits+2u?Raw:xrpcDuplexId(Value,Text);
+}
 static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
 {
     xrpcresponses* Responses=NULL;
     xrpcresponsestatus S=xrpcResponsesReadQuota(Input,&D->Config.Response,D->Scratch,D->Config.Response.Decode.MaxMessages,&Responses,D->Results);
     if(S!=XRPC_RESPONSE_DONE)return S==XRPC_RESPONSE_LOCAL_ERROR?XRPC_DUPLEX_ERROR:xrpcDuplexProtocol(D);
     xrpcresponseinfo I={0};I.Size=sizeof(I);xrpcResponsesInfo(Responses,&I);
-    if(!xrpcPendingProbeBatch(D->Pending,I.Ids,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
+    for(size_t N=0;N<I.Count;++N)D->CorrelationIds[N]=xrpcDuplexCorrelationId(I.Messages+N,D->CorrelationText+N*24u);
+    if(!xrpcPendingProbeBatch(D->Pending,D->CorrelationIds,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
     xrpcduplexrequest* R=NULL;size_t Matches=0;
     for(size_t N=0;N<I.Count;++N)if(D->Resolutions[N].Status==XRPC_PENDING_MATCHED){
         xrpcduplexentry* E=D->Resolutions[N].Call.User;
@@ -6741,7 +6799,7 @@ static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
     }
     if(!R){D->UnknownResponses+=I.Count;xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ACCEPTED;}
     if(Matches!=I.Count || Matches!=R->Replies)goto Protocol;
-    if(!xrpcPendingTakeBatch(D->Pending,I.Ids,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
+    if(!xrpcPendingTakeBatch(D->Pending,D->CorrelationIds,I.Count,D->Resolutions)){xrpcResponsesRelease(Responses);return XRPC_DUPLEX_ERROR;}
     for(size_t N=0;N<I.Count;++N){xrpcduplexentry* E=D->Resolutions[N].Call.User;E->Token.Serial=0;}
     R->Responses=Responses;
     size_t At=xrpcDuplexMap(R)[0];xrpccallstatus Status=R->Batch?XRPC_CALL_BATCH_DONE:
@@ -6933,7 +6991,7 @@ XRPC_API bool xrpcDuplexInfo(xrpcduplex* D,xrpcduplexinfo* I)
     if(!D || !I || !xrpcDuplexSpan(D,I,sizeof(*I)) || I->Size!=sizeof(*I))return xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex info output");
     xrpcduplexinfo V={0};V.Size=sizeof(V);V.OwnedBytes=D->FixedBytes;V.NextDeadline=INFINITY;
     xrtMutexLock(&D->Gate);V.Closing=D->Closing;V.Reason=D->Reason;V.Operations=D->Operations;V.PendingCalls=D->PendingCalls;
-    V.Incoming=D->Incoming;V.Accepted=D->Accepted;V.Rejected=D->Rejected;V.Completed=D->Completed;
+    V.Incoming=D->Incoming;V.Constructing=D->Constructing;V.TemporaryBytes=D->TemporaryBytes;V.PeakTemporaryBytes=D->PeakTemporaryBytes;V.Accepted=D->Accepted;V.Rejected=D->Rejected;V.Completed=D->Completed;
     bool Submit=D->SubmitHead!=NULL,Ready=D->ReadyHead!=NULL;
     xrtMutexUnlock(&D->Gate);V.Received=D->Received;V.UnknownResponses=D->UnknownResponses;V.ProtocolFailures=D->ProtocolFailures;
     xrpcResultQuotaInfo(D->Control,&V.ControlBlocks,&V.ControlBytes,&V.ControlRefusals);
@@ -6942,7 +7000,7 @@ XRPC_API bool xrpcDuplexInfo(xrpcduplex* D,xrpcduplexinfo* I)
     V.Drained=V.Closing && !V.Operations && !D->OutputHead && !D->Selection && xrtAtomic32Load(&D->References,XMEMORY_ACQUIRE)==1;
     V.More=D->More || Submit;
     for(xrpcduplexrequest* R=D->Head;R;R=R->Next){double At=R->Finishing?xrtTimer():xrpcCallDeadline(R->Call);if(At<V.NextDeadline)V.NextDeadline=At;}
-    if((Ready || D->FallbackHead) && xrtTimer()+.001<V.NextDeadline)V.NextDeadline=xrtTimer()+.001; /* retry retained-wire credit */
+    if((Ready || D->FallbackHead || (V.Closing && !V.Drained && !V.Operations)) && xrtTimer()+.001<V.NextDeadline)V.NextDeadline=xrtTimer()+.001; /* retry retained-wire credit */
     if(V.More)V.NextDeadline=xrtTimer();
     *I=V;return true;
 }

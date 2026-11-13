@@ -288,3 +288,10 @@ invalid/missing/duplicate/unsent/batch-shape response rejection, late reply
 ignore, context copying and malformed-document no-handler behavior. Automatic
 TCP/stdio/WebSocket adapters, negotiated cancellation/deadline, independent peer
 interop and production performance/endurance remain required.
+
+The duplex admission path now reserves aggregate concurrent construction workspace
+and runs encoding/native Future creation outside its endpoint gate. A production
+TU probe freezes encoding and the real post-Wake constructor reference to verify
+owner/other-producer progress, close/rollback/original deadlines and observable
+physical retirement. Compact local-ID matching retains full response validation,
+escaped equality, unknown long-ID handling and the uint64 no-wrap boundary.

@@ -4528,6 +4528,8 @@ typedef struct xrpcduplexinfo {
     bool Closing,Drained,Selected,Started;
     xrpccallstatus Reason;
     size_t Operations,PendingCalls,Incoming,ControlBlocks,ControlBytes;
+    /* Outgoing constructors are included in Operations and PendingCalls. */
+    size_t Constructing,TemporaryBytes,PeakTemporaryBytes;
     size_t Outputs,OutputBytes,Results,ResultBytes,OwnedBytes;
     uint64 Accepted,Rejected,Completed,Received,UnknownResponses,ProtocolFailures;
     uint64 ControlRefusals,OutputRefusals,ResultRefusals;
@@ -4538,14 +4540,21 @@ typedef struct xrpcduplexinfo {
 } xrpcduplexinfo;
 XRT_EXTERN_C_BEGIN
 /* 128 operations/1024 request IDs/64 incoming jobs; 2 MiB control metadata,
- * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB temporary encoding scratch,
+ * 256 outputs/8 MiB wire, 1024 results/8 MiB, 1 MiB aggregate concurrent encoding workspace,
  * 16 MiB endpoint/pending fixed storage, 64 owner units/Step, 5000 ms incoming document deadline. No new thread,
  * engine, timer, listener or shared runtime. NULL Server is client-only. */
 XRPC_API bool xrpcDuplexConfigInit(xrpcduplexconfig* Config);
 XRPC_API bool xrpcDuplexCreate(const xrpcduplexconfig* Config,xrpcduplex** Result);
 /* Concurrent bounded caller-thread admission. Inputs encoded/copied before
  * return; only ACCEPTED writes Future. Timeout starts at API entry, including
- * lock/validation/encoding. Fresh string IDs never repeat in one endpoint.
+ * lock/validation/encoding. Only counter/range reservation and publication hold
+ * the endpoint gate; encoding and native construction run outside it. Temporary
+ * descriptor storage is an aggregate reservation across all constructors.
+ * A reservation before a racing Close can still return ACCEPTED afterward;
+ * owner then completes without sending. Construction failure rolls back all
+ * credits but consumes its never-reused ID range. Cross-thread wire order is
+ * construction publication order; same-thread sequential order is preserved.
+ * Fresh string IDs never repeat in one endpoint.
  * Dropping a Future does not cancel. Use native FutureCancel from any thread.
  * Batch has 1..Encode.MaxMessages items; notification indices are SIZE_MAX.
  * Success Future holds native call/batch result, independent of endpoint/server.
@@ -4597,7 +4606,9 @@ XRPC_API void xrpcDuplexOutputRelease(xrpcduplexoutput* Output);
  * Owner Step drives typed completion; no forced interruption/rollback. */
 XRPC_API bool xrpcDuplexClose(xrpcduplex* Duplex,xrpccallstatus Reason);
 /* Owner-only snapshot; ledger/admission counters sampled under their own locks,
- * not a global atomic snapshot. Drained proves no endpoint callback/context
+ * not a global atomic snapshot. Closing with only physical pins remaining has
+ * a bounded retry deadline so a pre-retirement Wake cannot strand drain.
+ * Drained proves no endpoint callback/context
  * duties; retained independent output/results do not delay it. */
 XRPC_API bool xrpcDuplexInfo(xrpcduplex* Duplex,xrpcduplexinfo* Info);
 /* NULL succeeds. Stop concurrent API entries first. Requires Close + Drained;

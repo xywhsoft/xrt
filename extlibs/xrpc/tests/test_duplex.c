@@ -37,8 +37,13 @@ static const xrpccallresult* duplexTestResult(xfuture* F,xrpccallstatus Status,x
 {xfutureresult R;testRequire(xrtFutureResult(F,&R) && R.State==XFUTURE_RESOLVED && R.Value,"duplex typed Future");const xrpccallresult* C=R.Value;testRequire(C->Status==Status && C->Delivery==Delivery,"duplex wrong status/delivery");return C;}
 static bool duplexTestPump(xrpcduplex* A,xrpcduplex* B)
 {
+    /* MaxWork=1 can require further owner turns to unselect a stopped output. */
+    if(duplexTestInfo(A).Selected)return false;
     xrpcduplexoutput* O=NULL;uint64 Token=0;int N=xrpcDuplexNext(A,&O,&Token);testRequire(N>=0,"duplex select");if(!N)return false;
-    testRequire(xrpcDuplexStarted(A,Token) && xrpcDuplexSent(A,Token),"duplex output completion");
+    /* A concurrent observer can cancel after selection and before the first
+     * offer. A sender must retire that stale selection without sending it. */
+    if(!xrpcDuplexStarted(A,Token)){xrpcDuplexOutputRelease(O);testRequire(xrpcDuplexStep(A),"stopped selected output retirement");return true;}
+    testRequire(xrpcDuplexSent(A,Token),"duplex output completion");
     testRequire(xrpcDuplexReceive(B,xrpcDuplexOutputWire(O),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"duplex peer receive");
     xrpcDuplexOutputRelease(O);return true;
 }
@@ -226,5 +231,27 @@ static void testDuplexFailureAndReentry(void)
     double End=xrtTimer()+5;while(!duplexTestInfo(D).Closing){testRequire(xrpcDuplexStep(D) && xrtTimer()<End,"impossible reply size retried forever");xrtSleep(0);}
     testRequire(duplexTestInfo(D).Reason==XRPC_CALL_LIMIT && duplexTestInfo(D).OutputRefusals>0,"impossible output typed limit/counter");duplexTestClose(D);testRequire(xrpcServerDestroy(S),"reply-limit executor join");
 }
+static void testDuplexCompactCorrelation(void)
+{
+    duplexTestContext C;duplexTestInit(&C);xrpcduplex* D=duplexTestCreate(NULL,&C,NULL);
+    testRequire(duplexTestInfo(D).OwnedBytes<256u*1024u,"compact default endpoint exceeds 256 KiB");
+    xfuture* F=NULL;testRequire(xrpcDuplexCall(D,XRT_STR_LITERAL("echo"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED,"escaped response call");
+    uint64 T;xrpcduplexoutput* O=duplexTestSend(D,&T);
+    const char* Unknown[]={"null","1","1.0","1e0","18446744073709551616","\"\"","\"0\"","\"01\"","\"+1\"","\"-1\"","\"1.0\"","\"1e0\"","\"18446744073709551616\"","\"\\u00001\"","\"\\ud83d\\ude00\"","\"\\u0661\""};
+    char Wire[4300];
+    for(size_t N=0;N<sizeof(Unknown)/sizeof(Unknown[0]);++N){int Bytes=snprintf(Wire,sizeof(Wire),"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":true}",Unknown[N]);
+        testRequire(xrpcDuplexReceive(D,(xstrview){Wire,(size_t)Bytes},(xbytesview){0})==XRPC_DUPLEX_ACCEPTED && !xrtFutureDone(F),"unknown ID matched a canonical local ID");}
+    char Id[4097];Id[0]='"';memset(Id+1,'9',4094);Id[4095]='"';Id[4096]=0;
+    int Bytes=snprintf(Wire,sizeof(Wire),"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":true}",Id);
+    testRequire(xrpcDuplexReceive(D,(xstrview){Wire,(size_t)Bytes},(xbytesview){0})==XRPC_DUPLEX_ACCEPTED && !xrtFutureDone(F),"large valid unknown string required a large pending key slot");
+    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("{\"jsonrpc\":\"2.0\",\"id\":\"\\u0031\",\"result\":true}"),(xbytesview){0})==XRPC_DUPLEX_ACCEPTED,"escaped ID did not equal issued string ID");
+    const xrpccallresult* R=duplexTestResult(F,XRPC_CALL_OK,XRPC_REPLIED);xrpcresponseinfo I={0};I.Size=sizeof(I);
+    testRequire(xrpcResponsesInfo(R->Responses,&I) && I.Messages[R->Index].Id.Raw.Size==8 && !memcmp(I.Messages[R->Index].Id.Raw.Data,"\"\\u0031\"",8),"correlation normalized retained response bytes");
+    duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
+    D=duplexTestCreate(NULL,&C,NULL);xrpcduplexitem Items[]={{false,XRT_STR_LITERAL("a"),(xstrview){0}},{false,XRT_STR_LITERAL("b"),(xstrview){0}}};
+    testRequire(xrpcDuplexBatch(D,Items,2,5000,&F)==XRPC_DUPLEX_ACCEPTED,"escaped duplicate group admit");O=duplexTestSend(D,&T);
+    testRequire(xrpcDuplexReceive(D,XRT_STR_LITERAL("[{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":1},{\"jsonrpc\":\"2.0\",\"id\":\"\\u0031\",\"result\":2}]"),(xbytesview){0})==XRPC_DUPLEX_PROTOCOL && !xrtFutureDone(F),"escaped duplicate partially completed a batch");
+    duplexTestClose(D);xrpcDuplexOutputRelease(O);xrtFutureDestroy(F);
+}
 int main(void)
-{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound");return 0;}
+{testDuplexBidirectional();testDuplexStops();testDuplexResponseAtomicity();testDuplexLimitsAndJobs();testDuplexAllocation();testDuplexConcurrency();testDuplexIncomingDocuments();testDuplexFailureAndReentry();testDuplexCompactCorrelation();puts("[PASS] xrpc duplex: bidirectional/shared-executor/batch-map/notifications/atomic-response-admission/stop-delivery/partial-send-close/retained-wire/quota/4096-OOM-prefixes/concurrent-producers-close/complete-request-validation/constructor-OOM/reentry/impossible-reply-bound/compact-escaped-and-unknown-IDs");return 0;}

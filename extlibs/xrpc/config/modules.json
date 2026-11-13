@@ -1194,7 +1194,8 @@
         "extlibs/xrpc/src/internal/xrpc_call_internal.h",
         "extlibs/xrpc/src/internal/xrpc_pending_internal.h",
         "extlibs/xrpc/src/internal/xrpc_result_quota.h",
-        "extlibs/xrpc/src/internal/xrpc_server_internal.h"
+        "extlibs/xrpc/src/internal/xrpc_server_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_string.h"
       ],
       "sources": [
         "extlibs/xrpc/src/duplex/duplex.c"

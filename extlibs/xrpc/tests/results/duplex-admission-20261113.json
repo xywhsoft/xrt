@@ -1,0 +1,499 @@
+{
+  "schema": 1,
+  "feature": "xrpc unlocked outbound admission and compact generated-ID pending storage",
+  "state": "developing",
+  "branch": "master",
+  "base": {
+    "revision": "5e6a00ba3971716d3d8027d289b53c950a34860e",
+    "branch": "master",
+    "initial_worktree_clean": true,
+    "initial_index_empty": true,
+    "previous_goal_turn": "progress: verified duplex runtime commit 5e6a00ba",
+    "scope": "remove encoder/Future/allocator work from endpoint admission lock; bound aggregate concurrent construction; compact exact-ID storage and close reference observability"
+  },
+  "resumed": {
+    "status": "active",
+    "branch": "master",
+    "revision": "5e6a00ba3971716d3d8027d289b53c950a34860e",
+    "status_paths": " M extlibs/xrpc/config/modules.json\n M extlibs/xrpc/docs/coverage.md\n M extlibs/xrpc/docs/duplex.md\n M extlibs/xrpc/include/xrpc/duplex.h\n M extlibs/xrpc/src/duplex/duplex.c\n M extlibs/xrpc/tests/test_duplex.c\n M single/extlibs/xrpc.h\n M single/extlibs/xrpc_decl.h\n?? extlibs/xrpc/tests/interop/duplex_admission.c",
+    "previous_turn": "progress with uncommitted code and deterministic exploratory evidence; paused by user before final validation",
+    "previous_processes": "all returned terminal; no pending tool session to restart"
+  },
+  "production_acceptance": false,
+  "pushed": false,
+  "source_inputs": 2651,
+  "source_map_sha256": "28006d31c34dfc623c30e80fd0c605a7bf75e7624e2d19da975b4d53a06cee37",
+  "raw_directory": "out/service-extensions/xrpc-duplex-admission-20261113",
+  "all_validation_processes_terminal": true,
+  "public_api_count": 16,
+  "root_public_api_count": 110,
+  "changes": [
+    "Operation/ID-range/aggregate workspace reservation and queue publication hold the endpoint gate; caller-thread encoding/allocation/native Future creation run outside it.",
+    "Successful pre-Close reservations can publish ACCEPTED afterward and are completed without send; failed construction refunds all resource credits but consumes its never-reused ID range.",
+    "Constructor references cover close/publication/rollback; closing with only physical pins remaining has a retry hint for a Wake before final retirement.",
+    "Private 21-byte comparison keys replace per-entry 4096-byte slots for the only locally generated string IDs; full response validation, escaped semantic equality, unknown long IDs and original retained response bytes are preserved.",
+    "Info exposes Constructing/TemporaryBytes/PeakTemporaryBytes; old consumer structs must be recompiled for checked Size/layout change."
+  ],
+  "verification": {
+    "programs": {
+      "windows": 35,
+      "wsl": 37
+    },
+    "root_regression_programs_per_host": 21,
+    "sanitizers": [
+      "WSL modular and single ASan/UBSan/leak",
+      "WSL old/current actual-TU probes ASan/UBSan/leak",
+      "WSL single and actual-TU probe TSan"
+    ],
+    "tsan_limitation": "GCC warns that standalone atomic_thread_fence instrumentation is unsupported; existing -Wno-error=tsan keeps the warning visible. Dynamic TSan success is not proof for every fence ordering.",
+    "forms": [
+      "modular",
+      "single",
+      "static",
+      "shared"
+    ],
+    "declarations": [
+      "static",
+      "shared"
+    ],
+    "root_packages": [
+      "single",
+      "static",
+      "shared"
+    ],
+    "footprints": "three selected-module artifacts per host; network/TLS/HTTP/WebSocket/process symbols absent",
+    "old_leaf": "selected pending static consumer plus complete unchanged pending regression",
+    "linux_environment": "WSL2 x64, not native Linux production qualification"
+  },
+  "deterministic_probe": {
+    "source": "extlibs/xrpc/tests/interop/duplex_admission.c",
+    "source_sha256": "22b4c461f849d96214c8053f5953022c7621fc30a4f2eca64f079d918a05205c",
+    "method": "Actual production TU with public encoder/atomic call interposition; ordinary duplex object excluded; no production hooks.",
+    "baseline_source_sha256": "6cd6d8a87ac5786fd749ac0a40372bc3f4fb822e55312a06fe654cfe17332359",
+    "baseline_encoder_owner_progress": 0,
+    "baseline_other_producer_progress": 0,
+    "current_encoder_owner_progress": 1,
+    "current_other_producer_progress": 1,
+    "current_cases": [
+      "aggregate workspace refuses another constructor without waiting on paused encoder",
+      "Close retains reserved constructor",
+      "injected encoder refusal refunds credits and preserves output/diagnostic",
+      "original entry timeout wins after held construction",
+      "real post-Wake constructor pin prevents drain and supplies retry hint",
+      "uint64 maximum ID matches 21-byte key; exhaustion never wraps and notifications need no ID"
+    ]
+  },
+  "performance": {
+    "summary": {
+      "windows": {
+        "resources": {
+          "baseline": {
+            "fixed_owned_bytes": 4328144,
+            "admitted_control_bytes": 176,
+            "admitted_wire_bytes": 155,
+            "admitted_result_bytes": 64
+          },
+          "current": {
+            "fixed_owned_bytes": 161549,
+            "admitted_control_bytes": 176,
+            "admitted_wire_bytes": 155,
+            "admitted_result_bytes": 64
+          }
+        },
+        "fixed_requested_reduction": 0.9626747631317257,
+        "cases": [
+          {
+            "variant": "baseline",
+            "mode": 0,
+            "ns_per_call": 714.063004,
+            "calls_per_sec": 1400436.647479,
+            "process_cpu_ns_per_call": 733.701554,
+            "heap_blocks_per_call": 4.0,
+            "heap_bytes_per_call": 392.0,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 0,
+            "ns_per_call": 717.067952,
+            "calls_per_sec": 1394567.971587,
+            "process_cpu_ns_per_call": 733.701554,
+            "heap_blocks_per_call": 4.0,
+            "heap_bytes_per_call": 392.0,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          },
+          {
+            "variant": "baseline",
+            "mode": 1,
+            "ns_per_call": 5204.598884,
+            "calls_per_sec": 192137.765502,
+            "process_cpu_ns_per_call": 5236.886835,
+            "heap_blocks_per_call": 8.0,
+            "heap_bytes_per_call": 1258.202,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 1,
+            "ns_per_call": 5126.386728,
+            "calls_per_sec": 195069.169211,
+            "process_cpu_ns_per_call": 5236.886835,
+            "heap_blocks_per_call": 8.0,
+            "heap_bytes_per_call": 1258.202,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          },
+          {
+            "variant": "baseline",
+            "mode": 2,
+            "ns_per_call": 13309.645595,
+            "calls_per_sec": 75133.480667,
+            "process_cpu_ns_per_call": 19268.403839,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.303,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 2,
+            "ns_per_call": 13250.399442,
+            "calls_per_sec": 75469.422967,
+            "process_cpu_ns_per_call": 20106.160528,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.303,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          }
+        ],
+        "comparisons": [
+          {
+            "mode": 0,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 0.9958093956605859,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 1.0042082393054492,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 1.0,
+                "both_noise_qualified": false,
+                "release_acceptance": false
+              }
+            }
+          },
+          {
+            "mode": 1,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 1.0152567804738495,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 0.9849724911096531,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 1.0,
+                "both_noise_qualified": false,
+                "release_acceptance": false
+              }
+            }
+          },
+          {
+            "mode": 2,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 1.0044712729533847,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 0.995548630308965,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 1.043478260887617,
+                "both_noise_qualified": false,
+                "release_acceptance": false
+              }
+            }
+          }
+        ]
+      },
+      "wsl": {
+        "resources": {
+          "baseline": {
+            "fixed_owned_bytes": 4328216,
+            "admitted_control_bytes": 176,
+            "admitted_wire_bytes": 155,
+            "admitted_result_bytes": 64
+          },
+          "current": {
+            "fixed_owned_bytes": 161621,
+            "admitted_control_bytes": 176,
+            "admitted_wire_bytes": 155,
+            "admitted_result_bytes": 64
+          }
+        },
+        "fixed_requested_reduction": 0.9626587490088295,
+        "cases": [
+          {
+            "variant": "baseline",
+            "mode": 0,
+            "ns_per_call": 726.543199,
+            "calls_per_sec": 1376380.64847,
+            "process_cpu_ns_per_call": 726.467846,
+            "heap_blocks_per_call": 4.0,
+            "heap_bytes_per_call": 600.0,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 0,
+            "ns_per_call": 722.19388,
+            "calls_per_sec": 1384669.72279,
+            "process_cpu_ns_per_call": 722.182279,
+            "heap_blocks_per_call": 4.0,
+            "heap_bytes_per_call": 600.0,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "baseline",
+            "mode": 1,
+            "ns_per_call": 5763.623816,
+            "calls_per_sec": 173501.955007,
+            "process_cpu_ns_per_call": 5763.683713,
+            "heap_blocks_per_call": 8.0,
+            "heap_bytes_per_call": 1466.202,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 1,
+            "ns_per_call": 5926.132009,
+            "calls_per_sec": 168744.131668,
+            "process_cpu_ns_per_call": 5926.067618,
+            "heap_blocks_per_call": 8.0,
+            "heap_bytes_per_call": 1466.202,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "baseline",
+            "mode": 2,
+            "ns_per_call": 22663.832813,
+            "calls_per_sec": 44123.163468,
+            "process_cpu_ns_per_call": 28949.0625,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2775.303,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": true
+            }
+          },
+          {
+            "variant": "current",
+            "mode": 2,
+            "ns_per_call": 22858.780729,
+            "calls_per_sec": 43746.865235,
+            "process_cpu_ns_per_call": 29133.020833,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2775.303,
+            "noise_qualified": {
+              "calls_per_sec": true,
+              "ns_per_call": true,
+              "process_cpu_ns_per_call": false
+            }
+          }
+        ],
+        "comparisons": [
+          {
+            "mode": 0,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 1.006022370576929,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 0.9940136814906723,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 0.9941008166795038,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              }
+            }
+          },
+          {
+            "mode": 1,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 0.9725776960910436,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 1.0281954891901293,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 1.028173632191812,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              }
+            }
+          },
+          {
+            "mode": 2,
+            "metrics": {
+              "calls_per_sec": {
+                "current_over_baseline": 0.9914716397596263,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "ns_per_call": {
+                "current_over_baseline": 1.0086017187652467,
+                "both_noise_qualified": true,
+                "release_acceptance": false
+              },
+              "process_cpu_ns_per_call": {
+                "current_over_baseline": 1.0063545523451751,
+                "both_noise_qualified": false,
+                "release_acceptance": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    "scope": "Matched actual old/current duplex implementation and respective public header, identical unchanged Core/product dependency objects, same canonical benchmark/config/payload/pipeline1. Mode0 native prebuilt-snapshot cost reference; mode1 synthetic peer; mode2 two endpoints/shared executor with in-process messages and busy owner. All process threads included in CPU; heap runs separate. One warmup/seven rotated samples, no affinity or noise retry. Average ns/call is not P99/network/fixed-arrival/contended/native Linux/72h or release acceptance. Fixed owned bytes are requested preallocated storage, not RSS.",
+    "release_acceptance": false,
+    "dependency_identity": "Each old/current pair links the same actual unchanged dependency objects; raw checkout and git-blob hashes plus LF-normalized equality retained separately.",
+    "baseline_overlay": "Exact selected git revision duplex source/public header/private headers, without creating branch or worktree."
+  },
+  "formal_failed_runs": [],
+  "preserved_precheck": {
+    "stage": "before compilation or sampling",
+    "source": "src/core/ownership_scope.c",
+    "error": "raw source hash differed from git blob because the checkout uses CRLF and git show emits LF",
+    "correction": "Verify exact LF-normalized text and retain both raw and git-blob hashes. Baseline/current still link the same actual dependency objects.",
+    "original_script": "performance-v1.py",
+    "runtime_failure": false
+  },
+  "exploratory_corrections": [
+    "A manual exploratory link selected stale .c.o files from an older experiment and lacked xrpcResultQuotaFits. Formal compilation uses build.py fingerprints and fresh cohort object directories.",
+    "Unlocked submission made pre-send observer cancellation races frequent; test sender now treats Started=false as no-send and waits for bounded owner selection retirement.",
+    "The first actual-TU retirement probe tried to free a sentinel for an unused second producer. Explicit initial admission status fixes that test-only fault; final ASan/UBSan/TSan probes pass."
+  ],
+  "known_limitations": [
+    "Only outbound submission encoder/Future construction leaves the gate here; incoming Server snapshot admission still uses its existing endpoint gate section.",
+    "Request-level P50/P95/P99/P99.9, open-loop/fixed-arrival, contended large payloads, many-connection RSS/CPU/handles, network and power/CPU-isolated acceptance remain open.",
+    "Fixed byte reduction is requested owned preallocation, not an RSS reduction measurement. Ordinary call allocations remain 8 for synthetic duplex or 14 for two endpoints/shared executor.",
+    "Owner stop scans and Info minimum-deadline inspection remain O(live calls).",
+    "Automatic TCP/stdio/WebSocket, independent transport peers, negotiated cancellation/deadline and credential lifecycle/mTLS remain required.",
+    "Watch-registration failure fallback is not forced by a dedicated registration interposition case in this stage.",
+    "Server physical join and quiescing external API/cancel callers remain required before code unload.",
+    "All four-product native Windows/Linux >=72h fault/recovery/performance acceptance remains open."
+  ],
+  "gates": {
+    "windows": {
+      "validation": {
+        "path": "windows-validation.json",
+        "sha256": "146a158c1428686d83ec4913f37975c30f0cf33704a65257d42ef1d4ae0ac286"
+      },
+      "delivery": {
+        "path": "windows-delivery.json",
+        "sha256": "6afd829618bf8e91069f80393ab2c7e4416fbb613089754d9e05877c10f06ac3"
+      },
+      "probe": {
+        "path": "windows-probe.json",
+        "sha256": "e13bb334fac5b3746f60919964eb33f7728ff0b8014975c47ac7a63ae736287f"
+      },
+      "measure": {
+        "path": "windows-measure.json",
+        "sha256": "f1f22e6f1fd6f4b1826a6af941e3f75679e2533bd5ac1fd1b42d58c888c96e72"
+      },
+      "performance": {
+        "path": "windows-performance.json",
+        "sha256": "98718ab15d4c9629d96dee7cd08c3e626517f68876603b99fffdd50bc57d2167"
+      }
+    },
+    "wsl": {
+      "validation": {
+        "path": "wsl-validation.json",
+        "sha256": "fa524196eccc35fba5116aeca54df69adc9dc277b25c68591d1561db76bbb37b"
+      },
+      "delivery": {
+        "path": "wsl-delivery.json",
+        "sha256": "6e7272a0cbf6ba49204aa2e49175b2dc15ba72740ef953c6c88930053a9636bb"
+      },
+      "probe": {
+        "path": "wsl-probe.json",
+        "sha256": "62fef0dda513e2e5447fa5d0c3b31cbc453c210bc1875795cfbe7ffd8bc31dae"
+      },
+      "measure": {
+        "path": "wsl-measure.json",
+        "sha256": "b620b82a7d2bb6ebc1d23f0dddf607a12086243f9d6d4478a6aae2500d2ba3ee"
+      },
+      "performance": {
+        "path": "wsl-performance.json",
+        "sha256": "bfcc9e6e3816e08c4ae80d44c3e0a531633efc12fec80bfd699a9ec4a22678b9"
+      }
+    }
+  },
+  "artifact_index": {
+    "path": "artifacts.json",
+    "sha256": "aee29e8adc74a83a634d5c0ffa63ac604ae5f9b82683b949455f738bcb512798",
+    "files": 444
+  }
+}
