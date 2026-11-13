@@ -216,6 +216,16 @@ static void testTlsStreamFutureWaitCount(
 
 
 
+/* Future resolution precedes producer retirement and node-cache recycling.
+ * A FIFO barrier on the client Worker proves the earlier Open task has left. */
+static void testTlsStreamFutureCacheBarrier(xnetworker* Worker,ptr Data)
+{
+	(void)Worker;
+	xrtAtomic32Store((xatomic32*)Data,1u,XMEMORY_RELEASE);
+}
+
+
+
 /* 在截止时间内等待 TLS 明文缓冲达到目标。 */
 static void testTlsStreamFutureWaitAvailable(
 	xtlsstream* pStream,
@@ -956,6 +966,15 @@ int main(void)
 		(xrtAtomic32Load(&Test.Server.Open, XMEMORY_ACQUIRE) == 1u),
 		"TLS Stream Future Open callbacks mismatch"
 	);
+	{
+		xatomic32 CacheReady;
+		xrtAtomic32Init(&CacheReady,0u);
+		testRequire(xrtNetEnginePost(pEngine,1u,
+			testTlsStreamFutureCacheBarrier,&CacheReady),
+			"TLS Stream Future cache barrier post failed");
+		testTlsStreamFutureWaitCount(&CacheReady,1u,
+			"TLS Stream Future cache barrier did not run");
+	}
 	testRequire(xrtNetEngineStats(pEngine, &EngineStats),
 		"TLS Stream Future node cache initial stats failed");
 	iNodeHits = EngineStats.NodeCacheHits;

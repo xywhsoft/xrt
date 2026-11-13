@@ -25,6 +25,31 @@ struct Scene {
     const xrtownershippreparationv1* preparations[64];size_t nodes;
     xfuture* futures[4];size_t futureCount;
 };
+/* A verifier is a real child of its client Session. Give its callback context
+ * an actual independently counted leaf; never certify a legacy opaque verifier. */
+typedef struct TrustOwner {volatile int32 refs;const void* claim;bool cleared;} TrustOwner;
+static bool trustCount(const void* data,size_t* count)
+{const TrustOwner* t=data;if(!t||!count||t->cleared)return false;int32 n=__xrtAtomicRefLoad(&t->refs);if(n<=0)return false;*count=(size_t)n;return true;}
+static bool trustTrace(const void* data,xrtownershipvisitor visit,ptr user)
+{(void)user;size_t n;return visit&&trustCount(data,&n);}
+static const xrtownershipops trustOps={trustCount,trustTrace};
+static bool trustHold(const void* data)
+{TrustOwner* t=(TrustOwner*)data;xrtownershipscope m={0};if(!xrtOwnershipMutationBegin(&m))return false;bool ok=!t->cleared&&xrtRefRetain(&t->refs)>=0;CHECK(xrtOwnershipScopeEnd(&m));return ok;}
+static void trustDrop(ptr data)
+{TrustOwner* t=data;int32 n=xrtOwnershipRefRelease(&t->refs);CHECK(n>=0);if(!n)xrtFree(t);}
+static void trustAdapterDrop(const void* data){trustDrop((ptr)data);}
+static bool trustClaim(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;size_t n;if(!token||(t->claim&&t->claim!=token)||!trustCount(t,&n))return false;t->claim=token;return true;}
+static void trustRestore(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;CHECK(t->claim==token&&!t->cleared);t->claim=NULL;}
+static void trustClear(const void* data,const void* token)
+{TrustOwner* t=(TrustOwner*)data;CHECK(t->claim==token&&!t->cleared);t->cleared=true;}
+static bool trustFinish(const void* data,const void* token)
+{const TrustOwner* t=data;return t&&t->claim==token&&t->cleared;}
+static const xrtownershipadapterv1 trustAdapter={sizeof(trustAdapter),trustHold,trustAdapterDrop,trustClaim,trustRestore,NULL,trustClear,trustFinish};
+static xtlsverifydecision trustVerify(const xtlspeer* peer,ptr data)
+{(void)data;return testTlsServerAccept(peer,NULL);}
+static const xtlsverifiercontextownershipv1 trustPolicy={sizeof(trustPolicy),trustVerify,NULL,NULL,trustDrop,&trustOps};
 static unsigned cases,refusals,finishedFailures,pendingNodes,ownedResults,budgets,oomFailures,attachRollbacks;
 static bool ownerCount(const void* data,size_t* count)
 {const Owner* o=data;if(!o||!count||o->cleared)return false;int32 n=__xrtAtomicRefLoad(&o->refs);if(n<=0)return false;*count=(size_t)n;return true;}
@@ -113,6 +138,11 @@ static const xrtownershipadapterv1* resolve(xrtownershipref ref,const xrtownersh
     if(ref.Ops==xrtTlsStreamOwnershipQuiescenceV1Get()->Ops)return xrtTlsStreamOwnershipAdapterV1(ref,owners,1,prepare);
     if(ref.Ops==xrtNetBufPoolOwnershipQuiescenceV1Get()->Ops)return xrtNetBufPoolOwnershipAdapterV1(ref,prepare);
     if(ref.Ops==&ownerOps)return &ownerAdapter;
+    if(ref.Ops==&trustOps)return &trustAdapter;
+    if(ref.Ops==xrtTlsVerifierOwnershipQuiescenceV1Get()->Ops){
+        const xtlsverifiercontextownershipv1* policies[]={&trustPolicy};
+        return xrtTlsVerifierOwnershipAdapterV1(ref,policies,1,prepare);
+    }
     const xfutureproducerownershipv1* producers[]={xrtTlsStreamFutureProducerPolicyV1Get()};
     const xcancelwatchownershipv1* cancels[]={xrtTlsStreamFutureCancelPolicyV1Get()};
     const xfuturepayloadownershipv1* payloads[]={xrtTlsStreamFutureBytesPayloadPolicyV1Get()};
@@ -200,7 +230,9 @@ static void lifecycle(xnetportbackend backend,bool failure,unsigned mode)
     xmemdebugsnapshot before;xrtMemDebugSnapshot(&before);Scene s={0};s.failCleanup=failure;s.factoryMode=mode;
     xrtAtomic32Init(&s.opened,0);xrtAtomic32Init(&s.closed,0);xrtAtomic32Init(&s.drops,0);xrtAtomic32Init(&s.frees,0);
     xtlscontext* context=testTlsServerContext();xtlsidentity* identity=testTlsServerIdentity();CHECK(context&&identity);
-    xtlsverifierconfig v;xrtTlsVerifierConfigInit(&v);v.Verify=testTlsServerAccept;xtlsverifier* verifier=xrtTlsVerifierCreate(&v);CHECK(verifier);
+    TrustOwner* trust=xrtCalloc(1,sizeof(*trust));CHECK(trust);trust->refs=1;
+    xtlsverifierconfig v;xrtTlsVerifierConfigInit(&v);v.Verify=trustVerify;v.Release=trustDrop;v.Context=trust;
+    xtlsverifylimits limits;xrtTlsVerifyLimitsInit(&limits);xtlsverifier* verifier=xrtTlsVerifierCreateOwnedV1(&v,&limits,&trustPolicy);CHECK(verifier);
     xrtTlsClientConfigInit(&s.clientConfig);s.clientConfig.Context=context;s.clientConfig.Verifier=verifier;s.clientConfig.ServerName=XRT_STR_LITERAL("example.com");
     xrtTlsServerConfigInit(&s.serverConfig);s.serverConfig.Context=context;s.serverConfig.Identity=identity;
     xnetengineconfig config;xrtNetEngineConfigInit(&config);config.Workers=1;config.NodeCacheBytes=4096;config.Backend=backend;
@@ -217,6 +249,9 @@ static void lifecycle(xnetportbackend backend,bool failure,unsigned mode)
             xrtAtomic32Load(&s.opened,XMEMORY_ACQUIRE),(int)xrtTlsStreamState(s.client),s.server?(int)xrtTlsStreamState(s.server):-1,
             xrtTlsStreamAvailable(s.client),xrtAtomic32Load(&s.closed,XMEMORY_ACQUIRE),xrtGetError()?(int)xrtErrorKind(xrtGetError()):0);CHECK(false);}
         xrtThreadYield();}
+    /* All factory modes have now retained the Session verifier. Release its
+     * external creator alias before collecting the physical cyclic graph. */
+    xrtTlsVerifierRelease(verifier);verifier=NULL;s.clientConfig.Verifier=NULL;
     CHECK(xrtNetListenerClose(s.listener));xrtNetListenerDestroy(s.listener);s.listener=NULL;
     constructionBudgets(&s);
     s.futures[s.futureCount++]=xrtTlsStreamRecvAsync(s.client,3);CHECK(s.futures[0]);

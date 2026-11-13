@@ -9750,6 +9750,59 @@
 			]
 		},
 		{
+			"name": "tls_stream_retire",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_TLS_STREAM_RETIRE",
+			"depends": [
+				"tls_stream",
+				"net_tcp_retire"
+			],
+			"public_headers": [
+				"include/xrt/tls_stream.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_tls_stream.h"
+			],
+			"sources": [
+				"src/tls/stream_retire.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": [],
+			"docs": [
+				"docs/api/tls.md"
+			]
+		},
+		{
+			"name": "tls_stream_retire_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"tls_stream_retire",
+				"tls_stream_future",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"memory_stats",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/tls/test_tls_stream_retire.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_tls_stream_retire.c"
+			],
+			"examples": ["examples/tls/stream_retire/main.c"],
+			"docs": [
+				"docs/api/tls.md", "examples/tls/stream_retire/README.md"
+			]
+		},
+		{
 			"name": "tls_stream_write_progress",
 			"state": "implemented",
 			"feature": "XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS",

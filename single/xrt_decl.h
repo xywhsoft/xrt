@@ -1028,6 +1028,9 @@
 #if !defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC 1
 #endif
+#if !defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_RETIRE 1
+#endif
 #if !defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS 1
 #endif
@@ -2218,6 +2221,9 @@
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM_LISTENER_SYNC)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC 1
+#endif
+#if !defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE 1
 #endif
 #if !defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_WRITE_PROGRESS 1
@@ -3869,6 +3875,19 @@
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* tls_stream_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_FUTURE
@@ -3885,16 +3904,16 @@
 #endif
 #endif
 
-/* tls_stream_write_progress 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
-#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
-#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+/* tls_stream_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#ifndef XRT_FEATURE_TLS_STREAM_RETIRE
+#define XRT_FEATURE_TLS_STREAM_RETIRE
 #endif
 #ifndef XRT_MODULE_TLS_STREAM
 #define XRT_MODULE_TLS_STREAM
 #endif
-#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
-#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #endif
 
@@ -35393,6 +35412,26 @@ XRT_API xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 /* 释放 TLS Stream 引用；关闭必须另行请求。 */
 XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream);
 
+#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#if !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#error "TLS retirement requires TLS stream and native TCP retirement"
+#endif
+/* Nonblocking try-lock query: terminal TLS, exactly the caller's sole TLS
+ * reference and fully retired native TCP. CLOSED/FAILED alone is insufficient.
+ * No ownership Count/Trace/Busy policy is used as a lifecycle shortcut.
+ * Keep one stable caller owner, stop new entries/aliases before treating OK as
+ * final, and retain callback code/configuration through Destroy. Session/event
+ * context ownership remains until Destroy; destructor callbacks are separate.
+ * Poll is allowed on Workers, allocates nothing and preserves ambient error
+ * on OK/TIMEOUT. The Stream is not consumed. NULL is ERROR. */
+XRT_API xwaitresult xrtTlsStreamPollRetired(xtlsstream* pStream);
+/* One monotonic timeout covers TLS references and native TCP callback tails.
+ * Reject every Worker of the same Engine, including zero-timeout calls.
+ * Other host threads may wait concurrently while the sole caller owner is
+ * stable. Does not close, drive IO, cancel, destroy or release the caller. */
+XRT_API xwaitresult xrtTlsStreamWaitRetired(xtlsstream* pStream, int64 Timeout);
+#endif
+
 /* Owned counterparts preserve ordinary constructor/transfer/time contracts.
  * Only the explicit Data credit is additional. Attach still requires exclusive
  * session/transport IO access; the descriptor covers all session callbacks. */
@@ -48787,6 +48826,10 @@ XRT_EXTERN_C_END
 #undef XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_LISTENER_SYNC
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_RETIRE)
+#undef XRT_FEATURE_TLS_STREAM_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_RETIRE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS)
 #undef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
 #undef XRT_DECLARATIONS_RESTORE_XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
@@ -50374,6 +50417,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC)
 #undef XRT_MODULE_TLS_STREAM_LISTENER_SYNC
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_LISTENER_SYNC
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE)
+#undef XRT_MODULE_TLS_STREAM_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
 #undef XRT_MODULE_TLS_STREAM_WRITE_PROGRESS
@@ -52088,6 +52135,19 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* tls_stream_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_FUTURE
@@ -52104,16 +52164,16 @@ XRT_EXTERN_C_END
 #endif
 #endif
 
-/* tls_stream_write_progress 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
-#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
-#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+/* tls_stream_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#ifndef XRT_FEATURE_TLS_STREAM_RETIRE
+#define XRT_FEATURE_TLS_STREAM_RETIRE
 #endif
 #ifndef XRT_MODULE_TLS_STREAM
 #define XRT_MODULE_TLS_STREAM
 #endif
-#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
-#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #endif
 

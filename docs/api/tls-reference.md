@@ -4,7 +4,7 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [tls.md](tls.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `343` 个函数、`251` 个常量或宏、
+当前登记 `345` 个函数、`251` 个常量或宏、
 `109` 个公共类型。
 
 ## `include/xrt/tls.h`
@@ -614,7 +614,7 @@
 
 [查看带契约注释的公共头](../../include/xrt/tls_stream.h)
 
-### 函数 (108)
+### 函数 (110)
 
 - `xrtTlsDial`
 - `xrtTlsDialAsync`
@@ -705,6 +705,7 @@
 - `xrtTlsStreamOwnershipAdapterV1`
 - `xrtTlsStreamOwnershipQuiescenceV1Get`
 - `xrtTlsStreamPending`
+- `xrtTlsStreamPollRetired`
 - `xrtTlsStreamPullup`
 - `xrtTlsStreamRead`
 - `xrtTlsStreamReadMore`
@@ -723,6 +724,7 @@
 - `xrtTlsStreamTransport`
 - `xrtTlsStreamTransportOwnershipV1Get`
 - `xrtTlsStreamWaitAsync`
+- `xrtTlsStreamWaitRetired`
 - `xrtTlsStreamWriteProgress`
 
 ### 常量与宏 (26)

@@ -179,11 +179,31 @@ XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		/* Above two, this release cannot publish the caller-only predicate.
+		 * No Stream access follows the successful fast decrement. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Seen = __xrtAtomicRefCompareExchange(&pStream->References, Count-1, Count);
+				if (Seen == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Seen;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		xrtAtomic32Load(&pStream->OwnershipActive, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 && !xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (!bLast) return;
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
+	#endif
 	pTransport = (xnetstream*)xrtAtomicPtrLoad(
 		&pStream->Transport,
 		XMEMORY_ACQUIRE
@@ -304,6 +324,10 @@ xtlsstream* __xrtTlsStreamCreate(
 	if ( pStream == NULL ) {
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {xrtFree(pStream);return NULL;}
+		if (!xrtCondInit(&pStream->RetirementReady)) {xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);return NULL;}
+	#endif
 	pStream->References = 2;
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
 	xrtAtomic32Init(&pStream->OwnershipState, 0);

@@ -1501,6 +1501,19 @@
 #endif
 #endif
 
+/* tls_stream_write_progress 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
+#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+#endif
+#ifndef XRT_MODULE_TLS_STREAM
+#define XRT_MODULE_TLS_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#endif
+#endif
+
 /* tls_stream_future 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_FUTURE)
 #ifndef XRT_FEATURE_TLS_STREAM_FUTURE
@@ -1517,16 +1530,16 @@
 #endif
 #endif
 
-/* tls_stream_write_progress 及其直接依赖。 */
-#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_WRITE_PROGRESS)
-#ifndef XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
-#define XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS
+/* tls_stream_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#ifndef XRT_FEATURE_TLS_STREAM_RETIRE
+#define XRT_FEATURE_TLS_STREAM_RETIRE
 #endif
 #ifndef XRT_MODULE_TLS_STREAM
 #define XRT_MODULE_TLS_STREAM
 #endif
-#ifndef XRT_MODULE_NET_TCP_WRITE_PROGRESS
-#define XRT_MODULE_NET_TCP_WRITE_PROGRESS
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
 #endif
 #endif
 
@@ -33025,6 +33038,26 @@ XRT_API xtlsstream* xrtTlsStreamRef(xtlsstream* pStream);
 /* 释放 TLS Stream 引用；关闭必须另行请求。 */
 XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream);
 
+#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#if !defined(XRT_FEATURE_TLS_STREAM) || !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#error "TLS retirement requires TLS stream and native TCP retirement"
+#endif
+/* Nonblocking try-lock query: terminal TLS, exactly the caller's sole TLS
+ * reference and fully retired native TCP. CLOSED/FAILED alone is insufficient.
+ * No ownership Count/Trace/Busy policy is used as a lifecycle shortcut.
+ * Keep one stable caller owner, stop new entries/aliases before treating OK as
+ * final, and retain callback code/configuration through Destroy. Session/event
+ * context ownership remains until Destroy; destructor callbacks are separate.
+ * Poll is allowed on Workers, allocates nothing and preserves ambient error
+ * on OK/TIMEOUT. The Stream is not consumed. NULL is ERROR. */
+XRT_API xwaitresult xrtTlsStreamPollRetired(xtlsstream* pStream);
+/* One monotonic timeout covers TLS references and native TCP callback tails.
+ * Reject every Worker of the same Engine, including zero-timeout calls.
+ * Other host threads may wait concurrently while the sole caller owner is
+ * stable. Does not close, drive IO, cancel, destroy or release the caller. */
+XRT_API xwaitresult xrtTlsStreamWaitRetired(xtlsstream* pStream, int64 Timeout);
+#endif
+
 /* Owned counterparts preserve ordinary constructor/transfer/time contracts.
  * Only the explicit Data credit is additional. Attach still requires exclusive
  * session/transport IO access; the descriptor covers all session callbacks. */
@@ -56312,8 +56345,9 @@ bool __xrtTlsServerResumeSelect(
 /* ========================================================================== */
 
 #if defined(XRT_FEATURE_TLS_STREAM) || \
-	defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) || \
+	defined(XRT_FEATURE_TLS_STREAM_RETIRE) || \
 	defined(XRT_FEATURE_TLS_STREAM_FUTURE) || \
+	defined(XRT_FEATURE_TLS_STREAM_WRITE_PROGRESS) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER_FUTURE) || \
 	defined(XRT_FEATURE_TLS_STREAM_LISTENER_SYNC) || \
@@ -56339,6 +56373,10 @@ typedef struct __xrt_tls_listener_stream __xrt_tls_listener_stream;
 /* 组合对象只在所属 Worker 修改协议字段，原子字段提供跨线程快照和门。 */
 struct xtlsstream {
 	volatile int32 References;
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
+	#endif
 	xatomicptr OwnershipClaim;
 	xatomic32 OwnershipState;
 	xatomic32 OwnershipActive;
@@ -199144,11 +199182,31 @@ XRT_API void xrtTlsStreamDestroy(xtlsstream* pStream)
 	}
 	xrtownershipscope Mutation = {0};
 	if (!xrtOwnershipMutationBegin(&Mutation)) abort();
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		/* Above two, this release cannot publish the caller-only predicate.
+		 * No Stream access follows the successful fast decrement. */
+		#if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+			int32 Count = __xrtAtomicRefLoad(&pStream->References);
+			while (Count > 2) {
+				int32 Seen = __xrtAtomicRefCompareExchange(&pStream->References, Count-1, Count);
+				if (Seen == Count) {if (!xrtOwnershipScopeEnd(&Mutation)) abort();return;}
+				Count = Seen;
+			}
+		#endif
+		if (!xrtMutexLock(&pStream->RetirementLock)) abort();
+	#endif
 	bool bLast = xrtRefRelease(&pStream->References) == 0;
 	if (bLast && (pStream->RuntimeOwner.Data || pStream->RuntimeOwner.Previous ||
 		xrtAtomic32Load(&pStream->OwnershipActive, XMEMORY_ACQUIRE))) abort();
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!bLast && __xrtAtomicRefLoad(&pStream->References)==1 && !xrtCondBroadcast(&pStream->RetirementReady)) abort();
+		if (!xrtMutexUnlock(&pStream->RetirementLock)) abort();
+	#endif
 	if (!xrtOwnershipScopeEnd(&Mutation)) abort();
 	if (!bLast) return;
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!xrtCondUnit(&pStream->RetirementReady) || !xrtMutexUnit(&pStream->RetirementLock)) abort();
+	#endif
 	pTransport = (xnetstream*)xrtAtomicPtrLoad(
 		&pStream->Transport,
 		XMEMORY_ACQUIRE
@@ -199269,6 +199327,10 @@ xtlsstream* __xrtTlsStreamCreate(
 	if ( pStream == NULL ) {
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+		if (!xrtMutexInit(&pStream->RetirementLock)) {xrtFree(pStream);return NULL;}
+		if (!xrtCondInit(&pStream->RetirementReady)) {xrtMutexUnit(&pStream->RetirementLock);xrtFree(pStream);return NULL;}
+	#endif
 	pStream->References = 2;
 	xrtAtomicPtrInit(&pStream->OwnershipClaim, NULL);
 	xrtAtomic32Init(&pStream->OwnershipState, 0);
@@ -264880,6 +264942,47 @@ XRT_API xnetstream* xrtNetServerAcceptWait(
 )
 {
     return __xrtNetServerAcceptWait(pServer, __xrtWaitAfter(iTimeout), pCancel);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/tls/stream_retire.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+#if defined(XRT_FEATURE_TLS_STREAM_RETIRE)
+static bool __xrtTlsStreamTerminal(const xtlsstream* S)
+{xtlsstreamstate State=xrtTlsStreamState(S);return State==XTLS_STREAM_CLOSED || State==XTLS_STREAM_FAILED;}
+XRT_API xwaitresult xrtTlsStreamPollRetired(xtlsstream* S)
+{
+    if(!S){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xmutextryresult Lock=xrtMutexTryLockResult(&S->RetirementLock);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    bool Ready=__xrtTlsStreamTerminal(S) && __xrtAtomicRefLoad(&S->References)==1;
+    if(!xrtMutexUnlock(&S->RetirementLock))return XWAIT_ERROR;
+    if(!Ready)return XWAIT_TIMEOUT;
+    xnetstream* TCP=xrtTlsStreamTransport(S);return TCP?xrtNetStreamPollRetired(TCP):XWAIT_OK;
+}
+XRT_API xwaitresult xrtTlsStreamWaitRetired(xtlsstream* S,int64 Timeout)
+{
+    if(!S || Timeout<XRT_WAIT_FOREVER){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xnetstream* TCP=xrtTlsStreamTransport(S);xnetworker* Current=__xrtNetEngineCurrentThread();
+    if(Current && Current->Engine==(TCP?TCP->Engine:S->OwnershipEngine)){__xrtErrorSetInvalidState();return XWAIT_ERROR;}
+    if(!Timeout)return xrtTlsStreamPollRetired(S);
+    double Deadline=__xrtWaitAfter(Timeout);if(!__xrtWaitValid(Deadline))return XWAIT_ERROR;
+    if(!xrtMutexLock(&S->RetirementLock))return XWAIT_ERROR;
+    xwaitresult Result=XWAIT_OK;
+    while(!__xrtTlsStreamTerminal(S) || __xrtAtomicRefLoad(&S->References)!=1){
+        if(__xrtWaitExpired(Deadline)){Result=XWAIT_TIMEOUT;break;}
+        Result=xrtCondWaitFor(&S->RetirementReady,&S->RetirementLock,__xrtWaitRemaining(Deadline));
+        if(Result==XWAIT_ERROR)break;
+    }
+    if(Result!=XWAIT_ERROR && __xrtTlsStreamTerminal(S) && __xrtAtomicRefLoad(&S->References)==1)Result=XWAIT_OK;
+    if(!xrtMutexUnlock(&S->RetirementLock))return XWAIT_ERROR;
+    if(Result!=XWAIT_OK)return Result;
+    return TCP?xrtNetStreamWaitRetired(TCP,__xrtWaitRemaining(Deadline)):XWAIT_OK;
 }
 #endif
 #endif

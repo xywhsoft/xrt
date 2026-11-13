@@ -13903,3 +13903,35 @@ V1 拥有图策略不证明独立注册的观察过程；保留通知时拒绝�
 等待实际驱动任务静止后，可继续使用原有认证拥有图流程。该限制不代替实际
 所有权：原生事件的真实拥有者仍覆盖内部写进展上下文，TLS 事件 Data 的真实
 拥有者仍保持到其会话析构。未选此模块时不包含相应私有字段或发送路径分支。
+
+
+## Physical TLS stream retirement
+
+Select `tls_stream_retire` / `XRT_MODULE_TLS_STREAM_RETIRE` for
+`xrtTlsStreamPollRetired` and `xrtTlsStreamWaitRetired`. A CLOSED or FAILED state
+and a close-condition Future alone do not certify callback/timer/reference
+retirement. The new barrier requires a terminal TLS stream with exactly its one
+stable caller reference, followed by the existing native TCP retirement barrier.
+It never uses ownership Count/Trace/Busy policies as a lifecycle substitute.
+
+Poll uses try-lock queries only, allocates nothing on a valid query and preserves
+ambient error on OK/TIMEOUT. It is safe on a network worker. Wait rejects every
+worker of the same Engine, including a zero timeout; foreign host waiters share
+one remaining monotonic millisecond budget across both layers. Multiple waiters
+are allowed while the caller owner is stable. Stop new operations and aliases
+before treating success as final. Neither operation closes, consumes, cancels,
+destroys, drives IO or releases the stream owner.
+
+A successful barrier certifies transient work; caller-owned Session/event data
+and any pooled buffers remain until Destroy. Destructor callbacks and retained
+buffers are separate lifetime duties. Destroy the retired TLS owners before
+requiring Engine resource teardown, keep callback code/data alive through
+Destroy, and join all Engine/external callers before code unload. The optional
+feature adds per-stream predicate synchronization; builds without it preserve
+the existing stream storage and release path. No new runtime or thread is added.
+
+[The local example](../../examples/tls/stream_retire/README.md) performs a real
+fixture-pinned TLS handshake. Tests separately hold actual close callbacks,
+TLS/TCP aliases and each predicate mutex, exercise concurrent waiters and timeout,
+certificate rejection, owned event handoff, exact context drops and allocation-
+free ambient-preserving poll. These local tests are not production/72h acceptance.

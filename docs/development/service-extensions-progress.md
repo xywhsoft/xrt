@@ -12377,3 +12377,75 @@ and out/service-extensions/xrpc-frame-20261112.
   buffer peak/cache, broader fault/OOM, fixed-arrival P99/connection scale,
   duplex TLS/DNS/stdio/WS/negotiation/credentials/recovery and all four-product
   native >=72h acceptance remain required. The full goal remains active.
+
+
+### 2026-11-13 - Optional physical TLS stream retirement on master
+
+- Continue directly in D:/GIT/xrt master from 173975d6. Migration05dc625d and
+  verificationf0e0955c remain ancestors. No branch/worktree was created or
+  switched; the protected retired backup was untouched, and no push is made.
+- Added optional tls_stream_retire / XRT_FEATURE_TLS_STREAM_RETIRE:
+  xrtTlsStreamPollRetired and xrtTlsStreamWaitRetired. A terminal TLS state and
+  actual caller-only TLS references are followed by public physical TCP
+  retirement. No Count/Trace/Busy lifecycle shortcut, extra runtime or thread.
+  Poll uses try locks, preserves ambient error on OK/TIMEOUT, and makes no XRT
+  allocation. Wait rejects every same-Engine Worker even for timeout0 and
+  passes one remaining monotonic millisecond budget through both layers.
+- Keep the sole caller owner stable and stop new entries/aliases. Session/event
+  ownership and pooled buffers may survive retirement until Destroy. Destroy
+  TLS owners before requiring Engine resource teardown; destructor code/data,
+  Engine join and external caller join remain explicit duties before unload.
+  Builds without this leaf preserve the original TLS storage/release path.
+  Existing extension dependencies are not forced to select the new leaf.
+- Each host passes 29 enabled-group programs (19 modular +10 minimal-owner
+  singles),12 ordinary TLS programs with the leaf off, and the pinned example.
+  Existing close/truncation/backpressure/timeout/resume/OOM/Future/ownership and
+  TCP retirement coverage is included. Real held callbacks, TLS/TCP aliases,
+  two waiters, both predicate mutexes, explicit certificate rejection, owned
+  event handoff, exact context drops and ready-poll ambient/budget tests pass.
+  Conditional post-Engine queries were not observed, so are not claimed.
+- All four root libraries pass92 canonical programs per host with TLS retirement
+  enabled;10 targeted extension TLS cases per host also pass. WSL functional
+  runs use ASan/UBSan/leak checks. The new standalone test passes TSan, retaining
+  GCC's unsupported standalone atomic_thread_fence warning. Public example runs
+  pass modular/single/static/shared and standalone static/shared declarations;
+  package verifiers are additional. Generated surfaces/API docs/maturity pass.
+- Existing Future ownership fixture had a legacy opaque verifier and external
+  creator alias; the same failure reproduces with retirement off. It now uses
+  actual owned verifier/context policies and drops the creator after all three
+  factory modes retain it. The existing node-cache assertion raced producer
+  retirement after Future resolution; a real FIFO Worker barrier fixes its
+  synchronization without weakening cache reuse. The new standalone selector
+  was corrected from a featureless test aggregator to actual functional leaves.
+- Windows/WSL selected private layouts are456->496 and456->632 bytes (+40/+176).
+  These sizeof values exclude allocator reservation, OS synchronization and
+  full connection/buffer costs. One warmup/seven rotated unpinned reference-pair
+  samples on idle real verified TLS, retirement off/on (native TCP retirement
+  enabled in both), give medians40.378->34.564ns Windows and29.606->29.716ns WSL.
+  Windows new spread15.069% fails the preset15% noise threshold; WSL both pass
+  that spread check, with median difference about0.37%, not a meaningful IO
+  performance conclusion. All separate XRT heap loops allocate zero blocks.
+  No TLS throughput/fixed-arrival P99 or production acceptance is established.
+- Preserve all preflight/fixture/harness failures. Seven longstanding dependency
+  Core __xrt exports remain; no new private terminal helper is exported. Test
+  names collide for Redis/MQTT test_client in the combined output directory:
+  exclude the earlier overwritten executable mapping, then preserve a fresh
+  canonical Redis rerun with identical flags/objects and a unique log namespace.
+- C filled after86 WSL root programs passed, during the next link; subsequent
+  bulk archive copy also failed. No test/sanitizer failure caused that stop.
+  Relocated only this stage's956 artifact files/1772490802 bytes to physical D,
+  verified every original SHA, preserved the logical path via a junction and
+  left unrelated files intact. Recovered first86 successful outputs, resumed
+  the remaining6 with identical inputs, and separately reran Redis test_client.
+  Original link/archive I/O failures, excluded mappings and recovery are retained.
+  Final primary executions including reference samples and archive repair are
+  169 Windows/170 WSL; no failed earlier attempt contributes to these counts.
+- Report: docs/development/tls-stream-retire-20261113.json. Frozen2705-input
+  Core/RPC map and3620-input four-product map, earlier cohorts, unused-fixture
+  equivalence for delivery/targeted TLS runs, exact receipts, binaries, packages,
+  microbench sources/samples and storage recovery are under the logical path
+  out/service-extensions/tls-stream-retire-20261113/ (now physical D storage).
+  This supplies an optional non-consuming TLS barrier; framed bidirectional RPC
+  TLS itself is not yet implemented. DNS/stdio/WS/negotiation/credentials/recovery,
+  broader performance and all four-product native >=72h gates remain required.
+  The long-term goal remains active.
