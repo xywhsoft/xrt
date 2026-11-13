@@ -66,4 +66,8 @@
 #error "XRPC_FEATURE_XRPC requires duplex"
 #endif
 #include <xrpc/duplex.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP)
+#error "XRPC_FEATURE_XRPC requires tcp"
+#endif
+#include <xrpc/tcp.h>
 #endif

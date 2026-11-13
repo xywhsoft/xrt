@@ -12257,3 +12257,57 @@ and out/service-extensions/xrpc-frame-20261112.
   independent transport peers, negotiated remote deadline/cancel, credentials/
   mTLS, broader faults/recovery, P99/connection scaling and all four-product
   native >=72h acceptance remain required. The full goal remains active.
+
+
+## 2026-11-13 - Automatically driven bidirectional framed RPC TCP
+
+- Continued directly on `D:/GIT/xrt` master from `31f78377`; no branch creation,
+  checkout, merge or push. Added 11 public TCP APIs using the existing host
+  Engine and borrowed shared business executor. Numeric connect/accepted OPEN
+  stream attachment drive bounded duplex messages with Content-Length or
+  explicit uint32-BE framing, without a new runtime/thread.
+- Concurrent Call/Notify/Batch retain original API-entry deadlines and typed
+  results. Input scratch, read/send turn budgets, partial native copy writes
+  and high/low water backpressure preserve whole messages. Started precedes
+  the first header offer; notification completion is native queue acceptance.
+  Overload/protocol/resource failures fail-close; no replay/remote extension
+  is emitted. Per-peer context is copied/erased; business uses the shared executor.
+- Physical Close/Wait/Poll/Destroy includes submitters, posts, timers, event
+  bindings, native stream tails and held noncooperative business duties. Keep
+  Engine running/pinned through Destroy; listener/Server retirement is separate.
+  Timer exhaustion is counted and closes via callback/Poll/Wait nudges.
+- Windows/WSL each pass 22 root test programs, focused TCP and single tests,
+  example, four delivery forms, static/shared standalone declarations, root
+  packages and root single example. WSL focused/single pass ASan/UBSan/leak;
+  TSan single passes with GCC's visible standalone-fence limitation. Both root
+  shared libraries export exactly 121 public functions without private helpers.
+  Three TCP footprints per host have no TLS/HTTP/WebSocket/DNS/process symbols.
+  Successful recorded primary executions are 55/56 including performance;
+  package verifier executions are additional.
+- Native tests cover both directions/formats, one-byte sends, backpressure,
+  batch/notify/error, deadline, cancellation, four concurrent producers,
+  copied context/input, retained results, held-handler retirement, malformed/
+  oversize/truncated/slow frames, final response before EOF, actual peer timer
+  exhaustion and constructor OOM thresholds. Independent Python sockets pass
+  four sessions per host with fragmented/coalesced sends, Unicode/NUL/exact
+  large integers, null IDs, batches/notifications and callback calls.
+- Corrected exploratory test/harness failures remain recorded: immediate
+  listener cleanup assumption, nested readiness reads in the raw test peer,
+  intentional aborting EOF reset, helper style, pre-freeze evidence recording,
+  Windows single ws2_32 linkage and declaration include replacement. The only
+  frozen-source amendment is Python's final reset handling; all C/header/
+  delivery inputs match both cohorts. No production check was bypassed.
+- One warmup/seven rotated unpinned samples, no noise retries: Windows pipeline1/
+  barrier-window32 medians are 11257.585/100534.239 calls/s; WSL is
+  6035.022/38184.756. WSL pipeline1 throughput/CPU and Windows window32 CPU fail
+  preset noise limits. All statuses/samples remain. Separate heap runs observe
+  14/14 blocks/call on Windows and 16.007/14.1015 on WSL. Pipeline1 closed-loop
+  observed P99 medians are 141.3/258.9 us; coordinated omission/host collection
+  prevent using these as fixed-arrival tail gates. This is a new actual TCP
+  baseline, not an old-transport comparison or production acceptance.
+- Report: `extlibs/xrpc/tests/results/tcp-20261113.json`; hashes for 2662 frozen
+  inputs, logs/binaries/packages/footprints/receipts/samples are retained under
+  `out/service-extensions/xrpc-tcp-20261113/`. Duplex TLS/DNS, stdio/WS, remote
+  negotiation, credentials/recovery, broader native faults/OOM, connection scale,
+  fixed-arrival P99 and all four-product native >=72h gates remain required.
+  The full development goal remains active, not production accepted.

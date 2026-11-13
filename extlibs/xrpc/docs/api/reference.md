@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `110` 个函数、`183` 个常量或宏、
-`92` 个公共类型。
+当前登记 `121` 个函数、`195` 个常量或宏、
+`97` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -589,6 +589,47 @@
 - `xrpcservererror`
 - `xrpcserverresult`
 - `xrpcserverstatus`
+
+## `extlibs/xrpc/include/xrpc/tcp.h`
+
+[查看带契约注释的公共头](../../include/xrpc/tcp.h)
+
+### 函数 (11)
+
+- `xrpcTcpAttach`
+- `xrpcTcpBatch`
+- `xrpcTcpCall`
+- `xrpcTcpClose`
+- `xrpcTcpConfigInit`
+- `xrpcTcpConnect`
+- `xrpcTcpDestroy`
+- `xrpcTcpInfo`
+- `xrpcTcpNotify`
+- `xrpcTcpPollRetired`
+- `xrpcTcpWaitFor`
+
+### 常量与宏 (12)
+
+- `XRPC_FEATURE_XRPC_TCP`
+- `XRPC_TCP_CLOSED`
+- `XRPC_TCP_CLOSING`
+- `XRPC_TCP_CONNECTING`
+- `XRPC_TCP_ENGINE`
+- `XRPC_TCP_LIMIT`
+- `XRPC_TCP_LOCAL`
+- `XRPC_TCP_MEMORY`
+- `XRPC_TCP_OPEN`
+- `XRPC_TCP_PROTOCOL`
+- `XRPC_TCP_TIMEOUT`
+- `XRPC_TCP_TRANSPORT`
+
+### 类型 (5)
+
+- `xrpctcp`
+- `xrpctcpconfig`
+- `xrpctcpinfo`
+- `xrpctcpreason`
+- `xrpctcpstate`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

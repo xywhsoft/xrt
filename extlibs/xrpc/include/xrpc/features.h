@@ -58,6 +58,25 @@
 #ifndef XRPC_MODULE_XRPC_DUPLEX
 #define XRPC_MODULE_XRPC_DUPLEX
 #endif
+#ifndef XRPC_MODULE_XRPC_TCP
+#define XRPC_MODULE_XRPC_TCP
+#endif
+#endif
+
+/* xrpc_tcp 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_TCP)
+#ifndef XRPC_FEATURE_XRPC_TCP
+#define XRPC_FEATURE_XRPC_TCP
+#endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
+#endif
+#ifndef XRPC_MODULE_XRPC_FRAME
+#define XRPC_MODULE_XRPC_FRAME
+#endif
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
+#endif
 #endif
 
 /* xrpc_duplex 及其直接依赖。 */

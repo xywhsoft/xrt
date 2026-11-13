@@ -133,6 +133,19 @@
         "xrtWebSocket",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xrpc_tcp",
+      "system": "tcp",
+      "suite": "xrpc_tcp",
+      "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess",
+        "xrtNetResolver"
+      ]
     }
   ]
 }

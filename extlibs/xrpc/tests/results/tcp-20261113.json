@@ -1,0 +1,1481 @@
+{
+  "schema": 1,
+  "stage": "bounded automatically driven bidirectional framed TCP",
+  "maturity": "developing",
+  "production_acceptance": false,
+  "parent_revision": "31f783772213aa7c9ed58d2d069415bc2e270dd9",
+  "development": {
+    "path": "D:/GIT/xrt",
+    "branch": "master",
+    "branch_created": false,
+    "branch_switched": false,
+    "merged": false,
+    "pushed": false
+  },
+  "source_identity": {
+    "inputs": 2662,
+    "current_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f",
+    "original_map_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba",
+    "amendments": [
+      {
+        "original_map": "source-cohort-1.json",
+        "original_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba",
+        "current_map": "source.json",
+        "current_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f",
+        "changes": {
+          "extlibs/xrpc/tests/interop/run_tcp_peer.py": {
+            "old": "b466c1e3657ebcc8c399d448ced96d95dbbd839d764a63fe375f8f6e7276df2f",
+            "new": "385e978d84f7e038b12c750f56dab3b954da2943003d0e95c00a6ce60eba1d2e"
+          }
+        },
+        "reason": "Python interop final drain accepts reset only after all application replies validated and local write EOF; native peer intentionally abort-closes at EOF. All C/header/module/example/benchmark inputs identical."
+      }
+    ],
+    "c_headers_and_delivery_inputs_identical_between_maps": true
+  },
+  "public_tcp_api": [
+    "xrpcTcpAttach",
+    "xrpcTcpBatch",
+    "xrpcTcpCall",
+    "xrpcTcpClose",
+    "xrpcTcpConfigInit",
+    "xrpcTcpConnect",
+    "xrpcTcpDestroy",
+    "xrpcTcpInfo",
+    "xrpcTcpNotify",
+    "xrpcTcpPollRetired",
+    "xrpcTcpWaitFor"
+  ],
+  "implementation": [
+    "numeric IPv4/IPv6 asynchronous connect; worker-only accepted OPEN stream attachment with exact ownership transfer",
+    "existing host Engine + borrowed shared Server, embedded coalesced Post and one public relative timer, no new runtime/thread",
+    "bounded original-entry-deadline Call/Notify/Batch, independent retained typed results, both framing formats, partial copy writes and native backpressure",
+    "frame deadline starts at first buffered-byte observation; strict whole-response admission; no replay/remote extension",
+    "counted overload/resource/protocol/EOF fail-close; timer failure progresses through close nudges without retry spin",
+    "physical retirement across submitters/posts/timers/event binding/native stream/held business duties; Engine pinned through Destroy"
+  ],
+  "defaults": {
+    "read_scratch_bytes": 4096,
+    "read_bytes_per_turn": 65536,
+    "write_bytes_per_turn": 65536,
+    "write_chunk_bytes": 16384,
+    "read_frame_or_send_offer_budget": 32,
+    "concurrent_submitters": 128,
+    "frame_timeout_ms": 30000,
+    "context_copy_cap_bytes": 16384
+  },
+  "verification": {
+    "windows": {
+      "primary_program_executions": 55,
+      "root_test_programs": 22,
+      "focused_tcp_passed": true,
+      "single_test_passed": true,
+      "independent_python_tcp_sessions": 4,
+      "delivery_forms": [
+        "modular",
+        "single",
+        "static",
+        "shared"
+      ],
+      "standalone_declaration_static_shared_passed": true,
+      "root_static_shared_single_passed": true,
+      "public_root_exports": 121,
+      "private_helpers_exported": false,
+      "footprint": {
+        "suite": "xrpc_tcp",
+        "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess",
+          "xrtNetResolver"
+        ],
+        "kinds": {
+          "single": {
+            "text": 630372,
+            "data": 2712,
+            "bss": 11168,
+            "members": 1,
+            "load": 633084,
+            "file": 911614,
+            "path": "out/size/gnu/native/xrpc_tcp/single/xrpc_single.o",
+            "compile_seconds": 14.552330900005472,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 94092,
+            "data": 0,
+            "bss": 0,
+            "members": 12,
+            "load": 94092,
+            "file": 147174,
+            "path": "release/gnu/native/xrpc_tcp/static/libxrpc.a"
+          },
+          "shared": {
+            "text": 138612,
+            "data": 224,
+            "bss": 2848,
+            "members": 1,
+            "load": 138836,
+            "file": 207135,
+            "path": "release/gnu/native/xrpc_tcp/shared/xrpc.dll"
+          }
+        }
+      },
+      "performance": [
+        {
+          "width": 1,
+          "metrics": {
+            "calls_per_sec": {
+              "samples": [
+                11141.14206,
+                11344.447489,
+                11231.353987,
+                11215.262267,
+                11290.686978,
+                11309.6981,
+                11257.585431
+              ],
+              "median": 11257.585431,
+              "mean": 11255.739473142856,
+              "min": 11141.14206,
+              "max": 11344.447489,
+              "mad": 42.32316399999945,
+              "relative_mad": 0.0037595241234815954,
+              "range": 203.305429,
+              "relative_range": 0.018059416936793398,
+              "central_range": 94.43583299999955,
+              "relative_central_range": 0.008388640137693444,
+              "noise_qualified": true
+            },
+            "ns_per_call": {
+              "samples": [
+                89757.405,
+                88148.85,
+                89036.46,
+                89164.21,
+                88568.57,
+                88419.69,
+                88828.995
+              ],
+              "median": 88828.995,
+              "mean": 88846.31142857144,
+              "min": 88148.85,
+              "max": 89757.405,
+              "mad": 335.21500000001106,
+              "relative_mad": 0.0037737115003947876,
+              "range": 1608.554999999993,
+              "relative_range": 0.018108445333643516,
+              "central_range": 744.5200000000041,
+              "relative_central_range": 0.008381497505403547,
+              "noise_qualified": true
+            },
+            "process_cpu_ns_per_call": {
+              "samples": [
+                98437.5,
+                108593.75,
+                111718.75,
+                109375.0,
+                110937.5,
+                109375.0,
+                111718.75
+              ],
+              "median": 109375.0,
+              "mean": 108593.75,
+              "min": 98437.5,
+              "max": 111718.75,
+              "mad": 1562.5,
+              "relative_mad": 0.014285714285714285,
+              "range": 13281.25,
+              "relative_range": 0.12142857142857143,
+              "central_range": 3125.0,
+              "relative_central_range": 0.02857142857142857,
+              "noise_qualified": true
+            },
+            "closed_loop_p50_us": {
+              "samples": [
+                84.600004,
+                84.499996,
+                85.0,
+                84.600004,
+                84.599997,
+                84.899999,
+                84.000007
+              ],
+              "median": 84.600004,
+              "mean": 84.600001,
+              "min": 84.000007,
+              "max": 85.0,
+              "mad": 0.10000800000000254,
+              "relative_mad": 0.00118212760368194,
+              "range": 0.9999930000000035,
+              "relative_range": 0.011820247668073438,
+              "central_range": 0.4000029999999981,
+              "relative_central_range": 0.004728167625145717,
+              "noise_qualified": true
+            },
+            "closed_loop_p99_us": {
+              "samples": [
+                144.600002,
+                140.199998,
+                143.3,
+                142.199999,
+                140.999997,
+                141.300006,
+                139.099997
+              ],
+              "median": 141.300006,
+              "mean": 141.67142842857143,
+              "min": 139.099997,
+              "max": 144.600002,
+              "mad": 1.1000080000000025,
+              "relative_mad": 0.007784911205170102,
+              "range": 5.500004999999987,
+              "relative_range": 0.03892430832593162,
+              "central_range": 3.1000020000000177,
+              "relative_central_range": 0.021939149811501194,
+              "noise_qualified": true
+            }
+          },
+          "allocation_values": {
+            "calls_per_sec": 10243.335558,
+            "ns_per_call": 97624.449998,
+            "process_cpu_ns_per_call": 117187.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 88.8,
+            "closed_loop_p99_us": 166.399994,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2360.6515
+          }
+        },
+        {
+          "width": 32,
+          "metrics": {
+            "calls_per_sec": {
+              "samples": [
+                100853.625083,
+                99346.696126,
+                100534.238944,
+                99719.638237,
+                101058.74191,
+                101113.870393,
+                100127.963537
+              ],
+              "median": 100534.238944,
+              "mean": 100393.53917571428,
+              "min": 99346.696126,
+              "max": 101113.870393,
+              "mad": 524.502966,
+              "relative_mad": 0.005217157572477978,
+              "range": 1767.1742670000094,
+              "relative_range": 0.01757783502975905,
+              "central_range": 1339.1036729999905,
+              "relative_central_range": 0.013319876761049574,
+              "noise_qualified": true
+            },
+            "ns_per_call": {
+              "samples": [
+                9915.36,
+                10065.76,
+                9946.86,
+                10028.115,
+                9895.235,
+                9889.84,
+                9987.22
+              ],
+              "median": 9946.86,
+              "mean": 9961.198571428571,
+              "min": 9889.84,
+              "max": 10065.76,
+              "mad": 51.625,
+              "relative_mad": 0.005190080085574744,
+              "range": 175.92000000000007,
+              "relative_range": 0.01768598331533771,
+              "central_range": 132.8799999999992,
+              "relative_central_range": 0.01335898967111221,
+              "noise_qualified": true
+            },
+            "process_cpu_ns_per_call": {
+              "samples": [
+                32031.25,
+                30468.75,
+                26562.5,
+                24218.75,
+                24218.75,
+                22656.25,
+                22656.25
+              ],
+              "median": 24218.75,
+              "mean": 26116.071428571428,
+              "min": 22656.25,
+              "max": 32031.25,
+              "mad": 1562.5,
+              "relative_mad": 0.06451612903225806,
+              "range": 9375.0,
+              "relative_range": 0.3870967741935484,
+              "central_range": 7812.5,
+              "relative_central_range": 0.3225806451612903,
+              "noise_qualified": false
+            }
+          },
+          "allocation_values": {
+            "calls_per_sec": 87028.41477,
+            "ns_per_call": 11490.500001,
+            "process_cpu_ns_per_call": 7812.5,
+            "completed": 2000.0,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2362.0
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "label": "modular-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-modular-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "modular-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-modular-example-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-single-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-single-example-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "package-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-package-static.log",
+          "log_sha256": "4ae53ba4a21e57f693675a6cb164f057fb54277f6689631a6cc1c282ee1f5a45",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "static-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-static-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "static-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-static-example-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-build",
+          "exit_code": 1,
+          "programs": 0,
+          "log": "windows-decl-static-build.log",
+          "log_sha256": "2b6fc25111c0880e4c450187abdb63f2902186bbf800d936562d0e8dcc42577d",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-decl-static-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-decl-static-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "package-shared",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-package-shared.log",
+          "log_sha256": "8fca61ed98623d8ccb370fd7fb221c1b86a671182ad62ccbc25cc6404e18d08d",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "shared-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-shared-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "shared-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-shared-example-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-shared-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-decl-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-shared-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-decl-shared-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "interop-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-interop-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba"
+        },
+        {
+          "label": "interop-run",
+          "exit_code": 1,
+          "programs": 4,
+          "log": "windows-interop-run.log",
+          "log_sha256": "4618492fb3c857084e2f834201c0be3ee815b5856afef79a271853a124f3584b",
+          "source_map_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba"
+        },
+        {
+          "label": "interop-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-interop-build-attempt3.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "interop-run",
+          "exit_code": 0,
+          "programs": 4,
+          "log": "windows-interop-run-attempt2.log",
+          "log_sha256": "1d145aa9dc8a7df4663d749e291fb42cd697f756074756c4b33245587ca46446",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "benchmark-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-benchmark-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "benchmark-smoke",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-benchmark-smoke.log",
+          "log_sha256": "a685427e8961cbba0f3e40953aff384d8077037d3f6598d8429868a243b94120",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "selected-xrpc_pending-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-selected-xrpc_pending-static.log",
+          "log_sha256": "88493be2a8d160f318691037083287a1069c2bce8c5eae295b916b0dbfe2209d",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-package-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-root-package-static.log",
+          "log_sha256": "69c3f57e6fbbe214a2f1ed3abce41807dc3879af915eed572491be31aa9a8613",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-package-shared",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-root-package-shared.log",
+          "log_sha256": "1963a8ecf87fe0e657757f96504c02cc465e07d362ab8ea32bd763f89289fda2",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-single-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-root-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-single-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-root-single-run.log",
+          "log_sha256": "49651e3982c13e6ee234ce264a8a57cafb6da80a3a2f7de731967dcd4c025f3a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "size",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-size.log",
+          "log_sha256": "ee0f7dcb99d6e62f8a876e06c4f19496e4e4b66aa0b711605d3e45b992da7344",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-0",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-0.log",
+          "log_sha256": "b93d0ad8c7656388d9657962d2f909fcb7b6b9dea62a824bb885a08908806f18",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-0",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-0.log",
+          "log_sha256": "1938aadd421f465607790f5c33de1bc7173f624271bc348528163356b805a81c",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-1",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-1.log",
+          "log_sha256": "40efd0b711127731612e2d315f7e0ae7998ebe1f564de50aadea48b524c2a6cb",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-1",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-1.log",
+          "log_sha256": "792e27692e2ea281a42568de49079e72f5436c166f78b6535245d7f6a54bf54f",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-2",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-2.log",
+          "log_sha256": "1f9377623e3a74b8297d948b7e592a1b7b86e14c104d66c6aa48d67706c4883a",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-2",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-2.log",
+          "log_sha256": "ba843efb48e790f6b20c4950affccd0c5b3ae745b8dbfb5e3e5f9a04c427b281",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-3",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-3.log",
+          "log_sha256": "b71eb246d21a5637dc6502f423ad486454f1436b84c31d67f0c757033616b2de",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-3",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-3.log",
+          "log_sha256": "14813656c0f9cd0ffc0cf53356532731447a2915c392b4c5df7fdf32229b4f7e",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-4",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-4.log",
+          "log_sha256": "1daee017b3c4e79fbbdebc86b834a3e9d88bdcfa153637f7a1138dccb242f7d9",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-4",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-4.log",
+          "log_sha256": "1c3ebd586e371d188f54e9e1068cf72630557dec360bf2152168b30d01110006",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-5",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-5.log",
+          "log_sha256": "915872e58939be6f496f815a205e82d5033190f633ea43a5e682df3801fdae13",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-5",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-5.log",
+          "log_sha256": "4cb3803ac6167fbf933b5f729510f622a06cd7e640e0939e1c84acf7b1bcaaa3",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-6",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-6.log",
+          "log_sha256": "572ef86e437c1271e85385ce58438f0a57e51d0e803f700c77c1c3f116ee1571",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-6",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-6.log",
+          "log_sha256": "0b1bea2bcc2c62e2624d6809b5639997ab25f0c0f950899ffaba6802df1ca8c1",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-7",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-7.log",
+          "log_sha256": "7d58f9eadb09c32cd8faab430e31fb2d26f5d8340204c8cd400b00dcc1bbd4bc",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-7",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-7.log",
+          "log_sha256": "5f2d19610a34010f22d1580d92a728a38f08052ed082060bcdd634088da0debe",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-heap",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w1-heap.log",
+          "log_sha256": "7fe8be5742201ca9eeab6b9f081eb76ddb349b2991fc4dd01ec36abf694e7fd7",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-heap",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-perf-w32-heap.log",
+          "log_sha256": "aa7052cec18caf6c87dfd4cf244ca40fc2bfc0337ca30e86d039c1e0cee96758",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "focused",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-focused.log",
+          "log_sha256": "e49d56835e27d3ac30c92a9bd29449958a897b04da7d3188d4ad64ee63749e24",
+          "source_map_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba"
+        },
+        {
+          "label": "root",
+          "exit_code": 0,
+          "programs": 22,
+          "log": "windows-root.log",
+          "log_sha256": "a4e08e4b194cd32eeadf99e5dd62480c0df838f9b07a7bc657428cbf3964eb91",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-build",
+          "exit_code": 1,
+          "programs": 0,
+          "log": "windows-single-build.log",
+          "log_sha256": "2c091d6bdb1b91d889cf83c7f6346cea38a2b129af19b20776dff52ed99dc5c7",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-single-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-single-run.log",
+          "log_sha256": "1195fb9da23971c15f6953199fd14da7cef63b5d4a7258037d8db12dc0ce2812",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "example",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "windows-example.log",
+          "log_sha256": "32311caf6acc6cd80ccd4f22597209313d9f656edac998b9d505ba2ba0c69112",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "features",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-features.log",
+          "log_sha256": "c1dd669472228fc3a2f1f46af77b72c6b7c54fee393648702082b1b57da35e1c",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "amalgamation",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-amalgamation.log",
+          "log_sha256": "2b36e6e5dcd41a2b667f69c682ae8a913d26bae7598ea9e49c6ad51d174512a7",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "reference",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-reference.log",
+          "log_sha256": "dd38452836e95a741d04387a36127800b9f4147d2b9066d323309edc9f24cbaa",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "docs",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-docs.log",
+          "log_sha256": "cedce28ff70136264c4374dc66df8dfd1ecbaed2202c800cb5984b997bc36c20",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "maturity",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "windows-maturity.log",
+          "log_sha256": "0122ae1d5b135c70c41330dfc040f53f7dd1bc3f004e6847a0fd79f9fa12bed4",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        }
+      ]
+    },
+    "wsl": {
+      "primary_program_executions": 56,
+      "root_test_programs": 22,
+      "focused_tcp_passed": true,
+      "single_test_passed": true,
+      "independent_python_tcp_sessions": 4,
+      "delivery_forms": [
+        "modular",
+        "single",
+        "static",
+        "shared"
+      ],
+      "standalone_declaration_static_shared_passed": true,
+      "root_static_shared_single_passed": true,
+      "public_root_exports": 121,
+      "private_helpers_exported": false,
+      "footprint": {
+        "suite": "xrpc_tcp",
+        "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+        "forbid_symbols": [
+          "xrtTls",
+          "xrtHttp",
+          "xrtWebSocket",
+          "xrtProcess",
+          "xrtNetResolver"
+        ],
+        "kinds": {
+          "single": {
+            "text": 650608,
+            "data": 5728,
+            "bss": 10948,
+            "members": 1,
+            "load": 656336,
+            "file": 1151200,
+            "path": "out/size/gnu/x64/xrpc_tcp/single/xrpc_single.o",
+            "compile_seconds": 11.25818718100004,
+            "forbidden_symbol_count": 0
+          },
+          "static": {
+            "text": 97785,
+            "data": 200,
+            "bss": 0,
+            "members": 12,
+            "load": 97985,
+            "file": 192250,
+            "path": "release/gnu/x64/xrpc_tcp/static/libxrpc.a"
+          },
+          "shared": {
+            "text": 114951,
+            "data": 1944,
+            "bss": 8,
+            "members": 1,
+            "load": 116895,
+            "file": 139760,
+            "path": "release/gnu/x64/xrpc_tcp/shared/libxrpc.so"
+          }
+        }
+      },
+      "performance": [
+        {
+          "width": 1,
+          "metrics": {
+            "calls_per_sec": {
+              "samples": [
+                6046.711324,
+                6143.415149,
+                6035.021886,
+                6028.017996,
+                5609.536208,
+                6058.289327,
+                5218.670282
+              ],
+              "median": 6035.021886,
+              "mean": 5877.094596000001,
+              "min": 5218.670282,
+              "max": 6143.415149,
+              "mad": 23.267440999999963,
+              "relative_mad": 0.00385540291974344,
+              "range": 924.7448670000003,
+              "relative_range": 0.15322974538753814,
+              "central_range": 448.75311899999997,
+              "relative_central_range": 0.07435815933675637,
+              "noise_qualified": false
+            },
+            "ns_per_call": {
+              "samples": [
+                165379.15345,
+                162775.9114,
+                165699.48195,
+                165892.0064,
+                178267.85725,
+                165063.0972,
+                191619.6935
+              ],
+              "median": 165699.48195,
+              "mean": 170671.0287357143,
+              "min": 162775.9114,
+              "max": 191619.6935,
+              "mad": 636.3847499999974,
+              "relative_mad": 0.0038405958939088736,
+              "range": 28843.782099999982,
+              "relative_range": 0.17407285623683258,
+              "central_range": 13204.760050000012,
+              "relative_central_range": 0.07969101589578031,
+              "noise_qualified": false
+            },
+            "process_cpu_ns_per_call": {
+              "samples": [
+                208122.25,
+                205737.25,
+                208921.85,
+                208543.8,
+                222111.55,
+                208296.45,
+                236540.0
+              ],
+              "median": 208543.8,
+              "mean": 214039.0214285714,
+              "min": 205737.25,
+              "max": 236540.0,
+              "mad": 421.54999999998836,
+              "relative_mad": 0.002021397902982435,
+              "range": 30802.75,
+              "relative_range": 0.147703983527681,
+              "central_range": 13989.299999999988,
+              "relative_central_range": 0.06708087221964877,
+              "noise_qualified": false
+            },
+            "closed_loop_p50_us": {
+              "samples": [
+                157.7,
+                155.5,
+                158.1,
+                158.2,
+                176.7,
+                158.0,
+                188.9
+              ],
+              "median": 158.1,
+              "mean": 164.72857142857143,
+              "min": 155.5,
+              "max": 188.9,
+              "mad": 0.4000000000000057,
+              "relative_mad": 0.002530044275774862,
+              "range": 33.400000000000006,
+              "relative_range": 0.21125869702719802,
+              "central_range": 19.0,
+              "relative_central_range": 0.12017710309930424,
+              "noise_qualified": false
+            },
+            "closed_loop_p99_us": {
+              "samples": [
+                264.3,
+                252.7,
+                265.0,
+                258.3,
+                258.9,
+                257.0,
+                261.3
+              ],
+              "median": 258.9,
+              "mean": 259.64285714285717,
+              "min": 252.7,
+              "max": 265.0,
+              "mad": 2.400000000000034,
+              "relative_mad": 0.009269988412514616,
+              "range": 12.300000000000011,
+              "relative_range": 0.04750869061413678,
+              "central_range": 7.300000000000011,
+              "relative_central_range": 0.028196214754731604,
+              "noise_qualified": true
+            }
+          },
+          "allocation_values": {
+            "calls_per_sec": 5542.488922,
+            "ns_per_call": 180424.357,
+            "process_cpu_ns_per_call": 224212.0,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 178.0,
+            "closed_loop_p99_us": 265.8,
+            "heap_blocks_per_call": 16.007,
+            "heap_bytes_per_call": 2889.0435
+          }
+        },
+        {
+          "width": 32,
+          "metrics": {
+            "calls_per_sec": {
+              "samples": [
+                39117.199827,
+                37653.430245,
+                38837.58291,
+                38031.6324,
+                38146.056344,
+                38184.756037,
+                38352.5932
+              ],
+              "median": 38184.756037,
+              "mean": 38331.89299471428,
+              "min": 37653.430245,
+              "max": 39117.199827,
+              "mad": 167.83716300000378,
+              "relative_mad": 0.004395397022764113,
+              "range": 1463.7695819999935,
+              "relative_range": 0.03833387283086581,
+              "central_range": 805.9505099999951,
+              "relative_central_range": 0.021106603620016606,
+              "noise_qualified": true
+            },
+            "ns_per_call": {
+              "samples": [
+                25564.20205,
+                26558.0053,
+                25748.2553,
+                26293.9016,
+                26215.0297,
+                26188.46115,
+                26073.8562
+              ],
+              "median": 26188.46115,
+              "mean": 26091.673042857143,
+              "min": 25564.20205,
+              "max": 26558.0053,
+              "mad": 114.60495000000083,
+              "relative_mad": 0.004376162056394857,
+              "range": 993.8032500000008,
+              "relative_range": 0.03794813465013391,
+              "central_range": 545.6463000000003,
+              "relative_central_range": 0.020835370848050015,
+              "noise_qualified": true
+            },
+            "process_cpu_ns_per_call": {
+              "samples": [
+                58283.15,
+                60351.85,
+                58794.15,
+                60494.15,
+                60117.15,
+                59583.4,
+                59909.05
+              ],
+              "median": 59909.05,
+              "mean": 59647.55714285715,
+              "min": 58283.15,
+              "max": 60494.15,
+              "mad": 442.79999999999563,
+              "relative_mad": 0.007391203833143667,
+              "range": 2211.0,
+              "relative_range": 0.03690594325899008,
+              "central_range": 1557.699999999997,
+              "relative_central_range": 0.026001079970388398,
+              "noise_qualified": true
+            }
+          },
+          "allocation_values": {
+            "calls_per_sec": 36473.0542,
+            "ns_per_call": 27417.501,
+            "process_cpu_ns_per_call": 64111.0,
+            "completed": 2000.0,
+            "heap_blocks_per_call": 14.1015,
+            "heap_bytes_per_call": 2783.684
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "label": "modular-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-modular-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "modular-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-modular-example-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-single-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-single-example-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "package-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-package-static.log",
+          "log_sha256": "795e4158bfcc9ba1cba072d3b7b17aae2aea627b1e5ce05136c98f4049c74a87",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "static-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-static-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "static-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-static-example-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-build",
+          "exit_code": 1,
+          "programs": 0,
+          "log": "wsl-decl-static-build.log",
+          "log_sha256": "5abd0519e806c3f50007425aea72c02ed6f9cde2b4d7cf3022328c00ef78d900",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-decl-static-build-attempt2.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-static-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-decl-static-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "package-shared",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-package-shared.log",
+          "log_sha256": "3cd89366867350bf81ddb386e18d6fa6f49a0c011b4cf066398aad54b04c58d0",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "shared-example-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-shared-example-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "shared-example-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-shared-example-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-shared-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-decl-shared-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "decl-shared-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-decl-shared-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "interop-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-interop-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "interop-run",
+          "exit_code": 0,
+          "programs": 4,
+          "log": "wsl-interop-run.log",
+          "log_sha256": "23d6de142533cfff29c250a13b57d6f4e2e12bec881789022d21da019ed75ba4",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "benchmark-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-benchmark-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "benchmark-smoke",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-benchmark-smoke.log",
+          "log_sha256": "b0a6c57ba67dba39ccc63004ce06b9243f0ed5d2ef75cd1003b09e96b54fb6f6",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "selected-xrpc_pending-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-selected-xrpc_pending-static.log",
+          "log_sha256": "32e34dad02c453096a3ac71aa5edfe047b08adaa35cbe9ab88a5c2d5f10eed5c",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-package-static",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-root-package-static.log",
+          "log_sha256": "783e60862eff03e75ceb835fad1a7faac1ff41066f3cb89998f91fecc4cac735",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-package-shared",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-root-package-shared.log",
+          "log_sha256": "63bc0a9143d019c2c8d92f3c85b149319ff96c8199479068c3aea3a8ce294788",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-single-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-root-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "root-single-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-root-single-run.log",
+          "log_sha256": "8b289c7c882c844108e04af4b2cf1a969ce3b98177d6a8bac82e20a7553b30cf",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "size",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-size.log",
+          "log_sha256": "4b7a8f492120e6719cb41843c37fc42fe967c6deef39128806f21c99f7e63bdb",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-0",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-0.log",
+          "log_sha256": "30af6f780f1b748799cee4a52a52cab4466fb56a99bbfcf7540495477d0f6cfe",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-0",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-0.log",
+          "log_sha256": "71d557330ad0a2d35f791a9588d1ccdaf32619ee24aa15e170351a6d11f7acf1",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-1",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-1.log",
+          "log_sha256": "4bde2945b28cb67b7d755504d644a06d29e3a48bc93bf3fd42b1ea716a83a239",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-1",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-1.log",
+          "log_sha256": "36f9cda413537035e7be6dce15fc2fea33d100770e871d3f6c7240d484158e0b",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-2",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-2.log",
+          "log_sha256": "a86a72ae06c37427b83dad9b257948952a42592e30bbd97d82a89b3786b3aa43",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-2",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-2.log",
+          "log_sha256": "fa24d61950aebe3ba024c77a800e7b3b01034c7d15ef1ebee06ed5dcfa5f6869",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-3",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-3.log",
+          "log_sha256": "faa0f317d6c0e78139ee991470b6aea00086a81ec018c09c93831bf8304fc60d",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-3",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-3.log",
+          "log_sha256": "35dc9ee5b41568286419d84bbc544669cb449621eb1a9c2eff13786b7bbb511d",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-4",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-4.log",
+          "log_sha256": "4c5ec801d47ec6f42ca19cbb18e7f829a500631bb01fc2da07dec2e0418aa5d3",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-4",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-4.log",
+          "log_sha256": "15e42d092a6a6f48ffd0507ecea81910a1ee529617999444a913e69e07013b06",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-5",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-5.log",
+          "log_sha256": "0b5fb5f8ece30210a6f8f4f9ecc646495fe127e9881968a7a10d77a8ddaaeefd",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-5",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-5.log",
+          "log_sha256": "8c5c2a54301212a524c3550b8bbd3ea6ecc3f7338382ade579903fb28bfa52b2",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-6",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-6.log",
+          "log_sha256": "520e30ea1869cf1e39065e0c76c5cbd8bb645898d41dc568ea7379d0bde2c5d0",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-6",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-6.log",
+          "log_sha256": "47e6f8b3fc2368ef3a7611832e3d2a2e5ff2857bd118ef2b4749612039785451",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-7",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-7.log",
+          "log_sha256": "5c372d24b6f7a44c02a4c8c421c99253b47657dc0c1674531ac89b5be1e96e75",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-7",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-7.log",
+          "log_sha256": "dcf31aadc08820a567ea31215268e7542894f88e7a6db26c9e463b40ee4155ef",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w1-heap",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w1-heap.log",
+          "log_sha256": "8e7035108d7f4758277f884eb3f1c4b94787d550dcc324d41fb064f75d146864",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "perf-w32-heap",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-perf-w32-heap.log",
+          "log_sha256": "688e60ff46beb49cf36a956ba54236a037538d229c1152de7be0efe2799b9c5b",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "tsan-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-tsan-build.log",
+          "log_sha256": "af97a8a7d31a976cb790a588608cd94d529dbccd39605228297df1772310ae0c",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "tsan-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-tsan-run.log",
+          "log_sha256": "32b01623985611dd675b1d4b781df00b34f51704f0f9b733bd1490244eb92583",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "focused",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-focused.log",
+          "log_sha256": "f071fb767ffe18a08ea0ca0d73f081f73dddee1dbe4540ec3865b9875bdfb9b9",
+          "source_map_sha256": "2d518289db8cd5e6783e5ba0f9a0b4a7d72153b169e5717f5261735ae7d018ba"
+        },
+        {
+          "label": "root",
+          "exit_code": 0,
+          "programs": 22,
+          "log": "wsl-root.log",
+          "log_sha256": "05b89a05a04b56475dd9a1989ec3541d5e1613f3daf81ff75d5ff5d96c1db22e",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-build",
+          "exit_code": 0,
+          "programs": 0,
+          "log": "wsl-single-build.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "single-run",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-single-run.log",
+          "log_sha256": "32b01623985611dd675b1d4b781df00b34f51704f0f9b733bd1490244eb92583",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        },
+        {
+          "label": "example",
+          "exit_code": 0,
+          "programs": 1,
+          "log": "wsl-example.log",
+          "log_sha256": "f44d1972371a4f17e0aa1978f710e216cbfbcf3edebbd74a9eb58cc6f596c149",
+          "source_map_sha256": "0787cd40cf92a91d9326ea30197daf68599c2df3644b4b1f5c3c802ed7bbf53f"
+        }
+      ]
+    }
+  },
+  "sanitizers": {
+    "wsl_address_undefined_leak_focused_and_single_passed": true,
+    "wsl_thread_single_passed": true,
+    "thread_sanitizer_limitation": "GCC warns that standalone atomic_thread_fence is unsupported by TSan; warning retained, not a stronger race-freedom claim."
+  },
+  "performance_scope": "New actual TCP baseline, no old-transport comparison. One connection, Content-Length, 7-byte echo, 2 network workers and default shared business executor. Closed-loop pipeline1 or barrier-window32; pipeline1 observed host completion P99 includes waiting/collection and coordinated omission. Unpinned, all process threads in CPU; separate heap run. One warmup and seven rotated samples, no noise retries. No fixed-arrival/connection-scale/remote-network/native-Linux/72h/production acceptance.",
+  "performance_policy": {
+    "warmups": 1,
+    "samples": 7,
+    "rotated_widths": true,
+    "retry_for_noise": false,
+    "relative_mad_limit": 0.03,
+    "relative_central_range_limit": 0.06,
+    "old_transport_comparison": false,
+    "not_production_tail_gate": true
+  },
+  "observed_and_corrected": [
+    "Initial test assumed immediate listener retirement before Engine join; fixed using bounded EngineTryDestroy through native listener tails.",
+    "Raw test fixture ReadRefresh can nest readiness callbacks; pause before reading and resume after parsing fixed order. Production adapter already paused/posted.",
+    "Only final Python socket drain after validated replies and local write EOF now permits ConnectionResetError, matching intentional abort-on-EOF contract; sole frozen-map amendment.",
+    "Helper style/pre-freeze evidence recording/Windows single ws2_32 linkage/declaration consumer include harness errors fixed; original failed logs retained."
+  ],
+  "remaining": [
+    "duplex TLS/DNS/prepared-candidate connect, stdio/WebSocket, remote deadline/cancel negotiation",
+    "authentication/mTLS/credentials and explicit reconnect/recovery policy",
+    "full hostile-peer and worker/native allocation-failure matrices; all four native Windows/Linux >=72h campaigns",
+    "fixed-arrival tails, multi-connection scaling, pinned CPU/copy/syscall comparisons, production performance acceptance",
+    "xredis/xmqtt/xcron remaining product scope and final acceptance remain active"
+  ],
+  "raw_evidence": "out/service-extensions/xrpc-tcp-20261113/"
+}

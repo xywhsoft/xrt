@@ -4325,6 +4325,71 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_tcp",
+      "system": "tcp",
+      "description": "Actual native loopback TCP baseline, closed loop pipeline1/barrier-window32; no production performance acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_tcp_w1",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "2000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_w32",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "2000",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

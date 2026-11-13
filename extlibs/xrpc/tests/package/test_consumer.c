@@ -115,6 +115,9 @@ int main(void)
        ((const xrpccallresult*)DuplexResult.Value)->Status!=XRPC_CALL_TIMEOUT || !xrpcDuplexClose(Duplex,XRPC_CALL_CLOSED) || !xrpcDuplexStep(Duplex) || !xrpcDuplexDestroy(Duplex))return 19;
     xrtFutureDestroy(DuplexFuture);
 #endif
+#if defined(XRPC_FEATURE_XRPC_TCP)
+    xrpctcpconfig TcpConfig;if(!xrpcTcpConfigInit(&TcpConfig) || TcpConfig.Size!=sizeof(TcpConfig) || TcpConfig.Duplex.Wake || TcpConfig.Duplex.User || !xrpcTcpDestroy(NULL))return 20;
+#endif
 #if defined(XRPC_FEATURE_XRPC_DECODE)
 	if (xrpcDecode((xstrview){NULL, 1}, NULL, &Message, 1, &Doc) != XRPC_DECODE_LOCAL_ERROR ||
 		strcmp(xrtErrorDomain(xrtGetError()), "xrt.rpc") || xrtErrorKind(xrtGetError()) != XERR_ARGUMENT) return 2;

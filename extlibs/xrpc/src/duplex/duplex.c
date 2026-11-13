@@ -348,9 +348,8 @@ static xrpcduplexadmission xrpcDuplexResponse(xrpcduplex* D,xstrview Input)
 Protocol:
     xrpcResponsesRelease(Responses);return xrpcDuplexProtocol(D);
 }
-XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbytesview Context)
+static xrpcduplexadmission xrpcDuplexReceiveImpl(xrpcduplex* D,xstrview Input,xbytesview Context,double Entered)
 {
-    double Entered=xrtTimer();
     if(!D || !xrpcDuplexSpan(D,Input.Data,Input.Size) || !xrpcDuplexSpan(D,Context.Data,Context.Size)){
         xrpcDuplexReport(XERR_ARGUMENT,XRPC_DUPLEX_ARGUMENT,"invalid RPC duplex receive spans");return XRPC_DUPLEX_ERROR;}
     if(!xrpcDuplexEnter(D))return XRPC_DUPLEX_ERROR;
@@ -395,6 +394,14 @@ XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbyt
 Done:
     D->Busy=false;return Result;
 }
+XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbytesview Context)
+{return xrpcDuplexReceiveImpl(D,Input,Context,xrtTimer());}
+#if defined(XRPC_FEATURE_XRPC_TCP)
+xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex* D,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
+{return xrpcDuplexSubmit(D,Items,Count,Batch,Timeout,Future,Entered);}
+xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex* D,xstrview Input,xbytesview Context,double Entered)
+{return xrpcDuplexReceiveImpl(D,Input,Context,Entered);}
+#endif
 static bool xrpcDuplexWorkJob(xrpcduplex* D,bool* Blocked)
 {
     xrtMutexLock(&D->Gate);xrpcduplexjob* J=D->ReadyHead;
