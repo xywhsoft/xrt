@@ -227,7 +227,7 @@ static void xrpcTcpFree(xrpctcp* P)
 static xrpctcp* xrpcTcpCreate(xnetengine* E,xnetworker* W,const xrpctcpconfig* Config,xrpctcp** Out,double Entered)
 {
     if(!E || !W || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Config && (!xrtMemRangeValid(Config,sizeof(*Config)) || xrtMemRangesOverlap(Config,sizeof(*Config),Out,sizeof(*Out)))))goto Argument;
-    xrpctcpconfig C;if(Config)C=*Config;else xrpcTcpConfigInit(&C);
+    xrpctcpconfig C={0};if(Config)C=*Config;else if(!xrpcTcpConfigInit(&C))return NULL;
     if(C.Size!=sizeof(C) || C.Duplex.Wake || C.Duplex.User || !C.ReadChunkBytes || C.ReadChunkBytes>1048576u ||
        !C.ReadBytes || !C.WriteBytes || !C.WriteChunkBytes || !C.WorkFrames || C.WorkFrames>65536 || !C.MaxSubmitters || C.MaxSubmitters>65536 || C.FrameTimeout<XRT_WAIT_FOREVER ||
        C.RequestContext.Size>16384 || !xrtMemRangeValid(C.RequestContext.Data,C.RequestContext.Size) || xrtMemRangesOverlap(C.RequestContext.Data,C.RequestContext.Size,Out,sizeof(*Out)) ||

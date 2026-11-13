@@ -4452,6 +4452,133 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_tls",
+      "system": "tls",
+      "description": "Verified native TLS13 framed RPC on one loopback connection; shared executor, validated bytes, windows1/32 and 7B/16KiB, ciphertext copies included, handshake excluded, no production tail claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_tls_w1",
+          "source": "extlibs/xrpc/bench/bench_tls.c",
+          "suite": "xrpc_tls,memory_stats",
+          "args": [
+            "2000",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tls_w32",
+          "source": "extlibs/xrpc/bench/bench_tls.c",
+          "suite": "xrpc_tls,memory_stats",
+          "args": [
+            "2000",
+            "32",
+            "0"
+          ],
+          "smoke_args": [
+            "100",
+            "32",
+            "1"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tls_large_w1",
+          "source": "extlibs/xrpc/bench/bench_tls.c",
+          "suite": "xrpc_tls,memory_stats",
+          "args": [
+            "1000",
+            "1",
+            "0",
+            "16384"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "16384"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tls_large_w32",
+          "source": "extlibs/xrpc/bench/bench_tls.c",
+          "suite": "xrpc_tls,memory_stats",
+          "args": [
+            "1000",
+            "32",
+            "0",
+            "16384"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "1",
+            "16384"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

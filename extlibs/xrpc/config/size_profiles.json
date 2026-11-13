@@ -146,6 +146,18 @@
         "xrtProcess",
         "xrtNetResolver"
       ]
+    },
+    {
+      "name": "xrpc_tls",
+      "system": "tls",
+      "suite": "xrpc_tls",
+      "description": "Bidirectional native TLS and framing, independent of HTTP/WebSocket/DNS/process adapters",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess",
+        "xrtNetResolver"
+      ]
     }
   ]
 }

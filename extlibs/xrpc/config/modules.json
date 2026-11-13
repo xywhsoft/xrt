@@ -152,6 +152,13 @@
         "source_roots": [
           "tcp"
         ]
+      },
+      {
+        "name": "tls",
+        "state": "retained",
+        "source_roots": [
+          "tls"
+        ]
       }
     ]
   },
@@ -220,7 +227,8 @@
         "xrpc_http_server_tls",
         "xrpc_frame",
         "xrpc_duplex",
-        "xrpc_tcp"
+        "xrpc_tcp",
+        "xrpc_tls"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -726,7 +734,8 @@
         "xrpc_http_measure_tests",
         "xrpc_frame_tests",
         "xrpc_duplex_tests",
-        "xrpc_tcp_tests"
+        "xrpc_tcp_tests",
+        "xrpc_tls_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -749,7 +758,8 @@
         "extlibs/xrpc/tests/test_http_server_tls.c",
         "extlibs/xrpc/tests/test_frame.c",
         "extlibs/xrpc/tests/test_duplex.c",
-        "extlibs/xrpc/tests/test_tcp.c"
+        "extlibs/xrpc/tests/test_tcp.c",
+        "extlibs/xrpc/tests/test_tls.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -769,7 +779,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -794,7 +805,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_http_server_tls.c": "xrpc_http_server_tls_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_frame.c": "xrpc_frame",
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c": "xrpc_duplex_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c": "xrpc_tcp_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c": "xrpc_tcp_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls.c": "xrpc_tls_tests"
       }
     },
     {
@@ -1301,6 +1313,75 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/tcp.md"
+      ]
+    },
+    {
+      "name": "xrpc_tls",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_TLS",
+      "depends": [
+        "xrpc_duplex",
+        "xrpc_frame",
+        "tls_stream_retire",
+        "tls_client_resume",
+        "tls_server_resume",
+        "tls_identity_rsa",
+        "tls_identity_p256",
+        "tls_identity_p384",
+        "tls_identity_ed25519",
+        "tls_record_aes",
+        "tls_record_chacha",
+        "tls_schedule_sha256",
+        "tls_schedule_sha384",
+        "tls_key_exchange_x25519",
+        "tls_key_exchange_p256",
+        "tls_key_exchange_p384"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/tls.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_duplex_internal.h"
+      ],
+      "sources": [
+        "extlibs/xrpc/src/tls/tls.c"
+      ],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/tls/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_tls.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/tls.md",
+        "extlibs/xrpc/examples/tls/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_tls_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_tls",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_tls.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/tls.md"
       ]
     }
   ]

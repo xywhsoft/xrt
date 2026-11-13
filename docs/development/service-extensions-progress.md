@@ -12449,3 +12449,82 @@ and out/service-extensions/xrpc-frame-20261112.
   TLS itself is not yet implemented. DNS/stdio/WS/negotiation/credentials/recovery,
   broader performance and all four-product native >=72h gates remain required.
   The long-term goal remains active.
+
+
+### 2026-11-13 - Bounded bidirectional framed TLS on master
+
+- Continue directly in D:/GIT/xrt master from e15d65d6. Historical branchc2a8b434,
+  migration05dc625d and verificationf0e0955c remain ancestors. The retired backup
+  is untouched. No branch/worktree creation/switch/merge or remote push.
+- Added developing xrpc_tls with12 public APIs: snapshotted native client connect,
+  accepted TCP policy/deferred handshake handoff, one-time OPEN owned-TLS adoption,
+  concurrent call/notify/batch, copied Info and physical Close/Poll/Wait/Destroy.
+  Reuses duplex/frame, a borrowed host Engine/shared business Server and public
+  native TLS/TCP. No new runtime/thread or full-frame adapter staging buffer.
+- Actual accepted-prefix offsets advance even on positive AGAIN. Short OK writes
+  self-wake, final plaintext drains before EOF failure, no reconnect/replay and
+  whole acceptance is not business ACK. Preserve original entry/setup deadlines,
+  explicit framing, bounded parsing/turns/submitters/context/native metadata and
+  RPC ciphertext offer admission. Core control traffic has separate native caps.
+- Native TLS/TCP retirement releases owned event/session credits on the Worker;
+  held aliases/handlers prevent false completion. Cleanup backs off with one timer;
+  exhausted timer quota needs Poll/Wait nudges. Engine pin survives until Destroy;
+  host/shared business Server/external callers join separately before unload.
+- Final source passes27 regression programs per host (19 root RPC+4 support and
+  focused TLS/TCP modular/single),32 independent Python/OpenSSL TLS1.3 sessions,
+  the real production-TU prefix probe and3 functional benchmark smokes. Delivery
+  example passes modular/single/static/shared plus standalone static/shared
+  declarations; root static/shared packages and root-single TLS example pass.
+  Root shared exports133 public RPC functions, including12 new TLS APIs, without
+  private RPC helper exports. Package verifiers are additional to these counts.
+- WSL functional tests use ASan/UBSan/leak halt; the TLS single and prefix probe
+  also pass TSan. Retain GCC standalone atomic_thread_fence instrumentation warning.
+  Both frame formats, tiny/partial IO, copied name/context/ALPN, verifier rejection,
+  original setup timeout, four producers, held-handler/cancellation/retained-result,
+  buffered owned adoption/native aliases/exact context drops, malformed/oversized/
+  partial EOF/final response, actual overload/timer quota and constructor budgets
+  are covered. Four identity key types and both native client/server roles interop;
+  Python verifies generated CA+hostname, native client explicitly pins DER+name.
+  Ephemeral private keys are removed, not archived. Full trust/cipher/resume/fault
+  matrix, OS handle baselines and native Linux production acceptance remain open.
+- Full root-single GCC -Werror caught unchecked default ConfigInit return paths
+  in TCP and TLS. Cold locals now initialize/check failure; regenerated single
+  and corrected historical README status. Retain first-cohort failures and its
+  hash-verified337-file/928344205-byte archive. Initial Windows size work was
+  stopped before edits; all final checks and timing rerun on frozen2715 inputs.
+  Earlier premature accepted-TCP handoff, paused ClientHello, helper/selector and
+  standalone fixture include failures remain visible. The rejected short-progress
+  candidate really stalls on accepted prefixes; the current stronger probe passes.
+- Selected TCP/TLS single objects and static/shared companion Core/RPC libraries
+  pass forbidden-symbol audits. Plain TCP remains free of TLS/HTTP/WS/process/DNS;
+  TLS remains free of HTTP/WS/process/DNS. Size rows for static/shared xrpc alone
+  exclude the companion Core library; both actual artifacts/metrics are preserved.
+  Facade FixedBytes and sampled ciphertext are not whole-connection resident peaks.
+- Each host runs72 separate performance programs:8 warmups,7 rotated samples
+  for8 cases and8 heap runs, every echo byte validated. One connection,7B/16KiB,
+  window1/32, shared executor, all process-thread CPU, native TLS record/ciphertext
+  copies included and handshake excluded. Unpinned, no noise retries. Descriptive
+  TCP and TLS have different security contracts, so no speedup/regression claim.
+
+| Host | Payload B | Window | TCP calls/s median | TLS calls/s median | TLS throughput spread | <=15% noise filter |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| windows | 7 | 1 | 15695.113 | 13119.787 | 3.879% | true |
+| windows | 7 | 32 | 102362.527 | 72943.185 | 4.806% | true |
+| windows | 16384 | 1 | 3612.064 | 2377.748 | 2.689% | true |
+| windows | 16384 | 32 | 9123.210 | 6308.767 | 25.619% | false |
+| wsl | 7 | 1 | 6743.637 | 6153.396 | 2.473% | true |
+| wsl | 7 | 32 | 51617.965 | 39400.873 | 5.265% | true |
+| wsl | 16384 | 1 | 2410.070 | 1982.002 | 6.055% | true |
+| wsl | 16384 | 32 | 7347.539 | 6022.403 | 7.011% | true |
+
+- Closed-loop P50/P99 (window1) have coordinated omission; no fixed-arrival
+  P95/P999/connection-scale gate follows. Heap/copies/allocations/synchronization,
+  CPU/all spreads and all samples are in the report. Primary executable/session
+  executions total142 Windows/144 WSL, including performance and2 WSL TSan runs;
+  earlier/superseded attempts are excluded. All final receipts/logs/executables/
+  packages/source hashes are rechecked, with stage artifacts stored physically D.
+- Report: extlibs/xrpc/tests/results/tls-20261113.json; raw source maps/cohort,
+  failures, commands, logs, binaries, packages, all timing and artifact seal:
+  out/service-extensions/xrpc-duplex-tls-20261113/. Framed DNS/prepared dial,
+  stdio/WebSocket/negotiation/credentials/recovery, broader optimization and all
+  four-product native >=72h acceptance remain required. The long-term goal is active.

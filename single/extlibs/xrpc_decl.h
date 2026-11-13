@@ -90,6 +90,9 @@
 #if !defined(XRPC_FEATURE_XRPC_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP 1
 #endif
+#if !defined(XRPC_FEATURE_XRPC_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TLS 1
+#endif
 #if !defined(XRPC_MODULE_ALL)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_ALL 1
 #endif
@@ -152,6 +155,9 @@
 #endif
 #if !defined(XRPC_MODULE_XRPC_TCP)
 #define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TCP 1
+#endif
+#if !defined(XRPC_MODULE_XRPC_TLS)
+#define XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TLS 1
 #endif
 #if !defined(XRT_FEATURE_ARRAY)
 #define XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY 1
@@ -1434,6 +1440,9 @@
 #if !defined(XRT_MODULE_TLS_STREAM)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM 1
 #endif
+#if !defined(XRT_MODULE_TLS_STREAM_RETIRE)
+#define XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE 1
+#endif
 #if !defined(XRT_MODULE_UNICODE)
 #define XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE 1
 #endif
@@ -2700,6 +2709,64 @@
 #endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
+#endif
+#ifndef XRPC_MODULE_XRPC_TLS
+#define XRPC_MODULE_XRPC_TLS
+#endif
+#endif
+
+/* xrpc_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_TLS)
+#ifndef XRPC_FEATURE_XRPC_TLS
+#define XRPC_FEATURE_XRPC_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
+#endif
+#ifndef XRPC_MODULE_XRPC_FRAME
+#define XRPC_MODULE_XRPC_FRAME
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_SERVER_RESUME
+#define XRT_MODULE_TLS_SERVER_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P384
+#define XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 
@@ -4735,6 +4802,104 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/tls.h */
+/* ========================================================================== */
+
+#ifndef XRPC_TLS_H
+#define XRPC_TLS_H
+#if defined(XRPC_FEATURE_XRPC_TLS) && (!defined(XRPC_FEATURE_XRPC_DUPLEX) || !defined(XRPC_FEATURE_XRPC_FRAME) || !defined(XRT_FEATURE_TLS_STREAM_RETIRE))
+#error "xrpc TLS requires duplex, frame and native TLS retirement"
+#endif
+#if defined(XRPC_FEATURE_XRPC_TLS)
+typedef struct xrpctls xrpctls;
+typedef enum xrpctlsstate {XRPC_TLS_CONNECTING=0,XRPC_TLS_HANDSHAKING,XRPC_TLS_OPEN,XRPC_TLS_CLOSING,XRPC_TLS_CLOSED} xrpctlsstate;
+typedef enum xrpctlsreason {XRPC_TLS_LOCAL=0,XRPC_TLS_TRANSPORT,XRPC_TLS_PROTOCOL,XRPC_TLS_LIMIT,XRPC_TLS_MEMORY,XRPC_TLS_TIMEOUT,XRPC_TLS_ENGINE,XRPC_TLS_HANDSHAKE} xrpctlsreason;
+typedef struct xrpctlsconfig {
+    size_t Size;
+    xrpcduplexconfig Duplex;
+    xrpcframeconfig Frame;
+    xnetstreamconfig Stream;
+    xtlsstreamconfig TLS;
+    size_t ReadChunkBytes,ReadBytes,WriteChunkBytes,WriteBytes,WorkFrames,MaxSubmitters;
+    size_t MaxCipherBytes,MaxMetadataBytes;
+    int64 FrameTimeout;
+    xbytesview RequestContext;
+} xrpctlsconfig;
+typedef struct xrpctlsinfo {
+    size_t Size;
+    xrpctlsstate State;
+    xrpctlsreason Reason;
+    uint64 ReadBytes,WriteBytes,ReadFrames,WriteFrames,TimerFailures,PostFailures,Overloaded,ShortWrites,BlockedWrites;
+    size_t Submitters,FixedBytes,FrameStorageBytes,CipherBytes,MaxObservedCipherBytes;
+    xtlsversion Version;
+    xtlscipher Cipher;
+    bool Resumed;
+    xerrkind NativeErrorKind;
+    int32 NativeErrorCode;
+    bool NativeErrorDomainTruncated;
+    char NativeErrorDomain[64];
+    size_t ProtocolBytes;
+    unsigned char Protocol[256]; /* Copied opaque negotiated ALPN, not a C string. */
+    xrpcduplexinfo Duplex;
+} xrpctlsinfo;
+XRT_EXTERN_C_BEGIN
+/* Borrow the host Engine and shared Server, no new runtime/thread. Defaults:
+ * Content-Length, 4KiB scratch,64KiB read/write work,16KiB chunks,32 frames/turn,
+ *128 submitters,1MiB RPC ciphertext offer ceiling,64KiB TLS name/ALPN metadata,
+ *30s incomplete frame timeout. Duplex.Wake/User are reserved. RequestContext is
+ * copied once (<=16KiB); align all codec/frame/shared Server limits.
+ * MaxCipherBytes gates RPC offers against total native pending bytes; Core TLS
+ * control traffic remains bounded separately by Context.SendLimit + TCP limits.
+ * Native TLS performs record/ciphertext copies; SendVec may create two records. */
+XRPC_API bool xrpcTlsConfigInit(xrpctlsconfig* Config);
+/* Concurrent numeric connect. Snapshot a native client Session before return:
+ * names/ALPN are copied, context/verifier/resume references use Core ownership.
+ * Explicit verification identity required; Core validates verifier/resume trust.
+ * Original API entry + Stream.ConnectTimeout covers construction, TCP and TLS.
+ * Native TLS config callback contexts/code remain borrowed through Destroy.
+ * Calls can queue before OPEN with their own original API-entry deadlines. */
+XRPC_API bool xrpcTlsConnect(xnetengine* Engine,const xnetaddr* Remote,uint64 Affinity,
+    const xtlsclientconfig* Client,const xrpctlsconfig* Config,xrpctls** Peer);
+/* Worker-only exclusive OPEN TCP stream. Snapshot the native server policy and
+ * start its TLS handshake. Success takes one TCP caller reference; false takes
+ * nothing and leaves its event binding unchanged. Accept callback may return
+ * true after success. Policy callback contexts/code survive through Destroy. */
+XRPC_API bool xrpcTlsAccept(xnetstream* Stream,const xtlsserverconfig* Server,
+    const xrpctlsconfig* Config,xrpctls** Peer);
+/* Adopt an OPEN owned TLS stream with exclusive IO, no previous event handoff,
+ * no active callback or read Future. Post from Open to its Worker first.
+ * Success takes one TLS caller reference and binds an owned event context;
+ * false leaves reference/binding unchanged. Original session context survives
+ * through this peer's Destroy; existing native socket/TLS settings are retained.
+ * Already buffered plaintext is driven explicitly, never assumed replayed. */
+XRPC_API bool xrpcTlsAttach(xtlsstream* Stream,const xrpctlsconfig* Config,xrpctls** Peer);
+XRPC_API xrpcduplexadmission xrpcTlsCall(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
+XRPC_API xrpcduplexadmission xrpcTlsNotify(xrpctls* Peer,xstrview Method,xstrview Params,int64 Timeout,xfuture** Future);
+XRPC_API xrpcduplexadmission xrpcTlsBatch(xrpctls* Peer,const xrpcduplexitem* Items,size_t Count,int64 Timeout,xfuture** Future);
+/* Concurrent aborting close, no reconnect/replay. Whole plaintext acceptance is
+ * not delivery/business ACK. Once an offer starts, cancellation/timeout retains
+ * MAY_HAVE_EXECUTED, including refusal/partial record acceptance. Protocol,
+ * resource, scheduling and channel failures close the connection. Native TLS
+ * errors are copied as kind/code; incoming final plaintext is drained first. */
+XRPC_API bool xrpcTlsClose(xrpctls* Peer);
+XRPC_API bool xrpcTlsInfo(xrpctls* Peer,xrpctlsinfo* Info);
+/* Nonblocking physical query for facade/duplex/post/timer/native TLS+TCP tails.
+ * Keep the sole caller owner stable, stop entries before final success. Poll
+ * nudges closing work; bounded cleanup timers back off, exhausted timer quota
+ * needs Poll/WaitFor progress. Wait rejects every same-Engine Worker. */
+XRPC_API xwaitresult xrpcTlsPollRetired(xrpctls* Peer);
+XRPC_API xwaitresult xrpcTlsWaitFor(xrpctls* Peer,int64 Timeout);
+/* NULL succeeds; requires Close + retirement, never blocks, false retains owner.
+ * Engine stays pinned through successful Destroy; keep it RUNNING. Shared
+ * Server/Engine/external callers join separately before unloading code.
+ * Retained result Futures/response payloads survive peer destruction. */
+XRPC_API bool xrpcTlsDestroy(xrpctls* Peer);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -4790,6 +4955,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP)
 #error "XRPC_FEATURE_XRPC requires tcp"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TLS)
+#error "XRPC_FEATURE_XRPC requires tls"
 #endif
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC)
@@ -4871,6 +5039,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP)
 #undef XRPC_FEATURE_XRPC_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TCP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TLS)
+#undef XRPC_FEATURE_XRPC_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_FEATURE_XRPC_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_ALL)
 #undef XRPC_MODULE_ALL
@@ -4955,6 +5127,10 @@ XRT_EXTERN_C_END
 #if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TCP)
 #undef XRPC_MODULE_XRPC_TCP
 #undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TCP
+#endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TLS)
+#undef XRPC_MODULE_XRPC_TLS
+#undef XRT_DECLARATIONS_RESTORE_XRPC_MODULE_XRPC_TLS
 #endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_FEATURE_ARRAY)
 #undef XRT_FEATURE_ARRAY
@@ -6664,6 +6840,10 @@ XRT_EXTERN_C_END
 #undef XRT_MODULE_TLS_STREAM
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM
 #endif
+#if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE)
+#undef XRT_MODULE_TLS_STREAM_RETIRE
+#undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_TLS_STREAM_RETIRE
+#endif
 #if defined(XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE)
 #undef XRT_MODULE_UNICODE
 #undef XRT_DECLARATIONS_RESTORE_XRT_MODULE_UNICODE
@@ -6741,6 +6921,64 @@ XRT_EXTERN_C_END
 #endif
 #ifndef XRPC_MODULE_XRPC_TCP
 #define XRPC_MODULE_XRPC_TCP
+#endif
+#ifndef XRPC_MODULE_XRPC_TLS
+#define XRPC_MODULE_XRPC_TLS
+#endif
+#endif
+
+/* xrpc_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_TLS)
+#ifndef XRPC_FEATURE_XRPC_TLS
+#define XRPC_FEATURE_XRPC_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
+#endif
+#ifndef XRPC_MODULE_XRPC_FRAME
+#define XRPC_MODULE_XRPC_FRAME
+#endif
+#ifndef XRT_MODULE_TLS_STREAM_RETIRE
+#define XRT_MODULE_TLS_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_TLS_CLIENT_RESUME
+#define XRT_MODULE_TLS_CLIENT_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_SERVER_RESUME
+#define XRT_MODULE_TLS_SERVER_RESUME
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_RSA
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P256
+#define XRT_MODULE_TLS_IDENTITY_P256
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_P384
+#define XRT_MODULE_TLS_IDENTITY_P384
+#endif
+#ifndef XRT_MODULE_TLS_IDENTITY_ED25519
+#define XRT_MODULE_TLS_IDENTITY_ED25519
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_RECORD_AES
+#endif
+#ifndef XRT_MODULE_TLS_RECORD_CHACHA
+#define XRT_MODULE_TLS_RECORD_CHACHA
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#endif
+#ifndef XRT_MODULE_TLS_SCHEDULE_SHA384
+#define XRT_MODULE_TLS_SCHEDULE_SHA384
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P256
+#endif
+#ifndef XRT_MODULE_TLS_KEY_EXCHANGE_P384
+#define XRT_MODULE_TLS_KEY_EXCHANGE_P384
 #endif
 #endif
 

@@ -25,7 +25,7 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. TLS/DNS for duplex, WebSocket/framed stdio,
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. DNS for duplex, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into
@@ -212,7 +212,8 @@ returns owned response Futures. Pending and retained result capacities share
 explicit limits, including reallocation peaks. Close drains, Cancel cooperates
 and drops queued jobs, and Destroy physically joins workers. Handler code/User
 remain borrowed through successful Destroy. This is the execution component;
-server HTTP/WebSocket/stdio transports and final acceptance remain pending.
+See the HTTP and framed TCP/TLS adapters below; WebSocket/stdio transports and
+final acceptance remain pending.
 
 
 Select `XRPC_MODULE_XRPC_HTTP_SERVER` for the bounded HTTP/1 server. It copies
@@ -247,5 +248,6 @@ Optional [stream framing](docs/frame.md) supplies explicit Content-Length and
 uint32 big-endian profiles, incremental bounded buffers, complete-input borrowed
 views, atomic writers and typed EOF/failure. [The example](examples/frame/README.md)
 uses five-byte fragments; independent stdin/stdout tests compose the production
-framer with dispatch. A production process adapter and bidirectional runtime
-remain required; the framing leaf adds no thread, Future, JSON or transport.
+framer with dispatch. The duplex runtime and framed TCP/TLS adapters are available;
+a production process adapter remains required. The framing leaf adds no thread,
+Future, JSON or transport.

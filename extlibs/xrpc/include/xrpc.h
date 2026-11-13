@@ -70,4 +70,8 @@
 #error "XRPC_FEATURE_XRPC requires tcp"
 #endif
 #include <xrpc/tcp.h>
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TLS)
+#error "XRPC_FEATURE_XRPC requires tls"
+#endif
+#include <xrpc/tls.h>
 #endif

@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `121` 个函数、`195` 个常量或宏、
-`97` 个公共类型。
+当前登记 `133` 个函数、`209` 个常量或宏、
+`102` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -630,6 +630,50 @@
 - `xrpctcpinfo`
 - `xrpctcpreason`
 - `xrpctcpstate`
+
+## `extlibs/xrpc/include/xrpc/tls.h`
+
+[查看带契约注释的公共头](../../include/xrpc/tls.h)
+
+### 函数 (12)
+
+- `xrpcTlsAccept`
+- `xrpcTlsAttach`
+- `xrpcTlsBatch`
+- `xrpcTlsCall`
+- `xrpcTlsClose`
+- `xrpcTlsConfigInit`
+- `xrpcTlsConnect`
+- `xrpcTlsDestroy`
+- `xrpcTlsInfo`
+- `xrpcTlsNotify`
+- `xrpcTlsPollRetired`
+- `xrpcTlsWaitFor`
+
+### 常量与宏 (14)
+
+- `XRPC_FEATURE_XRPC_TLS`
+- `XRPC_TLS_CLOSED`
+- `XRPC_TLS_CLOSING`
+- `XRPC_TLS_CONNECTING`
+- `XRPC_TLS_ENGINE`
+- `XRPC_TLS_HANDSHAKE`
+- `XRPC_TLS_HANDSHAKING`
+- `XRPC_TLS_LIMIT`
+- `XRPC_TLS_LOCAL`
+- `XRPC_TLS_MEMORY`
+- `XRPC_TLS_OPEN`
+- `XRPC_TLS_PROTOCOL`
+- `XRPC_TLS_TIMEOUT`
+- `XRPC_TLS_TRANSPORT`
+
+### 类型 (5)
+
+- `xrpctls`
+- `xrpctlsconfig`
+- `xrpctlsinfo`
+- `xrpctlsreason`
+- `xrpctlsstate`
 
 ## `extlibs/xrpc/include/xrpc/types.h`
 

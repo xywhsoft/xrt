@@ -396,7 +396,7 @@ Done:
 }
 XRPC_API xrpcduplexadmission xrpcDuplexReceive(xrpcduplex* D,xstrview Input,xbytesview Context)
 {return xrpcDuplexReceiveImpl(D,Input,Context,xrtTimer());}
-#if defined(XRPC_FEATURE_XRPC_TCP)
+#if defined(XRPC_FEATURE_XRPC_TCP) || defined(XRPC_FEATURE_XRPC_TLS)
 xrpcduplexadmission xrpcDuplexSubmitEntered(xrpcduplex* D,const xrpcduplexitem* Items,size_t Count,bool Batch,int64 Timeout,xfuture** Future,double Entered)
 {return xrpcDuplexSubmit(D,Items,Count,Batch,Timeout,Future,Entered);}
 xrpcduplexadmission xrpcDuplexReceiveEntered(xrpcduplex* D,xstrview Input,xbytesview Context,double Entered)

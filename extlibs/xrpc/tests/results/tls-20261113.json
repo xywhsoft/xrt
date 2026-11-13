@@ -1,0 +1,1414 @@
+{
+  "schema": 1,
+  "stage": "bounded framed bidirectional TLS transport",
+  "maturity": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "parent_revision": "e15d65d6413dfce61dd84c24b082e0bd2d970eef",
+  "development": {
+    "path": "D:/GIT/xrt",
+    "branch": "master",
+    "branch_operations": false,
+    "pushed": false,
+    "previous_turn": "progress",
+    "migration_ancestors": [
+      "05dc625d",
+      "f0e0955c"
+    ],
+    "retired_worktree_untouched": true
+  },
+  "source_identity": {
+    "final_sha256": "1e87753946eda75d7829490344d7929ed2c4f23019c67b8c0f742e65b824d5cb",
+    "inputs": 2715,
+    "earlier_cohort": {
+      "sha256": "ad4ed59e653830df5b5d249337c328b2a0dc6c0a2e648269b6be4dca7f8e0874",
+      "excluded_from_final_counts": true,
+      "archive": "cohort-1/",
+      "manifest_sha256": "8a7cffcb9b2db6da8ddb4b40e9dd238e6160d2c1a3d47a1441b28094ecd35260"
+    },
+    "amendment": {
+      "changes": {
+        "extlibs/xrpc/README.md": {
+          "old_sha256": "fb031dd837fba711befc638e8d36b69f444addfe84b5b761fa197bc15355267f",
+          "new_sha256": "228d52266f2a15d105aed66878c612089db92cebac99b347e01a0dc737f16860"
+        },
+        "extlibs/xrpc/src/tcp/tcp.c": {
+          "old_sha256": "37e3a281a85c668dd716f1c926e8a742434645677221c3279d8a25ad3db31f67",
+          "new_sha256": "e94f42617b3dd8c468443e64b1c14adb5c7e8120c6bbd0bb98d5e136329a2c07"
+        },
+        "extlibs/xrpc/src/tls/tls.c": {
+          "old_sha256": "33a1849a9434ebe69115a9eb00442ea3828c1428e100a42aadd31c8dfe253a33",
+          "new_sha256": "476675c75c143e625695ff2d55251921a953a5c3af4b689b97602be9b8fc624a"
+        },
+        "single/extlibs/xrpc.h": {
+          "old_sha256": "3ecd849c9ee03f030eac4271d8e85f0bca721bd3d6f5170c46de8237bc5f5701",
+          "new_sha256": "826276c128b9d275539a9295039d146a8e3813cfd8c1fdf8fddc96af72aebc26"
+        }
+      },
+      "production_changed": true,
+      "reason": "Full root-single GCC -Werror found default ConfigInit return could be ignored on an invalid stack-range path in both TCP and new TLS factory. Zero initialize the cold local and honor ConfigInit failure. Regenerate single; correct two historical README pending claims. All final functional/delivery/sanitizer/performance inputs rerun fresh; original cohort excluded from final counts."
+    }
+  },
+  "implementation": [
+    "12 public xrpcTls APIs; same bounded duplex/frame/shared business executor and borrowed host Engine, only public native TLS/TCP APIs, no new runtime/thread.",
+    "Synchronous native policy/session snapshot, numeric client connect, deferred accepted-TCP handoff and one-time OPEN owned-TLS adoption outside callbacks; consumes exactly one native caller owner only on success.",
+    "Native TLS accepted-prefix offsets advance across header/body even on positive AGAIN; OK short prefixes self-wake; ERROR after prefix retains uncertainty, no replay. No full-frame adapter staging buffer; native record/ciphertext copies remain.",
+    "Original entry deadlines cover admission and TCP+TLS setup; bounded frame timeout, copied request context/name/ALPN metadata, per-turn bytes/frames/submitters and RPC ciphertext offer admission. Native control traffic separately bounded by Core Context/TCP, not MaxCipherBytes alone.",
+    "Typed terminal reason, copied negotiated version/cipher/resumed/opaque ALPN and error kind/code/domain; drain final buffered plaintext before EOF failure; protocol/resource/scheduler failures close.",
+    "Poll/Wait compose actual duplex/post/timer and public TLS/TCP retirement, release native owned data/session on Worker after native barrier, bounded cleanup backoff, exhausted timer quota needs Poll/Wait nudge. Engine remains pinned through Destroy; shared executor/Engine/external callers join separately."
+  ],
+  "verification": {
+    "windows": {
+      "primary_program_executions": 142,
+      "functional_regression_programs": 27,
+      "independent_tls_sessions": 32,
+      "production_tu_prefix_probe_programs": 1,
+      "functional_benchmark_smokes": 3,
+      "delivery_example_programs": 6,
+      "root_single_example_programs": 1,
+      "performance_programs": 72,
+      "tsan_programs": 0,
+      "root_modular_rpc_programs": 19,
+      "root_support_programs": 4,
+      "forms": [
+        "modular",
+        "single",
+        "static",
+        "shared"
+      ],
+      "standalone_declarations_static_shared": true,
+      "root_static_shared_single": true,
+      "root_public_exports": 133,
+      "tls_public_exports": 12,
+      "private_rpc_helpers_exported": false,
+      "interop": {
+        "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+        "python_ssl": "OpenSSL 3.0.16 11 Feb 2025",
+        "openssl_generator": "OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)",
+        "report": "windows-interop.json",
+        "report_sha256": "db63213a56cc2610d4bd4b8cec41bf50c694f55cc9384fa613119d643dd1ac0f"
+      },
+      "footprint": {
+        "xrpc_tcp": {
+          "suite": "xrpc_tcp",
+          "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 631032,
+              "data": 2712,
+              "bss": 11168,
+              "members": 1,
+              "load": 633744,
+              "file": 912397,
+              "path": "out/size/gnu/native/xrpc_tcp/single/xrpc_single.o",
+              "compile_seconds": 15.011515200007125,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 94192,
+              "data": 0,
+              "bss": 0,
+              "members": 12,
+              "load": 94192,
+              "file": 147320,
+              "path": "release/gnu/native/xrpc_tcp/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 138768,
+              "data": 224,
+              "bss": 2848,
+              "members": 1,
+              "load": 138992,
+              "file": 207991,
+              "path": "release/gnu/native/xrpc_tcp/shared/xrpc.dll"
+            }
+          }
+        },
+        "xrpc_tls": {
+          "suite": "xrpc_tls",
+          "description": "Bidirectional native TLS and framing, independent of HTTP/WebSocket/DNS/process adapters",
+          "forbid_symbols": [
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 1298032,
+              "data": 2712,
+              "bss": 11200,
+              "members": 1,
+              "load": 1300744,
+              "file": 1728592,
+              "path": "out/size/gnu/native/xrpc_tls/single/xrpc_single.o",
+              "compile_seconds": 26.206505900001503,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 99468,
+              "data": 0,
+              "bss": 0,
+              "members": 12,
+              "load": 99468,
+              "file": 155844,
+              "path": "release/gnu/native/xrpc_tls/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 145880,
+              "data": 224,
+              "bss": 2848,
+              "members": 1,
+              "load": 146104,
+              "file": 218983,
+              "path": "release/gnu/native/xrpc_tls/shared/xrpc.dll"
+            }
+          }
+        }
+      },
+      "footprint_artifacts": {
+        "xrpc_tcp": {
+          "single": [
+            {
+              "path": "footprint/windows/xrpc_tcp/single/xrpc_single.o",
+              "sha256": "9c1a8c58153c93a52a599eed331f1fcc6632e5daffe2933c4481f6151983d550",
+              "defined_symbols": 2319,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 631032,
+                "data": 2712,
+                "bss": 11168,
+                "members": 1,
+                "load": 633744,
+                "file": 912397,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/xrpc_tcp/static/libxrpc.a",
+              "sha256": "8b8d30ac6f7c52523489be6a2fffa7de92634c32c7cac15e32ea702f2bf396d7",
+              "defined_symbols": 279,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 94192,
+                "data": 0,
+                "bss": 0,
+                "members": 12,
+                "load": 94192,
+                "file": 147320,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/static/libxrt.a",
+              "sha256": "ec5fcd68a1f0f9b8800f9613d44255deef4e65fb4e1bfc7a0249b2bf27212263",
+              "defined_symbols": 2486,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 453696,
+                "data": 2728,
+                "bss": 11232,
+                "members": 54,
+                "load": 456424,
+                "file": 825720,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/libxrpc.dll.a",
+              "sha256": "e32d0bf6e8b10defe0d76f90b797e6b298f67d01bc64cf13b8531f9af0a292e5",
+              "defined_symbols": 603,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 680,
+                "data": 0,
+                "bss": 0,
+                "members": 87,
+                "load": 680,
+                "file": 55736,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/shared/libxrpc.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/libxrt.dll.a",
+              "sha256": "44d7d9973fb5515e908ae5027a5a769a31d28191d03e8cb9a22e8bd17ef6098e",
+              "defined_symbols": 6903,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 7880,
+                "data": 0,
+                "bss": 0,
+                "members": 987,
+                "load": 7880,
+                "file": 635278,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/shared/libxrt.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/xrpc.dll",
+              "sha256": "cc1bb6cde91a35ebfe3652c8af60644a26b7db40e1111a04d047384ffc0cde54",
+              "defined_symbols": 1734,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 138768,
+                "data": 224,
+                "bss": 2848,
+                "members": 1,
+                "load": 138992,
+                "file": 207991,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/shared/xrpc.dll"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/xrt.dll",
+              "sha256": "9fbd846ec6c40f6e0b509dedb34f7b18d41ec493558e8bed698161be72ccce34",
+              "defined_symbols": 4159,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 558695,
+                "data": 3512,
+                "bss": 14096,
+                "members": 1,
+                "load": 562207,
+                "file": 756450,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tcp/shared/xrt.dll"
+              }
+            }
+          ]
+        },
+        "xrpc_tls": {
+          "single": [
+            {
+              "path": "footprint/windows/xrpc_tls/single/xrpc_single.o",
+              "sha256": "4b656c14bc4c02a619ea4bcedb0223471bb1b7ddc6e7e13f5f0629ba53290bf0",
+              "defined_symbols": 3529,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1298032,
+                "data": 2712,
+                "bss": 11200,
+                "members": 1,
+                "load": 1300744,
+                "file": 1728592,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/xrpc_tls/static/libxrpc.a",
+              "sha256": "11f1fc7ec084bf65efe1d404a0ba3913d80fd7bcaf57b2e56824aed5e162f828",
+              "defined_symbols": 290,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 99468,
+                "data": 0,
+                "bss": 0,
+                "members": 12,
+                "load": 99468,
+                "file": 155844,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tls/static/libxrt.a",
+              "sha256": "9c213377baec3cbd33e454edffdc9f7aca127d023eca30b9893d3c26f5fe8fde",
+              "defined_symbols": 4557,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1027208,
+                "data": 2744,
+                "bss": 11264,
+                "members": 166,
+                "load": 1029952,
+                "file": 1763822,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/xrpc_tls/shared/libxrpc.dll.a",
+              "sha256": "b74fcb996a06f03ff87f25987a601ede3b870e698aeb90dfb9672fb7012e41a8",
+              "defined_symbols": 610,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 688,
+                "data": 0,
+                "bss": 0,
+                "members": 88,
+                "load": 688,
+                "file": 56360,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/shared/libxrpc.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tls/shared/libxrt.dll.a",
+              "sha256": "42212afbffb391aaf667ffcb716ac1a45c55c36a9dbca68c389e651cf83dfb4e",
+              "defined_symbols": 10228,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 11680,
+                "data": 0,
+                "bss": 0,
+                "members": 1462,
+                "load": 11680,
+                "file": 946060,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/shared/libxrt.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tls/shared/xrpc.dll",
+              "sha256": "b37f2ca094edfc22e2920be0a200ac530d495b271188f36521be9efaafa0f7b1",
+              "defined_symbols": 1894,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 145880,
+                "data": 224,
+                "bss": 2848,
+                "members": 1,
+                "load": 146104,
+                "file": 218983,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/shared/xrpc.dll"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tls/shared/xrt.dll",
+              "sha256": "60e1562a3d25abcdc97b9b277e1c3994546f1126322e0b4af7307da4f624e932",
+              "defined_symbols": 6204,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1146926,
+                "data": 3544,
+                "bss": 14128,
+                "members": 1,
+                "load": 1150470,
+                "file": 1447429,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/windows/xrpc_tls/shared/xrt.dll"
+              }
+            }
+          ]
+        }
+      },
+      "performance": [
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 15695.113013,
+            "ns_per_call": 63714.099997,
+            "process_cpu_ns_per_call": 70312.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 61.999992,
+            "closed_loop_p99_us": 89.699999,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06458515954363578,
+            "ns_per_call": 0.06347260656888219,
+            "process_cpu_ns_per_call": 0.4444444444444444,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.06774199261186994,
+            "closed_loop_p99_us": 0.23522872057111166,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 13119.786934,
+            "ns_per_call": 76220.750001,
+            "process_cpu_ns_per_call": 93750.0,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 73.699994,
+            "closed_loop_p99_us": 105.200001,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.03879330743405808,
+            "ns_per_call": 0.03820416360324192,
+            "process_cpu_ns_per_call": 0.25,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.0203527289296658,
+            "closed_loop_p99_us": 0.13878322111422786,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 102362.527146,
+            "ns_per_call": 9769.199998,
+            "process_cpu_ns_per_call": 39062.5,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.13498049342112114,
+            "ns_per_call": 0.14856385449137358,
+            "process_cpu_ns_per_call": 1.2,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 72943.184547,
+            "ns_per_call": 13709.300001,
+            "process_cpu_ns_per_call": 31250.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.048055600859342545,
+            "ns_per_call": 0.04867498726786381,
+            "process_cpu_ns_per_call": 0.75,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 3612.064295,
+            "ns_per_call": 276850.000006,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 271.500001,
+            "closed_loop_p99_us": 352.699994,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06043671019427404,
+            "ns_per_call": 0.0623857120484944,
+            "process_cpu_ns_per_call": 0.3,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.044935454714786514,
+            "closed_loop_p99_us": 0.21888292405244564,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 2377.747994,
+            "ns_per_call": 420566.015634,
+            "process_cpu_ns_per_call": 457763.671875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 409.100001,
+            "closed_loop_p99_us": 534.700011,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.026886776547102833,
+            "ns_per_call": 0.02730973604865731,
+            "process_cpu_ns_per_call": 0.2,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.007088714233466831,
+            "closed_loop_p99_us": 0.14886851199260573,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 9123.209659,
+            "ns_per_call": 109610.546872,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.43686760898541793,
+            "ns_per_call": 0.6758035375510247,
+            "process_cpu_ns_per_call": 0.4,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": false
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 6308.767338,
+            "ns_per_call": 158509.570326,
+            "process_cpu_ns_per_call": 488281.25,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.2561870423188524,
+            "ns_per_call": 0.33121767843432437,
+            "process_cpu_ns_per_call": 0.375,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": false
+        }
+      ],
+      "heap": [
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 15608.661593,
+            "ns_per_call": 64066.992167,
+            "process_cpu_ns_per_call": 61035.15625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 64.799999,
+            "closed_loop_p99_us": 75.500007,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-perf-heap-tcp-p7-w1.log",
+          "log_sha256": "24a8e3fed35d898150e1cc6270ace6740ebe29dc2dd2969e60577964dc306871",
+          "binary_sha256": "5e50672a5f4aa3b6f71abb8e41319c2f12421924d3a4867b7a95d700b9c4fdba"
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 13163.578028,
+            "ns_per_call": 75967.187485,
+            "process_cpu_ns_per_call": 0.0,
+            "completed": 512.0,
+            "closed_loop_p50_us": 74.899988,
+            "closed_loop_p99_us": 105.400002,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2519.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-perf-heap-tls-p7-w1.log",
+          "log_sha256": "a5042e5162936504df4f7ed0ab4213e8b0c6a6ba201a69565661ee40531b3343",
+          "binary_sha256": "29db8ada252d12a4cafce18b244b95dad60ad11de84690ece4e9290949767016"
+        },
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 100680.379123,
+            "ns_per_call": 9932.421875,
+            "process_cpu_ns_per_call": 61035.15625,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2362.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-perf-heap-tcp-p7-w32.log",
+          "log_sha256": "c52f875ea9417cf3fa62edf3d5cd36dfcd208af55071b359bf2eae2695e714ff",
+          "binary_sha256": "5e50672a5f4aa3b6f71abb8e41319c2f12421924d3a4867b7a95d700b9c4fdba"
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 67598.790582,
+            "ns_per_call": 14793.16407,
+            "process_cpu_ns_per_call": 0.0,
+            "completed": 512.0,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2522.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-perf-heap-tls-p7-w32.log",
+          "log_sha256": "1a4b4845cb5e8b9a6125a4461476c24db443a15689745f34722dd2a1fc22c667",
+          "binary_sha256": "29db8ada252d12a4cafce18b244b95dad60ad11de84690ece4e9290949767016"
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 3559.517992,
+            "ns_per_call": 280936.914038,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 272.999998,
+            "closed_loop_p99_us": 345.599998,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84370.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-perf-heap-tcp-p16384-w1.log",
+          "log_sha256": "2d9f3f6961074c53c2df0818cc21946ee8a7c40525ee8a0379fc5613a7bcb9f2",
+          "binary_sha256": "5e50672a5f4aa3b6f71abb8e41319c2f12421924d3a4867b7a95d700b9c4fdba"
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2287.26125,
+            "ns_per_call": 437204.101559,
+            "process_cpu_ns_per_call": 457763.671875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 424.600003,
+            "closed_loop_p99_us": 554.400001,
+            "heap_blocks_per_call": 21.0,
+            "heap_bytes_per_call": 84850.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-perf-heap-tls-p16384-w1.log",
+          "log_sha256": "b3a26a64bc4c744c4abb1587767875348c066850f5a463cdd16a84cfaf041a78",
+          "binary_sha256": "29db8ada252d12a4cafce18b244b95dad60ad11de84690ece4e9290949767016"
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 8604.911859,
+            "ns_per_call": 116212.695303,
+            "process_cpu_ns_per_call": 427246.09375,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84373.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-perf-heap-tcp-p16384-w32.log",
+          "log_sha256": "d6f864e91502880da616172bca6605a2a2fc7734bed6519c19b7a4fef5ff4434",
+          "binary_sha256": "5e50672a5f4aa3b6f71abb8e41319c2f12421924d3a4867b7a95d700b9c4fdba"
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 4232.279396,
+            "ns_per_call": 236279.2969,
+            "process_cpu_ns_per_call": 518798.828125,
+            "completed": 512.0,
+            "heap_blocks_per_call": 21.169922,
+            "heap_bytes_per_call": 85941.46875,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-perf-heap-tls-p16384-w32.log",
+          "log_sha256": "b833a4b64ab42c1d13eb6c8e2ca0468f73d4022498351b4a321a89769edfbec2",
+          "binary_sha256": "29db8ada252d12a4cafce18b244b95dad60ad11de84690ece4e9290949767016"
+        }
+      ]
+    },
+    "wsl": {
+      "primary_program_executions": 144,
+      "functional_regression_programs": 27,
+      "independent_tls_sessions": 32,
+      "production_tu_prefix_probe_programs": 1,
+      "functional_benchmark_smokes": 3,
+      "delivery_example_programs": 6,
+      "root_single_example_programs": 1,
+      "performance_programs": 72,
+      "tsan_programs": 2,
+      "root_modular_rpc_programs": 19,
+      "root_support_programs": 4,
+      "forms": [
+        "modular",
+        "single",
+        "static",
+        "shared"
+      ],
+      "standalone_declarations_static_shared": true,
+      "root_static_shared_single": true,
+      "root_public_exports": 133,
+      "tls_public_exports": 12,
+      "private_rpc_helpers_exported": false,
+      "interop": {
+        "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+        "python_ssl": "OpenSSL 3.5.5 27 Jan 2026",
+        "openssl_generator": "OpenSSL 3.5.5 27 Jan 2026 (Library: OpenSSL 3.5.5 27 Jan 2026)",
+        "report": "wsl-interop.json",
+        "report_sha256": "6e371c194d3affd84d6f290ad0f0cf1a2366c76a1dc1cd450432e2e274fe32f7"
+      },
+      "footprint": {
+        "xrpc_tcp": {
+          "suite": "xrpc_tcp",
+          "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 650960,
+              "data": 5728,
+              "bss": 10948,
+              "members": 1,
+              "load": 656688,
+              "file": 1151648,
+              "path": "out/size/gnu/x64/xrpc_tcp/single/xrpc_single.o",
+              "compile_seconds": 10.405521469000064,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 97961,
+              "data": 200,
+              "bss": 0,
+              "members": 12,
+              "load": 98161,
+              "file": 192586,
+              "path": "release/gnu/x64/xrpc_tcp/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 115379,
+              "data": 1960,
+              "bss": 8,
+              "members": 1,
+              "load": 117339,
+              "file": 139864,
+              "path": "release/gnu/x64/xrpc_tcp/shared/libxrpc.so"
+            }
+          }
+        },
+        "xrpc_tls": {
+          "suite": "xrpc_tls",
+          "description": "Bidirectional native TLS and framing, independent of HTTP/WebSocket/DNS/process adapters",
+          "forbid_symbols": [
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 1326489,
+              "data": 7024,
+              "bss": 10948,
+              "members": 1,
+              "load": 1333513,
+              "file": 2181160,
+              "path": "out/size/gnu/x64/xrpc_tls/single/xrpc_single.o",
+              "compile_seconds": 24.51390836199994,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 103735,
+              "data": 296,
+              "bss": 0,
+              "members": 12,
+              "load": 104031,
+              "file": 204036,
+              "path": "release/gnu/x64/xrpc_tls/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 123519,
+              "data": 2224,
+              "bss": 8,
+              "members": 1,
+              "load": 125743,
+              "file": 149728,
+              "path": "release/gnu/x64/xrpc_tls/shared/libxrpc.so"
+            }
+          }
+        }
+      },
+      "footprint_artifacts": {
+        "xrpc_tcp": {
+          "single": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/single/xrpc_single.o",
+              "sha256": "ae05d49f0c8d6b8cb187b79e4a1bec5dc840c6729dbfa8522077f188610a590e",
+              "defined_symbols": 3096,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 650960,
+                "data": 5728,
+                "bss": 10948,
+                "members": 1,
+                "load": 656688,
+                "file": 1151648,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tcp/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/static/libxrpc.a",
+              "sha256": "95a27a03fc1cf05d08fd8e5b3df60b035274f2cd86d593f4c19d9e634bd23ce0",
+              "defined_symbols": 451,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 97961,
+                "data": 200,
+                "bss": 0,
+                "members": 12,
+                "load": 98161,
+                "file": 192586,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tcp/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp/static/libxrt.a",
+              "sha256": "57d403681132e4d5571ae2c10685383b46ce3c906e3efc3fd8d8139e00b38918",
+              "defined_symbols": 2753,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 486691,
+                "data": 5400,
+                "bss": 10953,
+                "members": 54,
+                "load": 492091,
+                "file": 1042174,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tcp/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/shared/libxrpc.so",
+              "sha256": "f225035ba120134976e79d3aa49b47632b538c2159753b68b0a1d9aaa0db2d2e",
+              "defined_symbols": 210,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 115379,
+                "data": 1960,
+                "bss": 8,
+                "members": 1,
+                "load": 117339,
+                "file": 139864,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tcp/shared/libxrpc.so"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp/shared/libxrt.so",
+              "sha256": "ca1de901136bc8448abfdb355ee020650e15c1a2ddac8e34ba3500be03475b4e",
+              "defined_symbols": 2066,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 584882,
+                "data": 10592,
+                "bss": 11016,
+                "members": 1,
+                "load": 595474,
+                "file": 702256,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tcp/shared/libxrt.so"
+              }
+            }
+          ]
+        },
+        "xrpc_tls": {
+          "single": [
+            {
+              "path": "footprint/wsl/xrpc_tls/single/xrpc_single.o",
+              "sha256": "03a85ec9b6c8043a8b26761cbd0229f8a12ecd3d411e24277655daada1d09289",
+              "defined_symbols": 6006,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1326489,
+                "data": 7024,
+                "bss": 10948,
+                "members": 1,
+                "load": 1333513,
+                "file": 2181160,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tls/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/xrpc_tls/static/libxrpc.a",
+              "sha256": "eee8aad2399b4c34015f4c041146b017c5b5c12f9533253f722abfe2664b9f31",
+              "defined_symbols": 468,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 103735,
+                "data": 296,
+                "bss": 0,
+                "members": 12,
+                "load": 104031,
+                "file": 204036,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tls/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tls/static/libxrt.a",
+              "sha256": "2bd33f3027716abf08d781e908f84f107dc47e508f0842bd51fa4bac0d5bbb38",
+              "defined_symbols": 5686,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1065942,
+                "data": 6148,
+                "bss": 10953,
+                "members": 166,
+                "load": 1072090,
+                "file": 2246798,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tls/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/xrpc_tls/shared/libxrpc.so",
+              "sha256": "4624f0b50717cba16118339c94472e1bbb8a3314fb3669d195170434a342acf5",
+              "defined_symbols": 221,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 123519,
+                "data": 2224,
+                "bss": 8,
+                "members": 1,
+                "load": 125743,
+                "file": 149728,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tls/shared/libxrpc.so"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tls/shared/libxrt.so",
+              "sha256": "459f352cd40e2b8681e9d7c50585563abce14b1e56c88d0d092789dfe8c1a85d",
+              "defined_symbols": 3228,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 1209485,
+                "data": 14192,
+                "bss": 11016,
+                "members": 1,
+                "load": 1223677,
+                "file": 1388992,
+                "path": "out/service-extensions/xrpc-duplex-tls-20261113/footprint/wsl/xrpc_tls/shared/libxrt.so"
+              }
+            }
+          ]
+        }
+      },
+      "performance": [
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 6743.63692,
+            "ns_per_call": 148287.936,
+            "process_cpu_ns_per_call": 179586.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 144.6,
+            "closed_loop_p99_us": 207.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.050042062466198176,
+            "ns_per_call": 0.05048215452941496,
+            "process_cpu_ns_per_call": 0.021953209177749997,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.04564315352697111,
+            "closed_loop_p99_us": 0.1613526570048308,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 6153.395934,
+            "ns_per_call": 162511.8895,
+            "process_cpu_ns_per_call": 188506.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 157.0,
+            "closed_loop_p99_us": 225.9,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.02473339951344002,
+            "ns_per_call": 0.02481095390869855,
+            "process_cpu_ns_per_call": 0.015795211305710943,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.02293630573248407,
+            "closed_loop_p99_us": 0.22576361221779548,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 51617.965117,
+            "ns_per_call": 19373.1,
+            "process_cpu_ns_per_call": 44663.5,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06793123789463694,
+            "ns_per_call": 0.06574830564029513,
+            "process_cpu_ns_per_call": 0.043480694526850786,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 39400.87347,
+            "ns_per_call": 25380.148,
+            "process_cpu_ns_per_call": 56394.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.05265468920580246,
+            "ns_per_call": 0.05274397927072757,
+            "process_cpu_ns_per_call": 0.05096286839025428,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 2410.069572,
+            "ns_per_call": 414925.78125,
+            "process_cpu_ns_per_call": 458810.546875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 402.1,
+            "closed_loop_p99_us": 530.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.05543551379271127,
+            "ns_per_call": 0.05587953888801644,
+            "process_cpu_ns_per_call": 0.05681300577665584,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.04924148221835367,
+            "closed_loop_p99_us": 0.16867924528301892,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 1,
+          "median": {
+            "calls_per_sec": 1982.002488,
+            "ns_per_call": 504540.234375,
+            "process_cpu_ns_per_call": 546259.765625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 493.0,
+            "closed_loop_p99_us": 652.9,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06054958039992126,
+            "ns_per_call": 0.0608633440265464,
+            "process_cpu_ns_per_call": 0.06137976652305272,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.051115618661257585,
+            "closed_loop_p99_us": 0.31306478786950526,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 7347.538996,
+            "ns_per_call": 136099.992187,
+            "process_cpu_ns_per_call": 352244.140625,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.033796619539574566,
+            "ns_per_call": 0.0341229469405039,
+            "process_cpu_ns_per_call": 0.041358698967002866,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 32,
+          "median": {
+            "calls_per_sec": 6022.402868,
+            "ns_per_call": 166046.679688,
+            "process_cpu_ns_per_call": 430445.3125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.07010696033694822,
+            "ns_per_call": 0.06706971284174879,
+            "process_cpu_ns_per_call": 0.06502168902118083,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        }
+      ],
+      "heap": [
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6863.437579,
+            "ns_per_call": 145699.583984,
+            "process_cpu_ns_per_call": 175068.359375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 143.3,
+            "closed_loop_p99_us": 192.5,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2887.0,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-perf-heap-tcp-p7-w1.log",
+          "log_sha256": "375c2ffb04bd975ee74aad90e698fc2b5997637bba0b30868651deb50ed349e3",
+          "binary_sha256": "0993968c1edfe7030c2d84d85b215972a9f3117b211760cde500c7ad3e588066"
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6119.571771,
+            "ns_per_call": 163410.126953,
+            "process_cpu_ns_per_call": 190371.09375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 160.5,
+            "closed_loop_p99_us": 213.2,
+            "heap_blocks_per_call": 18.0,
+            "heap_bytes_per_call": 3047.0,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-perf-heap-tls-p7-w1.log",
+          "log_sha256": "c89a7017609795b3376fb0790351268e22328d1c4963c0d1e8a867c8976678a6",
+          "binary_sha256": "6bc94a9c7fbf4244f5c3bdb5dc5649cea1a70d3b05c64ab934f5dd04aec54a4f"
+        },
+        {
+          "kind": "tcp",
+          "payload": 7,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 50646.444491,
+            "ns_per_call": 19744.722656,
+            "process_cpu_ns_per_call": 46505.859375,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.087891,
+            "heap_bytes_per_call": 2782.921875,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-perf-heap-tcp-p7-w32.log",
+          "log_sha256": "45e6cee6367c8cfc448812bcd632c985c4649688eb70b8c8a1dbca7560f46d2a",
+          "binary_sha256": "0993968c1edfe7030c2d84d85b215972a9f3117b211760cde500c7ad3e588066"
+        },
+        {
+          "kind": "tls",
+          "payload": 7,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 39030.345942,
+            "ns_per_call": 25621.089844,
+            "process_cpu_ns_per_call": 56574.21875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 16.107422,
+            "heap_bytes_per_call": 2944.015625,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-perf-heap-tls-p7-w32.log",
+          "log_sha256": "8c7b00687c229ad4d686f7bba0ab1d9296dc02a7af16a099a98d5e226979ea44",
+          "binary_sha256": "6bc94a9c7fbf4244f5c3bdb5dc5649cea1a70d3b05c64ab934f5dd04aec54a4f"
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2478.59592,
+            "ns_per_call": 403454.226562,
+            "process_cpu_ns_per_call": 453027.34375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 394.0,
+            "closed_loop_p99_us": 492.8,
+            "heap_blocks_per_call": 17.0,
+            "heap_bytes_per_call": 84898.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-perf-heap-tcp-p16384-w1.log",
+          "log_sha256": "618f55ea447a54b2b4bb6fafde280a70c4fd1eb4271ba6f686da623b259769da",
+          "binary_sha256": "0993968c1edfe7030c2d84d85b215972a9f3117b211760cde500c7ad3e588066"
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 1,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2057.841776,
+            "ns_per_call": 485946.009766,
+            "process_cpu_ns_per_call": 534267.578125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 472.7,
+            "closed_loop_p99_us": 627.0,
+            "heap_blocks_per_call": 23.0,
+            "heap_bytes_per_call": 85378.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-perf-heap-tls-p16384-w1.log",
+          "log_sha256": "052cb512a80bb12e6f57e8041da5f4195f9d4d2df3dfe259fd80b1edacd051c1",
+          "binary_sha256": "6bc94a9c7fbf4244f5c3bdb5dc5649cea1a70d3b05c64ab934f5dd04aec54a4f"
+        },
+        {
+          "kind": "tcp",
+          "payload": 16384,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 7419.592198,
+            "ns_per_call": 134778.296875,
+            "process_cpu_ns_per_call": 354371.09375,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.066406,
+            "heap_bytes_per_call": 84792.71875,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-perf-heap-tcp-p16384-w32.log",
+          "log_sha256": "b30f7ddaf6e32ed15db4b75e8f8b84ae41d875f1eb2cd7acab4e4ee6f6416b61",
+          "binary_sha256": "0993968c1edfe7030c2d84d85b215972a9f3117b211760cde500c7ad3e588066"
+        },
+        {
+          "kind": "tls",
+          "payload": 16384,
+          "width": 32,
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6162.795095,
+            "ns_per_call": 162264.035156,
+            "process_cpu_ns_per_call": 423429.6875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 21.123047,
+            "heap_bytes_per_call": 85275.890625,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-perf-heap-tls-p16384-w32.log",
+          "log_sha256": "935702ac3fab6e253aa8c9e229e9bceb2869c010cd08b87f45d7c40a6d473740",
+          "binary_sha256": "6bc94a9c7fbf4244f5c3bdb5dc5649cea1a70d3b05c64ab934f5dd04aec54a4f"
+        }
+      ]
+    }
+  },
+  "coverage": [
+    "Two explicit framing formats, 1B/7B short writes and 3B/7B reads, bidirectional call/error/notification/batch, exact copied context/policy, zero deadline, cancellation after held business entry, four concurrent producers, retained result ownership.",
+    "Real buffered owned TLS adoption outside Open callback, callback-time adoption rejection, held native TLS alias blocks physical retirement, original native context drops exactly once, Engine pins/resources fully join.",
+    "Held verifier rejection before application writes, independent native raw TLS malformed headers/body limit/authenticated partial-frame EOF/frame timeout/final response+close_notify, actual incoming overload and held executor, constructor allocation budgets and actual timer quota exhaustion, stalled plain peer setup deadline.",
+    "Production-TU interposition over real encrypted sockets: 12 cases across both framings, short OK self-progress with incidental app Writable/Drain suppressed, positive AGAIN, zero refusal offset stability, partial MEMORY and unrelated Worker ambient error isolation. Private native struct access is test-only.",
+    "32 Python/OpenSSL TLS1.3 sessions per host: native client/server, two framings, 1B/coalesced writes and RSA/P256/P384/Ed25519 identities. Python client performs actual generated-CA PKIX+hostname validation; native client performs explicit DER+name pin, not PKIX. Validates bidirectional callback, batch/notify/null/Unicode/NUL/wide numeric IDs and payloads before closure. Ephemeral private keys removed and never archived.",
+    "Windows native regression; WSL ASan/UBSan/leak functional tests plus TSan single and production-TU probe. GCC unsupported standalone atomic_thread_fence instrumentation warning retained with -Wno-error=tsan. Generated features/amalgamation/API docs/maturity all pass."
+  ],
+  "cost_and_measurement_scope": [
+    "Cold path: peer plus scratch/context allocation, native copied Session metadata and retained crypto policy, duplex/frame allocations, mutex/condition/post/timer, Engine pin, socket/TLS record buffers and cryptographic handshake. Ownership/context code stays borrowed through final destruction.",
+    "Steady path includes admission and JSON/result/frame copies/allocations, native record/encryption/ciphertext copies, per-offer public send-bound checks (bounded binary search under pressure), worker posts, timer deadlines, peer gate/counters and reference-drop mutex+broadcast. No end-to-end zero-copy/zero-overhead claim.",
+    "FixedBytes covers facade/scratch/copied request context only; FrameStorage/observed CipherBytes are separate. MaxObservedCipherBytes is sampled, not an instantaneous whole-connection peak. Allocator reservations, native pools/OS resources and other peers are outside facade figures.",
+    "Footprint single includes selected Core+RPC closure; static/shared primary size rows describe xrpc artifact only. Preserved footprint_artifacts include actual companion Core libraries with separate size metrics and forbidden-symbol audit; import archives are not runtime resident size.",
+    "Eight one-connection cases per host: plain TCP/TLS,7B/16KiB,window1/32; one warmup/seven rotated unpinned samples/eight separate heap runs,72 executions per host. Every echo byte is checked; CPU includes all process threads. Handshake excluded from steady samples.",
+    "Plain TCP has no TLS authentication/crypto, so rates are descriptive different-contract baselines, not regression or speedup proof. Throughput spread (max-min)/median <=15% is only a sampling-noise filter. Window1 closed-loop P50/P99 include caller collection and coordinated omission; window32 is a barrier window. No fixed-arrival P95/P999, connection scaling, pinned-host or production acceptance.",
+    "All own build/functional helpers completed before serial host measurement. Initial Windows process inventory still showed transient gcc PID23344 (no cc1); it was already absent at the immediate follow-up and no process identity could be recovered. Idle-machine isolation is not established; preserve runs without retries and make no performance acceptance claim."
+  ],
+  "failures_and_limits": [
+    "All preflight failures retained, including initial compile/style/test selector/profile placement, premature accepted-stream TLS handoff and paused buffered ClientHello. Rejected candidate stalls after two accepted plaintext bytes when incidental write notifications are suppressed; archived candidate/log/executable excluded from final proof.",
+    "Standalone declaration helper initially retained a modular xrt/core.h include in historical certificate data fixture. Helper now copies equivalent public fixture bytes and standalone declarations with no modular include directories; no production workaround.",
+    "First full root-single WSL build reported maybe-uninitialized for unchecked default ConfigInit paths in both original TCP and new TLS. Cold locals now initialize and propagate failure; single regenerated and README historical status corrected. First Windows size run intentionally interrupted after root forms passed; taskkill returned partial failure while reporting unsupported already-changing descendants, and subsequent inventory confirmed all named processes gone before source changes. Full earlier cohort archived with hashes; all final tests/delivery/sanitizers/footprints/performance rerun on final source.",
+    "Native Linux servers, pinned Windows fixed-arrival tail/scale tests, full fault/OOM/session-resumption/key-update/trust-policy matrix, OS-handle baselines and all four-product >=72h acceptance remain open. Native TLS config/credentials/verification callbacks obey Core ownership, limits and nonblocking duties.",
+    "Framed DNS/prepared dial, stdio/WebSocket, transport negotiation, product credentials/recovery and other library release gates remain in the long-term goal. This stage does not complete xredis/xrpc/xmqtt/xcron."
+  ],
+  "negative_control": {
+    "expected_failure_observed": true,
+    "phase": "Historical preflight before first source freeze, excluded from formal final counts",
+    "candidate": "windows-before-short-overlay.c",
+    "candidate_sha256": "49deaab00ae7d98437ab2d486990746d6bc475353c0b1641e0d59fb7d8a64923",
+    "log": "windows-prefix-before.log",
+    "log_sha256": "f7ac3cf451d98d5a1f2adc1668900283a2a6a7c598c0cfd5ae2a794906ad9d76",
+    "binary": "windows-prefix-before.exe",
+    "binary_sha256": "7ed1d188ab65f4dc131efa8095991f64c95a154d3809302202a580909cde053f",
+    "driver": "prefix_preflight.py",
+    "driver_sha256": "e460de6bd9e74ebff9b3c4d6e48ae54487eb062c8717eab4b6f47c34f5d6e4a5",
+    "observation": "Old candidate stops with accepted plaintext prefixes and times out; the strengthened probe reports status/delivery mismatch. Canonical current production-TU probe passes on both final hosts."
+  },
+  "evidence": {
+    "logical_directory": "out/service-extensions/xrpc-duplex-tls-20261113/",
+    "physical_directory": "out/local-service-extensions/xrpc-duplex-tls-20261113/",
+    "receipt_files": {
+      "windows-validate-receipts.json": "e70b586e00e84c71d37654675a30a9e82c093e65ba44ff802ffccdbb305f8d5a",
+      "windows-extras-receipts.json": "12694f71cd5cf6b9c3eb81499d6d2ce560cf7f49979e0747ef46834bf2f7b7de",
+      "windows-delivery-receipts.json": "121e49f85dc9e2668eef7954f00d807b82576810d1bb3f03e1f53431355567a0",
+      "windows-measure-receipts.json": "8221286a016199a9ea774e4ee3839ef672dfbbe281ebfade6ea0348c51f14d67",
+      "windows-performance-receipts.json": "5ba8cab4a1ef5f4e5085cda4f1345728a4110a4131f2bd9bd1933f651870e813",
+      "wsl-validate-receipts.json": "6e478325dfa3c7a7c1ffc7962ce58dafd00ad76ef91edc57fd86c9598393ccfd",
+      "wsl-extras-receipts.json": "5c677fa9a387f483cde0b1cdf224d1ee3ba7e7bface5c84ee7f1ad8bd2a5222b",
+      "wsl-delivery-receipts.json": "ec485b8b54616f22cb562e9cab5f1b50be5c2b568bee9b58e26db464eb4c4e84",
+      "wsl-measure-receipts.json": "46836f05c80be9ec3e38e92a9b69cf5abaed42c7d49a58bf6dafccd6794b9c2c",
+      "wsl-performance-receipts.json": "0ccc5bdd937aaea5ffb788f45fd011801f2d5b22da645e8e23bc9eafb3785560",
+      "wsl-tsan-receipts.json": "5cc3a2bf030267c6abc1aba4929712c3709d393ef248ccc769ba3a42677d73fd"
+    },
+    "selected_receipts_sha256": "dafaf480039d85a03b6f7c08bf9a65821ec4c4b8aa09ceadb1ced2c3e8634cbf",
+    "seal_sha256": "637150977e637b5de1342fc85f90bbcb5d25571a6688cc28333954f43523f86c",
+    "seal_files": 1001,
+    "seal_bytes": 2630804618,
+    "compiler_tool_sources": "Exact final commands/logs and canonical tools are identified by receipts and frozen source map.",
+    "created_utc": "2026-11-13T15:25:52.626219+00:00"
+  }
+}
