@@ -130,10 +130,27 @@ static void testTcpFaults(void)
 }
 static void tcpOccupiedTimer(xnetworker* W,uint64 Id,xnetresult Result,ptr Data)
 {(void)W;(void)Id;(void)Result;(void)Data;}
+typedef struct tcpTimerFill {xnetpost First,Second;xatomic32 Filled;} tcpTimerFill;
+static void tcpTestFillTimers(xnetworker* W,ptr Data)
+{
+    tcpTimerFill* F=Data;
+    for(unsigned N=0;N<2;++N)testRequire(xrtNetEngineAfter(xrtNetWorkerEngine(W),xrtNetWorkerIndex(W),60000,tcpOccupiedTimer,NULL)!=0,"TCP actual owner timer insertion");
+    xrtAtomic32Store(&F->Filled,1,XMEMORY_RELEASE);
+}
+static void tcpTestTimerBarrier(xnetworker* W,ptr Data)
+{
+    tcpTimerFill* F=Data;
+    /* OnOpen can publish OPEN before its Wake is posted. A second FIFO turn
+     * follows that Wake, so the idle peer has cancelled its connect timer. */
+    testRequire(xrtNetPost(W,&F->Second,tcpTestFillTimers,F),"TCP timer second barrier");
+}
 static void testTcpTimerExhaustion(void)
 {
     tcpTest T;tcpTestStartEx(&T,1,false,2);
-    for(unsigned W=0;W<2;++W)for(unsigned N=0;N<2;++N)testRequire(xrtNetEngineAfter(T.Engine,W,60000,tcpOccupiedTimer,NULL)!=0,"TCP fill actual peer timer quota");
+    double ReadyEnd=xrtTimer()+5;xrpctcpinfo Ready={0};Ready.Size=sizeof(Ready);
+    do{testRequire(xrpcTcpInfo(T.Left,&Ready) && xrtTimer()<ReadyEnd,"TCP timer left open");xrtSleep(1);}while(Ready.State!=XRPC_TCP_OPEN);
+    tcpTimerFill Fill;xrtAtomic32Init(&Fill.Filled,0);testRequire(xrtNetPostInit(&Fill.First) && xrtNetPostInit(&Fill.Second) && xrtNetPost(xrtNetEngineWorker(T.Engine,1),&Fill.First,tcpTestTimerBarrier,&Fill),"TCP timer owner barrier");
+    while(!xrtAtomic32Load(&Fill.Filled,XMEMORY_ACQUIRE)){testRequire(xrtTimer()<ReadyEnd,"TCP owner timer quota not filled");xrtSleep(1);}
     xfuture* F=NULL;testRequire(xrpcTcpCall(T.Left,XRT_STR_LITERAL("hold"),(xstrview){0},5000,&F)==XRPC_DUPLEX_ACCEPTED,"TCP timer fault call");
     double End=xrtTimer()+5;xrpctcpinfo I={0};I.Size=sizeof(I);do{testRequire(xrpcTcpInfo(T.Left,&I) && xrtTimer()<End,"TCP timer fault not observed");xrtSleep(1);}while(!I.TimerFailures);
     testRequire(I.Reason==XRPC_TCP_LIMIT,"TCP timer quota reason");xrtAtomic32Store(&T.Permit,1,XMEMORY_RELEASE);tcpTestFinish(&T);xrtFutureDestroy(F);

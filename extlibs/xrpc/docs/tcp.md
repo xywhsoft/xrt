@@ -41,7 +41,16 @@ Attach explicitly handles already buffered input.
 Reading copies bounded native chunks to scratch. Fragmented frames use the
 framer's reusable body buffer; complete frames can borrow scratch only through
 synchronous Duplex admission, which snapshots retained data. Sending copies a
-canonical framing header and body in bounded chunks into the native write queue;
+canonical framing header and body in bounded chunks into the native write queue.
+With an empty native write queue, a chunk can cross the header/body boundary:
+at most two spans are admitted
+atomically by native SendVec, without a contiguous adapter staging copy. A
+single remaining span uses ordinary Send. If bytes are already queued, the
+header prefix and body use ordinary Send so they append into the existing
+native tail; native SendVec would allocate separate atomic buffers for each
+message. This preserves packing under backpressure. AGAIN/error advances neither offset;
+only accepted bytes consume the write budget. This reduces separate small
+header/body send offers without relaxing chunk/byte/turn bounds;
 it is not a zero-copy path. A whole JSON message is selected at a time; there
 is no interleaving of frames. Started is marked immediately before the first
 header/body send offer, and Sent only after every byte has been accepted.
@@ -96,5 +105,31 @@ barrier window of 32, shared business executor and native Content-Length TCP.
 Only pipeline one reports observed closed-loop P50/P99 (including host wait and
 collection); coordinated omission prevents using it as a fixed-arrival tail gate.
 Process CPU includes all threads. A third argument of 1 enables allocation counts
-and is a separate run. No TLS, remote network, connection-scale or native Linux
+and is a separate run. An optional fourth argument sets an exact JSON params
+size (4..524288 bytes); `1000 32 0 16384` exercises multi-chunk messages.
+All runs validate the complete echoed response bytes, and count that validation
+in the observed host latency/CPU. No TLS, remote network, connection-scale or native Linux
 claim follows from these unpinned local measurements.
+
+
+The production-TU send probe is runnable independently:
+
+```sh
+python extlibs/xrpc/tests/interop/run_tcp_gather.py --compiler gcc --arch x64
+python extlibs/xrpc/tests/interop/run_tcp_gather.py --compiler gcc --arch x64 --sanitize address
+python extlibs/xrpc/tests/interop/run_tcp_gather.py --compiler gcc --arch x64 --sanitize thread
+```
+
+Use `--arch native` with the Windows compiler. It verifies both framing formats
+at empty/queued chunk/byte/writable boundaries, refusal without byte advancement and delivery
+uncertainty, then runs real sockets with the ordinary TCP suite. A separate
+instrumented native TCP object counts kernel-facing public send offers for one
+request/reply pair. This is an API-offer count, not an OS syscall trace or a
+system-wide guarantee. A controlled native 16-notification burst also measures
+actual queued buffer blocks and payload capacity before draining and echoing
+all bytes. Readiness send refusal is injected only in the probe; completion
+backends naturally retain in-flight buffers until their worker returns.
+Production code contains no test hooks. Explicit
+`--source <old-tcp.c> --baseline` supports a recorded old/current comparison
+without changing branches. Sanitizer support depends on the compiler/host;
+GCC's standalone-fence TSan warning must remain visible.

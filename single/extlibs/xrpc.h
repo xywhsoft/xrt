@@ -7289,13 +7289,18 @@ static void xrpcTcpWrite(xrpctcp* P)
             xstrview Body=xrpcDuplexOutputWire(P->Output);
             if(!xrpcFrameHeaderWrite(Body.Size,&P->Config.Frame,P->Header,sizeof(P->Header),&P->HeaderBytes)){xrpcTcpFail(P,XRPC_TCP_LIMIT);break;}}
         size_t N=xrtNetStreamWritable(P->Stream);if(!N)return;if(N>Budget)N=Budget;if(N>P->Config.WriteChunkBytes)N=P->Config.WriteChunkBytes;
-        xstrview Body=xrpcDuplexOutputWire(P->Output);const unsigned char* Bytes;
-        if(P->HeaderOffset<P->HeaderBytes){size_t Left=P->HeaderBytes-P->HeaderOffset;if(N>Left)N=Left;Bytes=P->Header+P->HeaderOffset;}
-        else {size_t Left=Body.Size-P->BodyOffset;if(N>Left)N=Left;Bytes=(const unsigned char*)Body.Data+P->BodyOffset;}
+        xstrview Body=xrpcDuplexOutputWire(P->Output);size_t Head=P->HeaderBytes-P->HeaderOffset,Left=Head+Body.Size-P->BodyOffset;
+        if(N>Left)N=Left;
+        /* A queued stream can append into its existing tail. Native SendVec
+         * builds separate atomic buffers, so reserve it for an empty queue. */
+        if(Head && N>Head && xrtNetStreamPending(P->Stream))N=Head;
+        size_t H=Head<N?Head:N;xnetspan Spans[2];size_t Count=0;
+        if(H)Spans[Count++]=(xnetspan){P->Header+P->HeaderOffset,H};
+        if(N>H)Spans[Count++]=(xnetspan){(const unsigned char*)Body.Data+P->BodyOffset,N-H};
         if(!P->Offered){if(!xrpcDuplexStarted(P->Duplex,P->Token)){xrpcTcpWake(P);return;}P->Offered=true;}
-        xnetresult S=xrtNetStreamSend(P->Stream,Bytes,N);
+        xnetresult S=Count==1?xrtNetStreamSend(P->Stream,Spans[0].Data,Spans[0].Size):xrtNetStreamSendVec(P->Stream,Spans,Count);
         if(S!=XNET_RESULT_OK){if(S!=XNET_RESULT_AGAIN)xrpcTcpFail(P,S==XNET_RESULT_ERROR?xrpcTcpLocalFailure():XRPC_TCP_TRANSPORT);return;}
-        if(P->HeaderOffset<P->HeaderBytes)P->HeaderOffset+=N;else P->BodyOffset+=N;
+        P->HeaderOffset+=H;P->BodyOffset+=N-H;
         Budget-=N;xrtMutexLock(&P->Gate);P->Info.WriteBytes+=N;xrtMutexUnlock(&P->Gate);
         if(P->HeaderOffset==P->HeaderBytes && P->BodyOffset==Body.Size){
             if(!xrpcDuplexSent(P->Duplex,P->Token)){xrpcTcpFail(P,XRPC_TCP_PROTOCOL);break;}

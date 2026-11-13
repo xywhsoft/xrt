@@ -12311,3 +12311,69 @@ and out/service-extensions/xrpc-frame-20261112.
   negotiation, credentials/recovery, broader native faults/OOM, connection scale,
   fixed-arrival P99 and all four-product native >=72h gates remain required.
   The full development goal remains active, not production accepted.
+
+
+## 2026-11-13 - Queue-aware gathered RPC TCP writes
+- Continued on `D:/GIT/xrt` master from `4f2c4ab3`; no branch operation or push.
+  Empty native queues gather header/body in one bounded atomic copy offer; queued
+  streams preserve ordinary tail append. No new API/ABI/runtime/thread/adapter
+  heap buffer; native payload copying remains explicit. AGAIN/error leaves both
+  offsets and byte credits unchanged; delivery uncertainty and retirement persist.
+- Native production-TU probes show 4 -> 2 kernel-facing public send offers for
+  one small request/reply pair, not a syscall/packet count. A held native queue
+  with 16 notifications/1152 bytes exposes the rejected unconditional-gather
+  candidate: 16 blocks/8192 payload capacity. Original and final both use 3/1536.
+  Readiness refusal is injected only in the probe; IOCP holds real pending writes.
+  The subsequent echo verifies drain/progress. 156 empty/queued framing/chunk/
+  byte/writable boundary cases, AGAIN and memory refusals, plus full real TCP
+  suites pass. The timer-quota fixture now uses explicit owner FIFO barriers
+  before synchronous quota insertion, removing its preexisting scheduling race.
+- Windows/WSL each pass 22 final root programs, focused/single tests, example,
+  four delivery forms, standalone static/shared declarations, root packages/
+  single example and four independent Python TCP sessions. Three real TCP
+  footprints per host exclude TLS/HTTP/WS/DNS/process symbols; root libraries
+  export exactly 121 public functions, no private helpers. WSL focused/single
+  and production-TU ASan/UBSan/leak pass; production-TU/single TSan pass with
+  the visible GCC standalone-fence warning. Final primary executions including
+  performance are 113 Windows/116 WSL; package verifier executions are additional.
+- The canonical benchmark now verifies every echoed byte and accepts explicit
+  params sizes; 16KiB multi-chunk profiles accompany 7B cases. Matched original/
+  final TUs use identical actual dependency objects, baseline-matched headers,
+  canonical benchmark and options. One warmup/seven rotated unpinned samples,
+  no noise retries. Final throughput medians (calls/s) follow; qualification
+  applies to both old/new throughput samples, not production acceptance.
+
+| Host | Params bytes | Window | Original | Final | Both noise-qualified |
+|---|---:|---:|---:|---:|---|
+| windows | 7 | 1 | 11479.249 | 15656.804 | false |
+| windows | 7 | 32 | 101317.379 | 101328.775 | false |
+| windows | 16384 | 1 | 3562.145 | 3621.712 | true |
+| windows | 16384 | 32 | 7672.848 | 7886.168 | false |
+| wsl | 7 | 1 | 5452.031 | 5890.225 | false |
+| wsl | 7 | 32 | 38180.821 | 51611.396 | true |
+| wsl | 16384 | 1 | 2187.392 | 2198.532 | false |
+| wsl | 16384 | 32 | 7138.309 | 7243.096 | false |
+
+- Qualified WSL 7B/window32 throughput improves about 35.2%, process CPU drops
+  about 25.6%; qualified Windows 16KiB/window1 throughput improves about 1.7%.
+  Most remaining metrics are noise-unqualified, retained without retries.
+  Windows window32 CPU medians rise 5.9%/12.8% for 7B/16KiB, unqualified:
+  non-regression is NOT established there. Heap runs keep Windows 14/15 blocks
+  per 7B/16KiB call; WSL allocator figures/variations remain in the report.
+  Closed-loop P99 includes host byte validation/collection and coordinated
+  omission; it cannot establish fixed-arrival tails. No release gate is claimed.
+- Earlier helper cleanup/unused-function errors, timer-fixture race and rejected
+  unconditional gather are retained. Some superseded executable copies were
+  overwritten by an older repeated-label archiver; their logs/source identities
+  remain, but they are excluded from final proof. Final acceptance uses unique
+  script/log or content-hash executable copies, all rechecked. The rejected
+  candidate is archived under `before-packing-fix/`; both hosts confirm its
+  expected native packing failure. Final production change received fresh full
+  functional/delivery/sanitizer/performance validation, with frozen hashes for
+  2664 inputs. No production check was bypassed.
+- Report: `extlibs/xrpc/tests/results/tcp-gather-20261113.json`; source maps,
+  overlays, logs, binaries, packages, footprints, all samples and receipt hashes:
+  `out/service-extensions/xrpc-tcp-gather-20261113/`. Pinned Windows CPU, native
+  buffer peak/cache, broader fault/OOM, fixed-arrival P99/connection scale,
+  duplex TLS/DNS/stdio/WS/negotiation/credentials/recovery and all four-product
+  native >=72h acceptance remain required. The full goal remains active.

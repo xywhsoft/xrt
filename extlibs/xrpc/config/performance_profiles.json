@@ -4388,6 +4388,68 @@
               "direction": "lower"
             }
           }
+        },
+        {
+          "name": "xrpc_tcp_large_w1",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "1000",
+            "1",
+            "0",
+            "16384"
+          ],
+          "smoke_args": [
+            "64",
+            "1",
+            "1",
+            "16384"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_large_w32",
+          "source": "extlibs/xrpc/bench/bench_tcp.c",
+          "suite": "xrpc_tcp,memory_stats",
+          "args": [
+            "1000",
+            "32",
+            "0",
+            "16384"
+          ],
+          "smoke_args": [
+            "64",
+            "32",
+            "1",
+            "16384"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
         }
       ]
     }
