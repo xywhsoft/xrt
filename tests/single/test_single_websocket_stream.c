@@ -236,7 +236,13 @@ static bool testSingleWsCollectClosed(xwsstream** slot,testsinglews* test)
 		xrtownershipscope frozen={0};size_t count=0,edges=0;
 		if(xrtOwnershipFreezeTryBegin(&frozen)){
 			if(ref.Ops&&ref.Ops->Count(ref.Data,&count)&&count==1&&
-			   ref.Ops->Trace(ref.Data,testSingleWsOwnedVisit,&edges)&&edges==2){
+			   ref.Ops->Trace(ref.Data,testSingleWsOwnedVisit,&edges)&&edges==(
+                #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+                3u /* Engine, Data and the real retained TCP retirement edge. */
+                #else
+                2u
+                #endif
+                )){
 				if(xrtWsStreamOwnershipAdapterV1(ref,NULL,0,&preparing)){
 					(void)xrtOwnershipScopeEnd(&frozen);return false;
 				}

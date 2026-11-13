@@ -26,7 +26,11 @@ void __xrtWsStreamOwnershipLeave(xwsstream* s)
     xrtownershipscope mutation={0};
     if(!xrtOwnershipMutationBegin(&mutation))abort();
     if(!xrtAtomic32FetchSub(&s->OwnershipActive,1,XMEMORY_ACQ_REL))abort();
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    bool last=__xrtWsStreamReferenceRelease(s);
+    #else
     bool last=xrtRefRelease(&s->References)==0;
+    #endif
     if(!xrtOwnershipScopeEnd(&mutation))abort();
     if(last)__xrtWsStreamFree(s);
 }
@@ -69,6 +73,9 @@ static bool __xrtWsOwnedTrace(const void* data,xrtownershipvisitor visit,ptr con
         #endif
         if(!visit(xrtNetStreamOwnership(transport),context))return false;
     }
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    if(s->RetirementTcp && !visit(xrtNetStreamOwnership(s->RetirementTcp),context))return false;
+    #endif
     xerror* error=xrtAtomicPtrLoad(&s->Error,XMEMORY_ACQUIRE);
     return !error||visit(xrtErrorOwnership(error),context);
 }
@@ -196,9 +203,15 @@ static bool __xrtWsOwnedFinish(const void* data,const void* token)
     ptr owner=s->OwnershipDataHeld?s->Data:NULL;s->Data=NULL;s->OwnershipDataHeld=false;
     xnetengine* engine=s->OwnershipEngine;bool storage=s->OwnershipStorageHeld;
     s->OwnershipEngine=NULL;s->OwnershipStorageHeld=false;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    xnetstream* retirement=s->RetirementTcp;s->RetirementTcp=NULL;
+    #endif
     xerror* error=xrtAtomicPtrExchange(&s->Error,NULL,XMEMORY_ACQ_REL);
     if(!xrtOwnershipScopeEnd(&mutation))abort();
     xerror* prior=xrtTakeError();
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    xrtNetStreamDestroy(retirement);
+    #endif
     xrtErrorFree(error);
     if(owner)s->OwnershipPolicy->Drop(owner);
     if(storage)__xrtNetEngineStorageRelease(engine);

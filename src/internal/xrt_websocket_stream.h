@@ -222,7 +222,31 @@ struct xwsstream {
 	bool DrainPending;
 	bool ErrorEmitted;
 	bool CloseEmitted;
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
+		/* Retain TCP, including beneath TLS. Retaining TLS itself would cycle
+		 * with its owned WebSocket event binding until TLS destruction. */
+		xnetstream* RetirementTcp;
+	#endif
 };
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+/* Used by both ordinary and owned-operation releases. No Stream access may
+ * follow a successful fast decrement. Caller still ends its mutation scope. */
+static inline bool __xrtWsStreamReferenceRelease(xwsstream* S)
+{
+    #if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+    int32 Count=__xrtAtomicRefLoad(&S->References);
+    while(Count>2){int32 Seen=__xrtAtomicRefCompareExchange(&S->References,Count-1,Count);if(Seen==Count)return false;Count=Seen;}
+    #endif
+    if(!xrtMutexLock(&S->RetirementLock))abort();
+    bool Last=xrtRefRelease(&S->References)==0;
+    if(!Last && __xrtAtomicRefLoad(&S->References)==1 && !xrtCondBroadcast(&S->RetirementReady))abort();
+    if(!xrtMutexUnlock(&S->RetirementLock))abort();
+    return Last;
+}
+#endif
 
 bool __xrtWsStreamOwnershipEnter(xwsstream* pStream, bool bSubmit);
 void __xrtWsStreamOwnershipLeave(xwsstream* pStream);

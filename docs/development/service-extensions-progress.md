@@ -12740,3 +12740,60 @@ and out/service-extensions/xrpc-frame-20261112.
   fixed arrival/queue wait/CO, worker/connection scale, broader trust/resumption/
   fault/OOM/fuzz/TSan, native Windows/Linux72h, copy/synchronization/syscall counters,
   competitor/minimal-XRT baselines and remaining four-product features stay open.
+
+## 2026-11-14 — Proven optional WebSocket physical retirement foundation
+
+- Direct-master work fromd5579132; previous goal turn made progress. No branch/
+  worktree creation, switch, merge or push. The existing public process IO APIs
+  are synchronous; framed stdio still requires a separately proven async-pipe
+  integration. Do not substitute blocking IO inside shared network Workers.
+- Before Core changes, public-only Windows/WSL reproductions prove WS CLOSED
+  while its application Close callback and native TCP retirement remain live.
+  A shared host cannot replace per-peer retirement by stopping its whole Engine.
+- Add optional `websocket_stream_retire`: `xrtWsStreamPollRetired` and
+  `xrtWsStreamWaitRetired`. Actual sole-caller references plus native TCP duties,
+  same-Engine wait rejection, one original monotonic budget, nonblocking Poll on
+  both mutexes, no allocation on normal queries and exact ambient preservation.
+  No new thread, Engine, timer or shared runtime. Caller-owned Data is not consumed.
+- Retain/trace one real TCP alias, including under TLS; retain no extra TLS alias
+  that could cycle with its owned WS binding. Ordinary destruction and owned-graph
+  Finish release the extra edge. Both ordinary and owned-operation drops notify
+  actual caller-only readiness; above-two releases keep a CAS fast path. External
+  aliases, host join and caller quiescence remain explicit separate duties.
+- ABI parent/off/on private WS sizes: Windows1016/1016/1064, WSL1016/1016/1200.
+  Public config128B/policy112B unchanged. Selected increase48/184B excludes pool
+  reservations, protocol copies and native/kernel state. The retained native alias
+  can retain buffers/Engine storage until Destroy or graph Finish. No zero-cost,
+  footprint ceiling or production throughput/tail acceptance is claimed.
+- Windows24 and WSL25 primary executions: focused modular/single2, feature-off
+  WS regressions7, initial modular example1, forced backend/actual owned-graph/
+  native allocation-prefix4, production-TU budget probe1, final single/static/
+  shared/standalone declaration consumers5, ABI3, selected WSS deflate+short-write
+  FIFO1. WSL adds1 targeted TSan program. Functional WSL paths use ASan/UBSan/leak
+  halt; delivery/ABI are uninstrumented. GCC standalone-fence TSan warning retained.
+- Explicit select/IOCP Windows and select/epoll WSL; WS/WSS owned/borrowed cases,
+  held Close, real WS/TLS/TCP aliases, two waiters, both contention paths,10k
+  zero-allocation/ambient polls, exact Data credits and after-Engine queries when
+  actual early cleanup returns READY. Generic owned trace counts the real third
+  edge when selected. Both public exports exist in minimal shared packages.
+- Real production-TU interception waits until both finite waits have entered their
+  actual predicate, holds that phase100ms, then checks remaining budget passed to
+  native TCP in all8 waiter paths. Untracked reset-budget controls fail on both
+  hosts as expected; canonical code is unchanged. Controls excluded from counts.
+- Preserve prototype wrong-arity/already-closed-cleanup failures. Initial owned
+  WSS fixture tried rebinding during TLS Open; correct to posted Worker handoff
+  after Open/drive returns, matching the existing public API. Initial core docs
+  invocation lacked family prefixes; correct gates pass. No failed product path
+  is hidden, and no unsafe overlay is adopted.
+- Validation2485-input cohort:
+  e11732018301a7e5eb87f4d371cc711aec5c8d273ad0a2f51d2f4a759e2adb25.
+  Final2485-input cohort only prefixes public-example helper names for native
+  accept/single compatibility; all implementation/test inputs unchanged:
+  e5d96ad7489ed6dfce9daa07eae23fb20feed56417639607e32819e388ff474c.
+  Features/amalgamation/API references/family docs/maturity gates pass.
+- Seal274 files, commands/source maps/logs/binaries/packages and original failures.
+  Report: `docs/development/ws-stream-retire-20261114.json`.
+  Raw: `out/service-extensions/ws-stream-retire-20261114/` (physical D storage).
+  RPC/MQTT WS adapters, real HTTP Upgrade/transport composition, framed stdio,
+  controlled performance/scale and full native72h/fault/comparator/feature gates
+  remain required. Complete four-product goal stays active.

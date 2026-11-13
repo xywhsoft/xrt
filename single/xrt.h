@@ -55,6 +55,19 @@
 #ifndef XRT_FEATURES_H
 #define XRT_FEATURES_H
 
+/* websocket_stream_retire 及其直接依赖。 */
+#if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_WEBSOCKET_STREAM_RETIRE)
+#ifndef XRT_FEATURE_WEBSOCKET_STREAM_RETIRE
+#define XRT_FEATURE_WEBSOCKET_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM
+#define XRT_MODULE_WEBSOCKET_STREAM
+#endif
+#ifndef XRT_MODULE_NET_TCP_RETIRE
+#define XRT_MODULE_NET_TCP_RETIRE
+#endif
+#endif
+
 /* event_waiter 及其直接依赖。 */
 #if defined(XRT_MODULE_ALL) || defined(XRT_MODULE_EVENT_WAITER)
 #ifndef XRT_FEATURE_EVENT_WAITER
@@ -33851,6 +33864,26 @@ XRT_API const xerror* xrtWsStreamError(const xwsstream* pStream);
 
 
 
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+#if !defined(XRT_FEATURE_WEBSOCKET_STREAM) || !defined(XRT_FEATURE_NET_TCP_RETIRE)
+#error "WebSocket physical retirement requires Stream and TCP retirement"
+#endif
+/* Nonblocking physical barrier. Keep the sole caller owner stable, stop new
+ * entries/Ref acquisition before treating OK as final. CLOSED is not enough:
+ * actual owned operations, drive/timer/callback references and retained native
+ * TCP duties must retire. Owned TLS event binding references keep WS alive through
+ * native TLS session/binding destruction; no extra TLS alias is retained.
+ * Extra WS/TLS/TCP aliases can delay retirement. Does not close or consume WS,
+ * does not release the owned application Data, allocate or wait for its mutex.
+ * Native host Engine/storage, external callers and code unload join separately.
+ * Normal TIMEOUT/OK preserve the ambient error. NULL is invalid. */
+XRT_API xwaitresult xrtWsStreamPollRetired(xwsstream* Stream);
+/* One original monotonic millisecond budget (-1 forever,0 poll). Rejects every
+ * Worker of the same Engine, including zero timeout. Concurrent waiters borrow
+ * the stable sole owner; join them before Destroy. No timer/runtime is created. */
+XRT_API xwaitresult xrtWsStreamWaitRetired(xwsstream* Stream,int64 Timeout);
+#endif
+
 XRT_EXTERN_C_END
 
 #endif
@@ -53817,7 +53850,8 @@ bool __xrtNetListenerFutureAccept(
 #if defined(XRT_FEATURE_WEBSOCKET_STREAM) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_REF) || \
 	defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS) || \
-	defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE)
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE) || \
+	defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
 #ifndef XRT_INTERNAL_WEBSOCKET_STREAM_H
 #define XRT_INTERNAL_WEBSOCKET_STREAM_H
 
@@ -54038,7 +54072,31 @@ struct xwsstream {
 	bool DrainPending;
 	bool ErrorEmitted;
 	bool CloseEmitted;
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		xmutex RetirementLock;
+		xcond RetirementReady;
+		/* Retain TCP, including beneath TLS. Retaining TLS itself would cycle
+		 * with its owned WebSocket event binding until TLS destruction. */
+		xnetstream* RetirementTcp;
+	#endif
 };
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+/* Used by both ordinary and owned-operation releases. No Stream access may
+ * follow a successful fast decrement. Caller still ends its mutation scope. */
+static inline bool __xrtWsStreamReferenceRelease(xwsstream* S)
+{
+    #if !defined(__TINYC__) || defined(_WIN32) || defined(_WIN64)
+    int32 Count=__xrtAtomicRefLoad(&S->References);
+    while(Count>2){int32 Seen=__xrtAtomicRefCompareExchange(&S->References,Count-1,Count);if(Seen==Count)return false;Count=Seen;}
+    #endif
+    if(!xrtMutexLock(&S->RetirementLock))abort();
+    bool Last=xrtRefRelease(&S->References)==0;
+    if(!Last && __xrtAtomicRefLoad(&S->References)==1 && !xrtCondBroadcast(&S->RetirementReady))abort();
+    if(!xrtMutexUnlock(&S->RetirementLock))abort();
+    return Last;
+}
+#endif
 
 bool __xrtWsStreamOwnershipEnter(xwsstream* pStream, bool bSubmit);
 void __xrtWsStreamOwnershipLeave(xwsstream* pStream);
@@ -168410,6 +168468,10 @@ void __xrtWsStreamFree(xwsstream* pConnection)
 	if ( pConnection == NULL ) {
 		return;
 	}
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		if(!xrtCondUnit(&pConnection->RetirementReady) || !xrtMutexUnit(&pConnection->RetirementLock))abort();
+		xrtNetStreamDestroy(pConnection->RetirementTcp);
+	#endif
 	__xrtWsStreamOutputClear(pConnection);
 	xrtNetBufClear(&pConnection->Initial);
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE)
@@ -170978,6 +171040,10 @@ xwsstream* __xrtWsStreamCreate(
 		);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		if(!xrtMutexInit(&pConnection->RetirementLock)){xrtFree(pConnection);return NULL;}
+		if(!xrtCondInit(&pConnection->RetirementReady)){xrtMutexUnit(&pConnection->RetirementLock);xrtFree(pConnection);return NULL;}
+	#endif
 	pConnection->References = 2;
 	xrtAtomic32Init(&pConnection->State, XWS_STREAM_OPEN);
 	xrtAtomic32Init(
@@ -171028,6 +171094,9 @@ xwsstream* __xrtWsStreamCreate(
 		&MessageConfig
 	) ) {
 		__xrtSpinUnit(&pConnection->TransportLock);
+		#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+			xrtCondUnit(&pConnection->RetirementReady);xrtMutexUnit(&pConnection->RetirementLock);
+		#endif
 		xrtFree(pConnection);
 		return NULL;
 	}
@@ -171050,6 +171119,9 @@ xwsstream* __xrtWsStreamCreate(
 				__xrtSpinUnit(
 					&pConnection->TransportLock
 				);
+				#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+					xrtCondUnit(&pConnection->RetirementReady);xrtMutexUnit(&pConnection->RetirementLock);
+				#endif
 				xrtFree(pConnection);
 				(void)__xrtWsStreamRemember(
 					NULL,
@@ -171061,6 +171133,18 @@ xwsstream* __xrtWsStreamCreate(
 				);
 				return NULL;
 			}
+		}
+	#endif
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		xnetstream* RetirementTcp=pTransport;
+		#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
+			if(TransportKind==__XRT_WS_TRANSPORT_TLS)RetirementTcp=xrtTlsStreamTransport(pTransport);
+		#endif
+		pConnection->RetirementTcp=xrtNetStreamRef(RetirementTcp);
+		if(!pConnection->RetirementTcp){
+			xerror* Failure=xrtTakeError();
+			/* Unpublished draft still borrows its input transport. */
+			__xrtWsStreamFree(pConnection);xrtClearError();xrtSetErrorTake(Failure);return NULL;
 		}
 	#endif
 	return pConnection;
@@ -171476,7 +171560,11 @@ XRT_API void xrtWsStreamDestroy(xwsstream* pConnection)
 	xrtownershipscope Mutation={0};
 	bool owned=pConnection->OwnershipPolicy!=NULL;
 	if(owned&&!xrtOwnershipMutationBegin(&Mutation))abort();
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+	bool last=__xrtWsStreamReferenceRelease(pConnection);
+	#else
 	bool last=xrtRefRelease(&pConnection->References)==0;
+	#endif
 	if(owned&&!xrtOwnershipScopeEnd(&Mutation))abort();
 	if(last)__xrtWsStreamFree(pConnection);
 }
@@ -172633,7 +172721,11 @@ void __xrtWsStreamOwnershipLeave(xwsstream* s)
     xrtownershipscope mutation={0};
     if(!xrtOwnershipMutationBegin(&mutation))abort();
     if(!xrtAtomic32FetchSub(&s->OwnershipActive,1,XMEMORY_ACQ_REL))abort();
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    bool last=__xrtWsStreamReferenceRelease(s);
+    #else
     bool last=xrtRefRelease(&s->References)==0;
+    #endif
     if(!xrtOwnershipScopeEnd(&mutation))abort();
     if(last)__xrtWsStreamFree(s);
 }
@@ -172676,6 +172768,9 @@ static bool __xrtWsOwnedTrace(const void* data,xrtownershipvisitor visit,ptr con
         #endif
         if(!visit(xrtNetStreamOwnership(transport),context))return false;
     }
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    if(s->RetirementTcp && !visit(xrtNetStreamOwnership(s->RetirementTcp),context))return false;
+    #endif
     xerror* error=xrtAtomicPtrLoad(&s->Error,XMEMORY_ACQUIRE);
     return !error||visit(xrtErrorOwnership(error),context);
 }
@@ -172803,9 +172898,15 @@ static bool __xrtWsOwnedFinish(const void* data,const void* token)
     ptr owner=s->OwnershipDataHeld?s->Data:NULL;s->Data=NULL;s->OwnershipDataHeld=false;
     xnetengine* engine=s->OwnershipEngine;bool storage=s->OwnershipStorageHeld;
     s->OwnershipEngine=NULL;s->OwnershipStorageHeld=false;
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    xnetstream* retirement=s->RetirementTcp;s->RetirementTcp=NULL;
+    #endif
     xerror* error=xrtAtomicPtrExchange(&s->Error,NULL,XMEMORY_ACQ_REL);
     if(!xrtOwnershipScopeEnd(&mutation))abort();
     xerror* prior=xrtTakeError();
+    #if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+    xrtNetStreamDestroy(retirement);
+    #endif
     xrtErrorFree(error);
     if(owner)s->OwnershipPolicy->Drop(owner);
     if(storage)__xrtNetEngineStorageRelease(engine);
@@ -348239,6 +348340,45 @@ XRT_API bool xrtEventWaiterGet(const xeventwaiter* W,xeventwaiterinfo* Info)
         0
 #endif
     };return true;
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: src/websocket/stream_retire.c */
+/* ========================================================================== */
+
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+XRT_API xwaitresult xrtWsStreamPollRetired(xwsstream* S)
+{
+    if(!S || !__xrtWsStreamRangeValid(S)){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xmutextryresult Lock=xrtMutexTryLockResult(&S->RetirementLock);
+    if(Lock!=XMUTEX_TRY_OK)return Lock==XMUTEX_TRY_BUSY?XWAIT_TIMEOUT:XWAIT_ERROR;
+    bool Ready=xrtWsStreamState(S)==XWS_STREAM_CLOSED && __xrtAtomicRefLoad(&S->References)==1;
+    xnetstream* TCP=S->RetirementTcp;
+    if(!xrtMutexUnlock(&S->RetirementLock))return XWAIT_ERROR;
+    if(!Ready)return XWAIT_TIMEOUT;
+    if(!TCP){__xrtErrorSetInvalidState();return XWAIT_ERROR;}
+    return xrtNetStreamPollRetired(TCP);
+}
+XRT_API xwaitresult xrtWsStreamWaitRetired(xwsstream* S,int64 Timeout)
+{
+    if(!S || !__xrtWsStreamRangeValid(S) || Timeout<XRT_WAIT_FOREVER){__xrtErrorSetInvalidArgument();return XWAIT_ERROR;}
+    xnetstream* TCP=S->RetirementTcp;if(!TCP){__xrtErrorSetInvalidState();return XWAIT_ERROR;}
+    xnetworker* Current=__xrtNetEngineCurrentThread();if(Current && Current->Engine==TCP->Engine){__xrtErrorSetInvalidState();return XWAIT_ERROR;}
+    if(!Timeout)return xrtWsStreamPollRetired(S);
+    double Deadline=__xrtWaitAfter(Timeout);if(!__xrtWaitValid(Deadline))return XWAIT_ERROR;
+    if(!xrtMutexLock(&S->RetirementLock))return XWAIT_ERROR;
+    xwaitresult Result=XWAIT_OK;
+    while(xrtWsStreamState(S)!=XWS_STREAM_CLOSED || __xrtAtomicRefLoad(&S->References)!=1){
+        if(__xrtWaitExpired(Deadline)){Result=XWAIT_TIMEOUT;break;}
+        Result=xrtCondWaitFor(&S->RetirementReady,&S->RetirementLock,__xrtWaitRemaining(Deadline));if(Result==XWAIT_ERROR)break;
+    }
+    if(Result!=XWAIT_ERROR && xrtWsStreamState(S)==XWS_STREAM_CLOSED && __xrtAtomicRefLoad(&S->References)==1)Result=XWAIT_OK;
+    if(!xrtMutexUnlock(&S->RetirementLock))return XWAIT_ERROR;
+    return Result==XWAIT_OK?xrtNetStreamWaitRetired(TCP,__xrtWaitRemaining(Deadline)):Result;
 }
 #endif
 #endif

@@ -5142,3 +5142,30 @@ xtlsstream* xrtWsStreamTlsRef(const xwsstream* pStream)
 
 xrtWsStreamWriteLimit 返回扣除控制预留的永久预算；xrtWsStreamSendSize
 以与发送相同的帧头、掩码和 TLS 开销计算所需预算，供非阻塞等待使用。
+
+## Physical stream retirement
+
+Select `XRT_MODULE_WEBSOCKET_STREAM_RETIRE` for
+`xrtWsStreamPollRetired` and `xrtWsStreamWaitRetired`. Logical
+`XWS_STREAM_CLOSED` may be published while its Close callback is still running.
+The optional barrier waits for actual WebSocket operation/post/timer/callback
+references and native TCP retirement. It does not close or consume the stream
+or release its owned application Data. Destroy follows a successful barrier.
+
+Keep the sole caller owner stable, stop new API/Ref entries, and join concurrent
+waiters before Destroy. Extra WebSocket and native aliases can delay retirement.
+Wait uses one original monotonic millisecond budget (`-1` infinite, `0` poll),
+and rejects every Worker of the same Engine, including zero timeout. Poll is
+nonblocking on both retirement mutexes, is allocation free, and preserves the
+ambient error on OK/TIMEOUT. NULL is invalid. It creates no thread, Engine or timer.
+
+The selected implementation retains one real underlying TCP alias at attach,
+including below TLS, and traces that additional owning edge. It releases the
+alias on ordinary destruction or owned-graph Finish. Holding a TLS alias here
+would make a cycle with TLS's owned WebSocket event binding; instead owned TLS
+actual binding references delay WebSocket retirement until TLS releases them.
+Public layouts do not depend on selection. Optional private mutex/condition and
+one pointer add storage and synchronization only when selected; ordinary hot
+releases above two references keep a compare/exchange path. No zero-cost or
+production-performance acceptance is implied. Host Engine/native worker join,
+external callers and library code unload remain separate duties.

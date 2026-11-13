@@ -16377,6 +16377,59 @@
 			"docs": [
 				"docs/api/event_waiter.md"
 			]
+		},
+		{
+			"name": "websocket_stream_retire",
+			"state": "implemented",
+			"feature": "XRT_FEATURE_WEBSOCKET_STREAM_RETIRE",
+			"depends": [
+				"websocket_stream",
+				"net_tcp_retire"
+			],
+			"public_headers": [
+				"include/xrt/websocket_stream.h"
+			],
+			"internal_headers": [
+				"src/internal/xrt_websocket_stream.h"
+			],
+			"sources": [
+				"src/websocket/stream_retire.c"
+			],
+			"tests": [],
+			"single_tests": [],
+			"examples": ["examples/websocket/stream_retire/main.c"],
+			"docs": [
+				"docs/api/websocket.md"
+			]
+		},
+		{
+			"name": "websocket_stream_retire_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_stream_retire",
+				"websocket_stream_tls",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"memory_stats",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": [
+				"tests/websocket/test_stream_retire.c"
+			],
+			"single_tests": [
+				"tests/single/test_single_websocket_stream_retire.c"
+			],
+			"examples": [],
+			"docs": [
+				"docs/api/websocket.md"
+			]
 		}
 	]
 }

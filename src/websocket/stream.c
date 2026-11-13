@@ -402,6 +402,10 @@ void __xrtWsStreamFree(xwsstream* pConnection)
 	if ( pConnection == NULL ) {
 		return;
 	}
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		if(!xrtCondUnit(&pConnection->RetirementReady) || !xrtMutexUnit(&pConnection->RetirementLock))abort();
+		xrtNetStreamDestroy(pConnection->RetirementTcp);
+	#endif
 	__xrtWsStreamOutputClear(pConnection);
 	xrtNetBufClear(&pConnection->Initial);
 	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_DEFLATE)
@@ -2970,6 +2974,10 @@ xwsstream* __xrtWsStreamCreate(
 		);
 		return NULL;
 	}
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		if(!xrtMutexInit(&pConnection->RetirementLock)){xrtFree(pConnection);return NULL;}
+		if(!xrtCondInit(&pConnection->RetirementReady)){xrtMutexUnit(&pConnection->RetirementLock);xrtFree(pConnection);return NULL;}
+	#endif
 	pConnection->References = 2;
 	xrtAtomic32Init(&pConnection->State, XWS_STREAM_OPEN);
 	xrtAtomic32Init(
@@ -3020,6 +3028,9 @@ xwsstream* __xrtWsStreamCreate(
 		&MessageConfig
 	) ) {
 		__xrtSpinUnit(&pConnection->TransportLock);
+		#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+			xrtCondUnit(&pConnection->RetirementReady);xrtMutexUnit(&pConnection->RetirementLock);
+		#endif
 		xrtFree(pConnection);
 		return NULL;
 	}
@@ -3042,6 +3053,9 @@ xwsstream* __xrtWsStreamCreate(
 				__xrtSpinUnit(
 					&pConnection->TransportLock
 				);
+				#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+					xrtCondUnit(&pConnection->RetirementReady);xrtMutexUnit(&pConnection->RetirementLock);
+				#endif
 				xrtFree(pConnection);
 				(void)__xrtWsStreamRemember(
 					NULL,
@@ -3053,6 +3067,18 @@ xwsstream* __xrtWsStreamCreate(
 				);
 				return NULL;
 			}
+		}
+	#endif
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+		xnetstream* RetirementTcp=pTransport;
+		#if defined(XRT_FEATURE_WEBSOCKET_STREAM_TLS)
+			if(TransportKind==__XRT_WS_TRANSPORT_TLS)RetirementTcp=xrtTlsStreamTransport(pTransport);
+		#endif
+		pConnection->RetirementTcp=xrtNetStreamRef(RetirementTcp);
+		if(!pConnection->RetirementTcp){
+			xerror* Failure=xrtTakeError();
+			/* Unpublished draft still borrows its input transport. */
+			__xrtWsStreamFree(pConnection);xrtClearError();xrtSetErrorTake(Failure);return NULL;
 		}
 	#endif
 	return pConnection;
@@ -3468,7 +3494,11 @@ XRT_API void xrtWsStreamDestroy(xwsstream* pConnection)
 	xrtownershipscope Mutation={0};
 	bool owned=pConnection->OwnershipPolicy!=NULL;
 	if(owned&&!xrtOwnershipMutationBegin(&Mutation))abort();
+	#if defined(XRT_FEATURE_WEBSOCKET_STREAM_RETIRE)
+	bool last=__xrtWsStreamReferenceRelease(pConnection);
+	#else
 	bool last=xrtRefRelease(&pConnection->References)==0;
+	#endif
 	if(owned&&!xrtOwnershipScopeEnd(&Mutation))abort();
 	if(last)__xrtWsStreamFree(pConnection);
 }
