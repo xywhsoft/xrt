@@ -25,7 +25,7 @@ The [duplex message runtime](docs/duplex.md) supports concurrent bounded call/
 notification/batch admission in both directions, a shared business executor and
 independent retained wire/results. The [framed TCP adapter](docs/tcp.md) adds
 automatic numeric connect/accepted-stream attachment using the host Engine,
-bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. DNS for duplex, WebSocket/framed stdio,
+bounded copy sends and physical peer retirement. The developing [TLS peer](docs/tls.md) adds native encrypted bidirectional framing, snapshotted client/server policy and typed partial-write/lifetime handling. [TCP dial](docs/tcp_dial.md) adds host-owned async DNS/prepared candidates and cold source retirement. TLS DNS/prepared setup, WebSocket/framed stdio,
 deadline/cancellation negotiation and production acceptance remain pending.
 
 Select `XRPC_MODULE_XRPC_DECODE`. `xrpcDecode` scans one complete document into

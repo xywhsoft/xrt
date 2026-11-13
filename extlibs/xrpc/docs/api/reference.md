@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `133` 个函数、`209` 个常量或宏、
-`102` 个公共类型。
+当前登记 `136` 个函数、`210` 个常量或宏、
+`103` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -630,6 +630,24 @@
 - `xrpctcpinfo`
 - `xrpctcpreason`
 - `xrpctcpstate`
+
+## `extlibs/xrpc/include/xrpc/tcp_dial.h`
+
+[查看带契约注释的公共头](../../include/xrpc/tcp_dial.h)
+
+### 函数 (3)
+
+- `xrpcTcpDial`
+- `xrpcTcpDialAddresses`
+- `xrpcTcpDialConfigInit`
+
+### 常量与宏 (1)
+
+- `XRPC_FEATURE_XRPC_TCP_DIAL`
+
+### 类型 (1)
+
+- `xrpctcpdialconfig`
 
 ## `extlibs/xrpc/include/xrpc/tls.h`
 

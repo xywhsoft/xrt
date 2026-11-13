@@ -4579,6 +4579,136 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_tcp_dial",
+      "system": "tcp_dial",
+      "description": "Serial complete peer lifecycle over numeric/prepared/uncached app localhost DNS, exact reply validation and all process-thread CPU, closed-loop tails with coordinated omission; no production fixed-arrival gate",
+      "benchmarks": [
+        {
+          "name": "xrpc_tcp_dial_numeric",
+          "source": "extlibs/xrpc/bench/bench_tcp_dial.c",
+          "suite": "xrpc_tcp_dial,memory_stats",
+          "args": [
+            "100",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_dial_prepared",
+          "source": "extlibs/xrpc/bench/bench_tcp_dial.c",
+          "suite": "xrpc_tcp_dial,memory_stats",
+          "args": [
+            "100",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tcp_dial_dns",
+          "source": "extlibs/xrpc/bench/bench_tcp_dial.c",
+          "suite": "xrpc_tcp_dial,memory_stats",
+          "args": [
+            "100",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

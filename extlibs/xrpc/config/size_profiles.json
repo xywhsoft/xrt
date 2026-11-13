@@ -158,6 +158,18 @@
         "xrtProcess",
         "xrtNetResolver"
       ]
+    },
+    {
+      "name": "xrpc_tcp_dial",
+      "system": "tcp_dial",
+      "suite": "xrpc_tcp_dial",
+      "description": "Framed TCP peer with host DNS/prepared candidate controller, no TLS/HTTP/WebSocket/process",
+      "forbid_symbols": [
+        "xrtTls",
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ]
     }
   ]
 }

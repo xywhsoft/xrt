@@ -25,6 +25,10 @@ typedef struct xrpctcpinfo {
     xrpctcpreason Reason;
     uint64 ReadBytes,WriteBytes,ReadFrames,WriteFrames,TimerFailures,PostFailures,Overloaded;
     size_t Submitters,FixedBytes,FrameStorageBytes;
+    xerrkind NativeErrorKind;
+    int32 NativeErrorCode;
+    bool NativeErrorDomainTruncated;
+    char NativeErrorDomain[64]; /* Copied native cause, available after retirement. */
     xrpcduplexinfo Duplex; /* Last owner snapshot, not simultaneous with facade counters. */
 } xrpctcpinfo;
 XRT_EXTERN_C_BEGIN

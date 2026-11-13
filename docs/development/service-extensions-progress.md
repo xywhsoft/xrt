@@ -12552,3 +12552,87 @@ and out/service-extensions/xrpc-frame-20261112.
   commands, logs and preserved binaries are under
   out/service-extensions/xrpc-tcp-dial-20261113/. No performance/72h gate claimed;
   RPC DNS delivery, other extension work and full acceptance remain in progress.
+
+
+### 2026-11-14 - Framed TCP DNS/prepared connection sources on master
+
+- Continue on D:/GIT/xrt master. Minimal reproduced native infinity timer fixes
+  are committed separately as c264b401; this stage completes the developing TCP
+  connection source slice. No branch/worktree operation, backup edit or push.
+- Added xrpcTcpDialConfigInit/Dial/DialAddresses: bounded copied DNS names,
+  host-owned async Resolver, <=64 immutable prepared endpoints/attempts, explicit
+  family/fallback and individual ports. One original Stream.ConnectTimeout covers
+  queue/DNS/candidate/losing-resource drain; calls independently expire/cancel.
+  Only the transferred winner gets owned facade callbacks. Same duplex/frame,
+  host Engine and shared business Server; no new runtime/thread/hot IO vtable.
+- Cold source/name/list/controller owners release after actual owned Done return
+  and callback Drop; no RPC replay. Concurrent Close is rechecked while publishing
+  the winner. Real production-TU close during binding cannot reopen/send; removing
+  that recheck really executes a queued request after close. Separate real owner
+  allocation-budget1 failures prove MEMORY/NOT_SENT and no native/source credit leak.
+- Peer cancellation retires its own native callback independently of a shared
+  host lookup. Strong test destroys peer with lookup still held, requires host
+  ResolverTryDestroy BUSY, then releases/joins the Resolver. The initial opposite
+  assumption and failed logs remain. Lookup code/data outlive that host join.
+- Unconditional public native error diagnostics copy kind/code/bounded domain.
+  Both64-bit public Info layouts grow304->384 bytes, identical with feature off/on;
+  rebuild pre-release consumers. Private peer parent/off/on sizes are
+  Windows1176/1256/1264 and WSL1384/1464/1472:80-byte diagnostics plus8-byte selected
+  source pointer. sizeof excludes heap reservation/native buffers/OS resources.
+- Each host passes30 programs:focused dial/numeric/TLS modular+single and root
+  20 RPC+4 time/atomic support. Covers both frames/tiny IO, queued reverse/batch/
+  notification, copied name, original zero/expired/infinite setup deadlines,
+  independent cancellation, admission/error/budgets/cold release/retained results.
+  Prepared65-entry fixture now uses distinct ports and checks Core list count;
+  its initial repeated addresses were deduplicated. Preserve the failed fixture.
+- Each host passes12 independent Python-server/native-client sessions over
+  numeric/prepared/OS localhost DNS, two frames/1B/coalesced sends, exact Unicode/
+  NUL/wide numeric IDs/payloads, batch/null/notification/reverse call and EOF.
+  Delivery6 consumers cover modular/single/static/shared and separate standalone
+  static/shared declarations; root static/shared verifiers/root-single DNS example
+  and actual136 public exports pass, without private RPC helper exports.
+- WSL ASan/UBSan/leak-halt functional checks and two TSan programs pass. GCC's
+  standalone-fence instrumentation warning remains. Generated/features/reference/
+  docs/maturity checks pass. Plain TCP excludes Resolver/TLS/HTTP/WS/process; dial
+  excludes TLS/HTTP/WS/process. Selected single and companion Core/RPC artifacts
+  are preserved with separate size metrics/symbol audits; primary static/shared
+  rows do not count the companion Core library.
+- Each host135 performance executions:15 warmups/seven rotated samples per15
+  profiles/15 separate heap loops. Hot numeric benchmark compares parent47f13052
+  matching source+consumer header with updated off/on, using shared current Core
+  and dependencies. Each echoed byte is checked. The healthy workload does not
+  exercise diagnostics/error paths, so is not complete parent-contract acceptance.
+
+| Host | Payload B | Window | Parent calls/s | Updated off calls/s | Dial on calls/s | Throughput <=15% spread parent/off/on |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| windows | 7 | 1 | 15603.752 | 15574.589 | 15524.166 | true/true/true |
+| windows | 7 | 32 | 103370.392 | 105114.338 | 103553.436 | true/true/true |
+| windows | 16384 | 1 | 3760.307 | 3679.681 | 3678.626 | true/true/true |
+| windows | 16384 | 32 | 9633.005 | 9360.762 | 9201.798 | true/false/false |
+| wsl | 7 | 1 | 6768.838 | 6733.500 | 6695.534 | true/true/true |
+| wsl | 7 | 32 | 51875.962 | 53018.337 | 51257.477 | true/true/true |
+| wsl | 16384 | 1 | 2373.217 | 2374.479 | 2384.142 | true/true/true |
+| wsl | 16384 | 32 | 7368.158 | 7540.567 | 7250.471 | true/true/true |
+
+- Initial parent object was prepended at a different link position and appeared
+  7-9% faster at Windows16KiB/window1. A cold-diagnostics layout prototype did not
+  help and was not adopted. The controlled same-source link-order experiment
+  gives4015.120/3682.208 parent original/matched versus3701.943 updated; restore
+  the same object position and retain all original/exploratory evidence. Fresh
+  final135 runs per host use matched order. All final median rate changes fall
+  within5%, but some throughput/P99 noise filters fail; no release gate is claimed.
+- Cold profiles time complete numeric/prepared/DNS peer lifecycles and record
+  all process-thread CPU and heap traffic; host construction/final joins are
+  outside. App DNS cache is off, OS may cache. Unpinned/no noise retries; all
+  medians/spreads/samples remain in the report. Closed-loop tails have coordinated
+  omission;100-cycle P99.9 is a sample maximum, not an extreme-tail gate. No
+  fixed-arrival/connection-scale/native-Linux/72h or release-performance acceptance.
+- Final primary executions193 Windows/195 WSL include135 performance and3 layout
+  programs each plus2 WSL TSan. Dependency Core verification is separate. Recheck
+  all frozen2700 inputs, exact receipts/logs/executable/package hashes; old/failed
+  attempts are retained and excluded. Artifact seal and report:
+  extlibs/xrpc/tests/results/tcp-dial-20261114.json;
+  out/service-extensions/xrpc-tcp-dial-20261113/ (physical D storage).
+  Framed TLS DNS/prepared, stdio/WebSocket, negotiation/credentials/recovery,
+  broader fault/performance and all four-product production gates remain open.
+  The complete long-term goal remains active.

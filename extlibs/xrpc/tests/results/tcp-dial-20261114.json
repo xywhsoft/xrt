@@ -1,0 +1,2551 @@
+{
+  "schema": 1,
+  "stage": "framed TCP asynchronous DNS/prepared connection sources",
+  "maturity": "developing",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "parent_revision": "c264b401e0ffc4aa792cc9af70516cff8316e672",
+  "original_revision": "47f13052209a5f4d32ba13ba317b303e4538237c",
+  "core_fix": "c264b401e0ffc4aa792cc9af70516cff8316e672",
+  "development": {
+    "path": "D:/GIT/xrt",
+    "branch": "master",
+    "branch_operations": false,
+    "pushed": false,
+    "retired_backup_untouched": true,
+    "previous_turn": "progress"
+  },
+  "source_identity": {
+    "final_map_sha256": "7feaa265e7b4cc5dd30f4160c04dab65582a54e89c10bd9fa0b3c4af6c2dd66b",
+    "inputs": 2700,
+    "earlier_maps": [
+      "prototype-source-1.json",
+      "prototype-source-2.json",
+      "prototype-source-3.json",
+      "before-core-source.json",
+      "core-native-source.json",
+      "core-stream-fixed-source.json"
+    ],
+    "final_evidence_only": true
+  },
+  "implementation": [
+    "Three public APIs: xrpcTcpDialConfigInit, xrpcTcpDial, xrpcTcpDialAddresses. Existing bounded duplex/framing/host Engine/shared business Server and public Core Resolver/Dial only; no new runtime/thread or hot IO vtable.",
+    "DNS name copied and bounded before return; explicit family/fallback/attempt/name limits, immutable prepared endpoint alias retained, individual ports preserved. Candidate sockets have no facade callbacks; only transferred winner gets owned framing binding and drives buffered bytes.",
+    "One original Config.Stream.ConnectTimeout covers construction, owner queueing, DNS/candidates/losing-resource drain. Calls/notifications/batches preserve original per-call deadlines; unsent expiry/cancel does not poison pending setup. No reconnect/replay or implicit TLS policy.",
+    "Real creator/owned-Done data credits. Cold source/name/list/controller released after owned callback retirement rather than kept on open connection. Cancelled dial callback may physically retire while the independent shared host lookup still runs; Resolver/lookup code/data join separately.",
+    "Concurrent Close is rechecked under facade gate during winner publication. Actual production-TU injection during binding proves no reopen/send; rejected guardless candidate really executes a queued request after close.",
+    "TCP Info unconditionally adds bounded copied native error kind/code/domain/truncation; public layout is feature-independent but pre-release ABI changes require consumer rebuild. No complete native cause graph is retained. Constructor unwind preserves the actual error."
+  ],
+  "verification": {
+    "windows": {
+      "primary_programs": 193,
+      "groups": {
+        "validate": 30,
+        "extras": 18,
+        "delivery": 6,
+        "measure": 1,
+        "abi": 3,
+        "performance": 135
+      },
+      "interop": {
+        "binary": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-tcp-dial-20261113\\windows-interop.exe",
+        "binary_sha256": "7c70b47529e9a053f0f7e0b7eaef4c2e17826f8468a3e7e87758bed753fdee29",
+        "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+        "platform": "Windows-10-10.0.19045-SP0",
+        "cases": [
+          {
+            "mode": 0,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          }
+        ],
+        "scope": "12 real independent Python-server/native-client numeric/prepared/OS DNS sessions, both frames and 1B/coalesced sends, queued bidirectional call/notify/batch/null/Unicode/NUL/wide numeric IDs and exact payloads/EOF retirement. Local functional evidence, no production throughput/long-run claim."
+      },
+      "root_public_exports": 136,
+      "new_api_exports": [
+        "xrpcTcpDial",
+        "xrpcTcpDialAddresses",
+        "xrpcTcpDialConfigInit"
+      ],
+      "private_rpc_exports": false,
+      "footprint": {
+        "xrpc_tcp": {
+          "suite": "xrpc_tcp",
+          "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 631360,
+              "data": 2712,
+              "bss": 11168,
+              "members": 1,
+              "load": 634072,
+              "file": 912725,
+              "path": "out/size/gnu/native/xrpc_tcp/single/xrpc_single.o",
+              "compile_seconds": 16.890810600001714,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 94836,
+              "data": 0,
+              "bss": 0,
+              "members": 12,
+              "load": 94836,
+              "file": 148214,
+              "path": "release/gnu/native/xrpc_tcp/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 139420,
+              "data": 224,
+              "bss": 2848,
+              "members": 1,
+              "load": 139644,
+              "file": 208735,
+              "path": "release/gnu/native/xrpc_tcp/shared/xrpc.dll"
+            }
+          }
+        },
+        "xrpc_tcp_dial": {
+          "suite": "xrpc_tcp_dial",
+          "description": "Framed TCP peer with host DNS/prepared candidate controller, no TLS/HTTP/WebSocket/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 688584,
+              "data": 2712,
+              "bss": 11168,
+              "members": 1,
+              "load": 691296,
+              "file": 996840,
+              "path": "out/size/gnu/native/xrpc_tcp_dial/single/xrpc_single.o",
+              "compile_seconds": 15.691904400009662,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 100136,
+              "data": 0,
+              "bss": 0,
+              "members": 13,
+              "load": 100136,
+              "file": 157930,
+              "path": "release/gnu/native/xrpc_tcp_dial/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 145405,
+              "data": 224,
+              "bss": 2848,
+              "members": 1,
+              "load": 145629,
+              "file": 216694,
+              "path": "release/gnu/native/xrpc_tcp_dial/shared/xrpc.dll"
+            }
+          }
+        }
+      },
+      "footprint_artifacts": {
+        "xrpc_tcp": {
+          "single": [
+            {
+              "path": "footprint/windows/xrpc_tcp/single/xrpc_single.o",
+              "sha256": "57bae531c4190b913331a5b42222f860c5a8c9547181766d7832337cdb737fda",
+              "defined_symbols": 2319,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 631360,
+                "data": 2712,
+                "bss": 11168,
+                "members": 1,
+                "load": 634072,
+                "file": 912725,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/xrpc_tcp/static/libxrpc.a",
+              "sha256": "3f1f13c84d5c4b4ded575d6b62c987d577fc8bbee7540f215060170d67c5e1d9",
+              "defined_symbols": 280,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 94836,
+                "data": 0,
+                "bss": 0,
+                "members": 12,
+                "load": 94836,
+                "file": 148214,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/static/libxrt.a",
+              "sha256": "5946c139f074b2ed4b4037466cc5e6fc552779cfc228ecafe163aa266fab4ce6",
+              "defined_symbols": 2486,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 453696,
+                "data": 2728,
+                "bss": 11232,
+                "members": 54,
+                "load": 456424,
+                "file": 825720,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/libxrpc.dll.a",
+              "sha256": "428801cf9e4a644b5081599a8416108ef9b3478edc852e64c2496027cb7e0a8c",
+              "defined_symbols": 603,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 680,
+                "data": 0,
+                "bss": 0,
+                "members": 87,
+                "load": 680,
+                "file": 55736,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/shared/libxrpc.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/libxrt.dll.a",
+              "sha256": "63613a79589c1735548c866fb92459a18fb7a27a1962e9b263848d86525efe7b",
+              "defined_symbols": 6903,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 7880,
+                "data": 0,
+                "bss": 0,
+                "members": 987,
+                "load": 7880,
+                "file": 635278,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/shared/libxrt.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/xrpc.dll",
+              "sha256": "5ff584014ad033712a4cb6c5d1bd8fa49e72dceebed2f66c89507f26969a18d5",
+              "defined_symbols": 1742,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 139420,
+                "data": 224,
+                "bss": 2848,
+                "members": 1,
+                "load": 139644,
+                "file": 208735,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/shared/xrpc.dll"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp/shared/xrt.dll",
+              "sha256": "b29afe32ea36e4c1c7038dacb16b669c944ae9a69fd880a959bf59eabb0399ef",
+              "defined_symbols": 4159,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 558695,
+                "data": 3512,
+                "bss": 14096,
+                "members": 1,
+                "load": 562207,
+                "file": 756450,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp/shared/xrt.dll"
+              }
+            }
+          ]
+        },
+        "xrpc_tcp_dial": {
+          "single": [
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/single/xrpc_single.o",
+              "sha256": "d2fb811813c4f75da023523ea39bbfa02c69c99c2e4a364806ec41cb40fa27ac",
+              "defined_symbols": 2529,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 688584,
+                "data": 2712,
+                "bss": 11168,
+                "members": 1,
+                "load": 691296,
+                "file": 996840,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/static/libxrpc.a",
+              "sha256": "f673cbbbe85da9a03ad5b63171375e287bb983221d83e86277e53b7249acd6a1",
+              "defined_symbols": 303,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 100136,
+                "data": 0,
+                "bss": 0,
+                "members": 13,
+                "load": 100136,
+                "file": 157930,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/static/libxrt.a",
+              "sha256": "1b1e65aecfd5a8ce81d425e91c686464f834324e856463e6a1c1c351e1cd8e5f",
+              "defined_symbols": 2707,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 494620,
+                "data": 2728,
+                "bss": 11232,
+                "members": 57,
+                "load": 497348,
+                "file": 903136,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/shared/libxrpc.dll.a",
+              "sha256": "db8c721655812745dae6f68290c08b16ec2cde598bb498fbbc80f7e44fa648ad",
+              "defined_symbols": 624,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 704,
+                "data": 0,
+                "bss": 0,
+                "members": 90,
+                "load": 704,
+                "file": 57676,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/shared/libxrpc.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/shared/libxrt.dll.a",
+              "sha256": "777da0c5538c55efa627528384349c3c7b896d42dae4caa17ffad09a52bec74a",
+              "defined_symbols": 7253,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 8280,
+                "data": 0,
+                "bss": 0,
+                "members": 1037,
+                "load": 8280,
+                "file": 668560,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/shared/libxrt.dll.a"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/shared/xrpc.dll",
+              "sha256": "33022711a3ffd4672159da4ac4d10f395db2e1e8cc4645256ad056a8ca550b46",
+              "defined_symbols": 1837,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 145405,
+                "data": 224,
+                "bss": 2848,
+                "members": 1,
+                "load": 145629,
+                "file": 216694,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/shared/xrpc.dll"
+              }
+            },
+            {
+              "path": "footprint/windows/xrpc_tcp_dial/shared/xrt.dll",
+              "sha256": "42edbae7d84f5fdb7352b41e24c5d45bbd9d7e1dad0d7c94b0328d04bc334826",
+              "defined_symbols": 4407,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 601437,
+                "data": 3512,
+                "bss": 14096,
+                "members": 1,
+                "load": 604949,
+                "file": 812257,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/windows/xrpc_tcp_dial/shared/xrt.dll"
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "source_map_sha256": "7feaa265e7b4cc5dd30f4160c04dab65582a54e89c10bd9fa0b3c4af6c2dd66b",
+        "parent_revision": "47f13052209a5f4d32ba13ba317b303e4538237c",
+        "variants": {
+          "parent": {
+            "metrics": {
+              "public_info": 304,
+              "private_peer": 1176,
+              "scratch_offset": 1171
+            },
+            "source_sha256": "10fb697b91cbe25781695d4b288a50c2edccfa11d70cdd4bff3eef56cb4cd71e",
+            "binary_sha256": "5fed52a8fdd84afffd1a29e92ed6dcb5b186862f69f81b78d3da2893b18a187c",
+            "log": "windows-abi-parent-run.log"
+          },
+          "off": {
+            "metrics": {
+              "public_info": 384,
+              "private_peer": 1256,
+              "scratch_offset": 1251
+            },
+            "source_sha256": "fdbbfb4861f11ca9e6d59d2889f1e7e48a0653a5711a7e15ddd75e326da0e37a",
+            "binary_sha256": "94c8b79f08e598b674940ee06bfb282ee58cc7be23d75d9641b43e9df0b419a2",
+            "log": "windows-abi-off-run.log"
+          },
+          "on": {
+            "metrics": {
+              "public_info": 384,
+              "private_peer": 1264,
+              "scratch_offset": 1259
+            },
+            "source_sha256": "fdbbfb4861f11ca9e6d59d2889f1e7e48a0653a5711a7e15ddd75e326da0e37a",
+            "binary_sha256": "281397717eb43cbb2193bc971b95366996bef898289dfe6f0e314ecca0e700ff",
+            "log": "windows-abi-on-run.log"
+          }
+        },
+        "scope": "Actual sizeof/offsetof per compiler, public fields unconditional off/on; private extra source pointer only selected. sizeof excludes allocator reservations, OS state and native buffers. Parent source/header reconstructed from exact Git blobs, not a branch."
+      },
+      "performance": [
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 15603.752078,
+            "ns_per_call": 64087.15,
+            "process_cpu_ns_per_call": 70312.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 63.200001,
+            "closed_loop_p99_us": 84.1,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.020719369250670576,
+            "ns_per_call": 0.020692135615330034,
+            "process_cpu_ns_per_call": 0.2222222222222222,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.02056955663655765,
+            "closed_loop_p99_us": 0.14268732461355535,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 15574.589435,
+            "ns_per_call": 64207.149997,
+            "process_cpu_ns_per_call": 70312.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 63.300002,
+            "closed_loop_p99_us": 88.400004,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.03429939474356354,
+            "ns_per_call": 0.034700963959685256,
+            "process_cpu_ns_per_call": 0.3333333333333333,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.039494311548362936,
+            "closed_loop_p99_us": 0.13009049185110896,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 15524.165693,
+            "ns_per_call": 64415.699999,
+            "process_cpu_ns_per_call": 85937.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 63.200001,
+            "closed_loop_p99_us": 88.699991,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.0329854610628704,
+            "ns_per_call": 0.0334382767249822,
+            "process_cpu_ns_per_call": 0.45454545454545453,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.02848123372656283,
+            "closed_loop_p99_us": 0.20744076512927712,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 103370.391614,
+            "ns_per_call": 9673.95,
+            "process_cpu_ns_per_call": 15625.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.05566480781543932,
+            "ns_per_call": 0.05700360183792561,
+            "process_cpu_ns_per_call": 3.5,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 105114.338114,
+            "ns_per_call": 9513.450001,
+            "process_cpu_ns_per_call": 39062.5,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06335535973006358,
+            "ns_per_call": 0.06657942081299853,
+            "process_cpu_ns_per_call": 1.2,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 103553.436149,
+            "ns_per_call": 9656.850001,
+            "process_cpu_ns_per_call": 31250.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.0313632216639038,
+            "ns_per_call": 0.031034964503845946,
+            "process_cpu_ns_per_call": 0.75,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 3760.306876,
+            "ns_per_call": 265935.742192,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 261.900001,
+            "closed_loop_p99_us": 326.299996,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.02448700173586567,
+            "ns_per_call": 0.024694640358867613,
+            "process_cpu_ns_per_call": 0.4,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.02443682693991271,
+            "closed_loop_p99_us": 0.10879556982893746,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 3679.680903,
+            "ns_per_call": 271762.69532,
+            "process_cpu_ns_per_call": 335693.359375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 266.19999,
+            "closed_loop_p99_us": 342.600004,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.02533587190236854,
+            "ns_per_call": 0.02577070272928146,
+            "process_cpu_ns_per_call": 0.2727272727272727,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.025920395413989352,
+            "closed_loop_p99_us": 0.14944540397611902,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 3678.626033,
+            "ns_per_call": 271840.625004,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 267.6,
+            "closed_loop_p99_us": 329.700008,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.050130023368972286,
+            "ns_per_call": 0.05062709079188409,
+            "process_cpu_ns_per_call": 0.4,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.039611334080717424,
+            "closed_loop_p99_us": 0.10676369471001047,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 9633.005084,
+            "ns_per_call": 103809.765619,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.07059757916349078,
+            "ns_per_call": 0.07116946922041585,
+            "process_cpu_ns_per_call": 1.1,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 9360.762318,
+            "ns_per_call": 106828.90624,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.3978754249360913,
+            "ns_per_call": 0.5938032482845721,
+            "process_cpu_ns_per_call": 0.7,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": false
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 9201.797945,
+            "ns_per_call": 108674.414065,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.24681763472475365,
+            "ns_per_call": 0.29377099388734573,
+            "process_cpu_ns_per_call": 0.5,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": false
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            0,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 2541.741754116,
+            "process_cpu_ns_per_cycle": 312500.0,
+            "p50_us": 390.000001062,
+            "p95_us": 435.699999798,
+            "p99_us": 492.300008773,
+            "p999_us": 656.800009892,
+            "mode": 0.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.038524397470133864,
+            "process_cpu_ns_per_cycle": 1.5,
+            "p50_us": 0.042307678530946816,
+            "p95_us": 0.051870513939586554,
+            "p99_us": 0.18931544782883525,
+            "p999_us": 0.14418393212961708
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            1,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 2502.414830893,
+            "process_cpu_ns_per_cycle": 468750.0,
+            "p50_us": 392.999994801,
+            "p95_us": 451.200001407,
+            "p99_us": 501.899994561,
+            "p999_us": 677.699994412,
+            "mode": 1.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.04692108324385989,
+            "process_cpu_ns_per_cycle": 1.0,
+            "p50_us": 0.04809159960566981,
+            "p95_us": 0.16356378466947205,
+            "p99_us": 0.33094239091252364,
+            "p999_us": 0.586395142283866,
+            "mode": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            2,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 1645.32136411,
+            "process_cpu_ns_per_cycle": 625000.0,
+            "p50_us": 567.600000068,
+            "p95_us": 660.199992126,
+            "p99_us": 768.500001868,
+            "p999_us": 3287.800005637,
+            "mode": 2.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.0764803381241376,
+            "process_cpu_ns_per_cycle": 0.5,
+            "p50_us": 0.06871036984025311,
+            "p95_us": 0.09724322977687554,
+            "p99_us": 0.185556289705115,
+            "p999_us": 0.14730214449864884,
+            "mode": 0.0
+          },
+          "throughput_noise_qualified": true
+        }
+      ],
+      "hot_comparisons": [
+        {
+          "payload": 7,
+          "width": 1,
+          "variant": "off",
+          "throughput_change": -0.0018689506763643893,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.05112965517241386,
+          "p99_noise_filter": true,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 7,
+          "width": 1,
+          "variant": "on",
+          "throughput_change": -0.005100464593526088,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.054696682520808615,
+          "p99_noise_filter": false,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 7,
+          "width": 32,
+          "variant": "off",
+          "throughput_change": 0.01687085124444687,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 7,
+          "width": 32,
+          "variant": "on",
+          "throughput_change": 0.0017707636794443982,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 16384,
+          "width": 1,
+          "variant": "off",
+          "throughput_change": -0.02144132797102072,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.04995405516339635,
+          "p99_noise_filter": true,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 16384,
+          "width": 1,
+          "variant": "on",
+          "throughput_change": -0.021721855607403917,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.010419895929143719,
+          "p99_noise_filter": true,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 16384,
+          "width": 32,
+          "variant": "off",
+          "throughput_change": -0.028261457730587525,
+          "throughput_noise_qualified": false,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 16384,
+          "width": 32,
+          "variant": "on",
+          "throughput_change": -0.04476351203387363,
+          "throughput_noise_qualified": false,
+          "within_planned_5pct_rate_loss": true
+        }
+      ],
+      "heap": [
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 15462.765545,
+            "ns_per_call": 64671.484353,
+            "process_cpu_ns_per_call": 30517.578125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 63.69999,
+            "closed_loop_p99_us": 82.899991,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-parent-7-1-attempt2.log",
+          "log_sha256": "b1f2fbcf697430f5e11c317fb010740a71cdcebe123f41f804a7d8634e38da7b",
+          "binary_sha256": "2b972840b499c6a73aaf4dc5532d370cf16cd1258d16a5a04cba9d13e0b20ff1"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 15289.971928,
+            "ns_per_call": 65402.343751,
+            "process_cpu_ns_per_call": 30517.578125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 64.699998,
+            "closed_loop_p99_us": 85.500011,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-off-7-1-attempt2.log",
+          "log_sha256": "58695b9adc46ddb4a9856d72b0707c3a2191471e3604b70d5311994f144bd7cd",
+          "binary_sha256": "a4d47c4906d18bec4b6368820b92659f19c1b82d59772c55d775862d56576bab"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 15193.509521,
+            "ns_per_call": 65817.578133,
+            "process_cpu_ns_per_call": 61035.15625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 65.0,
+            "closed_loop_p99_us": 83.999999,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2359.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-on-7-1-attempt2.log",
+          "log_sha256": "87a83561ca463f3cab5b843e50ef64b2751c71cf8b501c65c2f53458f7f0d797",
+          "binary_sha256": "9223bbabc65c0a0855d461fa06214aba9416317cf805a6e6b41505d74e3987a7"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 94235.441361,
+            "ns_per_call": 10611.71875,
+            "process_cpu_ns_per_call": 122070.3125,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2362.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-parent-7-32-attempt2.log",
+          "log_sha256": "93e838e080dbe51f9cedf72104ad413850f3a967392d4505cbb314f2ae9edb7b",
+          "binary_sha256": "2b972840b499c6a73aaf4dc5532d370cf16cd1258d16a5a04cba9d13e0b20ff1"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 97700.601043,
+            "ns_per_call": 10235.351567,
+            "process_cpu_ns_per_call": 0.0,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2362.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-off-7-32-attempt2.log",
+          "log_sha256": "7c2ec1ff5865991abedf314eebad0eb8576bb533584bc620c0686a49e22f6fed",
+          "binary_sha256": "a4d47c4906d18bec4b6368820b92659f19c1b82d59772c55d775862d56576bab"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 99756.454068,
+            "ns_per_call": 10024.414053,
+            "process_cpu_ns_per_call": 61035.15625,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.0,
+            "heap_bytes_per_call": 2362.0,
+            "payload_bytes": 7.0
+          },
+          "log": "windows-heap-hot-on-7-32-attempt2.log",
+          "log_sha256": "78b2ee0597d51d55a21b02eb0bada7e586821198dac8be833b1bcec4bfbc5ef4",
+          "binary_sha256": "9223bbabc65c0a0855d461fa06214aba9416317cf805a6e6b41505d74e3987a7"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 3623.20379,
+            "ns_per_call": 275998.82813,
+            "process_cpu_ns_per_call": 396728.515625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 267.099997,
+            "closed_loop_p99_us": 365.600004,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84370.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-parent-16384-1-attempt2.log",
+          "log_sha256": "7633843902523e001e20d93a222ef373771dde6d6a5a9e53e981f413182a6dab",
+          "binary_sha256": "2b972840b499c6a73aaf4dc5532d370cf16cd1258d16a5a04cba9d13e0b20ff1"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 3673.576866,
+            "ns_per_call": 272214.257819,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 266.000003,
+            "closed_loop_p99_us": 335.300007,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84370.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-off-16384-1-attempt2.log",
+          "log_sha256": "66263011ed17a07372824339f3cd49b04b894b303c2e34c8536570e9e77a81dd",
+          "binary_sha256": "a4d47c4906d18bec4b6368820b92659f19c1b82d59772c55d775862d56576bab"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 3685.285275,
+            "ns_per_call": 271349.414049,
+            "process_cpu_ns_per_call": 305175.78125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 266.100004,
+            "closed_loop_p99_us": 342.900006,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84370.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-on-16384-1-attempt2.log",
+          "log_sha256": "829463f9d23746096db825b3aaeaef0fd5303df96302b49a03b67a496555df58",
+          "binary_sha256": "9223bbabc65c0a0855d461fa06214aba9416317cf805a6e6b41505d74e3987a7"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 9573.923029,
+            "ns_per_call": 104450.390609,
+            "process_cpu_ns_per_call": 366210.9375,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84373.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-parent-16384-32-attempt2.log",
+          "log_sha256": "e57f5611dcca546588b7d80d29372d98e67a098b3406a150f758375372a4839b",
+          "binary_sha256": "2b972840b499c6a73aaf4dc5532d370cf16cd1258d16a5a04cba9d13e0b20ff1"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 9376.499414,
+            "ns_per_call": 106649.609393,
+            "process_cpu_ns_per_call": 457763.671875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.003906,
+            "heap_bytes_per_call": 84501.3125,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-off-16384-32-attempt2.log",
+          "log_sha256": "5dcbf65de1457583ea3b824588d09e800a4019a43b9dbdf3d4c0524aa906da92",
+          "binary_sha256": "a4d47c4906d18bec4b6368820b92659f19c1b82d59772c55d775862d56576bab"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 9294.574475,
+            "ns_per_call": 107589.648422,
+            "process_cpu_ns_per_call": 457763.671875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.0,
+            "heap_bytes_per_call": 84373.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "windows-heap-hot-on-16384-32-attempt2.log",
+          "log_sha256": "bae36767393bd0f1b6d58c7a4728f016b3936a32bcb1ec347cf35442977022f7",
+          "binary_sha256": "9223bbabc65c0a0855d461fa06214aba9416317cf805a6e6b41505d74e3987a7"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            0,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 2344.874806157,
+            "process_cpu_ns_per_cycle": 312500.0,
+            "p50_us": 403.800004278,
+            "p95_us": 596.400001086,
+            "p99_us": 666.100007948,
+            "p999_us": 666.100007948,
+            "heap_blocks_per_cycle": 35.9,
+            "heap_bytes_per_cycle": 339169.24,
+            "mode": 0.0
+          },
+          "log": "windows-heap-cold-on-0-0-attempt2.log",
+          "log_sha256": "5c1fa390cf06b231f4f35ffcb05272955a5ee9f1a74ce7d253fa3b01180f07c1",
+          "binary_sha256": "64825d22d398da699c95c0af4f4f32573c0349dcdab2beb518b4b36b63d39183"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            1,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 2191.972995014,
+            "process_cpu_ns_per_cycle": 625000.0,
+            "p50_us": 424.500001827,
+            "p95_us": 530.299992533,
+            "p99_us": 1861.19999853,
+            "p999_us": 1861.19999853,
+            "heap_blocks_per_cycle": 38.94,
+            "heap_bytes_per_cycle": 339920.8,
+            "mode": 1.0
+          },
+          "log": "windows-heap-cold-on-1-0-attempt2.log",
+          "log_sha256": "86aacfc54ec757109e30f75943ff02eca68320a012a434c2bb65a1f7960e7a80",
+          "binary_sha256": "64825d22d398da699c95c0af4f4f32573c0349dcdab2beb518b4b36b63d39183"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            2,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 1104.467127558,
+            "process_cpu_ns_per_cycle": 625000.0,
+            "p50_us": 572.499993723,
+            "p95_us": 791.500002379,
+            "p99_us": 13792.800004012,
+            "p999_us": 13792.800004012,
+            "heap_blocks_per_cycle": 42.86,
+            "heap_bytes_per_cycle": 340469.92,
+            "mode": 2.0
+          },
+          "log": "windows-heap-cold-on-2-0-attempt2.log",
+          "log_sha256": "4cd33f8f782500b62520d1dc3b0b804668ddeb731433e077fc709c84f1c83dfc",
+          "binary_sha256": "64825d22d398da699c95c0af4f4f32573c0349dcdab2beb518b4b36b63d39183"
+        }
+      ]
+    },
+    "wsl": {
+      "primary_programs": 195,
+      "groups": {
+        "validate": 30,
+        "extras": 18,
+        "delivery": 6,
+        "measure": 1,
+        "abi": 3,
+        "performance": 135,
+        "tsan": 2
+      },
+      "interop": {
+        "binary": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-tcp-dial-20261113/wsl-interop",
+        "binary_sha256": "b92e0f7901f7c0bf6b3f52bd3d96a6a29bae2cd6d799e0ba0d060efabc7874dc",
+        "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+        "cases": [
+          {
+            "mode": 0,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 0,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 1,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 1,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 1,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 2,
+            "fragment_bytes": 1,
+            "exit_code": 0
+          },
+          {
+            "mode": 2,
+            "frame_format": 2,
+            "fragment_bytes": 65536,
+            "exit_code": 0
+          }
+        ],
+        "scope": "12 real independent Python-server/native-client numeric/prepared/OS DNS sessions, both frames and 1B/coalesced sends, queued bidirectional call/notify/batch/null/Unicode/NUL/wide numeric IDs and exact payloads/EOF retirement. Local functional evidence, no production throughput/long-run claim."
+      },
+      "root_public_exports": 136,
+      "new_api_exports": [
+        "xrpcTcpDial",
+        "xrpcTcpDialAddresses",
+        "xrpcTcpDialConfigInit"
+      ],
+      "private_rpc_exports": false,
+      "footprint": {
+        "xrpc_tcp": {
+          "suite": "xrpc_tcp",
+          "description": "Automatic bidirectional framed TCP using the existing host Engine and shared business executor",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess",
+            "xrtNetResolver"
+          ],
+          "kinds": {
+            "single": {
+              "text": 651424,
+              "data": 5728,
+              "bss": 10948,
+              "members": 1,
+              "load": 657152,
+              "file": 1152256,
+              "path": "out/size/gnu/x64/xrpc_tcp/single/xrpc_single.o",
+              "compile_seconds": 11.452293905000033,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 98433,
+              "data": 200,
+              "bss": 0,
+              "members": 12,
+              "load": 98633,
+              "file": 193434,
+              "path": "release/gnu/x64/xrpc_tcp/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 115976,
+              "data": 1968,
+              "bss": 8,
+              "members": 1,
+              "load": 117944,
+              "file": 139960,
+              "path": "release/gnu/x64/xrpc_tcp/shared/libxrpc.so"
+            }
+          }
+        },
+        "xrpc_tcp_dial": {
+          "suite": "xrpc_tcp_dial",
+          "description": "Framed TCP peer with host DNS/prepared candidate controller, no TLS/HTTP/WebSocket/process",
+          "forbid_symbols": [
+            "xrtTls",
+            "xrtHttp",
+            "xrtWebSocket",
+            "xrtProcess"
+          ],
+          "kinds": {
+            "single": {
+              "text": 708986,
+              "data": 6464,
+              "bss": 10948,
+              "members": 1,
+              "load": 715450,
+              "file": 1261072,
+              "path": "out/size/gnu/x64/xrpc_tcp_dial/single/xrpc_single.o",
+              "compile_seconds": 12.479865661000076,
+              "forbidden_symbol_count": 0
+            },
+            "static": {
+              "text": 104187,
+              "data": 256,
+              "bss": 0,
+              "members": 13,
+              "load": 104443,
+              "file": 206908,
+              "path": "release/gnu/x64/xrpc_tcp_dial/static/libxrpc.a"
+            },
+            "shared": {
+              "text": 123114,
+              "data": 2112,
+              "bss": 8,
+              "members": 1,
+              "load": 125226,
+              "file": 149432,
+              "path": "release/gnu/x64/xrpc_tcp_dial/shared/libxrpc.so"
+            }
+          }
+        }
+      },
+      "footprint_artifacts": {
+        "xrpc_tcp": {
+          "single": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/single/xrpc_single.o",
+              "sha256": "7db6553f355646e29225057e3eb76e7f7b0942507d04750be09c98c231f69c82",
+              "defined_symbols": 3097,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 651424,
+                "data": 5728,
+                "bss": 10948,
+                "members": 1,
+                "load": 657152,
+                "file": 1152256,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/static/libxrpc.a",
+              "sha256": "251951de71b76e6d5da6785ee201231fbcd7be431097bd67c34f65d3b2d64d7c",
+              "defined_symbols": 452,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 98433,
+                "data": 200,
+                "bss": 0,
+                "members": 12,
+                "load": 98633,
+                "file": 193434,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp/static/libxrt.a",
+              "sha256": "5f04bb150096da8fc827fdc0cd80808391cf4eda3cc39555a4edf685cd953a76",
+              "defined_symbols": 2753,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 486691,
+                "data": 5400,
+                "bss": 10953,
+                "members": 54,
+                "load": 492091,
+                "file": 1042174,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/xrpc_tcp/shared/libxrpc.so",
+              "sha256": "4248f267646db44160f583b2b46a6c18da6610558254cb2f96b063031d293771",
+              "defined_symbols": 211,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 115976,
+                "data": 1968,
+                "bss": 8,
+                "members": 1,
+                "load": 117944,
+                "file": 139960,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp/shared/libxrpc.so"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp/shared/libxrt.so",
+              "sha256": "e76259c6e400ff71bb2e8bbace3bfafdd273d1823d3e6dca2fc90bd9a454bab9",
+              "defined_symbols": 2066,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 584882,
+                "data": 10592,
+                "bss": 11016,
+                "members": 1,
+                "load": 595474,
+                "file": 702256,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp/shared/libxrt.so"
+              }
+            }
+          ]
+        },
+        "xrpc_tcp_dial": {
+          "single": [
+            {
+              "path": "footprint/wsl/xrpc_tcp_dial/single/xrpc_single.o",
+              "sha256": "c8689f4b4a6610a616b03cf4693dabbf01eba7ffacd370d821e7fc736af799d9",
+              "defined_symbols": 3388,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 708986,
+                "data": 6464,
+                "bss": 10948,
+                "members": 1,
+                "load": 715450,
+                "file": 1261072,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp_dial/single/xrpc_single.o"
+              }
+            }
+          ],
+          "static": [
+            {
+              "path": "footprint/wsl/xrpc_tcp_dial/static/libxrpc.a",
+              "sha256": "13021f621fd43c025b8767040ef62b2d490f70d99282e68bfc6935bdd57d6f91",
+              "defined_symbols": 481,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 104187,
+                "data": 256,
+                "bss": 0,
+                "members": 13,
+                "load": 104443,
+                "file": 206908,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp_dial/static/libxrpc.a"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp_dial/static/libxrt.a",
+              "sha256": "1419c4e638a4989d04114860bf713540ad1c898386f7314a3cd81fad98d9a7bf",
+              "defined_symbols": 3027,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 530965,
+                "data": 6088,
+                "bss": 10953,
+                "members": 57,
+                "load": 537053,
+                "file": 1143016,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp_dial/static/libxrt.a"
+              }
+            }
+          ],
+          "shared": [
+            {
+              "path": "footprint/wsl/xrpc_tcp_dial/shared/libxrpc.so",
+              "sha256": "d6616d3c3d35c24425af52427976eb1dc545281655e0f8ba2cb950be24125a70",
+              "defined_symbols": 228,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 123114,
+                "data": 2112,
+                "bss": 8,
+                "members": 1,
+                "load": 125226,
+                "file": 149432,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp_dial/shared/libxrpc.so"
+              }
+            },
+            {
+              "path": "footprint/wsl/xrpc_tcp_dial/shared/libxrt.so",
+              "sha256": "7da73efecbd6026986f8be27304d4ed50b36b12f31e1becaa1b8d2a06259a818",
+              "defined_symbols": 2258,
+              "forbidden_symbols": [],
+              "metrics": {
+                "text": 638015,
+                "data": 11592,
+                "bss": 11016,
+                "members": 1,
+                "load": 649607,
+                "file": 765016,
+                "path": "out/service-extensions/xrpc-tcp-dial-20261113/footprint/wsl/xrpc_tcp_dial/shared/libxrt.so"
+              }
+            }
+          ]
+        }
+      },
+      "layout": {
+        "source_map_sha256": "7feaa265e7b4cc5dd30f4160c04dab65582a54e89c10bd9fa0b3c4af6c2dd66b",
+        "parent_revision": "47f13052209a5f4d32ba13ba317b303e4538237c",
+        "variants": {
+          "parent": {
+            "metrics": {
+              "public_info": 304,
+              "private_peer": 1384,
+              "scratch_offset": 1379
+            },
+            "source_sha256": "f951e995d07fa4ab52c8d5946a5ceb04ebbcddcbc3ccb5bdc797b5359bc8153d",
+            "binary_sha256": "0dc1abc5f66ad911a29ed2b478d8b42d7cd3fa97d99ef8d7b9d410f1539e617e",
+            "log": "wsl-abi-parent-run.log"
+          },
+          "off": {
+            "metrics": {
+              "public_info": 384,
+              "private_peer": 1464,
+              "scratch_offset": 1459
+            },
+            "source_sha256": "a637e7d39eb79339b8867d17dc63ed8f696a15fb81aa18511d61d681ab88fc79",
+            "binary_sha256": "a95eb2c5e65b571138fa7e8ae1c7655ce66cc425363ffac5c3259c989c330973",
+            "log": "wsl-abi-off-run.log"
+          },
+          "on": {
+            "metrics": {
+              "public_info": 384,
+              "private_peer": 1472,
+              "scratch_offset": 1467
+            },
+            "source_sha256": "a637e7d39eb79339b8867d17dc63ed8f696a15fb81aa18511d61d681ab88fc79",
+            "binary_sha256": "585aa6a6be5359a5752bfa3cc4d45f0c7e547d9eb115fb5a8906cdea3727e671",
+            "log": "wsl-abi-on-run.log"
+          }
+        },
+        "scope": "Actual sizeof/offsetof per compiler, public fields unconditional off/on; private extra source pointer only selected. sizeof excludes allocator reservations, OS state and native buffers. Parent source/header reconstructed from exact Git blobs, not a branch."
+      },
+      "performance": [
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 6768.838127,
+            "ns_per_call": 147735.842,
+            "process_cpu_ns_per_call": 177951.0,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 144.0,
+            "closed_loop_p99_us": 198.3,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.03624951836582746,
+            "ns_per_call": 0.03621330089958808,
+            "process_cpu_ns_per_call": 0.021528398266938652,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.03680555555555563,
+            "closed_loop_p99_us": 0.06858295511850727,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 6733.499681,
+            "ns_per_call": 148511.1825,
+            "process_cpu_ns_per_call": 179362.0,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 144.5,
+            "closed_loop_p99_us": 203.8,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.04146693595128128,
+            "ns_per_call": 0.041706876180855945,
+            "process_cpu_ns_per_call": 0.03111863159420613,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.03875432525951553,
+            "closed_loop_p99_us": 0.15554465161923448,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 6695.534127,
+            "ns_per_call": 149353.2825,
+            "process_cpu_ns_per_call": 178844.5,
+            "completed": 2000.0,
+            "closed_loop_p50_us": 142.5,
+            "closed_loop_p99_us": 198.4,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.08976324899553449,
+            "ns_per_call": 0.09304146027055003,
+            "process_cpu_ns_per_call": 0.07857104915163732,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.09964912280701767,
+            "closed_loop_p99_us": 0.2217741935483871,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 51875.961878,
+            "ns_per_call": 19276.751,
+            "process_cpu_ns_per_call": 44528.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.03368068960550638,
+            "ns_per_call": 0.03314860994988218,
+            "process_cpu_ns_per_call": 0.022199514911965503,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 53018.336551,
+            "ns_per_call": 18861.399,
+            "process_cpu_ns_per_call": 43858.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.09844325589090096,
+            "ns_per_call": 0.1039611112622133,
+            "process_cpu_ns_per_call": 0.07192530439144512,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 51257.476608,
+            "ns_per_call": 19509.349,
+            "process_cpu_ns_per_call": 44657.0,
+            "completed": 2000.0,
+            "payload_bytes": 7.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.04346512884429193,
+            "ns_per_call": 0.04273858651049811,
+            "process_cpu_ns_per_call": 0.03211142709989475,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 2373.217165,
+            "ns_per_call": 421368.939453,
+            "process_cpu_ns_per_call": 466927.734375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 403.0,
+            "closed_loop_p99_us": 543.4,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.04849107772233733,
+            "ns_per_call": 0.047942574374904304,
+            "process_cpu_ns_per_call": 0.04437249808631053,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.03796526054590574,
+            "closed_loop_p99_us": 0.29186602870813405,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 2374.479473,
+            "ns_per_call": 421144.933594,
+            "process_cpu_ns_per_call": 466041.015625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 405.7,
+            "closed_loop_p99_us": 572.3,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.056229611381441565,
+            "ns_per_call": 0.054810044748758335,
+            "process_cpu_ns_per_call": 0.04875677352030275,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.05546216416070983,
+            "closed_loop_p99_us": 0.21230473527870003,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            1
+          ],
+          "median": {
+            "calls_per_sec": 2384.142136,
+            "ns_per_call": 419438.080078,
+            "process_cpu_ns_per_call": 467142.578125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 411.4,
+            "closed_loop_p99_us": 531.5,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.0759880370655887,
+            "ns_per_call": 0.07624078172171025,
+            "process_cpu_ns_per_call": 0.06551215208820246,
+            "completed": 0.0,
+            "closed_loop_p50_us": 0.07486874088478364,
+            "closed_loop_p99_us": 0.23029539040451538,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 7368.157895,
+            "ns_per_call": 135719.132813,
+            "process_cpu_ns_per_call": 353007.8125,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.05276906976489275,
+            "ns_per_call": 0.05303920971053015,
+            "process_cpu_ns_per_call": 0.03286488879052783,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 7540.567147,
+            "ns_per_call": 132616.019531,
+            "process_cpu_ns_per_call": 352039.0625,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.04163423266178366,
+            "ns_per_call": 0.042113861324984715,
+            "process_cpu_ns_per_call": 0.028761012849248795,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            32
+          ],
+          "median": {
+            "calls_per_sec": 7250.470902,
+            "ns_per_call": 137922.076172,
+            "process_cpu_ns_per_call": 357748.046875,
+            "completed": 512.0,
+            "payload_bytes": 16384.0
+          },
+          "spread_over_median": {
+            "calls_per_sec": 0.06486914923970828,
+            "ns_per_call": 0.06438324697872212,
+            "process_cpu_ns_per_call": 0.052700541036322046,
+            "completed": 0.0,
+            "payload_bytes": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            0,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 3234.184240739,
+            "process_cpu_ns_per_cycle": 385290.0,
+            "p50_us": 294.600000004,
+            "p95_us": 336.799999999,
+            "p99_us": 436.499999999,
+            "p999_us": 1231.400000002,
+            "mode": 0.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.08224864438125466,
+            "process_cpu_ns_per_cycle": 0.04378520075787069,
+            "p50_us": 0.029531568214127116,
+            "p95_us": 0.179928741075356,
+            "p99_us": 2.1154639175329106,
+            "p999_us": 0.15145363001924397
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            1,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 3100.659724269,
+            "process_cpu_ns_per_cycle": 396550.0,
+            "p50_us": 303.4,
+            "p95_us": 375.300000002,
+            "p99_us": 1173.000000001,
+            "p999_us": 1355.499999995,
+            "mode": 1.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.09271639698283113,
+            "process_cpu_ns_per_cycle": 0.0649602824360106,
+            "p50_us": 0.059657218187211564,
+            "p95_us": 0.17665867306060937,
+            "p99_us": 0.7965899403275392,
+            "p999_us": 0.13183327185810342,
+            "mode": 0.0
+          },
+          "throughput_noise_qualified": true
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            2,
+            0
+          ],
+          "median": {
+            "completed": 100.0,
+            "cycles_per_sec": 2686.511028128,
+            "process_cpu_ns_per_cycle": 447570.0,
+            "p50_us": 347.699999999,
+            "p95_us": 408.9,
+            "p99_us": 1387.200000003,
+            "p999_us": 1436.299999995,
+            "mode": 2.0
+          },
+          "spread_over_median": {
+            "completed": 0.0,
+            "cycles_per_sec": 0.10982600380858827,
+            "process_cpu_ns_per_cycle": 0.031101280246665326,
+            "p50_us": 0.030773655441560934,
+            "p95_us": 0.14013206161653205,
+            "p99_us": 0.6861303344816477,
+            "p999_us": 0.046090649585205395,
+            "mode": 0.0
+          },
+          "throughput_noise_qualified": true
+        }
+      ],
+      "hot_comparisons": [
+        {
+          "payload": 7,
+          "width": 1,
+          "variant": "off",
+          "throughput_change": -0.0052207550744993725,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.027735753908219918,
+          "p99_noise_filter": false,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 7,
+          "width": 1,
+          "variant": "on",
+          "throughput_change": -0.010829628161382665,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.0005042864346949116,
+          "p99_noise_filter": false,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 7,
+          "width": 32,
+          "variant": "off",
+          "throughput_change": 0.02202127211995797,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 7,
+          "width": 32,
+          "variant": "on",
+          "throughput_change": -0.01192238654686606,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 16384,
+          "width": 1,
+          "variant": "off",
+          "throughput_change": 0.0005318973832719731,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": 0.053183658446816384,
+          "p99_noise_filter": false,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 16384,
+          "width": 1,
+          "variant": "on",
+          "throughput_change": 0.0046034434442496774,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true,
+          "closed_loop_p99_change": -0.021899153478100786,
+          "p99_noise_filter": false,
+          "within_planned_10pct_observed_p99_growth": true
+        },
+        {
+          "payload": 16384,
+          "width": 32,
+          "variant": "off",
+          "throughput_change": 0.02339923417181322,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        },
+        {
+          "payload": 16384,
+          "width": 32,
+          "variant": "on",
+          "throughput_change": -0.015972376634309393,
+          "throughput_noise_qualified": true,
+          "within_planned_5pct_rate_loss": true
+        }
+      ],
+      "heap": [
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6721.867995,
+            "ns_per_call": 148768.169922,
+            "process_cpu_ns_per_call": 177404.296875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 145.6,
+            "closed_loop_p99_us": 185.3,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2887.0,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-parent-7-1-attempt2.log",
+          "log_sha256": "d14a0357e6247faf02a527c8b3fd0c564bba2d4d6e9cf6aac54a3c9bf28e84c9",
+          "binary_sha256": "71fb175661eaec0fc7f8cbbe6a4760ecee7d5abfb64754c3ab10e483a7d341e6"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6796.679445,
+            "ns_per_call": 147130.669922,
+            "process_cpu_ns_per_call": 176685.546875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 144.7,
+            "closed_loop_p99_us": 185.8,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2887.0,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-off-7-1-attempt2.log",
+          "log_sha256": "bc3ef765850cf19db12579e7e75495f2173880448a433a832e5fbc0da86bbe55",
+          "binary_sha256": "6bde3fc24e3bc437987b3c25748fb29b78d9556cf8a636af4b1540692cb7c6c1"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6652.09762,
+            "ns_per_call": 150328.521484,
+            "process_cpu_ns_per_call": 179144.53125,
+            "completed": 512.0,
+            "closed_loop_p50_us": 145.7,
+            "closed_loop_p99_us": 204.9,
+            "heap_blocks_per_call": 16.0,
+            "heap_bytes_per_call": 2887.0,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-on-7-1-attempt2.log",
+          "log_sha256": "6caddd85b14e22ecbc61fc3a6a514e142394c4319b5f0fef070a065b35a0c128",
+          "binary_sha256": "6e49332ad633ea3a597b194a725f45bd0c7d2825db97c72bfe3342fc667ae0b2"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 47799.536214,
+            "ns_per_call": 20920.705078,
+            "process_cpu_ns_per_call": 48250.0,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.089844,
+            "heap_bytes_per_call": 2783.03125,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-parent-7-32-attempt2.log",
+          "log_sha256": "adbf75d10fb1a67dfb920ba88d4a0cd6e8506e9cd2da0bfa69c217857b499aeb",
+          "binary_sha256": "71fb175661eaec0fc7f8cbbe6a4760ecee7d5abfb64754c3ab10e483a7d341e6"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 51321.627124,
+            "ns_per_call": 19484.962891,
+            "process_cpu_ns_per_call": 45775.390625,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.087891,
+            "heap_bytes_per_call": 2782.921875,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-off-7-32-attempt2.log",
+          "log_sha256": "e0b91c16cc44aea47b227c732c20dda423640934ca8b0686d972ceb2ba7aa787",
+          "binary_sha256": "6bde3fc24e3bc437987b3c25748fb29b78d9556cf8a636af4b1540692cb7c6c1"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            7,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 50603.881219,
+            "ns_per_call": 19761.330078,
+            "process_cpu_ns_per_call": 46216.796875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 14.097656,
+            "heap_bytes_per_call": 2783.609375,
+            "payload_bytes": 7.0
+          },
+          "log": "wsl-heap-hot-on-7-32-attempt2.log",
+          "log_sha256": "80b2f97c6c12d096dfb5e25a124d33a1f0f6f488e1c7fb016de3c48768c56bf5",
+          "binary_sha256": "6e49332ad633ea3a597b194a725f45bd0c7d2825db97c72bfe3342fc667ae0b2"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2338.948236,
+            "ns_per_call": 427542.595703,
+            "process_cpu_ns_per_call": 475824.21875,
+            "completed": 512.0,
+            "closed_loop_p50_us": 417.4,
+            "closed_loop_p99_us": 526.5,
+            "heap_blocks_per_call": 17.0,
+            "heap_bytes_per_call": 84898.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-parent-16384-1-attempt2.log",
+          "log_sha256": "dbb2c5f9d40e5487ed3cd740d1db5074246fa66129f5cf048ff5010a2013ed7e",
+          "binary_sha256": "71fb175661eaec0fc7f8cbbe6a4760ecee7d5abfb64754c3ab10e483a7d341e6"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2412.820279,
+            "ns_per_call": 414452.75,
+            "process_cpu_ns_per_call": 461710.9375,
+            "completed": 512.0,
+            "closed_loop_p50_us": 405.4,
+            "closed_loop_p99_us": 497.5,
+            "heap_blocks_per_call": 17.0,
+            "heap_bytes_per_call": 84898.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-off-16384-1-attempt2.log",
+          "log_sha256": "87c47868ec29e096b14f5169e8f685e2b3fe3bfada019519afd2255774886671",
+          "binary_sha256": "6bde3fc24e3bc437987b3c25748fb29b78d9556cf8a636af4b1540692cb7c6c1"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            1
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 2315.450155,
+            "ns_per_call": 431881.462891,
+            "process_cpu_ns_per_call": 479515.625,
+            "completed": 512.0,
+            "closed_loop_p50_us": 421.9,
+            "closed_loop_p99_us": 552.2,
+            "heap_blocks_per_call": 17.0,
+            "heap_bytes_per_call": 84898.0,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-on-16384-1-attempt2.log",
+          "log_sha256": "47fba6be57e26970832177d4b9491270315981ae25ca7c88b1de20a833a88ca1",
+          "binary_sha256": "6e49332ad633ea3a597b194a725f45bd0c7d2825db97c72bfe3342fc667ae0b2"
+        },
+        {
+          "profile": [
+            "hot",
+            "parent",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 7271.580449,
+            "ns_per_call": 137521.685547,
+            "process_cpu_ns_per_call": 357513.671875,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.066406,
+            "heap_bytes_per_call": 84792.71875,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-parent-16384-32-attempt2.log",
+          "log_sha256": "a15f8bef8e33c3c02c87bb91822f43e52ab7988713a31db1c5af45b2f372abd1",
+          "binary_sha256": "71fb175661eaec0fc7f8cbbe6a4760ecee7d5abfb64754c3ab10e483a7d341e6"
+        },
+        {
+          "profile": [
+            "hot",
+            "off",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 7327.391172,
+            "ns_per_call": 136474.220703,
+            "process_cpu_ns_per_call": 355259.765625,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.082031,
+            "heap_bytes_per_call": 84793.59375,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-off-16384-32-attempt2.log",
+          "log_sha256": "f60710ea4f52374a8d80a56b714042c1981046f3ea5bbe949038094ffa2c0059",
+          "binary_sha256": "6bde3fc24e3bc437987b3c25748fb29b78d9556cf8a636af4b1540692cb7c6c1"
+        },
+        {
+          "profile": [
+            "hot",
+            "on",
+            16384,
+            32
+          ],
+          "heap": true,
+          "metrics": {
+            "calls_per_sec": 6953.404044,
+            "ns_per_call": 143814.453125,
+            "process_cpu_ns_per_call": 366464.84375,
+            "completed": 512.0,
+            "heap_blocks_per_call": 15.068359,
+            "heap_bytes_per_call": 84792.828125,
+            "payload_bytes": 16384.0
+          },
+          "log": "wsl-heap-hot-on-16384-32-attempt2.log",
+          "log_sha256": "6d2f8e95ee9dc83fe9a95bf8ca5f2d87b937267f62fb7c3b83c7b0140ca4a29d",
+          "binary_sha256": "6e49332ad633ea3a597b194a725f45bd0c7d2825db97c72bfe3342fc667ae0b2"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            0,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 2895.680224242,
+            "process_cpu_ns_per_cycle": 400620.0,
+            "p50_us": 304.0,
+            "p95_us": 428.299999996,
+            "p99_us": 1346.300000009,
+            "p999_us": 1346.300000009,
+            "heap_blocks_per_cycle": 40.2,
+            "heap_bytes_per_cycle": 340948.6,
+            "mode": 0.0
+          },
+          "log": "wsl-heap-cold-on-0-0-attempt2.log",
+          "log_sha256": "078ebe56b4e84d35fb39d20e7efd2d8637b43a1b2879bcff6ff892ae9a70ebfe",
+          "binary_sha256": "ae758e81c72d782531027fcdafff8c7fa15ffc60ee0887876cd5871322a6276f"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            1,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 2461.708130037,
+            "process_cpu_ns_per_cycle": 422900.0,
+            "p50_us": 323.899999998,
+            "p95_us": 1354.599999999,
+            "p99_us": 1378.099999997,
+            "p999_us": 1378.099999997,
+            "heap_blocks_per_cycle": 43.2,
+            "heap_bytes_per_cycle": 341697.6,
+            "mode": 1.0
+          },
+          "log": "wsl-heap-cold-on-1-0-attempt2.log",
+          "log_sha256": "b2a49acefc1781f5982c92672840f75680f84325942f47490f3af14f2bc622e4",
+          "binary_sha256": "ae758e81c72d782531027fcdafff8c7fa15ffc60ee0887876cd5871322a6276f"
+        },
+        {
+          "profile": [
+            "cold",
+            "on",
+            2,
+            0
+          ],
+          "heap": true,
+          "metrics": {
+            "completed": 50.0,
+            "cycles_per_sec": 2591.546375722,
+            "process_cpu_ns_per_cycle": 463380.0,
+            "p50_us": 353.799999999,
+            "p95_us": 438.200000005,
+            "p99_us": 1566.399999987,
+            "p999_us": 1566.399999987,
+            "heap_blocks_per_cycle": 47.18,
+            "heap_bytes_per_cycle": 342268.48,
+            "mode": 2.0
+          },
+          "log": "wsl-heap-cold-on-2-0-attempt2.log",
+          "log_sha256": "7c7f6affb832e01b2dccd727314a186c5cf47f5428c62db381d724fd8fdc8763",
+          "binary_sha256": "ae758e81c72d782531027fcdafff8c7fa15ffc60ee0887876cd5871322a6276f"
+        }
+      ]
+    }
+  },
+  "coverage": [
+    "Both frame formats/tiny read+write budgets, copied name before owner gate release, pre-Open queued ordinary/batch/notify/reverse calls, retained result after peer/host destroy, failed endpoint then winner without RPC replay.",
+    "Whole setup zero/expired-before-start/infinite deadlines, independent call expiry/cancel, close while DNS backend held, actual callback retirement plus host ResolverTryDestroy BUSY until lookup release. Resolver admission quota, actual native failure, constructor budget boundaries, distinct65 endpoint/port/family policy validation.",
+    "Production-TU public binding interposition: Close wins immediately before binding returns; permanent state stays closed and business count zero. Real owner-worker allocation budget1 rejects native DNS/prepared construction with MEMORY/NOT_SENT and zero budget residue, both frames.",
+    "12 independent Python-server/native-client sessions per host across numeric/prepared/OS localhost DNS, two frames and1B/coalesced sends. Validates Unicode/NUL/wide numeric IDs and exact payloads, batch/null/notification, reverse callback and EOF retirement.",
+    "30 regression programs per host:20 RPC root+4 time/atomic support plus focused dial/numeric/TLS modular+single. Delivery6 programs per host:modular/single/static/shared plus standalone static/shared declarations without modular include paths. Root static/shared verifiers and root-single DNS example;136 public RPC exports,3 new API exports and no private RPC helpers.",
+    "WSL functional coverage uses ASan/UBSan/leak halt. Two additional TSan programs cover canonical minimal single and production-TU race/owner-OOM; GCC standalone atomic_thread_fence instrumentation warning remains visible. Generated features/amalgamation/API reference/docs/maturity pass."
+  ],
+  "costs_and_measurement": [
+    "Cold source/name allocation, then native Dial/Resolver metadata/name copies and candidate sockets/timers are counted; no zero-overhead or end-to-end zero-copy claim. Normal IO keeps existing admission/copies/allocations/frame storage/native copy sends/gate/counter/ref-drop synchronization. Cold Start/Cancel/Drop callbacks are not a new hot transport layer.",
+    "Public Info grows304->384 bytes on both tested64-bit ABIs. Private peer parent/off/on:Windows1176/1256/1264,WSL1384/1464/1472. New diagnostics add80 bytes per peer; selected source pointer adds8. Actual sizeof/offsetof are measured; allocator reservation, OS resources, native buffers and whole-connection resident peaks excluded.",
+    "Hot numeric benchmark compares exact parent47f13052 source+matching consumer header with updated off/on, shared current Core and dependency objects,7B/16KiB and windows1/32. Healthy workload does not query diagnostics or enter native error paths; no complete error-contract equivalence or release-performance acceptance follows.",
+    "Cold benchmark includes factory/call/exact reply validation/result release/both peer physical wait+destroy, numeric/prepared/uncached app OS localhost DNS. Host construction/final joins excluded; native callback return tails finish at final Engine join. OS resolver can cache internally; extra DNS worker is explicit.",
+    "Each host135 performance executions:15 warmups/seven rotated samples for15 profiles/15 separate heap runs. All process-thread CPU, byte validation, raw samples and spreads retained. Unpinned, no noise retries. Throughput spread<=15% is a sampling-noise filter, not acceptance. Closed-loop tails have coordinated omission, n=100 P99.9 is effectively sample maximum; fixed-arrival/connection-scale/native Linux/72h gates remain open.",
+    "Single footprint includes Core+RPC; static/shared primary rows measure xrpc alone. Actual companion Core artifacts/metrics and forbidden-symbol scans are separately retained. Plain TCP remains free of Resolver/TLS/HTTP/WS/process; dial closure excludes TLS/HTTP/WS/process."
+  ],
+  "failures_and_remaining": [
+    "Initial held-DNS fixture incorrectly required peer retirement to wait every host lookup; public native cancellation can retire its own callback first. Stronger corrected test destroys peer while backend held, then requires host TryDestroy BUSY and joins separately. This prevents conflating the two ownership domains.",
+    "Infinity integration then exposed independently reproduced native TCP and native Dial accepted-1 timer-scheduling failures. Minimal positive-only timer guards committed separately as c264b401, with independent native before/after lifecycles and timer-quota proof. Full details are in docs/development/tcp-connect-infinite-20261114.json.",
+    "First65-entry fixture reused identical endpoints that Core deduplicates; replaced by distinct ports plus exact count assertion. Retain failed outputs. Asset helper owner-map typo and first Windows ABI whole-TU link/GC failure are retained; ABI harness now compiles actual struct declarations without requiring discarded implementation linkage. Initial macro-exclusion query omitted actual suite defines and was corrected; no production check was suppressed.",
+    "Initial Windows16KiB/window1 comparison appeared7-9% slower. A separate cold-diagnostic-layout source prototype did not improve it and was not adopted. The parent TCP object had been prepended, changing the whole shared code link layout. Controlled identical-source parent original/matched order rates4015.120/3682.208 versus updated3701.943 with1.35-3.32% spread identify the confound. Preserve original135-run reports/binaries per host under performance-before-link-order-fix, both24-run exploratory comparisons and candidate source. Correct parent object replacement in place, then run fresh final135 per host; no canonical source change or noise retry. An initial measure-only helper indentation NameError occurred before any benchmark executed and was corrected.",
+    "Framed TLS DNS/prepared setup, stdio/WebSocket, remote deadline/cancel negotiation, credentials/recovery, broader scheduling/native-error/full fault campaigns and all four-product production gates remain incomplete. No statement completes xredis/xrpc/xmqtt/xcron."
+  ],
+  "negative_control": {
+    "expected_failure": true,
+    "exit_code": 1,
+    "command": [
+      "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-tcp-dial-20261113\\unsafe-publication.exe",
+      "race-only"
+    ],
+    "log": "negative-publication.log",
+    "log_sha256": "3a3e46a58467fd0619cc36295715e08bf7e70b0e5724bdcca77970960a9ef75d",
+    "candidate": "unsafe-publication.c",
+    "candidate_sha256": "0d13dbccd17da2c2987c54769109fb1c68507bcd92aa44973202a9ffa6d67222",
+    "binary": "unsafe-publication.exe",
+    "binary_sha256": "88db12d451eebb5e9e02246d102b780a99fae773776f28556e640cc8e2ecbb23",
+    "source_map_sha256": "7feaa265e7b4cc5dd30f4160c04dab65582a54e89c10bd9fa0b3c4af6c2dd66b",
+    "reason": "Removing the locked Close recheck reopens a concurrently closed peer and actually executes its queued RPC. Canonical source remains unchanged."
+  },
+  "evidence": {
+    "logical_directory": "out/service-extensions/xrpc-tcp-dial-20261113/",
+    "physical_directory": "out/local-service-extensions/xrpc-tcp-dial-20261113/",
+    "receipt_files": {
+      "windows-validate-receipts.json": "40dc2c14b858538f76417334d67049735c6ebc0124040a1c8b14e5626346b0a1",
+      "windows-extras-receipts.json": "be63caff0edae296f46dbf6db2c33e0cf4a217ca3da5aac8ddce98b4996726a9",
+      "windows-delivery-receipts.json": "4ce6ab5e2492b27d6d389e1c918c6319553d6c3cff6e13eab3af6138d0b198eb",
+      "windows-measure-receipts.json": "8e4ccf26abf72a2bbe1eef556145bd00a3c33260d1ee8f1450773fe948336026",
+      "windows-abi-receipts.json": "1fce50e0fef3aeae6e5585e065ec77566d96bf6c0c952ea9eac934cba855736e",
+      "windows-performance-receipts.json": "44c50d9dbd9ea63a259f380913467d2603a0b6eaecde59040dd97b30556283d1",
+      "wsl-validate-receipts.json": "69bf5ea97ef35442a8b7c3f374702a7ae90f64e5952b6ce23155e846c5c519b7",
+      "wsl-extras-receipts.json": "b010ae6f926f92229f583bc9dba3ad7a2c6a4e5c7da2d19a5a0364b85eb95d01",
+      "wsl-delivery-receipts.json": "62528f9df742496ed3b30373a2e2a412c446d8c878cb69f57e4327f50d65c68c",
+      "wsl-measure-receipts.json": "dc21068d8dbce72a41c759b7482d271e63f36e8fa064e6300cf2ac30fa73c03b",
+      "wsl-abi-receipts.json": "da087238c24444cc2fa45a1de2d8f8be9d45a7898bc99e749de98a1f70e0b7cf",
+      "wsl-performance-receipts.json": "0632a0f638e748ad3f73f9950ee6d311ee78aadc7bfe00d47a8f2c087bed2b85",
+      "wsl-tsan-receipts.json": "afe10322e22cbfda5621ce86a71147f8cf8cf294c6f215b1b9ea4f80b7cc9e33"
+    },
+    "selected_receipts_sha256": "7979889055a850d3de6324a90ad4b290b15738283d060d0c126a047358eb5c63",
+    "artifact_seal_sha256": "a847b0f800e98465fb50abbe9c8344eb9a9fe839cafd39514b66278f341babf2",
+    "files": 1145,
+    "bytes": 1115680423,
+    "created_utc": "2026-11-13T17:15:08.486086+00:00"
+  }
+}

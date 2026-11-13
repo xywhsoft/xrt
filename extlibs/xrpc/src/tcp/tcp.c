@@ -1,5 +1,6 @@
 #include <xrpc/tcp.h>
 #include "../internal/xrpc_duplex_internal.h"
+#include "../internal/xrpc_tcp_connect.h"
 #include <xrt/atomic.h>
 #include <xrt/sync.h>
 #include <math.h>
@@ -18,6 +19,9 @@ struct xrpctcp {
     xrpcduplex* Duplex;
     xrpcframereader* Reader;
     xrpcduplexoutput* Output;
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+    xrpctcpconnect* Connect; /* Cold only; released when owned Done retires. */
+#endif
     xnetpost Post;
     uint64 Timer,Token;
     double TimerAt,ConnectDeadline,FrameEntered,ReadEpoch,ChunkEpoch;
@@ -65,6 +69,13 @@ static xrpctcpreason xrpcTcpLocalFailure(void)
 {return xrtErrorKind(xrtGetError())==XERR_MEMORY?XRPC_TCP_MEMORY:xrtErrorKind(xrtGetError())==XERR_RANGE?XRPC_TCP_LIMIT:XRPC_TCP_TRANSPORT;}
 static xrpccallstatus xrpcTcpCallFailure(xrpctcpreason Reason)
 {return Reason==XRPC_TCP_LOCAL?XRPC_CALL_CLOSED:Reason==XRPC_TCP_PROTOCOL?XRPC_CALL_PROTOCOL:Reason==XRPC_TCP_LIMIT?XRPC_CALL_LIMIT:Reason==XRPC_TCP_MEMORY?XRPC_CALL_MEMORY:XRPC_CALL_TRANSPORT;}
+static void xrpcTcpNativeError(xrpctcp* P,const xerror* Error)
+{
+    if(!Error)return;
+    xstrview Domain=xrtErrorDomainView(Error);size_t N=Domain.Size;if(N>63)N=63;
+    xrtMutexLock(&P->Gate);P->Info.NativeErrorKind=xrtErrorKind(Error);P->Info.NativeErrorCode=xrtErrorCode(Error);
+    P->Info.NativeErrorDomainTruncated=Domain.Size>N;if(N)memcpy(P->Info.NativeErrorDomain,Domain.Data,N);P->Info.NativeErrorDomain[N]=0;xrtMutexUnlock(&P->Gate);
+}
 static void xrpcTcpTimerCancel(xrpctcp* P)
 {uint64 T=P->Timer;P->Timer=0;P->TimerAt=INFINITY;if(T)(void)xrtNetEngineTimerCancelCurrent(P->Engine,T);}
 static void xrpcTcpArm(xrpctcp* P,double At)
@@ -99,12 +110,42 @@ static void xrpcTcpOnDrain(xnetstream* Stream,ptr Data)
 {(void)Stream;xrpcTcpWake(Data);}
 static void xrpcTcpOnClose(xnetstream* Stream,xnetresult Result,const xerror* Error,ptr Data)
 {
-    (void)Stream;xrpctcp* P=Data;P->NativeClosed=true;
+    (void)Stream;xrpctcp* P=Data;P->NativeClosed=true;xrpcTcpNativeError(P,Error);
     xrpcTcpFail(P,Result==XNET_RESULT_TIMEOUT?XRPC_TCP_TIMEOUT:xrtErrorKind(Error)==XERR_MEMORY?XRPC_TCP_MEMORY:XRPC_TCP_TRANSPORT);xrpcTcpWake(P);
 }
 static void xrpcTcpEventsDrop(const void* Data)
 {xrpctcp* P=(xrpctcp*)Data;P->EventsGone=true;xrpcTcpWake(P);xrpcTcpDrop(P);}
 static const xnetstreameventsownershipv1 xrpcTcpEvents={sizeof(xnetstreameventsownershipv1),{xrpcTcpOnOpen,xrpcTcpOnRead,xrpcTcpOnEnd,NULL,xrpcTcpOnLow,xrpcTcpOnDrain,xrpcTcpOnClose},xrpcTcpEventsDrop,&xrpcTcpOps};
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+static xrpctcpreason xrpcTcpConnectFailure(xnetresult Result,const xerror* Cause)
+{
+    xerrkind Kind=xrtErrorKind(Cause);
+    return Result==XNET_RESULT_TIMEOUT || Kind==XERR_TIMEOUT?XRPC_TCP_TIMEOUT:Result==XNET_RESULT_CANCELLED?XRPC_TCP_LOCAL:
+        Kind==XERR_MEMORY?XRPC_TCP_MEMORY:(Kind==XERR_AGAIN || Kind==XERR_RANGE)?XRPC_TCP_LIMIT:XRPC_TCP_TRANSPORT;
+}
+static void xrpcTcpConnectRelease(xrpctcp* P)
+{xrpctcpconnect* C=P->Connect;P->Connect=NULL;if(C)C->Drop(C->Data);}
+void xrpcTcpConnectRetired(xrpctcp* P)
+{P->Connect->Pending=false;xrpcTcpConnectRelease(P);xrpcTcpWake(P);}
+void xrpcTcpConnected(xrpctcp* P,xnetresult Result,xnetstream* Stream,const xerror* Cause)
+{
+    xrpcTcpNativeError(P,Cause);
+    if(xrtTimer()>=P->ConnectDeadline)xrpcTcpFail(P,XRPC_TCP_TIMEOUT);
+    if(Stream){
+        P->Stream=Stream;P->NativeClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
+        if(!xrpcTcpClosing(P) && xrtNetStreamState(Stream)==XNET_STREAM_OPEN){
+            P->EventsGone=false;xrpcTcpRef(P);
+            if(xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcTcpEvents)){
+                P->Open=true;if(xrtNetStreamAvailable(Stream))P->ReadEpoch=xrtTimer();
+                /* Close can win while ownership is installed: never reopen it. */
+                xrtMutexLock(&P->Gate);if(P->Info.State<XRPC_TCP_CLOSING)P->Info.State=XRPC_TCP_OPEN;xrtMutexUnlock(&P->Gate);
+            }else{P->EventsGone=true;xrpcTcpDrop(P);xrpcTcpNativeError(P,xrtGetError());xrpcTcpFail(P,xrpcTcpConnectFailure(XNET_RESULT_ERROR,xrtGetError()));}
+        }else if(!xrpcTcpClosing(P))xrpcTcpFail(P,XRPC_TCP_TRANSPORT);
+        if(xrpcTcpClosing(P))(void)xrtNetStreamAbort(Stream);
+    }else {P->NativeClosed=true;xrpcTcpFail(P,xrpcTcpConnectFailure(Result,Cause));}
+    xrpcTcpWake(P);
+}
+#endif
 static void xrpcTcpRead(xrpctcp* P)
 {
     size_t Budget=P->Config.ReadBytes,Units=P->Config.WorkFrames;
@@ -170,10 +211,26 @@ static void xrpcTcpWork(xnetworker* Worker,ptr Data)
     if(!P->Started){P->Started=true;
         if(!P->Stream && !xrpcTcpClosing(P)){
             if(xrtTimer()>=P->ConnectDeadline)xrpcTcpFail(P,XRPC_TCP_TIMEOUT);
-            else {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTcpRemaining(P->ConnectDeadline);xrpcTcpRef(P);
+            else {
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+                if(P->Connect){
+                    xerror* Ambient=xrtTakeError();P->Connect->Pending=true;
+                    bool OK=P->Connect->Start(P->Connect->Data,P,P->Engine,xrtNetWorkerIndex(P->Worker),&P->Config.Stream);
+                    xerror* Error=xrtTakeError();
+                    if(!OK){P->Connect->Pending=false;xrpcTcpNativeError(P,Error);xrpcTcpFail(P,xrpcTcpConnectFailure(XNET_RESULT_ERROR,Error));}
+                    xrtClearError();xrtSetErrorTake(Ambient);xrtErrorFree(Error);
+                }else
+#endif
+                {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTcpRemaining(P->ConnectDeadline);xrpcTcpRef(P);
                 P->Stream=xrtNetStreamConnectOwnedV1(P->Engine,&P->Remote,xrtNetWorkerIndex(P->Worker),&C,P,&xrpcTcpEvents);
-                if(!P->Stream){xrpcTcpDrop(P);P->NativeClosed=P->EventsGone=true;xrpcTcpFail(P,xrpcTcpLocalFailure());}}}
-        if(!P->Stream)P->NativeClosed=P->EventsGone=true;
+                if(!P->Stream){xrpcTcpDrop(P);P->NativeClosed=P->EventsGone=true;xrpcTcpNativeError(P,xrtGetError());xrpcTcpFail(P,xrpcTcpLocalFailure());}}}}
+        if(!P->Stream){
+            P->EventsGone=true;
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+            if(!P->Connect)
+#endif
+                P->NativeClosed=true;
+        }
     }
     if(!xrpcDuplexStep(P->Duplex))xrpcTcpFail(P,xrpcTcpLocalFailure());
     xrpcduplexinfo D={0};D.Size=sizeof(D);xrpcDuplexInfo(P->Duplex,&D);
@@ -188,11 +245,18 @@ static void xrpcTcpWork(xnetworker* Worker,ptr Data)
     bool Done=false;
     if(xrpcTcpClosing(P)){
         xrpcTcpTimerCancel(P);xrpcTcpOutputClear(P);
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+        if(P->Connect){if(P->Connect->Pending)P->Connect->Cancel(P->Connect->Data);else xrpcTcpConnectRelease(P);}
+#endif
         if(P->Stream && !P->AbortIssued){P->AbortIssued=true;(void)xrtNetStreamAbort(P->Stream);}
         xrtMutexLock(&P->Gate);xrpctcpreason Reason=P->Info.Reason;size_t Entries=P->Info.Submitters;xrtMutexUnlock(&P->Gate);
         if(!P->DuplexClosing){P->DuplexClosing=true;(void)xrpcDuplexClose(P->Duplex,xrpcTcpCallFailure(Reason));}
         (void)xrpcDuplexStep(P->Duplex);xrpcDuplexInfo(P->Duplex,&D);
-        if(!Entries && D.Drained && P->EventsGone){
+        if(!Entries && D.Drained && P->EventsGone
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+            && !P->Connect
+#endif
+        ){
             /* Recheck admission under Gate before consuming the endpoint. */
             xrtMutexLock(&P->Gate);Done=P->Info.Submitters==0;xrtMutexUnlock(&P->Gate);
             if(Done && xrpcDuplexDestroy(P->Duplex))P->Duplex=NULL;else Done=false;
@@ -241,7 +305,7 @@ static xrpctcp* xrpcTcpCreate(xnetengine* E,xnetworker* W,const xrpctcpconfig* C
     if(!xrtCondInit(&P->Retired)){xrtMutexUnit(&P->Retirement);xrtMutexUnit(&P->Gate);xrtFree(P);xrtNetEngineUnpin(E);return NULL;}
     P->Config.RequestContext=(xbytesview){P->Data+C.ReadChunkBytes,C.RequestContext.Size};if(C.RequestContext.Size)memcpy((ptr)P->Config.RequestContext.Data,C.RequestContext.Data,C.RequestContext.Size);
     C.Duplex.Wake=xrpcTcpWake;C.Duplex.User=P;
-    if(!xrtNetPostInit(&P->Post) || !xrpcFrameReaderCreate(&C.Frame,&P->Reader) || !xrpcDuplexCreate(&C.Duplex,&P->Duplex)){xrpcTcpFree(P);return NULL;}
+    if(!xrtNetPostInit(&P->Post) || !xrpcFrameReaderCreate(&C.Frame,&P->Reader) || !xrpcDuplexCreate(&C.Duplex,&P->Duplex)){xerror* Error=xrtTakeError();xrpcTcpFree(P);xrtClearError();xrtSetErrorTake(Error);return NULL;}
     P->Info.Duplex.Size=sizeof(P->Info.Duplex);xrpcDuplexInfo(P->Duplex,&P->Info.Duplex);
     return P;
 Argument:
@@ -258,6 +322,17 @@ XRPC_API bool xrpcTcpConnect(xnetengine* E,const xnetaddr* Remote,uint64 Affinit
     xrtMutexLock(&P->Gate);P->Active=true;xrpcTcpRef(P);bool Posted=xrpcTcpWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
     if(!Posted){xrpcTcpDrop(P);xrpcTcpFree(P);}return Posted;
 }
+#if defined(XRPC_FEATURE_XRPC_TCP_DIAL)
+bool xrpcTcpCreatePlanned(xnetengine* E,uint64 Affinity,const xrpctcpconfig* Config,xrpctcpconnect* Plan,xrpctcp** Out,double Entered)
+{
+    if(!E || !Plan || !Plan->Start || !Plan->Cancel || !Plan->Drop)return xrpcTcpReport(XERR_ARGUMENT,"invalid TCP connection source");
+    uint32 Count=xrtNetEngineWorkerCount(E);if(!Count)return xrpcTcpReport(XERR_STATE,"RPC TCP engine has no worker");
+    xrpctcp* P=xrpcTcpCreate(E,xrtNetEngineWorker(E,(uint32)(Affinity%Count)),Config,Out,Entered);if(!P)return false;
+    P->Connect=Plan;P->EventsGone=true;
+    xrtMutexLock(&P->Gate);P->Active=true;xrpcTcpRef(P);bool Posted=xrpcTcpWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
+    if(!Posted){xerror* Error=xrtTakeError();P->Connect=NULL;xrpcTcpDrop(P);xrpcTcpFree(P);xrtClearError();xrtSetErrorTake(Error);}return Posted;
+}
+#endif
 XRPC_API bool xrpcTcpAttach(xnetstream* Stream,const xrpctcpconfig* Config,xrpctcp** Out)
 {
     double Entered=xrtTimer();if(!Stream)return xrpcTcpReport(XERR_ARGUMENT,"RPC TCP stream is NULL");xnetworker* W=xrtNetStreamWorker(Stream);

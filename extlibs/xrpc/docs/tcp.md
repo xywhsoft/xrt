@@ -94,7 +94,8 @@ retained results, malformed/oversize/truncated/slow frames, final response befor
 EOF, timer exhaustion and constructor allocation limits. The independent Python
 socket peer exercises Unicode/NUL IDs, exact large integers, batches and native
 callback calls. These local tests do not constitute production acceptance.
-TLS/DNS/prepared-candidate duplex transport, reconnect policy, WebSocket/stdio,
+Developing [native TLS](tls.md) and [TCP DNS/prepared sources](tcp_dial.md) are
+available separately. TLS DNS/prepared setup, reconnect policy, WebSocket/stdio,
 remote deadline/cancel negotiation, authentication, broad hostile-peer campaigns,
 fixed-arrival P99, connection scaling and native Windows/Linux >=72h gates remain
 open. Loopback performance is only the explicitly scoped baseline below.

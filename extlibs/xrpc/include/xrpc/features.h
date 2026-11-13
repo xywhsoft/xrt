@@ -64,6 +64,22 @@
 #ifndef XRPC_MODULE_XRPC_TLS
 #define XRPC_MODULE_XRPC_TLS
 #endif
+#ifndef XRPC_MODULE_XRPC_TCP_DIAL
+#define XRPC_MODULE_XRPC_TCP_DIAL
+#endif
+#endif
+
+/* xrpc_tcp_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_TCP_DIAL)
+#ifndef XRPC_FEATURE_XRPC_TCP_DIAL
+#define XRPC_FEATURE_XRPC_TCP_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_TCP
+#define XRPC_MODULE_XRPC_TCP
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_tls 及其直接依赖。 */
