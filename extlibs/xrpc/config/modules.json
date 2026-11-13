@@ -166,6 +166,13 @@
         "source_roots": [
           "tcp_dial"
         ]
+      },
+      {
+        "name": "tls_dial",
+        "state": "retained",
+        "source_roots": [
+          "tls_dial"
+        ]
       }
     ]
   },
@@ -236,7 +243,8 @@
         "xrpc_duplex",
         "xrpc_tcp",
         "xrpc_tls",
-        "xrpc_tcp_dial"
+        "xrpc_tcp_dial",
+        "xrpc_tls_dial"
       ],
       "public_headers": [
         "extlibs/xrpc/include/xrpc.h",
@@ -744,7 +752,8 @@
         "xrpc_duplex_tests",
         "xrpc_tcp_tests",
         "xrpc_tls_tests",
-        "xrpc_tcp_dial_tests"
+        "xrpc_tcp_dial_tests",
+        "xrpc_tls_dial_tests"
       ],
       "public_headers": [],
       "internal_headers": [],
@@ -769,7 +778,8 @@
         "extlibs/xrpc/tests/test_duplex.c",
         "extlibs/xrpc/tests/test_tcp.c",
         "extlibs/xrpc/tests/test_tls.c",
-        "extlibs/xrpc/tests/test_tcp_dial.c"
+        "extlibs/xrpc/tests/test_tcp_dial.c",
+        "extlibs/xrpc/tests/test_tls_dial.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -791,7 +801,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -818,7 +829,8 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_duplex.c": "xrpc_duplex_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp.c": "xrpc_tcp_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls.c": "xrpc_tls_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c": "xrpc_tcp_dial_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c": "xrpc_tcp_dial_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c": "xrpc_tls_dial_tests"
       }
     },
     {
@@ -1354,7 +1366,8 @@
         "extlibs/xrpc/include/xrpc/tls.h"
       ],
       "internal_headers": [
-        "extlibs/xrpc/src/internal/xrpc_duplex_internal.h"
+        "extlibs/xrpc/src/internal/xrpc_duplex_internal.h",
+        "extlibs/xrpc/src/internal/xrpc_tls_connect.h"
       ],
       "sources": [
         "extlibs/xrpc/src/tls/tls.c"
@@ -1450,6 +1463,61 @@
       "benchmarks": [],
       "docs": [
         "extlibs/xrpc/docs/tcp_dial.md"
+      ]
+    },
+    {
+      "name": "xrpc_tls_dial",
+      "state": "developing",
+      "feature": "XRPC_FEATURE_XRPC_TLS_DIAL",
+      "depends": [
+        "xrpc_tls",
+        "net_tcp_dial"
+      ],
+      "public_headers": [
+        "extlibs/xrpc/include/xrpc/tls_dial.h"
+      ],
+      "internal_headers": [
+        "extlibs/xrpc/src/internal/xrpc_tls_connect.h"
+      ],
+      "sources": [
+        "extlibs/xrpc/src/tls_dial/tls_dial.c"
+      ],
+      "tests": [],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c"
+      ],
+      "examples": [
+        "extlibs/xrpc/examples/tls_dial/main.c"
+      ],
+      "benchmarks": [
+        "extlibs/xrpc/bench/bench_tls_dial.c"
+      ],
+      "docs": [
+        "extlibs/xrpc/docs/tls_dial.md",
+        "extlibs/xrpc/examples/tls_dial/README.md"
+      ]
+    },
+    {
+      "name": "xrpc_tls_dial_tests",
+      "state": "implemented",
+      "feature": null,
+      "depends": [
+        "xrpc_tls_dial",
+        "memory_stats"
+      ],
+      "public_headers": [],
+      "internal_headers": [],
+      "sources": [],
+      "tests": [
+        "extlibs/xrpc/tests/test_tls_dial.c"
+      ],
+      "single_tests": [
+        "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c"
+      ],
+      "examples": [],
+      "benchmarks": [],
+      "docs": [
+        "extlibs/xrpc/docs/tls_dial.md"
       ]
     }
   ]

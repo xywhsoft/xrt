@@ -1,5 +1,6 @@
 #include <xrpc/tls.h>
 #include "../internal/xrpc_duplex_internal.h"
+#include "../internal/xrpc_tls_connect.h"
 #include <xrt/atomic.h>
 #include <xrt/sync.h>
 #include <math.h>
@@ -20,6 +21,9 @@ struct xrpctls {
     xrpcduplex* Duplex;
     xrpcframereader* Reader;
     xrpcduplexoutput* Output;
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+    xrpctlsconnect* Connect; /* Cold only; gone after owned native Done retires. */
+#endif
     xnetpost Post;
     uint64 Timer,Token;
     double TimerAt,ConnectDeadline,FrameEntered,ReadEpoch,ChunkEpoch;
@@ -141,6 +145,36 @@ static void xrpcTlsPeerRawClose(xnetstream* Stream,xnetresult Result,const xerro
 static void xrpcTlsPeerRawDrop(const void* Data)
 {xrpctls* P=(xrpctls*)Data;P->RawEventsGone=true;xrpcTlsPeerWake(P);xrpcTlsPeerDrop(P);}
 static const xnetstreameventsownershipv1 xrpcTlsPeerRawEvents={sizeof(xnetstreameventsownershipv1),{.Open=xrpcTlsPeerRawOpen,.Read=xrpcTlsPeerRawRead,.End=xrpcTlsPeerRawEnd,.Close=xrpcTlsPeerRawClose},xrpcTlsPeerRawDrop,&xrpcTlsPeerOps};
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+static xrpctlsreason xrpcTlsPeerConnectFailure(xnetresult Result,const xerror* Cause)
+{
+    xerrkind Kind=xrtErrorKind(Cause);
+    return Result==XNET_RESULT_TIMEOUT || Kind==XERR_TIMEOUT?XRPC_TLS_TIMEOUT:Result==XNET_RESULT_CANCELLED?XRPC_TLS_LOCAL:
+        Kind==XERR_MEMORY?XRPC_TLS_MEMORY:(Kind==XERR_AGAIN || Kind==XERR_RANGE)?XRPC_TLS_LIMIT:XRPC_TLS_TRANSPORT;
+}
+static void xrpcTlsPeerConnectRelease(xrpctls* P)
+{xrpctlsconnect* C=P->Connect;P->Connect=NULL;if(C)C->Drop(C->Data);}
+void xrpcTlsConnectRetired(xrpctls* P)
+{P->Connect->Pending=false;xrpcTlsPeerConnectRelease(P);xrpcTlsPeerWake(P);}
+void xrpcTlsConnected(xrpctls* P,xnetresult Result,xnetstream* Stream,const xerror* Cause)
+{
+    xrpcTlsPeerNativeError(P,Cause);
+    if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
+    if(Stream){
+        P->Raw=Stream;P->NativeClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
+        if(!xrpcTlsPeerClosing(P) && xrtNetStreamState(Stream)==XNET_STREAM_OPEN){
+            P->RawEventsGone=false;xrpcTlsPeerRef(P);
+            if(xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcTlsPeerRawEvents)){
+                P->RawOpen=true;
+                /* Close may win during binding; never reopen or begin TLS. */
+                xrtMutexLock(&P->Gate);if(P->Info.State<XRPC_TLS_CLOSING)P->Info.State=XRPC_TLS_HANDSHAKING;xrtMutexUnlock(&P->Gate);
+            }else {P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerNativeError(P,xrtGetError());xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(XNET_RESULT_ERROR,xrtGetError()));}
+        }else if(!xrpcTlsPeerClosing(P))xrpcTlsPeerFail(P,XRPC_TLS_TRANSPORT);
+        if(xrpcTlsPeerClosing(P))(void)xrtNetStreamAbort(Stream);
+    }else {P->NativeClosed=true;xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(Result,Cause));}
+    xrpcTlsPeerWake(P);
+}
+#endif
 static bool xrpcTlsPeerInstall(xrpctls* P,xnetstream* Raw)
 {
     /* A buffered ClientHello may have paused the temporary raw binding.
@@ -242,9 +276,16 @@ static void xrpcTlsPeerWork(xnetworker* Worker,ptr Data)
     if(!P->Started){P->Started=true;
         if(!P->Stream && !P->Raw && !xrpcTlsPeerClosing(P)){
             if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
-            else {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTlsPeerRemaining(P->ConnectDeadline);P->RawEventsGone=false;xrpcTlsPeerRef(P);
+            else {
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+                if(P->Connect){
+                    P->Connect->Pending=true;bool OK=P->Connect->Start(P->Connect->Data,P,P->Engine,xrtNetWorkerIndex(P->Worker),&P->Config.Stream);
+                    if(!OK){P->Connect->Pending=false;xrpcTlsPeerNativeError(P,xrtGetError());xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(XNET_RESULT_ERROR,xrtGetError()));}
+                }else
+#endif
+                {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTlsPeerRemaining(P->ConnectDeadline);P->RawEventsGone=false;xrpcTlsPeerRef(P);
                 P->Raw=xrtNetStreamConnectOwnedV1(P->Engine,&P->Remote,xrtNetWorkerIndex(P->Worker),&C,P,&xrpcTlsPeerRawEvents);
-                if(!P->Raw){P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());}}}
+                if(!P->Raw){P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());}}}}
     }
     if(P->Raw && P->RawOpen && P->Session && !xrpcTlsPeerClosing(P)){
         if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
@@ -263,12 +304,19 @@ static void xrpcTlsPeerWork(xnetworker* Worker,ptr Data)
     bool Done=false;
     if(xrpcTlsPeerClosing(P)){
         xrpcTlsPeerTimerCancel(P);xrpcTlsPeerOutputClear(P);
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+        if(P->Connect){if(P->Connect->Pending)P->Connect->Cancel(P->Connect->Data);else xrpcTlsPeerConnectRelease(P);}
+#endif
         if(!P->AbortIssued){P->AbortIssued=true;if(P->Stream)(void)xrtTlsStreamAbort(P->Stream);else if(P->Raw)(void)xrtNetStreamAbort(P->Raw);}
         bool NativeDone=xrpcTlsPeerRetireNative(P);
         xrtMutexLock(&P->Gate);xrpctlsreason Reason=P->Info.Reason;size_t Entries=P->Info.Submitters;xrtMutexUnlock(&P->Gate);
         if(!P->DuplexClosing){P->DuplexClosing=true;(void)xrpcDuplexClose(P->Duplex,xrpcTlsPeerCallFailure(Reason));}
         (void)xrpcDuplexStep(P->Duplex);xrpcDuplexInfo(P->Duplex,&D);
-        if(!Entries && D.Drained && NativeDone){
+        if(!Entries && D.Drained && NativeDone
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+            && !P->Connect
+#endif
+        ){
             /* Recheck admission under Gate before consuming the endpoint. */
             xrtMutexLock(&P->Gate);Done=P->Info.Submitters==0;xrtMutexUnlock(&P->Gate);
             if(Done && xrpcDuplexDestroy(P->Duplex))P->Duplex=NULL;else Done=false;
@@ -348,6 +396,19 @@ XRPC_API bool xrpcTlsConnect(xnetengine* E,const xnetaddr* Remote,uint64 Affinit
     xrtMutexLock(&P->Gate);P->Active=true;xrpcTlsPeerRef(P);bool Posted=xrpcTlsPeerWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
     if(!Posted){xerror* Error=xrtTakeError();xrpcTlsPeerDrop(P);xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);}return Posted;
 }
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+bool xrpcTlsCreatePlanned(xnetengine* E,uint64 Affinity,const xtlsclientconfig* Client,const xrpctlsconfig* Config,xrpctlsconnect* Plan,xrpctls** Out,double Entered)
+{
+    if(!E || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || !Client || !xrtMemRangeValid(Client,sizeof(*Client)) ||
+        xrtMemRangesOverlap(Client,sizeof(*Client),Out,sizeof(*Out)) || (!Client->ServerName.Size && !Client->VerifyName.Size) ||
+        !Plan || !Plan->Start || !Plan->Cancel || !Plan->Drop)return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS source/identity/output");
+    uint32 Count=xrtNetEngineWorkerCount(E);if(!Count)return xrpcTlsPeerReport(XERR_STATE,"RPC TLS engine has no worker");
+    xrpctls* P=xrpcTlsPeerCreate(E,xrtNetEngineWorker(E,(uint32)(Affinity%Count)),Config,Out,Entered);if(!P)return false;
+    if(!xrpcTlsPeerMetadata(P,Client->Protocols,Client->ProtocolCount,Client->ServerName,Client->VerifyName,Out) || !(P->Session=xrtTlsClientCreate(Client,NULL))){xerror* Error=xrtTakeError();xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);return false;}
+    P->Connect=Plan;xrtMutexLock(&P->Gate);P->Active=true;xrpcTlsPeerRef(P);bool Posted=xrpcTlsPeerWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
+    if(!Posted){xerror* Error=xrtTakeError();P->Connect=NULL;xrpcTlsPeerDrop(P);xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);}return Posted;
+}
+#endif
 XRPC_API bool xrpcTlsAccept(xnetstream* Stream,const xtlsserverconfig* Server,const xrpctlsconfig* Config,xrpctls** Out)
 {
     double Entered=xrtTimer();if(!Stream || !Server || !xrtMemRangeValid(Server,sizeof(*Server)) || !Out || xrtMemRangesOverlap(Server,sizeof(*Server),Out,sizeof(*Out)))return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS server inputs");

@@ -12636,3 +12636,57 @@ and out/service-extensions/xrpc-frame-20261112.
   Framed TLS DNS/prepared, stdio/WebSocket, negotiation/credentials/recovery,
   broader fault/performance and all four-product production gates remain open.
   The complete long-term goal remains active.
+
+## 2026-11-14 — Direct master regression and asynchronous TLS connection sources
+
+- All repository commands/builds use `D:/GIT/xrt`, `master`, from046f195a.
+  Migration05dc625d, recheckf0e0955c and retired-branchc2a8b434 are ancestors.
+  No branch/worktree creation, switch, merge, retired-worktree mutation or push.
+  Continue directly on master by the versioned integration policy.
+- Add the developing `xrpc_tls_dial` leaf and three APIs: ConfigInit/Dial/
+  DialAddresses. Bounded copied routing name or retained immutable endpoints,
+  separate explicit TLS identity/trust, synchronous native Session snapshot,
+  existing host Engine/Resolver/candidate controller and shared business Server.
+  No extra runtime or hot IO vtable; only the transferred TCP winner starts TLS.
+- One original factory deadline covers snapshot/queue/DNS/TCP candidate retirement
+  and verified TLS OPEN; zero/-1, independent call expiry/cancel, typed native
+  admission/error/memory and physical Close composition are exercised. Cold
+  source/callback owners retire before a held verifier completes, with real
+  reference accounting. Shared backend lookup/Resolver and Engine/Server/external
+  callers keep separate joins. Uncertain RPC is never replayed.
+- Existing public TLS header/Info layout is unchanged: Info688B on both hosts.
+  Actual private parent/off/on sizes: Windows1632/1632/1640, WSL1840/1840/1848.
+  sizeof excludes allocator/native buffers/OS resources. Only selected source
+  pointer adds8B; no public structure growth.
+- Windows and WSL four-root regressions each pass99 programs: Redis38, MQTT21,
+  cron15, RPC21 plus4 Core time/atomic support. TLS focused/numeric TCP/numeric TLS
+  modular+single add6. Six minimal delivery consumers,3 ABI programs,32 independent
+  Python/OpenSSL TLS13 sessions,5 byte-validating benchmark smoke programs,
+  1 real production-TU winner-Close/Worker-OOM probe and1 root-single consumer
+  give153 primary executions per host. Package verifiers are additional.
+- Interop covers DNS/prepared native clients, two frames,1B/coalesced writes,
+  RSA/P256/P384/Ed25519, ALPN, exact Unicode/NUL/wide IDs, batch/null/notify,
+  reverse calls and EOF retirement. WSL functional/regression/interop/probe runs
+  use ASan/UBSan/leak halt. Packaging/ABI/root-single are uninstrumented. Minimal
+  combined Core/RPC static/shared artifacts exclude HTTP/WS/process/plain RPC
+  TCP adapter symbols; three new public exports exist and private helpers stay
+  out of dynamic exports. Root public reference139 functions/104 types is current.
+- Initial test and standalone interop fixtures hit Werror misleading-indentation;
+  preserve failures and fix whitespace. Original canonical3630-input cohort:
+  f478fcfc9630514c48a4d49a2d081f5356ef74597aebce0519b9ceb8d162fa70.
+  Only uncompiled standalone interop statement indentation changes for final
+  formal extras cohort3630:
+  3c02215691397fad8a9b7eb3cda9f3e88788431027faadb7d82a7206ff401a5a.
+  Production/dependency inputs match across both. Prototype reports/binaries are
+  retained and excluded from primary counts. An untracked unsafe overlay removing
+  only the Close recheck fails the actual race probe on both hosts, as expected;
+  canonical production guard remains intact. No source-layout prototype adopted.
+- Seal520 evidence files, exact commands/source maps/logs/test binary/package
+  hashes and explicit failed/superseded/control runs. Report:
+  `extlibs/xrpc/tests/results/tls-dial-20261114.json`;
+  raw `out/service-extensions/xrpc-tls-dial-20261114/` (physical D storage).
+- Benchmark smoke ran under build load and is functional evidence only. Controlled
+  parent/off/on performance, fixed arrival/tails/connection scale, production trust/
+  resume/fault matrix, broad fuzz/TSan/OOM/native Linux and72h release gates remain
+  open. Framed stdio/WebSocket, negotiated deadline/cancel/credentials/recovery and
+  the complete four-product objective continue; production acceptance remains false.

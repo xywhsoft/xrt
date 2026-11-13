@@ -124,6 +124,22 @@
 #ifndef XRPC_MODULE_XRPC_TCP_DIAL
 #define XRPC_MODULE_XRPC_TCP_DIAL
 #endif
+#ifndef XRPC_MODULE_XRPC_TLS_DIAL
+#define XRPC_MODULE_XRPC_TLS_DIAL
+#endif
+#endif
+
+/* xrpc_tls_dial 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_TLS_DIAL)
+#ifndef XRPC_FEATURE_XRPC_TLS_DIAL
+#define XRPC_FEATURE_XRPC_TLS_DIAL
+#endif
+#ifndef XRPC_MODULE_XRPC_TLS
+#define XRPC_MODULE_XRPC_TLS
+#endif
+#ifndef XRT_MODULE_NET_TCP_DIAL
+#define XRT_MODULE_NET_TCP_DIAL
+#endif
 #endif
 
 /* xrpc_tcp_dial 及其直接依赖。 */
@@ -2378,6 +2394,60 @@ XRT_EXTERN_C_END
 
 
 /* ========================================================================== */
+/* public: extlibs/xrpc/include/xrpc/tls_dial.h */
+/* ========================================================================== */
+
+#ifndef XRPC_TLS_DIAL_H
+#define XRPC_TLS_DIAL_H
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL) && (!defined(XRPC_FEATURE_XRPC_TLS) || !defined(XRT_FEATURE_NET_TCP_DIAL))
+#error "xrpc TLS dial requires TLS and Core candidate dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+typedef struct xrpctlsdialconfig {
+    size_t Size;
+    xnetfamily Family;
+    int64 FallbackDelay;
+    uint32 MaxAttempts;
+    size_t MaxHostBytes;
+} xrpctlsdialconfig;
+XRT_EXTERN_C_BEGIN
+/* Dual stack,250ms fallback,8 attempts,1024 host bytes; hard64 endpoints/
+ * attempts and65535 name bytes. Config.Stream.ConnectTimeout is ONE original
+ * factory-entry deadline across snapshot/copy/queue/DNS/candidate retirement
+ * and verified TLS OPEN. Zero expires immediately, -1 disables that deadline;
+ * the configured native TLS handshake limit remains separately effective. */
+XRPC_API bool xrpcTlsDialConfigInit(xrpctlsdialconfig* Config);
+/* Concurrent host-owned async DNS. DNSName routes TCP and is independent from
+ * mandatory explicit Client.ServerName/VerifyName and its verification/resume
+ * policy. No inferred identity, IDNA conversion or cleartext fallback. Copy
+ * bounded nonempty DNSName (no NUL) and snapshot the native client Session before
+ * return. Names/ALPN copied; native context/verifier/resume references retained.
+ * Only the transferred TCP winner is handed to TLS; candidate callbacks never
+ * publish facade readiness. RPC writes wait for verified TLS OPEN. No replay.
+ * Success returns one peer owner: Close/WaitFor/Destroy as for numeric TLS.
+ * Calls can queue and independently expire/cancel during DNS/TCP/handshake.
+ * Keep Resolver valid through peer retirement; lookup code/data remains through
+ * its separate Resolver join, including cancelled shared backend lookups.
+ * All native TLS policy callback code/data remains alive through Destroy.
+ * Cold source/controller owners retire after native owned Done/Drop. No new
+ * Engine/Resolver/runtime/thread or hot IO vtable. False changes no output and
+ * consumes none of the caller's native aliases. */
+XRPC_API bool xrpcTlsDial(xnetengine* Engine,xnetresolver* Resolver,xstrview DNSName,
+    uint16 Port,uint64 Affinity,const xtlsclientconfig* Client,
+    const xrpctlsconfig* Config,const xrpctlsdialconfig* Dial,xrpctls** Peer);
+/* Retain an immutable <=64 prepared list, preserve selected nonzero ports and
+ * filter Family. No Resolver. Explicit TLS identity/trust remains mandatory;
+ * caller may drop its list/context/verifier/resume aliases after success per
+ * native ownership contracts. Borrowed callback contexts still outlive Destroy. */
+XRPC_API bool xrpcTlsDialAddresses(xnetengine* Engine,xnetaddrlist* Addresses,
+    uint64 Affinity,const xtlsclientconfig* Client,const xrpctlsconfig* Config,
+    const xrpctlsdialconfig* Dial,xrpctls** Peer);
+XRT_EXTERN_C_END
+#endif
+#endif
+
+
+/* ========================================================================== */
 /* public: extlibs/xrpc/include/xrpc.h */
 /* ========================================================================== */
 
@@ -2439,6 +2509,9 @@ XRT_EXTERN_C_END
 #endif
 #if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TCP_DIAL)
 #error "XRPC_FEATURE_XRPC requires tcp_dial"
+#endif
+#if defined(XRPC_FEATURE_XRPC) && !defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+#error "XRPC_FEATURE_XRPC requires tls_dial"
 #endif
 #endif
 
@@ -2773,6 +2846,34 @@ typedef struct xrpctcpconnect {
 bool xrpcTcpCreatePlanned(xnetengine*,uint64,const xrpctcpconfig*,xrpctcpconnect*,xrpctcp**,double);
 void xrpcTcpConnected(xrpctcp*,xnetresult,xnetstream*,const xerror*);
 void xrpcTcpConnectRetired(xrpctcp*);
+#endif
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* internal: extlibs/xrpc/src/internal/xrpc_tls_connect.h */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_TLS) || \
+	defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+#ifndef XRPC_TLS_CONNECT_INTERNAL_H
+#define XRPC_TLS_CONNECT_INTERNAL_H
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+/* Product-private cold TCP source. Success-only creator Data transfer.
+ * All methods and Connected/Retired run on the peer Worker. Start success
+ * transfers a real native callback credit and reports transferred winner/failure
+ * then owned callback retirement, once; failure transfers none. No IO vtable. */
+typedef struct xrpctlsconnect {
+    ptr Data;
+    bool (*Start)(ptr,xrpctls*,xnetengine*,uint64,const xnetstreamconfig*);
+    void (*Cancel)(ptr);
+    void (*Drop)(ptr);
+    bool Pending;
+} xrpctlsconnect;
+bool xrpcTlsCreatePlanned(xnetengine*,uint64,const xtlsclientconfig*,const xrpctlsconfig*,xrpctlsconnect*,xrpctls**,double);
+void xrpcTlsConnected(xrpctls*,xnetresult,xnetstream*,const xerror*);
+void xrpcTlsConnectRetired(xrpctls*);
 #endif
 #endif
 #endif
@@ -7817,6 +7918,9 @@ struct xrpctls {
     xrpcduplex* Duplex;
     xrpcframereader* Reader;
     xrpcduplexoutput* Output;
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+    xrpctlsconnect* Connect; /* Cold only; gone after owned native Done retires. */
+#endif
     xnetpost Post;
     uint64 Timer,Token;
     double TimerAt,ConnectDeadline,FrameEntered,ReadEpoch,ChunkEpoch;
@@ -7938,6 +8042,36 @@ static void xrpcTlsPeerRawClose(xnetstream* Stream,xnetresult Result,const xerro
 static void xrpcTlsPeerRawDrop(const void* Data)
 {xrpctls* P=(xrpctls*)Data;P->RawEventsGone=true;xrpcTlsPeerWake(P);xrpcTlsPeerDrop(P);}
 static const xnetstreameventsownershipv1 xrpcTlsPeerRawEvents={sizeof(xnetstreameventsownershipv1),{.Open=xrpcTlsPeerRawOpen,.Read=xrpcTlsPeerRawRead,.End=xrpcTlsPeerRawEnd,.Close=xrpcTlsPeerRawClose},xrpcTlsPeerRawDrop,&xrpcTlsPeerOps};
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+static xrpctlsreason xrpcTlsPeerConnectFailure(xnetresult Result,const xerror* Cause)
+{
+    xerrkind Kind=xrtErrorKind(Cause);
+    return Result==XNET_RESULT_TIMEOUT || Kind==XERR_TIMEOUT?XRPC_TLS_TIMEOUT:Result==XNET_RESULT_CANCELLED?XRPC_TLS_LOCAL:
+        Kind==XERR_MEMORY?XRPC_TLS_MEMORY:(Kind==XERR_AGAIN || Kind==XERR_RANGE)?XRPC_TLS_LIMIT:XRPC_TLS_TRANSPORT;
+}
+static void xrpcTlsPeerConnectRelease(xrpctls* P)
+{xrpctlsconnect* C=P->Connect;P->Connect=NULL;if(C)C->Drop(C->Data);}
+void xrpcTlsConnectRetired(xrpctls* P)
+{P->Connect->Pending=false;xrpcTlsPeerConnectRelease(P);xrpcTlsPeerWake(P);}
+void xrpcTlsConnected(xrpctls* P,xnetresult Result,xnetstream* Stream,const xerror* Cause)
+{
+    xrpcTlsPeerNativeError(P,Cause);
+    if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
+    if(Stream){
+        P->Raw=Stream;P->NativeClosed=xrtNetStreamState(Stream)==XNET_STREAM_CLOSED;
+        if(!xrpcTlsPeerClosing(P) && xrtNetStreamState(Stream)==XNET_STREAM_OPEN){
+            P->RawEventsGone=false;xrpcTlsPeerRef(P);
+            if(xrtNetStreamSetEventsOwnedV1(Stream,P,&xrpcTlsPeerRawEvents)){
+                P->RawOpen=true;
+                /* Close may win during binding; never reopen or begin TLS. */
+                xrtMutexLock(&P->Gate);if(P->Info.State<XRPC_TLS_CLOSING)P->Info.State=XRPC_TLS_HANDSHAKING;xrtMutexUnlock(&P->Gate);
+            }else {P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerNativeError(P,xrtGetError());xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(XNET_RESULT_ERROR,xrtGetError()));}
+        }else if(!xrpcTlsPeerClosing(P))xrpcTlsPeerFail(P,XRPC_TLS_TRANSPORT);
+        if(xrpcTlsPeerClosing(P))(void)xrtNetStreamAbort(Stream);
+    }else {P->NativeClosed=true;xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(Result,Cause));}
+    xrpcTlsPeerWake(P);
+}
+#endif
 static bool xrpcTlsPeerInstall(xrpctls* P,xnetstream* Raw)
 {
     /* A buffered ClientHello may have paused the temporary raw binding.
@@ -8039,9 +8173,16 @@ static void xrpcTlsPeerWork(xnetworker* Worker,ptr Data)
     if(!P->Started){P->Started=true;
         if(!P->Stream && !P->Raw && !xrpcTlsPeerClosing(P)){
             if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
-            else {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTlsPeerRemaining(P->ConnectDeadline);P->RawEventsGone=false;xrpcTlsPeerRef(P);
+            else {
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+                if(P->Connect){
+                    P->Connect->Pending=true;bool OK=P->Connect->Start(P->Connect->Data,P,P->Engine,xrtNetWorkerIndex(P->Worker),&P->Config.Stream);
+                    if(!OK){P->Connect->Pending=false;xrpcTlsPeerNativeError(P,xrtGetError());xrpcTlsPeerFail(P,xrpcTlsPeerConnectFailure(XNET_RESULT_ERROR,xrtGetError()));}
+                }else
+#endif
+                {xnetstreamconfig C=P->Config.Stream;C.ConnectTimeout=xrpcTlsPeerRemaining(P->ConnectDeadline);P->RawEventsGone=false;xrpcTlsPeerRef(P);
                 P->Raw=xrtNetStreamConnectOwnedV1(P->Engine,&P->Remote,xrtNetWorkerIndex(P->Worker),&C,P,&xrpcTlsPeerRawEvents);
-                if(!P->Raw){P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());}}}
+                if(!P->Raw){P->RawEventsGone=true;xrpcTlsPeerDrop(P);xrpcTlsPeerFail(P,xrpcTlsPeerLocalFailure());}}}}
     }
     if(P->Raw && P->RawOpen && P->Session && !xrpcTlsPeerClosing(P)){
         if(xrtTimer()>=P->ConnectDeadline)xrpcTlsPeerFail(P,XRPC_TLS_TIMEOUT);
@@ -8060,12 +8201,19 @@ static void xrpcTlsPeerWork(xnetworker* Worker,ptr Data)
     bool Done=false;
     if(xrpcTlsPeerClosing(P)){
         xrpcTlsPeerTimerCancel(P);xrpcTlsPeerOutputClear(P);
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+        if(P->Connect){if(P->Connect->Pending)P->Connect->Cancel(P->Connect->Data);else xrpcTlsPeerConnectRelease(P);}
+#endif
         if(!P->AbortIssued){P->AbortIssued=true;if(P->Stream)(void)xrtTlsStreamAbort(P->Stream);else if(P->Raw)(void)xrtNetStreamAbort(P->Raw);}
         bool NativeDone=xrpcTlsPeerRetireNative(P);
         xrtMutexLock(&P->Gate);xrpctlsreason Reason=P->Info.Reason;size_t Entries=P->Info.Submitters;xrtMutexUnlock(&P->Gate);
         if(!P->DuplexClosing){P->DuplexClosing=true;(void)xrpcDuplexClose(P->Duplex,xrpcTlsPeerCallFailure(Reason));}
         (void)xrpcDuplexStep(P->Duplex);xrpcDuplexInfo(P->Duplex,&D);
-        if(!Entries && D.Drained && NativeDone){
+        if(!Entries && D.Drained && NativeDone
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+            && !P->Connect
+#endif
+        ){
             /* Recheck admission under Gate before consuming the endpoint. */
             xrtMutexLock(&P->Gate);Done=P->Info.Submitters==0;xrtMutexUnlock(&P->Gate);
             if(Done && xrpcDuplexDestroy(P->Duplex))P->Duplex=NULL;else Done=false;
@@ -8145,6 +8293,19 @@ XRPC_API bool xrpcTlsConnect(xnetengine* E,const xnetaddr* Remote,uint64 Affinit
     xrtMutexLock(&P->Gate);P->Active=true;xrpcTlsPeerRef(P);bool Posted=xrpcTlsPeerWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
     if(!Posted){xerror* Error=xrtTakeError();xrpcTlsPeerDrop(P);xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);}return Posted;
 }
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+bool xrpcTlsCreatePlanned(xnetengine* E,uint64 Affinity,const xtlsclientconfig* Client,const xrpctlsconfig* Config,xrpctlsconnect* Plan,xrpctls** Out,double Entered)
+{
+    if(!E || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || !Client || !xrtMemRangeValid(Client,sizeof(*Client)) ||
+        xrtMemRangesOverlap(Client,sizeof(*Client),Out,sizeof(*Out)) || (!Client->ServerName.Size && !Client->VerifyName.Size) ||
+        !Plan || !Plan->Start || !Plan->Cancel || !Plan->Drop)return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS source/identity/output");
+    uint32 Count=xrtNetEngineWorkerCount(E);if(!Count)return xrpcTlsPeerReport(XERR_STATE,"RPC TLS engine has no worker");
+    xrpctls* P=xrpcTlsPeerCreate(E,xrtNetEngineWorker(E,(uint32)(Affinity%Count)),Config,Out,Entered);if(!P)return false;
+    if(!xrpcTlsPeerMetadata(P,Client->Protocols,Client->ProtocolCount,Client->ServerName,Client->VerifyName,Out) || !(P->Session=xrtTlsClientCreate(Client,NULL))){xerror* Error=xrtTakeError();xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);return false;}
+    P->Connect=Plan;xrtMutexLock(&P->Gate);P->Active=true;xrpcTlsPeerRef(P);bool Posted=xrpcTlsPeerWakeLocked(P);if(Posted)*Out=P;else P->Active=false;xrtMutexUnlock(&P->Gate);
+    if(!Posted){xerror* Error=xrtTakeError();P->Connect=NULL;xrpcTlsPeerDrop(P);xrpcTlsPeerFree(P);xrtClearError();xrtSetErrorTake(Error);}return Posted;
+}
+#endif
 XRPC_API bool xrpcTlsAccept(xnetstream* Stream,const xtlsserverconfig* Server,const xrpctlsconfig* Config,xrpctls** Out)
 {
     double Entered=xrtTimer();if(!Stream || !Server || !xrtMemRangeValid(Server,sizeof(*Server)) || !Out || xrtMemRangesOverlap(Server,sizeof(*Server),Out,sizeof(*Out)))return xrpcTlsPeerReport(XERR_ARGUMENT,"invalid RPC TLS server inputs");
@@ -8310,6 +8471,103 @@ XRPC_API bool xrpcTcpDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 
 {
     double Entered=xrtTimer();if(!Addresses)return xrpcTcpDialArgument("prepared TCP endpoints are NULL");
     return xrpcTcpDialCreate(E,NULL,Addresses,(xstrview){0},0,A,C,D,Out,Entered);
+}
+#endif
+#endif
+
+
+/* ========================================================================== */
+/* source: extlibs/xrpc/src/tls_dial/tls_dial.c */
+/* ========================================================================== */
+
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+#include <string.h>
+#if defined(XRPC_FEATURE_XRPC_TLS_DIAL)
+typedef struct xrpctlsdialdata {
+    xatomic32 References;
+    xrpctlsconnect Plan;
+    xrpctls* Peer;
+    xnetresolver* Resolver;
+    xnetaddrlist* Addresses;
+    xnetdial* Dial;
+    xnetdialconfig Config;
+    uint16 Port;
+    char Name[];
+} xrpctlsdialdata;
+static bool xrpcTlsDialArgument(cstr Message)
+{xrtSetErrorInfo(XERR_ARGUMENT,"xrt.rpc",19301,Message);return false;}
+static void xrpcTlsDialDrop(const void* Data)
+{
+    xrpctlsdialdata* D=(xrpctlsdialdata*)Data;
+    if(xrtAtomic32FetchSub(&D->References,1,XMEMORY_ACQ_REL)!=1)return;
+    xrtNetDialDestroy(D->Dial);xrtNetAddrListDestroy(D->Addresses);xrtFree(D);
+}
+static void xrpcTlsDialPlanDrop(ptr Data){xrpcTlsDialDrop(Data);}
+static bool xrpcTlsDialCount(const void* Data,size_t* Count)
+{if(!Data || !Count)return false;*Count=xrtAtomic32Load(&((const xrpctlsdialdata*)Data)->References,XMEMORY_RELAXED);return true;}
+static bool xrpcTlsDialTrace(const void* Data,xrtownershipvisitor Visit,ptr Context)
+{(void)Data;(void)Visit;(void)Context;return false;}
+static const xrtownershipops xrpcTlsDialOps={xrpcTlsDialCount,xrpcTlsDialTrace};
+static void xrpcTlsDialDone(xnetdial* Dial,xnetresult Result,xnetstream* Stream,const xerror* Cause,ptr Data)
+{(void)Dial;xrpcTlsConnected(((xrpctlsdialdata*)Data)->Peer,Result,Stream,Cause);}
+static void xrpcTlsDialRetired(const void* Data)
+{
+    xrpctlsdialdata* D=(xrpctlsdialdata*)Data;
+    /* Same-Worker posted peer work follows the physical owned callback tail.
+     * Creator and callback hold real credits; Count is not a lifetime test. */
+    xrpcTlsConnectRetired(D->Peer);xrpcTlsDialDrop(D);
+}
+static const xnetdialownershipv1 xrpcTlsDialPolicy={sizeof(xnetdialownershipv1),xrpcTlsDialDone,xrpcTlsDialRetired,&xrpcTlsDialOps};
+static bool xrpcTlsDialStart(ptr Data,xrpctls* Peer,xnetengine* E,uint64 Affinity,const xnetstreamconfig* Stream)
+{
+    xrpctlsdialdata* D=Data;D->Peer=Peer;D->Config.Stream=*Stream;D->Config.Affinity=Affinity;
+    xrtAtomic32FetchAdd(&D->References,1,XMEMORY_RELAXED);
+    /* Losers have no facade events and cannot start TLS or emit RPC. */
+    D->Dial=D->Addresses?xrtNetDialAddressesOwnedV1(E,D->Addresses,&D->Config,NULL,NULL,D,&xrpcTlsDialPolicy):
+        xrtNetDialOwnedV1(E,D->Resolver,D->Name,D->Port,&D->Config,NULL,NULL,D,&xrpcTlsDialPolicy);
+    if(!D->Dial){xrpcTlsDialDrop(D);return false;}
+    xrtNetAddrListDestroy(D->Addresses);D->Addresses=NULL;return true;
+}
+static void xrpcTlsDialCancel(ptr Data)
+{(void)xrtNetDialCancel(((xrpctlsdialdata*)Data)->Dial);}
+XRPC_API bool xrpcTlsDialConfigInit(xrpctlsdialconfig* C)
+{
+    if(!C || !xrtMemRangeValid(C,sizeof(*C)))return xrpcTlsDialArgument("invalid TLS dial config output");
+    *C=(xrpctlsdialconfig){sizeof(*C),XNET_FAMILY_UNSPEC,250,8,1024};return true;
+}
+static bool xrpcTlsDialCreate(xnetengine* E,xnetresolver* Resolver,xnetaddrlist* Addresses,xstrview Name,uint16 Port,uint64 Affinity,
+    const xtlsclientconfig* Client,const xrpctlsconfig* Config,const xrpctlsdialconfig* Dial,xrpctls** Out,double Entered)
+{
+    if(!E || !Out || !xrtMemRangeValid(Out,sizeof(*Out)) || (Dial && (!xrtMemRangeValid(Dial,sizeof(*Dial)) ||
+        xrtMemRangesOverlap(Dial,sizeof(*Dial),Out,sizeof(*Out)))))return xrpcTlsDialArgument("invalid TLS dial arguments/output overlap");
+    xrpctlsdialconfig K={0};if(Dial)K=*Dial;else if(!xrpcTlsDialConfigInit(&K))return false;
+    if(K.Size!=sizeof(K) || (K.Family!=XNET_FAMILY_UNSPEC && K.Family!=XNET_FAMILY_IPV4 && K.Family!=XNET_FAMILY_IPV6) ||
+        K.FallbackDelay<0 || !K.MaxAttempts || K.MaxAttempts>64 || !K.MaxHostBytes || K.MaxHostBytes>65535)return xrpcTlsDialArgument("invalid TLS dial policy/bounds");
+    if(Addresses){
+        size_t Count=xrtNetAddrListCount(Addresses),Eligible=0;if(!Count || Count>64)return xrpcTlsDialArgument("prepared TLS endpoints exceed count limit");
+        for(size_t I=0;I<Count;++I){const xnetaddr* A=xrtNetAddrListGet(Addresses,I);if(!A)return false;
+            if(xrtMemRangesOverlap(A,sizeof(*A),Out,sizeof(*Out)))return xrpcTlsDialArgument("endpoint/output overlap");
+            if(K.Family!=XNET_FAMILY_UNSPEC && K.Family!=A->Family)continue;
+            if(!A->Port)return xrpcTlsDialArgument("prepared TLS endpoint port is zero");
+            ++Eligible;}
+        if(!Eligible)return xrpcTlsDialArgument("no TLS endpoint matches family");
+    }else if(!Resolver || !Port || !Name.Size || Name.Size>K.MaxHostBytes || !xrtMemRangeValid(Name.Data,Name.Size) ||
+        xrtMemRangesOverlap(Name.Data,Name.Size,Out,sizeof(*Out)) || memchr(Name.Data,0,Name.Size))return xrpcTlsDialArgument("invalid TLS DNS name/resolver/port");
+    xrpctlsdialdata* D=xrtCalloc(1,sizeof(*D)+Name.Size+1);if(!D)return false;
+    xrtAtomic32Init(&D->References,1);D->Plan=(xrpctlsconnect){.Data=D,.Start=xrpcTlsDialStart,.Cancel=xrpcTlsDialCancel,.Drop=xrpcTlsDialPlanDrop};
+    D->Resolver=Resolver;D->Port=Port;xrtNetDialConfigInit(&D->Config);D->Config.Family=K.Family;D->Config.Timeout=0;
+    D->Config.FallbackDelay=K.FallbackDelay;D->Config.MaxAttempts=K.MaxAttempts;
+    if(Addresses){D->Addresses=xrtNetAddrListRef(Addresses);if(!D->Addresses){xrpcTlsDialDrop(D);return false;}}
+    else memcpy(D->Name,Name.Data,Name.Size);
+    if(xrpcTlsCreatePlanned(E,Affinity,Client,Config,&D->Plan,Out,Entered))return true;
+    xerror* Error=xrtTakeError();xrpcTlsDialDrop(D);xrtClearError();xrtSetErrorTake(Error);return false;
+}
+XRPC_API bool xrpcTlsDial(xnetengine* E,xnetresolver* R,xstrview Name,uint16 Port,uint64 A,const xtlsclientconfig* Client,const xrpctlsconfig* C,const xrpctlsdialconfig* D,xrpctls** Out)
+{double Entered=xrtTimer();return xrpcTlsDialCreate(E,R,NULL,Name,Port,A,Client,C,D,Out,Entered);}
+XRPC_API bool xrpcTlsDialAddresses(xnetengine* E,xnetaddrlist* Addresses,uint64 A,const xtlsclientconfig* Client,const xrpctlsconfig* C,const xrpctlsdialconfig* D,xrpctls** Out)
+{
+    double Entered=xrtTimer();if(!Addresses)return xrpcTlsDialArgument("prepared TLS endpoints are NULL");
+    return xrpcTlsDialCreate(E,NULL,Addresses,(xstrview){0},0,A,Client,C,D,Out,Entered);
 }
 #endif
 #endif

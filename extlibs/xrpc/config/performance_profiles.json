@@ -4709,6 +4709,136 @@
           }
         }
       ]
+    },
+    {
+      "name": "xrpc_tls_dial",
+      "system": "tls_dial",
+      "description": "Serial full native TLS13 handshake and physical peer lifecycle over numeric/prepared/uncached localhost DNS; explicit fixture pin, exact reply bytes and process CPU, closed-loop tails, no production fixed-arrival acceptance",
+      "benchmarks": [
+        {
+          "name": "xrpc_tls_dial_numeric",
+          "source": "extlibs/xrpc/bench/bench_tls_dial.c",
+          "suite": "xrpc_tls_dial,memory_stats",
+          "args": [
+            "100",
+            "0",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "0",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tls_dial_prepared",
+          "source": "extlibs/xrpc/bench/bench_tls_dial.c",
+          "suite": "xrpc_tls_dial,memory_stats",
+          "args": [
+            "100",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_tls_dial_dns",
+          "source": "extlibs/xrpc/bench/bench_tls_dial.c",
+          "suite": "xrpc_tls_dial,memory_stats",
+          "args": [
+            "100",
+            "2",
+            "0"
+          ],
+          "smoke_args": [
+            "5",
+            "2",
+            "1"
+          ],
+          "metrics": {
+            "cycles_per_sec": {
+              "unit": "cycles/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_cycle": {
+              "unit": "ns",
+              "direction": "lower"
+            },
+            "p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "p999_us": {
+              "unit": "us",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

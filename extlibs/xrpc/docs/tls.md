@@ -48,3 +48,7 @@ external callers join separately before code unload. Retained results survive.
 The [local example](../examples/tls/README.md) uses an explicit pin to the existing
 public test fixture, not a production PKIX policy. Full native interop, all fault
 boundaries and production throughput/tails/72h gates require their own evidence.
+
+The optional [TLS dial leaf](tls_dial.md) adds asynchronous host DNS and prepared
+TCP candidates with an explicit snapshotted client identity/trust policy. The
+numeric TLS leaf remains independent of Resolver and candidate dialing.

@@ -170,6 +170,17 @@
         "xrtWebSocket",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xrpc_tls_dial",
+      "system": "tls_dial",
+      "suite": "xrpc_tls_dial",
+      "description": "Native framed TLS peer with host DNS/prepared TCP candidates and explicit trust snapshot; no HTTP/WebSocket/process",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtWebSocket",
+        "xrtProcess"
+      ]
     }
   ]
 }
