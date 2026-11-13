@@ -45,15 +45,17 @@ int main(int Argc,char** Argv)
     while(!xrtAtomic32Load(&Ready,XMEMORY_ACQUIRE)){if(xrtTimer()>=End)return 6;xrtSleep(1);}
     double* Latency=Width==1?xrtMalloc(Count*sizeof(double)):NULL;if(Width==1 && !Latency)return 7;
     for(unsigned I=0;I<100;++I)if(!benchTlsCycle(Peer,Width,NULL))return 8;
+    xrpctlsinfo Verified={0};Verified.Size=sizeof(Verified);if(!xrpcTlsInfo(Peer,&Verified) || Verified.Version!=XTLS_VERSION_13 || !Verified.Cipher || Verified.Resumed)return 19;
     xmemstats Before,After;xrtMemStatsEnable(Heap);xrtMemStatsGet(&Before);double CpuStart,CpuEnd;if(!rpcBenchProcessCpu(&CpuStart))return 9;
     double Start=xrtTimer();for(size_t I=0;I<Count;){size_t N=Count-I;if(N>Width)N=Width;if(!benchTlsCycle(Peer,N,Latency?Latency+I:NULL))return 10;I+=N;}double Seconds=xrtTimer()-Start;
     if(!rpcBenchProcessCpu(&CpuEnd))return 11;
     xrtMemStatsGet(&After);xrtMemStatsEnable(false);
     printf("calls_per_sec: %.6f\nns_per_call: %.6f\nprocess_cpu_ns_per_call: %.6f\ncompleted: %zu\n",Count/Seconds,Seconds*1e9/Count,(CpuEnd-CpuStart)*1000./Count,Count);
-    if(Latency){qsort(Latency,Count,sizeof(double),benchTlsCompare);printf("closed_loop_p50_us: %.6f\nclosed_loop_p99_us: %.6f\n",Latency[(Count-1)/2],Latency[(Count*99-1)/100]);}
+    if(Latency){qsort(Latency,Count,sizeof(double),benchTlsCompare);printf("closed_loop_p50_us: %.6f\nclosed_loop_p95_us: %.6f\nclosed_loop_p99_us: %.6f\nclosed_loop_p999_us: %.6f\n",Latency[(Count-1)/2],Latency[(Count*95-1)/100],Latency[(Count*99-1)/100],Latency[(Count*999-1)/1000]);}
     if(Heap)printf("heap_blocks_per_call: %.6f\nheap_bytes_per_call: %.6f\n",(double)(After.BlockAllocCalls-Before.BlockAllocCalls)/Count,(double)(After.BlockAllocBytes-Before.BlockAllocBytes)/Count);
+    printf("tls_version: %u\ntls_cipher: %u\n",(unsigned)Verified.Version,(unsigned)Verified.Cipher);
     printf("payload_bytes: %zu\n",BenchTlsParams.Size);
-    puts("scope: native loopback TLS13 fixture-pin/Content-Length, record/ciphertext copies included, handshake excluded from steady samples; one connection, shared executor, closed-loop pipeline1 or barrier-window32; P99 only pipeline1 includes caller wait/collection and has coordinated omission; all process threads in CPU; unpinned, no fixed-arrival/connection-scale/native-Linux production acceptance");
+    puts("scope: native loopback TLS13 fixture-pin/Content-Length, record/ciphertext copies included, handshake excluded from steady samples; one connection, shared executor, closed-loop pipeline1 or barrier-window32; quantiles only pipeline1 includes caller wait/collection and has coordinated omission; all process threads in CPU; unpinned, no fixed-arrival/connection-scale/native-Linux production acceptance");
     xrtFree(Latency);xrtFree(Payload);if(!xrpcTlsClose(Peer) || !xrpcTlsClose(Accepted) || xrpcTlsWaitFor(Peer,10000)!=XWAIT_OK || xrpcTlsWaitFor(Accepted,10000)!=XWAIT_OK || !xrpcTlsDestroy(Peer) || !xrpcTlsDestroy(Accepted))return 12;
     xrtNetListenerClose(Listener);xrtNetListenerDestroy(Listener);if(!xrpcServerDestroy(Server))return 13;End=xrtTimer()+10;xnetretireresult Q;while((Q=xrtNetEngineTryDestroy(E))==XNET_RETIRE_BUSY){if(xrtTimer()>=End)return 14;xrtSleep(1);}xrtTlsVerifierRelease(Verifier);xrtTlsIdentityRelease(Identity);xrtTlsContextRelease(TLSContext);return Q==XNET_RETIRE_READY?0:15;
 }

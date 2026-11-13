@@ -4484,8 +4484,33 @@
             "process_cpu_ns_per_call": {
               "unit": "ns",
               "direction": "lower"
+            },
+            "closed_loop_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p999_us": {
+              "unit": "us",
+              "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher"
+          ]
         },
         {
           "name": "xrpc_tls_w32",
@@ -4514,7 +4539,16 @@
               "unit": "ns",
               "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher"
+          ]
         },
         {
           "name": "xrpc_tls_large_w1",
@@ -4544,8 +4578,33 @@
             "process_cpu_ns_per_call": {
               "unit": "ns",
               "direction": "lower"
+            },
+            "closed_loop_p50_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p95_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p99_us": {
+              "unit": "us",
+              "direction": "lower"
+            },
+            "closed_loop_p999_us": {
+              "unit": "us",
+              "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher"
+          ]
         },
         {
           "name": "xrpc_tls_large_w32",
@@ -4576,7 +4635,16 @@
               "unit": "ns",
               "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher"
+          ]
         }
       ]
     },
@@ -4754,7 +4822,18 @@
               "unit": "us",
               "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h",
+            "extlibs/xrpc/examples/common/tls_service.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher",
+            "mode"
+          ]
         },
         {
           "name": "xrpc_tls_dial_prepared",
@@ -4795,7 +4874,18 @@
               "unit": "us",
               "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h",
+            "extlibs/xrpc/examples/common/tls_service.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher",
+            "mode"
+          ]
         },
         {
           "name": "xrpc_tls_dial_dns",
@@ -4836,7 +4926,18 @@
               "unit": "us",
               "direction": "lower"
             }
-          }
+          },
+          "inputs": [
+            "extlibs/xrpc/bench/process_cpu.h",
+            "tests/fixtures/tls_server.h",
+            "tests/test.h",
+            "extlibs/xrpc/examples/common/tls_service.h"
+          ],
+          "facts": [
+            "tls_version",
+            "tls_cipher",
+            "mode"
+          ]
         }
       ]
     }

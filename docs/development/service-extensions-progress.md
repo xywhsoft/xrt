@@ -12690,3 +12690,53 @@ and out/service-extensions/xrpc-frame-20261112.
   resume/fault matrix, broad fuzz/TSan/OOM/native Linux and72h release gates remain
   open. Framed stdio/WebSocket, negotiated deadline/cancel/credentials/recovery and
   the complete four-product objective continue; production acceptance remains false.
+
+## 2026-11-14 — Verified TLS performance workloads and explicit qualification
+
+- Continue directly on `D:/GIT/xrt` master from08213638; previous goal turn made
+  progress. No branch/worktree creation/switch/merge or remote push. Production
+  library/runtime code is unchanged in this stage.
+- Harden hot/cold byte-validating benchmarks with explicit TLS13/nonresumed
+  checks; cold loops also validate ALPN, exactly one verifier call per cycle and
+  result-index bounds. Add hot window1 P95/P99.9 beside P50/P99. Register direct
+  CPU/fixture/test/service helper inputs and negotiated version/cipher/mode facts
+  in canonical performance identities. Their change invalidates comparisons.
+- Per host135 original executions:15 warmups,seven rotated/reversed samples per
+  15 profiles,15 separate XRT allocation loops. Parent046f195a source/public header
+  is reconstructed from Git objects and its object replaces current TLS at the
+  same link-list index, sharing current Core/dependencies. No old worktree used.
+  Hot7B/16KiB, single call/barrier window32; cold full numeric/prepared/OS localhost
+  peer lifecycle. App DNS cache off; TLS record/ciphertext copies retained.
+- Both hosts pass all workload/byte/TLS assertions. Parent-to-on throughput
+  median changes range-1.50% to+4.83%. Most full-range/median spreads exceed the
+  predeclared5% rate/10% P99 screening bounds, so comparisons are inconclusive.
+  Only Windows16KiB/window1 rates qualify, with all rate comparisons inside5%;
+  its P99 remains too noisy. Never promote favorable medians to release acceptance.
+  Windows before-snapshot observed36% host load and two unrelated compiler
+  processes; these were preserved, not stopped or cleaned up. WSL is not native
+  Linux deployment evidence. No timing retries or discarded samples.
+- Short Windows CPU counters include zero/coarse observations. Preserve them and
+  exclude from CPU conclusions. Add12 longer uninstrumented batches per host,
+  counts32768/262144/8192/32768 for small-w1/small-w32/large-w1/large-w32; every
+  observation records >100ms all-thread process CPU. Resolution calibration only,
+  one observation per profile, no qualified CPU-regression claim. All147 primary
+  executions per host pass. Original seven-sample throughput/tails stay unchanged.
+- XRT block/byte allocation traffic is explicit, including cold paths. Most hot
+  counts agree; some window observations differ and are not separately attributed.
+  No zero-overhead/allocation/copy claim. Host construction, libc latency arrays,
+  kernel/other-process allocation and final host joins are outside this scope.
+- Measurement2716-input map:
+  4b95265b14995673f4a4f2d3a0707403366f23fe6f0d66bd206d44f36399b3a9.
+  Final2716-input map only changes profile helper/fact metadata:
+  b8c3dbf735155ef3bb069c52ef274357703a4b83dfc71fcb5a5d232c06348f3c.
+  Compiled source/helpers/flags/binaries are unchanged. Canonical generic parser
+  validates all210 steady sample metric/fact contracts;17 existing tool tests pass.
+- Seal375 evidence files: exact frozen inputs, parent blobs, ordered commands,
+  all logs/executable hashes/samples/CPU/heap/environment snapshots and scripts.
+  Report: `extlibs/xrpc/tests/results/tls-dial-performance-20261114.json`.
+  Guide: `extlibs/xrpc/docs/tls_dial_performance.md`.
+  Raw: `out/service-extensions/xrpc-tls-dial-perf-20261114/` (physical D storage).
+- Production/performance acceptance remains false. Controlled/pinned duration,
+  fixed arrival/queue wait/CO, worker/connection scale, broader trust/resumption/
+  fault/OOM/fuzz/TSan, native Windows/Linux72h, copy/synchronization/syscall counters,
+  competitor/minimal-XRT baselines and remaining four-product features stay open.
