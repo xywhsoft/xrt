@@ -70,6 +70,41 @@
 #ifndef XRPC_MODULE_XRPC_TLS_DIAL
 #define XRPC_MODULE_XRPC_TLS_DIAL
 #endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS_TLS
+#define XRPC_MODULE_XRPC_WS_TLS
+#endif
+#endif
+
+/* xrpc_ws_tls 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS_TLS)
+#ifndef XRPC_FEATURE_XRPC_WS_TLS
+#define XRPC_FEATURE_XRPC_WS_TLS
+#endif
+#ifndef XRPC_MODULE_XRPC_WS
+#define XRPC_MODULE_XRPC_WS
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_TLS
+#define XRT_MODULE_WEBSOCKET_STREAM_TLS
+#endif
+#endif
+
+/* xrpc_ws 及其直接依赖。 */
+#if defined(XRPC_MODULE_ALL) || defined(XRPC_MODULE_XRPC_WS)
+#ifndef XRPC_FEATURE_XRPC_WS
+#define XRPC_FEATURE_XRPC_WS
+#endif
+#ifndef XRPC_MODULE_XRPC_DUPLEX
+#define XRPC_MODULE_XRPC_DUPLEX
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#define XRT_MODULE_WEBSOCKET_STREAM_RETIRE
+#endif
+#ifndef XRT_MODULE_WEBSOCKET_STREAM_REF
+#define XRT_MODULE_WEBSOCKET_STREAM_REF
+#endif
 #endif
 
 /* xrpc_tls_dial 及其直接依赖。 */

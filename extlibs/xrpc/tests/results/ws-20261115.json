@@ -1,0 +1,3540 @@
+{
+  "schema": 1,
+  "date": "2026-11-15",
+  "status": "verified-developing-ws-wss-attach-transport",
+  "base_revision": "a725e505a43c4a33082074d3a71bb1e758416f57",
+  "branch": "master",
+  "workspace": "D:/GIT/xrt",
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "complete_four_product_goal": false,
+  "implementation": [
+    "10 WS APIs plus optional AttachTls, one native UTF-8 Text message per JSON-RPC document, optional binary input, bidirectional calls/notify/batch on existing Duplex/shared Server/Engine. Attach requires caller-validated HTTP Upgrade; no automatic HTTP handshake factory yet.",
+    "Bounded geometric receive assembly with old+new peak ledger, release above KeepReceiveBytes, read yield threshold and message admission deadline; original call-entry timeout includes encoding/admission; no replay after uncertain execution. Partial WS headers before MessageBegin require host TCP/TLS idle/read policy.",
+    "Actual immutable Duplex output reference credits through native SendRef: unmasked plain server avoids an adapter payload copy; masking and TLS copy in Core. No zero-copy or universal performance claim.",
+    "Close composes handler/job drain, gate entries, posts/timers, WS/native physical retirement and send release. Poll/Wait nudges cleanup on exhausted timers. Retained results survive Peer/Server/Engine destruction. No shared runtime or thread-per-peer.",
+    "Core normal EOF follows paused buffered messages, including final-byte Data and pending MessageEnd. Native TLS can close reentrantly inside Consume; retain the existing TLS owner until Resume finishes, or explicit Worker Close/cross-thread Abort abandons it. Errors do not wait for abandoned readers. No added TLS alias, receive queue, timer or thread."
+  ],
+  "platforms": {
+    "windows": {
+      "primary_program_executions": 98,
+      "primary": {
+        "validate/ws": {
+          "label": "ws",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tests",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 77.219,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-attempt3.log",
+          "log_sha256": "8d934431c4c5aceb4ab0d91accb06feb2f8d2ebe380f4a37a2f4c65c79a88f13",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_ws.exe",
+              "sha256": "cd292b12bacbd31033749ecb14c5a64eed73b4d92592902a1cb8afef9d0678ee",
+              "preserved": "validated-binaries/windows/validate/windows-ws-attempt3/test_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_single_xrpc_ws.exe",
+              "sha256": "246a5b3fc845a9de8a32e34b1254ea16278b1a075cd436523a1e3bda95afba3c",
+              "preserved": "validated-binaries/windows/validate/windows-ws-attempt3/test_single_xrpc_ws.exe"
+            }
+          ]
+        },
+        "validate/wss": {
+          "label": "wss",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tls_tests",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 38.75,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-attempt3.log",
+          "log_sha256": "9bcd9d75f72eeba83bf03687c5a7132a59d71023df36a04845863366bc112de3",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+              "sha256": "8e295fb4c9e03a0542b4eb5892bc61ed9a960256450e31ef4306a050011e3170",
+              "preserved": "validated-binaries/windows/validate/windows-wss-attempt3/test_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_single_xrpc_ws_tls.exe",
+              "sha256": "17a16f4eb23483475bc77925a6f358119f63ce2f1b884cfae8aae3079c2a97c8",
+              "preserved": "validated-binaries/windows/validate/windows-wss-attempt3/test_single_xrpc_ws_tls.exe"
+            }
+          ]
+        },
+        "validate/tcp-regression": {
+          "label": "tcp-regression",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tcp_tests,memory_stats",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 29.86,
+          "source_map_sha256": "1cf69e19816daba88d3217fd31b9ef2131a16fc8ee39a777f88fa731a8a8b8d9",
+          "log": "windows-tcp-regression-attempt2.log",
+          "log_sha256": "327e32f605af3597e8a50111cf1606d3083355066cbd8d7033de767f2a5c88ac",
+          "programs": 5,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_tcp_tests,memory_stats\\test_tcp.exe",
+              "sha256": "cb7e96ad267e09730cd224128e2fbde646dc834cdad794690e37963d478c1ff9",
+              "preserved": "validated-binaries/windows/validate/windows-tcp-regression-attempt2/test_tcp.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tcp_tests,memory_stats\\test_memory_stats.exe",
+              "sha256": "90972ca07568b7b57cc8b52f492e77d9a9cc7726f3c014a286a358a8a4dcf5e2",
+              "preserved": "validated-binaries/windows/validate/windows-tcp-regression-attempt2/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tcp_tests,memory_stats\\test_memory_stats_threads.exe",
+              "sha256": "fa731356bce95e92f9340da91da61c4e15a28ab7f05910889bb3ef5f0c52bbd4",
+              "preserved": "validated-binaries/windows/validate/windows-tcp-regression-attempt2/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tcp_tests,memory_stats\\test_single_stats.exe",
+              "sha256": "cc7053026d515e55979b2385c91379c0f0518ded28830038bed2c51c7ed9fd95",
+              "preserved": "validated-binaries/windows/validate/windows-tcp-regression-attempt2/test_single_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tcp_tests,memory_stats\\test_single_stats_threads.exe",
+              "sha256": "c113d857deb4874e4f2240c53b2393843c66291ce289e67b0714cda64d7e0b62",
+              "preserved": "validated-binaries/windows/validate/windows-tcp-regression-attempt2/test_single_stats_threads.exe"
+            }
+          ]
+        },
+        "validate/tls-regression": {
+          "label": "tls-regression",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tls_tests,memory_stats",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 195.078,
+          "source_map_sha256": "1cf69e19816daba88d3217fd31b9ef2131a16fc8ee39a777f88fa731a8a8b8d9",
+          "log": "windows-tls-regression.log",
+          "log_sha256": "576548422d60bb157f5a41f1c678c125d87c0d4cf72b1fce970765429294c154",
+          "programs": 6,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_tls.exe",
+              "sha256": "c6282871c173324f45fd68a38f0efbe5fd5583764decd751c2f6d558f5539ba6",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_memory_stats.exe",
+              "sha256": "5f45671c9a2b53fff56e155649b4d78d0532fd536c996b7694c41a3d839ed56f",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_memory_stats_threads.exe",
+              "sha256": "20459bfd2cac913eda2c16792ef671da124fc84170b46a6ef7b8fa253e1d959f",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_single_xrpc_tls.exe",
+              "sha256": "169bbfdfa0c8f3afd9750aecd604d1006b136c536555147693fbab3e48861db6",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_single_xrpc_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_single_stats.exe",
+              "sha256": "cc7053026d515e55979b2385c91379c0f0518ded28830038bed2c51c7ed9fd95",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_single_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tls_tests,memory_stats\\test_single_stats_threads.exe",
+              "sha256": "c113d857deb4874e4f2240c53b2393843c66291ce289e67b0714cda64d7e0b62",
+              "preserved": "validated-binaries/windows/validate/windows-tls-regression/test_single_stats_threads.exe"
+            }
+          ]
+        },
+        "validate/core-off-regression": {
+          "label": "core-off-regression",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "websocket_stream,memory_stats,thread",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 70.406,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-core-off-regression-attempt3.log",
+          "log_sha256": "0e7ae1851e3b52bd400105878091c9d991c8f89996bf86709da3d4e9839137a8",
+          "programs": 15,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream.exe",
+              "sha256": "3e391f601f27064c97892dfb9dd72c6a9ef5604ce733033c3dff63499667d8f9",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_stream.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream_protocol.exe",
+              "sha256": "5dc69d2d8b6f1fcabe5627dbea0d7b86828660c46380f388fcb88e8f0f9b8221",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_stream_protocol.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream_invalid.exe",
+              "sha256": "c04b23be589221ddf43e469cd95b2c5625ea775fd963fa7365a308fafc0a8a37",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_stream_invalid.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream_eof.exe",
+              "sha256": "f8c1da5114cbc2602bb445c70fbd2d65912c7087eb411c7e1ab676020510d6fe",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_stream_eof.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_memory_stats.exe",
+              "sha256": "e83b3ff4ca6f72bc85b5a98ed32c22b51189c84546a222d5cda470167fb4e077",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_memory_stats_threads.exe",
+              "sha256": "5b31e9b0b154e2561eb680c82bce604383c43dce06abf65a0fd02eddf8865ed2",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_thread.exe",
+              "sha256": "449dfa12e87aeddd8aa4983d0ba19cf656eb716e89d98a634b8f399c5642d94e",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_thread.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_thread_oom.exe",
+              "sha256": "b45087e43b5b0f58f3527a68397e078368f9ea055ea8a69c79de18bf471458ee",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_thread_oom.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_websocket_stream.exe",
+              "sha256": "533d4d81ebf54deac0442555b652ad08353b6ff3ed401c86b3c524724e838d55",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_websocket_stream.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_websocket_buffered.exe",
+              "sha256": "9ab1b0d87d2c8ecbefe308aece877ebb3a9224dc7c51daf2e64c238de48cf1f7",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_websocket_buffered.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_websocket_owned.exe",
+              "sha256": "b408d27d9a4cdf4a56a431c202750831f291ceb76820419d46f6e82569fd9a46",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_websocket_owned.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_websocket_attach_oom.exe",
+              "sha256": "ce8e7586c05c2333c9d9796302e257fff96124cb3fdee946823188b7c0907b6e",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_websocket_attach_oom.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_stats.exe",
+              "sha256": "cc7053026d515e55979b2385c91379c0f0518ded28830038bed2c51c7ed9fd95",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_stats_threads.exe",
+              "sha256": "c113d857deb4874e4f2240c53b2393843c66291ce289e67b0714cda64d7e0b62",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_single_thread.exe",
+              "sha256": "ed3cbb7d6cdb7da7404dab81e007736bffb5bf6ad43d4423675bf2dc764877a3",
+              "preserved": "validated-binaries/windows/validate/windows-core-off-regression-attempt3/test_single_thread.exe"
+            }
+          ]
+        },
+        "validate/core-wss-deflate": {
+          "label": "core-wss-deflate",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--suite",
+            "websocket_stream_tls_deflate_tests,memory_stats,thread",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 198.312,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-core-wss-deflate-attempt2.log",
+          "log_sha256": "82bf7d41b3caff83f4bc77196fa76d8cbd7818872fdbc0d401540b06307d1b79",
+          "programs": 10,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_stream_tls.exe",
+              "sha256": "acc650597a1b8f2a9bcd5be59f733bde15aafc5420ab4c6ea3bf239b13066bc6",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_stream_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_stream_eof_tls.exe",
+              "sha256": "9f42606aeaee713b4b9160c109aa85e85653fd8c4522b386dfec6d089b565dfd",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_stream_eof_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_memory_stats.exe",
+              "sha256": "bd27e5247704e5ee6bbb02053ce983ef88adf49779f3ac41a6e441012d76cb5c",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_memory_stats_threads.exe",
+              "sha256": "1c02dfdb520f78a2496288d618af5357d672c16fbbc9de7c29aa27fdfc4aa67c",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_thread.exe",
+              "sha256": "71b0e16f53af3e32e00ec6777702bea517d0d79dcca20e489f43cb3dc3dd51df",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_thread.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_thread_oom.exe",
+              "sha256": "cc3d6fdeaa6309419b998466854caaa3a9cbc781ee5d6c9dbc96876a015a556f",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_thread_oom.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_single_websocket_stream_tls.exe",
+              "sha256": "d723328320dbf144de4cf1bcb324b456614d97d19c94d084a10f0dc2ee81f962",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_single_websocket_stream_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_single_stats.exe",
+              "sha256": "cc7053026d515e55979b2385c91379c0f0518ded28830038bed2c51c7ed9fd95",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_single_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_single_stats_threads.exe",
+              "sha256": "c113d857deb4874e4f2240c53b2393843c66291ce289e67b0714cda64d7e0b62",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_single_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\websocket_stream_tls_deflate_tests,memory_stats,thread\\test_single_thread.exe",
+              "sha256": "ed3cbb7d6cdb7da7404dab81e007736bffb5bf6ad43d4423675bf2dc764877a3",
+              "preserved": "validated-binaries/windows/validate/windows-core-wss-deflate-attempt2/test_single_thread.exe"
+            }
+          ]
+        },
+        "validate/root": {
+          "label": "root",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tests,memory_stats,thread,time,atomic",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 273.39,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-root-attempt2.log",
+          "log_sha256": "815071fe3c351809feb6ea6046e2cd467764fa615c4191f5ab8b5ca0ad03f472",
+          "programs": 30,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_decode.exe",
+              "sha256": "da60d3ec330dd17b6ef030625103a1b3e0e7254741c7dcb78bc6dddf096975f1",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_decode.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_encode.exe",
+              "sha256": "02e3b6e1735d83daf841a4d0dbcbf3bf5cf411f038013a45bf11bfdbebe194fd",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_encode.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_dispatch.exe",
+              "sha256": "112b3234cdeee1284861d7ecd3ad01db71d633428acf31399f701e125cfc98ba",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_dispatch.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_methods.exe",
+              "sha256": "01fd81fb7db66b7859d5b81d53b0252837c6d07c37640585ab7c6bd9099062d3",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_methods.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_id.exe",
+              "sha256": "05eeb50f33c3fbe2274e10ada2b11de9a02b5e97886d4cc70a06a1b8ed9dfd3c",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_id.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_pending.exe",
+              "sha256": "ad6b78ab9bb63dcd1c773b7758f4e73e056ab6f9fde820a123a955389be1e98d",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_pending.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_response.exe",
+              "sha256": "fcacbb7670432c706ac282b7c44196bd1bd325d9a05382cad1791355930c1cf9",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_response.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_receive.exe",
+              "sha256": "d9c1c49730aebc2fcbc4adbb91a2719bd4234dd191c17aa30bef67bc29574c33",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_receive.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_call.exe",
+              "sha256": "e671adb5193aa278de5aac1c82ce998e718b11c004ba8fe28163ad6eea045890",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_call.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_http_client.exe",
+              "sha256": "37d9b20f16597e5a77e5da6d0d8fd8e084ccc2e227a73b74a8ef4429c1f0fb9a",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_http_client.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_server.exe",
+              "sha256": "a917035e4f57190bb00aeec9750aabd08ba8fcb8d9f7a9bbc78f88597191f125",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_server.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_http_server.exe",
+              "sha256": "d10c9569a485f179d8c8dbf63f3aa033c2e54a827b5bf967c0b16cb00e4db957",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_http_server.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_http_dial.exe",
+              "sha256": "a99336576ba57146ce53acd6d472c1150e003744e66d84d5cca3bb095e41cae7",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_http_dial.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_http_tls.exe",
+              "sha256": "fbb0c65b9d1ab953476247b52b7560d65f3dcd2cfd39dfa532482e6061dc5e6f",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_http_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_http_server_tls.exe",
+              "sha256": "03dd701c486b6e22bafc5445214ea319564804e98ee96b8c13a7820655d1fedb",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_http_server_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_frame.exe",
+              "sha256": "78fc915e9958c0fd2648de9d48b34c27fe46ce185a63be823d95cc3a56eba33a",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_frame.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_duplex.exe",
+              "sha256": "6f82f13e6292b4b90f6f1add57555f8f8db8c74e72fa5c429da987b7edadba3d",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_duplex.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_tcp.exe",
+              "sha256": "b8ea47ff4d52ead7b7e30c4deac39920e6375294ca39aebb95f4288c41a32958",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_tcp.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_tls.exe",
+              "sha256": "ef7d40d404a1d27aa05d353d26e1409573c0488fecb7e2a43ae01282a0346726",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_tcp_dial.exe",
+              "sha256": "2bf6398a7825f83b3956f3fa4dd5cbf30c3771ca6a11fe39c3daf086c54c07ce",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_tcp_dial.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_tls_dial.exe",
+              "sha256": "39555c17d8597b64adf2a5580744a7a080a69ae7462ade54a7be55c9a42374d2",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_tls_dial.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_ws.exe",
+              "sha256": "1d0f0028c505a68a7827a603edc7b40ea357aa73d83243ca4bc16a2f9fbda468",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_memory_stats.exe",
+              "sha256": "287bd3f003384f537291d0e6f5fb2d6f7a20c47892adf2b471199c391137b2ca",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_memory_stats.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_memory_stats_threads.exe",
+              "sha256": "dd734da091cf38c2daa737281ba512e9990c6c0a5b9bb0dba3866c6b1b844ed1",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_memory_stats_threads.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_thread.exe",
+              "sha256": "a3bc11b9a8d296d366bd959e6cfe53ea88c1162dbdbfeb06828675021c3744ef",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_thread.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_thread_oom.exe",
+              "sha256": "09e37b9e9f82c9669cbabd26cc4c394c52f0c98c5b5fa63b3560c09afde2df94",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_thread_oom.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_time.exe",
+              "sha256": "83ee5ee6130f7c078ef115d65d736a071d0b8361201dbe733eb5a98093bc7940",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_time.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_time_property.exe",
+              "sha256": "6d64912570096f3e5394a2111569b967b2f3603351113a953b49268461e43457",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_time_property.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_atomic.exe",
+              "sha256": "cb3a27b0aa8ab091dbe0f34f309b7fa54a858aaf977eaa41ab621f8210f930dd",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_atomic.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_atomic_threads.exe",
+              "sha256": "1f25725a727c23e852d7c969ad059b308aedd3083c2e9c63a30628b00b515c7f",
+              "preserved": "validated-binaries/windows/validate/windows-root-attempt2/test_atomic_threads.exe"
+            }
+          ]
+        },
+        "extras/owner-oom": {
+          "label": "owner-oom",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-owner-oom.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-owner-oom-attempt2.log",
+          "log_sha256": "78cb3c826d627dc9b1ec2d8f07b9b6820383e5a2ab13d310d78b9bbed72a3a7f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-owner-oom.exe",
+              "sha256": "f7937323355e42e2509a8610f61b759c1d29c32015cba0bf23496d09df9b8575",
+              "preserved": "validated-binaries/direct/windows/f7937323355e42e2509a8610f61b759c1d29c32015cba0bf23496d09df9b8575.exe"
+            }
+          ]
+        },
+        "extras/smoke-0-1-7": {
+          "label": "smoke-0-1-7",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "1",
+            "1",
+            "7",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-0-1-7-attempt3.log",
+          "log_sha256": "375db342c23b4437a6845d86cf3c10d468ff4fa8c7ff69a8d0b24f1932313514",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-0-1-8192": {
+          "label": "smoke-0-1-8192",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "1",
+            "1",
+            "8192",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.093,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-0-1-8192-attempt3.log",
+          "log_sha256": "0721b02d51a11bb9c06b5005611c978db0c192d6ef43bab6561aa2e7ccf88155",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-0-32-7": {
+          "label": "smoke-0-32-7",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "32",
+            "1",
+            "7",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.141,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-0-32-7-attempt3.log",
+          "log_sha256": "b2d000f793ab3aea04f0a1590049cd31b40d247de20cd472dec4fa4c97327746",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-0-32-8192": {
+          "label": "smoke-0-32-8192",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "32",
+            "1",
+            "8192",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.344,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-0-32-8192-attempt3.log",
+          "log_sha256": "375dff8cde7181ff251281fd44b2e3a5d88ddbe330041b9449840ecaf088709e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-1-1-7": {
+          "label": "smoke-1-1-7",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "1",
+            "1",
+            "7",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.094,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-1-1-7-attempt3.log",
+          "log_sha256": "9f00a9c19eac753c5fca253f05ab58c42ce0a5b2a94a70ca14178c4da373171c",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-1-1-8192": {
+          "label": "smoke-1-1-8192",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "1",
+            "1",
+            "8192",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-1-1-8192-attempt3.log",
+          "log_sha256": "95744751452f57a8bb72152ebaff82f5e69571b8b9a3e6a68d96d827696ae596",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-1-32-7": {
+          "label": "smoke-1-32-7",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "32",
+            "1",
+            "7",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.141,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-1-32-7-attempt3.log",
+          "log_sha256": "937bb4865e739d70cafb8cbe5695df0d29747b2a2fc89fee2b79bac5086aa7f5",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "extras/smoke-1-32-8192": {
+          "label": "smoke-1-32-8192",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+            "100",
+            "32",
+            "1",
+            "8192",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.484,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-smoke-1-32-8192-attempt3.log",
+          "log_sha256": "82a1d3859318aa35a9fad42bd213f70d6a37ae93cfae30c18437c3bf9a8dc6d2",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-bench.exe",
+              "sha256": "db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c",
+              "preserved": "validated-binaries/direct/windows/db88bf7a0de34b5fd569554e2bcc552bb37722cf55d56bcbbbe5ff9e5b0a631c.exe"
+            }
+          ]
+        },
+        "delivery/ws-modular-example-run": {
+          "label": "ws-modular-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\modular\\example.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-modular-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\modular\\example.exe",
+              "sha256": "d39e2ffce075d4d1b2787355ae43979a879c07ad5d74aa9e5b8ae1716a8507fa",
+              "preserved": "validated-binaries/direct/windows/d39e2ffce075d4d1b2787355ae43979a879c07ad5d74aa9e5b8ae1716a8507fa.exe"
+            }
+          ]
+        },
+        "delivery/ws-single-example-run": {
+          "label": "ws-single-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\single\\example.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-single-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\single\\example.exe",
+              "sha256": "56617f23adb7065734b96169138bd289645146c31478af6f0d6126562b4b10a7",
+              "preserved": "validated-binaries/direct/windows/56617f23adb7065734b96169138bd289645146c31478af6f0d6126562b4b10a7.exe"
+            }
+          ]
+        },
+        "delivery/ws-static-example-run": {
+          "label": "ws-static-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\static\\example.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-static-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\static\\example.exe",
+              "sha256": "f80ddc8a73061a9e3d82910c10237f36cd6f9a95e03595eb63dc482b4553cdb0",
+              "preserved": "validated-binaries/direct/windows/f80ddc8a73061a9e3d82910c10237f36cd6f9a95e03595eb63dc482b4553cdb0.exe"
+            }
+          ]
+        },
+        "delivery/ws-shared-example-run": {
+          "label": "ws-shared-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\shared\\example.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.062,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-shared-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\ws\\shared\\example.exe",
+              "sha256": "e25d9b46a8914d05408748b84d1ca4d88b724087e597d7bc401f8b9c1783f21e",
+              "preserved": "validated-binaries/direct/windows/e25d9b46a8914d05408748b84d1ca4d88b724087e597d7bc401f8b9c1783f21e.exe"
+            }
+          ]
+        },
+        "delivery/wss-modular-example-run": {
+          "label": "wss-modular-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\modular\\example.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.093,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-modular-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\modular\\example.exe",
+              "sha256": "92aa630103015219b1b985bcf81e8cd1095fc4496acc6b94fe330ecec340d9e4",
+              "preserved": "validated-binaries/direct/windows/92aa630103015219b1b985bcf81e8cd1095fc4496acc6b94fe330ecec340d9e4.exe"
+            }
+          ]
+        },
+        "delivery/wss-single-example-run": {
+          "label": "wss-single-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\single\\example.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.093,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-single-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\single\\example.exe",
+              "sha256": "c2cf8423716103e4bf7ae5b3258f21cc5e02000d8c20fd7922313cbf3ccb34eb",
+              "preserved": "validated-binaries/direct/windows/c2cf8423716103e4bf7ae5b3258f21cc5e02000d8c20fd7922313cbf3ccb34eb.exe"
+            }
+          ]
+        },
+        "delivery/wss-static-example-run": {
+          "label": "wss-static-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\static\\example.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-static-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\static\\example.exe",
+              "sha256": "6796d641902692c843f06e7ba831b6fefa27688a15386f1fb6699548fcc388a1",
+              "preserved": "validated-binaries/direct/windows/6796d641902692c843f06e7ba831b6fefa27688a15386f1fb6699548fcc388a1.exe"
+            }
+          ]
+        },
+        "delivery/wss-shared-example-run": {
+          "label": "wss-shared-example-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\shared\\example.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.125,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-shared-example-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\delivery\\windows\\wss\\shared\\example.exe",
+              "sha256": "63e6de405bfd74dec3d4c814f1644fbaca93469abb6f2f725269a803201867b5",
+              "preserved": "validated-binaries/direct/windows/63e6de405bfd74dec3d4c814f1644fbaca93469abb6f2f725269a803201867b5.exe"
+            }
+          ]
+        },
+        "delivery/ws-decl-static-run": {
+          "label": "ws-decl-static-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\ws\\static\\consumer.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-decl-static-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\ws\\static\\consumer.exe",
+              "sha256": "30517a5e70b5179b01202c2c4916a5bf91879d95cb39750949c84a8a19575754",
+              "preserved": "validated-binaries/direct/windows/30517a5e70b5179b01202c2c4916a5bf91879d95cb39750949c84a8a19575754.exe"
+            }
+          ]
+        },
+        "delivery/ws-decl-shared-run": {
+          "label": "ws-decl-shared-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\ws\\shared\\consumer.exe",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-ws-decl-shared-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\ws\\shared\\consumer.exe",
+              "sha256": "8e81418d83fdf3be34e10581c9ee3ed1c017b8e1b4218d8cea8c7229eccf3fcc",
+              "preserved": "validated-binaries/direct/windows/8e81418d83fdf3be34e10581c9ee3ed1c017b8e1b4218d8cea8c7229eccf3fcc.exe"
+            }
+          ]
+        },
+        "delivery/wss-decl-static-run": {
+          "label": "wss-decl-static-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\wss\\static\\consumer.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.078,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-decl-static-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\wss\\static\\consumer.exe",
+              "sha256": "f8b468d0eab50da7460730634c72be655c988c15145457e98d1b52a996879adb",
+              "preserved": "validated-binaries/direct/windows/f8b468d0eab50da7460730634c72be655c988c15145457e98d1b52a996879adb.exe"
+            }
+          ]
+        },
+        "delivery/wss-decl-shared-run": {
+          "label": "wss-decl-shared-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\wss\\shared\\consumer.exe",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-wss-decl-shared-run-attempt2.log",
+          "log_sha256": "106ae3c5fd3a1154a80470f4a42fa4affb209fe9cd1c97a88f912c0ce53e5aeb",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\declarations\\windows\\wss\\shared\\consumer.exe",
+              "sha256": "74fc294ccba9c4f873f1556c0dfa1e5701ddb0dd4cb001b0600f9eba561a2290",
+              "preserved": "validated-binaries/direct/windows/74fc294ccba9c4f873f1556c0dfa1e5701ddb0dd4cb001b0600f9eba561a2290.exe"
+            }
+          ]
+        },
+        "abi/abi-ws-run": {
+          "label": "abi-ws-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\ws.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.032,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-abi-ws-run-attempt3.log",
+          "log_sha256": "830ac83695cac7a1bdff60dba4331b007c5044e98f7f09f42b4f706025829e2f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\ws.exe",
+              "sha256": "9b0cbc70bf23f06cd409e020f3e5bc902eb43948a2c9d010bc3e9a4528879d2b",
+              "preserved": "validated-binaries/direct/windows/9b0cbc70bf23f06cd409e020f3e5bc902eb43948a2c9d010bc3e9a4528879d2b.exe"
+            }
+          ]
+        },
+        "abi/abi-wss-run": {
+          "label": "abi-wss-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\wss.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.0,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-abi-wss-run-attempt3.log",
+          "log_sha256": "830ac83695cac7a1bdff60dba4331b007c5044e98f7f09f42b4f706025829e2f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\wss.exe",
+              "sha256": "31204e8fb418a99012d8d03e8dd2ee76a5ad8968daa685209898a5f76e7af34b",
+              "preserved": "validated-binaries/direct/windows/31204e8fb418a99012d8d03e8dd2ee76a5ad8968daa685209898a5f76e7af34b.exe"
+            }
+          ]
+        },
+        "abi/abi-all-run": {
+          "label": "abi-all-run",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\all.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.016,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-abi-all-run-attempt3.log",
+          "log_sha256": "830ac83695cac7a1bdff60dba4331b007c5044e98f7f09f42b4f706025829e2f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\abi\\windows\\all.exe",
+              "sha256": "74ef84ad0d19a809549a2b62d462cbcf0c0709ab4cef4e3ec398f08cb0422bdd",
+              "preserved": "validated-binaries/direct/windows/74ef84ad0d19a809549a2b62d462cbcf0c0709ab4cef4e3ec398f08cb0422bdd.exe"
+            }
+          ]
+        },
+        "eof/eof-tls-XNET_PORT_SELECT": {
+          "label": "eof-tls-XNET_PORT_SELECT",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 0,
+          "seconds": 1.015,
+          "source_map_sha256": "83d01d90cd58620a413909fe75b88fc6192fc0ae01b5a06ea5a76df29192a7d6",
+          "log": "windows-eof-tls-XNET_PORT_SELECT-attempt3.log",
+          "log_sha256": "25917ca36d50d344b543b28ad3547f564cd37eb1164973e93f150a6e6d7af4df",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+              "sha256": "fd1606b38da67892e0964b29086fb6920fe3c5b2e794ed0f5768ce90ca7acb79",
+              "preserved": "validated-binaries/direct/windows/fd1606b38da67892e0964b29086fb6920fe3c5b2e794ed0f5768ce90ca7acb79.exe"
+            }
+          ]
+        },
+        "eof/eof-tls-XNET_PORT_IOCP": {
+          "label": "eof-tls-XNET_PORT_IOCP",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+            "XNET_PORT_IOCP"
+          ],
+          "exit_code": 0,
+          "seconds": 1.046,
+          "source_map_sha256": "83d01d90cd58620a413909fe75b88fc6192fc0ae01b5a06ea5a76df29192a7d6",
+          "log": "windows-eof-tls-XNET_PORT_IOCP-attempt2.log",
+          "log_sha256": "25917ca36d50d344b543b28ad3547f564cd37eb1164973e93f150a6e6d7af4df",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+              "sha256": "fd1606b38da67892e0964b29086fb6920fe3c5b2e794ed0f5768ce90ca7acb79",
+              "preserved": "validated-binaries/direct/windows/fd1606b38da67892e0964b29086fb6920fe3c5b2e794ed0f5768ce90ca7acb79.exe"
+            }
+          ]
+        },
+        "eof_owned/eof-tls-owned-XNET_PORT_SELECT": {
+          "label": "eof-tls-owned-XNET_PORT_SELECT",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 0,
+          "seconds": 1.125,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-eof-tls-owned-XNET_PORT_SELECT-attempt2.log",
+          "log_sha256": "25917ca36d50d344b543b28ad3547f564cd37eb1164973e93f150a6e6d7af4df",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+              "sha256": "c788d8d94a5e9b1558b4e94d8797343d30cbe96062685a6cbcc95939883efc62",
+              "preserved": "validated-binaries/direct/windows/c788d8d94a5e9b1558b4e94d8797343d30cbe96062685a6cbcc95939883efc62.exe"
+            }
+          ]
+        },
+        "eof_owned/eof-tls-owned-XNET_PORT_IOCP": {
+          "label": "eof-tls-owned-XNET_PORT_IOCP",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+            "XNET_PORT_IOCP"
+          ],
+          "exit_code": 0,
+          "seconds": 0.969,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "windows-eof-tls-owned-XNET_PORT_IOCP.log",
+          "log_sha256": "25917ca36d50d344b543b28ad3547f564cd37eb1164973e93f150a6e6d7af4df",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+              "sha256": "c788d8d94a5e9b1558b4e94d8797343d30cbe96062685a6cbcc95939883efc62",
+              "preserved": "validated-binaries/direct/windows/c788d8d94a5e9b1558b4e94d8797343d30cbe96062685a6cbcc95939883efc62.exe"
+            }
+          ]
+        }
+      },
+      "abi": {
+        "complete": true,
+        "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+        "variants": {
+          "ws": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472",
+          "wss": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472",
+          "all": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472"
+        }
+      },
+      "delivery": {
+        "complete": true,
+        "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+        "variants": {
+          "ws": {
+            "modular": {
+              "path": "delivery/windows/ws/modular/example.exe",
+              "sha256": "d39e2ffce075d4d1b2787355ae43979a879c07ad5d74aa9e5b8ae1716a8507fa"
+            },
+            "single": {
+              "path": "delivery/windows/ws/single/example.exe",
+              "sha256": "56617f23adb7065734b96169138bd289645146c31478af6f0d6126562b4b10a7"
+            },
+            "static": {
+              "path": "delivery/windows/ws/static/example.exe",
+              "sha256": "f80ddc8a73061a9e3d82910c10237f36cd6f9a95e03595eb63dc482b4553cdb0"
+            },
+            "shared": {
+              "path": "delivery/windows/ws/shared/example.exe",
+              "sha256": "e25d9b46a8914d05408748b84d1ca4d88b724087e597d7bc401f8b9c1783f21e"
+            }
+          },
+          "wss": {
+            "modular": {
+              "path": "delivery/windows/wss/modular/example.exe",
+              "sha256": "92aa630103015219b1b985bcf81e8cd1095fc4496acc6b94fe330ecec340d9e4"
+            },
+            "single": {
+              "path": "delivery/windows/wss/single/example.exe",
+              "sha256": "c2cf8423716103e4bf7ae5b3258f21cc5e02000d8c20fd7922313cbf3ccb34eb"
+            },
+            "static": {
+              "path": "delivery/windows/wss/static/example.exe",
+              "sha256": "6796d641902692c843f06e7ba831b6fefa27688a15386f1fb6699548fcc388a1"
+            },
+            "shared": {
+              "path": "delivery/windows/wss/shared/example.exe",
+              "sha256": "63e6de405bfd74dec3d4c814f1644fbaca93469abb6f2f725269a803201867b5"
+            }
+          }
+        }
+      },
+      "combined_single_size": {
+        "schema": 2,
+        "platform": "win32",
+        "machine": "amd64",
+        "compiler_family": "gnu",
+        "compiler": "E:\\software\\w64devkit\\bin\\gcc.exe",
+        "compiler_version": "gcc.exe (GCC) 16.2.0",
+        "size_tool": "E:\\software\\w64devkit\\bin\\size.exe",
+        "size_tool_version": "GNU size (GNU Binutils) 2.47.20260726",
+        "symbol_tool": "E:\\software\\w64devkit\\bin\\nm.exe",
+        "symbol_tool_version": "GNU nm (GNU Binutils) 2.47.20260726",
+        "arch": "native",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "a725e505a43c4a33082074d3a71bb1e758416f57",
+        "source_dirty": true,
+        "source_fingerprint": "415bf079ad402f44cc2a33945d1023b37523a292082a6ea12cc3cfd991cb36c1",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xrpc_ws": {
+            "suite": "xrpc_ws",
+            "description": "Text WS native message transport and physical retirement, no HTTP/TLS/stdio runtime",
+            "forbid_symbols": [
+              "xrtHttp",
+              "xrtTls",
+              "xrtProcess",
+              "xrpcTcp",
+              "xrpcFrame"
+            ],
+            "kinds": {
+              "single": {
+                "text": 682856,
+                "data": 2712,
+                "bss": 11200,
+                "members": 1,
+                "load": 685568,
+                "file": 981650,
+                "path": "out/size/gnu/native/xrpc_ws/single/xrpc_single.o",
+                "compile_seconds": 22.252307899994776,
+                "forbidden_symbol_count": 0
+              }
+            }
+          }
+        }
+      },
+      "negative_control": {
+        "expected_failure": true,
+        "source_sha256": "ebeb66254015a5dfe9dd385a3d9c1552ad0e7c0a5bbcb94175412672ace7a46a",
+        "baseline": "a725e505a43c4a33082074d3a71bb1e758416f57",
+        "receipt": {
+          "label": "eof-parent-negative",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-parent.exe",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 1,
+          "seconds": 0.141,
+          "source_map_sha256": "83d01d90cd58620a413909fe75b88fc6192fc0ae01b5a06ea5a76df29192a7d6",
+          "log": "windows-eof-parent-negative.log",
+          "log_sha256": "6d44b427d1a058159eaa3d161fa93e54a9c2bd245334712958f21353ed52b207",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-parent.exe",
+              "sha256": "5271c7d20324a6c98b72fc4b74191dbee565a236d234ea09bb25f973a1e953ea",
+              "preserved": "validated-binaries/direct/windows/5271c7d20324a6c98b72fc4b74191dbee565a236d234ea09bb25f973a1e953ea.exe"
+            }
+          ]
+        }
+      }
+    },
+    "wsl": {
+      "primary_program_executions": 99,
+      "primary": {
+        "validate/ws": {
+          "label": "ws",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tests",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 147.672,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-attempt2.log",
+          "log_sha256": "81e8ad385c442474b4739f2ce787cbe0a85aac8e7c3be8c8d58c64e69cb752f6",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_ws",
+              "sha256": "16a4000f51d1e4cfbb38db976ba96042325bf82b747172a3c1df3bf1b9911844",
+              "preserved": "validated-binaries/wsl/validate/wsl-ws-attempt2/test_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_single_xrpc_ws",
+              "sha256": "a600d9d0aad27ad26e89129532670f03fcc5a3f79a500cbc8f3e1b5a478bc345",
+              "preserved": "validated-binaries/wsl/validate/wsl-ws-attempt2/test_single_xrpc_ws"
+            }
+          ]
+        },
+        "validate/wss": {
+          "label": "wss",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tls_tests",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 159.942,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-attempt2.log",
+          "log_sha256": "5e2a8c99ac6a33b7213d77faa1a83d110f36134c63eb3f4eed04aa8ae49141a2",
+          "programs": 2,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_ws",
+              "sha256": "65d6e36f243d7841daac8ce08514ae9880e79d39600cb2502bb3fe219a0a97b1",
+              "preserved": "validated-binaries/wsl/validate/wsl-wss-attempt2/test_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_single_xrpc_ws_tls",
+              "sha256": "db20ae511533d6e9f87a168c348f33e04b42c084ed27da5c5cc95327dd1e8c3b",
+              "preserved": "validated-binaries/wsl/validate/wsl-wss-attempt2/test_single_xrpc_ws_tls"
+            }
+          ]
+        },
+        "validate/tcp-regression": {
+          "label": "tcp-regression",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tcp_tests,memory_stats",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 108.804,
+          "source_map_sha256": "62f15c3f512d128081f3e21e989c4da461b9a89be893593e48f4b9e52123494c",
+          "log": "wsl-tcp-regression.log",
+          "log_sha256": "2e03efb059ce10297def58746e2346a66f293683b0fc98da6e6e902d6afd0cb8",
+          "programs": 5,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_tcp_tests,memory_stats/test_tcp",
+              "sha256": "943bd91bd60a19957bed60c7df9427c4faacc2fc5f8158e70222f7494d3473ad",
+              "preserved": "validated-binaries/wsl/validate/wsl-tcp-regression/test_tcp"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tcp_tests,memory_stats/test_memory_stats",
+              "sha256": "bf363a855b598cbc9a72cd91fa98581cdfb98c53558c94f1da2791b74c06f13d",
+              "preserved": "validated-binaries/wsl/validate/wsl-tcp-regression/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tcp_tests,memory_stats/test_memory_stats_threads",
+              "sha256": "787304b9f021b008462e8424c9168da4c713bfb0b5a1212dd63df911b3097a94",
+              "preserved": "validated-binaries/wsl/validate/wsl-tcp-regression/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tcp_tests,memory_stats/test_single_stats",
+              "sha256": "39a40dc5de819ef08e6c1e50c1d7b1c7c6545512856b3b14d4367a0869ea2468",
+              "preserved": "validated-binaries/wsl/validate/wsl-tcp-regression/test_single_stats"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tcp_tests,memory_stats/test_single_stats_threads",
+              "sha256": "e827bfc957ad5e5f1330074fb97dc1996608d3cedc34e0e1b5447b68d2bf94a0",
+              "preserved": "validated-binaries/wsl/validate/wsl-tcp-regression/test_single_stats_threads"
+            }
+          ]
+        },
+        "validate/tls-regression": {
+          "label": "tls-regression",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tls_tests,memory_stats",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 284.27,
+          "source_map_sha256": "62f15c3f512d128081f3e21e989c4da461b9a89be893593e48f4b9e52123494c",
+          "log": "wsl-tls-regression.log",
+          "log_sha256": "f32d973bde3d6110d216d8779adb7332a62d055745ac5f71ffc5bc9854ca4460",
+          "programs": 6,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_tls",
+              "sha256": "b258ba1ac6647bd98b1e211d53bcf8b764aa6481242116040789488feb4cfe14",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_memory_stats",
+              "sha256": "751f175e5180f102975df229a1491defda496a23c7b149b63b2fa64ed95507cb",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_memory_stats_threads",
+              "sha256": "b23563d42db00e6c15cd1e914d4f87da43d2283ae6493fe5115a074125ad3f5d",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_single_xrpc_tls",
+              "sha256": "bf7e94ec8c0425daad5c4e21dbf5a0af4ac6bba252c85afec4f23e99c4562c80",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_single_xrpc_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_single_stats",
+              "sha256": "39a40dc5de819ef08e6c1e50c1d7b1c7c6545512856b3b14d4367a0869ea2468",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_single_stats"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tls_tests,memory_stats/test_single_stats_threads",
+              "sha256": "e827bfc957ad5e5f1330074fb97dc1996608d3cedc34e0e1b5447b68d2bf94a0",
+              "preserved": "validated-binaries/wsl/validate/wsl-tls-regression/test_single_stats_threads"
+            }
+          ]
+        },
+        "validate/core-off-regression": {
+          "label": "core-off-regression",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "websocket_stream,memory_stats,thread",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 158.305,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-core-off-regression-attempt2.log",
+          "log_sha256": "98ff2201d8a6a30313bf058983e7413255cc5807eaada0d24f2535dfcf8dcf76",
+          "programs": 15,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_stream",
+              "sha256": "5de2545a225ec2f24ffb3105f2c32e1ce8f1c49ccfe9bb83af32ced92c359892",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_stream"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_stream_protocol",
+              "sha256": "f0ab669f39827be5b84077b8cc4f3082098b80c4010e94c84b22927b7d6d0d6b",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_stream_protocol"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_stream_invalid",
+              "sha256": "af03a9a2e23d383b4127421eab06296f274a75af0164ec9530870ddba945fb6c",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_stream_invalid"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_stream_eof",
+              "sha256": "e13983443bc0590d1070933799f1b0b1ea07fe9c55ddebfad79969a6e23c51a1",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_stream_eof"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_memory_stats",
+              "sha256": "810160fc6c6a220312da7c11b9f60f84c2651c69ea350a07d9b6f7d41c954905",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_memory_stats_threads",
+              "sha256": "ddb6c2239b0770dd256347034e8a625ed39276376f2c87ddac2b98ce113ab9e2",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_thread",
+              "sha256": "b9963f4d130a1ac064d698da8215f62621fc155dcc165ee133ab103b305d08bb",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_thread"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_thread_oom",
+              "sha256": "6e2a815a3cdb8ad815d715785ed003026786995399c02eacc0525731e9eb6e9a",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_thread_oom"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_websocket_stream",
+              "sha256": "deceda871829e9451d9ed14cc8bfbe3d1e674a55d6d027a744745a16e3f814bf",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_websocket_stream"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_websocket_buffered",
+              "sha256": "92d85d959e41009098c7c857cb4a5151da7ca9b9c8e43c036c42bb6d355ca1bd",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_websocket_buffered"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_websocket_owned",
+              "sha256": "5500e3f766710dde2cba941f3a8b278714a68d93c93ef6db6a34cc61355a629b",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_websocket_owned"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_websocket_attach_oom",
+              "sha256": "50868f3ce45d0d56ee01eb5c14cd741f3c49d0e1613e9afa48611548028c1f48",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_websocket_attach_oom"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_stats",
+              "sha256": "90b8c0034dda53196799fbf0e35f75595355c6e3ce63c4ee9ead7366ee4ad20b",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_stats"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_stats_threads",
+              "sha256": "80bf29a1a1d4792dfc185dd4eff9c129df30d013b9a9527f46cd1582a86831f3",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream,memory_stats,thread/test_single_thread",
+              "sha256": "dd8a19cdc9d56376f3307cad243673a543396aaab8d7171eb6d091178c7d70b6",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-off-regression-attempt2/test_single_thread"
+            }
+          ]
+        },
+        "validate/core-wss-deflate": {
+          "label": "core-wss-deflate",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--suite",
+            "websocket_stream_tls_deflate_tests,memory_stats,thread",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 273.772,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-core-wss-deflate-attempt2.log",
+          "log_sha256": "e1aa2a7694b7053b93b0df1fa70e10efd254cd0a7ffd5ed554aee758985b6f56",
+          "programs": 10,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_stream_tls",
+              "sha256": "a5f06d6f9e451c92a6a2b0752f152b9bf88e2c79294ac6f000f650944f6d56af",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_stream_tls"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_stream_eof_tls",
+              "sha256": "93acb16f292648a01ab5f50b62b7816d5f06c3d69db72aa9a02147b5199dbf76",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_stream_eof_tls"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_memory_stats",
+              "sha256": "2815647e6bbb12d56bd16ba102707d81db9056427bef16430149244a7b20fde8",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_memory_stats_threads",
+              "sha256": "cdd77dea869f903031b5484b8120c7196f600e93ae3221c3a7ff34d5c6f72977",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_thread",
+              "sha256": "e98abcdc0855403ddca984af484898e615d04e4071ee893d2c35c83a3861aaaa",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_thread"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_thread_oom",
+              "sha256": "4dabb2b611db8ebd35f86b635384a36b74e63370dc43fc2d485c1a1faf1e98b8",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_thread_oom"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_single_websocket_stream_tls",
+              "sha256": "a5f2293b6c4cd3eb8404905b5dc1d0aab7aab09d5e5767f8700ea4fada0af48f",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_single_websocket_stream_tls"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_single_stats",
+              "sha256": "90b8c0034dda53196799fbf0e35f75595355c6e3ce63c4ee9ead7366ee4ad20b",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_single_stats"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_single_stats_threads",
+              "sha256": "80bf29a1a1d4792dfc185dd4eff9c129df30d013b9a9527f46cd1582a86831f3",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_single_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/websocket_stream_tls_deflate_tests,memory_stats,thread/test_single_thread",
+              "sha256": "dd8a19cdc9d56376f3307cad243673a543396aaab8d7171eb6d091178c7d70b6",
+              "preserved": "validated-binaries/wsl/validate/wsl-core-wss-deflate-attempt2/test_single_thread"
+            }
+          ]
+        },
+        "validate/root": {
+          "label": "root",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tests,memory_stats,thread,time,atomic",
+            "--no-single",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 683.108,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-root.log",
+          "log_sha256": "4b19623e447c95dacf39b30a53ff6c29e07f9a7644a8d3949090ebd678922112",
+          "programs": 30,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_decode",
+              "sha256": "6f1eba48931b45469c5f03b5f423beea22f1df67eef052e1e45935fbb13cd3b8",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_decode"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_encode",
+              "sha256": "fc62a9011ff07d77418786fb17717f3f834bf1f1b7eb7514c3c010e1f5afcbfe",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_encode"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_dispatch",
+              "sha256": "5ce11c6b499c95e9dac567d8407456d484efa017dd0ebceeecb1f23a14bc693f",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_dispatch"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_methods",
+              "sha256": "73d8b9e42881aebd9cd4c6f7b1007c9dac576b0007e244c973722db33a59dd6c",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_methods"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_id",
+              "sha256": "719507c15e4789d996db3c92b1abe73ede06cb3e90e054b493398d7b9eb3a472",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_id"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_pending",
+              "sha256": "21edbf5d58df718d5be7f675911a87aa5cd9ef262c2a78205419865f7b8e9a0f",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_pending"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_response",
+              "sha256": "77eda4812e6fa958bbfcd5ff523275fc912f1fdf6368880c5cd173e4d333730b",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_response"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_receive",
+              "sha256": "c7f4917fab716211b6e2f2293ca073324d3f12d38cc03d98aa3616eec7ec9395",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_receive"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_call",
+              "sha256": "5fdf2fb9701cfe1c454703a9cdfdb7240f2bd06e0a47a9e2e2469f31a6c185d1",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_call"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_http_client",
+              "sha256": "aefc3388e5247408b4f73123c5800cb298f6476d55aaf34746088fd73ffdbff0",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_http_client"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_server",
+              "sha256": "892abf5d69325f50c03edd6025ec76837f2101595fcbd41c7335bf461b2c7999",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_server"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_http_server",
+              "sha256": "c0e936fee00982bfbbc90a48e8bc5af954b6a2e34aadec0c8392142784616779",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_http_server"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_http_dial",
+              "sha256": "9d9ea94f9374a49ba67526706db92c5a5d7a86bad3368ed95bd43deeeae5ee24",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_http_dial"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_http_tls",
+              "sha256": "269ee29149e5ca4b0465bdaf12e566f2f3a0c144098520d8ef33b1f9c146ae25",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_http_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_http_server_tls",
+              "sha256": "dfa41006d6279fd8155be647a322c76f5b338159c2978f213ed0aed4c4528aae",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_http_server_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_frame",
+              "sha256": "4cd53e891a21442b9c9d2e7a3e4d8ce13041cb6462741912760d9e7cdb76578c",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_frame"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_duplex",
+              "sha256": "871e83b8e4a8f09f1a1e80e16f4f6c88f5fe414cf2c1ef0beb7d88ccb01bf3b8",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_duplex"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_tcp",
+              "sha256": "ee21d68b36cfc0025d60c1e338b1f1f1075bf7008a9929f365d51bee6e77bb5d",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_tcp"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_tls",
+              "sha256": "6c7ee5de3aeaa0e2049cab4620127b6b6553abb3477b80d7982cc196ab9e3450",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_tcp_dial",
+              "sha256": "2b3182428adab16e920d1bfd4fc498b5ab2b96d5d21f647a06a3213ee552e395",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_tcp_dial"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_tls_dial",
+              "sha256": "363cdeba4484f91a745c388ad8495276b12eb3c97eb6c9b04823892c6d1b89a6",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_tls_dial"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_ws",
+              "sha256": "688069aea927b7ec1c98c5ca9e0353c78f0d7d3d13df40781d43fa4d0f20d13b",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_memory_stats",
+              "sha256": "7527242f4126881a14039d85f1a737f09a3f602956c17242e57678d1fb981b36",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_memory_stats"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_memory_stats_threads",
+              "sha256": "8d4cda6a8f960e854bf08fa4c4f58d8bffe200521e84bc14aa24286d51947d0c",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_memory_stats_threads"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_thread",
+              "sha256": "e83ed07e610bce8b1f4c8456eb50ff78ae6d8552e5cc1b12448f502e511d45ed",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_thread"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_thread_oom",
+              "sha256": "9830959375ea5f6cd2b1a56b49572dee6727b63f7033d3d62174d2c3fbd1e507",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_thread_oom"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_time",
+              "sha256": "b762a7f318e37943bccfd2846739a23e8dbe6d0a1da5c8d1b584ffcf7d1439fa",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_time"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_time_property",
+              "sha256": "fac07c2fb8d6158e553a232da711495f32e31974c56958a3c0c99dbfbe1b1d96",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_time_property"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_atomic",
+              "sha256": "f556a1a0741f388e4b252f59a5afe6e926f7112aa52ccf367aa9b0ceb1bef03e",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_atomic"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_atomic_threads",
+              "sha256": "3177f9e4cec836df9c88e14aa21cb92e1c00befae133648d061cd610f914bcd8",
+              "preserved": "validated-binaries/wsl/validate/wsl-root/test_atomic_threads"
+            }
+          ]
+        },
+        "extras/owner-oom": {
+          "label": "owner-oom",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-owner-oom"
+          ],
+          "exit_code": 0,
+          "seconds": 0.623,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-owner-oom-attempt2.log",
+          "log_sha256": "999235e159af667ebf579b382af9d94d6858bd1e014827f6a995bbd721f64a69",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-owner-oom",
+              "sha256": "a187b25cfe7985fa8a02a3e04036b474484ddd1ab8c301755fcec8d10a4b2b52",
+              "preserved": "validated-binaries/direct/wsl/a187b25cfe7985fa8a02a3e04036b474484ddd1ab8c301755fcec8d10a4b2b52.bin"
+            }
+          ]
+        },
+        "extras/smoke-0-1-7": {
+          "label": "smoke-0-1-7",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "1",
+            "1",
+            "7",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.621,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-0-1-7-attempt2.log",
+          "log_sha256": "999d10b470a68eced863c171bae77b6ca6c12d78d22b0dca0b438f90184c59ac",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-0-1-8192": {
+          "label": "smoke-0-1-8192",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "1",
+            "1",
+            "8192",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.566,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-0-1-8192-attempt2.log",
+          "log_sha256": "19a4d4cfea9287e41db31c5d925b99017a5feff2a2a41804458e90fcd7525be5",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-0-32-7": {
+          "label": "smoke-0-32-7",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "32",
+            "1",
+            "7",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.795,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-0-32-7-attempt2.log",
+          "log_sha256": "49ebd67914c2c554d75cf62ff6966992f5d9670818771c9f36d9cd82d729ce1f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-0-32-8192": {
+          "label": "smoke-0-32-8192",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "32",
+            "1",
+            "8192",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 1.901,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-0-32-8192-attempt2.log",
+          "log_sha256": "7689c7fdfda491f16799cb3b675406652225f88f914da660d6f5f48153271f9b",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-1-1-7": {
+          "label": "smoke-1-1-7",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "1",
+            "1",
+            "7",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.544,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-1-1-7-attempt2.log",
+          "log_sha256": "2562b394b1dc4643a9c43b40a044ec0c50dc99501790c430b471765e48b45cb4",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-1-1-8192": {
+          "label": "smoke-1-1-8192",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "1",
+            "1",
+            "8192",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.74,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-1-1-8192-attempt2.log",
+          "log_sha256": "b032e7623d23b3f9890689a905dd42e4a18eb33d99c20796d10a0bdf0fa1d1b6",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-1-32-7": {
+          "label": "smoke-1-32-7",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "32",
+            "1",
+            "7",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 1.105,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-1-32-7-attempt2.log",
+          "log_sha256": "c7481d02a8ae2b56768092b32e8cd74a832546d3c8849670d6ca345fdaa52ca8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "extras/smoke-1-32-8192": {
+          "label": "smoke-1-32-8192",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+            "100",
+            "32",
+            "1",
+            "8192",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 2.494,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-smoke-1-32-8192-attempt2.log",
+          "log_sha256": "15365d229d3d33b441916412755ebda4069813780486210935dd1edbb69b59f7",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-bench",
+              "sha256": "2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd",
+              "preserved": "validated-binaries/direct/wsl/2bb7a9230ce31d14d41e0aea6fff7f4091300832e81424238a60df65dff99dbd.bin"
+            }
+          ]
+        },
+        "delivery/ws-modular-example-run": {
+          "label": "ws-modular-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/modular/example",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.088,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-modular-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/modular/example",
+              "sha256": "4bc08e427ed0b669e0f9c0be6080af35af39426e92d9cd578b50fbbfd1080497",
+              "preserved": "validated-binaries/direct/wsl/4bc08e427ed0b669e0f9c0be6080af35af39426e92d9cd578b50fbbfd1080497.bin"
+            }
+          ]
+        },
+        "delivery/ws-single-example-run": {
+          "label": "ws-single-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/single/example",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-single-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/single/example",
+              "sha256": "bf243f287f60efa264ba782295e1636b196c672221a6f14caac6aa4fe90383f0",
+              "preserved": "validated-binaries/direct/wsl/bf243f287f60efa264ba782295e1636b196c672221a6f14caac6aa4fe90383f0.bin"
+            }
+          ]
+        },
+        "delivery/ws-static-example-run": {
+          "label": "ws-static-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/static/example",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.119,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-static-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/static/example",
+              "sha256": "e7e57c2ae5679d36b41fdd0354719275174c3e4582db9da26c4c303acdd987f0",
+              "preserved": "validated-binaries/direct/wsl/e7e57c2ae5679d36b41fdd0354719275174c3e4582db9da26c4c303acdd987f0.bin"
+            }
+          ]
+        },
+        "delivery/ws-shared-example-run": {
+          "label": "ws-shared-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/shared/example",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.11,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-shared-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/ws/shared/example",
+              "sha256": "9b28ac348e83283cc3dca5587536289063b4032c05c373e5457ebca538e358fe",
+              "preserved": "validated-binaries/direct/wsl/9b28ac348e83283cc3dca5587536289063b4032c05c373e5457ebca538e358fe.bin"
+            }
+          ]
+        },
+        "delivery/wss-modular-example-run": {
+          "label": "wss-modular-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/modular/example",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.157,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-modular-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/modular/example",
+              "sha256": "83fdfa4c2476eca184d8927cd918bcbec83343887dc0c70037d227286df96f91",
+              "preserved": "validated-binaries/direct/wsl/83fdfa4c2476eca184d8927cd918bcbec83343887dc0c70037d227286df96f91.bin"
+            }
+          ]
+        },
+        "delivery/wss-single-example-run": {
+          "label": "wss-single-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/single/example",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.153,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-single-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/single/example",
+              "sha256": "9b84e371703b72c4785c5a142a705a39be44395384ef68c37637366f4f789765",
+              "preserved": "validated-binaries/direct/wsl/9b84e371703b72c4785c5a142a705a39be44395384ef68c37637366f4f789765.bin"
+            }
+          ]
+        },
+        "delivery/wss-static-example-run": {
+          "label": "wss-static-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/static/example",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.153,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-static-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/static/example",
+              "sha256": "3aac61401379881cd8ea90751ccd9eaa410787ccc2fc705fd36da99aa00cb565",
+              "preserved": "validated-binaries/direct/wsl/3aac61401379881cd8ea90751ccd9eaa410787ccc2fc705fd36da99aa00cb565.bin"
+            }
+          ]
+        },
+        "delivery/wss-shared-example-run": {
+          "label": "wss-shared-example-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/shared/example",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.112,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-shared-example-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/delivery/wsl/wss/shared/example",
+              "sha256": "384446e818c6c1df51d46937bdd2f8e53ef9fd794a0d6c16fa054926af625f9d",
+              "preserved": "validated-binaries/direct/wsl/384446e818c6c1df51d46937bdd2f8e53ef9fd794a0d6c16fa054926af625f9d.bin"
+            }
+          ]
+        },
+        "delivery/ws-decl-static-run": {
+          "label": "ws-decl-static-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/ws/static/consumer",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.111,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-decl-static-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/ws/static/consumer",
+              "sha256": "33c5c5a458ff174795f3903ed30f2cb7af9a3382b8cb8b916d9da7d8c4e6c0fd",
+              "preserved": "validated-binaries/direct/wsl/33c5c5a458ff174795f3903ed30f2cb7af9a3382b8cb8b916d9da7d8c4e6c0fd.bin"
+            }
+          ]
+        },
+        "delivery/ws-decl-shared-run": {
+          "label": "ws-decl-shared-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/ws/shared/consumer",
+            "0"
+          ],
+          "exit_code": 0,
+          "seconds": 0.109,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-ws-decl-shared-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/ws/shared/consumer",
+              "sha256": "bdb463f46be50a840b2cb33faec0faef085ac465a5502c2a7c8be338ac670b8e",
+              "preserved": "validated-binaries/direct/wsl/bdb463f46be50a840b2cb33faec0faef085ac465a5502c2a7c8be338ac670b8e.bin"
+            }
+          ]
+        },
+        "delivery/wss-decl-static-run": {
+          "label": "wss-decl-static-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/wss/static/consumer",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.156,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-decl-static-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/wss/static/consumer",
+              "sha256": "c396a678eba76efcc8a19f4983f3ef8145f401f8234be5bcca7239c225afe8a0",
+              "preserved": "validated-binaries/direct/wsl/c396a678eba76efcc8a19f4983f3ef8145f401f8234be5bcca7239c225afe8a0.bin"
+            }
+          ]
+        },
+        "delivery/wss-decl-shared-run": {
+          "label": "wss-decl-shared-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/wss/shared/consumer",
+            "1"
+          ],
+          "exit_code": 0,
+          "seconds": 0.159,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-wss-decl-shared-run-attempt2.log",
+          "log_sha256": "8af1b04f0ed810bfc9848923e77cb6317d43497048569058445b25db4bf005a8",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/declarations/wsl/wss/shared/consumer",
+              "sha256": "0d99184a136670908c62ce8073e98a648cd4716b7c9a919d2ebb1176b3a5be2a",
+              "preserved": "validated-binaries/direct/wsl/0d99184a136670908c62ce8073e98a648cd4716b7c9a919d2ebb1176b3a5be2a.bin"
+            }
+          ]
+        },
+        "abi/abi-ws-run": {
+          "label": "abi-ws-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/ws.bin"
+          ],
+          "exit_code": 0,
+          "seconds": 0.041,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-abi-ws-run-attempt2.log",
+          "log_sha256": "0f40accbeec54c59a2c2e54560751ec1523d5366a4f1f15af993b31be0acff3e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/ws.bin",
+              "sha256": "454df7bea644698162a545ca7ddffb0b04704dc4f86dd968c7ef48b3744beb2b",
+              "preserved": "validated-binaries/direct/wsl/454df7bea644698162a545ca7ddffb0b04704dc4f86dd968c7ef48b3744beb2b.bin"
+            }
+          ]
+        },
+        "abi/abi-wss-run": {
+          "label": "abi-wss-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/wss.bin"
+          ],
+          "exit_code": 0,
+          "seconds": 0.041,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-abi-wss-run-attempt2.log",
+          "log_sha256": "0f40accbeec54c59a2c2e54560751ec1523d5366a4f1f15af993b31be0acff3e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/wss.bin",
+              "sha256": "40a9bb6ebdedd895ad59ce44172b32229fcc9b1aa0530d2d31ce954cface00fa",
+              "preserved": "validated-binaries/direct/wsl/40a9bb6ebdedd895ad59ce44172b32229fcc9b1aa0530d2d31ce954cface00fa.bin"
+            }
+          ]
+        },
+        "abi/abi-all-run": {
+          "label": "abi-all-run",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/all.bin"
+          ],
+          "exit_code": 0,
+          "seconds": 0.043,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-abi-all-run-attempt2.log",
+          "log_sha256": "0f40accbeec54c59a2c2e54560751ec1523d5366a4f1f15af993b31be0acff3e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/abi/wsl/all.bin",
+              "sha256": "fea26f803d130aa157b90e9d1ebce63742cf33a25d14a2b377e893c38f0e4c96",
+              "preserved": "validated-binaries/direct/wsl/fea26f803d130aa157b90e9d1ebce63742cf33a25d14a2b377e893c38f0e4c96.bin"
+            }
+          ]
+        },
+        "eof/eof-tls-XNET_PORT_SELECT": {
+          "label": "eof-tls-XNET_PORT_SELECT",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 0,
+          "seconds": 0.759,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-eof-tls-XNET_PORT_SELECT-attempt2.log",
+          "log_sha256": "fa739ff65908d86f671329b6f52028caf0ac167a60f0068fe207886f375bc823",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+              "sha256": "c12493e69225f877fd841df45b393824b5f863d3ee24ddd8d5b32d5d2da09fa8",
+              "preserved": "validated-binaries/direct/wsl/c12493e69225f877fd841df45b393824b5f863d3ee24ddd8d5b32d5d2da09fa8.bin"
+            }
+          ]
+        },
+        "eof/eof-tls-XNET_PORT_EPOLL": {
+          "label": "eof-tls-XNET_PORT_EPOLL",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+            "XNET_PORT_EPOLL"
+          ],
+          "exit_code": 0,
+          "seconds": 0.684,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-eof-tls-XNET_PORT_EPOLL.log",
+          "log_sha256": "fa739ff65908d86f671329b6f52028caf0ac167a60f0068fe207886f375bc823",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+              "sha256": "c12493e69225f877fd841df45b393824b5f863d3ee24ddd8d5b32d5d2da09fa8",
+              "preserved": "validated-binaries/direct/wsl/c12493e69225f877fd841df45b393824b5f863d3ee24ddd8d5b32d5d2da09fa8.bin"
+            }
+          ]
+        },
+        "eof_owned/eof-tls-owned-XNET_PORT_SELECT": {
+          "label": "eof-tls-owned-XNET_PORT_SELECT",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 0,
+          "seconds": 0.917,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-eof-tls-owned-XNET_PORT_SELECT-attempt2.log",
+          "log_sha256": "fa739ff65908d86f671329b6f52028caf0ac167a60f0068fe207886f375bc823",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+              "sha256": "1cf76b06c3049a74cb7d0a1e4fe87530d0a964a51c924c3ce65946ba8c04397b",
+              "preserved": "validated-binaries/direct/wsl/1cf76b06c3049a74cb7d0a1e4fe87530d0a964a51c924c3ce65946ba8c04397b.bin"
+            }
+          ]
+        },
+        "eof_owned/eof-tls-owned-XNET_PORT_EPOLL": {
+          "label": "eof-tls-owned-XNET_PORT_EPOLL",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+            "XNET_PORT_EPOLL"
+          ],
+          "exit_code": 0,
+          "seconds": 0.809,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-eof-tls-owned-XNET_PORT_EPOLL.log",
+          "log_sha256": "fa739ff65908d86f671329b6f52028caf0ac167a60f0068fe207886f375bc823",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+              "sha256": "1cf76b06c3049a74cb7d0a1e4fe87530d0a964a51c924c3ce65946ba8c04397b",
+              "preserved": "validated-binaries/direct/wsl/1cf76b06c3049a74cb7d0a1e4fe87530d0a964a51c924c3ce65946ba8c04397b.bin"
+            }
+          ]
+        },
+        "tsan": {
+          "label": "tsan-ws",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/tsan/ws"
+          ],
+          "exit_code": 0,
+          "seconds": 3.135,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-tsan-ws-attempt2.log",
+          "log_sha256": "0a49752bccccf43c57168c6f434cacceff20799b0b4a69aaf668c14d0efdd7a7",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/tsan/ws",
+              "sha256": "defe6acc55ba91daa852ce0325643eba5015a7c00d6b6bafbe694063dea57ec1",
+              "preserved": "validated-binaries/direct/wsl/defe6acc55ba91daa852ce0325643eba5015a7c00d6b6bafbe694063dea57ec1.bin"
+            }
+          ]
+        }
+      },
+      "abi": {
+        "complete": true,
+        "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+        "variants": {
+          "ws": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472",
+          "wss": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472",
+          "all": "config 520 info 680 duplexconfig 296 duplexinfo 208 nativeconfig 128 context 504 stream 304 encrypted 201 duplex 472"
+        }
+      },
+      "delivery": {
+        "complete": true,
+        "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+        "variants": {
+          "ws": {
+            "modular": {
+              "path": "delivery/wsl/ws/modular/example",
+              "sha256": "4bc08e427ed0b669e0f9c0be6080af35af39426e92d9cd578b50fbbfd1080497"
+            },
+            "single": {
+              "path": "delivery/wsl/ws/single/example",
+              "sha256": "bf243f287f60efa264ba782295e1636b196c672221a6f14caac6aa4fe90383f0"
+            },
+            "static": {
+              "path": "delivery/wsl/ws/static/example",
+              "sha256": "e7e57c2ae5679d36b41fdd0354719275174c3e4582db9da26c4c303acdd987f0"
+            },
+            "shared": {
+              "path": "delivery/wsl/ws/shared/example",
+              "sha256": "9b28ac348e83283cc3dca5587536289063b4032c05c373e5457ebca538e358fe"
+            }
+          },
+          "wss": {
+            "modular": {
+              "path": "delivery/wsl/wss/modular/example",
+              "sha256": "83fdfa4c2476eca184d8927cd918bcbec83343887dc0c70037d227286df96f91"
+            },
+            "single": {
+              "path": "delivery/wsl/wss/single/example",
+              "sha256": "9b84e371703b72c4785c5a142a705a39be44395384ef68c37637366f4f789765"
+            },
+            "static": {
+              "path": "delivery/wsl/wss/static/example",
+              "sha256": "3aac61401379881cd8ea90751ccd9eaa410787ccc2fc705fd36da99aa00cb565"
+            },
+            "shared": {
+              "path": "delivery/wsl/wss/shared/example",
+              "sha256": "384446e818c6c1df51d46937bdd2f8e53ef9fd794a0d6c16fa054926af625f9d"
+            }
+          }
+        }
+      },
+      "combined_single_size": {
+        "schema": 2,
+        "platform": "linux",
+        "machine": "x86_64",
+        "compiler_family": "gnu",
+        "compiler": "/usr/bin/x86_64-linux-gnu-gcc-15",
+        "compiler_version": "gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+        "size_tool": "/usr/bin/x86_64-linux-gnu-size",
+        "size_tool_version": "GNU size (GNU Binutils for Ubuntu) 2.46",
+        "symbol_tool": "/usr/bin/x86_64-linux-gnu-nm",
+        "symbol_tool_version": "GNU nm (GNU Binutils for Ubuntu) 2.46",
+        "arch": "x64",
+        "optimization": "O2",
+        "stripped": false,
+        "source_revision": "a725e505a43c4a33082074d3a71bb1e758416f57",
+        "source_dirty": true,
+        "source_fingerprint": "415bf079ad402f44cc2a33945d1023b37523a292082a6ea12cc3cfd991cb36c1",
+        "growth_limits": {
+          "text": 0.1,
+          "data": 0.2,
+          "bss": 0.2,
+          "file": 0.15
+        },
+        "profiles": {
+          "xrpc_ws": {
+            "suite": "xrpc_ws",
+            "description": "Text WS native message transport and physical retirement, no HTTP/TLS/stdio runtime",
+            "forbid_symbols": [
+              "xrtHttp",
+              "xrtTls",
+              "xrtProcess",
+              "xrpcTcp",
+              "xrpcFrame"
+            ],
+            "kinds": {
+              "single": {
+                "text": 702328,
+                "data": 6112,
+                "bss": 10948,
+                "members": 1,
+                "load": 708440,
+                "file": 1242560,
+                "path": "out/size/gnu/x64/xrpc_ws/single/xrpc_single.o",
+                "compile_seconds": 16.49184410299995,
+                "forbidden_symbol_count": 0
+              }
+            }
+          }
+        }
+      },
+      "negative_control": {
+        "expected_failure": true,
+        "source_sha256": "ebeb66254015a5dfe9dd385a3d9c1552ad0e7c0a5bbcb94175412672ace7a46a",
+        "baseline": "a725e505a43c4a33082074d3a71bb1e758416f57",
+        "receipt": {
+          "label": "eof-parent-negative",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-parent",
+            "XNET_PORT_SELECT"
+          ],
+          "exit_code": 1,
+          "seconds": 0.45,
+          "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+          "log": "wsl-eof-parent-negative.log",
+          "log_sha256": "8bcba619b5236174df9905790dfb2bfa0a4b725fe952d3c7176090366f0884ca",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-parent",
+              "sha256": "53cfad5b46a57bfe52dbc45d63441c7d7c9d471184f889c84326d21d1a876cc0",
+              "preserved": "validated-binaries/direct/wsl/53cfad5b46a57bfe52dbc45d63441c7d7c9d471184f889c84326d21d1a876cc0.bin"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "source_maps": {
+    "0e341fd8e1bc8cc709fb0a6f09ee3598b8455dd209e09d305cc29f2983b57216": "prototype-source-1.json",
+    "ef036c90e2ab20eebb0d7b5226fa4b7676f07a1c3c1d165438f510904fea9e7b": "prototype-source-10.json",
+    "528915e7b914460e2c6bdade5d99a84e4e89bcbc0d825133084155ea5bfd6b4a": "prototype-source-11.json",
+    "0b64d0a60fd6192cc0dc7c5d5e0a9957cb0c823db80b44a506bb1a7e7736e614": "prototype-source-12.json",
+    "c166c2e9b6050c2b9c131d64a72895b74a263fe8d56e157b54eba9c90ae32855": "prototype-source-13.json",
+    "ddc0c3b9015db92d41f959c15858f3186ce379ee92aace1f7a0e24002dbf1954": "prototype-source-14.json",
+    "1cf69e19816daba88d3217fd31b9ef2131a16fc8ee39a777f88fa731a8a8b8d9": "validation-source-before-probe-fixes.json",
+    "502fa2ebd411fa3bed7700b135ee615bfb6d850cc7a4983102b94ee791c14436": "prototype-source-16.json",
+    "83d01d90cd58620a413909fe75b88fc6192fc0ae01b5a06ea5a76df29192a7d6": "prototype-source-17.json",
+    "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749": "source.json",
+    "e9884e1426e240134c18818df3981ae4d36873603f009da9d5ba5e3be553963d": "prototype-source-2.json",
+    "b041d8202f796c100b1195cfb7777046bfd6a560be6998303ef6f3dc78c8eef0": "prototype-source-3.json",
+    "34cfb98d38f0d999f34c29c92cdf553c836c5c6f969fb606b8655a99490fed2f": "prototype-source-4.json",
+    "9919e088a181768a7930daa57ec4237c1f04f97d446e574cc4e9a1eab50d3b81": "prototype-source-5.json",
+    "7e08e16eee6397c19c71b0306a3fcdf91d367732a4b446620885dec4698317ac": "prototype-source-6.json",
+    "bb16e0dd04a9d6367ce82d4fc8847feffbc125757a8a7349013e4eeced6023df": "prototype-source-8.json",
+    "c4fd06397c7d19458ba2af938cc44a84a936b5dad6296a3ae5a17ec54cd79509": "prototype-source-9.json",
+    "62f15c3f512d128081f3e21e989c4da461b9a89be893593e48f4b9e52123494c": "validation-source-before-tls-eof.json"
+  },
+  "final_source_map": {
+    "path": "source-final.json",
+    "sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749"
+  },
+  "cohort_scope": "Final production cohort covers all implementation-sensitive verification. Earlier successful numeric TCP and framed TLS regressions select no WS implementation; WS-only Core changes and later diagnostic-source corrections do not alter those leaves. Standalone EOF harness is independently sealed; its earlier final-production cohort differs only in an unused canonical TLS diagnostic. No result from the retired worktree is used.",
+  "verification": "Per host:70 WS/WSS modular/single, existing TCP/TLS, Core feature-off and WSS+deflate, product-root programs;12 modular/single/static/shared/separate-declaration consumers (six each WS/WSS);9 exact-content benchmark smokes and actual production-TU owner receive OOM;3 selection-layout probes;4 forced-backend borrowed/owned TLS EOF/Resume/Close/Abort programs. Windows98; WSL99 adds targeted TSan. WSL functional/extras/EOF uses ASan+UBSan+leak halt; delivery/ABI/size is uninstrumented. Benchmark timings and instrumentation are diagnostic only. Parent a725e505 fails the same public EOF harness on both hosts as an expected negative control, excluded from primary counts.",
+  "failures": [
+    {
+      "receipt_file": "windows--receipts.json",
+      "label": "size-single",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/measure_size.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--profiles",
+        "xrpc_ws",
+        "--kind",
+        "single",
+        "--report",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-size.json"
+      ],
+      "exit_code": 1,
+      "seconds": 3.313,
+      "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+      "log": "windows-size-single.log",
+      "log_sha256": "dce03fabaec383ea66da5ac4e0a6e50cd3a41e876218b379cfb56c370370b0b9",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "receipt_file": "windows-eof-receipts.json",
+      "label": "eof-tls-XNET_PORT_SELECT",
+      "command": [
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.094,
+      "source_map_sha256": "62f15c3f512d128081f3e21e989c4da461b9a89be893593e48f4b9e52123494c",
+      "log": "windows-eof-tls-XNET_PORT_SELECT.log",
+      "log_sha256": "6d44b427d1a058159eaa3d161fa93e54a9c2bd245334712958f21353ed52b207",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls.exe",
+          "sha256": "57537fd3e560b50dcada65253e96da5823517a9735ac6deff6a22536fb3d1b42",
+          "preserved": "validated-binaries/direct/windows/57537fd3e560b50dcada65253e96da5823517a9735ac6deff6a22536fb3d1b42.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-eof-receipts.json",
+      "label": "eof-parent-negative",
+      "command": [
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-parent.exe",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.141,
+      "source_map_sha256": "83d01d90cd58620a413909fe75b88fc6192fc0ae01b5a06ea5a76df29192a7d6",
+      "log": "windows-eof-parent-negative.log",
+      "log_sha256": "6d44b427d1a058159eaa3d161fa93e54a9c2bd245334712958f21353ed52b207",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-parent.exe",
+          "sha256": "5271c7d20324a6c98b72fc4b74191dbee565a236d234ea09bb25f973a1e953ea",
+          "preserved": "validated-binaries/direct/windows/5271c7d20324a6c98b72fc4b74191dbee565a236d234ea09bb25f973a1e953ea.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-eof_owned-receipts.json",
+      "label": "eof-tls-owned-XNET_PORT_SELECT",
+      "command": [
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.047,
+      "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+      "log": "windows-eof-tls-owned-XNET_PORT_SELECT.log",
+      "log_sha256": "261e73438627cb5c6d00ed1b7f788ab34f2945ef6a6ad0f99e1bdf91296b2f00",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-eof-tls-owned.exe",
+          "sha256": "3e254d57a26cf01ea604e683ea3b9e68a947950aae1245f42b76072c0687a8ef",
+          "preserved": "validated-binaries/direct/windows/3e254d57a26cf01ea604e683ea3b9e68a947950aae1245f42b76072c0687a8ef.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-extras-receipts.json",
+      "label": "owner-oom-build",
+      "command": [
+        "E:/software/w64devkit/bin/gcc.exe",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DXRT_FEATURE_ATOMIC",
+        "-DXRT_FEATURE_QUEUE",
+        "-DXRT_FEATURE_QUEUE_MPSC",
+        "-DXRT_FEATURE_MEMORY_STATS",
+        "-DXRT_FEATURE_TEMP_MEMORY",
+        "-DXRT_FEATURE_NUMBER_INTEGER",
+        "-DXRT_FEATURE_NUMBER_FLOAT",
+        "-DXRT_FEATURE_CODEC_BASE64",
+        "-DXRT_FEATURE_WEBSOCKET_FRAME",
+        "-DXRT_FEATURE_WEBSOCKET_CLOSE",
+        "-DXRT_FEATURE_WEBSOCKET_MESSAGE",
+        "-DXRT_FEATURE_WEBSOCKET_STREAM",
+        "-DXRT_FEATURE_WEBSOCKET_STREAM_REF",
+        "-DXRT_FEATURE_WEBSOCKET_STREAM_TLS",
+        "-DXRT_FEATURE_ASN1_DER",
+        "-DXRT_FEATURE_PEM",
+        "-DXRT_FEATURE_UNICODE",
+        "-DXRT_FEATURE_HASH64",
+        "-DXRT_FEATURE_RANDOM_SECURE",
+        "-DXRT_FEATURE_CRYPTO_CORE",
+        "-DXRT_FEATURE_CRYPTO_INT31",
+        "-DXRT_FEATURE_CRYPTO_RSA",
+        "-DXRT_FEATURE_CRYPTO_RSA_PRIVATE",
+        "-DXRT_FEATURE_CRYPTO_RSA_PSS",
+        "-DXRT_FEATURE_CRYPTO_RSA_PSS_SIGN",
+        "-DXRT_FEATURE_CRYPTO_RSA_PKCS1",
+        "-DXRT_FEATURE_CRYPTO_RSA_PKCS1_SIGN",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_CORE",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_DER",
+        "-DXRT_FEATURE_CRYPTO_NIST",
+        "-DXRT_FEATURE_CRYPTO_P256",
+        "-DXRT_FEATURE_CRYPTO_P384",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_MATH",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_P256",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_P384",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_VERIFY_DER",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_P256_DER",
+        "-DXRT_FEATURE_CRYPTO_ECDSA_P384_DER",
+        "-DXRT_FEATURE_CRYPTO_SHA1",
+        "-DXRT_FEATURE_CRYPTO_SHA256",
+        "-DXRT_FEATURE_CRYPTO_SHA224",
+        "-DXRT_FEATURE_CRYPTO_SHA512",
+        "-DXRT_FEATURE_CRYPTO_HMAC_SHA256",
+        "-DXRT_FEATURE_CRYPTO_HKDF_SHA256",
+        "-DXRT_FEATURE_CRYPTO_AES",
+        "-DXRT_FEATURE_CRYPTO_AES_GCM",
+        "-DXRT_FEATURE_CRYPTO_CURVE25519",
+        "-DXRT_FEATURE_CRYPTO_X25519",
+        "-DXRT_FEATURE_CRYPTO_ED25519",
+        "-DXRT_FEATURE_CRYPTO_ED25519_VERIFY",
+        "-DXRT_FEATURE_CRYPTO_X25519_KEYPAIR",
+        "-DXRT_FEATURE_TIME",
+        "-DXRT_FEATURE_X509_PARSE",
+        "-DXRT_FEATURE_X509_SIGNATURE",
+        "-DXRT_FEATURE_X509_DIGEST",
+        "-DXRT_FEATURE_X509_VERIFY",
+        "-DXRT_FEATURE_X509_VERIFY_RSA",
+        "-DXRT_FEATURE_X509_VERIFY_ECDSA",
+        "-DXRT_FEATURE_X509_VERIFY_ED25519",
+        "-DXRT_FEATURE_X509_PROFILE",
+        "-DXRT_FEATURE_X509_NAME",
+        "-DXRT_FEATURE_X509_NAME_CONSTRAINTS",
+        "-DXRT_FEATURE_X509_PATH",
+        "-DXRT_FEATURE_X509_PATH_BUILD",
+        "-DXRT_FEATURE_X509_STORE",
+        "-DXRT_FEATURE_X509_IDENTITY",
+        "-DXRT_FEATURE_TLS",
+        "-DXRT_FEATURE_TLS_HANDSHAKE",
+        "-DXRT_FEATURE_TLS_HANDSHAKE_READER",
+        "-DXRT_FEATURE_TLS_HELLO",
+        "-DXRT_FEATURE_TLS_NEGOTIATE",
+        "-DXRT_FEATURE_TLS_HELLO_WRITE",
+        "-DXRT_FEATURE_TLS_KEY_EXCHANGE",
+        "-DXRT_FEATURE_TLS_POLICY",
+        "-DXRT_FEATURE_TLS_CONTEXT",
+        "-DXRT_FEATURE_TLS_KEY_EXCHANGE_X25519",
+        "-DXRT_FEATURE_TLS_MESSAGES",
+        "-DXRT_FEATURE_TLS_MESSAGES_WRITE",
+        "-DXRT_FEATURE_TLS_AUTH_MESSAGES",
+        "-DXRT_FEATURE_TLS_AUTH_MESSAGES_WRITE",
+        "-DXRT_FEATURE_TLS_SCHEDULE",
+        "-DXRT_FEATURE_TLS_SCHEDULE_SHA256",
+        "-DXRT_FEATURE_TLS_RECORD",
+        "-DXRT_FEATURE_TLS_RECORD_AES",
+        "-DXRT_FEATURE_WAIT",
+        "-DXRT_FEATURE_THREAD",
+        "-DXRT_FEATURE_SYNC",
+        "-DXRT_FEATURE_MUTEX",
+        "-DXRT_FEATURE_COND",
+        "-DXRT_FEATURE_CANCEL",
+        "-DXRT_FEATURE_FUTURE",
+        "-DXRT_FEATURE_EXECUTOR",
+        "-DXRT_FEATURE_NET",
+        "-DXRT_FEATURE_NET_SOCKET",
+        "-DXRT_FEATURE_NET_BUFFER",
+        "-DXRT_FEATURE_TLS_SESSION",
+        "-DXRT_FEATURE_TLS_VERIFY",
+        "-DXRT_FEATURE_TLS_CLIENT",
+        "-DXRT_FEATURE_TLS_CLIENT_VERIFY",
+        "-DXRT_FEATURE_TLS_IDENTITY",
+        "-DXRT_FEATURE_TLS_IDENTITY_RSA",
+        "-DXRT_FEATURE_TLS_SERVER",
+        "-DXRT_FEATURE_NET_PORT",
+        "-DXRT_FEATURE_NET_PORT_SELECT",
+        "-DXRT_FEATURE_NET_PORT_IOCP",
+        "-DXRT_FEATURE_NET_ENGINE",
+        "-DXRT_FEATURE_NET_TCP",
+        "-DXRT_FEATURE_NET_TCP_RETIRE",
+        "-DXRT_FEATURE_TLS_STREAM",
+        "-DXRT_FEATURE_POOL_PAGE",
+        "-DXRT_FEATURE_POOL",
+        "-DXRT_FEATURE_ARRAY",
+        "-DXRT_FEATURE_BUFFER",
+        "-DXRT_FEATURE_PTR_ARRAY",
+        "-DXRT_FEATURE_AVL",
+        "-DXRT_FEATURE_AVL_TREE",
+        "-DXRT_FEATURE_INT_MAP",
+        "-DXRT_FEATURE_MAP",
+        "-DXRT_FEATURE_SET",
+        "-DXRT_FEATURE_VALUE",
+        "-DXRT_FEATURE_VALUE_CONTAINER",
+        "-DXRT_FEATURE_JSON_CORE",
+        "-DXRT_FEATURE_JSON_ESCAPE",
+        "-DXRT_FEATURE_JSON_READ",
+        "-DXRT_FEATURE_WEBSOCKET_STREAM_RETIRE",
+        "-DXRPC_FEATURE_XRPC_RESULT_QUOTA",
+        "-DXRPC_FEATURE_XRPC_DECODE",
+        "-DXRPC_FEATURE_XRPC_ENCODE",
+        "-DXRPC_FEATURE_XRPC_DISPATCH",
+        "-DXRPC_FEATURE_XRPC_ID",
+        "-DXRPC_FEATURE_XRPC_PENDING",
+        "-DXRPC_FEATURE_XRPC_RESPONSE",
+        "-DXRPC_FEATURE_XRPC_CALL",
+        "-DXRPC_FEATURE_XRPC_SERVER",
+        "-DXRPC_FEATURE_XRPC_DUPLEX",
+        "-DXRPC_FEATURE_XRPC_WS",
+        "-DXRPC_FEATURE_XRPC_WS_TLS",
+        "-I",
+        "D:\\GIT\\xrt\\include",
+        "-O2",
+        "-I",
+        "D:\\GIT\\xrt\\extlibs\\xrpc\\include",
+        "D:\\GIT\\xrt\\extlibs\\xrpc\\tests\\interop\\ws_owner_oom.c",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__core__core.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__core__ownership.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__core__ownership_scope.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__allocator.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__heap.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__core__error.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__core__atomic.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__queue.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__queue_mpsc.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__stats.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__temp.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__text__number_integer.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__text__number_float_core.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__text__number_float.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__codec__base64.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__frame.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__close.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__message.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__stream.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__stream_ownership.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__stream_ref.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__asn1__der.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__asn1__pem.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__text__unicode.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__hash__rapidhash.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__math__random_secure.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__crypto_core.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__int31.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_error.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_private.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_blinding.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_pss.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_pss_sign.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_pkcs1.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__rsa_pkcs1_sign.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_error.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_der.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__nist.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__p256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__p384.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_math.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_verify.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_p256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_p384.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_verify_der.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_p256_der.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ecdsa_p384_der.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__sha1.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__sha256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__sha512.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__hmac_sha256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__hkdf_sha256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__aes.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__aes_gcm.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__curve25519.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__x25519.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ed25519.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__ed25519_verify.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__crypto__x25519_keypair.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__system__time.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__core.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__certificate.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__public_key.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__signature.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__digest.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__verify.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__verify_rsa.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__verify_ecdsa.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__verify_ed25519.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__profile.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__name.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__name_constraints.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__name_constraints_match.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__path.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__path_build.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__store.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__x509__identity.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__core.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__handshake.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__handshake_reader.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__extensions.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__hello_fields.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__hello.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__negotiate.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__extension_write.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__hello_write.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__key_exchange.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__policy.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__context.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__messages.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__messages_write.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__auth_messages.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__auth_messages_write.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__schedule.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__schedule_sha256.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__record.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__record_aes.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__wait.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__thread.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__sync.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__mutex.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__cond.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__cancel.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__future.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__executor.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__concurrency__executor_ownership.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__net.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__address.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__socket.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__buffer.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__buffer_ownership.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__session.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__verify.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__client.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__client_handshake.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__client12.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__identity.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__identity_rsa.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__server.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__server_handshake.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__server12.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__port.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__port_select.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__port_iocp.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__engine.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__tcp.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__tcp_ownership.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__network__tcp_retire.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__tls__stream.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__pool_page.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__memory__pool.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__array.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__buffer.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__ptr_array.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__avl.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__avl_tree.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__int_map.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__map.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__containers__set.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__value__value.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__value__value_container.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__data__text_value_common.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__data__json_common.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__data__json_escape.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__data__text_value_read.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__data__json_read.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\src__websocket__stream_retire.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__result_quota__result_quota.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__decode__decode.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__encode__encode.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__dispatch__dispatch.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__id__id.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__pending__pending.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__response__response.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__call__call.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__server__server.o",
+        "D:\\GIT\\xrt\\out\\gcc\\native\\xrpc_ws_tls_tests\\obj\\extlibs__xrpc__src__duplex__duplex.o",
+        "-lws2_32",
+        "-o",
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-ws-20261114\\windows-owner-oom.exe"
+      ],
+      "exit_code": 1,
+      "seconds": 0.734,
+      "source_map_sha256": "1cf69e19816daba88d3217fd31b9ef2131a16fc8ee39a777f88fa731a8a8b8d9",
+      "log": "windows-owner-oom-build.log",
+      "log_sha256": "b93d82f8abbb3b228cd9bdf55ba6479d0e77547c1d6ac299594f9082b820915d",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "receipt_file": "windows-gates-receipts.json",
+      "label": "core-docs",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/check_api_docs.py"
+      ],
+      "exit_code": 1,
+      "seconds": 0.062,
+      "source_map_sha256": "0b64d0a60fd6192cc0dc7c5d5e0a9957cb0c823db80b44a506bb1a7e7736e614",
+      "log": "windows-core-docs.log",
+      "log_sha256": "301d30d322ddec3ab6afc6412c5faa60792c93bfb6943757f2067482668cde6e",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 116.171,
+      "source_map_sha256": "0e341fd8e1bc8cc709fb0a6f09ee3598b8455dd209e09d305cc29f2983b57216",
+      "log": "windows-preflight.log",
+      "log_sha256": "e57cea87888485e1af13b09a73ca4da2848c5b0664c6c9314670becf576adb7f",
+      "programs": 0,
+      "binaries": []
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 11.844,
+      "source_map_sha256": "b041d8202f796c100b1195cfb7777046bfd6a560be6998303ef6f3dc78c8eef0",
+      "log": "windows-preflight-attempt3.log",
+      "log_sha256": "3981881e4323dcf764e88c7f481ea6091c8a4b068580c521b086bc2b9156cc90",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "9599147937bf87acf378261a8573455e530dbf7f4e2e5910b1c8c9da639512c0",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt3/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 2.219,
+      "source_map_sha256": "9919e088a181768a7930daa57ec4237c1f04f97d446e574cc4e9a1eab50d3b81",
+      "log": "windows-preflight-attempt4.log",
+      "log_sha256": "ca82a7c946ce5044b1be9a21b2a53dfc9e97f6665df6235d152405d0d3c3084b",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "553a4ca9c850a82876e27ace7a413eb4e6ad21b7db9d0d25a8b50dc41d1900bc",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt4/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 2.141,
+      "source_map_sha256": "bb16e0dd04a9d6367ce82d4fc8847feffbc125757a8a7349013e4eeced6023df",
+      "log": "windows-preflight-attempt6.log",
+      "log_sha256": "09eb0a3edcd36255944770da85d4f413590df7557176acc9438214a3a85687cc",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "8508750c37756b14558bf27086d1379101041c79364bcb03d5fcb637b0fcf046",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt6/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 2.14,
+      "source_map_sha256": "bb16e0dd04a9d6367ce82d4fc8847feffbc125757a8a7349013e4eeced6023df",
+      "log": "windows-preflight-attempt7.log",
+      "log_sha256": "09eb0a3edcd36255944770da85d4f413590df7557176acc9438214a3a85687cc",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "8508750c37756b14558bf27086d1379101041c79364bcb03d5fcb637b0fcf046",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt7/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 2.172,
+      "source_map_sha256": "c4fd06397c7d19458ba2af938cc44a84a936b5dad6296a3ae5a17ec54cd79509",
+      "log": "windows-preflight-attempt8.log",
+      "log_sha256": "bfddf73adbe2a7491f021c548d6c015e82991a14a4c1543d3025339de86a053a",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "045449cf71ab7da00be67bc8f412b36bd633472b4546c99a88e4991e4e2acad3",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt8/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 2.468,
+      "source_map_sha256": "ef036c90e2ab20eebb0d7b5226fa4b7676f07a1c3c1d165438f510904fea9e7b",
+      "log": "windows-preflight-attempt9.log",
+      "log_sha256": "b1f98c42f635fb30ce787d707d42d9765e821cb28df7090aecbd00658061fe47",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+          "sha256": "67086e3dbd651de1e4f76729d4f652be08d8800fd385fc09717e98f4d9da7c5e",
+          "preserved": "validated-binaries/windows/preflight/windows-preflight-attempt9/test_ws.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-validate-receipts.json",
+      "label": "core-off-regression",
+      "command": [
+        "C:\\Program Files\\Python312\\python.exe",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "E:/software/w64devkit/bin/gcc.exe",
+        "--arch",
+        "native",
+        "--suite",
+        "websocket_stream,memory_stats,thread",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2"
+      ],
+      "exit_code": 1,
+      "seconds": 36.812,
+      "source_map_sha256": "1cf69e19816daba88d3217fd31b9ef2131a16fc8ee39a777f88fa731a8a8b8d9",
+      "log": "windows-core-off-regression.log",
+      "log_sha256": "2a71cc77d5eb45d2c9ecb739336f0b80afdeb9db376f3c9eff26756715532e46",
+      "programs": 3,
+      "binaries": [
+        {
+          "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream.exe",
+          "sha256": "f770d2041bdcd6a3751fa441d605c952a2dcf60840d7b69ac08724050cd30073",
+          "preserved": "validated-binaries/windows/validate/windows-core-off-regression/test_stream.exe"
+        },
+        {
+          "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream_protocol.exe",
+          "sha256": "3e9c8ea9248f5d8eb1c2606128251847737b848c48f671f0d3e618394440e071",
+          "preserved": "validated-binaries/windows/validate/windows-core-off-regression/test_stream_protocol.exe"
+        },
+        {
+          "path": "out\\gcc\\native\\websocket_stream,memory_stats,thread\\test_stream_invalid.exe",
+          "sha256": "30c67aa6cb2e7dfa828d44b8d7d35102b28388249d0891ca982bd897af55f3cc",
+          "preserved": "validated-binaries/windows/validate/windows-core-off-regression/test_stream_invalid.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-eof-receipts.json",
+      "label": "eof-tls-XNET_PORT_SELECT",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.518,
+      "source_map_sha256": "62f15c3f512d128081f3e21e989c4da461b9a89be893593e48f4b9e52123494c",
+      "log": "wsl-eof-tls-XNET_PORT_SELECT.log",
+      "log_sha256": "8bcba619b5236174df9905790dfb2bfa0a4b725fe952d3c7176090366f0884ca",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls",
+          "sha256": "34f212dcde089560698546398d6569603dd53d2e01e6c03d11e0d8132cb87f3a",
+          "preserved": "validated-binaries/direct/wsl/34f212dcde089560698546398d6569603dd53d2e01e6c03d11e0d8132cb87f3a.bin"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-eof-receipts.json",
+      "label": "eof-parent-negative",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-parent",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.45,
+      "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+      "log": "wsl-eof-parent-negative.log",
+      "log_sha256": "8bcba619b5236174df9905790dfb2bfa0a4b725fe952d3c7176090366f0884ca",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-parent",
+          "sha256": "53cfad5b46a57bfe52dbc45d63441c7d7c9d471184f889c84326d21d1a876cc0",
+          "preserved": "validated-binaries/direct/wsl/53cfad5b46a57bfe52dbc45d63441c7d7c9d471184f889c84326d21d1a876cc0.bin"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-eof_owned-receipts.json",
+      "label": "eof-tls-owned-XNET_PORT_SELECT",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+        "XNET_PORT_SELECT"
+      ],
+      "exit_code": 1,
+      "seconds": 0.519,
+      "source_map_sha256": "a8fd2155f5817fa824064f0408786ab7b86fc31b2088e2eb9cc1f70425b66749",
+      "log": "wsl-eof-tls-owned-XNET_PORT_SELECT.log",
+      "log_sha256": "27b3fc211a6b6684c67879d8446e0134e837fb58019f67f6ddccef332dfbf303",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-ws-20261114/wsl-eof-tls-owned",
+          "sha256": "937ec118c34dac3ec228b6f3bc43c249e7ff92f625215aef2b81ad08d5a3d90f",
+          "preserved": "validated-binaries/direct/wsl/937ec118c34dac3ec228b6f3bc43c249e7ff92f625215aef2b81ad08d5a3d90f.bin"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/gcc",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2",
+        "--cflag=-g",
+        "--cflag=-fsanitize=address,undefined",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=address,undefined"
+      ],
+      "exit_code": 1,
+      "seconds": 129.753,
+      "source_map_sha256": "34cfb98d38f0d999f34c29c92cdf553c836c5c6f969fb606b8655a99490fed2f",
+      "log": "wsl-preflight.log",
+      "log_sha256": "39f8351e4b935801af0f34c31fb5962393b247e1f84445d3453b000eaf45bf1f",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out/gcc/x64/xrpc_ws_tls_tests/test_ws",
+          "sha256": "0eba87932f6a2f1dc5b8836bd214563ca3b14a8acfd4c30d3e9a48558777489f",
+          "preserved": "validated-binaries/wsl/preflight/wsl-preflight/test_ws"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-preflight-receipts.json",
+      "label": "preflight",
+      "command": [
+        "/usr/bin/python3",
+        "-u",
+        "-X",
+        "utf8",
+        "tools/build.py",
+        "--compiler",
+        "/usr/bin/gcc",
+        "--arch",
+        "x64",
+        "--manifest",
+        "extlibs/xrpc/config/modules.json",
+        "--suite",
+        "xrpc_ws_tls_tests",
+        "--no-single",
+        "--no-examples",
+        "--jobs",
+        "3",
+        "--cflag=-O2",
+        "--cflag=-g",
+        "--cflag=-fsanitize=address,undefined",
+        "--cflag=-fno-omit-frame-pointer",
+        "--ldflag=-fsanitize=address,undefined"
+      ],
+      "exit_code": 1,
+      "seconds": 135.029,
+      "source_map_sha256": "0b64d0a60fd6192cc0dc7c5d5e0a9957cb0c823db80b44a506bb1a7e7736e614",
+      "log": "wsl-preflight-attempt2.log",
+      "log_sha256": "debfaad1d5b0e482e00bb4ac91129c8176f30c82cba1fcdb3c28cfb971b498a8",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "out/gcc/x64/xrpc_ws_tls_tests/test_ws",
+          "sha256": "3b3b0f4dea6307910ec2029b90ebcfbbbb63d5146170d657adcbc3036764c692",
+          "preserved": "validated-binaries/wsl/preflight/wsl-preflight-attempt2/test_ws"
+        }
+      ]
+    }
+  ],
+  "failure_scope": "Retain failed compile/runtime/tooling attempts and expected negative controls. Corrections include unsigned diagnostic atomics/public attach prefix, malformed-frame bytewise sends after early rejection, first native error versus close timeout, TCP EOF/Resume race and TLS reentrant final-byte close, required docs prefixes and explicit extension size config. Initial owned EOF prototype used a borrowed TLS bootstrap and was rejected; final probe uses owned TLS/WS contexts and checks exact four-to-one context credits. A prior TSan program passed but its script final guard caught concurrent edits to two unused diagnostics; final cohort TSan passes fully. User pause and later superseded old-code validation were explicitly interrupted, never counted as successful completion.",
+  "raw_evidence": "out/service-extensions/xrpc-ws-20261114",
+  "physical_evidence": "out/local-service-extensions/xrpc-ws-20261114",
+  "artifact_seal": {
+    "path": "artifact-seal.json",
+    "sha256": "cc17328e3c2bd7da1bd6cfa91170d1deab0713bccfa3a13070fb6d26dfd02ecf",
+    "files": 1796
+  },
+  "audit_followups": [
+    "Code review follow-up: a failed xrtNetPost is counted, but native/Duplex Wake callbacks ignore its false return. Automatic progress under real first-wake post exhaustion is not proven by this stage; publicly reproduce and resolve this before production acceptance."
+  ],
+  "remaining_gates": [
+    "HTTP Upgrade/client/server URI, credential/auth/negotiation and end-to-end setup/deadline composition for WS/WSS; complete framed stdio async-pipe integration.",
+    "Independent full HTTP+JSON peers, broader adversarial/OOM/fuzz/lifetime/ownership collection and backend matrices beyond this attach stage.",
+    "Controlled native throughput/tail/scale comparisons and native Windows/Linux >=72h; all remaining original xredis/xrpc/xmqtt5+3.1.1/xcron scope."
+  ],
+  "core_foundation_commit": "d40eda63c439d78ad1c2945c1a8a508da72488b1"
+}

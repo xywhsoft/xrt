@@ -12797,3 +12797,55 @@ and out/service-extensions/xrpc-frame-20261112.
   RPC/MQTT WS adapters, real HTTP Upgrade/transport composition, framed stdio,
   controlled performance/scale and full native72h/fault/comparator/feature gates
   remain required. Complete four-product goal stays active.
+
+
+## 2026-11-15: developing WS/WSS RPC attach transport and buffered EOF ordering
+
+- Continue directly on `D:/GIT/xrt` `master`; no branch, worktree, merge or push.
+  Core fix commit: `d40eda63c439d78ad1c2945c1a8a508da72488b1`. RPC feature commit contains this entry and
+  `extlibs/xrpc/tests/results/ws-20261115.json`.
+- Add developing `xrpc_ws` (10 APIs) and optional `xrpc_ws_tls` (AttachTls).
+  One complete Text message maps to one JSON-RPC document; explicit binary input
+  opt-in. Reuse Duplex and the host shared Server/Engine, including bidirectional
+  calls, notify, batch, typed results, original entry deadlines and no replay.
+  Attach assumes host-validated HTTP Upgrade and TLS/credential policy; it does
+  not yet provide a complete HTTP client/server handshake factory.
+- Bound geometric receive growth by message and old+new peak budgets, yield at
+  End/read threshold, release excess capacity, and include message copy/owner
+  admission in the assembly deadline. Partial WS header time still needs the
+  host TCP/TLS read/idle policy. Immutable output credits survive native SendRef;
+  masking/TLS copies remain in Core. No zero-copy or zero-overhead claim.
+- Physical Close includes native WS/TCP/send/Data tails and shared handler/jobs;
+  retained results survive all separate host joins. Actual owner receive OOM,
+  constructor rollback/Initial transfer, native alias, timer quota, cancellation,
+  concurrent producers and final-response-before-EOF cases are exercised.
+- Public tests reproduced premature EOF while paused, then the TLS reentrant
+  final-byte Consume case. Preserve normal buffered callbacks through Resume;
+  explicit Worker Close/cross-thread Abort releases an abandoned closed native
+  TLS owner. Existing owner retained, no new TLS alias, queue, timer or thread.
+  Force select/IOCP on Windows and select/epoll on WSL, both roles and all three
+  Resume/Close/Abort paths, with borrowed and owned context variants. The parent
+  a725e505 fails the same public EOF harness as an expected negative control.
+- Verified 98 Windows/99 WSL primary program executions:70 feature/regression/root
+  programs,12 delivery consumers (six WS and six WSS),9 exact-content smokes and
+  production-TU receive OOM,3 layout probes,4 forced EOF borrowed/owned programs;
+  WSL adds targeted TSan. Functional/extras/EOF WSL runs use ASan/UBSan/leak halt;
+  packaging/ABI/size are uninstrumented. Expected controls, failures and explicit
+  interrupted runs are retained and excluded from primary success counts.
+- Selected modular/single/static/shared and separate declaration consumers run;
+  minimal WS omits TLS attach export and forbids HTTP/TLS/process/xrpcFrame symbols.
+  Public config520B/info680B agree across WS/WSS/full selections on each host.
+  API index:150 functions,109 types, no missing symbols. Single object size is
+  measured for combined selected Core+RPC, not an isolated archive contribution.
+- Artifact seal covers1,796 files under `out/service-extensions/xrpc-ws-20261114/`
+  (physical `out/local-service-extensions/xrpc-ws-20261114/`). Preserved this task's
+  old C-drive caches under D and restored path junctions to free600MB; no source
+  or historical worktree deleted. Source cohorts and unused diagnostic edits
+  are explicit; earlier numeric TCP/framed TLS regressions select no WS code.
+- Still developing: HTTP Upgrade/auth/URI/negotiation/setup-deadline composition,
+  independent full peers, stdio async pipes and the original four-product scope.
+  Audit follow-up before production: reproduce real first-wake post exhaustion;
+  a failed public post is counted but Wake callbacks currently ignore false, so
+  automatic terminal-result progress under that condition is not yet proven.
+  Controlled throughput/tails/scale and native Windows/Linux >=72h remain open.
+  Performance/production acceptance and complete-four-product-goal remain false.

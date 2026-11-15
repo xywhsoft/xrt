@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `139` 个函数、`211` 个常量或宏、
-`104` 个公共类型。
+当前登记 `150` 个函数、`223` 个常量或宏、
+`109` 个公共类型。
 
 ## `extlibs/xrpc/include/xrpc/call.h`
 
@@ -744,3 +744,44 @@
 
 - `xrpccodecerror`
 - `xrpcvaluekind`
+
+## `extlibs/xrpc/include/xrpc/ws.h`
+
+[查看带契约注释的公共头](../../include/xrpc/ws.h)
+
+### 函数 (11)
+
+- `xrpcWsAttachTcp`
+- `xrpcWsAttachTls`
+- `xrpcWsBatch`
+- `xrpcWsCall`
+- `xrpcWsClose`
+- `xrpcWsConfigInit`
+- `xrpcWsDestroy`
+- `xrpcWsInfo`
+- `xrpcWsNotify`
+- `xrpcWsPollRetired`
+- `xrpcWsWaitFor`
+
+### 常量与宏 (12)
+
+- `XRPC_FEATURE_XRPC_WS`
+- `XRPC_FEATURE_XRPC_WS_TLS`
+- `XRPC_WS_CLOSED`
+- `XRPC_WS_CLOSING`
+- `XRPC_WS_ENGINE`
+- `XRPC_WS_LIMIT`
+- `XRPC_WS_LOCAL`
+- `XRPC_WS_MEMORY`
+- `XRPC_WS_OPEN`
+- `XRPC_WS_PROTOCOL`
+- `XRPC_WS_TIMEOUT`
+- `XRPC_WS_TRANSPORT`
+
+### 类型 (5)
+
+- `xrpcws`
+- `xrpcwsconfig`
+- `xrpcwsinfo`
+- `xrpcwsreason`
+- `xrpcwsstate`

@@ -82,4 +82,8 @@
 #error "XRPC_FEATURE_XRPC requires tls_dial"
 #endif
 #include <xrpc/tls_dial.h>
+
+#if defined(XRPC_FEATURE_XRPC_WS)
+#include <xrpc/ws.h>
+#endif
 #endif

@@ -4940,6 +4940,75 @@
           ]
         }
       ]
+    },
+    {
+      "name": "xrpc_ws",
+      "system": "ws",
+      "description": "Exact-byte-validated WS loopback with native reference sends; one connection, no production-tail/scale claim",
+      "benchmarks": [
+        {
+          "name": "xrpc_ws_w1",
+          "source": "extlibs/xrpc/bench/bench_ws.c",
+          "suite": "xrpc_ws,memory_stats,thread",
+          "args": [
+            "2000",
+            "1",
+            "0",
+            "7"
+          ],
+          "smoke_args": [
+            "100",
+            "1",
+            "1",
+            "7"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/ws_service.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        },
+        {
+          "name": "xrpc_ws_w32",
+          "source": "extlibs/xrpc/bench/bench_ws.c",
+          "suite": "xrpc_ws,memory_stats,thread",
+          "args": [
+            "2000",
+            "32",
+            "0",
+            "7"
+          ],
+          "smoke_args": [
+            "100",
+            "32",
+            "1",
+            "7"
+          ],
+          "inputs": [
+            "extlibs/xrpc/examples/common/ws_service.h",
+            "extlibs/xrpc/bench/process_cpu.h"
+          ],
+          "metrics": {
+            "calls_per_sec": {
+              "unit": "calls/s",
+              "direction": "higher"
+            },
+            "process_cpu_ns_per_call": {
+              "unit": "ns",
+              "direction": "lower"
+            }
+          }
+        }
+      ]
     }
   ]
 }

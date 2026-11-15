@@ -181,6 +181,19 @@
         "xrtWebSocket",
         "xrtProcess"
       ]
+    },
+    {
+      "name": "xrpc_ws",
+      "system": "ws",
+      "suite": "xrpc_ws",
+      "description": "Text WS native message transport and physical retirement, no HTTP/TLS/stdio runtime",
+      "forbid_symbols": [
+        "xrtHttp",
+        "xrtTls",
+        "xrtProcess",
+        "xrpcTcp",
+        "xrpcFrame"
+      ]
     }
   ]
 }
