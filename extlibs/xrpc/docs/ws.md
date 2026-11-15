@@ -40,3 +40,17 @@ fault/OOM/fuzz/TSan/performance/scale/native72h acceptance remain in the full go
 Normative references: [JSON-RPC 2.0](https://www.jsonrpc.org/specification) and
 [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html). JSON-RPC is transport
 agnostic; this adapter explicitly defines its Text-message mapping.
+
+The RPC wake uses the existing embedded `xrtNetPost`, not an allocated ordinary
+`xrtNetEnginePost` task. Its intrusive lifecycle channel is independent of the
+ordinary command queue capacity and node allocator budget. Every peer embeds
+one post; the private gate coalesces pending wakes, with real per-post owner
+credits through each callback. Constructor/first-call/incoming-only/Close,
+original deadline, cancellation and notification progress is tested with actual
+command capacity2 and port post capacity1. Embedded-post admission also succeeds
+under allocation budget1; constructor, encoding, native IO and jobs retain their
+existing allocation contracts. Completion needs no peer Poll/Wait nudge. Existing
+Duplex/admission/native limits still apply.
+Keep the host Engine and Worker running through peer retirement; this does not
+promise progress after host shutdown or allow concurrent reuse of a queued node.
+`xrtNetPostPending == false` is a queue observation, not a physical callback join.

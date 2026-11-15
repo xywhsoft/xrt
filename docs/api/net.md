@@ -6688,7 +6688,7 @@ select、epoll、kqueue、IOCP 和 io_uring 示例分别位于 `examples/network
 
 ## 嵌入式任务投递
 
-`xnetpost` 是嵌入调用方结构的无分配任务节点：`xrtNetPostInit` 初始化，`xrtNetPost` 投递到指定 Worker 队列，出队前 `xrtNetPostPending` 为真。与 `xrtNetEnginePost` 相比它不分配节点，适合高频、固定生命周期的任务；同一 `xnetpost` 在出队并执行完成前不能再次投递。调用方必须通过网络对象引用保证 Worker 和 `xnetpost` 存活到回调返回。
+`xnetpost` 是嵌入调用方结构的无分配任务节点：`xrtNetPostInit` 初始化，`xrtNetPost` 投递到指定 Worker 队列，出队前 `xrtNetPostPending` 为真。与 `xrtNetEnginePost` 相比它不分配节点，适合高频、固定生命周期的任务；同一 `xnetpost` 出队前不能再次投递；排队标志在回调开始前清除，回调内可以再次投递。调用方必须通过网络对象引用保证 Worker 和 `xnetpost` 存活到回调返回。
 
 ### `xrtNetPostInit`
 
@@ -6730,7 +6730,7 @@ if ( !xrtNetPostInit(&Post) ||
 
 ### `xrtNetPostPending`
 
-判断嵌入式 Post 是否仍在 Worker 队列中等待执行；执行完成后清除。
+判断嵌入式 Post 是否仍在 Worker 队列中等待执行；回调开始前清除。`false` 不代表回调已经返回。
 
 ```c
 bool xrtNetPostPending(const xnetpost* pPost);
@@ -6747,7 +6747,7 @@ bool xrtNetPostPending(const xnetpost* pPost);
 | 返回 | 含义 | 失败时状态 |
 |---|---|---|
 | `true` | 已受理投递、尚未执行 | — |
-| `false` | 已执行完成，或从未投递成功 | 参数非法/状态非法时错误经 `xrtGetError()` 报告 |
+| `false` | 已出队（可能仍在执行），或从未投递成功 | 参数非法/状态非法时错误经 `xrtGetError()` 报告 |
 
 #### 错误
 

@@ -12849,3 +12849,49 @@ and out/service-extensions/xrpc-frame-20261112.
   automatic terminal-result progress under that condition is not yet proven.
   Controlled throughput/tails/scale and native Windows/Linux >=72h remain open.
   Performance/production acceptance and complete-four-product-goal remain false.
+
+
+## 2026-11-15: verified WS/WSS wake resource independence
+
+- Close the `ws-20261115.json` first-wake post-exhaustion audit by inspecting and
+  testing the existing channel. `xrtNetPost` embeds its node and uses Core's
+  lifecycle MPSC list; `xrtNetEnginePost` allocates a node and uses the bounded
+  ordinary command queue. No runtime, API, ABI, production dependency, scheduler,
+  retry timer or Worker was changed. The manifest diff only registers tests.
+- Add modular and single-header WS/WSS regression programs for constructors,
+  first calls, explicit Close, original zero deadlines, queued cancellation and
+  notifications, with actual CommandCapacity2/PortPostLimit1/NodeCacheBytes0.
+  Observe third ordinary post rejection (AGAIN), second port post rejection
+  (AGAIN), ordinary node allocation failure under budget1 (MEMORY), successful
+  embedded admission with zero requested heap, and exact callback owner counts.
+  Constructor/encoding/native IO/jobs retain their existing allocation contracts.
+- A separate actual production-TU incoming-only probe fills real ordinary queues
+  immediately at the peer's wake boundary, then calls real embedded posting under
+  budget1. No mocked success/failure. Check exact echoed content, one business
+  execution, typed results, no replay and full host joins. Typed futures finish
+  before any physical Peer Poll/Wait cleanup nudges. Force Windows select/IOCP
+  and WSL select/epoll in both plain and encrypted cases.
+- Correct the net guide: Pending clears before callback entry, and false is not
+  a callback join. Existing Core embedded callback/repost lifecycle regression
+  passes as well. RPC private Posted+Gate and strong per-callback references
+  provide the required separate lifetime discipline. Keep the host Engine alive
+  through peer retirement; stopped/sealed Workers and misused nodes are errors.
+- Verified14 Windows/15 WSL primary executions:9 focused modular/single/full-root
+  resource programs,4 forced-backend public/production-TU programs,1 existing
+  Core lifecycle program; WSL adds targeted TSan. WSL functional/extra/Core uses
+  ASan/UBSan/leak halt. Deliberately substituting ordinary bounded admission for
+  the embedded channel fails first-call progress on both hosts; this unsafe
+  untracked negative control is never adopted. The initial standalone fixture
+  expected STATE while its error construction itself faced budget1 and fell back
+  to MEMORY; check duplicate misuse outside the quota and preserve the failure.
+- Report: `extlibs/xrpc/tests/results/ws-post-progress-20261115.json`.
+  Raw: `out/service-extensions/xrpc-post-progress-20261115/` (physical D storage),
+  sealed133 artifacts. Only the explanatory WS guide differs among
+  primary source maps; code identities are unchanged. No previous package or
+  performance run is relabelled as new verification. API coverage remains150
+  functions/109 types with no omissions; generated outputs and layout gates pass.
+- Continue with actual WS/WSS HTTP Upgrade/client/server composition and
+  independent full peers, then framed stdio and the remaining original four
+  products. Controlled native throughput/tails/scale and native Windows/Linux
+  >=72h remain required. Performance/production acceptance and the full goal
+  remain incomplete.

@@ -791,7 +791,8 @@
         "extlibs/xrpc/tests/test_tls.c",
         "extlibs/xrpc/tests/test_tcp_dial.c",
         "extlibs/xrpc/tests/test_tls_dial.c",
-        "extlibs/xrpc/tests/test_ws.c"
+        "extlibs/xrpc/tests/test_ws.c",
+        "extlibs/xrpc/tests/test_ws_post.c"
       ],
       "single_tests": [
         "extlibs/xrpc/tests/single/test_single_xrpc_decode.c",
@@ -816,7 +817,9 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws.c",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_post.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -846,7 +849,9 @@
         "extlibs/xrpc/tests/single/test_single_xrpc_tcp_dial.c": "xrpc_tcp_dial_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_tls_dial.c": "xrpc_tls_dial_tests",
         "extlibs/xrpc/tests/single/test_single_xrpc_ws.c": "xrpc_ws_tests",
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c": "xrpc_ws_tls_tests"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c": "xrpc_ws_tls_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_post.c": "xrpc_ws_tests",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c": "xrpc_ws_tls_tests"
       }
     },
     {
@@ -1608,10 +1613,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrpc/tests/test_ws.c"
+        "extlibs/xrpc/tests/test_ws.c",
+        "extlibs/xrpc/tests/test_ws_post.c"
       ],
       "single_tests": [
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_post.c"
       ],
       "examples": [],
       "benchmarks": [],
@@ -1638,10 +1645,12 @@
       "internal_headers": [],
       "sources": [],
       "tests": [
-        "extlibs/xrpc/tests/test_ws.c"
+        "extlibs/xrpc/tests/test_ws.c",
+        "extlibs/xrpc/tests/test_ws_post.c"
       ],
       "single_tests": [
-        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c"
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls.c",
+        "extlibs/xrpc/tests/single/test_single_xrpc_ws_tls_post.c"
       ],
       "examples": [],
       "benchmarks": [],

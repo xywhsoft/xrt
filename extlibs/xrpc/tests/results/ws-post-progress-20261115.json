@@ -1,0 +1,683 @@
+{
+  "schema": 1,
+  "date": "2026-11-15",
+  "status": "verified-existing-embedded-wake-resource-independence",
+  "base_revision": "e3bed6e6c4fb1f53d858cd49b095d29f9fbe76fc",
+  "branch": "master",
+  "workspace": "D:/GIT/xrt",
+  "production_implementation_changed": false,
+  "production_dependencies_changed": false,
+  "production_abi_changed": false,
+  "performance_acceptance": false,
+  "production_acceptance": false,
+  "complete_four_product_goal": false,
+  "resolves": "e3bed6e6 / ws-20261115.json audit_followups: ordinary command/port/node-allocation pressure does not exhaust the existing embedded xrtNetPost lifecycle channel. No replacement scheduler, retry timer, worker thread or shared runtime is required for this condition.",
+  "implementation_facts": [
+    "xrtNetEnginePost allocates an ordinary command node and uses the bounded Commands MPSC queue. xrtNetPost embeds its node in caller-owned storage and uses __xrtNetEnginePostInternal, independent of that capacity and allocator.",
+    "For valid distinct nodes on a running/unsealed Worker, public command saturation and ordinary post allocation OOM are not xrtNetPost admission failures. Invalid/misused/already-pending nodes and stopped/sealed Workers remain errors. RPC private Posted+Gate and actual post references preserve the required ownership.",
+    "Pending clears before the callback begins; false is not a physical callback join. Existing Core callback-repost regression and new callback observations verify this."
+  ],
+  "verification": "Per host:9 focused WS/WSS modular/single/full-product-selection resource programs,4 select/native-backend public/production-TU saturation programs,1 existing Core embedded-post/repost lifecycle regression. Windows14; WSL15 adds targeted TSan. WSL functional/extra/Core runs use ASan+UBSan+leak halt. Force Windows select/IOCP and WSL select/epoll. No timing release or native72h acceptance.",
+  "scope": [
+    "Host CommandCapacity2, PortPostLimit1 and NodeCacheBytes0. Verify actual third ordinary post rejection (AGAIN), second port post rejection (AGAIN), ordinary post allocation rejection under budget1 (MEMORY), embedded admission with zero requested heap and exact one queued credit.",
+    "Both WS/WSS constructors have full ordinary queues at attach. First calls, Close, original zero deadlines, queued cancellation and notifications progress automatically; typed futures complete before any physical Peer Poll/Wait cleanup nudges. Exact echoed content and exact admitted callback counts survive host joins.",
+    "Production-TU probe intercepts only the real xrtNetPost boundary of an incoming-only peer: fill actual queues and invoke real embedded admission under budget1; no mocked success/failure. Exact one inbound execution/reply, zero peer post failures and no replay.",
+    "Constructor/encoding/native IO/jobs retain their allocation contracts: budget1 covers embedded admission, not whole constructors or process-wide OOM. Keep the host Engine running through retirement; this stage does not promise operation after host shutdown."
+  ],
+  "platforms": {
+    "windows": {
+      "primary_program_executions": 14,
+      "primary": {
+        "validate/focused-ws": {
+          "label": "focused-ws",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tests",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 24.437,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "windows-focused-ws.log",
+          "log_sha256": "c62fe9bd429570c41bfdeaade5e6e1158d08070a946b73e9f83b765eada4a144",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_ws.exe",
+              "sha256": "cd292b12bacbd31033749ecb14c5a64eed73b4d92592902a1cb8afef9d0678ee",
+              "preserved": "validated-binaries/windows/validate/windows-focused-ws/test_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_ws_post.exe",
+              "sha256": "b818627b26ad057398f332d32dd18b5696e93f1d355e531d4189d0117f6baa5d",
+              "preserved": "validated-binaries/windows/validate/windows-focused-ws/test_ws_post.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_single_xrpc_ws.exe",
+              "sha256": "246a5b3fc845a9de8a32e34b1254ea16278b1a075cd436523a1e3bda95afba3c",
+              "preserved": "validated-binaries/windows/validate/windows-focused-ws/test_single_xrpc_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tests\\test_single_xrpc_ws_post.exe",
+              "sha256": "d1df582e5ed31a9fd0a3c961ee3a3e5d303682b8ace7d25d987d8dd5c889d711",
+              "preserved": "validated-binaries/windows/validate/windows-focused-ws/test_single_xrpc_ws_post.exe"
+            }
+          ]
+        },
+        "validate/focused-wss": {
+          "label": "focused-wss",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tls_tests",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 39.156,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "windows-focused-wss.log",
+          "log_sha256": "1c9262bc7329ba754ccb67b5a42e637050c80da0f0ab7b397c11da1680e06555",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws.exe",
+              "sha256": "8e295fb4c9e03a0542b4eb5892bc61ed9a960256450e31ef4306a050011e3170",
+              "preserved": "validated-binaries/windows/validate/windows-focused-wss/test_ws.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_ws_post.exe",
+              "sha256": "0e4a5206417c6adb9125c799c77b2783478a5f58b1b4b3a2090e13efc6a21513",
+              "preserved": "validated-binaries/windows/validate/windows-focused-wss/test_ws_post.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_single_xrpc_ws_tls.exe",
+              "sha256": "17a16f4eb23483475bc77925a6f358119f63ce2f1b884cfae8aae3079c2a97c8",
+              "preserved": "validated-binaries/windows/validate/windows-focused-wss/test_single_xrpc_ws_tls.exe"
+            },
+            {
+              "path": "out\\gcc\\native\\xrpc_ws_tls_tests\\test_single_xrpc_ws_tls_post.exe",
+              "sha256": "59ac971c41582b36221c98818f959506e2101b8ae455814e90a5ed5823312a58",
+              "preserved": "validated-binaries/windows/validate/windows-focused-wss/test_single_xrpc_ws_tls_post.exe"
+            }
+          ]
+        },
+        "validate/root-resource": {
+          "label": "root-resource",
+          "command": [
+            "C:\\Program Files\\Python312\\python.exe",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "E:/software/w64devkit/bin/gcc.exe",
+            "--arch",
+            "native",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tests,memory_stats,thread,time,atomic",
+            "--test",
+            "test_ws_post.c",
+            "--no-single",
+            "--cflag=-O2"
+          ],
+          "exit_code": 0,
+          "seconds": 1.656,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "windows-root-resource.log",
+          "log_sha256": "808fea96242f9b3b1175a7c5a2af8c21729d7505bc1e4389653e8e6cb9183c65",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out\\gcc\\native\\xrpc_tests,memory_stats,thread,time,atomic\\test_ws_post.exe",
+              "sha256": "45203db07da1819a815359854e1dc38c873aae6ba13c685f774040138d521d3c",
+              "preserved": "validated-binaries/windows/validate/windows-root-resource/test_ws_post.exe"
+            }
+          ]
+        },
+        "extras/post-public-select": {
+          "label": "post-public-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-public.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 1.032,
+          "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+          "log": "windows-post-public-select.log",
+          "log_sha256": "de9bb8b27529fc9c60c616c6313bf671708b7d73f621031f90544b533cd9675a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-public.exe",
+              "sha256": "0e4a5206417c6adb9125c799c77b2783478a5f58b1b4b3a2090e13efc6a21513",
+              "preserved": "validated-binaries/direct/windows/0e4a5206417c6adb9125c799c77b2783478a5f58b1b4b3a2090e13efc6a21513.exe"
+            }
+          ]
+        },
+        "extras/post-public-iocp": {
+          "label": "post-public-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-public.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 1.094,
+          "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+          "log": "windows-post-public-iocp.log",
+          "log_sha256": "de9bb8b27529fc9c60c616c6313bf671708b7d73f621031f90544b533cd9675a",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-public.exe",
+              "sha256": "0e4a5206417c6adb9125c799c77b2783478a5f58b1b4b3a2090e13efc6a21513",
+              "preserved": "validated-binaries/direct/windows/0e4a5206417c6adb9125c799c77b2783478a5f58b1b4b3a2090e13efc6a21513.exe"
+            }
+          ]
+        },
+        "extras/post-owner-select": {
+          "label": "post-owner-select",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-owner.exe",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.218,
+          "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+          "log": "windows-post-owner-select.log",
+          "log_sha256": "8627d3abed9114bf8876d0689ca36561aceec18a96221ed013859afa2863fde7",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-owner.exe",
+              "sha256": "3a04605042f4a963a67d9441289866fde06d08097ca24c4c8592f1ad6e2f4fc5",
+              "preserved": "validated-binaries/direct/windows/3a04605042f4a963a67d9441289866fde06d08097ca24c4c8592f1ad6e2f4fc5.exe"
+            }
+          ]
+        },
+        "extras/post-owner-iocp": {
+          "label": "post-owner-iocp",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-owner.exe",
+            "iocp"
+          ],
+          "exit_code": 0,
+          "seconds": 0.203,
+          "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+          "log": "windows-post-owner-iocp.log",
+          "log_sha256": "8627d3abed9114bf8876d0689ca36561aceec18a96221ed013859afa2863fde7",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-post-owner.exe",
+              "sha256": "3a04605042f4a963a67d9441289866fde06d08097ca24c4c8592f1ad6e2f4fc5",
+              "preserved": "validated-binaries/direct/windows/3a04605042f4a963a67d9441289866fde06d08097ca24c4c8592f1ad6e2f4fc5.exe"
+            }
+          ]
+        },
+        "core_regression/core-embedded-default-backend": {
+          "label": "core-embedded-default-backend",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-core-embedded.exe"
+          ],
+          "exit_code": 0,
+          "seconds": 0.015,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "windows-core-embedded-default-backend.log",
+          "log_sha256": "9db0b43175d3a4c3957acec5bea68a23f295ab901756a0201049c864873f2343",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-core-embedded.exe",
+              "sha256": "d6b4c70bb9152c51622bee9c6b99ae3f6c5a0128917baf51993ed4a290f724a5",
+              "preserved": "validated-binaries/direct/windows/d6b4c70bb9152c51622bee9c6b99ae3f6c5a0128917baf51993ed4a290f724a5.exe"
+            }
+          ]
+        }
+      },
+      "negative_control": {
+        "expected_failure": true,
+        "receipt": {
+          "label": "unsafe-bounded-negative",
+          "command": [
+            "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-unsafe-bounded.exe",
+            "select"
+          ],
+          "exit_code": 1,
+          "seconds": 0.031,
+          "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+          "log": "windows-unsafe-bounded-negative.log",
+          "log_sha256": "f807a65404fd1e8f9089f3543fc280f8503bbddd012d9107a475130e1ac2d84f",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-unsafe-bounded.exe",
+              "sha256": "7c4f8c3187a2c22ffa8499eb62b18d6756e68711c631837c1538b2f3aec86225",
+              "preserved": "validated-binaries/direct/windows/7c4f8c3187a2c22ffa8499eb62b18d6756e68711c631837c1538b2f3aec86225.exe"
+            }
+          ]
+        }
+      }
+    },
+    "wsl": {
+      "primary_program_executions": 15,
+      "primary": {
+        "validate/focused-ws": {
+          "label": "focused-ws",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tests",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 98.804,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-focused-ws.log",
+          "log_sha256": "fdc5dc8325a0e017d7dceb557151765286427bb363d9daa5231b89980fa15b44",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_ws",
+              "sha256": "16a4000f51d1e4cfbb38db976ba96042325bf82b747172a3c1df3bf1b9911844",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-ws/test_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_ws_post",
+              "sha256": "1bb54223615ca8a1533b83d54f9c4c3c04310fb8cd8a3e76ce0a0b27034f2135",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-ws/test_ws_post"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_single_xrpc_ws",
+              "sha256": "a600d9d0aad27ad26e89129532670f03fcc5a3f79a500cbc8f3e1b5a478bc345",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-ws/test_single_xrpc_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tests/test_single_xrpc_ws_post",
+              "sha256": "eab8c1b548e612c933af96ec4383227dd69cca444769346ba91a49cd411c7326",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-ws/test_single_xrpc_ws_post"
+            }
+          ]
+        },
+        "validate/focused-wss": {
+          "label": "focused-wss",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_ws_tls_tests",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 156.245,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-focused-wss.log",
+          "log_sha256": "ca5a29ca4a333970852031784b742ea9f24faa42b6272e4150446a18fd2b5b15",
+          "programs": 4,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_ws",
+              "sha256": "65d6e36f243d7841daac8ce08514ae9880e79d39600cb2502bb3fe219a0a97b1",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-wss/test_ws"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_ws_post",
+              "sha256": "58316325bee61a389e413ffcaf3f920502b77b145336ae4b7c6f39c19d6e4bc0",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-wss/test_ws_post"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_single_xrpc_ws_tls",
+              "sha256": "db20ae511533d6e9f87a168c348f33e04b42c084ed27da5c5cc95327dd1e8c3b",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-wss/test_single_xrpc_ws_tls"
+            },
+            {
+              "path": "out/gcc/x64/xrpc_ws_tls_tests/test_single_xrpc_ws_tls_post",
+              "sha256": "bea480e539528edda6c770a62eb11215487a10eb543d4e7831240045562035e9",
+              "preserved": "validated-binaries/wsl/validate/wsl-focused-wss/test_single_xrpc_ws_tls_post"
+            }
+          ]
+        },
+        "validate/root-resource": {
+          "label": "root-resource",
+          "command": [
+            "/usr/bin/python3",
+            "-u",
+            "-X",
+            "utf8",
+            "tools/build.py",
+            "--compiler",
+            "/usr/bin/gcc",
+            "--arch",
+            "x64",
+            "--manifest",
+            "extlibs/xrpc/config/modules.json",
+            "--no-examples",
+            "--jobs",
+            "3",
+            "--suite",
+            "xrpc_tests,memory_stats,thread,time,atomic",
+            "--test",
+            "test_ws_post.c",
+            "--no-single",
+            "--cflag=-O2",
+            "--cflag=-g",
+            "--cflag=-fsanitize=address,undefined",
+            "--cflag=-fno-omit-frame-pointer",
+            "--ldflag=-fsanitize=address,undefined"
+          ],
+          "exit_code": 0,
+          "seconds": 23.063,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-root-resource.log",
+          "log_sha256": "f9f610cb63f0f40cc3844583775cae82bd67c399239251d61d963779c2419147",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "out/gcc/x64/xrpc_tests,memory_stats,thread,time,atomic/test_ws_post",
+              "sha256": "554f431c2397a35c654522d96d5dacad07fb423acf49ccf5adedb6ad488eee48",
+              "preserved": "validated-binaries/wsl/validate/wsl-root-resource/test_ws_post"
+            }
+          ]
+        },
+        "extras/post-public-select": {
+          "label": "post-public-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-public",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.857,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-post-public-select.log",
+          "log_sha256": "54e54bdeb0f22fd5670b039aea412409eb5becea6fc2e54413cdc69876201d6d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-public",
+              "sha256": "58316325bee61a389e413ffcaf3f920502b77b145336ae4b7c6f39c19d6e4bc0",
+              "preserved": "validated-binaries/direct/wsl/58316325bee61a389e413ffcaf3f920502b77b145336ae4b7c6f39c19d6e4bc0.bin"
+            }
+          ]
+        },
+        "extras/post-public-epoll": {
+          "label": "post-public-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-public",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 0.705,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-post-public-epoll.log",
+          "log_sha256": "54e54bdeb0f22fd5670b039aea412409eb5becea6fc2e54413cdc69876201d6d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-public",
+              "sha256": "58316325bee61a389e413ffcaf3f920502b77b145336ae4b7c6f39c19d6e4bc0",
+              "preserved": "validated-binaries/direct/wsl/58316325bee61a389e413ffcaf3f920502b77b145336ae4b7c6f39c19d6e4bc0.bin"
+            }
+          ]
+        },
+        "extras/post-owner-select": {
+          "label": "post-owner-select",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-owner",
+            "select"
+          ],
+          "exit_code": 0,
+          "seconds": 0.522,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-post-owner-select.log",
+          "log_sha256": "92379bd0685ba92e33cf4f3d6b3cf3818df742621156b142dff05c20b6e678ca",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-owner",
+              "sha256": "a09c683a801b561adf2d1752cd83f1fcb4e1bab38c8d6a8d2d6dd781ccea7086",
+              "preserved": "validated-binaries/direct/wsl/a09c683a801b561adf2d1752cd83f1fcb4e1bab38c8d6a8d2d6dd781ccea7086.bin"
+            }
+          ]
+        },
+        "extras/post-owner-epoll": {
+          "label": "post-owner-epoll",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-owner",
+            "epoll"
+          ],
+          "exit_code": 0,
+          "seconds": 0.356,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-post-owner-epoll.log",
+          "log_sha256": "92379bd0685ba92e33cf4f3d6b3cf3818df742621156b142dff05c20b6e678ca",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-post-owner",
+              "sha256": "a09c683a801b561adf2d1752cd83f1fcb4e1bab38c8d6a8d2d6dd781ccea7086",
+              "preserved": "validated-binaries/direct/wsl/a09c683a801b561adf2d1752cd83f1fcb4e1bab38c8d6a8d2d6dd781ccea7086.bin"
+            }
+          ]
+        },
+        "core_regression/core-embedded-default-backend": {
+          "label": "core-embedded-default-backend",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-core-embedded"
+          ],
+          "exit_code": 0,
+          "seconds": 0.565,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-core-embedded-default-backend.log",
+          "log_sha256": "6e18e9865c3a708beb993703f909ffea73876281f6d7373bdb53da75f24c171e",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-core-embedded",
+              "sha256": "1c5232da3feece7ec660af8dd6f268ee6c14fecc6b5698ee0a6e729ad98e23a3",
+              "preserved": "validated-binaries/direct/wsl/1c5232da3feece7ec660af8dd6f268ee6c14fecc6b5698ee0a6e729ad98e23a3.bin"
+            }
+          ]
+        },
+        "tsan/tsan-post": {
+          "label": "tsan-post",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/tsan/ws-post"
+          ],
+          "exit_code": 0,
+          "seconds": 2.168,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-tsan-post.log",
+          "log_sha256": "54e54bdeb0f22fd5670b039aea412409eb5becea6fc2e54413cdc69876201d6d",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/tsan/ws-post",
+              "sha256": "398132873ceca96e69eff6f616e8274bf55fa11f389ae06837990ec995534048",
+              "preserved": "validated-binaries/direct/wsl/398132873ceca96e69eff6f616e8274bf55fa11f389ae06837990ec995534048.bin"
+            }
+          ]
+        }
+      },
+      "negative_control": {
+        "expected_failure": true,
+        "receipt": {
+          "label": "unsafe-bounded-negative",
+          "command": [
+            "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-unsafe-bounded",
+            "select"
+          ],
+          "exit_code": 1,
+          "seconds": 0.405,
+          "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+          "log": "wsl-unsafe-bounded-negative.log",
+          "log_sha256": "a9fc2a1a0cd5dc4aa3d82afa2b217142f1e335e6e53acd71da99527f1a8b41f9",
+          "programs": 1,
+          "binaries": [
+            {
+              "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-unsafe-bounded",
+              "sha256": "addd51f9b2e58737f84af90c08b8d7028576b7da7d26a93904c91992e8ff0bff",
+              "preserved": "validated-binaries/direct/wsl/addd51f9b2e58737f84af90c08b8d7028576b7da7d26a93904c91992e8ff0bff.bin"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "source_maps": {
+    "f66971b237f759dbfa0461f9cdd33c2ed953f5d9d9103964154b9a15446baf28": "probe-source.json",
+    "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e": "source-before-doc-clarification.json",
+    "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3": "source-daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3.json",
+    "57a79d972e5706edb1f60e36f8d24866e3914feb2df10f747f794962e96749bc": "validation-source.json"
+  },
+  "final_source_map": {
+    "path": "source-final.json",
+    "sha256": "57a79d972e5706edb1f60e36f8d24866e3914feb2df10f747f794962e96749bc"
+  },
+  "cohort_scope": "Primary code is identical across recorded source maps; only the explanatory WS document differs. Runtime source/header/single trees and manifest runtime fields match e3bed6e6. Existing delivery/performance artifacts are not rerun or relabelled as new verification.",
+  "failures": [
+    {
+      "receipt_file": "windows-extras-receipts.json",
+      "label": "unsafe-bounded-negative",
+      "command": [
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-unsafe-bounded.exe",
+        "select"
+      ],
+      "exit_code": 1,
+      "seconds": 0.031,
+      "source_map_sha256": "9d54a6d3608db8f261708b7cfdd990c30f818b94e2d0603b93da1bc9b423460e",
+      "log": "windows-unsafe-bounded-negative.log",
+      "log_sha256": "f807a65404fd1e8f9089f3543fc280f8503bbddd012d9107a475130e1ac2d84f",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-unsafe-bounded.exe",
+          "sha256": "7c4f8c3187a2c22ffa8499eb62b18d6756e68711c631837c1538b2f3aec86225",
+          "preserved": "validated-binaries/direct/windows/7c4f8c3187a2c22ffa8499eb62b18d6756e68711c631837c1538b2f3aec86225.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "windows-probe-receipts.json",
+      "label": "probe-select",
+      "command": [
+        "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-probe.exe",
+        "select"
+      ],
+      "exit_code": 1,
+      "seconds": 0.031,
+      "source_map_sha256": "d01aab00dc58c491c4bdf53f85aabe2e43e70587ffdae7f93487d4604422f9c7",
+      "log": "windows-probe-select.log",
+      "log_sha256": "014218e70e364fbd7b6491aa0245e534a680bb1def8a62ddb021f8d8c655ab88",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "D:\\GIT\\xrt\\out\\service-extensions\\xrpc-post-progress-20261115\\windows-probe.exe",
+          "sha256": "8ff934a021d9603c12ec62a5172c9a315cd9e66e4e09875bd759300dd57effdd",
+          "preserved": "validated-binaries/direct/windows/8ff934a021d9603c12ec62a5172c9a315cd9e66e4e09875bd759300dd57effdd.exe"
+        }
+      ]
+    },
+    {
+      "receipt_file": "wsl-extras-receipts.json",
+      "label": "unsafe-bounded-negative",
+      "command": [
+        "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-unsafe-bounded",
+        "select"
+      ],
+      "exit_code": 1,
+      "seconds": 0.405,
+      "source_map_sha256": "daad36d9b2e7b6b7b477854347570f10517e73403a6f058015f25c33af569ae3",
+      "log": "wsl-unsafe-bounded-negative.log",
+      "log_sha256": "a9fc2a1a0cd5dc4aa3d82afa2b217142f1e335e6e53acd71da99527f1a8b41f9",
+      "programs": 1,
+      "binaries": [
+        {
+          "path": "/mnt/d/GIT/xrt/out/service-extensions/xrpc-post-progress-20261115/wsl-unsafe-bounded",
+          "sha256": "addd51f9b2e58737f84af90c08b8d7028576b7da7d26a93904c91992e8ff0bff",
+          "preserved": "validated-binaries/direct/wsl/addd51f9b2e58737f84af90c08b8d7028576b7da7d26a93904c91992e8ff0bff.bin"
+        }
+      ]
+    }
+  ],
+  "failure_scope": "First standalone prototype expected STATE for duplicate misuse inside budget1, but error construction itself fell back to MEMORY; move that diagnostic check outside the quota. Preserve its source/log/binary. Deliberately unsafe untracked replacement of embedded admission with ordinary bounded posting fails the first-call constructor-saturation control on both hosts and is never adopted; expected failures excluded from primary counts.",
+  "docs": {
+    "net_guide_sha256": "8659a07dde1209bea2d87ddd338b398d245b90f7fecbf36e6993135df91d2dfc",
+    "ws_guide_sha256": "8689e067e5c25e5e67f4a650df1b3076d8b1a5b5ebcbe7ed1f97ca20cc019591"
+  },
+  "raw_evidence": "out/service-extensions/xrpc-post-progress-20261115",
+  "physical_evidence": "out/local-service-extensions/xrpc-post-progress-20261115",
+  "artifact_seal": {
+    "path": "artifact-seal.json",
+    "sha256": "ef3d700edb52413563ec72ba4646b7c656f4e91ac1c18eea31f245d848a0ba11",
+    "files": 133
+  },
+  "remaining_gates": [
+    "Complete WS/WSS HTTP Upgrade/client/server URI/auth/negotiation/setup deadline composition and independent full peers.",
+    "Framed stdio async pipes, remaining original four-product functionality, broader fault/fuzz/ownership/backend matrices.",
+    "Controlled native throughput/tails/scale and native Windows/Linux >=72h production acceptance."
+  ]
+}
