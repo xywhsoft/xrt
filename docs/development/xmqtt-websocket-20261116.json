@@ -1,0 +1,545 @@
+{
+  "schema": 1,
+  "date": "2026-11-16",
+  "status": "verified-post-Upgrade-MQTT-WS-WSS-attachment-stage",
+  "workspace": "D:/GIT/xrt",
+  "branch": "master",
+  "base_revision": "405cbbbd988812f74f218b35797515584899fff4",
+  "branch_operations": 0,
+  "remote_push": false,
+  "production_acceptance": false,
+  "performance_acceptance": false,
+  "complete_four_product_goal": false,
+  "mqtt_websocket_complete": false,
+  "Core_production_changed": false,
+  "new_shared_runtime": false,
+  "new_modules": [
+    "xmqtt_client_ws",
+    "xmqtt_client_ws_tls"
+  ],
+  "new_functions": [
+    "xmqttClientWsConfigInit",
+    "xmqttClientWsAttachTcp",
+    "xmqttClientWsAttachTls"
+  ],
+  "new_types": [
+    "xmqttclientwsconfig"
+  ],
+  "contract": "Owner-worker exclusive success-only handoff of OPEN native TCP or ownership-certified native OPEN client TLS, optional owned read-ahead. Caller already validates HTTP Upgrade and selected mqtt; host configures peer trust. Factory checks native state/role and exact metadata, not historical HTTP/trust decisions. False consumes neither native/Initial nor output. CONNECT/config/auth snapshots before publication; post-handoff failures use typed Ready/close. No cleartext fallback.",
+  "implementation": "One original Client parser/QoS/subscription/alias/Auth/Session/Inbox engine. Binary bytes cross arbitrary WS message/frame boundaries; Text rejected. Read callback copies directly into existing input within read/packet work budgets; only unread suffix stages into bounded/wiped/reusable storage. Native frame allocation/masking/copies and TLS plaintext/ciphertext processing remain real. First gather span per Binary frame avoids flattening but costs extra frames/allocations. Existing admission/result copies remain. No claim of zero copy, zero allocation or complete high-performance qualification.",
+  "ownership": "Generic 24-byte aligned request fence tail reuses direct TLS layout. WSS waits out unsent staged output before capturing the final native ciphertext cut; prior cuts remain observable. Valid UINT64_MAX uses explicit Awaiting identity rather than a sentinel collision. Early ACK may resolve while actual request/id/quota/native credits remain held. Existing post/task/timer performs bounded work and 5ms physical-retirement retries. Real WS retirement and root destruction precede Client owned-data retirement; native aliases block Wait, owned TLS original configuration remains retained. Engine/code join remains host responsibility.",
+  "verification": {
+    "windows": {
+      "final_tests": 13,
+      "delivery": 4,
+      "tls_regression": 2,
+      "regression_refresh": 4,
+      "stats_off": 1,
+      "root_smoke": 1,
+      "abi": 3,
+      "selected_C_executions": 28
+    },
+    "wsl": {
+      "final_tests": 13,
+      "delivery": 4,
+      "tls_regression": 2,
+      "regression_refresh": 4,
+      "tsan": 4,
+      "stats_off": 1,
+      "root_smoke": 1,
+      "abi": 3,
+      "selected_C_executions": 32
+    }
+  },
+  "additional_checks": {
+    "package_tool_verified_consumers_per_host": 2,
+    "default_backends": "select",
+    "native_backends": "Windows IOCP / Linux epoll",
+    "linux_instrumentation": "ASan+UBSan with leak detection, independent TSan select+epoll; GCC TSan fence instrumentation warnings retained",
+    "functional_cases": [
+      "MQTT5/3.1.1 QoS0/1/2 under one-byte work quotas",
+      "MQTT packets split across Binary messages and coalesced input",
+      "SUBSCRIBE/UNSUBSCRIBE, incoming QoS1 and retained messages after Client/Engine destruction",
+      "Text terminal rejection, setup deadlines, six transactional invalid-policy controls",
+      "Real TCP/TLS alias delays physical retirement",
+      "Constructor allocation-budget ladder: failures, untouched output/native and successful retries, zero live bytes/count after real Engine join",
+      "Initial AUTH challenge/CONNACK final proof and reauthentication",
+      "Explicit Session/Inbox outgoing recovery over subsequent WS/WSS connections for both versions",
+      "Real native prefix equal to UINT64_MAX on select/IOCP/epoll; independent TSan",
+      "Legacy TCP/Auth/Session tests with WS selected; direct TLS/Auth test with WS absent/present",
+      "Plain/full/root singles and full stats-off executable",
+      "Separate static/shared XRT and MQTT libraries, standalone declaration consumers, symbol inventory"
+    ]
+  },
+  "resource_accounting": {
+    "ABI": {
+      "windows": {
+        "off": {
+          "client": 1192,
+          "config": 272,
+          "info": 160
+        },
+        "plain": {
+          "client": 1200,
+          "config": 272,
+          "info": 160,
+          "wsconfig": 176,
+          "cold": 288,
+          "fence": 24
+        },
+        "full": {
+          "client": 1200,
+          "config": 272,
+          "info": 160,
+          "wsconfig": 176,
+          "cold": 288,
+          "fence": 24
+        }
+      },
+      "wsl": {
+        "off": {
+          "client": 1400,
+          "config": 272,
+          "info": 160
+        },
+        "plain": {
+          "client": 1408,
+          "config": 272,
+          "info": 160,
+          "wsconfig": 176,
+          "cold": 288,
+          "fence": 24
+        },
+        "full": {
+          "client": 1408,
+          "config": 272,
+          "info": 160,
+          "wsconfig": 176,
+          "cold": 288,
+          "fence": 24
+        }
+      }
+    },
+    "charges": "Selected Client private instance +8 bytes even for a non-WS Client. Attached cold state288 plus bounded staging charged to MaxPrivateBytes, growth charges old+new allocation peak. Prefix tail24 plus existing alignment. Public Client config272/info160 unchanged; WS config176 independent of plain/WSS selection on these x64 hosts. Native Core WS/TLS/TCP/buffer/allocator storage is separately bounded and excluded from MQTT private bytes."
+  },
+  "distribution": {
+    "exports": {
+      "windows": [
+        "xmqttAuthComplete",
+        "xmqttAuthConfigInit",
+        "xmqttAuthMessage",
+        "xmqttAuthPhase",
+        "xmqttAuthRelease",
+        "xmqttAuthRespond",
+        "xmqttBinaryRead",
+        "xmqttBinaryWrite",
+        "xmqttClientClose",
+        "xmqttClientConfigInit",
+        "xmqttClientConnect",
+        "xmqttClientConnectAuth",
+        "xmqttClientConnectInbox",
+        "xmqttClientConnectSession",
+        "xmqttClientConnectSessionAuth",
+        "xmqttClientDestroy",
+        "xmqttClientDisconnect",
+        "xmqttClientDisconnectAsync",
+        "xmqttClientInboxConfigInit",
+        "xmqttClientInboxCreate",
+        "xmqttClientInboxDestroy",
+        "xmqttClientInboxInfo",
+        "xmqttClientInboxTake",
+        "xmqttClientInfo",
+        "xmqttClientPollRetired",
+        "xmqttClientPublish",
+        "xmqttClientPublishAsync",
+        "xmqttClientReady",
+        "xmqttClientReauthenticate",
+        "xmqttClientReauthenticateAsync",
+        "xmqttClientSubscribe",
+        "xmqttClientSubscribeAsync",
+        "xmqttClientTakeAuth",
+        "xmqttClientTakeMessage",
+        "xmqttClientUnsubscribe",
+        "xmqttClientUnsubscribeAsync",
+        "xmqttClientWaitFor",
+        "xmqttClientWsAttachTcp",
+        "xmqttClientWsAttachTls",
+        "xmqttClientWsConfigInit",
+        "xmqttCodecConfigInit",
+        "xmqttFrameRead",
+        "xmqttHeaderRead",
+        "xmqttHeaderWrite",
+        "xmqttMessagePacket",
+        "xmqttMessageRelease",
+        "xmqttMessageRetain",
+        "xmqttNegotiate",
+        "xmqttNegotiatedPacketCheck",
+        "xmqttNegotiationConfigInit",
+        "xmqttPacketInit",
+        "xmqttPacketRead311",
+        "xmqttPacketRead5",
+        "xmqttPacketSize311",
+        "xmqttPacketSize5",
+        "xmqttPacketWrite311",
+        "xmqttPacketWrite5",
+        "xmqttPropertiesConfigInit",
+        "xmqttPropertiesRead",
+        "xmqttPropertiesSize",
+        "xmqttPropertiesWrite",
+        "xmqttSessionAcknowledge",
+        "xmqttSessionClientId",
+        "xmqttSessionConfigInit",
+        "xmqttSessionCreate",
+        "xmqttSessionCreateUnassigned",
+        "xmqttSessionDestroy",
+        "xmqttSessionEnd",
+        "xmqttSessionExpire",
+        "xmqttSessionInfo",
+        "xmqttSessionNext",
+        "xmqttSessionOpen",
+        "xmqttSessionPacket",
+        "xmqttSessionPacketInfo",
+        "xmqttSessionPacketRelease",
+        "xmqttSessionPacketRetain",
+        "xmqttSessionPublish",
+        "xmqttSessionReceiveAbort",
+        "xmqttSessionReceiveCommit",
+        "xmqttSessionReceiveComplete",
+        "xmqttSessionReceivePrepare",
+        "xmqttSessionReceiveRelease",
+        "xmqttSessionReset",
+        "xmqttSessionSent",
+        "xmqttUtf8StringCheck",
+        "xmqttUtf8StringRead",
+        "xmqttUtf8StringWrite",
+        "xmqttVbiRead",
+        "xmqttVbiWrite",
+        "xmqttWireConfigInit"
+      ],
+      "wsl": [
+        "xmqttAuthComplete",
+        "xmqttAuthConfigInit",
+        "xmqttAuthMessage",
+        "xmqttAuthPhase",
+        "xmqttAuthRelease",
+        "xmqttAuthRespond",
+        "xmqttBinaryRead",
+        "xmqttBinaryWrite",
+        "xmqttClientClose",
+        "xmqttClientConfigInit",
+        "xmqttClientConnect",
+        "xmqttClientConnectAuth",
+        "xmqttClientConnectInbox",
+        "xmqttClientConnectSession",
+        "xmqttClientConnectSessionAuth",
+        "xmqttClientDestroy",
+        "xmqttClientDisconnect",
+        "xmqttClientDisconnectAsync",
+        "xmqttClientInboxConfigInit",
+        "xmqttClientInboxCreate",
+        "xmqttClientInboxDestroy",
+        "xmqttClientInboxInfo",
+        "xmqttClientInboxTake",
+        "xmqttClientInfo",
+        "xmqttClientPollRetired",
+        "xmqttClientPublish",
+        "xmqttClientPublishAsync",
+        "xmqttClientReady",
+        "xmqttClientReauthenticate",
+        "xmqttClientReauthenticateAsync",
+        "xmqttClientSubscribe",
+        "xmqttClientSubscribeAsync",
+        "xmqttClientTakeAuth",
+        "xmqttClientTakeMessage",
+        "xmqttClientUnsubscribe",
+        "xmqttClientUnsubscribeAsync",
+        "xmqttClientWaitFor",
+        "xmqttClientWsAttachTcp",
+        "xmqttClientWsAttachTls",
+        "xmqttClientWsConfigInit",
+        "xmqttCodecConfigInit",
+        "xmqttFrameRead",
+        "xmqttHeaderRead",
+        "xmqttHeaderWrite",
+        "xmqttMessagePacket",
+        "xmqttMessageRelease",
+        "xmqttMessageRetain",
+        "xmqttNegotiate",
+        "xmqttNegotiatedPacketCheck",
+        "xmqttNegotiationConfigInit",
+        "xmqttPacketInit",
+        "xmqttPacketRead311",
+        "xmqttPacketRead5",
+        "xmqttPacketSize311",
+        "xmqttPacketSize5",
+        "xmqttPacketWrite311",
+        "xmqttPacketWrite5",
+        "xmqttPropertiesConfigInit",
+        "xmqttPropertiesRead",
+        "xmqttPropertiesSize",
+        "xmqttPropertiesWrite",
+        "xmqttSessionAcknowledge",
+        "xmqttSessionClientId",
+        "xmqttSessionConfigInit",
+        "xmqttSessionCreate",
+        "xmqttSessionCreateUnassigned",
+        "xmqttSessionDestroy",
+        "xmqttSessionEnd",
+        "xmqttSessionExpire",
+        "xmqttSessionInfo",
+        "xmqttSessionNext",
+        "xmqttSessionOpen",
+        "xmqttSessionPacket",
+        "xmqttSessionPacketInfo",
+        "xmqttSessionPacketRelease",
+        "xmqttSessionPacketRetain",
+        "xmqttSessionPublish",
+        "xmqttSessionReceiveAbort",
+        "xmqttSessionReceiveCommit",
+        "xmqttSessionReceiveComplete",
+        "xmqttSessionReceivePrepare",
+        "xmqttSessionReceiveRelease",
+        "xmqttSessionReset",
+        "xmqttSessionSent",
+        "xmqttUtf8StringCheck",
+        "xmqttUtf8StringRead",
+        "xmqttUtf8StringWrite",
+        "xmqttVbiRead",
+        "xmqttVbiWrite",
+        "xmqttWireConfigInit"
+      ]
+    },
+    "note": "All three new APIs exported; no xmqttInternal symbol exported. Documented local post-Upgrade example is runnable; it does not perform a network HTTP handshake. Full root smoke compiles every existing Client constructor guard together."
+  },
+  "gates": {
+    "development_maturity": true,
+    "strict_release": false,
+    "details": "Feature/amalgamation/API/reference/example/layout consistency pass. Combined layout/maturity unittest run8 has four strict release subtest failures for the four intentionally developing products; retained unchanged, not skipped or relabeled as release-complete."
+  },
+  "performance": {
+    "accepted": false,
+    "measurement_exit_code": 1,
+    "reason": "Actual 3-sample measured QoS1 loops complete with packet-ID checksum and real shutdown, but several MAD/central-range limits fail on unpinned shared host during other work. No relaxed thresholds/retry-to-green. Measurements precede exact-max fix; source cohort retained. They are diagnostics, not current revision performance acceptance or comparisons. WSS and WS ordering is not meaningful under these uncontrolled runs.",
+    "diagnostics": {
+      "windows": {
+        "policy": "baseline-unpinned",
+        "source_fingerprint": "5c8a4d79ad4c8ab5dd2d3926679f5d9da9625f03a9ff2d5639edd5ef6848b49c",
+        "profiles": {
+          "xmqtt_client_ws": {
+            "publishes_per_sec": 20040.831,
+            "latency_p50_us": 1551.3,
+            "latency_p99_us": 2323.1,
+            "latency_max_us": 2886.1,
+            "heap_blocks_per_publish": 9.7996,
+            "heap_bytes_per_publish": 1065.4424
+          },
+          "xmqtt_client_wss": {
+            "publishes_per_sec": 23602.886,
+            "latency_p50_us": 1237.0,
+            "latency_p99_us": 2289.6,
+            "latency_max_us": 5956.4,
+            "heap_blocks_per_publish": 9.7428,
+            "heap_bytes_per_publish": 1063.1992
+          }
+        }
+      },
+      "wsl": {
+        "policy": "baseline-unpinned",
+        "source_fingerprint": "5c8a4d79ad4c8ab5dd2d3926679f5d9da9625f03a9ff2d5639edd5ef6848b49c",
+        "profiles": {
+          "xmqtt_client_ws": {
+            "publishes_per_sec": 17847.445,
+            "latency_p50_us": 1767.5,
+            "latency_p99_us": 2438.5,
+            "latency_max_us": 3031.8,
+            "heap_blocks_per_publish": 9.6609,
+            "heap_bytes_per_publish": 1267.7512
+          },
+          "xmqtt_client_wss": {
+            "publishes_per_sec": 26043.315,
+            "latency_p50_us": 1219.3,
+            "latency_p99_us": 2030.2,
+            "latency_max_us": 2584.1,
+            "heap_blocks_per_publish": 9.6082,
+            "heap_bytes_per_publish": 1264.7384
+          }
+        }
+      }
+    },
+    "metrics_scope": "10000 MQTT5 QoS1 publishes,32-byte payload, window32, local literal peer, select, caller-observed offer-to-collect latency, XRT allocation instrumentation including both peers; excludes HTTP/handshake time. Core/native/library/CRT allocation traffic and CPU costs are not all covered. WS admission/masking/retained receive copies remain real.",
+    "size": "Both plain/WSS actual single artifacts measured on both hosts; JSON/raw binaries retained. No complete three-form comparative size/performance acceptance."
+  },
+  "source_identity": {
+    "final_source_map_sha256": "7713916e3aa4b6d64af73783643dad436f6aa26e7805b1ea28d9c6173a0e6976",
+    "selected": "selected-functional.json",
+    "cohorts": "source-cohorts.json",
+    "explanation": "Selected candidate C executions match final src/include/single hashes. Documentation/index updates are separately checked. Earlier compile-only no-asset leaf calls are not counted as compiled/tested binaries. Pre-fix diagnostics and failed prototypes remain separate."
+  },
+  "failures": [
+    {
+      "receipts": "windows-abi-receipts.json",
+      "label": "off-abi-build",
+      "log": "windows-off-abi-build.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "windows-abi-receipts.json",
+      "label": "off-abi-build",
+      "log": "windows-off-abi-build-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "windows-final_tests-receipts.json",
+      "label": "final-xmqtt_client_ws_tests",
+      "log": "windows-final-xmqtt_client_ws_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "f5563e6773f859b21272661643cc5df845f1ddfd78d3b2fc3c03d64411bc6687"
+    },
+    {
+      "receipts": "windows-gates-receipts.json",
+      "label": "layout-tests",
+      "log": "windows-layout-tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "windows-measure-receipts.json",
+      "label": "measure_performance",
+      "log": "windows-measure_performance.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "windows-regression-receipts.json",
+      "label": "regression-xmqtt_client_tls",
+      "log": "windows-regression-xmqtt_client_tls.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "windows-relink-receipts.json",
+      "label": "debug-relink",
+      "log": "windows-debug-relink.log",
+      "exit_code": 1,
+      "source_map_sha256": "3f763aec98cdd118104ff79779b205e2b7fea718eb5eb8e58a5657cdb7fd43e3"
+    },
+    {
+      "receipts": "windows-relink-receipts.json",
+      "label": "debug-progress",
+      "log": "windows-debug-progress.log",
+      "exit_code": 1,
+      "source_map_sha256": "bf5e50d3b6ce6453ddfec0cc8f37d3735fc0c0eb12758b6f82db0ca123b6b66b"
+    },
+    {
+      "receipts": "windows-relink_faults-receipts.json",
+      "label": "xmqtt_client_ws_tests-test_client_ws_faults",
+      "log": "windows-xmqtt_client_ws_tests-test_client_ws_faults.log",
+      "exit_code": 1,
+      "source_map_sha256": "1551ea23767bdbcf983aec686792538ac84016b19b87f50b103e982c69cd0572"
+    },
+    {
+      "receipts": "windows-relink_faults-receipts.json",
+      "label": "relink-xmqtt_client_ws_tls_tests-test_client_ws",
+      "log": "windows-relink-xmqtt_client_ws_tls_tests-test_client_ws.log",
+      "exit_code": 1,
+      "source_map_sha256": "06b34bc0912bb825d4f8f9776d86b37e50c668dc5f76ede1bdbd2879a6b44044"
+    },
+    {
+      "receipts": "windows-relink_faults-receipts.json",
+      "label": "relink-xmqtt_client_ws_tls_tests-test_client_ws_faults",
+      "log": "windows-relink-xmqtt_client_ws_tls_tests-test_client_ws_faults.log",
+      "exit_code": 1,
+      "source_map_sha256": "881b3834b12f6dfcadf255dbf42fa6b1ab14d5517ef8128be7fba437ac6966ce"
+    },
+    {
+      "receipts": "windows-strict_gate-receipts.json",
+      "label": "strict-release",
+      "log": "windows-strict-release.log",
+      "exit_code": 1,
+      "source_map_sha256": "7713916e3aa4b6d64af73783643dad436f6aa26e7805b1ea28d9c6173a0e6976"
+    },
+    {
+      "receipts": "windows-tls_validate-receipts.json",
+      "label": "xmqtt_client_ws_tls_tests",
+      "log": "windows-xmqtt_client_ws_tls_tests-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "056bc570b3e4f3e409f76291a5afa0055b97b5f80cc360d9ede1ad04faf01ca5"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_tests",
+      "log": "windows-xmqtt_client_ws_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "f2f432fbc62da213f414c0decc5f9e4b601a550953dacaf89e573b986b30eda5"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_tests",
+      "log": "windows-xmqtt_client_ws_tests-attempt2.log",
+      "exit_code": 1,
+      "source_map_sha256": "64e9de009f21bbe4da4a65c526f01022680e9c8855cddcc3bf45a85cfb107641"
+    },
+    {
+      "receipts": "windows-validate-receipts.json",
+      "label": "xmqtt_client_ws_tls_tests",
+      "log": "windows-xmqtt_client_ws_tls_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "35446db72c07a6f8190d1b635e6248fe606a138a5cc6637463fe568fc24038b9"
+    },
+    {
+      "receipts": "wsl-final_tests-receipts.json",
+      "label": "final-xmqtt_client_ws_tests",
+      "log": "wsl-final-xmqtt_client_ws_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "f5563e6773f859b21272661643cc5df845f1ddfd78d3b2fc3c03d64411bc6687"
+    },
+    {
+      "receipts": "wsl-measure-receipts.json",
+      "label": "measure_performance",
+      "log": "wsl-measure_performance.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "wsl-regression-receipts.json",
+      "label": "regression-xmqtt_client_tls",
+      "log": "wsl-regression-xmqtt_client_tls.log",
+      "exit_code": 1,
+      "source_map_sha256": "c1c50f6bdebd9b6b4fa57d125b583e5491adf65d94666bacbd1e78f529cdeac6"
+    },
+    {
+      "receipts": "wsl-validate-receipts.json",
+      "label": "xmqtt_client_ws_tls_tests",
+      "log": "wsl-xmqtt_client_ws_tls_tests.log",
+      "exit_code": 1,
+      "source_map_sha256": "35446db72c07a6f8190d1b635e6248fe606a138a5cc6637463fe568fc24038b9"
+    }
+  ],
+  "corrections": [
+    "Graceful Disconnect needed an owner wake after real WS retirement released native request fences; otherwise completion could remain pending after its timer was cancelled.",
+    "Native WSS owned event handoff correctly refuses legacy TLS factories; fixture now takes a real OwnedV1 owner credit and verifies its physical release.",
+    "Explicit Awaiting identity allows a valid UINT64_MAX native prefix to retire; guarded actual native counter control proves QoS0 completes while still open.",
+    "Single test selectors must name feature-bearing leaves; featureless test aggregators do not generate selector dependencies.",
+    "Fix warning-clean callback signatures/opcode, allocation-scope zero limit, diagnostic enum types and guarded else statements; failed logs preserved.",
+    "Select the existing xmqtt_client_tls_tests aggregator for regression; the feature leaf itself does not register that test.",
+    "Windows ABI probe links real separate static libraries because MinGW retains unresolved sections despite section-GC options."
+  ],
+  "remaining": [
+    "URI/numeric/DNS/prepared native HTTP Upgrade and verified WSS establishment with one original setup deadline",
+    "WebSocket transport in automatic reconnect controller, combined auth/session recovery adversarial cases and durable state",
+    "Independent external broker WS/WSS/HTTP interoperability and broader malformed/slow-peer/async-OOM/cancellation/load scenarios",
+    "Controlled affinity/CPU/uninstrumented throughput and queue-inclusive P99/P99.9, scale, equivalent workloads and allocator/copy optimization",
+    "Native Windows and native Linux production soak>=72h; WSL evidence is not native Linux acceptance",
+    "Remaining original Redis/RPC/Cron scope, multi-form performance/releases and all four production gates"
+  ],
+  "evidence": {
+    "root": "out/service-extensions/mqtt-websocket-20261116/checkpoint",
+    "manifest": "checkpoint-manifest.json",
+    "manifest_sha256": "7dcd87c621e19153331f30c97f6e1d8d66faedf451dbb61775bb1dfd88902181",
+    "regular_files": 742,
+    "sha256_verified": true,
+    "scope": "Source maps/changed-source snapshots, actual selected binaries, raw attempts, packages/declarations and diagnostic scripts preserved; object caches/compiler temp excluded. Literal local post-Upgrade peer, historical synthetic TLS fixture only; external production/provider credentials not collected. Benchmark binaries retain their explicitly pre-exact-max-fix source cohort."
+  }
+}

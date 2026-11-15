@@ -129,6 +129,18 @@
       "system": "client",
       "suite": "xmqtt_reconnect_subscriptions",
       "description": "Optional bounded subscription registry/reconciliation, immutable intent snapshots and control-result watches with the existing numeric reconnect/Session/Inbox runtime"
+    },
+    {
+      "name": "xmqtt_client_ws",
+      "system": "client_ws",
+      "suite": "xmqtt_client_ws",
+      "description": "MQTT Binary attachment/native write prefix/retirement; WSS adds native TLS closure only when selected"
+    },
+    {
+      "name": "xmqtt_client_ws_tls",
+      "system": "client_ws",
+      "suite": "xmqtt_client_ws_tls",
+      "description": "MQTT Binary attachment/native write prefix/retirement; WSS adds native TLS closure only when selected"
     }
   ]
 }

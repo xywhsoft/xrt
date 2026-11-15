@@ -4,8 +4,8 @@
 不要手工维护第二份符号清单。主题语义、状态机、所有权、错误和示例见
 [../../README.md](../../README.md)；每个声明的精确契约以链接的公共头中文注释为准。
 
-当前登记 `126` 个函数、`209` 个常量或宏、
-`76` 个公共类型。
+当前登记 `129` 个函数、`212` 个常量或宏、
+`77` 个公共类型。
 
 ## `extlibs/xmqtt/include/xmqtt/client.h`
 
@@ -246,6 +246,26 @@
 ### 类型 (1)
 
 - `xmqttclienttlsresumeinfo`
+
+## `extlibs/xmqtt/include/xmqtt/client_ws.h`
+
+[查看带契约注释的公共头](../../include/xmqtt/client_ws.h)
+
+### 函数 (3)
+
+- `xmqttClientWsAttachTcp`
+- `xmqttClientWsAttachTls`
+- `xmqttClientWsConfigInit`
+
+### 常量与宏 (3)
+
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS`
+- `XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS`
+- `XMQTT_WS_STAGED_MAX`
+
+### 类型 (1)
+
+- `xmqttclientwsconfig`
 
 ## `extlibs/xmqtt/include/xmqtt/codec311.h`
 

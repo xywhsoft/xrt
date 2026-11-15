@@ -1,0 +1,19 @@
+#define XRT_MODULE_MEMORY_STATS
+#define XRT_MODULE_THREAD
+#define XMQTT_MODULE_XMQTT_CLIENT_AUTH
+#define XMQTT_MODULE_XMQTT_CLIENT_SESSION
+#define XRT_MODULE_TLS_CLIENT_VERIFY
+#define XRT_MODULE_TLS_SERVER
+#define XRT_MODULE_TLS_SCHEDULE_SHA256
+#define XRT_MODULE_TLS_KEY_EXCHANGE_X25519
+#define XRT_MODULE_TLS_RECORD_AES
+#define XRT_MODULE_TLS_IDENTITY_RSA
+#ifndef XMQTT_MODULE_XMQTT_CLIENT_WS_TLS
+#define XMQTT_MODULE_XMQTT_CLIENT_WS_TLS
+#endif
+#include <xmqtt/features.h>
+#define XRT_IMPLEMENTATION
+#include "../../../../single/xrt.h"
+#define XMQTT_IMPLEMENTATION
+#include "../../../../single/extlibs/xmqtt.h"
+#include "../test_client_ws_faults.c"

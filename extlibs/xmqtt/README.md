@@ -1,6 +1,11 @@
 # xmqtt (developing)
 
 Independent pure-C MQTT 5.0 / 3.1.1 client extension using public XRT APIs.
+The developing [WS/WSS attachment](docs/client_ws.md) now reuses the ordinary
+Client for Binary MQTT traffic, QoS, subscriptions, selected enhanced auth and
+explicit Session/Inbox recovery. The host supplies an already checked Upgrade
+and native OPEN connection; URI/HTTP setup and automatic reconnect integration
+are still required. See the [local runnable example](examples/ws/README.md).
 The independent [in-memory session state](docs/session.md) leaf now implements
 bounded QoS state, cross-connection replay decisions, incoming identity retention
 and expiry. The optional [Client Session factory](docs/client_session.md) now attaches it

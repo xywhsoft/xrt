@@ -3715,6 +3715,118 @@
           }
         }
       ]
+    },
+    {
+      "name": "xmqtt_client_ws",
+      "system": "client_ws",
+      "description": "Local literal post-Upgrade MQTT5 QoS1 with caller-observed completion latency and real native shutdown; no HTTP or production performance qualification",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_ws",
+          "source": "extlibs/xmqtt/bench/bench_client_ws.c",
+          "suite": "xmqtt_client_ws_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "10000",
+            "5",
+            "32",
+            "1",
+            "0"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "1",
+            "0"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xmqtt_client_wss",
+      "system": "client_ws",
+      "description": "Local literal post-Upgrade MQTT5 QoS1 with caller-observed completion latency and real native shutdown; no HTTP or production performance qualification",
+      "benchmarks": [
+        {
+          "name": "xmqtt_client_wss",
+          "source": "extlibs/xmqtt/bench/bench_client_ws.c",
+          "suite": "xmqtt_client_ws_tls_tests",
+          "inputs": [
+            "extlibs/xmqtt/tests/support/ws_peer.h",
+            "tests/fixtures/tls_server.h"
+          ],
+          "args": [
+            "10000",
+            "5",
+            "32",
+            "1",
+            "1"
+          ],
+          "smoke_args": [
+            "64",
+            "5",
+            "8",
+            "1",
+            "1"
+          ],
+          "metrics": {
+            "publishes_per_sec": {
+              "direction": "higher",
+              "unit": "publish/s"
+            },
+            "latency_p50_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_p99_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "latency_max_us": {
+              "direction": "lower",
+              "unit": "us"
+            },
+            "heap_blocks_per_publish": {
+              "direction": "lower",
+              "unit": "blocks/publish"
+            },
+            "heap_bytes_per_publish": {
+              "direction": "lower",
+              "unit": "bytes/publish"
+            }
+          }
+        }
+      ]
     }
   ]
 }

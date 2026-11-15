@@ -58,3 +58,11 @@ No per-write Future/watch or separate runtime is required by this primitive.
 The new Core prerequisite and its evidence are recorded separately in
 [the write-progress stage](websocket-write-progress-20261116.json). Full MQTT
 WebSocket delivery and all four-product acceptance remain incomplete.
+
+
+Implementation update 2026-11-16: native post-Upgrade attachment, ordinary Client
+integration and selected Auth/Session recovery now have source-bound evidence in
+[xmqtt-websocket-20261116.json](xmqtt-websocket-20261116.json). Host-native HTTP
+establishment, original whole-setup clocks, reconnect factories and broader
+production/performance acceptance remain outstanding; this does not supersede
+the complete scope above.

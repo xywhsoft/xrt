@@ -6,6 +6,15 @@
 
 int main(void)
 {
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS)
+    xmqttclientwsconfig WS;xmqttclient* WSC=(xmqttclient*)(uintptr_t)1;
+    if(!xmqttClientWsConfigInit(&WS)||WS.Size!=sizeof(WS)||WS.Stream.Role!=XWS_ROLE_CLIENT||WS.MaxStagedBytes!=1048576||xmqttClientWsAttachTcp(NULL,NULL,NULL,&WS,NULL,&WSC)||WSC!=(xmqttclient*)(uintptr_t)1)return 31;
+#if defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
+    if(xmqttClientWsAttachTls(NULL,NULL,NULL,&WS,NULL,&WSC)||WSC!=(xmqttclient*)(uintptr_t)1)return 32;
+#endif
+    xrtClearError();
+#endif
+
 #if defined(XMQTT_FEATURE_XMQTT_CLIENT_INBOX)
     xmqttclientinbox* Inbox=NULL;xmqttclientinboxinfo InboxInfo;xmqttclientinboxconfig InboxConfig;
     if(!xmqttClientInboxConfigInit(&InboxConfig) || !xmqttClientInboxCreate(&InboxConfig,&Inbox) ||

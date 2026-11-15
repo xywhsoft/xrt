@@ -35,6 +35,10 @@
 #include <xmqtt/client_session.h>
 #include <xmqtt/client_session_dial.h>
 #include <xmqtt/client_session_tls.h>
+#if defined(XMQTT_FEATURE_XMQTT) && !defined(XMQTT_FEATURE_XMQTT_CLIENT_WS_TLS)
+#error "MQTT root requires WS/WSS client"
+#endif
+#include <xmqtt/client_ws.h>
 #include <xmqtt/reconnect.h>
 #include <xmqtt/reconnect_subscriptions.h>
 #endif

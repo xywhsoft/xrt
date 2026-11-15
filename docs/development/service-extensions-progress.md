@@ -13252,3 +13252,46 @@ and out/service-extensions/xrpc-frame-20261112.
   composition, durable state and the other original Redis/RPC/Cron requirements
   remain active; see [the integration design](xmqtt-websocket-design.md). This
   Core prerequisite does not count as a completed MQTT WebSocket client.
+
+
+## 2026-11-16: MQTT WS/WSS native attachment on master
+
+- Continue directly in D:/GIT/xrt master from405cbbbd. No branch creation,
+  checkout, merge, worktree operation or push. Historical migration commits
+  05dc625d and f0e0955c remain ancestors; retired workspace stays a backup.
+- Add developing xmqtt_client_ws/client_ws_tls leaves and three public entry
+  points. Attach an exclusively owned native OPEN TCP or ownership-certified
+  client TLS connection with optional owned HTTP read-ahead. Host performs
+  checked HTTP Upgrade/mqtt negotiation and configures TLS trust; false transfers
+  no ownership or output. This stage supplies the data phase, not URI/HTTP setup.
+- Reuse the existing Client parser/QoS/subscription/alias/Auth/Session/Inbox,
+  work post, timer and explicit physical retirement. Direct event bytes enter
+  normal input; only an unread suffix stages into bounded charged/wiped storage.
+  One common24-byte request fence tracks native WS/ciphertext cuts, including
+  early ACKs and WSS unsent suffixes. An explicit Awaiting identity preserves
+  the valid UINT64_MAX position. Existing TCP/TLS paths remain selectable.
+- Both hosts validate plain/full/root singles, full stats-off, literal peer
+  MQTT5/3.1.1, tiny work quotas, split/coalesced messages, QoS0/1/2, subscriptions,
+  retained incoming messages, Text rejection, timeouts, untouched failure output,
+  constructor budget failures/retries, real alias-delayed retirement, enhanced
+  AUTH/reauth and explicit Session/Inbox replay. Windows select/IOCP and WSL
+  select/epoll pass. WSL ASan/UBSan/leaks and independent TSan pass; WSL is not
+  native Linux production evidence. Legacy TCP/Auth/Session and direct TLS with
+  WS absent/present are included. Exact native UINT64_MAX controls pass.
+- Static/shared libraries retain separate XRT/MQTT ownership. Actual linked
+  documented examples and standalone declaration consumers pass on both hosts;
+  three new APIs export while internal bridge symbols remain hidden. New local
+  example explicitly demonstrates post-Upgrade data attachment, not HTTP.
+- Selected private Client pointer+8 bytes, attached cold state288, request
+  fence24 plus alignment and bounded staging remain real costs. Public config272/
+  info160 are unchanged; new WS config176 on both tested x64 hosts. Core source
+  stays unchanged. Native masking/frame/TLS/copy/allocator costs remain separate.
+- Real loopback QoS1 benchmark samples and plain/WSS single sizes are preserved.
+  Several throughput/tail MAD/central-range checks fail on the shared unpinned
+  host; do not lower thresholds or label the diagnostics accepted performance.
+  Strict four-product release subtests still fail on developing modules.
+- Full source cohorts, actual binaries, raw failures/corrections and acceptance
+  gaps are in [the stage report](xmqtt-websocket-20261116.json). URI/HTTP/DNS
+  factories, automatic reconnect composition, durable state, independent external
+  broker tests, larger adversarial/load/performance/soak matrices and the remaining
+  original Redis/RPC/Cron scope remain active. Four-product goal is not complete.
