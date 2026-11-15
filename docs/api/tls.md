@@ -12825,6 +12825,11 @@ xtlsresult xrtTlsStreamRead(xtlsstream* pStream, void* pOutput, size_t iCapacity
 
 在 Read 回调保留现有明文时，请求继续解密并在明文增长后再次发布 Read。累积量受 Context PlainLimit 硬约束，并必须为一条最大明文 record 留出空间。普通消费者无需调用，重复请求是幂等的；请求待完成时不能替换事件接收者。
 
+从 `Read` 回调请求增长时，当前 TLS 驱动会在原有公平性轮次内继续处理缓存密文；
+不能把保留的前缀当成普通未消费数据而停止。若在驱动外调用，已有缓存密文可能使
+新的 `Read` 同步发生；上层增量解析器应保留该通知，待自己的当前读取过程返回后
+继续推进，不能因重入保护直接丢弃通知。两种调用方式都保持原有明文上限和背压。
+
 ```c
 bool xrtTlsStreamReadMore(xtlsstream* pStream)
 ```

@@ -5227,3 +5227,19 @@ same-identity actual credits, quota rollback, old-context destruction/reentry,
 and physical WS/native/Engine joins. This API is a handoff primitive; HTTP
 client/server factories, routing/auth policy and end-to-end setup deadlines
 remain separate work. It does not claim production or throughput acceptance.
+
+## TLS incremental read progress
+
+TLS can publish plaintext synchronously when WS consumes the previous bytes or
+requests growth of a partial frame header. If the WS reader is already active,
+the notification schedules its existing coalesced drive node. The active reader
+publishes its cursor before that node runs; no notification is lost to the
+reentry guard. Application Pause still holds delivery until Resume. No new
+buffer, per-object field, queue, timer or worker is introduced. A reentrant
+notification can add an existing-node post and its ordinary temporary reference;
+this is not a zero-cost or performance-acceptance claim.
+
+`websocket_stream_tls_reentrant_tests` uses only public APIs with real native TLS
+records, one authenticated record per frame byte. It separately verifies a
+native TLS ReadMore parser and WS delivery with Pause/posted Resume: 32 ordered
+frames each, followed by actual callback-owner and WS/native/Engine joins.

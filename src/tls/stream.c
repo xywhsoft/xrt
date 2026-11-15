@@ -1253,7 +1253,10 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 			break;
 		}
 		__xrtTlsStreamOpen(pStream);
-		if ( __xrtTlsStreamPlain(pStream) ) {
+		/* The Read callback may retain an incomplete prefix and request more
+		 * plaintext while this driver is active. Honor that request within the
+		 * bounded drive loop instead of parking on the prefix with no wake. */
+		if ( __xrtTlsStreamPlain(pStream) && !pStream->ReadMore ) {
 			break;
 		}
 		__xrtTlsStreamEnd(pStream);

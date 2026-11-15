@@ -12939,3 +12939,35 @@ and out/service-extensions/xrpc-frame-20261112.
   remaining four-product scope. No throughput/tail/scale or native72h acceptance
   is claimed; complete-product and production gates remain open. All changes
   and tests use `D:/GIT/xrt` master, with no branch creation/switch/merge or push.
+
+## 2026-11-15: preserve native TLS and WS incremental-read progress
+
+- Independent xrpc HTTP/WSS work exposed two Core stalls with actual small TLS
+  records. Preserve a synchronous TLS Read notification received while the WS
+  reader is active on its existing coalesced drive node. Separately, when a
+  native Read callback requests ReadMore, continue the existing bounded TLS
+  drive loop instead of parking on its retained incomplete prefix.
+- Add a public-only Core regression, modular and single: native TLS incremental
+  parsing and WS Pause/posted Resume each deliver 32 ordered masked frames,
+  with every byte in its own authenticated TLS record. Verify actual original
+  callback credits and physical WS/native/Engine joins, without progress nudges.
+- Verify 55 Windows and 57 WSL primary program executions: focused modular/
+  single plus repeated select/IOCP or select/epoll runs, nine existing Core
+  regressions per host and static/shared integrations. WSL adds TSan select/
+  epoll; functional/regression runs use ASan/UBSan/leak halt. Package smoke
+  checks and Python layout/features/docs/ABI gates are additional.
+- Original, WS-only and TLS-only negative controls each reproduce a real
+  delivery-barrier failure on both hosts. Keep initial partial-fix failures,
+  the diagnostic owner snapshot, an incorrect native-consumer fixture and an
+  incorrect regression-source path. Fix the fixture to drain all complete
+  buffered frames before requesting growth; do not mask failures with retries.
+- No public API, layout, private object field, receive buffer, worker or runtime
+  is added. Synchronous WS reentry may post its existing node and temporarily
+  retain its ordinary reference; no zero-cost or performance claim is made.
+- Report: `docs/development/tls-ws-read-progress-20261115.json`. The frozen raw
+  checkpoint also retains discovery evidence from uncommitted xrpc HTTP work;
+  that work is outside this Core commit and is not declared delivered. In
+  particular its independent Windows rejection fixture still needs an orderly
+  close join before explicit abort. Remaining RPC HTTP packaging/docs/examples,
+  the original four-product scope, throughput/tail/scale and native72h acceptance
+  remain open. All work stays on `D:/GIT/xrt` master; no branch operation or push.

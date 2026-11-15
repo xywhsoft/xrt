@@ -16509,6 +16509,30 @@
 				"docs/api/tls.md",
 				"docs/api/websocket.md"
 			]
+		},
+		{
+			"name": "websocket_stream_tls_reentrant_tests",
+			"state": "implemented",
+			"feature": null,
+			"depends": [
+				"websocket_stream_tls",
+				"websocket_stream_retire",
+				"tls_stream_retire",
+				"tls_client_verify",
+				"tls_schedule_sha256",
+				"tls_key_exchange_x25519",
+				"tls_record_aes",
+				"tls_identity_rsa",
+				"memory_stats",
+				"thread"
+			],
+			"public_headers": [],
+			"internal_headers": [],
+			"sources": [],
+			"tests": ["tests/websocket/test_stream_tls_reentrant.c"],
+			"single_tests": ["tests/single/test_single_websocket_stream_tls_reentrant.c"],
+			"examples": [],
+			"docs": ["docs/api/websocket.md"]
 		}
 	]
 }

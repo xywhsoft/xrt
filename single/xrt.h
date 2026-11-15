@@ -170989,6 +170989,14 @@ static void __xrtWsStreamTlsRead(
 		__xrtWsStreamCloseTransport(pConnection);
 		return;
 	}
+	/* Consume can drive TLS synchronously while this WS reader is active.
+	 * TLS then marks its plaintext notification as delivered even though the
+	 * reentrant reader cannot enter. Preserve that wake on the existing
+	 * coalesced drive node; the outer reader publishes its cursor first. */
+	if ( pConnection->Reading ) {
+		__xrtWsStreamDriveSchedule(pConnection);
+		return;
+	}
 	__xrtWsStreamRead(pConnection);
 }
 
@@ -200528,7 +200536,10 @@ static void __xrtTlsStreamDrive(xtlsstream* pStream)
 			break;
 		}
 		__xrtTlsStreamOpen(pStream);
-		if ( __xrtTlsStreamPlain(pStream) ) {
+		/* The Read callback may retain an incomplete prefix and request more
+		 * plaintext while this driver is active. Honor that request within the
+		 * bounded drive loop instead of parking on the prefix with no wake. */
+		if ( __xrtTlsStreamPlain(pStream) && !pStream->ReadMore ) {
 			break;
 		}
 		__xrtTlsStreamEnd(pStream);
